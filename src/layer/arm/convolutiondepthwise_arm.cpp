@@ -141,7 +141,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             if (opt.use_packing_layout)
             {
                 elempack = opt.use_fp16_arithmetic && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
-                                                                                                : 1;
+                           : 1;
             }
 
             if (elempack == 8)
@@ -480,7 +480,7 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < channels; g++)
                 {
                     float* outptr = top_blob.channel(g);
@@ -681,7 +681,7 @@ int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blo
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
@@ -743,7 +743,7 @@ int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blo
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < group; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
@@ -858,7 +858,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
     if (opt.use_packing_layout)
     {
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                                                                                                : 1;
+                       : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -930,7 +930,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
@@ -992,7 +992,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
@@ -1073,7 +1073,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < group; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
@@ -1121,9 +1121,9 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
     if (opt.use_packing_layout)
     {
         g_elempack = opt.use_fp16_arithmetic && channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                                                                                              : 1;
+                     : 1;
         out_g_elempack = opt.use_fp16_arithmetic && num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                                                                                                      : 1;
+                         : 1;
     }
 
     // unpacking
@@ -1271,7 +1271,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < channels; g++)
                 {
                     unsigned short* outptr = top_blob.channel(g);
@@ -1381,7 +1381,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < group; g++)
                 {
                     unsigned short* outptr = top_blob.channel(g);
@@ -1681,7 +1681,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < channels; g++)
                 {
                     signed char* outptr_s8 = top_blob.channel(g);
@@ -1889,7 +1889,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
                     }
                 }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int g = 0; g < group; g++)
                 {
                     signed char* outptr_s8 = top_blob.channel(g);
@@ -2001,7 +2001,7 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
             return -100;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int g = 0; g < group; g++)
     {
         const Mat bottom_blob_bordered_g = bottom_blob_bordered_unpacked.channel_range(channels_g * g / g_elempack, channels_g / g_elempack);

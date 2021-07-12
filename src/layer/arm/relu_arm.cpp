@@ -62,7 +62,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         if (slope == 0.f)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -130,7 +130,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                     : "=r"(ptr) // %0
                     : "0"(ptr),
-                      "r"(size) // %2
+                    "r"(size) // %2
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16");
 #else  // __aarch64__
                 asm volatile(
@@ -195,14 +195,14 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                     : "=r"(ptr) // %0
                     : "0"(ptr),
-                      "r"(size) // %2
+                    "r"(size) // %2
                     : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
 #endif // __aarch64__
             }
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -228,7 +228,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     if (slope == 0.f)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -264,9 +264,9 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     "vst1.f32   {d0-d1}, [%1 :128]! \n"
                     "bne        0b                  \n"
                     : "=r"(nn), // %0
-                      "=r"(ptr) // %1
+                    "=r"(ptr) // %1
                     : "0"(nn),
-                      "1"(ptr)
+                    "1"(ptr)
                     : "cc", "memory", "q0", "q1");
             }
 #endif // __aarch64__
@@ -281,7 +281,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
     else
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -323,10 +323,10 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     "vst1.f32   {d0-d1}, [%1 :128]! \n"
                     "bne        0b                  \n"
                     : "=r"(nn), // %0
-                      "=r"(ptr) // %1
+                    "=r"(ptr) // %1
                     : "0"(nn),
-                      "1"(ptr),
-                      "r"(slope) // %4
+                    "1"(ptr),
+                    "r"(slope) // %4
                     : "cc", "memory", "q0", "q1", "q2", "q3", "q4");
             }
 #endif // __aarch64__
@@ -357,7 +357,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
     {
         if (slope == 0.f)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
@@ -403,13 +403,13 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 
                     : "=r"(ptr) // %0
                     : "0"(ptr),
-                      "r"(size) // %2
+                    "r"(size) // %2
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16");
             }
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
@@ -437,7 +437,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
     {
         if (slope == 0.f)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
@@ -465,7 +465,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
@@ -502,7 +502,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 
     if (slope == 0.f)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -538,7 +538,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
     }
     else
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -596,7 +596,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     {
         if (slope == 0.f)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
@@ -690,7 +690,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
                     : "=r"(ptr) // %0
                     : "0"(ptr),
-                      "r"(size) // %2
+                    "r"(size) // %2
                     : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16");
 #else  // __aarch64__
                 asm volatile(
@@ -781,7 +781,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
                     : "=r"(ptr) // %0
                     : "0"(ptr),
-                      "r"(size) // %2
+                    "r"(size) // %2
                     : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12");
 #endif // __aarch64__
 
@@ -798,7 +798,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
@@ -824,7 +824,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
     if (slope == 0.f)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);
@@ -853,7 +853,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
     }
     else
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);
@@ -901,7 +901,7 @@ int ReLU_arm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) cons
     {
         if (slope == 0.f)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 signed char* ptr = bottom_top_blob.channel(q);
@@ -937,7 +937,7 @@ int ReLU_arm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) cons
 
     if (slope == 0.f)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             signed char* ptr = bottom_top_blob.channel(q);

@@ -69,7 +69,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     float* ptr = (float*)bottom_top_blob + i * 4;
@@ -86,7 +86,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 float32x4_t _slope = vdupq_n_f32(slope_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     float* ptr = (float*)bottom_top_blob + i * 4;
@@ -105,7 +105,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 float* ptr = bottom_top_blob.row(i);
@@ -131,7 +131,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int channels = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -164,7 +164,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float v = ptr[i];
@@ -176,7 +176,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             const float slope = slope_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float v = ptr[i];
@@ -191,7 +191,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
@@ -234,7 +234,7 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         const float* slope_data_ptr = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -277,10 +277,10 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     "vst1.f32   {d0-d1}, [%1 :128]! \n"
                     "bne        0b                  \n"
                     : "=r"(nn), // %0
-                      "=r"(ptr) // %1
+                    "=r"(ptr) // %1
                     : "0"(nn),
-                      "1"(ptr),
-                      "r"(slope) // %4
+                    "1"(ptr),
+                    "r"(slope) // %4
                     : "cc", "memory", "q0", "q1", "q2", "q3", "q4");
             }
 #endif // __aarch64__
@@ -316,7 +316,7 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
             {
                 const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     __fp16* ptr = (__fp16*)bottom_top_blob + i * 4;
@@ -333,7 +333,7 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
             {
                 float32x4_t _slope = vdupq_n_f32(slope_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     __fp16* ptr = (__fp16*)bottom_top_blob + i * 4;
@@ -352,7 +352,7 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 __fp16* ptr = bottom_top_blob.row<__fp16>(i);
@@ -378,7 +378,7 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
             int channels = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
@@ -410,7 +410,7 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
         {
             const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float v = (float)ptr[i];
@@ -422,7 +422,7 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
         {
             const float slope = slope_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float v = (float)ptr[i];
@@ -437,7 +437,7 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             __fp16* ptr = bottom_top_blob.row<__fp16>(i);
@@ -476,7 +476,7 @@ int PReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
         int channels = bottom_top_blob.c;
         int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -528,7 +528,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             {
                 const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     __fp16* ptr = (__fp16*)bottom_top_blob + i * 8;
@@ -545,7 +545,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             {
                 float16x8_t _slope = vdupq_n_f16((__fp16)slope_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     __fp16* ptr = (__fp16*)bottom_top_blob + i * 8;
@@ -564,7 +564,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 __fp16* ptr = bottom_top_blob.row<__fp16>(i);
@@ -590,7 +590,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             int channels = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
@@ -624,7 +624,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             {
                 const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     __fp16* ptr = (__fp16*)bottom_top_blob + i * 4;
@@ -641,7 +641,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             {
                 float16x4_t _slope = vdup_n_f16((__fp16)slope_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     __fp16* ptr = (__fp16*)bottom_top_blob + i * 4;
@@ -660,7 +660,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 __fp16* ptr = bottom_top_blob.row<__fp16>(i);
@@ -686,7 +686,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
             int channels = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 __fp16* ptr = bottom_top_blob.channel(q);
@@ -718,7 +718,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         {
             const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float v = (float)ptr[i];
@@ -730,7 +730,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         {
             const float slope = slope_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float v = (float)ptr[i];
@@ -745,7 +745,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             __fp16* ptr = bottom_top_blob.row<__fp16>(i);
@@ -784,7 +784,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         int channels = bottom_top_blob.c;
         int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -839,7 +839,7 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             {
                 const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
@@ -856,7 +856,7 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             {
                 float32x4_t _slope = vdupq_n_f32(slope_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
@@ -875,7 +875,7 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
@@ -901,7 +901,7 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
             int channels = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 unsigned short* ptr = bottom_top_blob.channel(q);
@@ -934,7 +934,7 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         {
             const float* slope = slope_data;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float v = bfloat16_to_float32(ptr[i]);
@@ -946,7 +946,7 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         {
             const float slope = slope_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float v = bfloat16_to_float32(ptr[i]);
@@ -961,7 +961,7 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
@@ -1002,7 +1002,7 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         int channels = bottom_top_blob.c;
         int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);

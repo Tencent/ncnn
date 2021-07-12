@@ -63,7 +63,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         {
             int w = bottom_top_blob.w;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float* ptr = (float*)bottom_top_blob + i * 4;
@@ -82,7 +82,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
@@ -108,7 +108,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int c = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
@@ -137,7 +137,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
         float* ptr = bottom_top_blob;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < w; i++)
         {
             ptr[i] = b_data[i] * ptr[i] + a_data[i];
@@ -149,7 +149,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
@@ -187,7 +187,7 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         int c = bottom_top_blob.c;
         int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -218,11 +218,11 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     "st1        {v3.4s}, [%1], #16     \n"
                     "bne        0b                     \n"
                     : "=r"(nn), // %0
-                      "=r"(ptr) // %1
+                    "=r"(ptr) // %1
                     : "0"(nn),
-                      "1"(ptr),
-                      "r"(a), // %4
-                      "r"(b)  // %5
+                    "1"(ptr),
+                    "r"(a), // %4
+                    "r"(b)  // %5
                     : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
@@ -240,11 +240,11 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     "vst1.f32   {d6-d7}, [%1 :128]! \n"
                     "bne        0b                  \n"
                     : "=r"(nn), // %0
-                      "=r"(ptr) // %1
+                    "=r"(ptr) // %1
                     : "0"(nn),
-                      "1"(ptr),
-                      "r"(a), // %4
-                      "r"(b)  // %5
+                    "1"(ptr),
+                    "r"(a), // %4
+                    "r"(b)  // %5
                     : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
@@ -273,7 +273,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         {
             int w = bottom_top_blob.w;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 __fp16* ptr = (__fp16*)bottom_top_blob + i * 4;
@@ -292,7 +292,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
@@ -318,7 +318,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             int c = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
@@ -346,7 +346,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 
         __fp16* ptr = bottom_top_blob;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < w; i++)
         {
             ptr[i] = b_data[i] * ptr[i] + a_data[i];
@@ -358,7 +358,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             __fp16* ptr = bottom_top_blob.row<__fp16>(i);
@@ -394,7 +394,7 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         int c = bottom_top_blob.c;
         int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -437,7 +437,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
         {
             int w = bottom_top_blob.w;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 __fp16* ptr = (__fp16*)bottom_top_blob + i * 8;
@@ -456,7 +456,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 float16x8_t _a = vcombine_f16(vcvt_f16_f32(vld1q_f32((const float*)a_data + i * 8)), vcvt_f16_f32(vld1q_f32((const float*)a_data + i * 8 + 4)));
@@ -482,7 +482,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             int c = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 float16x8_t _a = vcombine_f16(vcvt_f16_f32(vld1q_f32((const float*)a_data + q * 8)), vcvt_f16_f32(vld1q_f32((const float*)a_data + q * 8 + 4)));
@@ -510,7 +510,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
         {
             int w = bottom_top_blob.w;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 __fp16* ptr = (__fp16*)bottom_top_blob + i * 4;
@@ -529,7 +529,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 float16x4_t _a = vcvt_f16_f32(vld1q_f32((const float*)a_data + i * 4));
@@ -555,7 +555,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             int c = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 float16x4_t _a = vcvt_f16_f32(vld1q_f32((const float*)a_data + q * 4));
@@ -583,7 +583,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
 
         __fp16* ptr = bottom_top_blob;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < w; i++)
         {
             ptr[i] = (__fp16)b_data[i] * ptr[i] + (__fp16)a_data[i];
@@ -595,7 +595,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             __fp16* ptr = bottom_top_blob.row<__fp16>(i);
@@ -631,7 +631,7 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
         int c = bottom_top_blob.c;
         int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -677,7 +677,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         {
             int w = bottom_top_blob.w;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 unsigned short* ptr = (unsigned short*)bottom_top_blob + i * 4;
@@ -696,7 +696,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 float32x4_t _a = vld1q_f32((const float*)a_data + i * 4);
@@ -722,7 +722,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             int c = bottom_top_blob.c;
             int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 float32x4_t _a = vld1q_f32((const float*)a_data + q * 4);
@@ -751,7 +751,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
         unsigned short* ptr = bottom_top_blob;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < w; i++)
         {
             ptr[i] = float32_to_bfloat16(b_data[i] * bfloat16_to_float32(ptr[i]) + a_data[i]);
@@ -763,7 +763,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             unsigned short* ptr = bottom_top_blob.row<unsigned short>(i);
@@ -801,7 +801,7 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         int c = bottom_top_blob.c;
         int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);

@@ -78,7 +78,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             {
                 const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const float* ptr0 = (const float*)bottom_blob + i * 4;
@@ -92,7 +92,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const float* ptr0 = (const float*)bottom_blob + i * 4;
@@ -123,7 +123,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     float32x4_t _scale = vdupq_n_f32(scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
                     {
                         const float* ptr0 = bottom_blob.row(i * 2);
@@ -147,7 +147,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
                     {
                         const float* ptr0 = bottom_blob.row(i * 2);
@@ -179,7 +179,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < h; i++)
                     {
                         const float* ptr0 = bottom_blob.row(i);
@@ -205,7 +205,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < h; i++)
                     {
                         const float* ptr0 = bottom_blob.row(i);
@@ -256,7 +256,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     float32x4_t _scale = vdupq_n_f32(scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
                     {
                         const float* ptr0 = bottom_blob.channel(q * 2);
@@ -324,12 +324,12 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                                 "vst1.s8        {d8-d9}, [%2 :64]! \n"
 
                                 : "=r"(ptr0),
-                                  "=r"(ptr1),
-                                  "=r"(outptr)
+                                "=r"(ptr1),
+                                "=r"(outptr)
                                 : "0"(ptr0),
-                                  "1"(ptr1),
-                                  "2"(outptr),
-                                  "w"(_scale) // %6
+                                "1"(ptr1),
+                                "2"(outptr),
+                                "w"(_scale) // %6
                                 : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
 #endif // __aarch64__
                         }
@@ -376,12 +376,12 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                                 "vst1.s8        {d4}, [%2 :64]! \n"
 
                                 : "=r"(ptr0),
-                                  "=r"(ptr1),
-                                  "=r"(outptr)
+                                "=r"(ptr1),
+                                "=r"(outptr)
                                 : "0"(ptr0),
-                                  "1"(ptr1),
-                                  "2"(outptr),
-                                  "w"(_scale) // %6
+                                "1"(ptr1),
+                                "2"(outptr),
+                                "w"(_scale) // %6
                                 : "memory", "q0", "q1", "q2", "q3", "q4");
 #endif // __aarch64__
                         }
@@ -389,7 +389,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
                     {
                         const float* ptr0 = bottom_blob.channel(q * 2);
@@ -443,13 +443,13 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                                 "vst1.s8        {d4}, [%2 :64]! \n"
 
                                 : "=r"(ptr0),
-                                  "=r"(ptr1),
-                                  "=r"(outptr)
+                                "=r"(ptr1),
+                                "=r"(outptr)
                                 : "0"(ptr0),
-                                  "1"(ptr1),
-                                  "2"(outptr),
-                                  "w"(_scale0), // %6
-                                  "w"(_scale1)  // %7
+                                "1"(ptr1),
+                                "2"(outptr),
+                                "w"(_scale0), // %6
+                                "w"(_scale1)  // %7
                                 : "memory", "q0", "q1", "q2", "q3", "q4");
 #endif // __aarch64__
                         }
@@ -462,7 +462,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const float* ptr0 = bottom_blob.channel(q);
@@ -488,7 +488,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const float* ptr0 = bottom_blob.channel(q);
@@ -539,7 +539,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         {
             const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8(ptr[i] * scale);
@@ -547,7 +547,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8(ptr[i] * scale_data[i]);
@@ -564,7 +564,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             const float* ptr0 = bottom_blob.row(i);
@@ -590,7 +590,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);
@@ -658,10 +658,10 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     "vst1.s8        {d8-d9}, [%1 :64]! \n"
 
                     : "=r"(ptr),
-                      "=r"(outptr)
+                    "=r"(outptr)
                     : "0"(ptr),
-                      "1"(outptr),
-                      "w"(_scale) // %4
+                    "1"(outptr),
+                    "w"(_scale) // %4
                     : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
 #endif // __aarch64__
             }
@@ -705,10 +705,10 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     "vst1.s8        {d4}, [%1 :64]! \n"
 
                     : "=r"(ptr),
-                      "=r"(outptr)
+                    "=r"(outptr)
                     : "0"(ptr),
-                      "1"(outptr),
-                      "w"(_scale) // %4
+                    "1"(outptr),
+                    "w"(_scale) // %4
                     : "memory", "q0", "q1", "q2", "q3", "q4");
 #endif // __aarch64__
             }
@@ -745,7 +745,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
             {
                 const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const __fp16* ptr0 = (const __fp16*)bottom_blob + i * 4;
@@ -759,7 +759,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const __fp16* ptr0 = (const __fp16*)bottom_blob + i * 4;
@@ -790,7 +790,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     float32x4_t _scale = vdupq_n_f32(scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
                     {
                         const __fp16* ptr0 = bottom_blob.row<const __fp16>(i * 2);
@@ -814,7 +814,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
                     {
                         const __fp16* ptr0 = bottom_blob.row<const __fp16>(i * 2);
@@ -846,7 +846,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < h; i++)
                     {
                         const __fp16* ptr0 = bottom_blob.row<const __fp16>(i);
@@ -872,7 +872,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < h; i++)
                     {
                         const __fp16* ptr0 = bottom_blob.row<const __fp16>(i);
@@ -923,7 +923,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     float32x4_t _scale = vdupq_n_f32(scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
                     {
                         const __fp16* ptr0 = bottom_blob.channel(q * 2);
@@ -947,7 +947,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
                     {
                         const __fp16* ptr0 = bottom_blob.channel(q * 2);
@@ -979,7 +979,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const __fp16* ptr0 = bottom_blob.channel(q);
@@ -1005,7 +1005,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const __fp16* ptr0 = bottom_blob.channel(q);
@@ -1055,7 +1055,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         {
             const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8((float)ptr[i] * scale);
@@ -1063,7 +1063,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8((float)ptr[i] * scale_data[i]);
@@ -1080,7 +1080,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             const __fp16* ptr0 = bottom_blob.row<const __fp16>(i);
@@ -1106,7 +1106,7 @@ int Quantize_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const __fp16* ptr = bottom_blob.channel(q);
@@ -1143,7 +1143,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             {
                 float16x8_t _scale = vdupq_n_f16((__fp16)scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const __fp16* ptr0 = (const __fp16*)bottom_blob + i * 8;
@@ -1156,7 +1156,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const __fp16* ptr0 = (const __fp16*)bottom_blob + i * 8;
@@ -1183,7 +1183,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             {
                 float16x8_t _scale = vdupq_n_f16((__fp16)scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const __fp16* ptr0 = bottom_blob.row<const __fp16>(i);
@@ -1202,7 +1202,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const __fp16* ptr0 = bottom_blob.row<const __fp16>(i);
@@ -1238,7 +1238,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             {
                 float16x8_t _scale = vdupq_n_f16((__fp16)scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr0 = bottom_blob.channel(q);
@@ -1257,7 +1257,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr0 = bottom_blob.channel(q);
@@ -1296,7 +1296,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             {
                 const __fp16 scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const __fp16* ptr0 = (const __fp16*)bottom_blob + i * 4;
@@ -1310,7 +1310,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const __fp16* ptr0 = (const __fp16*)bottom_blob + i * 4;
@@ -1338,7 +1338,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             {
                 const __fp16 scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const __fp16* ptr0 = bottom_blob.row<const __fp16>(i);
@@ -1364,7 +1364,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const __fp16* ptr0 = bottom_blob.row<const __fp16>(i);
@@ -1411,7 +1411,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             {
                 const __fp16 scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr0 = bottom_blob.channel(q);
@@ -1437,7 +1437,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const __fp16* ptr0 = bottom_blob.channel(q);
@@ -1486,7 +1486,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
         {
             const __fp16 scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8(ptr[i] * scale);
@@ -1494,7 +1494,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8(ptr[i] * (__fp16)scale_data[i]);
@@ -1511,7 +1511,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             const __fp16* ptr0 = bottom_blob.row<const __fp16>(i);
@@ -1537,7 +1537,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const __fp16* ptr = bottom_blob.channel(q);
@@ -1579,7 +1579,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
             {
                 const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const unsigned short* ptr0 = (const unsigned short*)bottom_blob + i * 4;
@@ -1593,7 +1593,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
             }
             else
             {
-#pragma omp parallel for num_threads(opt.num_threads)
+                #pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const unsigned short* ptr0 = (const unsigned short*)bottom_blob + i * 4;
@@ -1624,7 +1624,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     float32x4_t _scale = vdupq_n_f32(scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
                     {
                         const unsigned short* ptr0 = bottom_blob.row<const unsigned short>(i * 2);
@@ -1648,7 +1648,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
                     {
                         const unsigned short* ptr0 = bottom_blob.row<const unsigned short>(i * 2);
@@ -1680,7 +1680,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < h; i++)
                     {
                         const unsigned short* ptr0 = bottom_blob.row<const unsigned short>(i);
@@ -1706,7 +1706,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < h; i++)
                     {
                         const unsigned short* ptr0 = bottom_blob.row<const unsigned short>(i);
@@ -1757,7 +1757,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     float32x4_t _scale = vdupq_n_f32(scale_data[0]);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
                     {
                         const unsigned short* ptr0 = bottom_blob.channel(q * 2);
@@ -1781,7 +1781,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
                     {
                         const unsigned short* ptr0 = bottom_blob.channel(q * 2);
@@ -1813,7 +1813,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 {
                     const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const unsigned short* ptr0 = bottom_blob.channel(q);
@@ -1839,7 +1839,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const unsigned short* ptr0 = bottom_blob.channel(q);
@@ -1890,7 +1890,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         {
             const float scale = scale_data[0];
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8(bfloat16_to_float32(ptr[i]) * scale);
@@ -1898,7 +1898,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         }
         else
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8(bfloat16_to_float32(ptr[i]) * scale_data[i]);
@@ -1915,7 +1915,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             const unsigned short* ptr0 = bottom_blob.row<const unsigned short>(i);
@@ -1941,7 +1941,7 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const unsigned short* ptr = bottom_blob.channel(q);

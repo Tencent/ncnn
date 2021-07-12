@@ -68,7 +68,7 @@ int Swish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __ARM_NEON
     if (elempack == 4)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -87,7 +87,7 @@ int Swish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif // __ARM_NEON
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
@@ -130,7 +130,7 @@ int Swish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
 
     if (elempack == 4)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -149,7 +149,7 @@ int Swish_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) co
         return 0;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr = bottom_top_blob.channel(q);
@@ -186,7 +186,7 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
 
     if (elempack == 8)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -207,7 +207,7 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
 
     if (elempack == 4)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr = bottom_top_blob.channel(q);
@@ -226,7 +226,7 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
         return 0;
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr = bottom_top_blob.channel(q);
@@ -266,7 +266,7 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 #if __ARM_NEON
     if (elempack == 4)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr = bottom_top_blob.channel(q);
@@ -285,7 +285,7 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
     }
 #endif // __ARM_NEON
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr = bottom_top_blob.channel(q);
