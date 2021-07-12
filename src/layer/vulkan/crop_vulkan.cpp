@@ -41,14 +41,20 @@ int Crop_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
+                                        : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4
+                                                : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4
+                                                : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4
+                                                : 1;
 
     int offset_elempack = 1;
     bool numpy_style_slice = !starts.empty() && !ends.empty();
@@ -84,17 +90,20 @@ int Crop_vulkan::create_pipeline(const Option& opt)
             if (shape.dims == 1 && axis == 0)
             {
                 int _woffset = start >= 0 ? start : shape.w + start;
-                offset_elempack = opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
+                offset_elempack = opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4
+                                  : 1;
             }
             if (shape.dims == 2 && axis == 0)
             {
                 int _hoffset = start >= 0 ? start : shape.h + start;
-                offset_elempack = opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
+                offset_elempack = opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4
+                                  : 1;
             }
             if (shape.dims == 3 && axis == 0)
             {
                 int _coffset = start >= 0 ? start : shape.c + start;
-                offset_elempack = opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
+                offset_elempack = opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4
+                                  : 1;
             }
         }
     }
@@ -105,21 +114,24 @@ int Crop_vulkan::create_pipeline(const Option& opt)
             if (woffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && woffset % 8 == 0 ? 8 : woffset % 4 == 0 ? 4 : 1;
+                offset_elempack = opt.use_shader_pack8 && woffset % 8 == 0 ? 8 : woffset % 4 == 0 ? 4
+                                  : 1;
         }
         else if (shape.dims == 2)
         {
             if (hoffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && hoffset % 8 == 0 ? 8 : hoffset % 4 == 0 ? 4 : 1;
+                offset_elempack = opt.use_shader_pack8 && hoffset % 8 == 0 ? 8 : hoffset % 4 == 0 ? 4
+                                  : 1;
         }
         else // if (shape.dims == 3)
         {
             if (coffset == 0)
                 offset_elempack = elempack;
             else
-                offset_elempack = opt.use_shader_pack8 && coffset % 8 == 0 ? 8 : coffset % 4 == 0 ? 4 : 1;
+                offset_elempack = opt.use_shader_pack8 && coffset % 8 == 0 ? 8 : coffset % 4 == 0 ? 4
+                                  : 1;
         }
     }
 
@@ -336,8 +348,11 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return 0;
         }
 
-        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8
+                          : _woffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
+                       : 1;
     }
     else if (dims == 2)
     {
@@ -347,8 +362,11 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return 0;
         }
 
-        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8
+                          : _hoffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
+                       : 1;
     }
     else // if (dims == 3)
     {
@@ -358,8 +376,11 @@ int Crop_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
             return 0;
         }
 
-        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8
+                          : _coffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
+                       : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
@@ -504,8 +525,11 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             return 0;
         }
 
-        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8
+                          : _woffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
+                       : 1;
     }
     else if (dims == 2)
     {
@@ -515,8 +539,11 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             return 0;
         }
 
-        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8
+                          : _hoffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
+                       : 1;
     }
     else // if (dims == 3)
     {
@@ -526,8 +553,11 @@ int Crop_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<VkM
             return 0;
         }
 
-        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8
+                          : _coffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
+                       : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
@@ -661,8 +691,11 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
             return 0;
         }
 
-        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8
+                          : _woffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
+                       : 1;
     }
     else if (dims == 2)
     {
@@ -672,8 +705,11 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
             return 0;
         }
 
-        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8
+                          : _hoffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
+                       : 1;
     }
     else // if (dims == 3)
     {
@@ -683,8 +719,11 @@ int Crop_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
             return 0;
         }
 
-        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8
+                          : _coffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
+                       : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);
@@ -829,8 +868,11 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
             return 0;
         }
 
-        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8 : _woffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+        offset_elempack = _woffset == 0 ? elempack : opt.use_shader_pack8 && _woffset % 8 == 0 ? 8
+                          : _woffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
+                       : 1;
     }
     else if (dims == 2)
     {
@@ -840,8 +882,11 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
             return 0;
         }
 
-        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8 : _hoffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+        offset_elempack = _hoffset == 0 ? elempack : opt.use_shader_pack8 && _hoffset % 8 == 0 ? 8
+                          : _hoffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
+                       : 1;
     }
     else // if (dims == 3)
     {
@@ -851,8 +896,11 @@ int Crop_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vecto
             return 0;
         }
 
-        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8 : _coffset % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+        offset_elempack = _coffset == 0 ? elempack : opt.use_shader_pack8 && _coffset % 8 == 0 ? 8
+                          : _coffset % 4 == 0                           ? 4
+                          : 1;
+        out_elempack = opt.use_shader_pack8 && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
+                       : 1;
     }
 
     offset_elempack = std::min(offset_elempack, elempack);

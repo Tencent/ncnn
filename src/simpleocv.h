@@ -62,7 +62,8 @@ static inline _Tp saturate_cast(int v)
 template<>
 inline uchar saturate_cast<uchar>(int v)
 {
-    return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX : 0);
+    return (uchar)((unsigned)v <= UCHAR_MAX ? v : v > 0 ? UCHAR_MAX
+                   : 0);
 }
 
 template<typename _Tp>
@@ -124,7 +125,8 @@ struct Point_
     {
     }
 
-    template<typename _Tp2> operator Point_<_Tp2>() const
+    template<typename _Tp2>
+    operator Point_<_Tp2>() const
     {
         return Point_<_Tp2>(saturate_cast<_Tp2>(x), saturate_cast<_Tp2>(y));
     }
@@ -148,7 +150,8 @@ struct Size_
     {
     }
 
-    template<typename _Tp2> operator Size_<_Tp2>() const
+    template<typename _Tp2>
+    operator Size_<_Tp2>() const
     {
         return Size_<_Tp2>(saturate_cast<_Tp2>(width), saturate_cast<_Tp2>(height));
     }
@@ -176,7 +179,8 @@ struct Rect_
     {
     }
 
-    template<typename _Tp2> operator Rect_<_Tp2>() const
+    template<typename _Tp2>
+    operator Rect_<_Tp2>() const
     {
         return Rect_<_Tp2>(saturate_cast<_Tp2>(x), saturate_cast<_Tp2>(y), saturate_cast<_Tp2>(width), saturate_cast<_Tp2>(height));
     }
