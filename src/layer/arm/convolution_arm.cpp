@@ -904,8 +904,10 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
 
     if (opt.use_packing_layout)
     {
-        elempack = opt.use_fp16_arithmetic && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        elempack = opt.use_fp16_arithmetic && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4
+                   : 1;
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
     }
 
     // src = kw-kh-inch-outch
@@ -1154,7 +1156,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
-        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 

@@ -232,7 +232,8 @@ int PixelShuffle_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob,
     int out_elempack = 1;
     if (opt.use_packing_layout)
     {
-        out_elempack = opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+        out_elempack = opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4
+                       : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 

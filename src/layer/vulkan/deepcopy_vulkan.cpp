@@ -34,14 +34,20 @@ int DeepCopy_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
-    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4
+                                        : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
+                                        : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4
+                                                : 1;
+    if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4
+                                                : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4
+                                                : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -158,7 +164,7 @@ int DeepCopy_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComput
     constants[3].i = bottom_blob.c;
     constants[4].i = bottom_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
+    const Pipeline* pipeline = elempack == 8   ? pipeline_deepcopy_pack8
                                : elempack == 4 ? pipeline_deepcopy_pack4
                                : pipeline_deepcopy;
 
@@ -186,7 +192,7 @@ int DeepCopy_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob
     constants[3].i = bottom_blob.c;
     constants[4].i = 0; //bottom_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_deepcopy_pack8
+    const Pipeline* pipeline = elempack == 8   ? pipeline_deepcopy_pack8
                                : elempack == 4 ? pipeline_deepcopy_pack4
                                : pipeline_deepcopy;
 

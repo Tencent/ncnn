@@ -69,7 +69,8 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
     if (opt.use_packing_layout)
     {
 #if __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
@@ -151,7 +152,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         if (opt.use_packing_layout)
         {
 #if __AVX__
-            num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+            num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                                  : 1;
 #else
             num_output_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
@@ -871,7 +873,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (opt.use_packing_layout)
     {
 #if __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                       : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
