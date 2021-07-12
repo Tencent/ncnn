@@ -1,0 +1,82 @@
+## Check that llvm-readelf and llvm-readobj can
+## dump SHT_GROUP sections properly.
+
+# RUN: yaml2obj %s -o %t.o
+# RUN: llvm-readobj -g %t.o | FileCheck %s
+# RUN: llvm-readelf -g %t.o | FileCheck --check-prefix=GNU %s
+
+# CHECK:      Groups {
+# CHECK-NEXT:   Group {
+# CHECK-NEXT:     Name: .group
+# CHECK-NEXT:     Index: 1
+# CHECK-NEXT:     Link: 7
+# CHECK-NEXT:     Info: 1
+# CHECK-NEXT:     Type: COMDAT
+# CHECK-NEXT:     Signature: foo
+# CHECK-NEXT:     Section(s) in group [
+# CHECK-NEXT:       .text.foo
+# CHECK-NEXT:       .rela.text.foo
+# CHECK-NEXT:     ]
+# CHECK-NEXT:   }
+# CHECK-NEXT:   Group {
+# CHECK-NEXT:     Name: .group1
+# CHECK-NEXT:     Index: 2
+# CHECK-NEXT:     Link: 7
+# CHECK-NEXT:     Info: 2
+# CHECK-NEXT:     Type: COMDAT
+# CHECK-NEXT:     Signature: bar
+# CHECK-NEXT:     Section(s) in group [
+# CHECK-NEXT:       .text.bar
+# CHECK-NEXT:       .rela.text.bar
+# CHECK-NEXT:     ]
+# CHECK-NEXT:   }
+
+# GNU:      COMDAT group section [    1] `.group' [foo] contains 2 sections:
+# GNU-NEXT:  [Index]  Name
+# GNU-NEXT:  [    3] .text.foo
+# GNU-NEXT:  [    4] .rela.text.foo
+# GNU:      COMDAT group section [    2] `.group1' [bar] contains 2 sections:
+# GNU-NEXT:  [Index]  Name
+# GNU-NEXT:  [    5] .text.bar
+# GNU-NEXT:  [    6] .rela.text.bar
+
+--- !ELF
+FileHeader:
+  Class:   ELFCLASS64
+  Data:    ELFDATA2LSB
+  Type:    ET_REL
+  Machine: EM_X86_64
+Sections:
+  - Name: .group
+    Type: SHT_GROUP
+    Link: .symtab
+    Info: foo
+    Members:
+      - SectionOrType: GRP_COMDAT
+      - SectionOrType: .text.foo
+      - SectionOrType: .rela.text.foo
+  - Name: .group1
+    Type: SHT_GROUP
+    Link: .symtab
+    Info: bar
+    Members:
+      - SectionOrType: GRP_COMDAT
+      - SectionOrType: .text.bar
+      - SectionOrType: .rela.text.bar
+  - Name:  .text.foo
+    Type:  SHT_PROGBITS
+  - Name: .rela.text.foo
+    Type: SHT_RELA
+    Link: .symtab
+    Info: .text.foo
+  - Name: .text.bar
+    Type: SHT_PROGBITS
+  - Name: .rela.text.bar
+    Type: SHT_RELA
+    Link: .symtab
+    Info: .text.bar
+Symbols:
+  - Name:    foo
+    Section: .text.foo
+  - Name:    bar
+    Section: .text.bar

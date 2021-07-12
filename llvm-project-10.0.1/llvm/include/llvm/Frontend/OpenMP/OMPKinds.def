@@ -1,0 +1,289 @@
+//===--- OMPKinds.def - OpenMP directives, clauses, rt-calls -*- C++ -*-===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+/// \file
+///
+/// This file defines the list of supported OpenMP directives, clauses, runtime
+/// calls, and other things that need to be listed in enums.
+///
+//===----------------------------------------------------------------------===//
+
+/// OpenMP Directives and combined directives
+///
+///{
+
+#ifndef OMP_DIRECTIVE
+#define OMP_DIRECTIVE(Enum, Str)
+#endif
+
+#define __OMP_DIRECTIVE_EXT(Name, Str) OMP_DIRECTIVE(OMPD_##Name, Str)
+#define __OMP_DIRECTIVE(Name) __OMP_DIRECTIVE_EXT(Name, #Name)
+
+__OMP_DIRECTIVE(threadprivate)
+__OMP_DIRECTIVE(parallel)
+__OMP_DIRECTIVE(task)
+__OMP_DIRECTIVE(simd)
+__OMP_DIRECTIVE(for)
+__OMP_DIRECTIVE(sections)
+__OMP_DIRECTIVE(section)
+__OMP_DIRECTIVE(single)
+__OMP_DIRECTIVE(master)
+__OMP_DIRECTIVE(critical)
+__OMP_DIRECTIVE(taskyield)
+__OMP_DIRECTIVE(barrier)
+__OMP_DIRECTIVE(taskwait)
+__OMP_DIRECTIVE(taskgroup)
+__OMP_DIRECTIVE(flush)
+__OMP_DIRECTIVE(ordered)
+__OMP_DIRECTIVE(atomic)
+__OMP_DIRECTIVE(target)
+__OMP_DIRECTIVE(teams)
+__OMP_DIRECTIVE(cancel)
+__OMP_DIRECTIVE(requires)
+__OMP_DIRECTIVE_EXT(target_data, "target data")
+__OMP_DIRECTIVE_EXT(target_enter_data, "target enter data")
+__OMP_DIRECTIVE_EXT(target_exit_data, "target exit data")
+__OMP_DIRECTIVE_EXT(target_parallel, "target parallel")
+__OMP_DIRECTIVE_EXT(target_parallel_for, "target parallel for")
+__OMP_DIRECTIVE_EXT(target_update, "target update")
+__OMP_DIRECTIVE_EXT(parallel_for, "parallel for")
+__OMP_DIRECTIVE_EXT(parallel_for_simd, "parallel for simd")
+__OMP_DIRECTIVE_EXT(parallel_master, "parallel master")
+__OMP_DIRECTIVE_EXT(parallel_sections, "parallel sections")
+__OMP_DIRECTIVE_EXT(for_simd, "for simd")
+__OMP_DIRECTIVE_EXT(cancellation_point, "cancellation point")
+__OMP_DIRECTIVE_EXT(declare_reduction, "declare reduction")
+__OMP_DIRECTIVE_EXT(declare_mapper, "declare mapper")
+__OMP_DIRECTIVE_EXT(declare_simd, "declare simd")
+__OMP_DIRECTIVE(taskloop)
+__OMP_DIRECTIVE_EXT(taskloop_simd, "taskloop simd")
+__OMP_DIRECTIVE(distribute)
+__OMP_DIRECTIVE_EXT(declare_target, "declare target")
+__OMP_DIRECTIVE_EXT(end_declare_target, "end declare target")
+__OMP_DIRECTIVE_EXT(distribute_parallel_for, "distribute parallel for")
+__OMP_DIRECTIVE_EXT(distribute_parallel_for_simd,
+                    "distribute parallel for simd")
+__OMP_DIRECTIVE_EXT(distribute_simd, "distribute simd")
+__OMP_DIRECTIVE_EXT(target_parallel_for_simd, "target parallel for simd")
+__OMP_DIRECTIVE_EXT(target_simd, "target simd")
+__OMP_DIRECTIVE_EXT(teams_distribute, "teams distribute")
+__OMP_DIRECTIVE_EXT(teams_distribute_simd, "teams distribute simd")
+__OMP_DIRECTIVE_EXT(teams_distribute_parallel_for_simd,
+                    "teams distribute parallel for simd")
+__OMP_DIRECTIVE_EXT(teams_distribute_parallel_for,
+                    "teams distribute parallel for")
+__OMP_DIRECTIVE_EXT(target_teams, "target teams")
+__OMP_DIRECTIVE_EXT(target_teams_distribute, "target teams distribute")
+__OMP_DIRECTIVE_EXT(target_teams_distribute_parallel_for,
+                    "target teams distribute parallel for")
+__OMP_DIRECTIVE_EXT(target_teams_distribute_parallel_for_simd,
+                    "target teams distribute parallel for simd")
+__OMP_DIRECTIVE_EXT(target_teams_distribute_simd,
+                    "target teams distribute simd")
+__OMP_DIRECTIVE(allocate)
+__OMP_DIRECTIVE_EXT(declare_variant, "declare variant")
+__OMP_DIRECTIVE_EXT(master_taskloop, "master taskloop")
+__OMP_DIRECTIVE_EXT(parallel_master_taskloop, "parallel master taskloop")
+__OMP_DIRECTIVE_EXT(master_taskloop_simd, "master taskloop simd")
+__OMP_DIRECTIVE_EXT(parallel_master_taskloop_simd,
+                    "parallel master taskloop simd")
+
+// Has to be the last because Clang implicitly expects it to be.
+__OMP_DIRECTIVE(unknown)
+
+#undef __OMP_DIRECTIVE_EXT
+#undef __OMP_DIRECTIVE
+#undef OMP_DIRECTIVE
+
+///}
+
+/// Types used in runtime structs or runtime functions
+///
+///{
+
+#ifndef OMP_TYPE
+#define OMP_TYPE(VarName, InitValue)
+#endif
+
+#define __OMP_TYPE(VarName) OMP_TYPE(VarName, Type::get##VarName##Ty(Ctx))
+
+__OMP_TYPE(Void)
+__OMP_TYPE(Int8)
+__OMP_TYPE(Int32)
+__OMP_TYPE(Int8Ptr)
+__OMP_TYPE(Int32Ptr)
+
+#undef __OMP_TYPE
+#undef OMP_TYPE
+
+///}
+
+/// Struct and function types
+///
+///{
+
+#ifndef OMP_STRUCT_TYPE
+#define OMP_STRUCT_TYPE(VarName, StructName, ...)
+#endif
+
+#define __OMP_STRUCT_TYPE(VarName, Name, ...)                                  \
+  OMP_STRUCT_TYPE(VarName, "struct." #Name, __VA_ARGS__)
+
+__OMP_STRUCT_TYPE(Ident, ident_t, Int32, Int32, Int32, Int32, Int8Ptr)
+
+#undef __OMP_STRUCT_TYPE
+#undef OMP_STRUCT_TYPE
+
+#ifndef OMP_FUNCTION_TYPE
+#define OMP_FUNCTION_TYPE(VarName, IsVarArg, ReturnType, ...)
+#endif
+
+#define __OMP_FUNCTION_TYPE(VarName, IsVarArg, ReturnType, ...)                \
+  OMP_FUNCTION_TYPE(VarName, IsVarArg, ReturnType, __VA_ARGS__)
+
+__OMP_FUNCTION_TYPE(ParallelTask, true, Void, Int32Ptr, Int32Ptr)
+
+#undef __OMP_FUNCTION_TYPE
+#undef OMP_FUNCTION_TYPE
+
+///}
+
+/// Runtime library function (and their attributes)
+///
+///{
+
+#ifndef OMP_RTL
+#define OMP_RTL(Enum, Str, IsVarArg, ReturnType, ...)
+#endif
+
+#define __OMP_RTL(Name, IsVarArg, ReturnType, ...)                             \
+  OMP_RTL(OMPRTL_##Name, #Name, IsVarArg, ReturnType, __VA_ARGS__)
+
+__OMP_RTL(__kmpc_barrier, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_cancel, false, Int32, IdentPtr, Int32, Int32)
+__OMP_RTL(__kmpc_cancel_barrier, false, Int32, IdentPtr, Int32)
+__OMP_RTL(__kmpc_global_thread_num, false, Int32, IdentPtr)
+__OMP_RTL(__kmpc_fork_call, true, Void, IdentPtr, Int32, ParallelTaskPtr)
+__OMP_RTL(__kmpc_push_num_threads, false, Void, IdentPtr, Int32,
+          /* Int */ Int32)
+__OMP_RTL(__kmpc_push_proc_bind, false, Void, IdentPtr, Int32, /* Int */ Int32)
+__OMP_RTL(__kmpc_serialized_parallel, false, Void, IdentPtr, Int32)
+__OMP_RTL(__kmpc_end_serialized_parallel, false, Void, IdentPtr, Int32)
+
+__OMP_RTL(omp_get_thread_num, false, Int32, )
+
+#undef __OMP_RTL
+#undef OMP_RTL
+
+#define EnumAttr(Kind) Attribute::get(Ctx, Attribute::AttrKind::Kind)
+#define AttributeSet(...)                                                      \
+  AttributeSet::get(Ctx, ArrayRef<Attribute>({__VA_ARGS__}))
+
+#ifndef OMP_ATTRS_SET
+#define OMP_ATTRS_SET(VarName, AttrSet)
+#endif
+
+#define __OMP_ATTRS_SET(VarName, AttrSet) OMP_ATTRS_SET(VarName, AttrSet)
+
+__OMP_ATTRS_SET(GetterAttrs,
+                OptimisticAttributes
+                    ? AttributeSet(EnumAttr(NoUnwind), EnumAttr(ReadOnly),
+                                   EnumAttr(NoSync), EnumAttr(NoFree))
+                    : AttributeSet(EnumAttr(NoUnwind)))
+
+#undef __OMP_ATTRS_SET
+#undef OMP_ATTRS_SET
+
+#ifndef OMP_RTL_ATTRS
+#define OMP_RTL_ATTRS(Enum, FnAttrSet, RetAttrSet, ArgAttrSets)
+#endif
+
+#define __OMP_RTL_ATTRS(Name, FnAttrSet, RetAttrSet, ArgAttrSets)              \
+  OMP_RTL_ATTRS(OMPRTL_##Name, FnAttrSet, RetAttrSet, ArgAttrSets)
+
+__OMP_RTL_ATTRS(__kmpc_fork_call, AttributeSet(EnumAttr(NoUnwind)),
+                AttributeSet(), {})
+
+__OMP_RTL_ATTRS(__kmpc_global_thread_num, GetterAttrs, AttributeSet(), {})
+__OMP_RTL_ATTRS(omp_get_thread_num, GetterAttrs, AttributeSet(), {})
+
+#undef __OMP_RTL_ATTRS
+#undef OMP_RTL_ATTRS
+#undef AttributeSet
+#undef EnumAttr
+
+///}
+
+/// KMP ident_t bit flags
+///
+/// In accordance with the values in `openmp/runtime/src/kmp.h`.
+///
+///{
+
+#ifndef OMP_IDENT_FLAG
+#define OMP_IDENT_FLAG(Enum, Str, Value)
+#endif
+
+#define __OMP_IDENT_FLAG(Name, Value)                                          \
+  OMP_IDENT_FLAG(OMP_IDENT_FLAG_##Name, #Name, Value)
+
+__OMP_IDENT_FLAG(KMPC, 0x02)
+__OMP_IDENT_FLAG(BARRIER_EXPL, 0x20)
+__OMP_IDENT_FLAG(BARRIER_IMPL, 0x0040)
+__OMP_IDENT_FLAG(BARRIER_IMPL_MASK, 0x01C0)
+__OMP_IDENT_FLAG(BARRIER_IMPL_FOR, 0x0040)
+__OMP_IDENT_FLAG(BARRIER_IMPL_SECTIONS, 0x00C0)
+__OMP_IDENT_FLAG(BARRIER_IMPL_SINGLE, 0x0140)
+__OMP_IDENT_FLAG(BARRIER_IMPL_WORKSHARE, 0x01C0)
+
+#undef __OMP_IDENT_FLAG
+#undef OMP_IDENT_FLAG
+
+///}
+
+/// KMP cancel kind
+///
+///{
+
+#ifndef OMP_CANCEL_KIND
+#define OMP_CANCEL_KIND(Enum, Str, DirectiveEnum, Value)
+#endif
+
+#define __OMP_CANCEL_KIND(Name, Value)                                         \
+  OMP_CANCEL_KIND(OMP_CANCEL_KIND_##Name, #Name, OMPD_##Name, Value)
+
+__OMP_CANCEL_KIND(parallel, 1)
+__OMP_CANCEL_KIND(for, 2)
+__OMP_CANCEL_KIND(sections, 3)
+__OMP_CANCEL_KIND(taskgroup, 4)
+
+#undef __OMP_CANCEL_KIND
+#undef OMP_CANCEL_KIND
+
+///}
+
+/// Proc bind kinds
+///
+///{
+
+#ifndef OMP_PROC_BIND_KIND
+#define OMP_PROC_BIND_KIND(Enum, Str, Value)
+#endif
+
+#define __OMP_PROC_BIND_KIND(Name, Value)                                      \
+  OMP_PROC_BIND_KIND(OMP_PROC_BIND_##Name, #Name, Value)
+
+__OMP_PROC_BIND_KIND(master, 2)
+__OMP_PROC_BIND_KIND(close, 3)
+__OMP_PROC_BIND_KIND(spread, 4)
+__OMP_PROC_BIND_KIND(default, 6)
+__OMP_PROC_BIND_KIND(unknown, 7)
+
+#undef __OMP_PROC_BIND_KIND
+#undef OMP_PROC_BIND_KIND
+
+///}

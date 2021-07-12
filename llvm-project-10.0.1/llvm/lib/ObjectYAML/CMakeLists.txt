@@ -1,0 +1,26 @@
+add_llvm_component_library(LLVMObjectYAML
+  CodeViewYAMLDebugSections.cpp
+  CodeViewYAMLSymbols.cpp
+  CodeViewYAMLTypeHashing.cpp
+  CodeViewYAMLTypes.cpp
+  COFFEmitter.cpp
+  COFFYAML.cpp
+  DWARFEmitter.cpp
+  DWARFVisitor.cpp
+  DWARFYAML.cpp
+  ELFEmitter.cpp
+  ELFYAML.cpp
+  MachOEmitter.cpp
+  MachOYAML.cpp
+  ObjectYAML.cpp
+  MinidumpEmitter.cpp
+  MinidumpYAML.cpp
+  WasmEmitter.cpp
+  WasmYAML.cpp
+  XCOFFYAML.cpp
+  YAML.cpp
+  yaml2obj.cpp
+
+  ADDITIONAL_HEADER_DIRS
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/ObjectYAML
+  )

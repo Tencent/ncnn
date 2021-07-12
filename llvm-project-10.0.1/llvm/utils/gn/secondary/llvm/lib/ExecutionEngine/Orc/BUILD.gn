@@ -1,0 +1,39 @@
+static_library("Orc") {
+  output_name = "LLVMOrcJIT"
+  deps = [
+    "//llvm/lib/ExecutionEngine",
+    "//llvm/lib/ExecutionEngine/JITLink",
+    "//llvm/lib/ExecutionEngine/OrcError",
+    "//llvm/lib/ExecutionEngine/RuntimeDyld",
+    "//llvm/lib/IR",
+    "//llvm/lib/Object",
+    "//llvm/lib/Passes",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "CompileOnDemandLayer.cpp",
+    "CompileUtils.cpp",
+    "Core.cpp",
+    "DebugUtils.cpp",
+    "ExecutionUtils.cpp",
+    "IRCompileLayer.cpp",
+    "IRTransformLayer.cpp",
+    "IndirectionUtils.cpp",
+    "JITTargetMachineBuilder.cpp",
+    "LLJIT.cpp",
+    "Layer.cpp",
+    "LazyReexports.cpp",
+    "Legacy.cpp",
+    "NullResolver.cpp",
+    "ObjectLinkingLayer.cpp",
+    "ObjectTransformLayer.cpp",
+    "OrcABISupport.cpp",
+    "OrcCBindings.cpp",
+    "OrcMCJITReplacement.cpp",
+    "RTDyldObjectLinkingLayer.cpp",
+    "SpeculateAnalyses.cpp",
+    "Speculation.cpp",
+    "ThreadSafeModule.cpp",
+  ]
+}

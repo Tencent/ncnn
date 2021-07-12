@@ -1,0 +1,15 @@
+import("//llvm/utils/unittest/unittest.gni")
+
+unittest("ObjectTests") {
+  deps = [
+    "//llvm/lib/BinaryFormat",
+    "//llvm/lib/Object",
+    "//llvm/lib/Testing/Support",
+  ]
+  sources = [
+    "MinidumpTest.cpp",
+    "ObjectFileTest.cpp",
+    "SymbolSizeTest.cpp",
+    "SymbolicFileTest.cpp",
+  ]
+}

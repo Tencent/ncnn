@@ -1,0 +1,27 @@
+add_llvm_component_library(LLVMGlobalISel
+        CSEInfo.cpp
+        GISelKnownBits.cpp
+        CSEMIRBuilder.cpp
+        CallLowering.cpp
+        GlobalISel.cpp
+        Combiner.cpp
+        CombinerHelper.cpp
+        GISelChangeObserver.cpp
+        IRTranslator.cpp
+        InstructionSelect.cpp
+        InstructionSelector.cpp
+        LegalityPredicates.cpp
+        LegalizeMutations.cpp
+        Legalizer.cpp
+        LegalizerHelper.cpp
+        LegalizerInfo.cpp
+        Localizer.cpp
+        MachineIRBuilder.cpp
+        RegBankSelect.cpp
+        RegisterBank.cpp
+        RegisterBankInfo.cpp
+        Utils.cpp
+
+        DEPENDS
+        intrinsics_gen
+  )

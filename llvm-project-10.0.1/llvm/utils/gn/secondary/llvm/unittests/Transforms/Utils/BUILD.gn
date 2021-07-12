@@ -1,0 +1,27 @@
+import("//llvm/utils/unittest/unittest.gni")
+
+unittest("UtilsTests") {
+  deps = [
+    "//llvm/lib/Analysis",
+    "//llvm/lib/AsmParser",
+    "//llvm/lib/IR",
+    "//llvm/lib/Support",
+    "//llvm/lib/Transforms/Utils",
+  ]
+  sources = [
+    "ASanStackFrameLayoutTest.cpp",
+    "BasicBlockUtilsTest.cpp",
+    "CloningTest.cpp",
+    "CodeExtractorTest.cpp",
+    "CodeMoverUtilsTest.cpp",
+    "FunctionComparatorTest.cpp",
+    "IntegerDivisionTest.cpp",
+    "LocalTest.cpp",
+    "LoopUtilsTest.cpp",
+    "SSAUpdaterBulkTest.cpp",
+    "SizeOptsTest.cpp",
+    "UnrollLoopTest.cpp",
+    "VFABIUtils.cpp",
+    "ValueMapperTest.cpp",
+  ]
+}
