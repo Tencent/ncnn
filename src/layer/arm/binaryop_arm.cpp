@@ -3264,6 +3264,7 @@ int BinaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt)
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 #if __ARM_NEON
 template<typename Op>
 static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
@@ -4733,5 +4734,6 @@ int BinaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt)
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

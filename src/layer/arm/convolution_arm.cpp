@@ -1550,6 +1550,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
@@ -1824,6 +1825,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
     return 0;
 }
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 int Convolution_arm::create_pipeline_int8_arm(const Option& opt)

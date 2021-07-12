@@ -631,8 +631,10 @@ int GRU_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     int T = bottom_blob.h;
 
