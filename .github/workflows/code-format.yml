@@ -13,7 +13,7 @@ jobs:
       uses: actions/cache@v2.1.6
       with:
         path: clang-format-install
-        key: clang-format-install-1
+        key: clang-format-install-2
     - name: clang-format
       if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
@@ -26,6 +26,9 @@ jobs:
         make -j2 clang-format
         mkdir $GITHUB_WORKSPACE/clang-format-install
         cp -r bin/clang-format $GITHUB_WORKSPACE/clang-format-install
+        cd ..
+        rm -rf llvm-project-10.0.1
+        rm llvm-project-10.0.1.tar.xz
 
     - name: astyle
       run: |
@@ -36,6 +39,7 @@ jobs:
       run: |
         mkdir -p ~/bin
         mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
+        rm -rf $GITHUB_WORKSPACE/clang-format-install
         export PATH=~/bin:$PATH
         sh codeformat.sh
     - uses: stefanzweifel/git-auto-commit-action@v4
