@@ -13,6 +13,10 @@ jobs:
     - uses: actions/checkout@v2
     - name: apt
       run: |
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
+        echo 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-10 main' | sudo tee -a /etc/apt/sources.list
+        echo 'deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal-10 main' | sudo tee -a /etc/apt/sources.list
+        sudo apt-get update
         sudo apt-get install -y astyle clang-format-10
     - name: code-format
       run: sh codeformat.sh
