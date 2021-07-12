@@ -34,12 +34,10 @@ int ShuffleChannel_vulkan::create_pipeline(const Option& opt)
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
 
     int elempack = 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4
-                                        : 1;
+    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4
-                                                : 1;
+    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -157,7 +155,7 @@ int ShuffleChannel_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, Vk
     constants[9].i = top_blob.cstep;
     constants[10].i = reverse ? channels * elempack / group : group;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_shufflechannel_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
                                : elempack == 4 ? pipeline_shufflechannel_pack4
                                : pipeline_shufflechannel;
 
@@ -195,7 +193,7 @@ int ShuffleChannel_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& to
     constants[9].i = 0; //top_blob.cstep;
     constants[10].i = reverse ? channels * elempack / group : group;
 
-    const Pipeline* pipeline = elempack == 8   ? pipeline_shufflechannel_pack8
+    const Pipeline* pipeline = elempack == 8 ? pipeline_shufflechannel_pack8
                                : elempack == 4 ? pipeline_shufflechannel_pack4
                                : pipeline_shufflechannel;
 

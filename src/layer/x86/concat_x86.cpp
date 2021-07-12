@@ -46,8 +46,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (opt.use_packing_layout)
         {
 #if __AVX__
-            out_elempack = top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4
-                           : 1;
+            out_elempack = top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_w % 4 == 0 ? 4 : 1;
 #endif
@@ -94,8 +93,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (opt.use_packing_layout)
         {
 #if __AVX__
-            out_elempack = top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4
-                           : 1;
+            out_elempack = top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_h % 4 == 0 ? 4 : 1;
 #endif
@@ -284,8 +282,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (opt.use_packing_layout)
         {
 #if __AVX__
-            out_elempack = top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4
-                           : 1;
+            out_elempack = top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_channels % 4 == 0 ? 4 : 1;
 #endif
