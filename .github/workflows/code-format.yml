@@ -13,7 +13,7 @@ jobs:
       uses: actions/cache@v2.1.6
       with:
         path: clang-format-install
-        key: clang-format-install
+        key: clang-format-install-1
     - name: clang-format
       if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
@@ -24,6 +24,7 @@ jobs:
         cd build
         cmake -DCMAKE_INSTALL_PREFIX=install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DLLVM_ENABLE_PROJECTS="clang" -DLLVM_TARGETS_TO_BUILD="" -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_DOCS=OFF ../llvm/
         make -j2 clang-format
+        mkdir $GITHUB_WORKSPACE/clang-format-install
         cp -r bin/clang-format $GITHUB_WORKSPACE/clang-format-install
 
     - name: astyle
@@ -34,7 +35,7 @@ jobs:
     - name: code-format
       run: |
         mkdir -p ~/bin
-        mv $GITHUB_WORKSPACE/clang-format-install ~/bin/clang-format
+        mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
         export PATH=~/bin:$PATH
         sh codeformat.sh
     - uses: stefanzweifel/git-auto-commit-action@v4
