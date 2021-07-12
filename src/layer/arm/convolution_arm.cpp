@@ -856,8 +856,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
             }
 
-// num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -917,9 +917,9 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
     if (opt.use_packing_layout)
     {
         elempack = opt.use_fp16_arithmetic && num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4
-                   : 1;
+                                                                                          : 1;
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+                                                                                                : 1;
     }
 
     // src = kw-kh-inch-outch
@@ -1169,7 +1169,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
     if (opt.use_packing_layout)
     {
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+                                                                                                : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -1658,11 +1658,11 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
     if (top_blob.empty())
         return -100;
 
-    // TODO dilated conv for bf16s
-    //     if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
-    //     {
-    //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
-    //     }
+        // TODO dilated conv for bf16s
+        //     if ((!support_packing || !opt.use_packing_layout) && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
+        //     {
+        //         return forwardDilation_arm(bottom_blob_bordered, top_blob, opt);
+        //     }
 
 #if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
@@ -2312,7 +2312,7 @@ int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, 
             if (inner_top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < bottom_blob.c; c++)
             {
                 float* outptr = inner_bottom_blob.channel(c);
@@ -2332,7 +2332,7 @@ int Convolution_arm::forwardDilation_arm(const Mat& bottom_blob, Mat& top_blob, 
             opt_g.blob_allocator = inner_top_blob.allocator;
             convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c++)
             {
                 float* outptr = (float*)top_blob.channel(c) + x * outw + y;

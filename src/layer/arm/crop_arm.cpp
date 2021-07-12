@@ -149,7 +149,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (dims == 1)
         {
             int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
-                               : 1;
+                                                                   : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw / out_elempack == w)
@@ -176,7 +176,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (dims == 2)
         {
             int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
-                               : 1;
+                                                                   : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh / out_elempack == h)
@@ -203,7 +203,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (dims == 3)
         {
             int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
-                               : 1;
+                                                                   : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_coffset % 8 == 0 && out_elempack == 8)
@@ -227,7 +227,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
@@ -254,7 +254,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             int out_elempack = opt.use_fp16_arithmetic && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
-                               : 1;
+                                                                                              : 1;
 #else
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
 #endif
@@ -285,7 +285,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             int out_elempack = opt.use_fp16_arithmetic && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
-                               : 1;
+                                                                                              : 1;
 #else
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
 #endif
@@ -316,7 +316,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             int out_elempack = opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
-                               : 1;
+                                                                                              : 1;
 #else
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
 #endif
@@ -343,7 +343,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 if (top_blob.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
@@ -406,7 +406,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (dims == 1)
         {
             int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
-                               : 1;
+                                                                   : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw / out_elempack == w)
@@ -433,7 +433,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (dims == 2)
         {
             int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
-                               : 1;
+                                                                   : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh / out_elempack == h)
@@ -460,7 +460,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         if (dims == 3)
         {
             int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
-                               : 1;
+                                                                   : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_coffset % 8 == 0 && out_elempack == 8)
@@ -484,7 +484,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);
@@ -518,7 +518,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             int out_elempack = opt.use_fp16_arithmetic && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4
-                               : 1;
+                                                                                              : 1;
 #else
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
 #endif
@@ -549,7 +549,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             int out_elempack = opt.use_fp16_arithmetic && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4
-                               : 1;
+                                                                                              : 1;
 #else
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
 #endif
@@ -580,7 +580,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
         {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             int out_elempack = opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4
-                               : 1;
+                                                                                              : 1;
 #else
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
 #endif
@@ -607,7 +607,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 if (top_blob.empty())
                     return -100;
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < top_blob.c; q++)
                 {
                     const Mat m = bottom_blob_sliced.channel(q);

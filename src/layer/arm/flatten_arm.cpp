@@ -100,7 +100,7 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     {
         if (elempack == 4) // out_elempack == 4
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const float* ptr = bottom_blob.row(i);
@@ -143,7 +143,7 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     {
         if (elempack == 4) // out_elempack == 4
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -183,7 +183,7 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (elempack == 1) // out_elempack == 4
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -233,7 +233,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     if (opt.use_packing_layout)
     {
         out_elempack = opt.use_fp16_arithmetic && total % 8 == 0 ? 8 : total % 4 == 0 ? 4
-                       : 1;
+                                                                                      : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -263,7 +263,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8) // out_elempack == 8
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const __fp16* ptr = bottom_blob.row<const __fp16>(i);
@@ -322,7 +322,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
         if (elempack == 4) // out_elempack == 4 || out_elempack == 8
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const unsigned short* ptr = bottom_blob.row<const unsigned short>(i);
@@ -366,7 +366,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8) // out_elempack == 8
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const __fp16* ptr = bottom_blob.channel(q);
@@ -425,7 +425,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
         if (elempack == 4) // out_elempack == 4 || out_elempack == 8
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = bottom_blob.channel(q);
@@ -465,7 +465,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
         if (elempack == 1) // out_elempack == 4 || out_elempack == 8
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const unsigned short* ptr = bottom_blob.channel(q);
@@ -543,7 +543,7 @@ int Flatten_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     {
         if (elempack == 8) // out_elempack == 8
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const signed char* ptr = bottom_blob.row<const signed char>(i);
@@ -578,7 +578,7 @@ int Flatten_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
     {
         if (elempack == 8) // out_elempack == 8
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const signed char* ptr = bottom_blob.channel(q);
@@ -610,7 +610,7 @@ int Flatten_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
         if (elempack == 1) // out_elempack == 8
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const signed char* ptr = bottom_blob.channel(q);

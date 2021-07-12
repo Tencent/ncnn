@@ -57,7 +57,7 @@ int InstanceNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 #if __ARM_NEON
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr0 = bottom_top_blob.channel(q);
@@ -121,7 +121,7 @@ int InstanceNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
     }
 #endif // __ARM_NEON
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr0 = bottom_top_blob.channel(q);
@@ -231,7 +231,7 @@ int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& 
 
     if (elempack == 8)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr0 = bottom_top_blob.channel(q);
@@ -325,7 +325,7 @@ int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& 
 
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             __fp16* ptr0 = bottom_top_blob.channel(q);
@@ -389,7 +389,7 @@ int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& 
         return 0;
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr0 = bottom_top_blob.channel(q);
@@ -489,7 +489,7 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
 #if __ARM_NEON
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* ptr0 = bottom_top_blob.channel(q);
@@ -553,7 +553,7 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
     }
 #endif // __ARM_NEON
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         unsigned short* ptr0 = bottom_top_blob.channel(q);

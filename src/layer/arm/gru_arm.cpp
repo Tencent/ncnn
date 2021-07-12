@@ -67,7 +67,7 @@ int GRU_arm::create_pipeline(const Option& opt)
     weight_hc_data_packed.create(num_output * 3, num_output, num_directions);
 #endif
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
     {
         const Mat weight_xc = weight_xc_data.channel(dr);
@@ -1094,17 +1094,17 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "fmla   %4.8h, v2.8h, v4.h[2]   \n"
                     "fmla   %5.8h, v3.8h, v4.h[3]   \n"
                     : "=r"(x),
-                    "=r"(weight_xc_RUN),
-                    "=w"(_RU),
-                    "=w"(_sum1),
-                    "=w"(_sum2),
-                    "=w"(_sum3)
+                      "=r"(weight_xc_RUN),
+                      "=w"(_RU),
+                      "=w"(_sum1),
+                      "=w"(_sum2),
+                      "=w"(_sum3)
                     : "0"(x),
-                    "1"(weight_xc_RUN),
-                    "2"(_RU),
-                    "3"(_sum1),
-                    "4"(_sum2),
-                    "5"(_sum3)
+                      "1"(weight_xc_RUN),
+                      "2"(_RU),
+                      "3"(_sum1),
+                      "4"(_sum2),
+                      "5"(_sum3)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
             }
             for (; i < size; i++)
@@ -1132,17 +1132,17 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "fmla   %4.8h, v2.8h, v4.h[2]   \n"
                     "fmla   %5.8h, v3.8h, v4.h[3]   \n"
                     : "=r"(hidden_ptr),
-                    "=r"(weight_hc_RUN),
-                    "=w"(_RU),
-                    "=w"(_sum1),
-                    "=w"(_sum2),
-                    "=w"(_sum3)
+                      "=r"(weight_hc_RUN),
+                      "=w"(_RU),
+                      "=w"(_sum1),
+                      "=w"(_sum2),
+                      "=w"(_sum3)
                     : "0"(hidden_ptr),
-                    "1"(weight_hc_RUN),
-                    "2"(_RU),
-                    "3"(_sum1),
-                    "4"(_sum2),
-                    "5"(_sum3)
+                      "1"(weight_hc_RUN),
+                      "2"(_RU),
+                      "3"(_sum1),
+                      "4"(_sum2),
+                      "5"(_sum3)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
             }
             for (; i < num_output; i++)
@@ -1186,17 +1186,17 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "fmla   %4.4h, v2.4h, v4.h[2]   \n"
                     "fmla   %5.4h, v3.4h, v4.h[3]   \n"
                     : "=r"(hidden_ptr),
-                    "=r"(weight_hc_RUN),
-                    "=w"(_N),
-                    "=w"(_sum4),
-                    "=w"(_sum5),
-                    "=w"(_sum6)
+                      "=r"(weight_hc_RUN),
+                      "=w"(_N),
+                      "=w"(_sum4),
+                      "=w"(_sum5),
+                      "=w"(_sum6)
                     : "0"(hidden_ptr),
-                    "1"(weight_hc_RUN),
-                    "2"(_N),
-                    "3"(_sum4),
-                    "4"(_sum5),
-                    "5"(_sum6)
+                      "1"(weight_hc_RUN),
+                      "2"(_N),
+                      "3"(_sum4),
+                      "4"(_sum5),
+                      "5"(_sum6)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
             }
             for (; i < num_output; i++)
@@ -1230,17 +1230,17 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                     "fmla   %4.4h, v2.4h, v4.h[2]   \n"
                     "fmla   %5.4h, v3.4h, v4.h[3]   \n"
                     : "=r"(x),
-                    "=r"(weight_xc_RUN),
-                    "=w"(_N),
-                    "=w"(_sum4),
-                    "=w"(_sum5),
-                    "=w"(_sum6)
+                      "=r"(weight_xc_RUN),
+                      "=w"(_N),
+                      "=w"(_sum4),
+                      "=w"(_sum5),
+                      "=w"(_sum6)
                     : "0"(x),
-                    "1"(weight_xc_RUN),
-                    "2"(_N),
-                    "3"(_sum4),
-                    "4"(_sum5),
-                    "5"(_sum6)
+                      "1"(weight_xc_RUN),
+                      "2"(_N),
+                      "3"(_sum4),
+                      "4"(_sum5),
+                      "5"(_sum6)
                     : "memory", "v0", "v1", "v2", "v3", "v4");
             }
             for (; i < size; i++)
@@ -1384,7 +1384,7 @@ int GRU_arm::create_pipeline_fp16s(const Option& opt)
     bias_c_data_packed.create(num_output, 1, num_directions, 8u, 4);
     weight_hc_data_packed.create(num_output * 12, num_output / 4 + num_output % 4, num_directions, 2u, 1);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
     {
         const Mat weight_xc = weight_xc_data.channel(dr);
@@ -2117,7 +2117,7 @@ int GRU_arm::create_pipeline_bf16s(const Option& opt)
     weight_hc_data_packed.create(num_output * 3, num_output, num_directions, 2u, 1);
 #endif
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
     {
         const Mat weight_xc = weight_xc_data.channel(dr);

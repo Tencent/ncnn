@@ -206,7 +206,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             float* outptr = top_blob.row(i);
@@ -333,7 +333,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -373,7 +373,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -550,7 +550,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             unsigned short* outptr = top_blob.row<unsigned short>(i);
@@ -677,7 +677,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* outptr = top_blob.channel(q);
@@ -717,7 +717,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* outptr = top_blob.channel(q);

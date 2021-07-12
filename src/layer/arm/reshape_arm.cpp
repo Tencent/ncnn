@@ -154,7 +154,7 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         // assert out_elempack == 4
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < outh; i++)
         {
             const float* ptr0 = (const float*)bottom_blob_flattened + outw * i * 4;
@@ -244,7 +244,7 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (out_elempack == 4)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < top_blob.c; q++)
             {
                 const float* ptr0 = (const float*)bottom_blob_flattened + size * q * 4;
@@ -286,7 +286,7 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
         if (out_elempack == 1)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < top_blob.c; q++)
             {
                 const float* ptr = (const float*)bottom_blob_flattened + size * q;
@@ -343,11 +343,11 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             // resolve dst_elempack
             int dims = top_blob_unpacked.dims;
             if (dims == 1) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4
-                                              : 1;
+                                                                                                                                     : 1;
             if (dims == 2) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4
-                                              : 1;
+                                                                                                                                     : 1;
             if (dims == 3) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4
-                                              : 1;
+                                                                                                                                     : 1;
         }
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
@@ -388,7 +388,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         if (opt.use_packing_layout)
         {
             out_elempack = opt.use_fp16_arithmetic && _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4
-                           : 1;
+                                                                                    : 1;
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -436,7 +436,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (out_elempack == 8)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
             {
                 const __fp16* ptr0 = (const __fp16*)bottom_blob_flattened + outw * i * 8;
@@ -497,7 +497,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
         if (out_elempack == 4)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < outh; i++)
             {
                 const unsigned short* ptr0 = (const unsigned short*)bottom_blob_flattened + outw * i * 4;
@@ -562,7 +562,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         if (opt.use_packing_layout)
         {
             out_elempack = opt.use_fp16_arithmetic && _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4
-                           : 1;
+                                                                                    : 1;
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -594,7 +594,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (out_elempack == 8)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < top_blob.c; q++)
             {
                 const __fp16* ptr0 = (const __fp16*)bottom_blob_flattened + size * q * 8;
@@ -655,7 +655,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
         if (out_elempack == 4)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < top_blob.c; q++)
             {
                 const unsigned short* ptr0 = (const unsigned short*)bottom_blob_flattened + size * q * 4;
@@ -697,7 +697,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
         if (out_elempack == 1)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < top_blob.c; q++)
             {
                 const unsigned short* ptr = (const unsigned short*)bottom_blob_flattened + size * q;
