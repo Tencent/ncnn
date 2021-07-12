@@ -180,7 +180,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             float* outptr = top_blob.row(i);
@@ -301,7 +301,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -341,7 +341,7 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* outptr = top_blob.channel(q);
@@ -386,7 +386,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (opt.use_packing_layout)
         {
             out_elempack = opt.use_fp16_arithmetic && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4
-                                                                                          : 1;
+                           : 1;
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -428,7 +428,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (opt.use_packing_layout)
         {
             out_elempack = opt.use_fp16_arithmetic && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4
-                                                                                          : 1;
+                           : 1;
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -574,7 +574,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             unsigned short* outptr = top_blob.row<unsigned short>(i);
@@ -612,7 +612,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (opt.use_packing_layout)
         {
             out_elempack = opt.use_fp16_arithmetic && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4
-                                                                                                        : 1;
+                           : 1;
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -766,7 +766,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* outptr = top_blob.channel(q);
@@ -806,7 +806,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             unsigned short* outptr = top_blob.channel(q);

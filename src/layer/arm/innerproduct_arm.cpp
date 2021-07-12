@@ -139,7 +139,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         if (top_blob.empty())
             return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
 #if __ARM_NEON
@@ -250,7 +250,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int nn_num_output = num_output >> 2;
     int remain_num_output_start = nn_num_output << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 4;
@@ -359,7 +359,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     }
 
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -401,15 +401,15 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     "fmla       %4.4s, v1.4s, v3.4s       \n"
                     "bne        0b                        \n"
                     : "=r"(nn),   // %0
-                      "=r"(m),    // %1
-                      "=r"(w),    // %2
-                      "=w"(_sum), // %3
-                      "=w"(_sum2) // %4
+                    "=r"(m),    // %1
+                    "=r"(w),    // %2
+                    "=w"(_sum), // %3
+                    "=w"(_sum2) // %4
                     : "0"(nn),
-                      "1"(m),
-                      "2"(w),
-                      "3"(_sum),
-                      "4"(_sum2)
+                    "1"(m),
+                    "2"(w),
+                    "3"(_sum),
+                    "4"(_sum2)
                     : "cc", "memory", "v0", "v1", "v2", "v3");
             }
 #else
@@ -426,15 +426,15 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     "vmla.f32   %q4, q1, q3         \n"
                     "bne        0b                  \n"
                     : "=r"(nn),   // %0
-                      "=r"(m),    // %1
-                      "=r"(w),    // %2
-                      "=w"(_sum), // %3
-                      "=w"(_sum2) // %4
+                    "=r"(m),    // %1
+                    "=r"(w),    // %2
+                    "=w"(_sum), // %3
+                    "=w"(_sum2) // %4
                     : "0"(nn),
-                      "1"(m),
-                      "2"(w),
-                      "3"(_sum),
-                      "4"(_sum2)
+                    "1"(m),
+                    "2"(w),
+                    "3"(_sum),
+                    "4"(_sum2)
                     : "cc", "memory", "q0", "q1", "q2", "q3");
             }
 #endif // __aarch64__
@@ -477,7 +477,7 @@ int InnerProduct_arm::create_pipeline_fp16s(const Option& opt)
     if (opt.use_packing_layout)
     {
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                                                                                                : 1;
+                       : 1;
     }
 
     // src = inch-outch
@@ -527,7 +527,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
             num_output_elempack = num_output % 4 == 0 ? 4 : 1;
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
             if (elempack == 4 && num_output_elempack == 4)
@@ -699,7 +699,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
     if (out_elempack == 4)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             float32x4_t _sum = vdupq_n_f32(0.f);
@@ -753,7 +753,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
     if (out_elempack == 1)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output; p++)
         {
             float sum = 0.f;
@@ -819,10 +819,10 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
         if (opt.use_packing_layout)
         {
             num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                                                                                : 1;
+                                  : 1;
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
             if (elempack == 8 && num_output_elempack == 8)
@@ -1238,7 +1238,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
     if (opt.use_packing_layout)
     {
         out_elempack = opt.use_fp16_arithmetic && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                                                                                                : 1;
+                       : 1;
     }
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -1249,7 +1249,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
     if (out_elempack == 8)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             float16x8_t _sum0 = vdupq_n_f16(0.f);
@@ -1293,25 +1293,25 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                     "fmla   %7.8h, v15.8h, v0.h[7]      \n"
 
                     : "=w"(_sum0), // %0
-                      "=w"(_sum1), // %1
-                      "=w"(_sum2), // %2
-                      "=w"(_sum3), // %3
-                      "=w"(_sum4), // %4
-                      "=w"(_sum5), // %5
-                      "=w"(_sum6), // %6
-                      "=w"(_sum7), // %7
-                      "=r"(sptr),  // %8
-                      "=r"(kptr)   // %9
+                    "=w"(_sum1), // %1
+                    "=w"(_sum2), // %2
+                    "=w"(_sum3), // %3
+                    "=w"(_sum4), // %4
+                    "=w"(_sum5), // %5
+                    "=w"(_sum6), // %6
+                    "=w"(_sum7), // %7
+                    "=r"(sptr),  // %8
+                    "=r"(kptr)   // %9
                     : "0"(_sum0),
-                      "1"(_sum1),
-                      "2"(_sum2),
-                      "3"(_sum3),
-                      "4"(_sum4),
-                      "5"(_sum5),
-                      "6"(_sum6),
-                      "7"(_sum7),
-                      "8"(sptr),
-                      "9"(kptr)
+                    "1"(_sum1),
+                    "2"(_sum2),
+                    "3"(_sum3),
+                    "4"(_sum4),
+                    "5"(_sum5),
+                    "6"(_sum6),
+                    "7"(_sum7),
+                    "8"(sptr),
+                    "9"(kptr)
                     : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
             }
             for (; i + 3 < num_input; i += 4)
@@ -1329,17 +1329,17 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                     "fmla   %3.8h, v11.8h, v0.h[3]      \n"
 
                     : "=w"(_sum0), // %0
-                      "=w"(_sum1), // %1
-                      "=w"(_sum2), // %2
-                      "=w"(_sum3), // %3
-                      "=r"(sptr),  // %4
-                      "=r"(kptr)   // %5
+                    "=w"(_sum1), // %1
+                    "=w"(_sum2), // %2
+                    "=w"(_sum3), // %3
+                    "=r"(sptr),  // %4
+                    "=r"(kptr)   // %5
                     : "0"(_sum0),
-                      "1"(_sum1),
-                      "2"(_sum2),
-                      "3"(_sum3),
-                      "4"(sptr),
-                      "5"(kptr)
+                    "1"(_sum1),
+                    "2"(_sum2),
+                    "3"(_sum3),
+                    "4"(sptr),
+                    "5"(kptr)
                     : "cc", "memory", "v0", "v8", "v9", "v10", "v11");
             }
             for (; i < num_input; i++)
@@ -1372,7 +1372,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
     if (out_elempack == 4)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             float16x4_t _sum0 = vdup_n_f16(0.f);
@@ -1416,25 +1416,25 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                     "fmla   %7.4h, v15.4h, v0.h[7]      \n"
 
                     : "=w"(_sum0), // %0
-                      "=w"(_sum1), // %1
-                      "=w"(_sum2), // %2
-                      "=w"(_sum3), // %3
-                      "=w"(_sum4), // %4
-                      "=w"(_sum5), // %5
-                      "=w"(_sum6), // %6
-                      "=w"(_sum7), // %7
-                      "=r"(sptr),  // %8
-                      "=r"(kptr)   // %9
+                    "=w"(_sum1), // %1
+                    "=w"(_sum2), // %2
+                    "=w"(_sum3), // %3
+                    "=w"(_sum4), // %4
+                    "=w"(_sum5), // %5
+                    "=w"(_sum6), // %6
+                    "=w"(_sum7), // %7
+                    "=r"(sptr),  // %8
+                    "=r"(kptr)   // %9
                     : "0"(_sum0),
-                      "1"(_sum1),
-                      "2"(_sum2),
-                      "3"(_sum3),
-                      "4"(_sum4),
-                      "5"(_sum5),
-                      "6"(_sum6),
-                      "7"(_sum7),
-                      "8"(sptr),
-                      "9"(kptr)
+                    "1"(_sum1),
+                    "2"(_sum2),
+                    "3"(_sum3),
+                    "4"(_sum4),
+                    "5"(_sum5),
+                    "6"(_sum6),
+                    "7"(_sum7),
+                    "8"(sptr),
+                    "9"(kptr)
                     : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
             }
             for (; i + 3 < num_input; i += 4)
@@ -1452,17 +1452,17 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                     "fmla   %3.4h, v11.4h, v0.h[3]      \n"
 
                     : "=w"(_sum0), // %0
-                      "=w"(_sum1), // %1
-                      "=w"(_sum2), // %2
-                      "=w"(_sum3), // %3
-                      "=r"(sptr),  // %4
-                      "=r"(kptr)   // %5
+                    "=w"(_sum1), // %1
+                    "=w"(_sum2), // %2
+                    "=w"(_sum3), // %3
+                    "=r"(sptr),  // %4
+                    "=r"(kptr)   // %5
                     : "0"(_sum0),
-                      "1"(_sum1),
-                      "2"(_sum2),
-                      "3"(_sum3),
-                      "4"(sptr),
-                      "5"(kptr)
+                    "1"(_sum1),
+                    "2"(_sum2),
+                    "3"(_sum3),
+                    "4"(sptr),
+                    "5"(kptr)
                     : "cc", "memory", "v0", "v8", "v9", "v10", "v11");
             }
             for (; i < num_input; i++)
@@ -1495,7 +1495,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
     if (out_elempack == 1)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output; p++)
         {
             float sum = 0.f;
@@ -1598,7 +1598,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
         }
 #endif // __ARM_NEON
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
 #if __ARM_NEON
@@ -1780,7 +1780,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     if (out_elempack == 4)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             float32x4_t _sum0 = vdupq_n_f32(0.f);
@@ -1849,7 +1849,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     if (out_elempack == 1)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output; p++)
         {
             float sum = 0.f;
@@ -2041,7 +2041,7 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
     if (out_elempack == 8)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             const signed char* kptr = weight_data_int8.row<const signed char>(p);
@@ -2092,7 +2092,7 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
     if (out_elempack == 1)
     {
 // num_output
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             const signed char* kptr = weight_data_int8.row<const signed char>(p);
