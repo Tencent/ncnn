@@ -1,16 +1,14 @@
 name: code-format
 
-on:
-  pull_request:
-  push:
-    branches:
-      - "code-format-bot"
+on: [push, pull_request, pull_request_target]
 
 jobs:
   code-format:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
+      with:
+        fetch-depth: 2
     - name: apt
       run: |
         wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
@@ -20,6 +18,13 @@ jobs:
         sudo apt-get install -y astyle clang-format-10
     - name: code-format
       run: sh codeformat.sh
+    - name: get-last-commit-message
+      id: last-commit-message
+      run: |
+        echo "::set-output name=msg::$(git log -1 --pretty=%s)"
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: apply code-format changes
+        commit_message: ${{ steps.last-commit-message.outputs.msg }}
+        commit_options: '--amend --no-edit'
+        push_options: '--force'
+        skip_fetch: true
