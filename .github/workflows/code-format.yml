@@ -7,24 +7,28 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
+
+    - name: cache-clang-format
+      id: cache-clang-format
+      uses: actions/cache@v2.1.6
       with:
-        fetch-depth: 2
-    - name: apt
+        path: clang-format-install
+        key: clang-format-install
+    - name: clang-format
+      if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-        echo 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-10 main' | sudo tee -a /etc/apt/sources.list
-        echo 'deb-src http://apt.llvm.org/focal/ llvm-toolchain-focal-10 main' | sudo tee -a /etc/apt/sources.list
-        sudo apt-get update
-        sudo apt-get install -y astyle clang-format-10
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-project-10.0.1.tar.xz
+        tar -xf llvm-project-10.0.1.tar.xz
+        cd llvm-project-10.0.1
+        mkdir build
+        cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DLLVM_ENABLE_PROJECTS="clang" -DLLVM_TARGETS_TO_BUILD="" -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_DOCS=OFF ../llvm/
+        make -j2 clang-format
+        cp -r bin/clang-format $GITHUB_WORKSPACE/clang-format-install
+
     - name: code-format
-      run: sh codeformat.sh
-    - name: get-last-commit-message
-      id: last-commit-message
-      run: |
-        echo "::set-output name=msg::$(git log -1 --pretty=%s)"
-    - uses: stefanzweifel/git-auto-commit-action@v4
-      with:
-        commit_message: ${{ steps.last-commit-message.outputs.msg }}
-        commit_options: '--amend --no-edit'
-        push_options: '--force'
-        skip_fetch: true
+      run: clang-format-install/clang-format --version
+#      run: sh codeformat.sh
+#    - uses: stefanzweifel/git-auto-commit-action@v4
+#      with:
+#        commit_message: apply code-format changes
