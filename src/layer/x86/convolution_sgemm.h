@@ -128,7 +128,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
         const int stride = kernel_h * kernel_w * outw * outh;
         float* ret = (float*)bottom_im2col;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < inch; p++)
         {
             const float* input = bottom_blob.channel(p);
@@ -162,7 +162,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
         int nn_size = out_size >> 3;
         int remain_size_start = nn_size << 3;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = ii * 8;
@@ -191,7 +191,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
             }
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < out_size; i++)
         {
             const float* img0 = bottom_im2col.channel(0);
@@ -221,7 +221,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
         nn_outch = outch >> 3;
         remain_outch_start = nn_outch << 3;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < nn_outch; pp++)
         {
             int i = pp * 8;
@@ -622,7 +622,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
         nn_outch = (outch - remain_outch_start) >> 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < nn_outch; pp++)
         {
             int i = remain_outch_start + pp * 4;
@@ -901,7 +901,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
         remain_outch_start += nn_outch << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_outch_start; i < outch; i++)
         {
             float* output = top_blob.channel(i);
@@ -1108,7 +1108,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
         const int stride = kernel_h * kernel_w * outw * outh;
         float* ret = (float*)bottom_im2col;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < inch; p++)
         {
             const float* input = bottom_blob.channel(p);
@@ -1142,7 +1142,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
         int nn_size = out_size >> 2;
         int remain_size_start = nn_size << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = ii * 4;
@@ -1167,7 +1167,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
             }
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < out_size; i++)
         {
             const float* img0 = bottom_im2col.channel(0);
@@ -1197,7 +1197,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
         nn_outch = outch >> 2;
         remain_outch_start = nn_outch << 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < nn_outch; pp++)
         {
             int i = pp * 4;
@@ -1467,7 +1467,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
             }
         }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_outch_start; i < outch; i++)
         {
             float* output = top_blob.channel(i);

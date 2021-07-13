@@ -83,7 +83,7 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
         remain_size_start = 0;
         nn_size = (size - remain_size_start) >> 2;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 4;
@@ -112,7 +112,7 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 2;
@@ -136,7 +136,7 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
 
         remain_size_start += nn_size << 1;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
             const float* img0 = bottom_blob.channel(0);
@@ -155,7 +155,7 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         float* outptr0 = top_blob.channel(p);
@@ -379,7 +379,7 @@ static void conv1x1s2_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const Mat
     Mat bottom_blob_shrinked;
     bottom_blob_shrinked.create(outw, outh, channels, elemsize, elempack, opt.workspace_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < channels; p++)
     {
         const float* r0 = bottom_blob.channel(p);
