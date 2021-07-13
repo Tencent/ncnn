@@ -26,7 +26,7 @@ jobs:
         make -j2 clang-format
         mkdir $GITHUB_WORKSPACE/clang-format-install
         cp -r bin/clang-format $GITHUB_WORKSPACE/clang-format-install
-        cd ..
+        cd ../../
         rm -rf llvm-project-10.0.1
         rm llvm-project-10.0.1.tar.xz
 
