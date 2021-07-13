@@ -238,13 +238,13 @@ Layer* create_layer(int index)
         layer_creator = layer_registry_avx2[index].creator;
     } else
 #endif// NCNN_RUNTIME_CPU && NCNN_AVX2
-#if NCNN_RUNTIME_CPU && (NCNN_AVX2 || NCNN_AVX)
+#if NCNN_RUNTIME_CPU &&  NCNN_AVX
     if (ncnn::cpu_support_x86_avx())
     {
         layer_creator = layer_registry_avx[index].creator;
     }
     else
-#endif // NCNN_RUNTIME_CPU && (NCNN_AVX2 || NCNN_AVX)
+#endif // NCNN_RUNTIME_CPU && NCNN_AVX
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
     if (ncnn::cpu_support_arm_asimdhp() && ncnn::cpu_support_arm_asimddp())
     {

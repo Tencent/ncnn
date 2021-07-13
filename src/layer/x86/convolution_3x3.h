@@ -222,13 +222,13 @@ static void conv3x3s1_winograd23_sse(const Mat& bottom_blob, Mat& top_blob, cons
 
         bottom_blob_tm.create(4 * 4, tiles, inch, 4u, opt.workspace_allocator);
 
-// BT
-// const float itm[4][4] = {
-//     {1.0f,  0.0f, -1.0f,  0.0f},
-//     {0.0f,  1.0f,  1.00f, 0.0f},
-//     {0.0f, -1.0f,  1.00f, 0.0f},
-//     {0.0f, -1.0f,  0.00f, 1.0f}
-// };
+        // BT
+        // const float itm[4][4] = {
+        //     {1.0f,  0.0f, -1.0f,  0.0f},
+        //     {0.0f,  1.0f,  1.00f, 0.0f},
+        //     {0.0f, -1.0f,  1.00f, 0.0f},
+        //     {0.0f, -1.0f,  0.00f, 1.0f}
+        // };
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < inch; q++)
         {
@@ -1452,14 +1452,14 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         __m128 _k6 = _mm_loadu_ps(kptr + 24);
                         __m128 _k7 = _mm_loadu_ps(kptr + 28);
 #if __AVX__
-                        _sum0 = _mm_fmadd_ps(_r0, _k0, _sum0);
-                        _sum1 = _mm_fmadd_ps(_r0, _k1, _sum1);
-                        _sum2 = _mm_fmadd_ps(_r0, _k2, _sum2);
-                        _sum3 = _mm_fmadd_ps(_r0, _k3, _sum3);
-                        _sum4 = _mm_fmadd_ps(_r0, _k4, _sum4);
-                        _sum5 = _mm_fmadd_ps(_r0, _k5, _sum5);
-                        _sum6 = _mm_fmadd_ps(_r0, _k6, _sum6);
-                        _sum7 = _mm_fmadd_ps(_r0, _k7, _sum7);
+                        _sum0 = _mm_comp_fmadd_ps(_r0, _k0, _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_r0, _k1, _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_r0, _k2, _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_r0, _k3, _sum3);
+                        _sum4 = _mm_comp_fmadd_ps(_r0, _k4, _sum4);
+                        _sum5 = _mm_comp_fmadd_ps(_r0, _k5, _sum5);
+                        _sum6 = _mm_comp_fmadd_ps(_r0, _k6, _sum6);
+                        _sum7 = _mm_comp_fmadd_ps(_r0, _k7, _sum7);
 #else
                         _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_r0, _k0));
                         _sum1 = _mm_add_ps(_sum1, _mm_mul_ps(_r0, _k1));
@@ -1480,14 +1480,14 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _k6 = _mm_loadu_ps(kptr + 24);
                         _k7 = _mm_loadu_ps(kptr + 28);
 #if __AVX__
-                        _sum0 = _mm_fmadd_ps(_r1, _k0, _sum0);
-                        _sum1 = _mm_fmadd_ps(_r1, _k1, _sum1);
-                        _sum2 = _mm_fmadd_ps(_r1, _k2, _sum2);
-                        _sum3 = _mm_fmadd_ps(_r1, _k3, _sum3);
-                        _sum4 = _mm_fmadd_ps(_r1, _k4, _sum4);
-                        _sum5 = _mm_fmadd_ps(_r1, _k5, _sum5);
-                        _sum6 = _mm_fmadd_ps(_r1, _k6, _sum6);
-                        _sum7 = _mm_fmadd_ps(_r1, _k7, _sum7);
+                        _sum0 = _mm_comp_fmadd_ps(_r1, _k0, _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_r1, _k1, _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_r1, _k2, _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_r1, _k3, _sum3);
+                        _sum4 = _mm_comp_fmadd_ps(_r1, _k4, _sum4);
+                        _sum5 = _mm_comp_fmadd_ps(_r1, _k5, _sum5);
+                        _sum6 = _mm_comp_fmadd_ps(_r1, _k6, _sum6);
+                        _sum7 = _mm_comp_fmadd_ps(_r1, _k7, _sum7);
 #else
                         _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_r1, _k0));
                         _sum1 = _mm_add_ps(_sum1, _mm_mul_ps(_r1, _k1));
@@ -1509,14 +1509,14 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _k6 = _mm_loadu_ps(kptr + 24);
                         _k7 = _mm_loadu_ps(kptr + 28);
 #if __AVX__
-                        _sum0 = _mm_fmadd_ps(_r2, _k0, _sum0);
-                        _sum1 = _mm_fmadd_ps(_r2, _k1, _sum1);
-                        _sum2 = _mm_fmadd_ps(_r2, _k2, _sum2);
-                        _sum3 = _mm_fmadd_ps(_r2, _k3, _sum3);
-                        _sum4 = _mm_fmadd_ps(_r2, _k4, _sum4);
-                        _sum5 = _mm_fmadd_ps(_r2, _k5, _sum5);
-                        _sum6 = _mm_fmadd_ps(_r2, _k6, _sum6);
-                        _sum7 = _mm_fmadd_ps(_r2, _k7, _sum7);
+                        _sum0 = _mm_comp_fmadd_ps(_r2, _k0, _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_r2, _k1, _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_r2, _k2, _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_r2, _k3, _sum3);
+                        _sum4 = _mm_comp_fmadd_ps(_r2, _k4, _sum4);
+                        _sum5 = _mm_comp_fmadd_ps(_r2, _k5, _sum5);
+                        _sum6 = _mm_comp_fmadd_ps(_r2, _k6, _sum6);
+                        _sum7 = _mm_comp_fmadd_ps(_r2, _k7, _sum7);
 #else
                         _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_r2, _k0));
                         _sum1 = _mm_add_ps(_sum1, _mm_mul_ps(_r2, _k1));
@@ -1537,14 +1537,14 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         _k6 = _mm_loadu_ps(kptr + 24);
                         _k7 = _mm_loadu_ps(kptr + 28);
 #if __AVX__
-                        _sum0 = _mm_fmadd_ps(_r3, _k0, _sum0);
-                        _sum1 = _mm_fmadd_ps(_r3, _k1, _sum1);
-                        _sum2 = _mm_fmadd_ps(_r3, _k2, _sum2);
-                        _sum3 = _mm_fmadd_ps(_r3, _k3, _sum3);
-                        _sum4 = _mm_fmadd_ps(_r3, _k4, _sum4);
-                        _sum5 = _mm_fmadd_ps(_r3, _k5, _sum5);
-                        _sum6 = _mm_fmadd_ps(_r3, _k6, _sum6);
-                        _sum7 = _mm_fmadd_ps(_r3, _k7, _sum7);
+                        _sum0 = _mm_comp_fmadd_ps(_r3, _k0, _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_r3, _k1, _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_r3, _k2, _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_r3, _k3, _sum3);
+                        _sum4 = _mm_comp_fmadd_ps(_r3, _k4, _sum4);
+                        _sum5 = _mm_comp_fmadd_ps(_r3, _k5, _sum5);
+                        _sum6 = _mm_comp_fmadd_ps(_r3, _k6, _sum6);
+                        _sum7 = _mm_comp_fmadd_ps(_r3, _k7, _sum7);
 #else
                         _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_r3, _k0));
                         _sum1 = _mm_add_ps(_sum1, _mm_mul_ps(_r3, _k1));
@@ -1572,14 +1572,14 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         __m128 _k7 = _mm_loadu_ps(kptr + 28);
 
 #if __AVX__
-                        _sum0 = _mm_fmadd_ps(_r0, _k0, _sum0);
-                        _sum1 = _mm_fmadd_ps(_r0, _k1, _sum1);
-                        _sum2 = _mm_fmadd_ps(_r0, _k2, _sum2);
-                        _sum3 = _mm_fmadd_ps(_r0, _k3, _sum3);
-                        _sum4 = _mm_fmadd_ps(_r0, _k4, _sum4);
-                        _sum5 = _mm_fmadd_ps(_r0, _k5, _sum5);
-                        _sum6 = _mm_fmadd_ps(_r0, _k6, _sum6);
-                        _sum7 = _mm_fmadd_ps(_r0, _k7, _sum7);
+                        _sum0 = _mm_comp_fmadd_ps(_r0, _k0, _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_r0, _k1, _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_r0, _k2, _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_r0, _k3, _sum3);
+                        _sum4 = _mm_comp_fmadd_ps(_r0, _k4, _sum4);
+                        _sum5 = _mm_comp_fmadd_ps(_r0, _k5, _sum5);
+                        _sum6 = _mm_comp_fmadd_ps(_r0, _k6, _sum6);
+                        _sum7 = _mm_comp_fmadd_ps(_r0, _k7, _sum7);
 #else
                         _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_r0, _k0));
                         _sum1 = _mm_add_ps(_sum1, _mm_mul_ps(_r0, _k1));
@@ -1694,10 +1694,10 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         __m128 _k2 = _mm_loadu_ps(kptr + 8);
                         __m128 _k3 = _mm_loadu_ps(kptr + 12);
 #if __AVX__
-                        _sum0 = _mm_fmadd_ps(_r0, _k0, _sum0);
-                        _sum1 = _mm_fmadd_ps(_r0, _k1, _sum1);
-                        _sum2 = _mm_fmadd_ps(_r0, _k2, _sum2);
-                        _sum3 = _mm_fmadd_ps(_r0, _k3, _sum3);
+                        _sum0 = _mm_comp_fmadd_ps(_r0, _k0, _sum0);
+                        _sum1 = _mm_comp_fmadd_ps(_r0, _k1, _sum1);
+                        _sum2 = _mm_comp_fmadd_ps(_r0, _k2, _sum2);
+                        _sum3 = _mm_comp_fmadd_ps(_r0, _k3, _sum3);
 #else
                         _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_r0, _k0));
                         _sum1 = _mm_add_ps(_sum1, _mm_mul_ps(_r0, _k1));
@@ -1771,7 +1771,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                         __m128 _r0 = _mm_loadu_ps(r0);
                         __m128 _k0 = _mm_loadu_ps(kptr);
 #if __AVX__
-                        _sum0 = _mm_fmadd_ps(_r0, _k0, _sum0);
+                        _sum0 = _mm_comp_fmadd_ps(_r0, _k0, _sum0);
 #else
                         _sum0 = _mm_add_ps(_sum0, _mm_mul_ps(_r0, _k0));
 #endif
