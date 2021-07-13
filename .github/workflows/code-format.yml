@@ -1,0 +1,52 @@
+name: code-format
+
+on: [push, pull_request, pull_request_target]
+
+jobs:
+  code-format:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: cache-clang-format
+      id: cache-clang-format
+      uses: actions/cache@v2.1.6
+      with:
+        path: clang-format-install
+        key: clang-format-install-4
+    - name: clang-format
+      if: steps.cache-clang-format.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/llvm/llvm-project/releases/download/llvmorg-10.0.1/llvm-project-10.0.1.tar.xz
+        tar -xf llvm-project-10.0.1.tar.xz
+        cd llvm-project-10.0.1
+        mkdir build
+        cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DLLVM_ENABLE_PROJECTS="clang" -DLLVM_TARGETS_TO_BUILD="" -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_DOCS=OFF ../llvm/
+        make -j2 clang-format
+        mkdir $GITHUB_WORKSPACE/clang-format-install
+        cp -r bin/clang-format $GITHUB_WORKSPACE/clang-format-install
+        cd ../../
+        rm -rf llvm-project-10.0.1
+        rm llvm-project-10.0.1.tar.xz
+
+    - name: astyle
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y astyle
+
+    - name: code-format
+      run: |
+        mkdir -p ~/bin
+        mv $GITHUB_WORKSPACE/clang-format-install/clang-format ~/bin/clang-format
+        rm -rf $GITHUB_WORKSPACE/clang-format-install
+        export PATH=~/bin:$PATH
+        sh codeformat.sh
+    - uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: apply code-format changes
+
+    - name: restore-clang-format-cache
+      run: |
+        mkdir $GITHUB_WORKSPACE/clang-format-install
+        cp -r ~/bin/clang-format $GITHUB_WORKSPACE/clang-format-install
