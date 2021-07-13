@@ -21,6 +21,8 @@
 #endif // __AVX__
 #endif // __SSE2__
 
+#include "x86_usability.h"
+
 namespace ncnn {
 
 Dequantize_x86::Dequantize_x86()
@@ -53,7 +55,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                 if (bias_data_size == 0)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 8;
@@ -68,20 +70,20 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 {
                     __m256 _bias = _mm256_set1_ps(bias_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         float* ptr = (float*)top_blob + i * 8;
 
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
-                        _v = _mm256_fmadd_ps(_v, _scale, _bias);
+                        _v = _mm256_comp_fmadd_ps(_v, _scale, _bias);
                         _mm256_storeu_ps(ptr, _v);
                     }
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 8;
@@ -89,7 +91,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                         __m256 _bias = _mm256_loadu_ps((const float*)bias_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
-                        _v = _mm256_fmadd_ps(_v, _scale, _bias);
+                        _v = _mm256_comp_fmadd_ps(_v, _scale, _bias);
                         _mm256_storeu_ps(ptr, _v);
                     }
                 }
@@ -98,7 +100,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             {
                 if (bias_data_size == 0)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 8;
@@ -114,7 +116,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 {
                     __m256 _bias = _mm256_set1_ps(bias_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 8;
@@ -122,13 +124,13 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                         __m256 _scale = _mm256_loadu_ps((const float*)scale_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
-                        _v = _mm256_fmadd_ps(_v, _scale, _bias);
+                        _v = _mm256_comp_fmadd_ps(_v, _scale, _bias);
                         _mm256_storeu_ps(ptr, _v);
                     }
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 8;
@@ -137,7 +139,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         __m256 _scale = _mm256_loadu_ps((const float*)scale_data + i * 8);
                         __m256 _bias = _mm256_loadu_ps((const float*)bias_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
-                        _v = _mm256_fmadd_ps(_v, _scale, _bias);
+                        _v = _mm256_comp_fmadd_ps(_v, _scale, _bias);
                         _mm256_storeu_ps(ptr, _v);
                     }
                 }
@@ -155,7 +157,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
             if (bias_data_size == 0)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const int* intptr = bottom_blob.row<const int>(i);
@@ -176,7 +178,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const int* intptr = bottom_blob.row<const int>(i);
@@ -188,7 +190,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     for (int j = 0; j < w; j++)
                     {
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
-                        _v = _mm256_fmadd_ps(_v, _scale, _bias);
+                        _v = _mm256_comp_fmadd_ps(_v, _scale, _bias);
                         _mm256_storeu_ps(ptr, _v);
 
                         intptr += 8;
@@ -211,7 +213,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
             if (bias_data_size == 0)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const int* intptr = bottom_blob.channel(q);
@@ -232,7 +234,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const int* intptr = bottom_blob.channel(q);
@@ -244,7 +246,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     for (int i = 0; i < size; i++)
                     {
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
-                        _v = _mm256_fmadd_ps(_v, _scale, _bias);
+                        _v = _mm256_comp_fmadd_ps(_v, _scale, _bias);
                         _mm256_storeu_ps(ptr, _v);
 
                         intptr += 8;
@@ -274,7 +276,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                 if (bias_data_size == 0)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outw; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -289,7 +291,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 {
                     __m128 _bias = _mm_set1_ps(bias_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outw; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -302,7 +304,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outw; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -319,7 +321,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             {
                 if (bias_data_size == 0)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outw; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -335,7 +337,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 {
                     __m128 _bias = _mm_set1_ps(bias_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outw; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -349,7 +351,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outw; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -377,7 +379,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
             if (bias_data_size == 0)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const int* intptr = bottom_blob.row<const int>(i);
@@ -404,7 +406,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const int* intptr = bottom_blob.row<const int>(i);
@@ -447,7 +449,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
             if (bias_data_size == 0)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const int* intptr = bottom_blob.channel(q);
@@ -474,7 +476,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const int* intptr = bottom_blob.channel(q);
@@ -523,7 +525,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                 if (bias_data_size == 0)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -538,7 +540,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 {
                     __m128 _bias = _mm_set1_ps(bias_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -551,7 +553,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -568,7 +570,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             {
                 if (bias_data_size == 0)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -584,7 +586,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 {
                     __m128 _bias = _mm_set1_ps(bias_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -598,7 +600,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
                     {
                         const int* intptr = (const int*)bottom_blob + i * 4;
@@ -625,7 +627,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
             if (bias_data_size == 0)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const int* intptr = bottom_blob.row<const int>(i);
@@ -646,7 +648,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const int* intptr = bottom_blob.row<const int>(i);
@@ -681,7 +683,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
             if (bias_data_size == 0)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const int* intptr = bottom_blob.channel(q);
@@ -702,7 +704,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const int* intptr = bottom_blob.channel(q);
@@ -745,7 +747,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
             if (bias_data_size == 0)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     ptr[i] = intptr[i] * scale;
@@ -755,7 +757,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             {
                 const float bias = bias_data[0];
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     ptr[i] = intptr[i] * scale + bias;
@@ -763,7 +765,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     ptr[i] = intptr[i] * scale + bias_data[i];
@@ -774,7 +776,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         {
             if (bias_data_size == 0)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     ptr[i] = intptr[i] * scale_data[i];
@@ -784,7 +786,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             {
                 const float bias = bias_data[0];
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     ptr[i] = intptr[i] * scale_data[i] + bias;
@@ -792,7 +794,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     ptr[i] = intptr[i] * scale_data[i] + bias_data[i];
@@ -812,7 +814,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
         if (bias_data_size == 0)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const int* intptr = bottom_blob.row<const int>(i);
@@ -841,7 +843,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         }
         else
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 const int* intptr = bottom_blob.row<const int>(i);
@@ -885,7 +887,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
         if (bias_data_size == 0)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const int* intptr = bottom_blob.channel(q);
@@ -914,7 +916,7 @@ int Dequantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
         }
         else
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const int* intptr = bottom_blob.channel(q);

@@ -83,7 +83,7 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
         remain_size_start = 0;
         nn_size = (size - remain_size_start) >> 2;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 4;
@@ -112,7 +112,7 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 2;
@@ -136,7 +136,7 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
 
         remain_size_start += nn_size << 1;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
             const float* img0 = bottom_blob.channel(0);
@@ -155,7 +155,7 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         float* outptr0 = top_blob.channel(p);
@@ -199,22 +199,22 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
                 __m128 _w3 = _mm_load_ps(kptr0 + 12);
 
 #if __AVX__
-                _sum0 = _mm_fmadd_ps(_w0, _val00, _sum0);
-                _sum0 = _mm_fmadd_ps(_w1, _val01, _sum0);
-                _sum0 = _mm_fmadd_ps(_w2, _val02, _sum0);
-                _sum0 = _mm_fmadd_ps(_w3, _val03, _sum0);
-                _sum1 = _mm_fmadd_ps(_w0, _val10, _sum1);
-                _sum1 = _mm_fmadd_ps(_w1, _val11, _sum1);
-                _sum1 = _mm_fmadd_ps(_w2, _val12, _sum1);
-                _sum1 = _mm_fmadd_ps(_w3, _val13, _sum1);
-                _sum2 = _mm_fmadd_ps(_w0, _val20, _sum2);
-                _sum2 = _mm_fmadd_ps(_w1, _val21, _sum2);
-                _sum2 = _mm_fmadd_ps(_w2, _val22, _sum2);
-                _sum2 = _mm_fmadd_ps(_w3, _val23, _sum2);
-                _sum3 = _mm_fmadd_ps(_w0, _val30, _sum3);
-                _sum3 = _mm_fmadd_ps(_w1, _val31, _sum3);
-                _sum3 = _mm_fmadd_ps(_w2, _val32, _sum3);
-                _sum3 = _mm_fmadd_ps(_w3, _val33, _sum3);
+                _sum0 = _mm_comp_fmadd_ps(_w0, _val00, _sum0);
+                _sum0 = _mm_comp_fmadd_ps(_w1, _val01, _sum0);
+                _sum0 = _mm_comp_fmadd_ps(_w2, _val02, _sum0);
+                _sum0 = _mm_comp_fmadd_ps(_w3, _val03, _sum0);
+                _sum1 = _mm_comp_fmadd_ps(_w0, _val10, _sum1);
+                _sum1 = _mm_comp_fmadd_ps(_w1, _val11, _sum1);
+                _sum1 = _mm_comp_fmadd_ps(_w2, _val12, _sum1);
+                _sum1 = _mm_comp_fmadd_ps(_w3, _val13, _sum1);
+                _sum2 = _mm_comp_fmadd_ps(_w0, _val20, _sum2);
+                _sum2 = _mm_comp_fmadd_ps(_w1, _val21, _sum2);
+                _sum2 = _mm_comp_fmadd_ps(_w2, _val22, _sum2);
+                _sum2 = _mm_comp_fmadd_ps(_w3, _val23, _sum2);
+                _sum3 = _mm_comp_fmadd_ps(_w0, _val30, _sum3);
+                _sum3 = _mm_comp_fmadd_ps(_w1, _val31, _sum3);
+                _sum3 = _mm_comp_fmadd_ps(_w2, _val32, _sum3);
+                _sum3 = _mm_comp_fmadd_ps(_w3, _val33, _sum3);
 #else
                 _sum0 = _mm_add_ps(_mm_mul_ps(_w0, _val00), _sum0);
                 _sum0 = _mm_add_ps(_mm_mul_ps(_w1, _val01), _sum0);
@@ -269,14 +269,14 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
                 __m128 _w3 = _mm_load_ps(kptr0 + 12);
 
 #if __AVX__
-                _sum0 = _mm_fmadd_ps(_w0, _val00, _sum0);
-                _sum0 = _mm_fmadd_ps(_w1, _val01, _sum0);
-                _sum0 = _mm_fmadd_ps(_w2, _val02, _sum0);
-                _sum0 = _mm_fmadd_ps(_w3, _val03, _sum0);
-                _sum1 = _mm_fmadd_ps(_w0, _val10, _sum1);
-                _sum1 = _mm_fmadd_ps(_w1, _val11, _sum1);
-                _sum1 = _mm_fmadd_ps(_w2, _val12, _sum1);
-                _sum1 = _mm_fmadd_ps(_w3, _val13, _sum1);
+                _sum0 = _mm_comp_fmadd_ps(_w0, _val00, _sum0);
+                _sum0 = _mm_comp_fmadd_ps(_w1, _val01, _sum0);
+                _sum0 = _mm_comp_fmadd_ps(_w2, _val02, _sum0);
+                _sum0 = _mm_comp_fmadd_ps(_w3, _val03, _sum0);
+                _sum1 = _mm_comp_fmadd_ps(_w0, _val10, _sum1);
+                _sum1 = _mm_comp_fmadd_ps(_w1, _val11, _sum1);
+                _sum1 = _mm_comp_fmadd_ps(_w2, _val12, _sum1);
+                _sum1 = _mm_comp_fmadd_ps(_w3, _val13, _sum1);
 #else
                 _sum0 = _mm_add_ps(_mm_mul_ps(_w0, _val00), _sum0);
                 _sum0 = _mm_add_ps(_mm_mul_ps(_w1, _val01), _sum0);
@@ -316,10 +316,10 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
                 __m128 _w3 = _mm_load_ps(kptr0 + 12);
 
 #if __AVX__
-                _sum = _mm_fmadd_ps(_w0, _val0, _sum);
-                _sum = _mm_fmadd_ps(_w1, _val1, _sum);
-                _sum = _mm_fmadd_ps(_w2, _val2, _sum);
-                _sum = _mm_fmadd_ps(_w3, _val3, _sum);
+                _sum = _mm_comp_fmadd_ps(_w0, _val0, _sum);
+                _sum = _mm_comp_fmadd_ps(_w1, _val1, _sum);
+                _sum = _mm_comp_fmadd_ps(_w2, _val2, _sum);
+                _sum = _mm_comp_fmadd_ps(_w3, _val3, _sum);
 #else
                 _sum = _mm_add_ps(_mm_mul_ps(_w0, _val0), _sum);
                 _sum = _mm_add_ps(_mm_mul_ps(_w1, _val1), _sum);
@@ -379,7 +379,7 @@ static void conv1x1s2_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const Mat
     Mat bottom_blob_shrinked;
     bottom_blob_shrinked.create(outw, outh, channels, elemsize, elempack, opt.workspace_allocator);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < channels; p++)
     {
         const float* r0 = bottom_blob.channel(p);

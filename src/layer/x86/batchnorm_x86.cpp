@@ -20,6 +20,7 @@
 #include <immintrin.h>
 #endif // __AVX__
 #endif // __SSE2__
+#include "x86_usability.h"
 
 namespace ncnn {
 
@@ -44,7 +45,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         {
             int w = bottom_top_blob.w;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float* ptr = (float*)bottom_top_blob + i * 8;
@@ -53,7 +54,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 __m256 _b = _mm256_loadu_ps((const float*)b_data + i * 8);
 
                 __m256 _p = _mm256_loadu_ps(ptr);
-                _p = _mm256_fmadd_ps(_p, _b, _a);
+                _p = _mm256_comp_fmadd_ps(_p, _b, _a);
                 _mm256_storeu_ps(ptr, _p);
             }
         }
@@ -63,7 +64,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 __m256 _a = _mm256_loadu_ps((const float*)a_data + i * 8);
@@ -74,7 +75,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 for (int j = 0; j < w; j++)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr);
-                    _p = _mm256_fmadd_ps(_p, _b, _a);
+                    _p = _mm256_comp_fmadd_ps(_p, _b, _a);
                     _mm256_storeu_ps(ptr, _p);
 
                     ptr += 8;
@@ -89,7 +90,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int c = bottom_top_blob.c;
             int size = w * h;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 __m256 _a = _mm256_loadu_ps((const float*)a_data + q * 8);
@@ -100,7 +101,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 for (int i = 0; i < size; i++)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr);
-                    _p = _mm256_fmadd_ps(_p, _b, _a);
+                    _p = _mm256_comp_fmadd_ps(_p, _b, _a);
                     _mm256_storeu_ps(ptr, _p);
 
                     ptr += 8;
@@ -118,7 +119,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         {
             int w = bottom_top_blob.w;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 float* ptr = (float*)bottom_top_blob + i * 4;
@@ -138,7 +139,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 __m128 _a = _mm_load_ps((const float*)a_data + i * 4);
@@ -165,7 +166,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int c = bottom_top_blob.c;
             int size = w * h;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 __m128 _a = _mm_load_ps((const float*)a_data + q * 4);
@@ -197,7 +198,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     // int c = bottom_top_blob.c;
     int size = w * h;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
@@ -213,7 +214,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
-            _p = _mm256_fmadd_ps(_p, _b256, _a256);
+            _p = _mm256_comp_fmadd_ps(_p, _b256, _a256);
             _mm256_storeu_ps(ptr, _p);
             ptr += 8;
         }

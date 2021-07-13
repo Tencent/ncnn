@@ -55,7 +55,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             {
                 __m256 _scale = _mm256_set1_ps(scale_data[0]);
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const float* ptr = (const float*)bottom_blob + i * 8;
@@ -63,12 +63,16 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                     __m256 _v = _mm256_loadu_ps(ptr);
                     _v = _mm256_mul_ps(_v, _scale);
+#if __AVX2__
                     *(int64_t*)outptr = float2int8_avx(_v);
+#else
+                    float2int8_loop(_v, outptr);
+#endif
                 }
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const float* ptr = (const float*)bottom_blob + i * 8;
@@ -77,7 +81,11 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     __m256 _v = _mm256_loadu_ps(ptr);
                     __m256 _scale = _mm256_loadu_ps((const float*)scale_data + i * 8);
                     _v = _mm256_mul_ps(_v, _scale);
+#if __AVX2__
                     *(int64_t*)outptr = float2int8_avx(_v);
+#else
+                    float2int8_loop(_v, outptr);
+#endif
                 }
             }
         }
@@ -95,13 +103,14 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             {
                 __m256 _scale = _mm256_set1_ps(scale_data[0]);
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const float* ptr = bottom_blob.row(i);
                     signed char* outptr = top_blob.row<signed char>(i);
 
                     int j = 0;
+#if __AVX2__
                     for (; j + 1 < w; j += 2)
                     {
                         __m256 _v0 = _mm256_loadu_ps(ptr);
@@ -123,11 +132,21 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         ptr += 8;
                         outptr += 8;
                     }
+#else
+                    for (; j < w; j++)
+                    {
+                        __m256 _v = _mm256_loadu_ps(ptr);
+                        _v = _mm256_mul_ps(_v, _scale);
+                        float2int8_loop(_v, outptr);
+                        ptr += 8;
+                        outptr += 8;
+                    }
+#endif
                 }
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     const float* ptr = bottom_blob.row(i);
@@ -136,6 +155,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     __m256 _scale = _mm256_loadu_ps((const float*)scale_data + i * 8);
 
                     int j = 0;
+#if __AVX2__
                     for (; j + 1 < w; j += 2)
                     {
                         __m256 _v0 = _mm256_loadu_ps(ptr);
@@ -157,6 +177,16 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         ptr += 8;
                         outptr += 8;
                     }
+#else
+                    for (; j < w; j++)
+                    {
+                        __m256 _v = _mm256_loadu_ps(ptr);
+                        _v = _mm256_mul_ps(_v, _scale);
+                        float2int8_loop(_v, outptr);
+                        ptr += 8;
+                        outptr += 8;
+                    }
+#endif
                 }
             }
         }
@@ -176,13 +206,14 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             {
                 __m256 _scale = _mm256_set1_ps(scale_data[0]);
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
                     signed char* outptr = top_blob.channel(q);
 
                     int i = 0;
+#if __AVX2__
                     for (; i + 1 < size; i += 2)
                     {
                         __m256 _v0 = _mm256_loadu_ps(ptr);
@@ -204,11 +235,21 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         ptr += 8;
                         outptr += 8;
                     }
+#else
+                    for (; i < size; i++)
+                    {
+                        __m256 _v = _mm256_loadu_ps(ptr);
+                        _v = _mm256_mul_ps(_v, _scale);
+                        float2int8_loop(_v, outptr);
+                        ptr += 8;
+                        outptr += 8;
+                    }
+#endif
                 }
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = bottom_blob.channel(q);
@@ -217,6 +258,8 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     __m256 _scale = _mm256_loadu_ps((const float*)scale_data + q * 8);
 
                     int i = 0;
+#if __AVX2__
+
                     for (; i + 1 < size; i += 2)
                     {
                         __m256 _v0 = _mm256_loadu_ps(ptr);
@@ -238,6 +281,16 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         ptr += 8;
                         outptr += 8;
                     }
+#else
+                    for (; i < size; i++)
+                    {
+                        __m256 _v = _mm256_loadu_ps(ptr);
+                        _v = _mm256_mul_ps(_v, _scale);
+                        float2int8_loop(_v, outptr);
+                        ptr += 8;
+                        outptr += 8;
+                    }
+#endif
                 }
             }
         }
@@ -262,7 +315,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             {
                 const float scale = scale_data[0];
 
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const float* ptr0 = (const float*)bottom_blob + i * 4;
@@ -276,7 +329,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < w; i++)
                 {
                     const float* ptr0 = (const float*)bottom_blob + i * 4;
@@ -307,7 +360,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     __m128 _scale = _mm_set1_ps(scale_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
                     {
                         const float* ptr0 = bottom_blob.row(i * 2);
@@ -348,7 +401,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
                     {
                         const float* ptr0 = bottom_blob.row(i * 2);
@@ -397,7 +450,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     const float scale = scale_data[0];
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < h; i++)
                     {
                         const float* ptr0 = bottom_blob.row(i);
@@ -423,7 +476,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < h; i++)
                     {
                         const float* ptr0 = bottom_blob.row(i);
@@ -474,7 +527,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     __m128 _scale = _mm_set1_ps(scale_data[0]);
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
                     {
                         const float* ptr0 = bottom_blob.channel(q * 2);
@@ -515,7 +568,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
                     {
                         const float* ptr0 = bottom_blob.channel(q * 2);
@@ -564,7 +617,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     const float scale = scale_data[0];
 
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const float* ptr0 = bottom_blob.channel(q);
@@ -590,7 +643,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         const float* ptr0 = bottom_blob.channel(q);
@@ -641,7 +694,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         {
             const float scale = scale_data[0];
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8(ptr[i] * scale);
@@ -649,7 +702,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         }
         else
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < w; i++)
             {
                 outptr[i] = float2int8(ptr[i] * scale_data[i]);
@@ -666,7 +719,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
         {
             const float* ptr0 = bottom_blob.row(i);
@@ -692,7 +745,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         if (top_blob.empty())
             return -100;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const float* ptr = bottom_blob.channel(q);

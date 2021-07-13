@@ -903,6 +903,7 @@ PYBIND11_MODULE(ncnn, m)
     m.def("cpu_support_arm_vfpv4", &cpu_support_arm_vfpv4);
     m.def("cpu_support_arm_asimdhp", &cpu_support_arm_asimdhp);
     m.def("cpu_support_x86_avx2", &cpu_support_x86_avx2);
+    m.def("cpu_support_x86_avx", &cpu_support_x86_avx);
     m.def("get_cpu_count", &get_cpu_count);
     m.def("get_little_cpu_count", &get_little_cpu_count);
     m.def("get_big_cpu_count", &get_big_cpu_count);

@@ -54,9 +54,9 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
         size_t mask_offset = b * num_box;
         int net_w = (int)(anchors_scale[b] * w);
         int net_h = (int)(anchors_scale[b] * h);
-        //printf("%d %d\n", net_w, net_h);
+//printf("%d %d\n", net_w, net_h);
 
-        //printf("%d %d %d\n", w, h, channels);
+//printf("%d %d %d\n", w, h, channels);
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < num_box; pp++)
         {
@@ -107,7 +107,7 @@ int Yolov3DetectionOutput_x86::forward(const std::vector<Mat>& bottom_blobs, std
                     float* ptr = ((float*)scores.data) + i * w + j;
                     float* end = ptr + num_class * cs;
                     int q = 0;
-#if __AVX__
+#if __AVX2__
                     float* end8 = ptr + (num_class & -8) * cs;
                     unsigned long index;
 

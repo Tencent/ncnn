@@ -146,6 +146,33 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+  linux-gcc-avx-omp:
+    runs-on: ubuntu-latest
+    steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.9.0
+      with:
+        access_token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v2
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: cd build && ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v1.5.2
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
 
   linux-gcc-arm:
     runs-on: ubuntu-20.04

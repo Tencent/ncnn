@@ -404,6 +404,45 @@ int cpu_support_x86_avx2()
 #endif
 }
 
+int cpu_support_x86_avx()
+{
+#if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
+#if defined(_MSC_VER)
+    // TODO move to init function
+    int cpu_info[4];
+    __cpuid(cpu_info, 0);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    __cpuid(cpu_info, 1);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((_xgetbv(0) & 6) != 6)
+        return 0;
+    return 1;
+#elif defined(__clang__)
+#if __clang_major__ >= 6
+    __builtin_cpu_init();
+#endif
+    return __builtin_cpu_supports("avx");
+#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
+    __builtin_cpu_init();
+    return __builtin_cpu_supports("avx");
+#else
+    // TODO: other x86 compilers checking avx here
+    NCNN_LOGE("AVX detection method is unknown for current compiler");
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_mips_msa()
 {
 #if defined __ANDROID__ || defined __linux__
@@ -821,7 +860,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         ssarets[i] = set_sched_affinity(thread_affinity_mask);
@@ -846,7 +885,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         // assign one core for each thread
