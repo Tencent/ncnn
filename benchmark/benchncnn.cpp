@@ -264,7 +264,6 @@ int main(int argc, char** argv)
 
     benchmark("mobilenet_v3", ncnn::Mat(224, 224, 3), opt);
 
-    
     benchmark("shufflenet", ncnn::Mat(224, 224, 3), opt);
 
     benchmark("shufflenet_v2", ncnn::Mat(224, 224, 3), opt);
