@@ -785,6 +785,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     else
 #endif // NCNN_BF16
     {
+        // no type conversion
     }
     // *INDENT-ON*
     // clang-format on
