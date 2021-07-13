@@ -1079,7 +1079,7 @@ static void conv3x3s1_winograd43_sse(const Mat& bottom_blob, Mat& top_blob, cons
                     _w5 = _mm256_fmadd_ps(_d3, _5_n, _w5);
                     _w5 = _mm256_add_ps(_w5, _d5);
                     // transpose d to d_t
-#if (defined _WIN32 && !(defined __MINGW32__))
+#if (defined _WIN32 && !(defined __MINGW32__) && !__clang__)
                     {
                         _t0.m256_f32[0] = _w0.m256_f32[0];
                         _t1.m256_f32[0] = _w0.m256_f32[1];
