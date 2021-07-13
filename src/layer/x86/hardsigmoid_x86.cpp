@@ -44,7 +44,7 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 #if __AVX__
     if (elempack == 8)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -55,11 +55,7 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
                 __m256 _ans = _mm256_set1_ps(beta);
-#if __AVX2__
                 _ans = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
-#else
-                _ans = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
-#endif
                 _ans = _mm256_max_ps(_ans, _zero);
                 _ans = _mm256_min_ps(_ans, _one);
                 _mm256_storeu_ps(ptr, _ans);
@@ -74,7 +70,7 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
     if (elempack == 4)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
@@ -98,7 +94,7 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     }
 #endif // __SSE2__
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
@@ -111,11 +107,7 @@ int HardSigmoid_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         {
             __m256 _p = _mm256_loadu_ps(ptr);
             __m256 _ans = _mm256_set1_ps(beta);
-#if __AVX2__
             _ans = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
-#else
-            _ans = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
-#endif
             _ans = _mm256_max_ps(_ans, _zero);
             _ans = _mm256_min_ps(_ans, _one);
             _mm256_storeu_ps(ptr, _ans);
