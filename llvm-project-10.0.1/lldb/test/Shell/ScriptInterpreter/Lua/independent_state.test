@@ -1,6 +1,0 @@
-# REQUIRES: lua
-#
-# RUN:  %lldb --script-language lua -s %S/Inputs/independent_state.in 2>&1 | FileCheck %s
-# CHECK: 47
-# CHECK: 47
-# CHECK: 42

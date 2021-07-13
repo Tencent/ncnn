@@ -1,6 +1,0 @@
-group("lib") {
-  deps = [
-    "//compiler-rt/lib/builtins",
-    "//compiler-rt/lib/profile",
-  ]
-}

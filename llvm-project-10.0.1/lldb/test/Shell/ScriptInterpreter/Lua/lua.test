@@ -1,3 +1,0 @@
-# REQUIRES: lua
-# RUN: %lldb --script-language lua -o 'script print(1000+100+10+1)' 2>&1 | FileCheck %s
-# CHECK: 1111

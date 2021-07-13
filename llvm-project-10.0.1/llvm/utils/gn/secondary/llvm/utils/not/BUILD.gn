@@ -1,8 +1,0 @@
-executable("not") {
-  deps = [
-    "//llvm/lib/Support",
-  ]
-  sources = [
-    "not.cpp",
-  ]
-}
