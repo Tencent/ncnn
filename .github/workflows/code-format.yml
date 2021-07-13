@@ -13,7 +13,7 @@ jobs:
       uses: actions/cache@v2.1.6
       with:
         path: clang-format-install
-        key: clang-format-install-2
+        key: clang-format-install-3
     - name: clang-format
       if: steps.cache-clang-format.outputs.cache-hit != 'true'
       run: |
