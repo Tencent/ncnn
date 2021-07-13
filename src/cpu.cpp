@@ -365,6 +365,9 @@ int cpu_support_arm_asimddp()
 
 int cpu_support_x86_avx2()
 {
+#if !NCNN_AVX2
+    return 0;
+#endif
 #if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
 #if defined(_MSC_VER)
     // TODO move to init function
@@ -406,6 +409,9 @@ int cpu_support_x86_avx2()
 
 int cpu_support_x86_avx()
 {
+#if !NCNN_AVX
+    return 0;
+#endif
 #if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
 #if defined(_MSC_VER)
     // TODO move to init function
@@ -860,7 +866,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         ssarets[i] = set_sched_affinity(thread_affinity_mask);
@@ -885,7 +891,7 @@ int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
     // set affinity for each thread
     set_omp_num_threads(num_threads);
     std::vector<int> ssarets(num_threads, 0);
-    #pragma omp parallel for num_threads(num_threads)
+#pragma omp parallel for num_threads(num_threads)
     for (int i = 0; i < num_threads; i++)
     {
         // assign one core for each thread
