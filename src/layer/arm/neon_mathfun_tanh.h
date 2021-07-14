@@ -63,10 +63,10 @@ static inline float32x4_t tanh_ps(float32x4_t x)
     float32x4_t z = vmulq_f32(x, x);
 
     float32x4_t y = vdupq_n_f32(c_cephes_tanh_p0);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p1), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p2), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p3), y, x);
-    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p4), y, x);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p1), y, z);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p2), y, z);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p3), y, z);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p4), y, z);
 
     y = vmulq_f32(y, z);
     y = vmlaq_f32(x, y, x);
