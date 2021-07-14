@@ -59,7 +59,6 @@ static inline float32x4_t tanh_ps(float32x4_t x)
         - 3.33332819422E-1) * z * x
         + x;
     */
-    static const float cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
     float32x4_t z = vmulq_f32(x, x);
 
     float32x4_t y = vdupq_n_f32(c_cephes_tanh_p0);
