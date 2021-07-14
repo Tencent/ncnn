@@ -567,26 +567,16 @@ static inline float16x4_t tanh_ps(float16x4_t x)
         + x;
     */
     static const __fp16 cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
-    float16x4_t y = vld1_dup_f16(cephes_tanh_p + 0);
-    float16x4_t c1 = vld1_dup_f16(cephes_tanh_p + 1);
-    float16x4_t c2 = vld1_dup_f16(cephes_tanh_p + 2);
-    float16x4_t c3 = vld1_dup_f16(cephes_tanh_p + 3);
-    float16x4_t c4 = vld1_dup_f16(cephes_tanh_p + 4);
-
     float16x4_t z = vmul_f16(x, x);
 
-    y = vmul_f16(y, z);
-    y = vadd_f16(y, c1);
-    y = vmul_f16(y, z);
-    y = vadd_f16(y, c2);
-    y = vmul_f16(y, z);
-    y = vadd_f16(y, c3);
-    y = vmul_f16(y, z);
-    y = vadd_f16(y, c4);
+    float16x4_t y = vdupq_n_f16(c_cephes_tanh_p0);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p1), y, x);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p2), y, x);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p3), y, x);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p4), y, x);
 
     y = vmul_f16(y, z);
-    y = vmul_f16(y, x);
-    y = vadd_f16(y, x);
+    y = vfmaq_f16(x, y, x);
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
@@ -624,26 +614,16 @@ static inline float16x8_t tanh_ps(float16x8_t x)
      *        + x;
      */
     static const __fp16 cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
-    float16x8_t y = vld1q_dup_f16(cephes_tanh_p + 0);
-    float16x8_t c1 = vld1q_dup_f16(cephes_tanh_p + 1);
-    float16x8_t c2 = vld1q_dup_f16(cephes_tanh_p + 2);
-    float16x8_t c3 = vld1q_dup_f16(cephes_tanh_p + 3);
-    float16x8_t c4 = vld1q_dup_f16(cephes_tanh_p + 4);
-
     float16x8_t z = vmulq_f16(x, x);
+    float16x8_t y = vdupq_n_f16(c_cephes_tanh_p0);
+
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p1), y, x);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p2), y, x);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p3), y, x);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p4), y, x);
 
     y = vmulq_f16(y, z);
-    y = vaddq_f16(y, c1);
-    y = vmulq_f16(y, z);
-    y = vaddq_f16(y, c2);
-    y = vmulq_f16(y, z);
-    y = vaddq_f16(y, c3);
-    y = vmulq_f16(y, z);
-    y = vaddq_f16(y, c4);
-
-    y = vmulq_f16(y, z);
-    y = vmulq_f16(y, x);
-    y = vaddq_f16(y, x);
+    y = vfmaq_f16(x, y, x);
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
