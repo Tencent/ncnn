@@ -570,10 +570,10 @@ static inline float16x4_t tanh_ps(float16x4_t x)
     float16x4_t z = vmul_f16(x, x);
 
     float16x4_t y = vdup_n_f16(c_cephes_tanh_p0);
-    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p1), y, x);
-    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p2), y, x);
-    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p3), y, x);
-    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p4), y, x);
+    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p1), y, z);
+    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p2), y, z);
+    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p3), y, z);
+    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p4), y, z);
 
     y = vmul_f16(y, z);
     y = vfma_f16(x, y, x);
@@ -616,10 +616,10 @@ static inline float16x8_t tanh_ps(float16x8_t x)
     float16x8_t z = vmulq_f16(x, x);
     float16x8_t y = vdupq_n_f16(c_cephes_tanh_p0);
 
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p1), y, x);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p2), y, x);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p3), y, x);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p4), y, x);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p1), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p2), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p3), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p4), y, z);
 
     y = vmulq_f16(y, z);
     y = vfmaq_f16(x, y, x);
