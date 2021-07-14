@@ -118,7 +118,7 @@ void transpose(const ncnn::Mat& in, ncnn::Mat& out)
         int dst_elempack = 1;
         if (layer->support_packing)
         {
-            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
+            if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -195,7 +195,7 @@ void normalize(const ncnn::Mat& in, ncnn::Mat& out)
         int dst_elempack = 1;
         if (layer->support_packing)
         {
-            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
+            if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;

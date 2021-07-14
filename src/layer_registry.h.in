@@ -11,6 +11,11 @@ static const layer_registry_entry layer_registry_avx2[] = {
 @layer_registry_avx2@
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX2
+#if NCNN_RUNTIME_CPU && NCNN_AVX
+static const layer_registry_entry layer_registry_avx[] = {
+@layer_registry_avx@
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_AVX
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
 static const layer_registry_entry layer_registry_arm82[] = {

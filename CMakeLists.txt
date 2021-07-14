@@ -183,6 +183,7 @@ else()
     option(NCNN_SSE2 "optimize x86 platform with sse2" ON)
     if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NOT (CMAKE_CXX_COMPILER_ID MATCHES "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.7))
         option(NCNN_AVX2 "optimize x86 platform with avx2" ON)
+        option(NCNN_AVX "optimize x86 platform with avx" ON)
     endif()
 endif()
 

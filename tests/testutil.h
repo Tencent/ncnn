@@ -421,8 +421,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
             if (elembits == 32)
             {
-#if NCNN_AVX2
-                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
+#if (NCNN_AVX2 || NCNN_AVX)
+                if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -851,8 +851,8 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
         if (elembits == 32)
         {
-#if NCNN_AVX2
-            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx2())
+#if (NCNN_AVX2 || NCNN_AVX)
+            if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;

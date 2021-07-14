@@ -58,9 +58,11 @@ namespace ncnn {
 #include "convolution_3x3_pack8to1.h"
 #include "convolution_3x3_pack8.h"
 #include "convolution_2x2_pack8.h"
-#include "convolution_2x2_pack8_fp16.h"
 #include "convolution_1x1_pack8.h"
+#if __AVX2__
+#include "convolution_2x2_pack8_fp16.h"
 #include "convolution_1x1_pack8_fp16.h"
+#endif
 #endif
 #endif // __SSE2__
 
@@ -68,7 +70,7 @@ Convolution_x86::Convolution_x86()
 {
 #if __SSE2__
     support_packing = true;
-#if __AVX__
+#if __AVX2__
     support_weight_fp16_storage = true;
 #endif
 #endif // __SSE2__
@@ -264,6 +266,8 @@ int Convolution_x86::create_pipeline(const Option& opt)
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
+#if __AVX2__
+
         if (opt.use_weight_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
@@ -277,6 +281,9 @@ int Convolution_x86::create_pipeline(const Option& opt)
             conv2x2s1_weight_fp16_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
         }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+#else
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+#endif
         {
             conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
         }
@@ -414,11 +421,13 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
+#if __AVX2__
             if (opt.use_weight_fp16_storage)
             {
                 conv1x1s1_sgemm_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-            else
+#endif
+            if (!opt.use_weight_fp16_storage)
             {
                 conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
@@ -430,11 +439,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
+#if __AVX2__
+
             if (opt.use_weight_fp16_storage)
             {
                 conv1x1s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-            else
+#endif
+            if (!opt.use_weight_fp16_storage)
+
             {
                 conv1x1s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
@@ -461,11 +474,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
+#if __AVX2__
+
             if (opt.use_weight_fp16_storage)
             {
                 conv2x2s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-            else
+#endif
+
+            if (!opt.use_weight_fp16_storage)
             {
                 conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
@@ -604,7 +621,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             {
                                 __m256 _val = _mm256_set1_ps(sptr[space_ofs[k]]);
                                 __m256 _w = _mm256_loadu_ps(kptr);
-                                _sum = _mm256_fmadd_ps(_val, _w, _sum);
+                                _sum = _mm256_comp_fmadd_ps(_val, _w, _sum);
 
                                 kptr += 8;
                             }
@@ -657,13 +674,13 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                                 __m256 _val3 = _mm256_broadcast_ss((sptr + space_ofs[k] * 4) + 3);
 
                                 __m256 _w0 = _mm256_loadu_ps(kptr);
-                                _sum = _mm256_fmadd_ps(_val0, _w0, _sum);
+                                _sum = _mm256_comp_fmadd_ps(_val0, _w0, _sum);
                                 __m256 _w1 = _mm256_loadu_ps(kptr + 8);
-                                _sum = _mm256_fmadd_ps(_val1, _w1, _sum);
+                                _sum = _mm256_comp_fmadd_ps(_val1, _w1, _sum);
                                 __m256 _w2 = _mm256_loadu_ps(kptr + 16);
-                                _sum = _mm256_fmadd_ps(_val2, _w2, _sum);
+                                _sum = _mm256_comp_fmadd_ps(_val2, _w2, _sum);
                                 __m256 _w3 = _mm256_loadu_ps(kptr + 24);
-                                _sum = _mm256_fmadd_ps(_val3, _w3, _sum);
+                                _sum = _mm256_comp_fmadd_ps(_val3, _w3, _sum);
 
                                 kptr += 32;
                             }
@@ -780,21 +797,21 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                                 __m128 _val7 = _mm_broadcast_ss((sptr + space_ofs[k] * 8) + 7);
 
                                 __m128 _w0 = _mm_loadu_ps(kptr);
-                                _sum = _mm_fmadd_ps(_val0, _w0, _sum);
+                                _sum = _mm_comp_fmadd_ps(_val0, _w0, _sum);
                                 __m128 _w1 = _mm_loadu_ps(kptr + 4);
-                                _sum = _mm_fmadd_ps(_val1, _w1, _sum);
+                                _sum = _mm_comp_fmadd_ps(_val1, _w1, _sum);
                                 __m128 _w2 = _mm_loadu_ps(kptr + 8);
-                                _sum = _mm_fmadd_ps(_val2, _w2, _sum);
+                                _sum = _mm_comp_fmadd_ps(_val2, _w2, _sum);
                                 __m128 _w3 = _mm_loadu_ps(kptr + 12);
-                                _sum = _mm_fmadd_ps(_val3, _w3, _sum);
+                                _sum = _mm_comp_fmadd_ps(_val3, _w3, _sum);
                                 __m128 _w4 = _mm_loadu_ps(kptr + 16);
-                                _sum = _mm_fmadd_ps(_val4, _w4, _sum);
+                                _sum = _mm_comp_fmadd_ps(_val4, _w4, _sum);
                                 __m128 _w5 = _mm_loadu_ps(kptr + 20);
-                                _sum = _mm_fmadd_ps(_val5, _w5, _sum);
+                                _sum = _mm_comp_fmadd_ps(_val5, _w5, _sum);
                                 __m128 _w6 = _mm_loadu_ps(kptr + 24);
-                                _sum = _mm_fmadd_ps(_val6, _w6, _sum);
+                                _sum = _mm_comp_fmadd_ps(_val6, _w6, _sum);
                                 __m128 _w7 = _mm_loadu_ps(kptr + 28);
-                                _sum = _mm_fmadd_ps(_val7, _w7, _sum);
+                                _sum = _mm_comp_fmadd_ps(_val7, _w7, _sum);
 
                                 kptr += 32;
                             }

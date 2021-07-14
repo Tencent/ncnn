@@ -58,6 +58,20 @@ jobs:
         cmake --build . -j 2
     - name: test-avx2
       run: cd build-avx2 && ctest --output-on-failure -j 2
+    - name: build-avx
+      run: |
+        mkdir build-avx && cd build-avx
+        cmake -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx
+      run: cd build-avx && ctest --output-on-failure -j 2
+    - name: build-avx1-2
+      run: |
+        mkdir build-avx1-2 && cd build-avx1-2
+        cmake -DNCNN_AVX2=ON -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx1-2
+      run: cd build-avx1-2 && ctest --output-on-failure -j 2
     - name: build-noint8
       run: |
         mkdir build-noint8 && cd build-noint8
