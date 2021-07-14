@@ -464,61 +464,61 @@ static inline float16x8_t cos_ps(float16x8_t x)
     return ycos;
 }
 
-// tanh neon vector version
-// refer the scalar version from Cephes Math Library
-
-#define c_cephes_HALFMAXLOGF_f16 4.5078125f
-#define c_cephes_tanh_C1         0.625f
-
-#define c_cephes_tanh_p0 -5.70498872745E-3
-#define c_cephes_tanh_p1 +2.06390887954E-2
-#define c_cephes_tanh_p2 -5.37397155531E-2
-#define c_cephes_tanh_p3 +1.33314422036E-1
-#define c_cephes_tanh_p4 -3.33332819422E-1
+#define c_tanh_tiny 1e-4f
+#define c_tanh_hi   9.0f
+// The monomial coefficients of the numerator polynomial (odd).
+#define c_tanh_alpha_1  4.89352455891786e-3f
+#define c_tanh_alpha_3  6.37261928875436e-4f
+#define c_tanh_alpha_5  1.48572235717979e-5f
+#define c_tanh_alpha_7  5.12229709037114e-8f
+#define c_tanh_alpha_9  -8.60467152213735e-11f
+#define c_tanh_alpha_11 2.00018790482477e-13f
+#define c_tanh_alpha_13 -2.76076847742355e-16f
+// The monomial coefficients of the denominator polynomial (even).
+#define c_tanh_beta_0 4.89352518554385e-3f
+#define c_tanh_beta_2 2.26843463243900e-3f
+#define c_tanh_beta_4 1.18534705686654e-4f
+#define c_tanh_beta_6 1.19825839466702e-6f
 
 /* Single precision hyperbolic tangent computed for 4 simultaneous float */
 static inline float16x4_t tanh_ps(float16x4_t x)
 {
     float16x4_t x2 = vabs_f16(x);
 
-    uint16x4_t mask_l = vcge_f16(x2, vdup_n_f16(c_cephes_tanh_C1));
-    uint16x4_t mask_l2 = vcgt_f16(x2, vdup_n_f16(c_cephes_HALFMAXLOGF_f16));
+    uint16x4_t tiny_mask = vcge_f16(x2, vdup_n_f16(c_tanh_tiny));
 
-    // abs(x) >= 0.625
-    // tanh(x) = 1 − 2 / (exp(2x) + 1)
-    float16x4_t _one = vdup_n_f16(1.f);
-    float16x4_t _two = vdup_n_f16(2.f);
-    float16x4_t exp_x_x = exp_ps(vadd_f16(x, x));
-    float16x4_t y0 = vsub_f16(_one, vdiv_f16(_two, vadd_f16(exp_x_x, _one)));
+    // clamp the inputs to the range [-9, 9] since anything outside
+    // this range is -/+1.0f in single-precision.
+    x2 = vreinterpret_f16_u16(vbsl_u16(vcge_f16(vdup_n_f16(c_tanh_hi), x2), vreinterpret_u16_f16(x2), vreinterpret_u16_f16(vdup_n_f16(c_tanh_hi))));
 
-    // abs(x) < 0.625
-    /*
-        z = x2 * x2;
-        z =
-        (((( -5.70498872745E-3 * z
-        + 2.06390887954E-2) * z
-        - 5.37397155531E-2) * z
-        + 1.33314422036E-1) * z
-        - 3.33332819422E-1) * z * x
-        + x;
-    */
-    float16x4_t z = vmul_f16(x, x);
+    // since the polynomials are odd/even, we need x**2.
+    float16x4_t z = vmul_f16(x2, x2);
 
-    float16x4_t y = vdup_n_f16(c_cephes_tanh_p0);
-    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p1), y, z);
-    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p2), y, z);
-    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p3), y, z);
-    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p4), y, z);
+    // evaluate the numerator polynomial y.
+    float16x4_t y = vdup_n_f16(c_tanh_alpha_13);
+    y = vfma_f16(vdup_n_f16(c_tanh_alpha_11), y, z);
+    y = vfma_f16(vdup_n_f16(c_tanh_alpha_9), y, z);
+    y = vfma_f16(vdup_n_f16(c_tanh_alpha_7), y, z);
+    y = vfma_f16(vdup_n_f16(c_tanh_alpha_5), y, z);
+    y = vfma_f16(vdup_n_f16(c_tanh_alpha_3), y, z);
+    y = vfma_f16(vdup_n_f16(c_tanh_alpha_1), y, z);
+    y = vmul_f16(y, x2);
 
-    y = vmul_f16(y, z);
-    y = vfma_f16(x, y, x);
-    // abs(x) > HALFMAXLOGF
-    // return 1.0 or -1.0
-    uint16x4_t mask_pos = vcgt_f16(x, vdup_n_f16(0.f));
-    float16x4_t y1 = vreinterpret_f16_u16(vbsl_u16(mask_pos, vreinterpret_u16_f16(vdup_n_f16(1.f)), vreinterpret_u16_f16(vdup_n_f16(-1.f))));
+    // evaluate the denominator polynomial w.
+    float16x4_t w = vdup_n_f16(c_tanh_beta_6);
+    w = vfma_f16(vdup_n_f16(c_tanh_beta_4), w, z);
+    w = vfma_f16(vdup_n_f16(c_tanh_beta_2), w, z);
+    w = vfma_f16(vdup_n_f16(c_tanh_beta_0), w, z);
 
-    y = vreinterpret_f16_u16(vbsl_u16(mask_l, vreinterpret_u16_f16(y0), vreinterpret_u16_f16(y)));
-    y = vreinterpret_f16_u16(vbsl_u16(mask_l2, vreinterpret_u16_f16(y1), vreinterpret_u16_f16(y)));
+    // divide the numerator by the denominator.
+    y = vdiv_f16(y, w);
+
+    // reinstate the sign.
+    y = vreinterpret_f16_u16(vbsl_u16(vdup_n_u16(1u << 15), vreinterpret_u16_f16(x), vreinterpret_u16_f16(y)));
+
+    // when the argument is very small in magnitude it's more accurate to just return it.
+    y = vreinterpret_f16_u16(vbsl_u16(tiny_mask, vreinterpret_u16_f16(y), vreinterpret_u16_f16(x)));
+
     return y;
 }
 
@@ -526,45 +526,40 @@ static inline float16x8_t tanh_ps(float16x8_t x)
 {
     float16x8_t x2 = vabsq_f16(x);
 
-    uint16x8_t mask_l = vcgeq_f16(x2, vdupq_n_f16(c_cephes_tanh_C1));
-    uint16x8_t mask_l2 = vcgtq_f16(x2, vdupq_n_f16(c_cephes_HALFMAXLOGF_f16));
+    uint16x8_t tiny_mask = vcgeq_f16(x2, vdupq_n_f16(c_tanh_tiny));
 
-    // abs(x) >= 0.625
-    // tanh(x) = 1 − 2 / (exp(2x) + 1)
-    float16x8_t _one = vdupq_n_f16(1.f);
-    float16x8_t _two = vdupq_n_f16(2.f);
-    float16x8_t exp_x_x = exp_ps(vaddq_f16(x, x));
-    float16x8_t y0 = vsubq_f16(_one, vdivq_f16(_two, vaddq_f16(exp_x_x, _one)));
+    // clamp the inputs to the range [-9, 9] since anything outside
+    // this range is -/+1.0f in single-precision.
+    x2 = vreinterpretq_f16_u16(vbslq_u16(vcgeq_f16(vdupq_n_f16(c_tanh_hi), x2), vreinterpretq_u16_f16(x2), vreinterpretq_u16_f16(vdupq_n_f16(c_tanh_hi))));
 
-    // abs(x) < 0.625
-    /*
-     *        z = x2 * x2;
-     *        z =
-     *        (((( -5.70498872745E-3 * z
-     *        + 2.06390887954E-2) * z
-     *        - 5.37397155531E-2) * z
-     *        + 1.33314422036E-1) * z
-     *        - 3.33332819422E-1) * z * x
-     *        + x;
-     */
-    float16x8_t z = vmulq_f16(x, x);
-    float16x8_t y = vdupq_n_f16(c_cephes_tanh_p0);
+    // since the polynomials are odd/even, we need x**2.
+    float16x8_t z = vmulq_f16(x2, x2);
 
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p1), y, z);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p2), y, z);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p3), y, z);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p4), y, z);
+    // evaluate the numerator polynomial y.
+    float16x8_t y = vdupq_n_f16(c_tanh_alpha_13);
+    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_11), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_9), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_7), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_5), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_3), y, z);
+    y = vfmaq_f16(vdupq_n_f16(c_tanh_alpha_1), y, z);
+    y = vmulq_f16(y, x2);
 
-    y = vmulq_f16(y, z);
-    y = vfmaq_f16(x, y, x);
+    // evaluate the denominator polynomial w.
+    float16x8_t w = vdupq_n_f16(c_tanh_beta_6);
+    w = vfmaq_f16(vdupq_n_f16(c_tanh_beta_4), w, z);
+    w = vfmaq_f16(vdupq_n_f16(c_tanh_beta_2), w, z);
+    w = vfmaq_f16(vdupq_n_f16(c_tanh_beta_0), w, z);
 
-    // abs(x) > HALFMAXLOGF
-    // return 1.0 or -1.0
-    uint16x8_t mask_pos = vcgtq_f16(x, vdupq_n_f16(0.f));
-    float16x8_t y1 = vreinterpretq_f16_u16(vbslq_u16(mask_pos, vreinterpretq_u16_f16(vdupq_n_f16(1.f)), vreinterpretq_u16_f16(vdupq_n_f16(-1.f))));
+    // divide the numerator by the denominator.
+    y = vdivq_f16(y, w);
 
-    y = vreinterpretq_f16_u16(vbslq_u16(mask_l, vreinterpretq_u16_f16(y0), vreinterpretq_u16_f16(y)));
-    y = vreinterpretq_f16_u16(vbslq_u16(mask_l2, vreinterpretq_u16_f16(y1), vreinterpretq_u16_f16(y)));
+    // reinstate the sign.
+    y = vreinterpretq_f16_u16(vbslq_u16(vdupq_n_u16(1u << 15), vreinterpretq_u16_f16(x), vreinterpretq_u16_f16(y)));
+
+    // when the argument is very small in magnitude it's more accurate to just return it.
+    y = vreinterpretq_f16_u16(vbslq_u16(tiny_mask, vreinterpretq_u16_f16(y), vreinterpretq_u16_f16(x)));
+
     return y;
 }
 
