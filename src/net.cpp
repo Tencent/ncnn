@@ -766,6 +766,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     }
     else
 #endif // NCNN_RVV
+#if NCNN_BF16
     if (opt.use_bf16_storage)
     {
         if (bottom_blob.elembits() == 32 && layer->support_bf16_storage)
@@ -780,6 +781,11 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
             cast_bfloat16_to_float32(bottom_blob, bottom_blob_fp32, opt);
             bottom_blob = bottom_blob_fp32;
         }
+    }
+    else
+#endif // NCNN_BF16
+    {
+        // no type conversion
     }
     // *INDENT-ON*
     // clang-format on
@@ -2582,6 +2588,7 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     }
     else
 #endif // NCNN_ARM82
+#if NCNN_BF16
     if (d->opt.use_bf16_storage && (type == 0))
     {
         if (feat.elembits() == 16)
@@ -2591,7 +2598,9 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
             feat = feat_fp32;
         }
     }
-    else if (feat.elembits() == 8 && (type == 0))
+    else
+#endif // NCNN_BF16
+    if (feat.elembits() == 8 && (type == 0))
     {
         Mat feat_fp32;
         cast_int8_to_float32(feat, feat_fp32, d->opt);

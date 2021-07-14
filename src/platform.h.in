@@ -37,6 +37,7 @@
 #cmakedefine01 NCNN_MMI
 #cmakedefine01 NCNN_RVV
 #cmakedefine01 NCNN_INT8
+#cmakedefine01 NCNN_BF16
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
 

@@ -35,7 +35,9 @@ Crop_riscv::Crop_riscv()
 #endif
 #endif // __riscv_vector
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 #if __riscv_vector

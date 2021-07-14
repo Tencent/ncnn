@@ -33,7 +33,9 @@ BinaryOp_arm::BinaryOp_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 #if __ARM_NEON
@@ -812,8 +814,10 @@ int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         return forward_fp16s(bottom_blobs, top_blobs, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
+#endif
 
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
@@ -866,8 +870,10 @@ int BinaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
 #if __ARM_NEON
     int elempack = bottom_top_blob.elempack;
@@ -3258,6 +3264,7 @@ int BinaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt)
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 #if __ARM_NEON
 template<typename Op>
 static int binary_op_pack4_bf16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
@@ -4727,5 +4734,6 @@ int BinaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt)
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

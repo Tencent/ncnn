@@ -33,7 +33,9 @@ DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
@@ -101,6 +103,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
         }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
         if (opt.use_bf16_storage)
         {
 #if __ARM_NEON
@@ -120,6 +123,7 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
             return 0;
         }
+#endif // NCNN_BF16
 
 #if __ARM_NEON
         // pack4
@@ -228,8 +232,10 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     // convolv with NxN kernel
     // value = value + bias
@@ -986,6 +992,7 @@ int DeconvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int DeconvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
@@ -1224,5 +1231,6 @@ int DeconvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_b
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn
