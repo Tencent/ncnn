@@ -569,15 +569,14 @@ static inline float16x4_t tanh_ps(float16x4_t x)
     static const __fp16 cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
     float16x4_t z = vmul_f16(x, x);
 
-    float16x4_t y = vdupq_n_f16(c_cephes_tanh_p0);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p1), y, x);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p2), y, x);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p3), y, x);
-    y = vfmaq_f16(vdupq_n_f16(c_cephes_tanh_p4), y, x);
+    float16x4_t y = vduq_n_f16(c_cephes_tanh_p0);
+    y = vfma_f16(vduq_n_f16(c_cephes_tanh_p1), y, x);
+    y = vfma_f16(vduq_n_f16(c_cephes_tanh_p2), y, x);
+    y = vfma_f16(vduq_n_f16(c_cephes_tanh_p3), y, x);
+    y = vfma_f16(vduq_n_f16(c_cephes_tanh_p4), y, x);
 
     y = vmul_f16(y, z);
-    y = vfmaq_f16(x, y, x);
-
+    y = vfma_f16(x, y, x);
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
     uint16x4_t mask_pos = vcgt_f16(x, vdup_n_f16(0.f));
