@@ -578,7 +578,7 @@ static inline float16x4_t tanh_ps(float16x4_t x)
     y = vdiv_f16(y, w);
 
     // reinstate the sign.
-    y = vreinterpret_f16_u16(vbsl_u16(vdup_n_u16(1u<<15), vreinterpret_u16_f16(x), vreinterpret_u16_f16(y)));
+    y = vreinterpret_f16_u16(vbsl_u16(vdup_n_u16(1u << 15), vreinterpret_u16_f16(x), vreinterpret_u16_f16(y)));
 
     // when the argument is very small in magnitude it's more accurate to just return it.
     y = vreinterpret_f16_u16(vbsl_u16(tiny_mask, vreinterpret_u16_f16(y), vreinterpret_u16_f16(x)));
@@ -619,7 +619,7 @@ static inline float16x8_t tanh_ps(float16x8_t x)
     y = vdivq_f16(y, w);
 
     // reinstate the sign.
-    y = vreinterpretq_f16_u16(vbslq_u16(vdupq_n_u16(1u<<15), vreinterpretq_u16_f16(x), vreinterpretq_u16_f16(y)));
+    y = vreinterpretq_f16_u16(vbslq_u16(vdupq_n_u16(1u << 15), vreinterpretq_u16_f16(x), vreinterpretq_u16_f16(y)));
 
     // when the argument is very small in magnitude it's more accurate to just return it.
     y = vreinterpretq_f16_u16(vbslq_u16(tiny_mask, vreinterpretq_u16_f16(y), vreinterpretq_u16_f16(x)));

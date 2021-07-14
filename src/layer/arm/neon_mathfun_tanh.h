@@ -71,7 +71,7 @@ static inline float32x4_t tanh_ps(float32x4_t x)
 #endif
 
     // reinstate the sign.
-    y = vreinterpretq_f32_u32(vbslq_u32(vdupq_n_u32(1u<<31), vreinterpretq_u32_f32(x), vreinterpretq_u32_f32(y)));
+    y = vreinterpretq_f32_u32(vbslq_u32(vdupq_n_u32(1u << 31), vreinterpretq_u32_f32(x), vreinterpretq_u32_f32(y)));
 
     // when the argument is very small in magnitude it's more accurate to just return it.
     y = vreinterpretq_f32_u32(vbslq_u32(tiny_mask, vreinterpretq_u32_f32(y), vreinterpretq_u32_f32(x)));
