@@ -59,27 +59,16 @@ static inline float32x4_t tanh_ps(float32x4_t x)
         - 3.33332819422E-1) * z * x
         + x;
     */
-    static const float cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
-    float32x4_t y = vld1q_dup_f32(cephes_tanh_p + 0);
-    float32x4_t c1 = vld1q_dup_f32(cephes_tanh_p + 1);
-    float32x4_t c2 = vld1q_dup_f32(cephes_tanh_p + 2);
-    float32x4_t c3 = vld1q_dup_f32(cephes_tanh_p + 3);
-    float32x4_t c4 = vld1q_dup_f32(cephes_tanh_p + 4);
-
     float32x4_t z = vmulq_f32(x, x);
 
-    y = vmulq_f32(y, z);
-    y = vaddq_f32(y, c1);
-    y = vmulq_f32(y, z);
-    y = vaddq_f32(y, c2);
-    y = vmulq_f32(y, z);
-    y = vaddq_f32(y, c3);
-    y = vmulq_f32(y, z);
-    y = vaddq_f32(y, c4);
+    float32x4_t y = vdupq_n_f32(c_cephes_tanh_p0);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p1), y, z);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p2), y, z);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p3), y, z);
+    y = vmlaq_f32(vdupq_n_f32(c_cephes_tanh_p4), y, z);
 
     y = vmulq_f32(y, z);
-    y = vmulq_f32(y, x);
-    y = vaddq_f32(y, x);
+    y = vmlaq_f32(x, y, x);
 
     // abs(x) > HALFMAXLOGF
     // return 1.0 or -1.0
