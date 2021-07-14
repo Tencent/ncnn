@@ -30,6 +30,7 @@
 #cmakedefine01 NCNN_VULKAN
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX2
+#cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_ARM82
 #cmakedefine01 NCNN_ARM82DOT
 #cmakedefine01 NCNN_MSA
