@@ -566,7 +566,6 @@ static inline float16x4_t tanh_ps(float16x4_t x)
         - 3.33332819422E-1) * z * x
         + x;
     */
-    static const __fp16 cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
     float16x4_t z = vmul_f16(x, x);
 
     float16x4_t y = vdup_n_f16(c_cephes_tanh_p0);
@@ -612,7 +611,6 @@ static inline float16x8_t tanh_ps(float16x8_t x)
      *        - 3.33332819422E-1) * z * x
      *        + x;
      */
-    static const __fp16 cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
     float16x8_t z = vmulq_f16(x, x);
     float16x8_t y = vdupq_n_f16(c_cephes_tanh_p0);
 
