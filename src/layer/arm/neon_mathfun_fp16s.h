@@ -569,11 +569,11 @@ static inline float16x4_t tanh_ps(float16x4_t x)
     static const __fp16 cephes_tanh_p[5] = {c_cephes_tanh_p0, c_cephes_tanh_p1, c_cephes_tanh_p2, c_cephes_tanh_p3, c_cephes_tanh_p4};
     float16x4_t z = vmul_f16(x, x);
 
-    float16x4_t y = vduq_n_f16(c_cephes_tanh_p0);
-    y = vfma_f16(vduq_n_f16(c_cephes_tanh_p1), y, x);
-    y = vfma_f16(vduq_n_f16(c_cephes_tanh_p2), y, x);
-    y = vfma_f16(vduq_n_f16(c_cephes_tanh_p3), y, x);
-    y = vfma_f16(vduq_n_f16(c_cephes_tanh_p4), y, x);
+    float16x4_t y = vdup_n_f16(c_cephes_tanh_p0);
+    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p1), y, x);
+    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p2), y, x);
+    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p3), y, x);
+    y = vfma_f16(vdup_n_f16(c_cephes_tanh_p4), y, x);
 
     y = vmul_f16(y, z);
     y = vfma_f16(x, y, x);
