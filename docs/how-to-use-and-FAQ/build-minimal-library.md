@@ -39,6 +39,15 @@ cmake -DNCNN_STRING=OFF ..
 
     Read more [here](https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/use-ncnn-with-alexnet.md#input-and-output).
 
+### disable NCNN_BF16
+
+```
+cmake -DNCNN_BF16=OFF ..
+```
+
+* Cannot use bf16 storage type in inference.
+
+
 ### disable NCNN_INT8
 
 ```
