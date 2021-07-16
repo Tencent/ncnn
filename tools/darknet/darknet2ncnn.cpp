@@ -380,6 +380,8 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
         {
             if (s->pad)
                 s->padding = s->size / 2;
+            if (s->padding == -1)
+                s->padding = 0;
             s->h = p->out_h;
             s->w = p->out_w;
             s->c = p->out_c;
