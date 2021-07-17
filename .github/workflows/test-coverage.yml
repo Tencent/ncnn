@@ -49,19 +49,19 @@ jobs:
       uses: actions/cache@v2.1.6
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20200508
+        key: swiftshader-linux-install-20210711
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 2dd864470e310d173d35fa95ca3a14d216734aab
+        ref: 4716eec90fcbb105b4694807121c7a57d7cf8fd9
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
         cd swiftshader
-        git submodule update --init --recursive
+        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
     - name: swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
