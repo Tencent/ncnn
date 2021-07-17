@@ -137,7 +137,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 {
                     sum += m[i] * kptr[i];
                 }
-
+                
                 if (activation_type == 1)
                 {
                     sum = std::max(sum, 0.f);
@@ -262,18 +262,17 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         for (int j = 0; j < h; j++)
         {
             const signed char* m = bottom_blob_int8.row<signed char>(j);
-            const signed char* kptr = weight_data;
             float* outptr = top_blob.row(j);
 
             for (int p = 0; p < num_output; p++)
             {
+                const char* kptr = (const char*)weight_data + w * p;
                 int sum = 0;
 
                 for (int i = 0; i < w; i++)
                 {
                     sum += m[i] * kptr[i];
                 }
-
                 // dequantize and relu
                 float scale_in;
                 if (weight_data_int8_scales[p] == 0)
