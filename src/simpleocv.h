@@ -447,6 +447,7 @@ enum ImreadModes
 };
 
 NCNN_EXPORT Mat imread(const std::string& path, int flags = IMREAD_COLOR);
+NCNN_EXPORT Mat imread(const unsigned char* buffer, int len, int flags = IMREAD_COLOR);
 
 enum ImwriteFlags
 {
@@ -454,6 +455,7 @@ enum ImwriteFlags
 };
 
 NCNN_EXPORT bool imwrite(const std::string& path, const Mat& m, const std::vector<int>& params = std::vector<int>());
+NCNN_EXPORT unsigned char* imwrite(int* len, const Mat& m);
 
 NCNN_EXPORT void imshow(const std::string& name, const Mat& m);
 
