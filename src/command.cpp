@@ -2340,7 +2340,7 @@ int VkCompute::submit_and_wait()
             case VkComputePrivate::record::TYPE_push_constants:
             {
                 vkCmdPushConstants(r.command_buffer, r.push_constants.pipeline_layout, r.push_constants.stage_flags, 0, r.push_constants.size, r.push_constants.values);
-                delete [](unsigned char *)r.push_constants.values;
+                delete[](unsigned char*) r.push_constants.values;
                 break;
             }
             case VkComputePrivate::record::TYPE_dispatch:
