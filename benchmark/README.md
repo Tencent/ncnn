@@ -1426,6 +1426,67 @@ cooling_down = 1
          yolov4-tiny  min = 2162.66  max = 2178.76  avg = 2171.22
 ```
 
+### Loongson 2K1000 (GS264 1.0GHz x 2)
+```
+root@ls2k:~/ncnn/build/benchmark# ./benchncnn 4 2 0 -1 1
+loop_count = 4
+num_threads = 2
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =  186.52  max =  188.70  avg =  187.19
+           mobilenet  min =  278.43  max =  279.79  avg =  279.16
+        mobilenet_v2  min =  223.91  max =  224.36  avg =  224.16
+        mobilenet_v3  min =  180.59  max =  181.82  avg =  180.96
+          shufflenet  min =  123.24  max =  123.64  avg =  123.48
+       shufflenet_v2  min =  115.93  max =  117.35  avg =  116.59
+             mnasnet  min =  206.54  max =  206.82  avg =  206.70
+     proxylessnasnet  min =  229.80  max =  315.46  avg =  252.36
+     efficientnet_b0  min =  339.09  max =  339.79  avg =  339.41
+   efficientnetv2_b0  min =  384.24  max =  384.87  avg =  384.50
+        regnety_400m  min =  271.61  max =  272.27  avg =  271.89
+           blazeface  min =   36.06  max =   36.44  avg =   36.23
+           googlenet  min =  655.98  max =  690.34  avg =  664.82
+            resnet18  min =  497.96  max =  498.03  avg =  497.99
+             alexnet  min =  509.80  max =  510.57  avg =  510.24
+               vgg16  min = 2705.05  max = 3100.91  avg = 2876.61
+            resnet50  min = 1258.32  max = 1297.43  avg = 1268.68
+       mobilenet_ssd  min =  570.91  max =  572.03  avg =  571.44
+      mobilenet_yolo  min = 1619.51  max = 1676.13  avg = 1636.07
+  mobilenetv2_yolov3  min =  749.36  max =  797.85  avg =  761.68
+         yolov4-tiny  min =  992.53  max = 1018.84  avg =  999.70
+           nanodet_m  min =  301.72  max =  303.47  avg =  302.53
+
+root@ls2k:~/ncnn/build/benchmark# ./benchncnn 4 1 0 -1 1
+loop_count = 4
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =  298.44  max =  300.93  avg =  299.44
+           mobilenet  min =  473.52  max =  476.33  avg =  475.06
+        mobilenet_v2  min =  343.32  max =  354.65  avg =  346.47
+        mobilenet_v3  min =  284.11  max =  284.70  avg =  284.51
+          shufflenet  min =  188.78  max =  189.04  avg =  188.88
+       shufflenet_v2  min =  182.75  max =  183.07  avg =  182.92
+             mnasnet  min =  335.42  max =  337.82  avg =  336.54
+     proxylessnasnet  min =  384.64  max =  385.02  avg =  384.84
+     efficientnet_b0  min =  572.26  max =  576.60  avg =  573.79
+   efficientnetv2_b0  min =  646.99  max =  659.11  avg =  650.68
+        regnety_400m  min =  426.79  max =  431.30  avg =  428.11
+           blazeface  min =   57.62  max =   58.22  avg =   57.87
+           googlenet  min = 1118.55  max = 1136.04  avg = 1123.23
+            resnet18  min =  798.49  max =  801.61  avg =  800.10
+             alexnet  min =  891.14  max =  903.55  avg =  895.12
+               vgg16  min = 4412.31  max = 4480.41  avg = 4430.90
+            resnet50  min = 2179.33  max = 2194.03  avg = 2184.99
+       mobilenet_ssd  min =  974.85  max =  975.89  avg =  975.50
+      mobilenet_yolo  min = 2541.57  max = 2560.65  avg = 2550.61
+  mobilenetv2_yolov3  min = 1197.49  max = 1211.18  avg = 1201.43
+         yolov4-tiny  min = 1535.79  max = 1695.41  avg = 1578.90
+           nanodet_m  min =  450.95  max =  452.94  avg =  451.97
+```
+
 ### nVIDIA RTX2060 of Notebook
 ```
 C:\Users\ai\AppData\Local\Temp\benchmark>benchncnn.exe 64 1 0 0 0
