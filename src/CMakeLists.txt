@@ -290,7 +290,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang
         target_compile_options(ncnn PRIVATE /wd4251)
     endif()
 else()
-    target_compile_options(ncnn PRIVATE "-Wall" "-Wextra" "-Wno-unused-function" "-Wno-unused-variable" "-Wno-unused-parameter" "-Wno-#warnings")
+    target_compile_options(ncnn PRIVATE "-Wall" "-Wextra" "-Wno-unused-function" "-Wno-unused-variable" "-Wno-unused-parameter" "-Wno-#warnings" "-Wno-cpp")
 
     if(NOT NCNN_DISABLE_PIC)
         set_target_properties(ncnn PROPERTIES POSITION_INDEPENDENT_CODE ON INTERFACE_POSITION_INDEPENDENT_CODE ON)
