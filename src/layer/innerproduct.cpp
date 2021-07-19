@@ -266,7 +266,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 
             for (int p = 0; p < num_output; p++)
             {
-                const char* kptr = (const char*)weight_data + w * p;
+                const signed char* kptr = (const signed char*)weight_data + w * p;
                 int sum = 0;
 
                 for (int i = 0; i < w; i++)
