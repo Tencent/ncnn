@@ -286,8 +286,6 @@ static int test_c_api_2()
         ncnn_extractor_destroy(ex);
     }
 
-    ncnn_net_destroy(net);
-
     // check c
     bool success = false;
     if (c)
@@ -314,11 +312,13 @@ static int test_c_api_2()
         ncnn_mat_destroy(c2);
     }
 
-    ncnn_option_destroy(opt);
-
     ncnn_mat_destroy(a);
     ncnn_mat_destroy(b);
     ncnn_mat_destroy(c);
+
+    ncnn_net_destroy(net);
+
+    ncnn_option_destroy(opt);
 
     ncnn_datareader_destroy(emptydr);
 
