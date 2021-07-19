@@ -42,7 +42,7 @@ jobs:
     - name: build-sse2
       run: |
         mkdir build-sse2 && cd build-sse2
-        cmake -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-sse2
       run: cd build-sse2 && ctest --output-on-failure -j 2
