@@ -236,9 +236,10 @@ Layer* create_layer(int index)
     if (ncnn::cpu_support_x86_avx2())
     {
         layer_creator = layer_registry_avx2[index].creator;
-    } else
+    }
+    else
 #endif// NCNN_RUNTIME_CPU && NCNN_AVX2
-#if NCNN_RUNTIME_CPU &&  NCNN_AVX
+#if NCNN_RUNTIME_CPU && NCNN_AVX
     if (ncnn::cpu_support_x86_avx())
     {
         layer_creator = layer_registry_avx[index].creator;
