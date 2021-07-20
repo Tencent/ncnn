@@ -44,15 +44,6 @@ InnerProduct_arm::InnerProduct_arm()
 
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
-#if NCNN_INT8
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
-    {
-        return create_pipeline_int8_arm(opt);
-    }
-#endif
-
-#if __ARM_NEON
-    if (opt.use_packing_layout)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -62,7 +53,13 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-#endif // __ARM_NEON
+
+#if NCNN_INT8
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
+        return create_pipeline_int8_arm(opt);
+    }
+#endif
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage)
@@ -1949,16 +1946,6 @@ int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
     if (activation)
     {
         activation->create_pipeline(opt);
-    }
-
-    {
-        flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
-
-        ncnn::ParamDict pd;
-
-        flatten->load_param(pd);
-
-        flatten->create_pipeline(opt);
     }
 
     const int num_input = weight_data_size / num_output;
