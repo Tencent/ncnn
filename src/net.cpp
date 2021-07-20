@@ -875,7 +875,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
             // deep copy for inplace forward if data is shared
             if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
             {
-                bottom_blob = bottom_blob_ref.clone();
+                bottom_blob = bottom_blob_ref.clone(opt.blob_allocator);
             }
         }
         if (bottom_blob.dims == 0)
@@ -928,7 +928,7 @@ int NetPrivate::do_forward_layer(const Layer* layer, std::vector<Mat>& blob_mats
                 // deep copy for inplace forward if data is shared
                 if (layer->support_inplace && *bottom_blob_ref.refcount != 1)
                 {
-                    bottom_blobs[i] = bottom_blob_ref.clone();
+                    bottom_blobs[i] = bottom_blob_ref.clone(opt.blob_allocator);
                 }
             }
             if (bottom_blobs[i].dims == 0)

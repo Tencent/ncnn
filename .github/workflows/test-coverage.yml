@@ -86,7 +86,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -102,7 +102,7 @@ jobs:
     - name: lcov
       run: sudo apt-get install lcov
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
@@ -114,7 +114,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -142,10 +142,11 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+
   linux-gcc-avx-omp:
     runs-on: ubuntu-latest
     steps:
@@ -169,7 +170,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -230,7 +231,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -291,7 +292,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -352,7 +353,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -413,7 +414,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -474,7 +475,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -535,7 +536,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -597,7 +598,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -711,7 +712,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen128
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -729,7 +730,7 @@ jobs:
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen256
-      uses: codecov/codecov-action@v1.5.2
+      uses: codecov/codecov-action@v2.0.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
