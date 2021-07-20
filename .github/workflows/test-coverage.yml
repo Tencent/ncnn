@@ -458,7 +458,7 @@ jobs:
         sudo apt-get install g++-mipsisa32r6el-linux-gnu
 
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=OFF -DNCNN_MMI=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
 
@@ -519,7 +519,7 @@ jobs:
         sudo apt-get install g++-mipsisa64r6el-linux-gnuabi64
 
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=ON -DNCNN_MMI=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
 
