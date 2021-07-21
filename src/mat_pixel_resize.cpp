@@ -1242,6 +1242,47 @@ void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsi
     unsigned char* dstUV = dst + w * h;
     resize_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2);
 }
+
+void resize_nearest_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+    return resize_nearest_c1(src, srcw, srch, srcw, dst, w, h, w);
+}
+
+void resize_nearest_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+    return resize_nearest_c2(src, srcw, srch, srcw, dst, w, h, w);
+}
+
+void resize_nearest_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+    return resize_nearest_c3(src, srcw, srch, srcw, dst, w, h, w);
+}
+
+void resize_nearest_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+    return resize_nearest_c4(src, srcw, srch, srcw, dst, w, h, w);
+}
+
+void resize_nearest_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride)
+{
+
+}
+
+void resize_nearest_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride)
+{
+
+}
+
+void resize_nearest_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride)
+{
+
+}
+
+void resize_nearest_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h, int stride)
+{
+
+}
+
 #endif // NCNN_PIXEL
 
 } // namespace ncnn
