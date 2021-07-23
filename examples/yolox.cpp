@@ -188,6 +188,7 @@ static int generate_grids_and_stride(const int target_size, std::vector<int>& st
             }
         }
     }
+    return 0;
 }
 
 static void generate_yolox_proposals(std::vector<GridAndStride> grid_strides, const ncnn::Mat& feat_blob, float prob_threshold, std::vector<Object>& objects)
