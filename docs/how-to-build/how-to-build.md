@@ -168,7 +168,7 @@ cmake --build . -j 4
 cmake --build . --target install
 ```
 
-*Note: If you encounter `libomp` related errors during installation, you can also refer out GitHub Actions at [here](https://github.com/Tencent/ncnn/blob/d91cccf/.github/workflows/macos-x64-gpu.yml#L50-L68) to install and use `openmp`.*
+*Note: If you encounter `libomp` related errors during installation, you can also check our GitHub Actions at [here](https://github.com/Tencent/ncnn/blob/d91cccf/.github/workflows/macos-x64-gpu.yml#L50-L68) to install and use `openmp`.*
 ***
 
 ### Build for ARM Cortex-A family with cross-compiling
