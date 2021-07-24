@@ -136,10 +136,11 @@ Note: To speed up compilation process on multi core machines, configuring `cmake
 ***
 
 ### Build for MacOS
-Install xcode, protobuf and libomp
+First install Xcode or Xcode Command Line Tools according to your needs.
+
+Then install `protobuf` and `libomp` via homebrew
 
 ```shell
-# Install protobuf and libomp via homebrew
 brew install protobuf libomp
 ```
 
