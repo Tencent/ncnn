@@ -1,0 +1,12 @@
+PROJECT_NAME = "ncnn"
+INPUT = @CMAKE_SOURCE_DIR@
+OUTPUT_LANGUAGE = English
+EXTRACT_ALL = YES
+HTML_TIMESTAMP = YES
+RECURSIVE = YES
+STRIP_FROM_PATH = ../
+GENERATE_HTML = YES
+GENERATE_LATEX = NO
+EXCLUDE_PATTERNS = *.cpp
+EXCLUDE_SYMBOLS = caffe::* google::* mlir::* std::* onnx::* protobuf_caffe_2eproto::* protobuf_onnx_2eproto::* setup::*
+STRIP_FROM_PATH = @CMAKE_SOURCE_DIR@/cmake-build-debug @CMAKE_DOXYGEN_INCLUDE_ROOTS@
