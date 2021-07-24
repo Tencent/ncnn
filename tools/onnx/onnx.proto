@@ -6,7 +6,7 @@
 // Copyright (c) ONNX Project Contributors.
 // Licensed under the MIT license.
 
-syntax = "proto2";
+syntax = "proto3";
 
 package onnx;
 
