@@ -41,7 +41,7 @@ BinaryOp_riscv::BinaryOp_riscv()
 }
 
 #if __riscv_vector
-template <typename Op>
+template<typename Op>
 static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                          const Option& opt)
 {
@@ -980,8 +980,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs,
                             std::vector<Mat>& top_blobs,
                             const Option& opt) const
 {
-    int elembits =
-        std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
+    int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
 #if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && elembits == 16)
     {
@@ -1027,11 +1026,11 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs,
 
         if (op_type == Operation_RSUB)
             return binary_op_rvv<binary_op_rsub_rvv>(bottom_blob, bottom_blob1,
-                                                     top_blob, opt);
+                    top_blob, opt);
 
         if (op_type == Operation_RDIV)
             return binary_op_rvv<binary_op_rdiv_rvv>(bottom_blob, bottom_blob1,
-                                                     top_blob, opt);
+                    top_blob, opt);
     }
 #endif
 
@@ -1039,7 +1038,7 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs,
 }
 
 #if __riscv_vector
-template <typename Op>
+template<typename Op>
 static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
 {
     Op op;
@@ -1072,7 +1071,6 @@ static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
 int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob,
                                     const Option& opt) const
 {
-
 #if __riscv_vector
     int elembits = bottom_top_blob.elembits();
 
@@ -1113,10 +1111,9 @@ int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob,
     return BinaryOp::forward_inplace(bottom_top_blob, opt);
 }
 
-
 // fp16sa
 #if __riscv_vector && __riscv_zfh
-template <typename Op>
+template<typename Op>
 static int binary_op_rvv_fp16sa(const Mat& a, const Mat& b, Mat& c,
                                 const Option& opt)
 {
@@ -2070,45 +2067,45 @@ int BinaryOp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
 
     if (op_type == Operation_ADD)
         return binary_op_rvv_fp16sa<binary_op_add_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                            top_blob, opt);
+                top_blob, opt);
 
     if (op_type == Operation_SUB)
         return binary_op_rvv_fp16sa<binary_op_sub_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                            top_blob, opt);
+                top_blob, opt);
 
     if (op_type == Operation_MUL)
         return binary_op_rvv_fp16sa<binary_op_mul_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                            top_blob, opt);
+                top_blob, opt);
 
     if (op_type == Operation_DIV)
         return binary_op_rvv_fp16sa<binary_op_div_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                            top_blob, opt);
+                top_blob, opt);
 
     if (op_type == Operation_MAX)
         return binary_op_rvv_fp16sa<binary_op_max_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                            top_blob, opt);
+                top_blob, opt);
 
     if (op_type == Operation_MIN)
         return binary_op_rvv_fp16sa<binary_op_min_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                            top_blob, opt);
+                top_blob, opt);
 
     if (op_type == Operation_POW)
         return binary_op_rvv_fp16sa<binary_op_pow_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                            top_blob, opt);
+                top_blob, opt);
 
     if (op_type == Operation_RSUB)
         return binary_op_rvv_fp16sa<binary_op_rsub_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                             top_blob, opt);
+                top_blob, opt);
 
     if (op_type == Operation_RDIV)
         return binary_op_rvv_fp16sa<binary_op_rdiv_rvv_fp16>(bottom_blob, bottom_blob1,
-                                                             top_blob, opt);
+                top_blob, opt);
 
     return 0;
 }
 
 #if __riscv_vector && __riscv_zfh
-template <typename Op>
+template<typename Op>
 static int binary_op_scalar_rvv_fp16sa(Mat& a, float b, const Option& opt)
 {
     Op op;
@@ -2138,48 +2135,46 @@ static int binary_op_scalar_rvv_fp16sa(Mat& a, float b, const Option& opt)
 }
 #endif
 int BinaryOp_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob,
-                                           const Option& opt) const
+        const Option& opt) const
 {
     if (op_type == Operation_ADD)
         return binary_op_scalar_rvv_fp16sa<binary_op_add_rvv_fp16>(bottom_top_blob, b,
-                                                                   opt);
+                opt);
 
     if (op_type == Operation_SUB)
         return binary_op_scalar_rvv_fp16sa<binary_op_sub_rvv_fp16>(bottom_top_blob, b,
-                                                                   opt);
+                opt);
 
     if (op_type == Operation_MUL)
         return binary_op_scalar_rvv_fp16sa<binary_op_mul_rvv_fp16>(bottom_top_blob, b,
-                                                                   opt);
+                opt);
 
     if (op_type == Operation_DIV)
         return binary_op_scalar_rvv_fp16sa<binary_op_div_rvv_fp16>(bottom_top_blob, b,
-                                                                   opt);
+                opt);
 
     if (op_type == Operation_MAX)
         return binary_op_scalar_rvv_fp16sa<binary_op_max_rvv_fp16>(bottom_top_blob, b,
-                                                                   opt);
+                opt);
 
     if (op_type == Operation_MIN)
         return binary_op_scalar_rvv_fp16sa<binary_op_min_rvv_fp16>(bottom_top_blob, b,
-                                                                   opt);
+                opt);
 
     if (op_type == Operation_POW)
         return binary_op_scalar_rvv_fp16sa<binary_op_pow_rvv_fp16>(bottom_top_blob, b,
-                                                                   opt);
+                opt);
 
     if (op_type == Operation_RSUB)
         return binary_op_scalar_rvv_fp16sa<binary_op_rsub_rvv_fp16>(bottom_top_blob, b,
-                                                                    opt);
+                opt);
 
     if (op_type == Operation_RDIV)
         return binary_op_scalar_rvv_fp16sa<binary_op_rdiv_rvv_fp16>(bottom_top_blob, b,
-                                                                    opt);
+                opt);
     return 0;
 }
 
 #endif
-
-
 
 } // namespace ncnn
