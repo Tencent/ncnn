@@ -723,7 +723,9 @@ enum BorderType
     BORDER_REPLICATE = 1,
     BORDER_TRANSPARENT = -233,
 };
+// copy mat content to another and make paddings with specified margins(in 4 directions) and value
 NCNN_EXPORT void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt = Option());
+// copy sub region content in mat to another mat, region specified with margins in 4 directions
 NCNN_EXPORT void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, const Option& opt = Option());
 NCNN_EXPORT void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
 NCNN_EXPORT void resize_bilinear(const Mat& src, Mat& dst, int w, int h, const Option& opt = Option());
