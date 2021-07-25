@@ -1721,40 +1721,42 @@ num_threads = 1
 powersave = 0
 gpu_device = -1
 cooling_down = 0
-          squeezenet  min =    4.79  max =    4.98  avg =    4.84
-     squeezenet_int8  min =   10.10  max =   10.17  avg =   10.13
-           mobilenet  min =    9.12  max =    9.48  avg =    9.37
-      mobilenet_int8  min =   13.68  max =   13.71  avg =   13.70
-        mobilenet_v2  min =    5.64  max =    5.89  avg =    5.73
-        mobilenet_v3  min =    4.79  max =    4.88  avg =    4.84
-          shufflenet  min =    3.65  max =    3.76  avg =    3.67
-       shufflenet_v2  min =    3.92  max =    3.93  avg =    3.93
-             mnasnet  min =    5.75  max =    5.92  avg =    5.83
-     proxylessnasnet  min =    7.34  max =    7.54  avg =    7.50
-     efficientnet_b0  min =    9.25  max =    9.55  avg =    9.40
-        regnety_400m  min =    9.39  max =    9.45  avg =    9.41
-           blazeface  min =    1.89  max =    1.92  avg =    1.91
-           googlenet  min =   25.55  max =   25.91  avg =   25.65
-      googlenet_int8  min =   39.34  max =   39.80  avg =   39.48
-            resnet18  min =   16.89  max =   17.18  avg =   16.99
-       resnet18_int8  min =   30.98  max =   31.92  avg =   31.24
-             alexnet  min =   30.90  max =   31.35  avg =   31.09
-               vgg16  min =   74.09  max =   76.50  avg =   75.19
-          vgg16_int8  min =  212.09  max =  219.74  avg =  215.01
-            resnet50  min =   43.59  max =   44.04  avg =   43.75
-       resnet50_int8  min =   69.55  max =   71.29  avg =   70.33
-      squeezenet_ssd  min =   20.97  max =   21.41  avg =   21.11
- squeezenet_ssd_int8  min =   33.53  max =   34.74  avg =   33.98
-       mobilenet_ssd  min =   22.03  max =   22.79  avg =   22.28
-  mobilenet_ssd_int8  min =   28.83  max =   29.71  avg =   29.10
-      mobilenet_yolo  min =   40.67  max =   42.66  avg =   41.24
-  mobilenetv2_yolov3  min =   20.89  max =   22.23  avg =   21.33
-         yolov4-tiny  min =   30.70  max =   32.17  avg =   30.94
-         
-         
-MacBook-Pro benchmark % ./benchncnn 10 8 0 0 0 
+          squeezenet  min =    4.80  max =    5.05  avg =    4.86
+     squeezenet_int8  min =    4.02  max =    4.13  avg =    4.04
+           mobilenet  min =    9.09  max =    9.41  avg =    9.22
+      mobilenet_int8  min =    4.65  max =    4.76  avg =    4.70
+        mobilenet_v2  min =    5.64  max =    5.83  avg =    5.73
+        mobilenet_v3  min =    4.64  max =    4.85  avg =    4.76
+          shufflenet  min =    3.48  max =    3.63  avg =    3.56
+       shufflenet_v2  min =    3.69  max =    3.81  avg =    3.73
+             mnasnet  min =    5.67  max =    5.94  avg =    5.77
+     proxylessnasnet  min =    7.03  max =    7.28  avg =    7.20
+     efficientnet_b0  min =    9.13  max =    9.53  avg =    9.28
+   efficientnetv2_b0  min =   17.37  max =   18.47  avg =   17.63
+        regnety_400m  min =    7.64  max =    8.08  avg =    7.72
+           blazeface  min =    1.80  max =    1.89  avg =    1.83
+           googlenet  min =   25.71  max =   25.90  avg =   25.81
+      googlenet_int8  min =   16.89  max =   17.10  avg =   16.97
+            resnet18  min =   17.16  max =   17.28  avg =   17.20
+       resnet18_int8  min =   15.55  max =   15.75  avg =   15.64
+             alexnet  min =   30.60  max =   31.11  avg =   30.69
+               vgg16  min =   73.41  max =   75.37  avg =   73.91
+          vgg16_int8  min =  103.81  max =  105.15  avg =  104.19
+            resnet50  min =   43.47  max =   44.24  avg =   43.68
+       resnet50_int8  min =   30.37  max =   35.25  avg =   31.61
+      squeezenet_ssd  min =   20.97  max =   21.21  avg =   21.12
+ squeezenet_ssd_int8  min =   19.34  max =   19.54  avg =   19.42
+       mobilenet_ssd  min =   22.18  max =   22.58  avg =   22.28
+  mobilenet_ssd_int8  min =   13.27  max =   15.31  avg =   14.05
+      mobilenet_yolo  min =   40.78  max =   41.04  avg =   40.89
+  mobilenetv2_yolov3  min =   20.87  max =   21.92  avg =   21.02
+         yolov4-tiny  min =   30.73  max =   32.37  avg =   31.29
+           nanodet_m  min =    8.54  max =    8.86  avg =    8.65
+
+
+MacBook-Pro benchmark % ./benchncnn 10 8 0 0 0
 [0 Apple M1]  queueC=0[1]  queueG=0[1]  queueT=0[1]
-[0 Apple M1]  bugsbn1=0  bugbilz=97  bugcopc=0  bugihfa=0
+[0 Apple M1]  bugsbn1=0  bugbilz=151  bugcopc=0  bugihfa=0
 [0 Apple M1]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
 [0 Apple M1]  subgroup=32  basic=1  vote=1  ballot=1  shuffle=1
 loop_count = 10
@@ -1762,33 +1764,35 @@ num_threads = 8
 powersave = 0
 gpu_device = 0
 cooling_down = 0
-          squeezenet  min =    1.90  max =    2.60  avg =    2.08
-     squeezenet_int8  min =    6.17  max =   10.19  avg =    7.95
-           mobilenet  min =    2.52  max =    3.05  avg =    2.74
-      mobilenet_int8  min =    7.26  max =    9.46  avg =    8.17
-        mobilenet_v2  min =    2.84  max =    3.36  avg =    3.03
-        mobilenet_v3  min =    3.49  max =    4.24  avg =    3.79
-          shufflenet  min =    1.97  max =    2.44  avg =    2.16
-       shufflenet_v2  min =    2.43  max =    3.00  avg =    2.60
-             mnasnet  min =    2.55  max =    3.42  avg =    2.89
-     proxylessnasnet  min =    3.08  max =    3.70  avg =    3.29
-     efficientnet_b0  min =    4.78  max =    5.97  avg =    5.18
-        regnety_400m  min =    4.04  max =    4.63  avg =    4.22
-           blazeface  min =    1.06  max =    1.40  avg =    1.20
-           googlenet  min =    4.92  max =    5.72  avg =    5.22
-      googlenet_int8  min =   20.62  max =   26.34  avg =   23.78
-            resnet18  min =    3.83  max =    4.46  avg =    4.18
-       resnet18_int8  min =   15.37  max =   19.79  avg =   16.95
-             alexnet  min =    7.29  max =    7.64  avg =    7.48
-               vgg16  min =   32.43  max =   33.01  avg =   32.68
-          vgg16_int8  min =   77.96  max =   84.55  avg =   80.97
-            resnet50  min =    7.40  max =    8.02  avg =    7.68
-       resnet50_int8  min =   37.31  max =   44.22  avg =   40.42
-      squeezenet_ssd  min =    7.24  max =    8.37  avg =    7.75
- squeezenet_ssd_int8  min =   20.78  max =   26.64  avg =   23.11
-       mobilenet_ssd  min =    4.79  max =    5.96  avg =    5.20
-  mobilenet_ssd_int8  min =   17.72  max =   21.80  avg =   19.39
-      mobilenet_yolo  min =    6.70  max =    8.50  avg =    7.64
-  mobilenetv2_yolov3  min =    7.82  max =    9.02  avg =    8.27
-         yolov4-tiny  min =   12.15  max =   13.90  avg =   12.87
+          squeezenet  min =    1.86  max =    2.22  avg =    2.01
+     squeezenet_int8  min =    2.38  max =    8.40  avg =    5.13
+           mobilenet  min =    2.50  max =    2.91  avg =    2.64
+      mobilenet_int8  min =    2.29  max =    5.26  avg =    3.54
+        mobilenet_v2  min =    2.93  max =    3.12  avg =    2.98
+        mobilenet_v3  min =    3.36  max =    3.61  avg =    3.48
+          shufflenet  min =    1.99  max =    2.54  avg =    2.18
+       shufflenet_v2  min =    2.35  max =    2.84  avg =    2.52
+             mnasnet  min =    2.81  max =    3.33  avg =    2.92
+     proxylessnasnet  min =    3.21  max =    3.62  avg =    3.36
+     efficientnet_b0  min =    4.74  max =    5.73  avg =    5.07
+   efficientnetv2_b0  min =   12.04  max =   13.04  avg =   12.61
+        regnety_400m  min =    3.86  max =    4.04  avg =    3.98
+           blazeface  min =    0.98  max =    1.11  avg =    1.03
+           googlenet  min =    4.86  max =    5.38  avg =    5.02
+      googlenet_int8  min =    9.43  max =   15.72  avg =   10.44
+            resnet18  min =    3.92  max =    4.59  avg =    4.24
+       resnet18_int8  min =    6.83  max =    7.57  avg =    7.35
+             alexnet  min =    7.49  max =    7.87  avg =    7.65
+               vgg16  min =   34.10  max =   35.29  avg =   34.60
+          vgg16_int8  min =   40.09  max =   44.66  avg =   41.95
+            resnet50  min =    7.22  max =    7.83  avg =    7.42
+       resnet50_int8  min =   14.52  max =   20.56  avg =   15.78
+      squeezenet_ssd  min =    8.52  max =   13.79  avg =    9.98
+ squeezenet_ssd_int8  min =   12.38  max =   15.44  avg =   13.37
+       mobilenet_ssd  min =    4.83  max =    6.00  avg =    5.31
+  mobilenet_ssd_int8  min =    7.26  max =   13.12  avg =    9.01
+      mobilenet_yolo  min =    7.22  max =    8.66  avg =    7.99
+  mobilenetv2_yolov3  min =    7.46  max =    8.06  avg =    7.80
+         yolov4-tiny  min =   12.17  max =   13.95  avg =   12.82
+           nanodet_m  min =    3.54  max =    4.78  avg =    3.86
 ```
