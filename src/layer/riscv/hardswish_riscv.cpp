@@ -99,7 +99,7 @@ int HardSwish_riscv::forward_inplace(Mat& bottom_top_blob,
 
 #if __riscv_vector && __riscv_zfh
 int HardSwish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob,
-                                           const Option& opt) const
+        const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;

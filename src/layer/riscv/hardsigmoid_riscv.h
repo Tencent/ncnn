@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #ifndef LAYER_HARDSIGMOID_RISCV_H
-#define LAYER_HARDSIGMOID_RISCV_H 
+#define LAYER_HARDSIGMOID_RISCV_H
 
 #include "hardsigmoid.h"
 
