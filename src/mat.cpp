@@ -178,20 +178,19 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
 {
     if (w * h * d * c != _w * _h * _d * _c)
         return Mat();
-
     if (dims < 3)
     {
-        if ((size_t)_w * _h != alignSize((size_t)_w * _h * elemsize, 16) / elemsize)
+        if ((size_t)_w * _h * _d != alignSize((size_t)_w * _h * _d * elemsize, 16) / elemsize)
         {
             Mat m;
-            m.create(_w, _h, _c, elemsize, elempack, _allocator);
+            m.create(_w, _h, _d, _c, elemsize, elempack, _allocator);
 
             // align channel
             for (int i = 0; i < _c; i++)
             {
-                const void* ptr = (unsigned char*)data + (size_t)i * _w * _h * elemsize;
+                const void* ptr = (unsigned char*)data + (size_t)i * _w * _h * _d * elemsize;
                 void* mptr = (unsigned char*)m.data + i * m.cstep * m.elemsize;
-                memcpy(mptr, ptr, (size_t)_w * _h * elemsize);
+                memcpy(mptr, ptr, (size_t)_w * _h * _d * elemsize);
             }
 
             return m;
@@ -475,6 +474,8 @@ void Mat::create_like(const Mat& m, Allocator* _allocator)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
     if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
+    if (_dims == 4)
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
 #if NCNN_VULKAN

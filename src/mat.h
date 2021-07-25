@@ -1267,12 +1267,12 @@ inline const T* Mat::row(int y) const
 
 inline Mat Mat::channel_range(int _c, int channels)
 {
-    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    return Mat(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline const Mat Mat::channel_range(int _c, int channels) const
 {
-    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    return Mat(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline Mat Mat::row_range(int y, int rows)
