@@ -263,15 +263,15 @@ public:
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
-    // convenient construct from android Bitmap
+    // convenient construct from android Bitmap, valid formats: ANDROID_BITMAP_FORMAT_A_8, ANDROID_BITMAP_FORMAT_RGBA_8888
     static Mat from_android_bitmap(JNIEnv* env, jobject bitmap, int type_to, Allocator* allocator = 0);
-    // convenient construct from android Bitmap and resize to specific size
+    // convenient construct from android Bitmap and resize to specific size, valid formats: ANDROID_BITMAP_FORMAT_A_8, ANDROID_BITMAP_FORMAT_RGBA_8888
     static Mat from_android_bitmap_resize(JNIEnv* env, jobject bitmap, int type_to, int target_width, int target_height, Allocator* allocator = 0);
-    // convenient construct from android Bitmap roi
+    // convenient construct from android Bitmap roi, valid formats: ANDROID_BITMAP_FORMAT_A_8, ANDROID_BITMAP_FORMAT_RGBA_8888
     static Mat from_android_bitmap_roi(JNIEnv* env, jobject bitmap, int type_to, int roix, int roiy, int roiw, int roih, Allocator* allocator = 0);
-    // convenient construct from android Bitmap roi and resize to specific size
+    // convenient construct from android Bitmap roi and resize to specific size, valid formats: ANDROID_BITMAP_FORMAT_A_8, ANDROID_BITMAP_FORMAT_RGBA_8888
     static Mat from_android_bitmap_roi_resize(JNIEnv* env, jobject bitmap, int type_to, int roix, int roiy, int roiw, int roih, int target_width, int target_height, Allocator* allocator = 0);
-    // convenient export to android Bitmap and resize to the android Bitmap size
+    // convenient export to android Bitmap and resize to the android Bitmap size, valid formats: ANDROID_BITMAP_FORMAT_A_8, ANDROID_BITMAP_FORMAT_RGBA_8888
     void to_android_bitmap(JNIEnv* env, jobject bitmap, int type_from) const;
 #endif // __ANDROID_API__ >= 9
 #endif // NCNN_PLATFORM_API
