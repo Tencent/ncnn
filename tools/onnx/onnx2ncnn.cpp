@@ -2126,8 +2126,7 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
 
                 blob_names.erase(node->output(0));
 
-                node->clear_output();
-                node->add_output(node4->output(0));
+                node->set_output(0, node4->output(0));
 
                 reduced_node_count += 1;
                 i += 1;
@@ -2208,8 +2207,7 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
 
                 blob_names.erase(node->output(0));
 
-                node->clear_output();
-                node->add_output(node3->output(0));
+                node->set_output(0, node3->output(0));
 
                 reduced_node_count += 1;
                 i += 1;
