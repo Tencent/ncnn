@@ -2798,7 +2798,49 @@ static void fuse_binaryop_with_scalar(onnx::GraphProto* mutable_graph, std::map<
     {
         onnx::NodeProto* node = mutable_graph->mutable_node(i);
 
-        // Add/Sub/Mul/Div/Min/Max/Pow
+        // Add/Sub/Mul/Div/Min/Max/Pow(a, x)
+        if (node->op_type() == "Add" || node->op_type() == "Sub" || node->op_type() == "Mul" || node->op_type() == "Div" || node->op_type() == "Max" || node->op_type() == "Min" || node->op_type() == "Pow")
+        {
+            if (weights.find(node->input(0)) == weights.end())
+                continue;
+
+            const onnx::TensorProto& scalar_b = weights[node->input(0)];
+            if (scalar_b.dims_size() != 0 || get_tensor_proto_data_size(scalar_b) != 1)
+                continue;
+
+            if (node->op_type() == "Sub")
+            {
+                node->set_op_type("RSub");
+            }
+            else if (node->op_type() == "Div")
+            {
+                node->set_op_type("RDiv");
+            }
+
+            float b = get_node_attr_from_input_f(scalar_b);
+
+            node_reference[node->input(0)] -= 1;
+
+            std::string input = node->input(1);
+
+            node->clear_input();
+            node->add_input(input);
+
+            onnx::AttributeProto* attr_with_scalar = node->add_attribute();
+            attr_with_scalar->set_name("with_scalar");
+            attr_with_scalar->set_i(1);
+
+            onnx::AttributeProto* attr_b = node->add_attribute();
+            attr_b->set_name("b");
+            attr_b->set_f(b);
+        }
+    }
+
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // Add/Sub/Mul/Div/Min/Max/Pow(x, b)
         if (node->op_type() == "Add" || node->op_type() == "Sub" || node->op_type() == "Mul" || node->op_type() == "Div" || node->op_type() == "Max" || node->op_type() == "Min" || node->op_type() == "Pow")
         {
             if (weights.find(node->input(1)) == weights.end())
@@ -3740,6 +3782,14 @@ int main(int argc, char** argv)
         else if (op == "RNN")
         {
             fprintf(pp, "%-16s", "RNN");
+        }
+        else if (op == "RDiv")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "RSub")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
         }
         else if (op == "ShuffleChannel")
         {
@@ -5530,6 +5580,32 @@ int main(int argc, char** argv)
 
             fwrite(&quantize_tag, sizeof(int), 1, bp);
             fwrite_tensor_proto_data(R, bp);
+        }
+        else if (op == "RDiv")
+        {
+            int op_type = 8;
+            fprintf(pp, " 0=%d", op_type);
+
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
+            {
+                fprintf(pp, " 1=%d", with_scalar);
+                fprintf(pp, " 2=%e", b);
+            }
+        }
+        else if (op == "RSub")
+        {
+            int op_type = 7;
+            fprintf(pp, " 0=%d", op_type);
+
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
+            {
+                fprintf(pp, " 1=%d", with_scalar);
+                fprintf(pp, " 2=%e", b);
+            }
         }
         else if (op == "ShuffleChannel")
         {
