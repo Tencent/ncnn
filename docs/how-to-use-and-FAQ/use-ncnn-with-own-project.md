@@ -1,8 +1,8 @@
-### use ncnn with own project
+### Use ncnn with own project
 
-After building ncnn, there is one or more library files generated. Consider integrating ncnn into your own project, you may use ncnn's installating provided cmake config file, or by manually specify library path(s).
+After building ncnn, there is one or more library files generated. Consider integrating ncnn into your own project, you may use ncnn's installation provided cmake config file, or by manually specify library path(s).
 
-**with cmake**
+**With cmake**
 
 Ensure your project is built by cmake. Then in your project's CMakeLists.txt, add these lines:
 
@@ -20,9 +20,9 @@ For the prebuilt ncnn release packages, ncnnConfig is located in:
 - for `ncnn-YYYYMMDD-android-vulkan`, it is `${ANDROID_ABI}/lib/cmake/ncnn` (`${ANDROID_ABI}` is defined in NDK's cmake toolchain file)
 - other prebuilt release packages are with similar condition
 
-**manually specify**
+**Manually specifying**
 
-You may also manually specify ncnn library path and including directory. Note that if you use ncnn with vulkan, it is also required to specify vulkan related dependencies.
+You may also manually specify ncnn library path and including directory. Note that if you use ncnn with vulkan, it is also required to specify vulkan related dependencies, and the **linking order matters** on nearly all platforms.
 
 For example, on Visual Studio debug mode with vulkan required, the lib paths are:
 ```
