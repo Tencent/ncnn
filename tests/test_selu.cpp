@@ -35,25 +35,25 @@ static int test_selu(const ncnn::Mat& a, float alpha, float lambda)
 static int test_selu_0()
 {
     return 0
-           || test_selu(RandomMat(5, 7, 24),  1.673264f, 1.050700f)
-           || test_selu(RandomMat(7, 9, 12),  1.673264f, 1.050700f)
-           || test_selu(RandomMat(3, 5, 13),  1.673264f, 1.050700f);
+           || test_selu(RandomMat(5, 7, 24), 1.673264f, 1.050700f)
+           || test_selu(RandomMat(7, 9, 12), 1.673264f, 1.050700f)
+           || test_selu(RandomMat(3, 5, 13), 1.673264f, 1.050700f);
 }
 
 static int test_selu_1()
 {
     return 0
-           || test_selu(RandomMat(15, 24),   1.673264f, 1.050700f)
-           || test_selu(RandomMat(17, 12),   1.673264f, 1.050700f)
-           || test_selu(RandomMat(19, 15),   1.673264f, 1.050700f);
+           || test_selu(RandomMat(15, 24), 1.673264f, 1.050700f)
+           || test_selu(RandomMat(17, 12), 1.673264f, 1.050700f)
+           || test_selu(RandomMat(19, 15), 1.673264f, 1.050700f);
 }
 
 static int test_selu_2()
 {
     return 0
-           || test_selu(RandomMat(128),   1.673264f, 1.050700f)
-           || test_selu(RandomMat(124),   1.673264f, 1.050700f)
-           || test_selu(RandomMat(127),   1.673264f, 1.050700f);
+           || test_selu(RandomMat(128), 1.673264f, 1.050700f)
+           || test_selu(RandomMat(124), 1.673264f, 1.050700f)
+           || test_selu(RandomMat(127), 1.673264f, 1.050700f);
 }
 
 int main()
@@ -65,4 +65,3 @@ int main()
            || test_selu_1()
            || test_selu_2();
 }
-
