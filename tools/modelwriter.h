@@ -91,6 +91,7 @@
 #include "layer/unaryop.h"
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
+#include "layer/l2normalization.h"
 
 // for gen_random_weight
 #include "../tests/prng.h"
@@ -1728,6 +1729,11 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->anchors_scale.empty()) fprintf_param_float_array(6, op->anchors_scale, pp);
             }
+        }
+        else if (layer->type == "L2Normalization")
+        {
+            ncnn::L2Normalization* op = (ncnn::L2Normalization*)layer;
+            ncnn::L2Normalization* op_default = (ncnn::L2Normalization*)layer_default;
         }
 
 #undef fprintf_param_value
