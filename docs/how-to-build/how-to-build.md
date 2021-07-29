@@ -14,6 +14,8 @@ $ git submodule update --init
 * [Build for Android](#build-for-android)
 * [Build for iOS on MacOS with xcode](#build-for-ios-on-macos-with-xcode)
 * [Build for WebAssembly](#build-for-webassembly)
+* [Build for AllWinner D1](#build-for-allwinner-d1)
+* [Build for Loongson 2K1000](#build-for-loongson-2k1000)
 
 ***
 
@@ -134,44 +136,12 @@ Note: To speed up compilation process on multi core machines, configuring `cmake
 ***
 
 ### Build for MacOS
-Install xcode and protobuf
+First install Xcode or Xcode Command Line Tools according to your needs.
+
+Then install `protobuf` and `libomp` via homebrew
 
 ```shell
-# Install protobuf via homebrew
-brew install protobuf
-```
-
-Download and install openmp for multithreading inference feature
-```shell
-wget https://github.com/llvm/llvm-project/releases/download/llvmorg-11.0.0/openmp-11.0.0.src.tar.xz
-tar -xf openmp-11.0.0.src.tar.xz
-cd openmp-11.0.0.src
-
-# apply some compilation fix
-sed -i'' -e '/.size __kmp_unnamed_critical_addr/d' runtime/src/z_Linux_asm.S
-sed -i'' -e 's/__kmp_unnamed_critical_addr/___kmp_unnamed_critical_addr/g' runtime/src/z_Linux_asm.S
-
-mkdir -p build-x86_64
-cd build-x86_64
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64" \
-    -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-cmake --build . -j 4
-cmake --build . --target install
-cd ..
-
-mkdir -p build-arm64
-cd build-arm64
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="arm64" \
-    -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-cmake --build . -j 4
-cmake --build . --target install
-cd ..
-
-lipo -create build-x86_64/install/lib/libomp.a build-arm64/install/lib/libomp.a -o libomp.a
-
-# copy openmp library and header files to xcode toolchain sysroot
-sudo cp build-x86_64/install/include/* /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
-sudo cp libomp.a /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
+brew install protobuf libomp
 ```
 
 Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
@@ -191,17 +161,15 @@ mkdir -p build
 cd build
 
 cmake -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-    -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
-    -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
-    -DOpenMP_libomp_LIBRARY="/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
     -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
     -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
-    -DNCNN_VULKAN=ON ..
+    -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
 
 cmake --build . -j 4
 cmake --build . --target install
 ```
 
+*Note: If you encounter `libomp` related errors during installation, you can also check our GitHub Actions at [here](https://github.com/Tencent/ncnn/blob/d91cccf/.github/workflows/macos-x64-gpu.yml#L50-L68) to install and use `openmp`.*
 ***
 
 ### Build for ARM Cortex-A family with cross-compiling
@@ -555,3 +523,54 @@ cmake --build . --target install
 ```
 
 Pick `build-XYZ/install` folder for further usage.
+
+***
+
+### Build for AllWinner D1
+
+Download c906 toolchain package from https://occ.t-head.cn/community/download?id=3913221581316624384
+
+```shell
+tar -xf riscv64-linux-x86_64-20210512.tar.gz
+export RISCV_ROOT_PATH=/home/nihui/osd/riscv64-linux-x86_64-20210512
+```
+
+Build ncnn with riscv-v vector and simpleocv enabled:
+```shell
+mkdir -p build-c906
+cd build-c906
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906.toolchain.cmake \
+    -DCMAKE_BUILD_TYPE=relwithdebinfo -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON \
+    -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..
+cmake --build . -j 4
+cmake --build . --target install
+```
+
+Pick `build-c906/install` folder for further usage.
+
+You can upload binary inside `build-c906/examples` folder and run on D1 board for testing.
+
+***
+
+### Build for Loongson 2K1000
+
+For gcc version < 8.5, you need to fix msa.h header for workaround msa fmadd bug.
+
+Open ```/usr/lib/gcc/mips64el-linux-gnuabi64/8/include/msa.h```, find ```__msa_fmadd_w``` and apply changes as the following
+```c
+// #define __msa_fmadd_w __builtin_msa_fmadd_w
+#define __msa_fmadd_w(a, b, c) __builtin_msa_fmadd_w(c, b, a)
+```
+
+Build ncnn with mips msa and simpleocv enabled:
+```shell
+mkdir -p build
+cd build
+cmake -DNCNN_DISABLE_RTTI=ON -DNCNN_DISABLE_EXCEPTION=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=ON -DNCNN_MMI=ON -DNCNN_SIMPLEOCV=ON ..
+cmake --build . -j 2
+cmake --build . --target install
+```
+
+Pick `build/install` folder for further usage.
+
+You can run binary inside `build/examples` folder for testing.

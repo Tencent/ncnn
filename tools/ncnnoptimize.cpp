@@ -378,7 +378,13 @@ int NetOptimize::fuse_convolution_add()
 
         int channels = convolution->num_output;
 
-        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        bool broadcasting_type_ok = false;
+        if (memorydata->w == channels && memorydata->h == 0 && memorydata->c == 0)
+            broadcasting_type_ok = true;
+        if (memorydata->w == 1 && memorydata->h == 1 && memorydata->c == channels)
+            broadcasting_type_ok = true;
+
+        if (!broadcasting_type_ok)
         {
             // not bias-like broadcasting type
             continue;
@@ -386,19 +392,20 @@ int NetOptimize::fuse_convolution_add()
 
         fprintf(stderr, "fuse_convolution_add %s %s\n", convolution->name.c_str(), binaryop->name.c_str());
 
+        ncnn::Mat bias_data = memorydata->data.reshape(channels);
         {
             if (convolution->bias_term == 0)
             {
                 // init bias
                 convolution->bias_term = 1;
-                convolution->bias_data = memorydata->data;
+                convolution->bias_data = bias_data;
             }
             else
             {
                 float* bias = convolution->bias_data;
                 for (int i = 0; i < channels; i++)
                 {
-                    bias[i] = bias[i] + memorydata->data[i];
+                    bias[i] = bias[i] + bias_data[i];
                 }
             }
         }
@@ -636,7 +643,13 @@ int NetOptimize::fuse_convolutiondepthwise_add()
 
         int channels = convolutiondepthwise->num_output;
 
-        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        bool broadcasting_type_ok = false;
+        if (memorydata->w == channels && memorydata->h == 0 && memorydata->c == 0)
+            broadcasting_type_ok = true;
+        if (memorydata->w == 1 && memorydata->h == 1 && memorydata->c == channels)
+            broadcasting_type_ok = true;
+
+        if (!broadcasting_type_ok)
         {
             // not bias-like broadcasting type
             continue;
@@ -644,19 +657,20 @@ int NetOptimize::fuse_convolutiondepthwise_add()
 
         fprintf(stderr, "fuse_convolutiondepthwise_add %s %s\n", convolutiondepthwise->name.c_str(), binaryop->name.c_str());
 
+        ncnn::Mat bias_data = memorydata->data.reshape(channels);
         {
             if (convolutiondepthwise->bias_term == 0)
             {
                 // init bias
                 convolutiondepthwise->bias_term = 1;
-                convolutiondepthwise->bias_data = memorydata->data;
+                convolutiondepthwise->bias_data = bias_data;
             }
             else
             {
                 float* bias = convolutiondepthwise->bias_data;
                 for (int i = 0; i < channels; i++)
                 {
-                    bias[i] = bias[i] + memorydata->data[i];
+                    bias[i] = bias[i] + bias_data[i];
                 }
             }
         }
@@ -894,7 +908,13 @@ int NetOptimize::fuse_deconvolution_add()
 
         int channels = deconvolution->num_output;
 
-        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        bool broadcasting_type_ok = false;
+        if (memorydata->w == channels && memorydata->h == 0 && memorydata->c == 0)
+            broadcasting_type_ok = true;
+        if (memorydata->w == 1 && memorydata->h == 1 && memorydata->c == channels)
+            broadcasting_type_ok = true;
+
+        if (!broadcasting_type_ok)
         {
             // not bias-like broadcasting type
             continue;
@@ -902,19 +922,20 @@ int NetOptimize::fuse_deconvolution_add()
 
         fprintf(stderr, "fuse_deconvolution_add %s %s\n", deconvolution->name.c_str(), binaryop->name.c_str());
 
+        ncnn::Mat bias_data = memorydata->data.reshape(channels);
         {
             if (deconvolution->bias_term == 0)
             {
                 // init bias
                 deconvolution->bias_term = 1;
-                deconvolution->bias_data = memorydata->data;
+                deconvolution->bias_data = bias_data;
             }
             else
             {
                 float* bias = deconvolution->bias_data;
                 for (int i = 0; i < channels; i++)
                 {
-                    bias[i] = bias[i] + memorydata->data[i];
+                    bias[i] = bias[i] + bias_data[i];
                 }
             }
         }
@@ -1146,7 +1167,13 @@ int NetOptimize::fuse_innerproduct_add()
 
         int channels = innerproduct->num_output;
 
-        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        bool broadcasting_type_ok = false;
+        if (memorydata->w == channels && memorydata->h == 0 && memorydata->c == 0)
+            broadcasting_type_ok = true;
+        if (memorydata->w == 1 && memorydata->h == 1 && memorydata->c == channels)
+            broadcasting_type_ok = true;
+
+        if (!broadcasting_type_ok)
         {
             // not bias-like broadcasting type
             continue;
@@ -1154,19 +1181,20 @@ int NetOptimize::fuse_innerproduct_add()
 
         fprintf(stderr, "fuse_innerproduct_add %s %s\n", innerproduct->name.c_str(), binaryop->name.c_str());
 
+        ncnn::Mat bias_data = memorydata->data.reshape(channels);
         {
             if (innerproduct->bias_term == 0)
             {
                 // init bias
                 innerproduct->bias_term = 1;
-                innerproduct->bias_data = memorydata->data;
+                innerproduct->bias_data = bias_data;
             }
             else
             {
                 float* bias = innerproduct->bias_data;
                 for (int i = 0; i < channels; i++)
                 {
-                    bias[i] = bias[i] + memorydata->data[i];
+                    bias[i] = bias[i] + bias_data[i];
                 }
             }
         }
