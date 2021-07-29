@@ -958,13 +958,13 @@ static int from_rgb2hsv(const unsigned char* rgb, int w, int h, int stride, Mat&
     static uint16_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6.*i));
-            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1.*i));
+            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6. * i));
+            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1. * i));
         }
         initialized = true;
     }
@@ -1003,7 +1003,7 @@ static int from_rgb2hsv(const unsigned char* rgb, int w, int h, int stride, Mat&
             uint16x8_t _sdiv = vlutq_u16(_sdiv_table, _v);
 
             // s = (diff * sdiv) >> hsv_shift;
-            uint16x8_t _s = vmulq_u16(_diff, _sdiv);   
+            uint16x8_t _s = vmulq_u16(_diff, _sdiv);
             _s = vrshrq_n_u16(_s, hsv_shift);
 
             uint16x8_t _gb = vcgtq_u16(_b16, _g16);
@@ -1067,15 +1067,15 @@ static int from_rgb2hsv(const unsigned char* rgb, int w, int h, int stride, Mat&
             int diff = vmax - vmin;
 
             float hh, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 hh = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 hh = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 hh = float(b - r) * 30.f / diff + 60.f;
             }
@@ -1084,12 +1084,12 @@ static int from_rgb2hsv(const unsigned char* rgb, int w, int h, int stride, Mat&
                 hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(hh < 0)
+            if (hh < 0)
             {
                 hh += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -1392,23 +1392,23 @@ static void to_hsv2rgb(const Mat& m, unsigned char* rgb, int stride)
                 "vst3.u8    {d4-d6}, [%1]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgb),    // %1
-                "=r"(ptr0),   // %2
-                "=r"(ptr1),   // %3
-                "=r"(ptr2)    // %4
+                "=r"(rgb),  // %1
+                "=r"(ptr0), // %2
+                "=r"(ptr1), // %3
+                "=r"(ptr2)  // %4
                 : "0"(nn),
                 "1"(rgb),
                 "2"(ptr0),
                 "3"(ptr1),
                 "4"(ptr2),
-                "r"(v1),       // %10
-                "r"(v2),       // %11
-                "r"(v3),       // %12
-                "r"(v4),       // %13
-                "r"(v_1_30),   // %14
-                "r"(v_1_255),  // %15
-                "r"(vf1),      // %16
-                "r"(vdescale)  // %17
+                "r"(v1),      // %10
+                "r"(v2),      // %11
+                "r"(v3),      // %12
+                "r"(v4),      // %13
+                "r"(v_1_30),  // %14
+                "r"(v_1_255), // %15
+                "r"(vf1),     // %16
+                "r"(vdescale) // %17
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -1421,18 +1421,19 @@ static void to_hsv2rgb(const Mat& m, unsigned char* rgb, int stride)
             float v = (*ptr2);
 
             float r, g, b;
-            if(s == 0) 
+            if (s == 0)
             {
                 r = g = b = v;
             }
-            else 
+            else
             {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 h /= 60.f;
                 int sector = (int)(h);
                 h -= sector;
@@ -1485,13 +1486,13 @@ static int from_bgr2hsv(const unsigned char* bgr, int w, int h, int stride, Mat&
     static uint16_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6.*i));
-            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1.*i));
+            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6. * i));
+            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1. * i));
         }
         initialized = true;
     }
@@ -1530,7 +1531,7 @@ static int from_bgr2hsv(const unsigned char* bgr, int w, int h, int stride, Mat&
             uint16x8_t _sdiv = vlutq_u16(_sdiv_table, _v);
 
             // s = (diff * sdiv) >> hsv_shift;
-            uint16x8_t _s = vmulq_u16(_diff, _sdiv);   
+            uint16x8_t _s = vmulq_u16(_diff, _sdiv);
             _s = vrshrq_n_u16(_s, hsv_shift);
 
             uint16x8_t _gb = vcgtq_u16(_b16, _g16);
@@ -1594,15 +1595,15 @@ static int from_bgr2hsv(const unsigned char* bgr, int w, int h, int stride, Mat&
             int diff = vmax - vmin;
 
             float hh, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 hh = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 hh = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 hh = float(b - r) * 30.f / diff + 60.f;
             }
@@ -1611,12 +1612,12 @@ static int from_bgr2hsv(const unsigned char* bgr, int w, int h, int stride, Mat&
                 hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(h < 0)
+            if (h < 0)
             {
                 hh += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -1919,23 +1920,23 @@ static void to_hsv2bgr(const Mat& m, unsigned char* bgr, int stride)
                 "vst3.u8    {d4-d6}, [%1]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(bgr),    // %1
-                "=r"(ptr0),   // %2
-                "=r"(ptr1),   // %3
-                "=r"(ptr2)    // %4
+                "=r"(bgr),  // %1
+                "=r"(ptr0), // %2
+                "=r"(ptr1), // %3
+                "=r"(ptr2)  // %4
                 : "0"(nn),
                 "1"(bgr),
                 "2"(ptr0),
                 "3"(ptr1),
                 "4"(ptr2),
-                "r"(v1),       // %10
-                "r"(v2),       // %11
-                "r"(v3),       // %12
-                "r"(v4),       // %13
-                "r"(v_1_30),   // %14
-                "r"(v_1_255),  // %15
-                "r"(vf1),      // %16
-                "r"(vdescale)  // %17
+                "r"(v1),      // %10
+                "r"(v2),      // %11
+                "r"(v3),      // %12
+                "r"(v4),      // %13
+                "r"(v_1_30),  // %14
+                "r"(v_1_255), // %15
+                "r"(vf1),     // %16
+                "r"(vdescale) // %17
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -1948,18 +1949,19 @@ static void to_hsv2bgr(const Mat& m, unsigned char* bgr, int stride)
             float v = (*ptr2);
 
             float r, g, b;
-            if(s == 0) 
+            if (s == 0)
             {
                 r = g = b = v;
             }
-            else 
+            else
             {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 h /= 60.f;
                 int sector = (int)(h);
                 h -= sector;
@@ -2012,13 +2014,13 @@ static int from_rgba2hsv(const unsigned char* rgba, int w, int h, int stride, Ma
     static uint16_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6.*i));
-            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1.*i));
+            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6. * i));
+            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1. * i));
         }
         initialized = true;
     }
@@ -2057,7 +2059,7 @@ static int from_rgba2hsv(const unsigned char* rgba, int w, int h, int stride, Ma
             uint16x8_t _sdiv = vlutq_u16(_sdiv_table, _v);
 
             // s = (diff * sdiv) >> hsv_shift;
-            uint16x8_t _s = vmulq_u16(_diff, _sdiv);   
+            uint16x8_t _s = vmulq_u16(_diff, _sdiv);
             _s = vrshrq_n_u16(_s, hsv_shift);
 
             uint16x8_t _gb = vcgtq_u16(_b16, _g16);
@@ -2121,15 +2123,15 @@ static int from_rgba2hsv(const unsigned char* rgba, int w, int h, int stride, Ma
             int diff = vmax - vmin;
 
             float hh, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 hh = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 hh = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 hh = float(b - r) * 30.f / diff + 60.f;
             }
@@ -2138,12 +2140,12 @@ static int from_rgba2hsv(const unsigned char* rgba, int w, int h, int stride, Ma
                 hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(h < 0)
+            if (h < 0)
             {
                 hh += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -2325,18 +2327,19 @@ static void to_hsv2rgba(const Mat& m, unsigned char* rgba, int stride)
             float v = (*ptr2);
 
             float r, g, b;
-            if(s == 0) 
+            if (s == 0)
             {
                 r = g = b = v;
             }
-            else 
+            else
             {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 h /= 60.f;
                 int sector = (int)(h);
                 h -= sector;
@@ -2390,13 +2393,13 @@ static int from_bgra2hsv(const unsigned char* bgra, int w, int h, int stride, Ma
     static uint16_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6.*i));
-            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1.*i));
+            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6. * i));
+            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1. * i));
         }
         initialized = true;
     }
@@ -2435,7 +2438,7 @@ static int from_bgra2hsv(const unsigned char* bgra, int w, int h, int stride, Ma
             uint16x8_t _sdiv = vlutq_u16(_sdiv_table, _v);
 
             // s = (diff * sdiv) >> hsv_shift;
-            uint16x8_t _s = vmulq_u16(_diff, _sdiv);   
+            uint16x8_t _s = vmulq_u16(_diff, _sdiv);
             _s = vrshrq_n_u16(_s, hsv_shift);
 
             uint16x8_t _gb = vcgtq_u16(_b16, _g16);
@@ -2499,15 +2502,15 @@ static int from_bgra2hsv(const unsigned char* bgra, int w, int h, int stride, Ma
             int diff = vmax - vmin;
 
             float hh, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 hh = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 hh = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 hh = float(b - r) * 30.f / diff + 60.f;
             }
@@ -2516,12 +2519,12 @@ static int from_bgra2hsv(const unsigned char* bgra, int w, int h, int stride, Ma
                 hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(h < 0)
+            if (h < 0)
             {
                 hh += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -2703,18 +2706,19 @@ static void to_hsv2bgra(const Mat& m, unsigned char* bgra, int stride)
             float v = (*ptr2);
 
             float r, g, b;
-            if(s == 0) 
+            if (s == 0)
             {
                 r = g = b = v;
             }
-            else 
+            else
             {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 h /= 60.f;
                 int sector = (int)(h);
                 h -= sector;
@@ -4084,23 +4088,23 @@ static int from_hsv2rgb(const unsigned char* hsv, int w, int h, int stride, Mat&
                 "vst1.f32   {d16-d19}, [%2]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(hsv),    // %1
-                "=r"(ptr0),   // %2
-                "=r"(ptr1),   // %3
-                "=r"(ptr2)    // %4
+                "=r"(hsv),  // %1
+                "=r"(ptr0), // %2
+                "=r"(ptr1), // %3
+                "=r"(ptr2)  // %4
                 : "0"(nn),
                 "1"(hsv),
                 "2"(ptr0),
                 "3"(ptr1),
                 "4"(ptr2),
-                "r"(v1),       // %10
-                "r"(v2),       // %11
-                "r"(v3),       // %12
-                "r"(v4),       // %13
-                "r"(v_1_30),   // %14
-                "r"(v_1_255),  // %15
-                "r"(vf1),      // %16
-                "r"(vdescale)  // %17
+                "r"(v1),      // %10
+                "r"(v2),      // %11
+                "r"(v3),      // %12
+                "r"(v4),      // %13
+                "r"(v_1_30),  // %14
+                "r"(v_1_255), // %15
+                "r"(vf1),     // %16
+                "r"(vdescale) // %17
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -4112,16 +4116,19 @@ static int from_hsv2rgb(const unsigned char* hsv, int w, int h, int stride, Mat&
             float v = hsv[2];
 
             float r, g, b;
-            if(s == 0) {
+            if (s == 0)
+            {
                 r = g = b = v;
             }
-            else {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 hh /= 60.f;
                 int sector = (int)(hh);
                 hh -= sector;
@@ -4174,13 +4181,13 @@ static void to_rgb2hsv(const Mat& m, unsigned char* hsv, int stride)
     static uint16_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6.*i));
-            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1.*i));
+            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6. * i));
+            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1. * i));
         }
         initialized = true;
     }
@@ -4224,7 +4231,7 @@ static void to_rgb2hsv(const Mat& m, unsigned char* hsv, int stride)
             uint16x8_t _sdiv = vlutq_u16(_sdiv_table, _v);
 
             // s = (diff * sdiv) >> hsv_shift;
-            uint16x8_t _s = vmulq_u16(_diff, _sdiv);      
+            uint16x8_t _s = vmulq_u16(_diff, _sdiv);
             _s = vrshrq_n_u16(_s, hsv_shift);
 
             uint16x8_t _gb = vcgtq_u16(_b16, _g16);
@@ -4294,15 +4301,15 @@ static void to_rgb2hsv(const Mat& m, unsigned char* hsv, int stride)
             int diff = vmax - vmin;
 
             float h, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 h = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 h = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 h = float(b - r) * 30.f / diff + 60.f;
             }
@@ -4311,12 +4318,12 @@ static void to_rgb2hsv(const Mat& m, unsigned char* hsv, int stride)
                 h = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(h < 0)
+            if (h < 0)
             {
                 h += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -4334,7 +4341,7 @@ static void to_rgb2hsv(const Mat& m, unsigned char* hsv, int stride)
             ptr1++;
             ptr2++;
         }
-        
+
 #undef SATURATE_CAST_UCHAR
         hsv += wgap;
     }
@@ -4656,23 +4663,23 @@ static int from_hsv2bgr(const unsigned char* hsv, int w, int h, int stride, Mat&
                 "vst1.f32   {d16-d19}, [%4]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(hsv),    // %1
-                "=r"(ptr0),   // %2
-                "=r"(ptr1),   // %3
-                "=r"(ptr2)    // %4
+                "=r"(hsv),  // %1
+                "=r"(ptr0), // %2
+                "=r"(ptr1), // %3
+                "=r"(ptr2)  // %4
                 : "0"(nn),
                 "1"(hsv),
                 "2"(ptr0),
                 "3"(ptr1),
                 "4"(ptr2),
-                "r"(v1),       // %10
-                "r"(v2),       // %11
-                "r"(v3),       // %12
-                "r"(v4),       // %13
-                "r"(v_1_30),   // %14
-                "r"(v_1_255),  // %15
-                "r"(vf1),      // %16
-                "r"(vdescale)  // %17
+                "r"(v1),      // %10
+                "r"(v2),      // %11
+                "r"(v3),      // %12
+                "r"(v4),      // %13
+                "r"(v_1_30),  // %14
+                "r"(v_1_255), // %15
+                "r"(vf1),     // %16
+                "r"(vdescale) // %17
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -4684,16 +4691,19 @@ static int from_hsv2bgr(const unsigned char* hsv, int w, int h, int stride, Mat&
             float v = hsv[2];
 
             float r, g, b;
-            if(s == 0) {
+            if (s == 0)
+            {
                 r = g = b = v;
             }
-            else {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 hh /= 60.f;
                 int sector = (int)(hh);
                 hh -= sector;
@@ -4746,13 +4756,13 @@ static void to_bgr2hsv(const Mat& m, unsigned char* hsv, int stride)
     static uint16_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6.*i));
-            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1.*i));
+            _hdiv_table[i] = (uint16_t)((180 << hsv_shift) / (6. * i));
+            _sdiv_table[i] = (uint16_t)((255 << hsv_shift) / (1. * i));
         }
         initialized = true;
     }
@@ -4796,7 +4806,7 @@ static void to_bgr2hsv(const Mat& m, unsigned char* hsv, int stride)
             uint16x8_t _sdiv = vlutq_u16(_sdiv_table, _v);
 
             // s = (diff * sdiv) >> hsv_shift;
-            uint16x8_t _s = vmulq_u16(_diff, _sdiv);      
+            uint16x8_t _s = vmulq_u16(_diff, _sdiv);
             _s = vrshrq_n_u16(_s, hsv_shift);
 
             uint16x8_t _gb = vcgtq_u16(_b16, _g16);
@@ -4866,15 +4876,15 @@ static void to_bgr2hsv(const Mat& m, unsigned char* hsv, int stride)
             int diff = vmax - vmin;
 
             float h, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 h = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 h = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 h = float(b - r) * 30.f / diff + 60.f;
             }
@@ -4883,12 +4893,12 @@ static void to_bgr2hsv(const Mat& m, unsigned char* hsv, int stride)
                 h = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(h < 0)
+            if (h < 0)
             {
                 h += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -4906,7 +4916,7 @@ static void to_bgr2hsv(const Mat& m, unsigned char* hsv, int stride)
             ptr1++;
             ptr2++;
         }
-        
+
 #undef SATURATE_CAST_UCHAR
         hsv += wgap;
     }
@@ -4929,7 +4939,7 @@ static int from_hsv2gray(const unsigned char* hsv, int w, int h, int stride, Mat
 
 #if __ARM_NEON
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
-    const unsigned char Y_shift = 8; 
+    const unsigned char Y_shift = 8;
     const unsigned char R2Y = 77;
     const unsigned char G2Y = 150;
     const unsigned char B2Y = 29;
@@ -5067,7 +5077,7 @@ static int from_hsv2gray(const unsigned char* hsv, int w, int h, int stride, Mat
             _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v3, _vector)));
             _v = vorrq_u16(_v, vandq_u16(_vtab3, vceqq_u16(_v4, _vector)));
             _v = vorrq_u16(_v, vandq_u16(_h, vcgtq_u16(_vector, _v4)));
-            
+
             _y16 = vmlal_u8(_y16, vmovn_u16(_v), _R2Y);
             _y16 = vshrq_n_u16(_y16, Y_shift);
 
@@ -5088,16 +5098,19 @@ static int from_hsv2gray(const unsigned char* hsv, int w, int h, int stride, Mat
             float v = hsv[2];
 
             float r, g, b;
-            if(s == 0) {
+            if (s == 0)
+            {
                 r = g = b = v;
             }
-            else {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 hh /= 60.f;
                 int sector = (int)(hh);
                 hh -= sector;

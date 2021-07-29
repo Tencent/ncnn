@@ -41,11 +41,11 @@ static ncnn::Mat RandomMat_hsv(int w, int h, int elempack)
     unsigned char* p = m;
     for (int i = 0; i < w * h * elempack; i++)
     {
-        if(i % elempack == 0)
+        if (i % elempack == 0)
         {
             p[i] = RAND() % 180;
         }
-        else 
+        else
         {
             p[i] = RAND() % 256;
         }
@@ -59,7 +59,7 @@ static int memcmp_approximate(ncnn::Mat m1, ncnn::Mat m2, int length, int tol)
     int loss = 0;
     unsigned char* ptr1 = m1;
     unsigned char* ptr2 = m2;
-    for(int i = 0; i < length; i++) 
+    for (int i = 0; i < length; i++)
     {
         loss += abs(ptr1[i] - ptr2[i]);
     }
