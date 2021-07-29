@@ -2721,6 +2721,10 @@ int main(int argc, char** argv)
                 fwrite(weight_data.data(), sizeof(float), weight_data.size(), bp);
             }
         }
+        else if (n.op == "L2Normalization")
+        {
+            fprintf(pp, "%-16s", "L2Normalization");
+        }
         else
         {
             // TODO op specific params
