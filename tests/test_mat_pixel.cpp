@@ -382,8 +382,8 @@ static int test_mat_pixel_roi_bgra(int w, int h, int roix, int roiy, int roiw, i
 
 static int test_mat_pixel_roi_hsv(int w, int h, int roix, int roiy, int roiw, int roih)
 {
-    int pixel_type_from[5] = {ncnn::Mat::PIXEL_HSV, ncnn::Mat::PIXEL_HSV2RGB, ncnn::Mat::PIXEL_HSV2BGR, ncnn::Mat::PIXEL_HSV2RGBA, ncnn::Mat::PIXEL_HSV2BGRA};
-    int pixel_type_to[5] = {ncnn::Mat::PIXEL_HSV, ncnn::Mat::PIXEL_RGB2HSV, ncnn::Mat::PIXEL_BGR2HSV, ncnn::Mat::PIXEL_RGBA2HSV, ncnn::Mat::PIXEL_BGRA2HSV};
+    int pixel_type_from[6] = {ncnn::Mat::PIXEL_HSV, ncnn::Mat::PIXEL_HSV2RGB, ncnn::Mat::PIXEL_HSV2BGR, ncnn::Mat::PIXEL_HSV2RGBA, ncnn::Mat::PIXEL_HSV2BGRA, ncnn::Mat::PIXEL_HSV2GRAY};
+    int pixel_type_to[6] = {ncnn::Mat::PIXEL_HSV, ncnn::Mat::PIXEL_RGB2HSV, ncnn::Mat::PIXEL_BGR2HSV, ncnn::Mat::PIXEL_RGBA2HSV, ncnn::Mat::PIXEL_BGRA2HSV, ncnn::Mat::PIXEL_GRAY2HSV};
 
     ncnn::Mat a = RandomMat_hsv(w, h, 3);
 
