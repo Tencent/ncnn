@@ -22,13 +22,6 @@ L2Normalization::L2Normalization()
     support_inplace = true;
 }
 
-int L2Normalization::load_param(const ParamDict& pd)
-{
-    slope = pd.get(0, 0.f);
-
-    return 0;
-}
-
 int L2Normalization::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -39,6 +32,7 @@ int L2Normalization::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     int input_data_size = size * channels;
     float sq_l2_norm = 0;
 
+    #pragma omp parallel for num_threads(opt.num_threads)
     for ( int j = 0; j < channels; j++)
     {
         float* ptr = bottom_top_blob.channel(j);
@@ -46,6 +40,8 @@ int L2Normalization::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         sq_l2_norm += val;
     }
     const float l2_norm = sqrt(sq_l2_norm);
+
+    #pragma omp parallel for num_threads(opt.num_threads)
     for ( int j = 0; j < channels; j++)
     {
         float* ptr = bottom_top_blob.channel(j);
