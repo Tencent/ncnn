@@ -24,8 +24,6 @@ class L2Normalization : public Layer
 public:
     L2Normalization();
 
-    virtual int load_param(const ParamDict& pd);
-
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 public:
