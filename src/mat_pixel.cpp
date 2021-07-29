@@ -1066,27 +1066,27 @@ static int from_rgb2hsv(const unsigned char* rgb, int w, int h, int stride, Mat&
             int vmin = std::min(std::min(r, g), b);
             int diff = vmax - vmin;
 
-            float h, s;
+            float hh, s;
             if(diff == 0)
             {
-                h = 0.f;
+                hh = 0.f;
             }
             else if(vmax == r) 
             {
-                h = float(g - b) * 30.f / diff;
+                hh = float(g - b) * 30.f / diff;
             }
             else if(vmax == g)
             {
-                h = float(b - r) * 30.f / diff + 60.f;
+                hh = float(b - r) * 30.f / diff + 60.f;
             }
             else
             {
-                h = float(r - g) * 30.f / diff + 120.f;
+                hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(h < 0)
+            if(hh < 0)
             {
-                h += 180.f;
+                hh += 180.f;
             }
 
             if(vmax == 0)
@@ -1098,7 +1098,7 @@ static int from_rgb2hsv(const unsigned char* rgb, int w, int h, int stride, Mat&
                 s = float(diff) * 255.f / vmax;
             }
 
-            *ptr0 = float(int(h + 0.5));
+            *ptr0 = float(int(hh + 0.5));
             *ptr1 = float(int(s + 0.5));
             *ptr2 = float(vmax);
 
@@ -1593,27 +1593,27 @@ static int from_bgr2hsv(const unsigned char* bgr, int w, int h, int stride, Mat&
             int vmin = std::min(std::min(r, g), b);
             int diff = vmax - vmin;
 
-            float h, s;
+            float hh, s;
             if(diff == 0)
             {
-                h = 0.f;
+                hh = 0.f;
             }
             else if(vmax == r) 
             {
-                h = float(g - b) * 30.f / diff;
+                hh = float(g - b) * 30.f / diff;
             }
             else if(vmax == g)
             {
-                h = float(b - r) * 30.f / diff + 60.f;
+                hh = float(b - r) * 30.f / diff + 60.f;
             }
             else
             {
-                h = float(r - g) * 30.f / diff + 120.f;
+                hh = float(r - g) * 30.f / diff + 120.f;
             }
 
             if(h < 0)
             {
-                h += 180.f;
+                hh += 180.f;
             }
 
             if(vmax == 0)
@@ -1625,7 +1625,7 @@ static int from_bgr2hsv(const unsigned char* bgr, int w, int h, int stride, Mat&
                 s = float(diff) * 255.f / vmax;
             }
 
-            *ptr0 = float(int(h + 0.5));
+            *ptr0 = float(int(hh + 0.5));
             *ptr1 = float(int(s + 0.5));
             *ptr2 = float(vmax);
 
@@ -2120,27 +2120,27 @@ static int from_rgba2hsv(const unsigned char* rgba, int w, int h, int stride, Ma
             int vmin = std::min(std::min(r, g), b);
             int diff = vmax - vmin;
 
-            float h, s;
+            float hh, s;
             if(diff == 0)
             {
-                h = 0.f;
+                hh = 0.f;
             }
             else if(vmax == r) 
             {
-                h = float(g - b) * 30.f / diff;
+                hh = float(g - b) * 30.f / diff;
             }
             else if(vmax == g)
             {
-                h = float(b - r) * 30.f / diff + 60.f;
+                hh = float(b - r) * 30.f / diff + 60.f;
             }
             else
             {
-                h = float(r - g) * 30.f / diff + 120.f;
+                hh = float(r - g) * 30.f / diff + 120.f;
             }
 
             if(h < 0)
             {
-                h += 180.f;
+                hh += 180.f;
             }
 
             if(vmax == 0)
@@ -2152,7 +2152,7 @@ static int from_rgba2hsv(const unsigned char* rgba, int w, int h, int stride, Ma
                 s = float(diff) * 255.f / vmax;
             }
 
-            *ptr0 = float(int(h + 0.5));
+            *ptr0 = float(int(hh + 0.5));
             *ptr1 = float(int(s + 0.5));
             *ptr2 = float(vmax);
 
@@ -2498,27 +2498,27 @@ static int from_bgra2hsv(const unsigned char* bgra, int w, int h, int stride, Ma
             int vmin = std::min(std::min(r, g), b);
             int diff = vmax - vmin;
 
-            float h, s;
+            float hh, s;
             if(diff == 0)
             {
-                h = 0.f;
+                hh = 0.f;
             }
             else if(vmax == r) 
             {
-                h = float(g - b) * 30.f / diff;
+                hh = float(g - b) * 30.f / diff;
             }
             else if(vmax == g)
             {
-                h = float(b - r) * 30.f / diff + 60.f;
+                hh = float(b - r) * 30.f / diff + 60.f;
             }
             else
             {
-                h = float(r - g) * 30.f / diff + 120.f;
+                hh = float(r - g) * 30.f / diff + 120.f;
             }
 
             if(h < 0)
             {
-                h += 180.f;
+                hh += 180.f;
             }
 
             if(vmax == 0)
@@ -2530,7 +2530,7 @@ static int from_bgra2hsv(const unsigned char* bgra, int w, int h, int stride, Ma
                 s = float(diff) * 255.f / vmax;
             }
 
-            *ptr0 = float(int(h + 0.5));
+            *ptr0 = float(int(hh + 0.5));
             *ptr1 = float(int(s + 0.5));
             *ptr2 = float(vmax);
 
@@ -4107,7 +4107,7 @@ static int from_hsv2rgb(const unsigned char* hsv, int w, int h, int stride, Mat&
 #endif // __ARM_NEON
         for (; remain > 0; remain--)
         {
-            float h = hsv[0] * 2;
+            float hh = hsv[0] * 2;
             float s = hsv[1] * (1.0f / 255.0f);
             float v = hsv[2];
 
@@ -4122,14 +4122,14 @@ static int from_hsv2rgb(const unsigned char* hsv, int w, int h, int stride, Mat&
                                                       {1, 2, 0}, 
                                                       {3, 1, 0}, 
                                                       {0, 1, 2} };
-                h /= 60.f;
-                int sector = (int)(h);
-                h -= sector;
+                hh /= 60.f;
+                int sector = (int)(hh);
+                hh -= sector;
                 float tab[4];
                 tab[0] = v;
                 tab[1] = v * (1.f - s);
-                tab[2] = v * (1.f - s * h);
-                tab[3] = v * (1.f - s * (1.f - h));
+                tab[2] = v * (1.f - s * hh);
+                tab[3] = v * (1.f - s * (1.f - hh));
 
                 r = tab[sector_data[sector][0]];
                 g = tab[sector_data[sector][1]];
@@ -4679,7 +4679,7 @@ static int from_hsv2bgr(const unsigned char* hsv, int w, int h, int stride, Mat&
 #endif // __ARM_NEON
         for (; remain > 0; remain--)
         {
-            float h = hsv[0] * 2;
+            float hh = hsv[0] * 2;
             float s = hsv[1] * (1.0f / 255.0f);
             float v = hsv[2];
 
@@ -4694,14 +4694,14 @@ static int from_hsv2bgr(const unsigned char* hsv, int w, int h, int stride, Mat&
                                                       {1, 2, 0}, 
                                                       {3, 1, 0}, 
                                                       {0, 1, 2} };
-                h /= 60.f;
-                int sector = (int)(h);
-                h -= sector;
+                hh /= 60.f;
+                int sector = (int)(hh);
+                hh -= sector;
                 float tab[4];
                 tab[0] = v;
                 tab[1] = v * (1.f - s);
-                tab[2] = v * (1.f - s * h);
-                tab[3] = v * (1.f - s * (1.f - h));
+                tab[2] = v * (1.f - s * hh);
+                tab[3] = v * (1.f - s * (1.f - hh));
 
                 r = tab[sector_data[sector][0]];
                 g = tab[sector_data[sector][1]];
@@ -5083,7 +5083,7 @@ static int from_hsv2gray(const unsigned char* hsv, int w, int h, int stride, Mat
 #endif // __ARM_NEON
         for (; remain > 0; remain--)
         {
-            float h = hsv[0] * 2;
+            float hh = hsv[0] * 2;
             float s = hsv[1] * (1.0f / 255.0f);
             float v = hsv[2];
 
@@ -5098,14 +5098,14 @@ static int from_hsv2gray(const unsigned char* hsv, int w, int h, int stride, Mat
                                                       {1, 2, 0}, 
                                                       {3, 1, 0}, 
                                                       {0, 1, 2} };
-                h /= 60.f;
-                int sector = (int)(h);
-                h -= sector;
+                hh /= 60.f;
+                int sector = (int)(hh);
+                hh -= sector;
                 float tab[4];
                 tab[0] = v;
                 tab[1] = v * (1.f - s);
-                tab[2] = v * (1.f - s * h);
-                tab[3] = v * (1.f - s * (1.f - h));
+                tab[2] = v * (1.f - s * hh);
+                tab[3] = v * (1.f - s * (1.f - hh));
 
                 r = tab[sector_data[sector][0]];
                 g = tab[sector_data[sector][1]];
