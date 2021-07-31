@@ -181,7 +181,7 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
 
 static void generate_grids_and_stride(const int target_size, std::vector<int>& strides, std::vector<GridAndStride>& grid_strides)
 {
-    for (auto stride : strides)
+    for (int stride : strides)
     {
         int num_grid = target_size / stride;
         for (int g1 = 0; g1 < num_grid; g1++)
@@ -304,7 +304,7 @@ static int detect_yolox(const cv::Mat& bgr, std::vector<Object>& objects)
         ncnn::Mat out;
         ex.extract("output", out);
 
-        std::vector<int> strides = {8, 16, 32}; // might have stride=64 in YOLOX
+        std::vector<int> strides({8, 16, 32}); // might have stride=64 in YOLOX
         std::vector<GridAndStride> grid_strides;
         generate_grids_and_stride(YOLOX_TARGET_SIZE, strides, grid_strides);
         generate_yolox_proposals(grid_strides, out, YOLOX_CONF_THRESH, proposals);
