@@ -8,11 +8,11 @@ $ git submodule update --init
 
 * [Build for Linux / NVIDIA Jetson / Raspberry Pi](#build-for-linux)
 * [Build for Windows x64 using VS2017](#build-for-windows-x64-using-visual-studio-community-2017)
-* [Build for MacOS](#build-for-macos)
+* [Build for macOS](#build-for-macos)
 * [Build for ARM Cortex-A family with cross-compiling](#build-for-arm-cortex-a-family-with-cross-compiling)
 * [Build for Hisilicon platform with cross-compiling](#build-for-hisilicon-platform-with-cross-compiling)
 * [Build for Android](#build-for-android)
-* [Build for iOS on MacOS with xcode](#build-for-ios-on-macos-with-xcode)
+* [Build for iOS on macOS with xcode](#build-for-ios-on-macos-with-xcode)
 * [Build for WebAssembly](#build-for-webassembly)
 * [Build for AllWinner D1](#build-for-allwinner-d1)
 * [Build for Loongson 2K1000](#build-for-loongson-2k1000)
@@ -135,7 +135,7 @@ Note: To speed up compilation process on multi core machines, configuring `cmake
 
 ***
 
-### Build for MacOS
+### Build for macOS
 First install Xcode or Xcode Command Line Tools according to your needs.
 
 Then install `protobuf` and `libomp` via homebrew
@@ -298,7 +298,7 @@ Pick `build-android-aarch64/install` folder for further JNI usage.
 
 ***
 
-### Build for iOS on MacOS with xcode
+### Build for iOS on macOS with xcode
 You can use the pre-build ncnn.framework glslang.framework and openmp.framework from https://github.com/Tencent/ncnn/releases
 
 Install xcode
