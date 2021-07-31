@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <vector>
 
-#define YOLOX_NMS_THRESH 0.45  // nms threshold
+#define YOLOX_NMS_THRESH  0.45 // nms threshold
 #define YOLOX_CONF_THRESH 0.25 // threshold of bounding box prob
 #define YOLOX_TARGET_SIZE 640  // target image size after resize, might use 416 for small model
 
@@ -188,7 +188,9 @@ static void generate_grids_and_stride(const int target_size, std::vector<int>& s
         {
             for (int g0 = 0; g0 < num_grid; g0++)
             {
-                grid_strides.push_back((GridAndStride){g0, g1, stride});
+                grid_strides.push_back((GridAndStride) {
+                    g0, g1, stride
+                });
             }
         }
     }
@@ -243,7 +245,7 @@ static void generate_yolox_proposals(std::vector<GridAndStride> grid_strides, co
 
     } // point anchor loop
 }
- 
+
 static int detect_yolox(const cv::Mat& bgr, std::vector<Object>& objects)
 {
     ncnn::Net yolox;
