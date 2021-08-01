@@ -188,9 +188,11 @@ static void generate_grids_and_stride(const int target_size, std::vector<int>& s
         {
             for (int g0 = 0; g0 < num_grid; g0++)
             {
-                grid_strides.push_back((GridAndStride) {
-                    g0, g1, stride
-                });
+                GridAndStride gs;
+                gs.grid0 = g0;
+                gs.grid1 = g1;
+                gs.stride = stride;
+                grid_strides.push_back(gs);
             }
         }
     }
