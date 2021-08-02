@@ -170,8 +170,8 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "vld1.s32       {d12-d15}, [%1 :128]! \n"
 
                         "vmov           q0, %q8         \n"
-                        "vmov           q1, %q9         \n"
-                        "vmov           q2, %q8         \n"
+                        "vmov           q1, %q8         \n"
+                        "vmov           q2, %q9         \n"
                         "vmov           q3, %q9         \n"
 
                         "vcvt.f32.s32   q4, q4          \n"
@@ -182,8 +182,8 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "veor           q8, q8          \n" // _zero
 
                         "vmla.f32       q0, q4, %q6     \n"
-                        "vmla.f32       q1, q5, %q7     \n"
-                        "vmla.f32       q2, q6, %q6     \n"
+                        "vmla.f32       q1, q5, %q6     \n"
+                        "vmla.f32       q2, q6, %q7     \n"
                         "vmla.f32       q3, q7, %q7     \n"
 
                         "vcvtr.s32.f32  s0, s0          \n"
