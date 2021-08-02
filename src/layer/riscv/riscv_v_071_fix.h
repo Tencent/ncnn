@@ -1666,6 +1666,12 @@ static inline vuint16m1x8_t vcreate_u16m1x8(vuint16m1_t v0, vuint16m1_t v1, vuin
 #define vmnor_mm_b4  vmnormm_e32xm8
 #define vmnor_mm_b2  vmnormm_e16xm8
 
+#define vmnot_m_b32 vmnotm_e32xm1
+#define vmnot_m_b16 vmnotm_e32xm2
+#define vmnot_m_b8  vmnotm_e32xm4
+#define vmnot_m_b4  vmnotm_e32xm8
+#define vmnot_m_b2  vmnotm_e16xm8
+
 #endif // __riscv_vector
 
 #endif // RISCV_V_071_FIX_H
