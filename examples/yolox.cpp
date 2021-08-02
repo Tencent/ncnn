@@ -181,8 +181,9 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
 
 static void generate_grids_and_stride(const int target_size, std::vector<int>& strides, std::vector<GridAndStride>& grid_strides)
 {
-    for (int stride : strides)
+    for (int i = 0; i < (int)strides.size(); i++)
     {
+        int stride = strides[i];
         int num_grid = target_size / stride;
         for (int g1 = 0; g1 < num_grid; g1++)
         {
@@ -201,10 +202,7 @@ static void generate_grids_and_stride(const int target_size, std::vector<int>& s
 static void generate_yolox_proposals(std::vector<GridAndStride> grid_strides, const ncnn::Mat& feat_blob, float prob_threshold, std::vector<Object>& objects)
 {
     const int num_grid = feat_blob.h;
-    fprintf(stderr, "output height: %d, width: %d, channels: %d, dims:%d\n", feat_blob.h, feat_blob.w, feat_blob.c, feat_blob.dims);
-
     const int num_class = feat_blob.w - 5;
-
     const int num_anchors = grid_strides.size();
 
     const float* feat_ptr = feat_blob.channel(0);
@@ -308,7 +306,8 @@ static int detect_yolox(const cv::Mat& bgr, std::vector<Object>& objects)
         ncnn::Mat out;
         ex.extract("output", out);
 
-        std::vector<int> strides({8, 16, 32}); // might have stride=64 in YOLOX
+        static const int stride_arr[] = {8, 16, 32};  // might have stride=64 in YOLOX
+        std::vector<int> strides(stride_arr, stride_arr + sizeof(stride_arr) / sizeof(stride_arr[0]));
         std::vector<GridAndStride> grid_strides;
         generate_grids_and_stride(YOLOX_TARGET_SIZE, strides, grid_strides);
         generate_yolox_proposals(grid_strides, out, YOLOX_CONF_THRESH, proposals);
