@@ -306,7 +306,7 @@ static int detect_yolox(const cv::Mat& bgr, std::vector<Object>& objects)
         ncnn::Mat out;
         ex.extract("output", out);
 
-        static const int stride_arr[] = {8, 16, 32};  // might have stride=64 in YOLOX
+        static const int stride_arr[] = {8, 16, 32}; // might have stride=64 in YOLOX
         std::vector<int> strides(stride_arr, stride_arr + sizeof(stride_arr) / sizeof(stride_arr[0]));
         std::vector<GridAndStride> grid_strides;
         generate_grids_and_stride(YOLOX_TARGET_SIZE, strides, grid_strides);
