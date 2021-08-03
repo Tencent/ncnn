@@ -26,14 +26,21 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    virtual int create_pipeline(const Option& opt);
 
 protected:
-#if __riscv_vector && __riscv_zfh && 0
+#if __riscv_vector && __riscv_zfh
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    int create_pipeline_fp16sa(const Option& opt);
 #endif
+
+public:
+    Mat weight_xc_data_fp16sa;
+    Mat bias_c_data_fp16sa;
+    Mat weight_hc_data_fp16sa;
 };
 
 } // namespace ncnn
