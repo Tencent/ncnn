@@ -35,26 +35,6 @@ static ncnn::Mat RandomMat(int w, int h, int elempack)
     return m;
 }
 
-static ncnn::Mat RandomMat_hsv(int w, int h, int elempack)
-{
-    ncnn::Mat m(w, h, 1, (size_t)elempack, elempack);
-
-    unsigned char* p = m;
-    for (int i = 0; i < w * h * elempack; i++)
-    {
-        if (i % elempack == 0)
-        {
-            p[i] = RAND() % 180;
-        }
-        else
-        {
-            p[i] = RAND() % 256;
-        }
-    }
-
-    return m;
-}
-
 static bool NearlyEqual(float a, float b, float epsilon)
 {
     if (a == b)
@@ -296,37 +276,6 @@ static int test_mat_pixel_roi_resize_bgra(int w, int h, int roix, int roiy, int 
     return 0;
 }
 
-static int test_mat_pixel_roi_resize_hsv(int w, int h, int roix, int roiy, int roiw, int roih, int target_width, int target_height)
-{
-    int pixel_type_from[6] = {ncnn::Mat::PIXEL_HSV, ncnn::Mat::PIXEL_HSV2RGB, ncnn::Mat::PIXEL_HSV2BGR, ncnn::Mat::PIXEL_HSV2RGBA, ncnn::Mat::PIXEL_HSV2BGRA, ncnn::Mat::PIXEL_HSV2GRAY};
-    int pixel_type_to[6] = {ncnn::Mat::PIXEL_HSV, ncnn::Mat::PIXEL_RGB2HSV, ncnn::Mat::PIXEL_BGR2HSV, ncnn::Mat::PIXEL_RGBA2HSV, ncnn::Mat::PIXEL_BGRA2HSV, ncnn::Mat::PIXEL_GRAY2HSV};
-
-    ncnn::Mat a = RandomMat_hsv(w, h, 3);
-
-    ncnn::Mat a2;
-    ncnn::convert_packing(a.reshape(w, h, 1), a2, 1);
-
-    // FIXME enable more convert types
-    for (int i = 0; i < 1; i++)
-    {
-        ncnn::Mat m = ncnn::Mat::from_pixels_roi_resize(a, pixel_type_from[i], w, h, roix, roiy, roiw, roih, target_width, target_height);
-
-        ncnn::Mat b2;
-        ncnn::Mat c2;
-        ncnn::copy_cut_border(a2, b2, roiy, h - (roiy + roih), roix, w - (roix + roiw));
-        ncnn::convert_packing(b2, c2, 3);
-        ncnn::Mat d2 = ncnn::Mat::from_pixels_resize(c2, pixel_type_from[i], c2.w, c2.h, target_width, target_height);
-
-        if (memcmp(m, d2, target_width * target_height * d2.c) != 0)
-        {
-            fprintf(stderr, "test_mat_pixel_roi_resize_hsv failed w=%d h=%d roi=[%d %d %d %d] target_width=%d target_height=%d pixel_type=%d\n", w, h, roix, roiy, roiw, roih, target_width, target_height, i);
-            return -1;
-        }
-    }
-
-    return 0;
-}
-
 static int test_mat_pixel_0()
 {
     for (int c = 1; c <= 4; c++)
@@ -352,8 +301,7 @@ static int test_mat_pixel_1()
            || test_mat_pixel_roi_resize_rgb(16, 16, 2, 1, 11, 11, 2, 3)
            || test_mat_pixel_roi_resize_bgr(16, 16, 1, 2, 11, 9, 22, 13)
            || test_mat_pixel_roi_resize_rgba(16, 16, 3, 2, 9, 11, 12, 4)
-           || test_mat_pixel_roi_resize_bgra(16, 16, 2, 3, 9, 7, 7, 7)
-           || test_mat_pixel_roi_resize_hsv(16, 16, 2, 1, 11, 11, 2, 3);
+           || test_mat_pixel_roi_resize_bgra(16, 16, 2, 3, 9, 7, 7, 7);
 }
 
 static int test_mat_pixel_2()
@@ -363,8 +311,7 @@ static int test_mat_pixel_2()
            || test_mat_pixel_roi_resize_rgb(15, 15, 3, 4, 5, 4, 5, 4)
            || test_mat_pixel_roi_resize_bgr(15, 15, 4, 5, 6, 7, 4, 1)
            || test_mat_pixel_roi_resize_rgba(15, 15, 6, 6, 3, 4, 1, 3)
-           || test_mat_pixel_roi_resize_bgra(15, 15, 7, 3, 1, 1, 1, 1)
-           || test_mat_pixel_roi_resize_hsv(15, 15, 3, 4, 5, 4, 5, 4);
+           || test_mat_pixel_roi_resize_bgra(15, 15, 7, 3, 1, 1, 1, 1);
 }
 
 int main()

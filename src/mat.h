@@ -209,43 +209,31 @@ public:
         PIXEL_GRAY = 3,
         PIXEL_RGBA = 4,
         PIXEL_BGRA = 5,
-        PIXEL_HSV = 7,
 
         PIXEL_RGB2BGR = PIXEL_RGB | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_RGB2GRAY = PIXEL_RGB | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_RGB2RGBA = PIXEL_RGB | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
         PIXEL_RGB2BGRA = PIXEL_RGB | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGB2HSV = PIXEL_RGB | (PIXEL_HSV << PIXEL_CONVERT_SHIFT),
 
         PIXEL_BGR2RGB = PIXEL_BGR | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
         PIXEL_BGR2GRAY = PIXEL_BGR | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_BGR2RGBA = PIXEL_BGR | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
         PIXEL_BGR2BGRA = PIXEL_BGR | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
-        PIXEL_BGR2HSV = PIXEL_BGR | (PIXEL_HSV << PIXEL_CONVERT_SHIFT),
 
         PIXEL_GRAY2RGB = PIXEL_GRAY | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
         PIXEL_GRAY2BGR = PIXEL_GRAY | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_GRAY2RGBA = PIXEL_GRAY | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
         PIXEL_GRAY2BGRA = PIXEL_GRAY | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
-        PIXEL_GRAY2HSV = PIXEL_GRAY | (PIXEL_HSV << PIXEL_CONVERT_SHIFT),
 
         PIXEL_RGBA2RGB = PIXEL_RGBA | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
         PIXEL_RGBA2BGR = PIXEL_RGBA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_RGBA2GRAY = PIXEL_RGBA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_RGBA2BGRA = PIXEL_RGBA | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
-        PIXEL_RGBA2HSV = PIXEL_RGBA | (PIXEL_HSV << PIXEL_CONVERT_SHIFT),
 
         PIXEL_BGRA2RGB = PIXEL_BGRA | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2BGR = PIXEL_BGRA | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2GRAY = PIXEL_BGRA | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
         PIXEL_BGRA2RGBA = PIXEL_BGRA | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
-        PIXEL_BGRA2HSV = PIXEL_BGRA | (PIXEL_HSV << PIXEL_CONVERT_SHIFT),
-
-        PIXEL_HSV2RGB = PIXEL_HSV | (PIXEL_RGB << PIXEL_CONVERT_SHIFT),
-        PIXEL_HSV2BGR = PIXEL_HSV | (PIXEL_BGR << PIXEL_CONVERT_SHIFT),
-        PIXEL_HSV2GRAY = PIXEL_HSV | (PIXEL_GRAY << PIXEL_CONVERT_SHIFT),
-        PIXEL_HSV2RGBA = PIXEL_HSV | (PIXEL_RGBA << PIXEL_CONVERT_SHIFT),
-        PIXEL_HSV2BGRA = PIXEL_HSV | (PIXEL_BGRA << PIXEL_CONVERT_SHIFT),
     };
     // convenient construct from pixel data
     static Mat from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator = 0);
@@ -577,6 +565,26 @@ NCNN_EXPORT void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsig
 NCNN_EXPORT void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // convert yuv420sp(nv21) to rgb with half resize, the faster approximate version
 NCNN_EXPORT void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+// convert hsv to rgb
+NCNN_EXPORT void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* rgb);
+// convert rgb to hsv
+NCNN_EXPORT void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* hsv);
+// convert hsv to bgr
+NCNN_EXPORT void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* bgr);
+// convert bgr to hsv
+NCNN_EXPORT void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* hsv);
+// convert hsv to gray
+NCNN_EXPORT void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char* gray);
+// convert gray to hsv
+NCNN_EXPORT void gray2hsv(const unsigned char* gray, int w, int h, int stride, unsigned char* hsv);
+// convert hsv to rgba
+NCNN_EXPORT void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char* rgba);
+// convert rgba to hsv
+NCNN_EXPORT void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char* hsv);
+// convert hsv to bgra
+NCNN_EXPORT void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char* bgra);
+// convert bgra to hsv
+NCNN_EXPORT void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char* hsv);
 // image pixel bilinear resize
 NCNN_EXPORT void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 NCNN_EXPORT void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
@@ -726,22 +734,19 @@ NCNN_EXPORT inline float32x4_t vcvt_f32_bf16(uint16x4_t _v)
 {
     return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
 }
-// Look up table (uint16x8_t)
-NCNN_EXPORT inline uint16x8_t vlutq_u16(const uint16_t* _tab, uint16x8_t _v)
+// Look up table (uint32x4_t) 
+NCNN_EXPORT inline uint32x4_t vlutq_u32(const uint32_t* _tab, uint16x4_t _v)
 {
-    uint16_t _idx[8];
-    vst1q_u16(_idx, _v);
-    uint16_t _elems[8] = {
+    uint16_t _idx[4];
+    vst1_u16(_idx, _v);
+    uint32_t _elems[4] =
+    {
         _tab[_idx[0]],
         _tab[_idx[1]],
         _tab[_idx[2]],
-        _tab[_idx[3]],
-        _tab[_idx[4]],
-        _tab[_idx[5]],
-        _tab[_idx[6]],
-        _tab[_idx[7]]
+        _tab[_idx[3]]
     };
-    return vld1q_u16(_elems);
+    return vld1q_u32(_elems);
 }
 #endif // __ARM_NEON
 
