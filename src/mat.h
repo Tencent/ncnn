@@ -734,13 +734,12 @@ NCNN_EXPORT inline float32x4_t vcvt_f32_bf16(uint16x4_t _v)
 {
     return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
 }
-// Look up table (uint32x4_t) 
+// Look up table (uint32x4_t)
 NCNN_EXPORT inline uint32x4_t vlutq_u32(const uint32_t* _tab, uint16x4_t _v)
 {
     uint16_t _idx[4];
     vst1_u16(_idx, _v);
-    uint32_t _elems[4] =
-    {
+    uint32_t _elems[4] = {
         _tab[_idx[0]],
         _tab[_idx[1]],
         _tab[_idx[2]],
