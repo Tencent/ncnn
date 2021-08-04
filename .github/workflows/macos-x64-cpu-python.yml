@@ -1,5 +1,25 @@
 name: macos-x64-cpu-python
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/macos-x64-cpu-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/macos-x64-cpu-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
 jobs:
@@ -7,10 +27,10 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8]
+        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -23,12 +43,12 @@ jobs:
     - name: install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pytest
+        pip install pytest setuptools wheel twine
     - name: protobuf
       run: brew install protobuf opencv3
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: openmp-install
         key: openmp-macos-install-20201213
@@ -64,3 +84,13 @@ jobs:
       run: cd python && pip install .
     - name: test
       run: cd python && pytest tests
+    - name: build and publish
+      if: startsWith(github.ref, 'refs/tags')
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        TWINE_REPOSITORY_URL: "https://test.pypi.org/legacy/"
+      run: |
+        cd python
+        python setup.py bdist_wheel
+        twine upload dist/*

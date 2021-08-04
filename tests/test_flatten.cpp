@@ -47,9 +47,42 @@ static int test_flatten_0()
            || test_flatten(RandomMat(17));
 }
 
+static int test_flatten_int8(const ncnn::Mat& a)
+{
+    ncnn::ParamDict pd;
+
+    std::vector<ncnn::Mat> weights(0);
+
+    int flag = TEST_LAYER_DISABLE_AUTO_INPUT_CASTING | TEST_LAYER_DISABLE_GPU_TESTING;
+    int ret = test_layer<ncnn::Flatten>("Flatten", pd, weights, a, 0.001, 0, flag);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_flatten_int8 failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+    }
+
+    return ret;
+}
+
+static int test_flatten_1()
+{
+    return 0
+           || test_flatten_int8(RandomS8Mat(2, 4, 16))
+           || test_flatten_int8(RandomS8Mat(3, 5, 32))
+           || test_flatten_int8(RandomS8Mat(1, 1, 64))
+           || test_flatten_int8(RandomS8Mat(9, 10, 64))
+           || test_flatten_int8(RandomS8Mat(1, 7, 4))
+           || test_flatten_int8(RandomS8Mat(6, 6, 70))
+           || test_flatten_int8(RandomS8Mat(13, 52))
+           || test_flatten_int8(RandomS8Mat(16, 64))
+           || test_flatten_int8(RandomS8Mat(8, 48))
+           || test_flatten_int8(RandomS8Mat(8, 8))
+           || test_flatten_int8(RandomS8Mat(128))
+           || test_flatten_int8(RandomS8Mat(127));
+}
+
 int main()
 {
     SRAND(7767517);
 
-    return test_flatten_0();
+    return test_flatten_0() || test_flatten_1();
 }

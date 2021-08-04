@@ -20,6 +20,7 @@
 #include <immintrin.h>
 #endif // __AVX__
 #endif // __SSE2__
+#include "x86_usability.h"
 
 namespace ncnn {
 
@@ -160,7 +161,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         __m256 _p = _mm256_loadu_ps(ptr);
                         __m256 _p1 = _mm256_loadu_ps(ptr1);
                         _p = _mm256_mul_ps(_p, _coeff0);
-                        _p = _mm256_fmadd_ps(_p1, _coeff1, _p);
+                        _p = _mm256_comp_fmadd_ps(_p1, _coeff1, _p);
                         _mm256_storeu_ps(outptr, _p);
 
                         ptr += 8;
@@ -183,7 +184,7 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
                         {
                             __m256 _p = _mm256_loadu_ps(outptr);
                             __m256 _p1 = _mm256_loadu_ps(ptr);
-                            _p = _mm256_fmadd_ps(_p1, _coeff, _p);
+                            _p = _mm256_comp_fmadd_ps(_p1, _coeff, _p);
                             _mm256_storeu_ps(outptr, _p);
 
                             ptr += 8;

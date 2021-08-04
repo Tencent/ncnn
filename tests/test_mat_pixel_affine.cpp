@@ -494,7 +494,7 @@ static int test_mat_pixel_affine_yuv420sp(int w, int h)
 static int test_mat_pixel_affine_1()
 {
     return 0
-           || test_mat_pixel_affine_yuv420sp(60, 40)
+           || test_mat_pixel_affine_yuv420sp(40, 40)
            || test_mat_pixel_affine_yuv420sp(120, 160)
            || test_mat_pixel_affine_yuv420sp(220, 340);
 }

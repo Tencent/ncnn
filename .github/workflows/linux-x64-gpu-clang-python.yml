@@ -1,0 +1,115 @@
+name: linux-x64-gpu-clang-python
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-gpu-clang-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'python/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-gpu-clang-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'src/layer/vulkan/**'
+    - 'python/**'
+jobs:
+  linux-clang-gpu:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.8]
+    steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.9.1
+      with:
+        access_token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: update
+      run: sudo apt-get update
+    - name: protobuf
+      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
+    - name: cache-vulkansdk
+      id: cache-vulkansdk
+      uses: actions/cache@v2.1.6
+      with:
+        path: "1.2.148.1"
+        key: vulkansdk-linux-x86_64-1.2.148.1
+    - name: vulkansdk
+      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
+      run: |
+        wget https://sdk.lunarg.com/sdk/download/1.2.148.1/linux/vulkansdk-linux-x86_64-1.2.148.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.148.1.tar.gz
+        rm -rf 1.2.148.1/source 1.2.148.1/samples
+        find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: actions/cache@v2.1.6
+      with:
+        path: swiftshader-install
+        key: swiftshader-linux-install-20200508
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: google/swiftshader
+        path: swiftshader
+        ref: 2dd864470e310d173d35fa95ca3a14d216734aab
+    - name: checkout-swiftshader-submodules
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        git submodule update --init --recursive
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cache-hit != 'true'
+      run: |
+        cd swiftshader
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 2
+        mkdir $GITHUB_WORKSPACE/swiftshader-install
+        cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
+    - name: set up python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest setuptools wheel twine
+    - name: build
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        export VULKAN_SDK=`pwd`/1.2.148.1/x86_64
+        mkdir build && cd build
+        cmake -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+        cmake --build . -j 2
+    - name: install python
+      run: cd python && pip install .
+    - name: test
+      run: |
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
+        cd python && pytest tests
+    - name: build and publish
+      if: startsWith(github.ref, 'refs/tags')
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        TWINE_REPOSITORY_URL: "https://test.pypi.org/legacy/"
+      run: |
+        cd python
+        python setup.py bdist_wheel
+        twine upload dist/*

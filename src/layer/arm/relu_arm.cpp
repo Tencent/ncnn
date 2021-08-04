@@ -29,23 +29,27 @@ ReLU_arm::ReLU_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (bottom_top_blob.elemsize == 1u)
-        return forward_inplace_int8_neon(bottom_top_blob, opt);
-
     int elembits = bottom_top_blob.elembits();
+
+    if (elembits == 8)
+        return forward_inplace_int8(bottom_top_blob, opt);
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -578,6 +582,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -881,13 +886,54 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
     return 0;
 }
+#endif // NCNN_BF16
 
-int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt) const
+int ReLU_arm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
     int size = w * h;
+    int elempack = bottom_top_blob.elempack;
+
+#if __ARM_NEON
+    if (elempack == 8)
+    {
+        if (slope == 0.f)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                signed char* ptr = bottom_top_blob.channel(q);
+
+                int i = 0;
+                int8x16_t _zero = vdupq_n_s8(0);
+                for (; i + 1 < size; i += 2)
+                {
+                    int8x16_t _p = vld1q_s8(ptr);
+                    _p = vmaxq_s8(_p, _zero);
+                    vst1q_s8(ptr, _p);
+
+                    ptr += 16;
+                }
+                for (; i < size; i++)
+                {
+                    int8x8_t _p = vld1_s8(ptr);
+                    _p = vmax_s8(_p, vget_low_s8(_zero));
+                    vst1_s8(ptr, _p);
+
+                    ptr += 8;
+                }
+            }
+        }
+        else
+        {
+            // TODO leakyrelu
+        }
+
+        return 0;
+    }
+#endif // __ARM_NEON
 
     if (slope == 0.f)
     {
@@ -896,17 +942,10 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
         {
             signed char* ptr = bottom_top_blob.channel(q);
 
+            int i = 0;
 #if __ARM_NEON
-            int nn = size >> 4;
-            int remain = size - (nn << 4);
-#else
-            int remain = size;
-#endif // __ARM_NEON
-
-#if __ARM_NEON
-#if __aarch64__
             int8x16_t _zero = vdupq_n_s8(0);
-            for (; nn > 0; nn--)
+            for (; i + 15 < size; i += 16)
             {
                 int8x16_t _p = vld1q_s8(ptr);
                 _p = vmaxq_s8(_p, _zero);
@@ -914,27 +953,8 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
 
                 ptr += 16;
             }
-#else
-            if (nn > 0)
-            {
-                asm volatile(
-                    "veor       q1, q0, q0          \n"
-                    "0:                             \n"
-                    "pld        [%1, #128]          \n"
-                    "vld1.s8    {d0-d1}, [%1 :128]  \n"
-                    "vmax.s8    q0, q0, q1          \n"
-                    "subs       %0, #1              \n"
-                    "vst1.s8    {d0-d1}, [%1 :128]! \n"
-                    "bne        0b                  \n"
-                    : "=r"(nn), // %0
-                    "=r"(ptr) // %1
-                    : "0"(nn),
-                    "1"(ptr)
-                    : "cc", "memory", "q0", "q1");
-            }
-#endif // __aarch64__
 #endif // __ARM_NEON
-            for (; remain > 0; remain--)
+            for (; i < size; i++)
             {
                 if (*ptr < 0)
                     *ptr = 0;
@@ -945,18 +965,7 @@ int ReLU_arm::forward_inplace_int8_neon(Mat& bottom_top_blob, const Option& opt)
     }
     else
     {
-        // TODO
-        // #pragma omp parallel for num_threads(opt.num_threads)
-        // for (int q=0; q<channels; q++)
-        // {
-        //     float* ptr = bottom_top_blob.channel(q);
-
-        //     for (int i=0; i<size; i++)
-        //     {
-        //         if (ptr[i] < 0)
-        //             ptr[i] *= slope;
-        //     }
-        // }
+        // TODO leakyrelu
     }
 
     return 0;

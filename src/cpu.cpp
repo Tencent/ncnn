@@ -71,6 +71,10 @@
 #endif
 #endif
 
+#if defined(__SSE3__)
+#include <immintrin.h>
+#endif
+
 namespace ncnn {
 
 #if defined __ANDROID__ || defined __linux__
@@ -86,8 +90,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
 
 #define AT_HWCAP  16
 #define AT_HWCAP2 26
-#if __aarch64__
-
+#if __aarch64__ || __riscv_xlen == 64
     struct
     {
         uint64_t tag;
@@ -130,10 +133,23 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 // from arch/arm64/include/uapi/asm/hwcap.h
 #define HWCAP_ASIMD   (1 << 1)
 #define HWCAP_ASIMDHP (1 << 10)
+#define HWCAP_ASIMDDP (1 << 20)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_NEON  (1 << 12)
 #define HWCAP_VFPv4 (1 << 16)
+#endif
+
+#if __mips__
+// from arch/mips/include/uapi/asm/hwcap.h
+#define HWCAP_MIPS_MSA     (1 << 1)
+#define HWCAP_LOONGSON_MMI (1 << 11)
+#endif
+
+#if __riscv
+// from arch/riscv/include/uapi/asm/hwcap.h
+#define COMPAT_HWCAP_ISA_F (1 << ('F' - 'A'))
+#define COMPAT_HWCAP_ISA_V (1 << ('V' - 'A'))
 #endif
 
 #endif // defined __ANDROID__ || defined __linux__
@@ -328,8 +344,30 @@ int cpu_support_arm_asimdhp()
 #endif
 }
 
+int cpu_support_arm_asimddp()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps & HWCAP_ASIMDDP;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_x86_avx2()
 {
+#if !NCNN_AVX2
+    return 0;
+#endif
 #if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
 #if defined(_MSC_VER)
     // TODO move to init function
@@ -364,6 +402,121 @@ int cpu_support_x86_avx2()
     NCNN_LOGE("AVX2 detection method is unknown for current compiler");
     return 0;
 #endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx()
+{
+#if !NCNN_AVX
+    return 0;
+#endif
+#if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
+#if defined(_MSC_VER)
+    // TODO move to init function
+    int cpu_info[4];
+    __cpuid(cpu_info, 0);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    __cpuid(cpu_info, 1);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((_xgetbv(0) & 6) != 6)
+        return 0;
+    return 1;
+#elif defined(__clang__)
+#if __clang_major__ >= 6
+    __builtin_cpu_init();
+#endif
+    return __builtin_cpu_supports("avx");
+#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
+    __builtin_cpu_init();
+    return __builtin_cpu_supports("avx");
+#else
+    // TODO: other x86 compilers checking avx here
+    NCNN_LOGE("AVX detection method is unknown for current compiler");
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_mips_msa()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __mips__
+    return g_hwcaps & HWCAP_MIPS_MSA;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_loongson_mmi()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __mips__
+    return g_hwcaps & HWCAP_LOONGSON_MMI;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_v()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    return g_hwcaps & COMPAT_HWCAP_ISA_V;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_riscv_zfh()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __riscv
+    // v + f does not imply zfh, but how to discover zfh properly ?
+    // upstream issue https://github.com/riscv/riscv-isa-manual/issues/414
+    return g_hwcaps & COMPAT_HWCAP_ISA_V && g_hwcaps & COMPAT_HWCAP_ISA_F;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_riscv_vlenb()
+{
+#if __riscv
+    if (!cpu_support_riscv_v())
+        return 0;
+
+    int a = 0;
+    asm volatile(
+        ".word  0xc22026f3  \n" // csrr  a3, vlenb
+        "mv     %0, a3      \n"
+        : "=r"(a)
+        :
+        : "memory", "a3");
+    return a;
 #else
     return 0;
 #endif
@@ -428,7 +581,8 @@ int get_little_cpu_count()
 
 int get_big_cpu_count()
 {
-    return get_cpu_thread_affinity_mask(2).num_enabled();
+    int big_cpu_count = get_cpu_thread_affinity_mask(2).num_enabled();
+    return big_cpu_count ? big_cpu_count : g_cpucount;
 }
 
 #if defined __ANDROID__ || defined __linux__
@@ -844,6 +998,53 @@ void set_kmp_blocktime(int time_ms)
     kmp_set_blocktime(time_ms);
 #else
     (void)time_ms;
+#endif
+}
+
+static ncnn::ThreadLocalStorage tls_flush_denormals;
+
+int get_flush_denormals()
+{
+#if defined(__SSE3__)
+    return (int)reinterpret_cast<size_t>(tls_flush_denormals.get());
+#else
+    return 0;
+#endif
+}
+
+int set_flush_denormals(int flush_denormals)
+{
+    if (flush_denormals < 0 || flush_denormals > 3)
+    {
+        NCNN_LOGE("denormals_zero %d not supported", flush_denormals);
+        return -1;
+    }
+#if defined(__SSE3__)
+    if (flush_denormals == 0)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
+    }
+    else if (flush_denormals == 1)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
+    }
+    else if (flush_denormals == 2)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    }
+    else if (flush_denormals == 3)
+    {
+        _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+        _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    }
+
+    tls_flush_denormals.set(reinterpret_cast<void*>((size_t)flush_denormals));
+    return 0;
+#else
+    return 0;
 #endif
 }
 

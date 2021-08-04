@@ -14,9 +14,13 @@
 
 #include "net.h"
 
+#if defined(USE_NCNN_SIMPLEOCV)
+#include "simpleocv.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
 #include <stdio.h>
 #include <vector>
 
@@ -190,7 +194,7 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
                         float w = scale * ar / 550;
                         float h = scale / ar / 550;
 
-                        // This is for backward compatability with a bug where I made everything square by accident
+                        // This is for backward compatibility with a bug where I made everything square by accident
                         // cfg.backbone.use_square_anchors:
                         h = w;
 
@@ -467,7 +471,8 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         fprintf(stderr, "%d = %.5f at %.2f %.2f %.2f x %.2f\n", obj.label, obj.prob,
                 obj.rect.x, obj.rect.y, obj.rect.width, obj.rect.height);
 
-        const unsigned char* color = colors[color_index++];
+        const unsigned char* color = colors[color_index % 81];
+        color_index++;
 
         cv::rectangle(image, obj.rect, cv::Scalar(color[0], color[1], color[2]));
 

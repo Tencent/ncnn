@@ -15,9 +15,8 @@
 #include "swish_arm.h"
 
 #if __ARM_NEON
-#include "neon_mathfun.h"
-
 #include <arm_neon.h>
+#include "neon_mathfun.h"
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
 #endif
@@ -36,7 +35,9 @@ Swish_arm::Swish_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Swish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -53,8 +54,10 @@ int Swish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -251,6 +254,7 @@ int Swish_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -314,5 +318,6 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

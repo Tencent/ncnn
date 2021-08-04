@@ -1,11 +1,29 @@
 name: android-x64-cpu
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/android-x64-cpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/android-x64-cpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
 jobs:
   android-x86_64:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2

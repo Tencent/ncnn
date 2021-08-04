@@ -128,6 +128,14 @@ public:
     // construct an Extractor from network
     Extractor create_extractor() const;
 
+    // get input/output indexes/names
+    const std::vector<int>& input_indexes() const;
+    const std::vector<int>& output_indexes() const;
+#if NCNN_STRING
+    const std::vector<const char*>& input_names() const;
+    const std::vector<const char*>& output_names() const;
+#endif
+
     const std::vector<Blob>& blobs() const;
     const std::vector<Layer*>& layers() const;
 
@@ -163,6 +171,9 @@ public:
 
     // assign
     Extractor& operator=(const Extractor&);
+
+    // clear blob mats and alloctors
+    void clear();
 
     // enable light mode
     // intermediate blob will be recycled when enabled

@@ -29,7 +29,9 @@ PReLU_arm::PReLU_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -46,8 +48,10 @@ int PReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
@@ -816,6 +820,7 @@ int PReLU_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) c
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
@@ -1033,5 +1038,6 @@ int PReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

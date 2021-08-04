@@ -192,6 +192,7 @@ public:
     // bug is not feature
     bool bug_storage_buffer_no_l1;
     bool bug_corrupted_online_pipeline_cache;
+    bool bug_buffer_image_load_zero;
 
     // but sometimes bug is a feature
     bool bug_implicit_fp16_arithmetic;
@@ -449,6 +450,11 @@ bool GpuInfo::bug_storage_buffer_no_l1() const
 bool GpuInfo::bug_corrupted_online_pipeline_cache() const
 {
     return d->bug_corrupted_online_pipeline_cache;
+}
+
+bool GpuInfo::bug_buffer_image_load_zero() const
+{
+    return d->bug_buffer_image_load_zero;
 }
 
 bool GpuInfo::bug_implicit_fp16_arithmetic() const
@@ -1081,11 +1087,16 @@ int create_gpu_instance()
         {
             // NOTE but qcom855/qcom855plus/qcom865 are known exceptions
             // qcom adreno storage buffer without L1 cache
+            gpu_info.bug_storage_buffer_no_l1 = true;
+        }
 
+        if (physicalDeviceProperties.vendorID == 0x5143 && physicalDeviceProperties.apiVersion < VK_MAKE_VERSION(1, 1, 87))
+        {
             // HACK buffer2image before image-read dependency does not work properly
             // even promised with full image memory barrier on old adreno driver
             // TODO figure out a proper workaround without hurt speed too much
-            //             gpu_info.bug_storage_buffer_no_l1 = true;
+            // TODO only for old drivers
+            gpu_info.bug_buffer_image_load_zero = true;
         }
 
         if (physicalDeviceProperties.vendorID == 0x13b5
@@ -1440,8 +1451,8 @@ int create_gpu_instance()
                   gpu_info.graphics_queue_family_index, gpu_info.graphics_queue_count,
                   gpu_info.transfer_queue_family_index, gpu_info.transfer_queue_count);
 
-        NCNN_LOGE("[%u %s]  bugsbn1=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
-                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
+        NCNN_LOGE("[%u %s]  bugsbn1=%d  bugbilz=%d  bugcopc=%d  bugihfa=%d", i, physicalDeviceProperties.deviceName,
+                  gpu_info.bug_storage_buffer_no_l1, gpu_info.bug_buffer_image_load_zero, gpu_info.bug_corrupted_online_pipeline_cache, gpu_info.bug_implicit_fp16_arithmetic);
 
         NCNN_LOGE("[%u %s]  fp16-p/s/a=%d/%d/%d  int8-p/s/a=%d/%d/%d", i, physicalDeviceProperties.deviceName,
                   gpu_info.support_fp16_packed, gpu_info.support_fp16_storage, gpu_info.support_fp16_arithmetic,
@@ -1588,7 +1599,15 @@ public:
     mutable std::vector<VkQueue> compute_queues;
     mutable std::vector<VkQueue> graphics_queues;
     mutable std::vector<VkQueue> transfer_queues;
-    mutable Mutex queue_lock;
+    mutable int free_compute_queue_count;
+    mutable int free_graphics_queue_count;
+    mutable int free_transfer_queue_count;
+    mutable Mutex compute_queue_lock;
+    mutable Mutex graphics_queue_lock;
+    mutable Mutex transfer_queue_lock;
+    mutable ConditionVariable compute_queue_condition;
+    mutable ConditionVariable graphics_queue_condition;
+    mutable ConditionVariable transfer_queue_condition;
 
     // default blob allocator for each queue
     mutable std::vector<VkAllocator*> blob_allocators;
@@ -1626,13 +1645,23 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
 
     dummy_buffer.create(1, 4u, dummy_allocator);
     dummy_image.create(1, 4u, dummy_allocator);
+#if __APPLE__
+    if (vkdev->info.vendor_id() != 0x8086)
+        dummy_image_readonly.create(1, 4u, dummy_allocator);
+#else
     dummy_image_readonly.create(1, 4u, dummy_allocator);
+#endif
 
     VkDummyCompute cmd(vkdev);
 
     cmd.record_dummy(dummy_buffer);
     cmd.record_dummy(dummy_image);
+#if __APPLE__
+    if (vkdev->info.vendor_id() != 0x8086)
+        cmd.record_dummy_readonly(dummy_image_readonly);
+#else
     cmd.record_dummy_readonly(dummy_image_readonly);
+#endif
 
     cmd.submit_and_wait();
 
@@ -1643,7 +1672,12 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
 {
     dummy_buffer.release();
     dummy_image.release();
+#if __APPLE__
+    if (vkdev->info.vendor_id() != 0x8086)
+        dummy_image_readonly.release();
+#else
     dummy_image_readonly.release();
+#endif
 
     delete dummy_allocator;
 }
@@ -1949,6 +1983,11 @@ VulkanDevice::VulkanDevice(int device_index)
 
     init_device_extension();
 
+    d->free_compute_queue_count = 0;
+    d->free_graphics_queue_count = 0;
+    d->free_transfer_queue_count = 0;
+
+    d->free_compute_queue_count = info.compute_queue_count();
     d->compute_queues.resize(info.compute_queue_count());
     d->blob_allocators.resize(info.compute_queue_count());
     d->staging_allocators.resize(info.compute_queue_count());
@@ -1960,6 +1999,7 @@ VulkanDevice::VulkanDevice(int device_index)
     }
     if (info.compute_queue_family_index() != info.graphics_queue_family_index())
     {
+        d->free_graphics_queue_count = info.graphics_queue_count();
         d->graphics_queues.resize(info.graphics_queue_count());
         for (uint32_t i = 0; i < info.graphics_queue_count(); i++)
         {
@@ -1968,6 +2008,7 @@ VulkanDevice::VulkanDevice(int device_index)
     }
     if (info.compute_queue_family_index() != info.transfer_queue_family_index() && info.graphics_queue_family_index() != info.transfer_queue_family_index())
     {
+        d->free_transfer_queue_count = info.transfer_queue_count();
         d->transfer_queues.resize(info.transfer_queue_count());
         for (uint32_t i = 0; i < info.transfer_queue_count(); i++)
         {
@@ -2493,23 +2534,53 @@ VkQueue VulkanDevice::acquire_queue(uint32_t queue_family_index) const
         return 0;
     }
 
-    MutexLockGuard lock(d->queue_lock);
+    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_lock
+                        : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_lock
+                        : d->transfer_queue_lock;
+
+    queue_lock.lock();
+
+    ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_condition
+                                         : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_condition
+                                         : d->transfer_queue_condition;
+
+    int& free_queue_count = queue_family_index == info.compute_queue_family_index() ? d->free_compute_queue_count
+                            : queue_family_index == info.graphics_queue_family_index() ? d->free_graphics_queue_count
+                            : d->free_transfer_queue_count;
+
+    while (free_queue_count == 0)
+    {
+        // no free queues, wait for recleams from other threads
+        queue_condition.wait(queue_lock);
+    }
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
                                    : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues
                                    : d->transfer_queues;
-    for (int i = 0; i < (int)queues.size(); i++)
+
+    VkQueue queue = 0;
+    for (size_t i = 0; i < queues.size(); i++)
     {
-        VkQueue queue = queues[i];
-        if (queue)
+        if (queues[i])
         {
+            queue = queues[i];
             queues[i] = 0;
-            return queue;
+            break;
         }
     }
 
-    NCNN_LOGE("out of hardware queue %u", queue_family_index);
-    return 0;
+    if (!queue)
+    {
+        NCNN_LOGE("FATAL ERROR! out of hardware queue %u", queue_family_index);
+    }
+
+    free_queue_count -= 1;
+
+    queue_lock.unlock();
+
+    queue_condition.signal();
+
+    return queue;
 }
 
 void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) const
@@ -2522,21 +2593,44 @@ void VulkanDevice::reclaim_queue(uint32_t queue_family_index, VkQueue queue) con
         return;
     }
 
-    MutexLockGuard lock(d->queue_lock);
+    Mutex& queue_lock = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_lock
+                        : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_lock
+                        : d->transfer_queue_lock;
+
+    queue_lock.lock();
+
+    ConditionVariable& queue_condition = queue_family_index == info.compute_queue_family_index() ? d->compute_queue_condition
+                                         : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queue_condition
+                                         : d->transfer_queue_condition;
+
+    int& free_queue_count = queue_family_index == info.compute_queue_family_index() ? d->free_compute_queue_count
+                            : queue_family_index == info.graphics_queue_family_index() ? d->free_graphics_queue_count
+                            : d->free_transfer_queue_count;
 
     std::vector<VkQueue>& queues = queue_family_index == info.compute_queue_family_index() ? d->compute_queues
                                    : queue_family_index == info.graphics_queue_family_index() ? d->graphics_queues
                                    : d->transfer_queues;
-    for (int i = 0; i < (int)queues.size(); i++)
+
+    size_t i = 0;
+    for (; i < queues.size(); i++)
     {
         if (!queues[i])
         {
             queues[i] = queue;
-            return;
+            break;
         }
     }
 
-    NCNN_LOGE("FATAL ERROR! reclaim_queue get wild queue %u %p", queue_family_index, queue);
+    if (i == queues.size())
+    {
+        NCNN_LOGE("FATAL ERROR! reclaim_queue get wild queue %u %p", queue_family_index, queue);
+    }
+
+    free_queue_count += 1;
+
+    queue_lock.unlock();
+
+    queue_condition.signal();
 }
 
 VkAllocator* VulkanDevice::acquire_blob_allocator() const
@@ -2630,6 +2724,10 @@ VkImageMat VulkanDevice::get_dummy_image() const
 
 VkImageMat VulkanDevice::get_dummy_image_readonly() const
 {
+#if __APPLE__
+    if (info.vendor_id() == 0x8086)
+        return d->dummy_image;
+#endif
     return d->dummy_image_readonly;
 }
 
@@ -3317,9 +3415,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             custom_defines.push_back(std::make_pair("image1d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
             custom_defines.push_back(std::make_pair("image2d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
             custom_defines.push_back(std::make_pair("image3d_ld1(tex,p)", "float16_t(texelFetch(tex,p,0).r)"));
-            custom_defines.push_back(std::make_pair("image1d_st1(img,p,v)", "{f16vec4 _v;_v.r=float16_t(v);imageStore(img,p,_v);}"));
-            custom_defines.push_back(std::make_pair("image2d_st1(img,p,v)", "{f16vec4 _v;_v.r=float16_t(v);imageStore(img,p,_v);}"));
-            custom_defines.push_back(std::make_pair("image3d_st1(img,p,v)", "{f16vec4 _v;_v.r=float16_t(v);imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("image1d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("image2d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}"));
+            custom_defines.push_back(std::make_pair("image3d_st1(img,p,v)", "{vec4 _v;_v.r=float(v);imageStore(img,p,_v);}"));
             custom_defines.push_back(std::make_pair("image1d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
             custom_defines.push_back(std::make_pair("image2d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));
             custom_defines.push_back(std::make_pair("image3d_cp1(img,p,tex,sp)", "{imageStore(img,p,texelFetch(tex,sp,0));}"));

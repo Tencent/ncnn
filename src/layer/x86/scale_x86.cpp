@@ -20,7 +20,7 @@
 #include <immintrin.h>
 #endif // __AVX__
 #endif // __SSE2__
-
+#include "x86_usability.h"
 namespace ncnn {
 
 Scale_x86::Scale_x86()
@@ -58,7 +58,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                     __m256 _p = _mm256_loadu_ps(ptr);
                     __m256 _s = _mm256_loadu_ps(scale + i * 8);
                     __m256 _bias = _mm256_loadu_ps(bias + i * 8);
-                    _p = _mm256_fmadd_ps(_p, _s, _bias);
+                    _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
                     _mm256_storeu_ps(ptr, _p);
                 }
             }
@@ -94,7 +94,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                     for (int j = 0; j < w; j++)
                     {
                         __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_fmadd_ps(_p, _s, _bias);
+                        _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
                         _mm256_storeu_ps(ptr, _p);
 
                         ptr += 8;
@@ -140,7 +140,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                     for (int i = 0; i < size; i++)
                     {
                         __m256 _p = _mm256_loadu_ps(ptr);
-                        _p = _mm256_fmadd_ps(_p, _s, _bias);
+                        _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
                         _mm256_storeu_ps(ptr, _p);
 
                         ptr += 8;
@@ -335,7 +335,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             for (; nn > 0; nn--)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
-                _p = _mm256_fmadd_ps(_p, _s, _bias);
+                _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
                 _mm256_storeu_ps(ptr, _p);
 
                 ptr += 8;

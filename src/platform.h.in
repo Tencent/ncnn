@@ -26,11 +26,18 @@
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE
 #cmakedefine01 NCNN_PIXEL_AFFINE
+#cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
-#cmakedefine01 NCNN_REQUANT
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX2
+#cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_ARM82
+#cmakedefine01 NCNN_ARM82DOT
+#cmakedefine01 NCNN_MSA
+#cmakedefine01 NCNN_MMI
+#cmakedefine01 NCNN_RVV
+#cmakedefine01 NCNN_INT8
+#cmakedefine01 NCNN_BF16
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
 

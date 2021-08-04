@@ -1,11 +1,37 @@
 name: linux-x64-cpu-clang
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-cpu-clang.yml'
+    - 'toolchains/host-c.clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-x64-cpu-clang.yml'
+    - 'toolchains/host-c.clang.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+    - 'tools/**'
+    - 'examples/**'
 jobs:
   linux-clang:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -19,7 +45,7 @@ jobs:
         CXX: clang++
       run: |
         mkdir build-sse2 && cd build-sse2
-        cmake -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-sse2
       run: cd build-sse2 && ctest --output-on-failure -j 2
@@ -41,12 +67,42 @@ jobs:
         cmake --build . -j 2
     - name: test-avx2
       run: cd build-avx2 && ctest --output-on-failure -j 2
+    - name: build-avx
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-avx && cd build-avx
+        cmake -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx
+      run: cd build-avx && ctest --output-on-failure -j 2
+    - name: build-avx1-2
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-avx1-2 && cd build-avx1-2
+        cmake -DNCNN_AVX2=ON -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx1-2
+      run: cd build-avx1-2 && ctest --output-on-failure -j 2
+    - name: build-noint8
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-noint8 && cd build-noint8
+        cmake -DNCNN_INT8=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-noint8
+      run: cd build-noint8 && ctest --output-on-failure -j 2
 
   linux-clang-simplestl:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2

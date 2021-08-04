@@ -661,12 +661,9 @@ static void fuse_shufflechannel_split(onnx::GraphProto* mutable_graph, std::map<
             // reduce
             node2->set_op_type("noop_reducedncnn");
 
-            node_reference[node->output(0)] -= 1;
+            node_reference[node->output(0)] -= 2;
             node_reference[node2->input(1)] -= 1;
-            node_reference[node2->output(0)] -= 1;
             node_reference[node3->input(1)] -= 1;
-
-            blob_names.erase(node2->output(0));
 
             node3->set_op_type("Split");
             node3->clear_input();
@@ -1207,6 +1204,10 @@ static void fuse_normalize(onnx::GraphProto* mutable_graph, std::map<std::string
                 node_reference[node_shape->output(0)] -= 1;
             }
             node_reference[node3->output(0)] -= 1;
+            if (node3->input_size() == 2)
+            {
+                node_reference[node3->input(1)] -= 1;
+            }
 
             blob_names.erase(node->output(0));
             blob_names.erase(node2->output(0));
@@ -1336,26 +1337,16 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
             int channels = shape2[1];
 
             // affine
-            int affine = 0;
             std::vector<float> affine_S = get_node_attr_from_input_af(weights[node4->input(1)]);
             std::vector<float> affine_B = get_node_attr_from_input_af(weights[node5->input(1)]);
             if (affine_S.size() == 1 && affine_S[0] == 1.f && affine_B.size() == 1 && affine_B[0] == 0.f)
             {
-                affine = 0;
+                // no affine
             }
             else if ((int)affine_S.size() != channels && (int)affine_B.size() != channels)
             {
                 // we only allow per-channel affine
                 continue;
-            }
-
-            for (int j = 0; j < channels; j++)
-            {
-                if (affine_S[j] != 1.f || affine_B[j] != 0.f)
-                {
-                    affine = 1;
-                    break;
-                }
             }
 
             // reduce
@@ -1379,25 +1370,19 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
             node_reference[node3->output(0)] -= 1;
             node_reference[node4->output(0)] -= 1;
 
-            std::string affine_scale = node4->input(1);
-            std::string affine_bias = node5->input(1);
-
-            node_reference[affine_scale] -= 1;
-            node_reference[affine_bias] -= 1;
-
             blob_names.erase(node->output(0));
             blob_names.erase(node2->output(0));
             blob_names.erase(node3->output(0));
             blob_names.erase(node4->output(0));
 
+            std::string affine_scale = node4->input(1);
+            std::string affine_bias = node5->input(1);
+
             node5->set_op_type("GroupNorm");
             node5->clear_input();
             node5->add_input(node->input(0));
-            if (affine)
-            {
-                node5->add_input(affine_scale);
-                node5->add_input(affine_bias);
-            }
+            node5->add_input(affine_scale);
+            node5->add_input(affine_bias);
 
             onnx::AttributeProto* attr_groups = node5->add_attribute();
             attr_groups->set_name("groups");
@@ -1413,10 +1398,215 @@ static void fuse_groupnorm(onnx::GraphProto* mutable_graph, std::map<std::string
 
             onnx::AttributeProto* attr_affine = node5->add_attribute();
             attr_affine->set_name("affine");
-            attr_affine->set_i(affine);
+            attr_affine->set_i(1);
 
             reduced_node_count += 4;
             i += 4;
+        }
+    }
+}
+
+static void fuse_layernorm(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // LayerNorm <= X - ReduceMean - Sub - Pow - ReduceMean - Add - Sqrt - Div
+        // LayerNorm <= X - ReduceMean - Sub - Pow - ReduceMean - Add - Sqrt - Div - Mul - Add
+        if (node->op_type() == "ReduceMean")
+        {
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            std::vector<int> axes = get_node_attr_ai(*node, "axes");
+
+            // -1
+            // -2 -1
+            if (axes.size() != 1 && axes.size() != 2)
+                continue;
+
+            int normed_axes = (int)axes.size();
+            if (normed_axes == 1 && axes[0] != -1)
+                continue;
+            if (normed_axes == 2 && (axes[0] != -2 || axes[1] != -1))
+                continue;
+
+            if (i + 6 >= node_count)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
+            onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
+            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
+            onnx::NodeProto* node6 = mutable_graph->mutable_node(i + 5);
+            onnx::NodeProto* node7 = mutable_graph->mutable_node(i + 6);
+
+            if (node2->op_type() != "Sub" || node3->op_type() != "Pow" || node4->op_type() != "ReduceMean" || node5->op_type() != "Add" || node6->op_type() != "Sqrt" || node7->op_type() != "Div")
+                continue;
+
+            if (node_reference[node2->output(0)] != 2)
+                continue;
+
+            if (node_reference[node3->output(0)] != 1)
+                continue;
+
+            if (node_reference[node4->output(0)] != 1)
+                continue;
+
+            if (node_reference[node5->output(0)] != 1)
+                continue;
+
+            if (node_reference[node6->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->input(0) || node2->input(1) != node->output(0)
+                    || node3->input(0) != node2->output(0) || node4->input(0) != node3->output(0)
+                    || node5->input(0) != node4->output(0) || node6->input(0) != node5->output(0)
+                    || node7->input(0) != node2->output(0) || node7->input(1) != node6->output(0))
+                continue;
+
+            if (weights.find(node3->input(1)) == weights.end())
+                continue;
+
+            const onnx::TensorProto& pow_two = weights[node3->input(1)];
+            if (pow_two.dims_size() != 0 || get_tensor_proto_data_size(pow_two) != 1)
+                continue;
+
+            float constant_pow_two = get_node_attr_from_input_f(pow_two);
+            if (constant_pow_two != 2.f)
+                continue;
+
+            std::vector<int> axes4 = get_node_attr_ai(*node4, "axes");
+
+            // -1
+            // -2 -1
+            if ((int)axes4.size() != normed_axes)
+                continue;
+
+            if (normed_axes == 1 && axes4[0] != -1)
+                continue;
+            if (normed_axes == 2 && (axes4[0] != -2 || axes4[1] != -1))
+                continue;
+
+            if (weights.find(node5->input(1)) == weights.end())
+                continue;
+
+            const onnx::TensorProto& add_eps = weights[node5->input(1)];
+            if (add_eps.dims_size() != 0 || get_tensor_proto_data_size(add_eps) != 1)
+                continue;
+
+            float eps = get_node_attr_from_input_f(add_eps);
+
+            int affine = 0;
+            while (i + 8 < node_count)
+            {
+                onnx::NodeProto* node8 = mutable_graph->mutable_node(i + 7);
+                onnx::NodeProto* node9 = mutable_graph->mutable_node(i + 8);
+
+                if (node8->op_type() != "Mul" || node9->op_type() != "Add")
+                    break;
+
+                if (node_reference[node7->output(0)] != 1)
+                    break;
+
+                if (node_reference[node8->output(0)] != 1)
+                    break;
+
+                if (node8->input(0) != node7->output(0) || node9->input(0) != node8->output(0))
+                    break;
+
+                // affine
+                std::vector<float> affine_S = get_node_attr_from_input_af(weights[node8->input(1)]);
+                std::vector<float> affine_B = get_node_attr_from_input_af(weights[node9->input(1)]);
+                if (affine_S.size() != affine_B.size())
+                    break;
+
+                affine = 1;
+                break;
+            }
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+            node4->set_op_type("noop_reducedncnn");
+            node5->set_op_type("noop_reducedncnn");
+            node6->set_op_type("noop_reducedncnn");
+
+            node_reference[node->input(0)] -= 1;
+            node_reference[node2->input(0)] -= 1;
+            node_reference[node2->input(1)] -= 1;
+            node_reference[node3->input(0)] -= 1;
+            node_reference[node3->input(1)] -= 1;
+            node_reference[node4->input(0)] -= 1;
+            node_reference[node5->input(0)] -= 1;
+            node_reference[node5->input(1)] -= 1;
+            node_reference[node6->input(0)] -= 1;
+            node_reference[node7->input(0)] -= 1;
+            node_reference[node7->input(1)] -= 1;
+
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+            blob_names.erase(node3->output(0));
+            blob_names.erase(node4->output(0));
+            blob_names.erase(node5->output(0));
+            blob_names.erase(node6->output(0));
+
+            node_reference[node->input(0)] += 1;
+
+            if (affine == 0)
+            {
+                node7->set_op_type("LayerNorm");
+                node7->clear_input();
+                node7->add_input(node->input(0));
+
+                onnx::AttributeProto* attr_eps = node7->add_attribute();
+                attr_eps->set_name("epsilon");
+                attr_eps->set_f(eps);
+
+                onnx::AttributeProto* attr_affine = node7->add_attribute();
+                attr_affine->set_name("affine");
+                attr_affine->set_i(affine);
+
+                reduced_node_count += 6;
+                i += 6;
+            }
+            else // if (affine == 1)
+            {
+                onnx::NodeProto* node8 = mutable_graph->mutable_node(i + 7);
+                onnx::NodeProto* node9 = mutable_graph->mutable_node(i + 8);
+
+                node7->set_op_type("noop_reducedncnn");
+                node8->set_op_type("noop_reducedncnn");
+
+                node_reference[node8->input(0)] -= 1;
+                node_reference[node9->input(0)] -= 1;
+
+                blob_names.erase(node7->output(0));
+                blob_names.erase(node8->output(0));
+
+                std::string affine_scale = node8->input(1);
+                std::string affine_bias = node9->input(1);
+
+                node9->set_op_type("LayerNorm");
+                node9->clear_input();
+                node9->add_input(node->input(0));
+                node9->add_input(affine_scale);
+                node9->add_input(affine_bias);
+
+                onnx::AttributeProto* attr_eps = node9->add_attribute();
+                attr_eps->set_name("epsilon");
+                attr_eps->set_f(eps);
+
+                onnx::AttributeProto* attr_affine = node9->add_attribute();
+                attr_affine->set_name("affine");
+                attr_affine->set_i(affine);
+
+                reduced_node_count += 8;
+                i += 8;
+            }
         }
     }
 }
@@ -1901,17 +2091,9 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
             }
 
             blob_names.erase(node->output(0));
-            if (node->output_size() > 1)
-            {
-                for (int j = 1; j < node->output_size(); j++)
-                {
-                    blob_names.erase(node->output(j));
-                }
-            }
             blob_names.erase(node2->output(0));
 
-            node->clear_output();
-            node->add_output(node3->output(0));
+            node->set_output(0, node3->output(0));
 
             reduced_node_count += 2;
             i += 2;
@@ -1944,8 +2126,7 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
 
                 blob_names.erase(node->output(0));
 
-                node->clear_output();
-                node->add_output(node4->output(0));
+                node->set_output(0, node4->output(0));
 
                 reduced_node_count += 1;
                 i += 1;
@@ -1992,16 +2173,8 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
             node_reference[node->output(0)] -= 1;
 
             blob_names.erase(node->output(0));
-            if (node->output_size() > 1)
-            {
-                for (int j = 1; j < node->output_size(); j++)
-                {
-                    blob_names.erase(node->output(j));
-                }
-            }
 
-            node->clear_output();
-            node->add_output(node2->output(0));
+            node->set_output(0, node2->output(0));
 
             reduced_node_count += 1;
             i += 1;
@@ -2034,8 +2207,7 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
 
                 blob_names.erase(node->output(0));
 
-                node->clear_output();
-                node->add_output(node3->output(0));
+                node->set_output(0, node3->output(0));
 
                 reduced_node_count += 1;
                 i += 1;
@@ -2087,11 +2259,626 @@ static void fuse_lstm_gru_rnn(onnx::GraphProto* mutable_graph, std::map<std::str
     }
 }
 
+static void fuse_multiheadattention(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // MultiHeadAttention <= MatMul(q) - Add
+        //                      - MatMul(k) - Add
+        //                      - MatMul(v) - Add
+        //                      - Mul
+        //                      - Reshape - Transpose
+        //                      - Reshape - Reshape - Transpose - Transpose
+        //                      - Gemm - Softmax - Gemm - Transpose - Reshape - MatMul - Add
+        if (node->op_type() == "MatMul")
+        {
+            if (i + 19 >= node_count)
+                continue;
+
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
+            onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
+            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
+            onnx::NodeProto* node6 = mutable_graph->mutable_node(i + 5);
+            onnx::NodeProto* node7 = mutable_graph->mutable_node(i + 6);
+            onnx::NodeProto* node8 = mutable_graph->mutable_node(i + 7);
+            onnx::NodeProto* node9 = mutable_graph->mutable_node(i + 8);
+            onnx::NodeProto* node10 = mutable_graph->mutable_node(i + 9);
+            onnx::NodeProto* node11 = mutable_graph->mutable_node(i + 10);
+            onnx::NodeProto* node12 = mutable_graph->mutable_node(i + 11);
+            onnx::NodeProto* node13 = mutable_graph->mutable_node(i + 12);
+            onnx::NodeProto* node14 = mutable_graph->mutable_node(i + 13);
+            onnx::NodeProto* node15 = mutable_graph->mutable_node(i + 14);
+            onnx::NodeProto* node16 = mutable_graph->mutable_node(i + 15);
+            onnx::NodeProto* node17 = mutable_graph->mutable_node(i + 16);
+            onnx::NodeProto* node18 = mutable_graph->mutable_node(i + 17);
+            onnx::NodeProto* node19 = mutable_graph->mutable_node(i + 18);
+            onnx::NodeProto* node20 = mutable_graph->mutable_node(i + 19);
+
+            if (node2->op_type() != "Add" || node3->op_type() != "MatMul" || node4->op_type() != "Add" || node5->op_type() != "MatMul" || node6->op_type() != "Add" || node7->op_type() != "Mul" || node8->op_type() != "Reshape" || node9->op_type() != "Transpose" || node10->op_type() != "Reshape" || node11->op_type() != "Reshape" || node12->op_type() != "Transpose" || node13->op_type() != "Transpose" || node14->op_type() != "MatMul" || node15->op_type() != "Softmax" || node16->op_type() != "MatMul" || node17->op_type() != "Transpose" || node18->op_type() != "Reshape" || node19->op_type() != "MatMul" || node20->op_type() != "Add")
+                continue;
+
+            if (node_reference[node2->output(0)] != 1 || node_reference[node3->output(0)] != 1 || node_reference[node4->output(0)] != 1 || node_reference[node5->output(0)] != 1 || node_reference[node6->output(0)] != 1 || node_reference[node7->output(0)] != 1 || node_reference[node8->output(0)] != 1 || node_reference[node9->output(0)] != 1 || node_reference[node10->output(0)] != 1 || node_reference[node11->output(0)] != 1 || node_reference[node12->output(0)] != 1 || node_reference[node13->output(0)] != 1 || node_reference[node14->output(0)] != 1 || node_reference[node15->output(0)] != 1 || node_reference[node16->output(0)] != 1 || node_reference[node17->output(0)] != 1 || node_reference[node18->output(0)] != 1 || node_reference[node19->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->output(0) || node4->input(0) != node3->output(0) || node6->input(0) != node5->output(0) || node7->input(0) != node2->output(0) || node8->input(0) != node7->output(0) || node9->input(0) != node8->output(0) || node10->input(0) != node4->output(0) || node11->input(0) != node6->output(0) || node12->input(0) != node11->output(0) || node13->input(0) != node10->output(0) || node14->input(0) != node9->output(0) || node14->input(1) != node13->output(0) || node15->input(0) != node14->output(0) || node16->input(0) != node15->output(0) || node16->input(1) != node12->output(0) || node17->input(0) != node16->output(0) || node18->input(0) != node17->output(0) || node19->input(0) != node18->output(0) || node20->input(0) != node19->output(0))
+                continue;
+
+            std::vector<float> q_B = get_node_attr_from_input_af(weights[node2->input(1)]);
+            std::vector<float> k_B = get_node_attr_from_input_af(weights[node4->input(1)]);
+            std::vector<float> v_B = get_node_attr_from_input_af(weights[node6->input(1)]);
+            std::vector<float> o_B = get_node_attr_from_input_af(weights[node20->input(1)]);
+
+            if (q_B.size() != k_B.size() || q_B.size() != v_B.size() || q_B.size() != o_B.size())
+                continue;
+
+            int embed_dim = q_B.size();
+
+            // 1 0 2
+            std::vector<int> perm9 = get_node_attr_ai(*node9, "perm");
+            std::vector<int> perm12 = get_node_attr_ai(*node12, "perm");
+            if (perm9.size() != 3 || perm12.size() != 3)
+                continue;
+
+            if (perm9[0] != 1 || perm9[1] != 0 || perm9[2] != 2 || perm12[0] != 1 || perm12[1] != 0 || perm12[2] != 2)
+                continue;
+
+            // 1 2 0
+            std::vector<int> perm13 = get_node_attr_ai(*node13, "perm");
+            if (perm13.size() != 3)
+                continue;
+
+            if (perm13[0] != 1 || perm13[1] != 2 || perm13[2] != 0)
+                continue;
+
+            // 1 0 2
+            std::vector<int> perm17 = get_node_attr_ai(*node17, "perm");
+            if (perm17.size() != 3)
+                continue;
+
+            if (perm17[0] != 1 || perm17[1] != 0 || perm17[2] != 2)
+                continue;
+
+            int softmax_axis = get_node_attr_i(*node15, "axis");
+            if (softmax_axis != 2)
+                continue;
+
+            // 1/-1, seqlen * num_heads, embed_dim / num_heads
+            std::vector<int> shape8;
+            std::vector<int> shape10;
+            std::vector<int> shape11;
+            if (node8->input_size() == 1)
+            {
+                shape8 = get_node_attr_ai(*node8, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node8->input(1)) == weights.end())
+                    continue;
+
+                shape8 = get_node_attr_from_input_ai(weights[node8->input(1)]);
+            }
+            if (node10->input_size() == 1)
+            {
+                shape10 = get_node_attr_ai(*node10, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node10->input(1)) == weights.end())
+                    continue;
+
+                shape10 = get_node_attr_from_input_ai(weights[node10->input(1)]);
+            }
+            if (node11->input_size() == 1)
+            {
+                shape11 = get_node_attr_ai(*node11, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node11->input(1)) == weights.end())
+                    continue;
+
+                shape11 = get_node_attr_from_input_ai(weights[node11->input(1)]);
+            }
+
+            if (shape8.size() != 3 || shape10.size() != 3 || shape11.size() != 3)
+                continue;
+
+            if (shape8[1] != shape10[1] || shape8[1] != shape11[1] || shape8[2] != shape10[2] || shape8[2] != shape11[2])
+                continue;
+
+            int num_heads = embed_dim / shape8[2];
+
+            // 1, seqlen, embed_dim
+            std::vector<int> shape18;
+            if (node18->input_size() == 1)
+            {
+                shape18 = get_node_attr_ai(*node18, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node18->input(1)) == weights.end())
+                    continue;
+
+                shape18 = get_node_attr_from_input_ai(weights[node18->input(1)]);
+            }
+
+            if (shape18.size() != 3)
+                continue;
+
+            if (shape18[2] != embed_dim || shape18[1] * num_heads != shape8[1])
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+            node4->set_op_type("noop_reducedncnn");
+            node5->set_op_type("noop_reducedncnn");
+            node6->set_op_type("noop_reducedncnn");
+            node7->set_op_type("noop_reducedncnn");
+            node8->set_op_type("noop_reducedncnn");
+            node9->set_op_type("noop_reducedncnn");
+            node10->set_op_type("noop_reducedncnn");
+            node11->set_op_type("noop_reducedncnn");
+            node12->set_op_type("noop_reducedncnn");
+            node13->set_op_type("noop_reducedncnn");
+            node14->set_op_type("noop_reducedncnn");
+            node15->set_op_type("noop_reducedncnn");
+            node16->set_op_type("noop_reducedncnn");
+            node17->set_op_type("noop_reducedncnn");
+            node18->set_op_type("noop_reducedncnn");
+            node19->set_op_type("noop_reducedncnn");
+
+            node_reference[node2->input(0)] -= 1;
+            node_reference[node4->input(0)] -= 1;
+            node_reference[node6->input(0)] -= 1;
+            node_reference[node7->input(0)] -= 1;
+            node_reference[node7->input(1)] -= 1;
+            node_reference[node8->input(0)] -= 1;
+            if (node8->input_size() == 2)
+            {
+                node_reference[node8->input(1)] -= 1;
+            }
+            node_reference[node9->input(0)] -= 1;
+            node_reference[node10->input(0)] -= 1;
+            if (node10->input_size() == 2)
+            {
+                node_reference[node10->input(1)] -= 1;
+            }
+            node_reference[node11->input(0)] -= 1;
+            if (node11->input_size() == 2)
+            {
+                node_reference[node11->input(1)] -= 1;
+            }
+            node_reference[node12->input(0)] -= 1;
+            node_reference[node13->input(0)] -= 1;
+            node_reference[node14->input(0)] -= 1;
+            node_reference[node14->input(1)] -= 1;
+            node_reference[node15->input(0)] -= 1;
+            node_reference[node16->input(0)] -= 1;
+            node_reference[node16->input(1)] -= 1;
+            node_reference[node17->input(0)] -= 1;
+            node_reference[node18->input(0)] -= 1;
+            if (node18->input_size() == 2)
+            {
+                node_reference[node18->input(1)] -= 1;
+            }
+            node_reference[node19->input(0)] -= 1;
+            node_reference[node20->input(0)] -= 1;
+
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+            blob_names.erase(node3->output(0));
+            blob_names.erase(node4->output(0));
+            blob_names.erase(node5->output(0));
+            blob_names.erase(node6->output(0));
+            blob_names.erase(node7->output(0));
+            blob_names.erase(node8->output(0));
+            blob_names.erase(node9->output(0));
+            blob_names.erase(node10->output(0));
+            blob_names.erase(node11->output(0));
+            blob_names.erase(node12->output(0));
+            blob_names.erase(node13->output(0));
+            blob_names.erase(node14->output(0));
+            blob_names.erase(node15->output(0));
+            blob_names.erase(node16->output(0));
+            blob_names.erase(node17->output(0));
+            blob_names.erase(node18->output(0));
+            blob_names.erase(node19->output(0));
+
+            std::string qw = node->input(1);
+            std::string qb = node2->input(1);
+            std::string kw = node3->input(1);
+            std::string kb = node4->input(1);
+            std::string vw = node5->input(1);
+            std::string vb = node6->input(1);
+            std::string ow = node19->input(1);
+            std::string ob = node20->input(1);
+
+            node20->set_op_type("MultiHeadAttention");
+            node20->clear_input();
+            node20->add_input(node->input(0));
+            node20->add_input(node3->input(0));
+            node20->add_input(node5->input(0));
+            // q
+            node20->add_input(qw);
+            node20->add_input(qb);
+            // k
+            node20->add_input(kw);
+            node20->add_input(kb);
+            // v
+            node20->add_input(vw);
+            node20->add_input(vb);
+            // out linear
+            node20->add_input(ow);
+            node20->add_input(ob);
+
+            onnx::AttributeProto* attr_embed_dim = node20->add_attribute();
+            attr_embed_dim->set_name("embed_dim");
+            attr_embed_dim->set_i(embed_dim);
+
+            onnx::AttributeProto* attr_num_heads = node20->add_attribute();
+            attr_num_heads->set_name("num_heads");
+            attr_num_heads->set_i(num_heads);
+
+            reduced_node_count += 19;
+            i += 19;
+        }
+    }
+
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // MultiHeadAttention <= MatMul(qkv) - Add - Split
+        //                      - Mul
+        //                      - Reshape - Transpose
+        //                      - Reshape - Reshape - Transpose - Transpose
+        //                      - Gemm - Softmax - Gemm - Transpose - Reshape - MatMul - Add
+        if (node->op_type() == "MatMul")
+        {
+            if (i + 16 >= node_count)
+                continue;
+
+            if (node_reference[node->output(0)] != 1)
+                continue;
+
+            onnx::NodeProto* node2 = mutable_graph->mutable_node(i + 1);
+            onnx::NodeProto* node3 = mutable_graph->mutable_node(i + 2);
+            onnx::NodeProto* node4 = mutable_graph->mutable_node(i + 3);
+            onnx::NodeProto* node5 = mutable_graph->mutable_node(i + 4);
+            onnx::NodeProto* node6 = mutable_graph->mutable_node(i + 5);
+            onnx::NodeProto* node7 = mutable_graph->mutable_node(i + 6);
+            onnx::NodeProto* node8 = mutable_graph->mutable_node(i + 7);
+            onnx::NodeProto* node9 = mutable_graph->mutable_node(i + 8);
+            onnx::NodeProto* node10 = mutable_graph->mutable_node(i + 9);
+            onnx::NodeProto* node11 = mutable_graph->mutable_node(i + 10);
+            onnx::NodeProto* node12 = mutable_graph->mutable_node(i + 11);
+            onnx::NodeProto* node13 = mutable_graph->mutable_node(i + 12);
+            onnx::NodeProto* node14 = mutable_graph->mutable_node(i + 13);
+            onnx::NodeProto* node15 = mutable_graph->mutable_node(i + 14);
+            onnx::NodeProto* node16 = mutable_graph->mutable_node(i + 15);
+            onnx::NodeProto* node17 = mutable_graph->mutable_node(i + 16);
+
+            if (node2->op_type() != "Add" || node3->op_type() != "Split" || node4->op_type() != "Mul" || node5->op_type() != "Reshape" || node6->op_type() != "Transpose" || node7->op_type() != "Reshape" || node8->op_type() != "Reshape" || node9->op_type() != "Transpose" || node10->op_type() != "Transpose" || node11->op_type() != "MatMul" || node12->op_type() != "Softmax" || node13->op_type() != "MatMul" || node14->op_type() != "Transpose" || node15->op_type() != "Reshape" || node16->op_type() != "MatMul" || node17->op_type() != "Add")
+                continue;
+
+            if (node_reference[node2->output(0)] != 1 || node_reference[node3->output(0)] != 1 || node_reference[node3->output(1)] != 1 || node_reference[node3->output(2)] != 1 || node_reference[node4->output(0)] != 1 || node_reference[node5->output(0)] != 1 || node_reference[node6->output(0)] != 1 || node_reference[node7->output(0)] != 1 || node_reference[node8->output(0)] != 1 || node_reference[node9->output(0)] != 1 || node_reference[node10->output(0)] != 1 || node_reference[node11->output(0)] != 1 || node_reference[node12->output(0)] != 1 || node_reference[node13->output(0)] != 1 || node_reference[node14->output(0)] != 1 || node_reference[node15->output(0)] != 1 || node_reference[node16->output(0)] != 1)
+                continue;
+
+            if (node2->input(0) != node->output(0) || node3->input(0) != node2->output(0) || node4->input(0) != node3->output(0) || node5->input(0) != node4->output(0) || node6->input(0) != node5->output(0) || node7->input(0) != node3->output(1) || node8->input(0) != node3->output(2) || node9->input(0) != node8->output(0) || node10->input(0) != node7->output(0) || node11->input(0) != node6->output(0) || node11->input(1) != node10->output(0) || node12->input(0) != node11->output(0) || node13->input(0) != node12->output(0) || node13->input(1) != node9->output(0) || node14->input(0) != node13->output(0) || node15->input(0) != node14->output(0) || node16->input(0) != node15->output(0) || node17->input(0) != node16->output(0))
+                continue;
+
+            std::vector<float> qkv_B = get_node_attr_from_input_af(weights[node2->input(1)]);
+            std::vector<float> o_B = get_node_attr_from_input_af(weights[node17->input(1)]);
+
+            if (qkv_B.size() != o_B.size() * 3)
+                continue;
+
+            int embed_dim = o_B.size();
+
+            // 1 0 2
+            std::vector<int> perm6 = get_node_attr_ai(*node6, "perm");
+            std::vector<int> perm9 = get_node_attr_ai(*node9, "perm");
+            if (perm6.size() != 3 || perm9.size() != 3)
+                continue;
+
+            if (perm6[0] != 1 || perm6[1] != 0 || perm6[2] != 2 || perm9[0] != 1 || perm9[1] != 0 || perm9[2] != 2)
+                continue;
+
+            // 1 2 0
+            std::vector<int> perm10 = get_node_attr_ai(*node10, "perm");
+            if (perm10.size() != 3)
+                continue;
+
+            if (perm10[0] != 1 || perm10[1] != 2 || perm10[2] != 0)
+                continue;
+
+            // 1 0 2
+            std::vector<int> perm14 = get_node_attr_ai(*node14, "perm");
+            if (perm14.size() != 3)
+                continue;
+
+            if (perm14[0] != 1 || perm14[1] != 0 || perm14[2] != 2)
+                continue;
+
+            int softmax_axis = get_node_attr_i(*node12, "axis");
+            if (softmax_axis != 2)
+                continue;
+
+            // 1/-1, seqlen * num_heads, embed_dim / num_heads
+            std::vector<int> shape5;
+            std::vector<int> shape7;
+            std::vector<int> shape8;
+            if (node5->input_size() == 1)
+            {
+                shape5 = get_node_attr_ai(*node5, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node5->input(1)) == weights.end())
+                    continue;
+
+                shape5 = get_node_attr_from_input_ai(weights[node5->input(1)]);
+            }
+            if (node7->input_size() == 1)
+            {
+                shape7 = get_node_attr_ai(*node7, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node7->input(1)) == weights.end())
+                    continue;
+
+                shape7 = get_node_attr_from_input_ai(weights[node7->input(1)]);
+            }
+            if (node8->input_size() == 1)
+            {
+                shape8 = get_node_attr_ai(*node8, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node8->input(1)) == weights.end())
+                    continue;
+
+                shape8 = get_node_attr_from_input_ai(weights[node8->input(1)]);
+            }
+
+            if (shape5.size() != 3 || shape7.size() != 3 || shape8.size() != 3)
+                continue;
+
+            if (shape5[1] != shape7[1] || shape5[1] != shape8[1] || shape5[2] != shape7[2] || shape5[2] != shape8[2])
+                continue;
+
+            int num_heads = embed_dim / shape5[2];
+
+            // 1, seqlen, embed_dim
+            std::vector<int> shape15;
+            if (node15->input_size() == 1)
+            {
+                shape15 = get_node_attr_ai(*node15, "shape");
+            }
+            else
+            {
+                // skip weight reshape
+                if (weights.find(node15->input(1)) == weights.end())
+                    continue;
+
+                shape15 = get_node_attr_from_input_ai(weights[node15->input(1)]);
+            }
+
+            if (shape15.size() != 3)
+                continue;
+
+            if (shape15[2] != embed_dim || shape15[1] * num_heads != shape8[1])
+                continue;
+
+            // reduce
+            node->set_op_type("noop_reducedncnn");
+            node2->set_op_type("noop_reducedncnn");
+            node3->set_op_type("noop_reducedncnn");
+            node4->set_op_type("noop_reducedncnn");
+            node5->set_op_type("noop_reducedncnn");
+            node6->set_op_type("noop_reducedncnn");
+            node7->set_op_type("noop_reducedncnn");
+            node8->set_op_type("noop_reducedncnn");
+            node9->set_op_type("noop_reducedncnn");
+            node10->set_op_type("noop_reducedncnn");
+            node11->set_op_type("noop_reducedncnn");
+            node12->set_op_type("noop_reducedncnn");
+            node13->set_op_type("noop_reducedncnn");
+            node14->set_op_type("noop_reducedncnn");
+            node15->set_op_type("noop_reducedncnn");
+            node16->set_op_type("noop_reducedncnn");
+
+            node_reference[node2->input(0)] -= 1;
+            node_reference[node3->input(0)] -= 1;
+            node_reference[node4->input(0)] -= 1;
+            node_reference[node4->input(1)] -= 1;
+            node_reference[node5->input(0)] -= 1;
+            if (node5->input_size() == 2)
+            {
+                node_reference[node5->input(1)] -= 1;
+            }
+            node_reference[node6->input(0)] -= 1;
+            node_reference[node7->input(0)] -= 1;
+            if (node7->input_size() == 2)
+            {
+                node_reference[node7->input(1)] -= 1;
+            }
+            node_reference[node8->input(0)] -= 1;
+            if (node8->input_size() == 2)
+            {
+                node_reference[node8->input(1)] -= 1;
+            }
+            node_reference[node9->input(0)] -= 1;
+            node_reference[node10->input(0)] -= 1;
+            node_reference[node11->input(0)] -= 1;
+            node_reference[node11->input(1)] -= 1;
+            node_reference[node12->input(0)] -= 1;
+            node_reference[node13->input(0)] -= 1;
+            node_reference[node13->input(1)] -= 1;
+            node_reference[node14->input(0)] -= 1;
+            node_reference[node15->input(0)] -= 1;
+            if (node15->input_size() == 2)
+            {
+                node_reference[node15->input(1)] -= 1;
+            }
+            node_reference[node16->input(0)] -= 1;
+            node_reference[node17->input(0)] -= 1;
+
+            blob_names.erase(node->output(0));
+            blob_names.erase(node2->output(0));
+            blob_names.erase(node3->output(0));
+            blob_names.erase(node3->output(1));
+            blob_names.erase(node3->output(2));
+            blob_names.erase(node4->output(0));
+            blob_names.erase(node5->output(0));
+            blob_names.erase(node6->output(0));
+            blob_names.erase(node7->output(0));
+            blob_names.erase(node8->output(0));
+            blob_names.erase(node9->output(0));
+            blob_names.erase(node10->output(0));
+            blob_names.erase(node11->output(0));
+            blob_names.erase(node12->output(0));
+            blob_names.erase(node13->output(0));
+            blob_names.erase(node14->output(0));
+            blob_names.erase(node15->output(0));
+            blob_names.erase(node16->output(0));
+
+            std::string qkvw = node->input(1);
+            std::string qkvb = node2->input(1);
+            std::string ow = node16->input(1);
+            std::string ob = node17->input(1);
+
+            node17->set_op_type("MultiHeadAttention");
+            node17->clear_input();
+            node17->add_input(node->input(0));
+            // qkv
+            node17->add_input(qkvw);
+            node17->add_input(qkvb);
+            // out linear
+            node17->add_input(ow);
+            node17->add_input(ob);
+
+            onnx::AttributeProto* attr_embed_dim = node17->add_attribute();
+            attr_embed_dim->set_name("embed_dim");
+            attr_embed_dim->set_i(embed_dim);
+
+            onnx::AttributeProto* attr_num_heads = node17->add_attribute();
+            attr_num_heads->set_name("num_heads");
+            attr_num_heads->set_i(num_heads);
+
+            reduced_node_count += 16;
+            i += 16;
+        }
+    }
+}
+
+static void fuse_binaryop_with_scalar(onnx::GraphProto* mutable_graph, std::map<std::string, onnx::TensorProto>& weights, std::map<std::string, int>& node_reference, std::set<std::string>& blob_names, int& reduced_node_count)
+{
+    int node_count = mutable_graph->node_size();
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // Add/Sub/Mul/Div/Min/Max/Pow(a, x)
+        if (node->op_type() == "Add" || node->op_type() == "Sub" || node->op_type() == "Mul" || node->op_type() == "Div" || node->op_type() == "Max" || node->op_type() == "Min" || node->op_type() == "Pow")
+        {
+            if (weights.find(node->input(0)) == weights.end())
+                continue;
+
+            const onnx::TensorProto& scalar_b = weights[node->input(0)];
+            if (scalar_b.dims_size() != 0 || get_tensor_proto_data_size(scalar_b) != 1)
+                continue;
+
+            if (node->op_type() == "Sub")
+            {
+                node->set_op_type("RSub");
+            }
+            else if (node->op_type() == "Div")
+            {
+                node->set_op_type("RDiv");
+            }
+
+            float b = get_node_attr_from_input_f(scalar_b);
+
+            node_reference[node->input(0)] -= 1;
+
+            std::string input = node->input(1);
+
+            node->clear_input();
+            node->add_input(input);
+
+            onnx::AttributeProto* attr_with_scalar = node->add_attribute();
+            attr_with_scalar->set_name("with_scalar");
+            attr_with_scalar->set_i(1);
+
+            onnx::AttributeProto* attr_b = node->add_attribute();
+            attr_b->set_name("b");
+            attr_b->set_f(b);
+        }
+    }
+
+    for (int i = 0; i < node_count; i++)
+    {
+        onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+        // Add/Sub/Mul/Div/Min/Max/Pow(x, b)
+        if (node->op_type() == "Add" || node->op_type() == "Sub" || node->op_type() == "Mul" || node->op_type() == "Div" || node->op_type() == "Max" || node->op_type() == "Min" || node->op_type() == "Pow")
+        {
+            if (weights.find(node->input(1)) == weights.end())
+                continue;
+
+            const onnx::TensorProto& scalar_b = weights[node->input(1)];
+            if (scalar_b.dims_size() != 0 || get_tensor_proto_data_size(scalar_b) != 1)
+                continue;
+
+            float b = get_node_attr_from_input_f(scalar_b);
+
+            node_reference[node->input(1)] -= 1;
+
+            std::string input = node->input(0);
+
+            node->clear_input();
+            node->add_input(input);
+
+            onnx::AttributeProto* attr_with_scalar = node->add_attribute();
+            attr_with_scalar->set_name("with_scalar");
+            attr_with_scalar->set_i(1);
+
+            onnx::AttributeProto* attr_b = node->add_attribute();
+            attr_b->set_name("b");
+            attr_b->set_f(b);
+        }
+    }
+}
+
 int main(int argc, char** argv)
 {
+    if (!(argc == 2 || argc == 4))
+    {
+        fprintf(stderr, "Usage: %s [onnxpb] [ncnnparam] [ncnnbin]\n", argv[0]);
+        return -1;
+    }
+
     const char* onnxpb = argv[1];
-    const char* ncnn_prototxt = argc >= 4 ? argv[2] : "ncnn.param";
-    const char* ncnn_modelbin = argc >= 4 ? argv[3] : "ncnn.bin";
+    const char* ncnn_prototxt = argc == 4 ? argv[2] : "ncnn.param";
+    const char* ncnn_modelbin = argc == 4 ? argv[3] : "ncnn.bin";
 
     onnx::ModelProto model;
 
@@ -2127,6 +2914,86 @@ int main(int argc, char** argv)
         //         fprintf(stderr, "weight = %s %d\n", initializer.name().c_str(), initializer.data_type());
 
         weights[initializer.name()] = initializer;
+    }
+
+    // topological sort
+    {
+        // name -> producer node index
+        std::set<std::string> producers;
+        for (int j = 0; j < graph.input_size(); j++)
+        {
+            const std::string& input_name = graph.input(j).name();
+            producers.insert(input_name);
+        }
+
+        for (int i = 0; i < node_count;)
+        {
+            onnx::NodeProto* node = mutable_graph->mutable_node(i);
+
+            bool swapnode = false;
+            std::string missing_input_name;
+            for (int j = 0; j < (int)node->input_size(); j++)
+            {
+                const std::string& input_name = node->input(j);
+                if (input_name.empty())
+                    continue;
+
+                if (producers.find(input_name) == producers.end() && weights.find(input_name) == weights.end())
+                {
+                    swapnode = true;
+                    missing_input_name = input_name;
+                    break;
+                }
+            }
+
+            if (!swapnode)
+            {
+                for (int j = 0; j < (int)node->output_size(); j++)
+                {
+                    const std::string& output_name = node->output(j);
+                    if (output_name.empty())
+                        continue;
+
+                    producers.insert(output_name);
+                }
+
+                i++;
+                continue;
+            }
+
+            // find node that produce missing_input_name
+            int q = i + 1;
+            for (; q < node_count; q++)
+            {
+                onnx::NodeProto* nodeq = mutable_graph->mutable_node(q);
+                bool found = false;
+                for (int j = 0; j < (int)nodeq->output_size(); j++)
+                {
+                    const std::string& output_name = nodeq->output(j);
+                    if (output_name == missing_input_name)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (found)
+                    break;
+            }
+
+            if (q == node_count)
+            {
+                fprintf(stderr, "cannot find node produces %s but node %d requires it\n", missing_input_name.c_str(), i);
+                return -1;
+            }
+
+            // fprintf(stderr, "swap %d %d\n", i, q);
+            // swap this node with q
+            onnx::NodeProto* nodeq = mutable_graph->mutable_node(q);
+            onnx::NodeProto tmp = *node;
+            *node = *nodeq;
+            *nodeq = tmp;
+        }
     }
 
     // global definition line
@@ -2217,11 +3084,14 @@ int main(int argc, char** argv)
     fuse_unsqueeze_prelu(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_normalize(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_groupnorm(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
+    fuse_layernorm(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_flatten(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_pixelshuffle(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_reorg(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_expand_broadcast(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
     fuse_lstm_gru_rnn(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
+    fuse_multiheadattention(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
+    fuse_binaryop_with_scalar(mutable_graph, weights, node_reference, blob_names, reduced_node_count);
 
     // reduce common const weight node_reference
     for (int i = 0; i < node_count; i++)
@@ -2230,20 +3100,16 @@ int main(int argc, char** argv)
 
         const std::string& op = node.op_type();
 
-        if (op == "Add" || op == "Sub" || op == "Mul" || op == "Div" || op == "Max" || op == "Min" || op == "Pow")
-        {
-            // binaryop with scalar
-            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 0)
-            {
-                node_reference[node.input(1)] -= 1;
-            }
-        }
-        else if (op == "BatchNormalization")
+        if (op == "BatchNormalization")
         {
             node_reference[node.input(1)] -= 1;
             node_reference[node.input(2)] -= 1;
             node_reference[node.input(3)] -= 1;
             node_reference[node.input(4)] -= 1;
+        }
+        else if (op == "BiasGelu")
+        {
+            node_reference[node.input(1)] -= 1;
         }
         else if (op == "Clip")
         {
@@ -2268,6 +3134,15 @@ int main(int argc, char** argv)
             {
                 node_reference[node.input(2)] -= 1;
             }
+        }
+        else if (op == "EmbedLayerNormalization")
+        {
+            node_reference[node.input(1)] -= 1;
+            node_reference[node.input(2)] -= 1;
+            node_reference[node.input(3)] -= 1;
+            node_reference[node.input(4)] -= 1;
+            node_reference[node.input(5)] -= 1;
+            node_reference[node.input(6)] -= 1;
         }
         else if (op == "Gemm")
         {
@@ -2304,6 +3179,15 @@ int main(int argc, char** argv)
             node_reference[node.input(1)] -= 1;
             node_reference[node.input(2)] -= 1;
         }
+        else if (op == "LayerNorm")
+        {
+            int affine = get_node_attr_i(node, "affine", 1);
+            if (affine)
+            {
+                node_reference[node.input(1)] -= 1;
+                node_reference[node.input(2)] -= 1;
+            }
+        }
         else if (op == "LSTM")
         {
             for (int j = 1; j < node.input_size(); j++)
@@ -2317,6 +3201,27 @@ int main(int argc, char** argv)
             {
                 // InnerProduct
                 node_reference[node.input(1)] -= 1;
+            }
+        }
+        else if (op == "MultiHeadAttention")
+        {
+            if (node.input_size() == 5)
+            {
+                node_reference[node.input(1)] -= 1;
+                node_reference[node.input(2)] -= 1;
+                node_reference[node.input(3)] -= 1;
+                node_reference[node.input(4)] -= 1;
+            }
+            else
+            {
+                node_reference[node.input(3)] -= 1;
+                node_reference[node.input(4)] -= 1;
+                node_reference[node.input(5)] -= 1;
+                node_reference[node.input(6)] -= 1;
+                node_reference[node.input(7)] -= 1;
+                node_reference[node.input(8)] -= 1;
+                node_reference[node.input(9)] -= 1;
+                node_reference[node.input(10)] -= 1;
             }
         }
         else if (op == "Pad")
@@ -2362,6 +3267,12 @@ int main(int argc, char** argv)
                 node_reference[node.input(j)] -= 1;
             }
         }
+        else if (op == "SkipLayerNormalization")
+        {
+            node_reference[node.input(2)] -= 1;
+            node_reference[node.input(3)] -= 1;
+            node_reference[node.input(4)] -= 1;
+        }
         else if (op == "Slice")
         {
             if (node.input_size() >= 2)
@@ -2400,6 +3311,10 @@ int main(int argc, char** argv)
     for (std::map<std::string, onnx::TensorProto>::iterator it = weights.begin(); it != weights.end(); it++)
     {
         const std::string& input_name = it->first;
+
+        // there may be some weight nodes in initializer but none of the graph node use them
+        // add them to blob_names so we could get proper blob count later
+        blob_names.insert(input_name);
 
         int refcount = node_reference[input_name];
         if (refcount == 0)
@@ -2501,11 +3416,19 @@ int main(int argc, char** argv)
         else if (M.dims_size() == 2)
         {
             fprintf(pp, " 0=%d", (int)M.dims(1));
+            if (M.dims(0) != 1)
+            {
+                fprintf(pp, " 1=%d", (int)M.dims(0));
+            }
         }
         else if (M.dims_size() == 3)
         {
             fprintf(pp, " 0=%d", (int)M.dims(2));
             fprintf(pp, " 1=%d", (int)M.dims(1));
+            if (M.dims(0) != 1)
+            {
+                fprintf(pp, " 2=%d", (int)M.dims(0));
+            }
         }
         else if (M.dims_size() == 4)
         {
@@ -2607,11 +3530,23 @@ int main(int argc, char** argv)
         }
         else if (op == "AveragePool" || op == "MaxPool")
         {
-            fprintf(pp, "%-16s", "Pooling");
+            std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
+            if (kernel_shape.size() == 1)
+            {
+                fprintf(pp, "%-16s", "Pooling1D");
+            }
+            else
+            {
+                fprintf(pp, "%-16s", "Pooling");
+            }
         }
         else if (op == "BatchNormalization")
         {
             fprintf(pp, "%-16s", "BatchNorm");
+        }
+        else if (op == "BiasGelu")
+        {
+            fprintf(pp, "%-16s", "BiasGelu");
         }
         else if (op == "Ceil")
         {
@@ -2631,14 +3566,22 @@ int main(int argc, char** argv)
         }
         else if (op == "Conv")
         {
-            int group = get_node_attr_i(node, "group", 1);
-            if (group > 1)
+            std::vector<int> kernel_shape = get_node_attr_ai(node, "kernel_shape");
+            if (kernel_shape.size() == 1)
             {
-                fprintf(pp, "%-16s", "ConvolutionDepthWise");
+                fprintf(pp, "%-16s", "Convolution1D");
             }
             else
             {
-                fprintf(pp, "%-16s", "Convolution");
+                int group = get_node_attr_i(node, "group", 1);
+                if (group > 1)
+                {
+                    fprintf(pp, "%-16s", "ConvolutionDepthWise");
+                }
+                else
+                {
+                    fprintf(pp, "%-16s", "Convolution");
+                }
             }
         }
         else if (op == "ConvTranspose")
@@ -2673,6 +3616,10 @@ int main(int argc, char** argv)
         else if (op == "Elu")
         {
             fprintf(pp, "%-16s", "ELU");
+        }
+        else if (op == "EmbedLayerNormalization")
+        {
+            fprintf(pp, "%-16s", "EmbedLayerNormalization");
         }
         else if (op == "Exp")
         {
@@ -2739,6 +3686,10 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "InstanceNorm");
         }
+        else if (op == "LayerNorm")
+        {
+            fprintf(pp, "%-16s", "LayerNorm");
+        }
         else if (op == "LeakyRelu")
         {
             fprintf(pp, "%-16s", "ReLU");
@@ -2777,6 +3728,10 @@ int main(int argc, char** argv)
         else if (op == "Mul")
         {
             fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "MultiHeadAttention")
+        {
+            fprintf(pp, "%-16s", "MultiHeadAttention");
         }
         else if (op == "Neg")
         {
@@ -2826,6 +3781,14 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "RNN");
         }
+        else if (op == "RDiv")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
+        else if (op == "RSub")
+        {
+            fprintf(pp, "%-16s", "BinaryOp");
+        }
         else if (op == "ShuffleChannel")
         {
             fprintf(pp, "%-16s", "ShuffleChannel");
@@ -2837,6 +3800,10 @@ int main(int argc, char** argv)
         else if (op == "Sin")
         {
             fprintf(pp, "%-16s", "UnaryOp");
+        }
+        else if (op == "SkipLayerNormalization")
+        {
+            fprintf(pp, "%-16s", "SkipLayerNormalization");
         }
         else if (op == "Slice")
         {
@@ -2953,10 +3920,11 @@ int main(int argc, char** argv)
             int op_type = 0;
             fprintf(pp, " 0=%d", op_type);
 
-            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 0)
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
             {
-                float b = get_node_attr_from_input_f(weights[node.input(1)]);
-                fprintf(pp, " 1=1");
+                fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
         }
@@ -3069,6 +4037,17 @@ int main(int argc, char** argv)
             }
             fwrite_tensor_proto_data(B, bp);
         }
+        else if (op == "BiasGelu")
+        {
+            const onnx::TensorProto& B = weights[node.input(1)];
+
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(B));
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(B, bp);
+        }
         else if (op == "Ceil")
         {
             int op_type = 3;
@@ -3085,11 +4064,8 @@ int main(int argc, char** argv)
             }
             else
             {
-                const onnx::TensorProto& min_tp = weights[node.input(1)];
-                const onnx::TensorProto& max_tp = weights[node.input(2)];
-
-                min = get_node_attr_from_input_f(min_tp);
-                max = get_node_attr_from_input_f(max_tp);
+                min = weights.find(node.input(1)) != weights.end() ? get_node_attr_from_input_f(weights[node.input(1)]) : -FLT_MAX;
+                max = weights.find(node.input(2)) != weights.end() ? get_node_attr_from_input_f(weights[node.input(2)]) : FLT_MAX;
             }
 
             fprintf(pp, " 0=%e", min);
@@ -3371,10 +4347,11 @@ int main(int argc, char** argv)
             int op_type = 3;
             fprintf(pp, " 0=%d", op_type);
 
-            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 0)
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
             {
-                float b = get_node_attr_from_input_f(weights[node.input(1)]);
-                fprintf(pp, " 1=1");
+                fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
         }
@@ -3386,6 +4363,34 @@ int main(int argc, char** argv)
         {
             float alpha = get_node_attr_f(node, "alpha", 1.f);
             fprintf(pp, " 0=%e", alpha);
+        }
+        else if (op == "EmbedLayerNormalization")
+        {
+            const onnx::TensorProto& words = weights[node.input(2)];
+            const onnx::TensorProto& positions = weights[node.input(3)];
+            const onnx::TensorProto& W = weights[node.input(5)];
+            const onnx::TensorProto& B = weights[node.input(6)];
+
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(B));
+            fprintf(pp, " 1=%d", get_tensor_proto_data_size(words));
+            fprintf(pp, " 2=%d", get_tensor_proto_data_size(positions));
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(words, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(positions, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(W, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(B, bp);
         }
         else if (op == "Exp")
         {
@@ -3484,6 +4489,31 @@ int main(int argc, char** argv)
             int channels = get_node_attr_i(node, "channels", 1);
             float eps = get_node_attr_f(node, "epsilon", 1e-5f);
             int affine = get_node_attr_i(node, "affine", 1);
+
+            if (affine)
+            {
+                // discard affine-less S=1 B=0
+                std::vector<float> affine_S = get_node_attr_from_input_af(weights[node.input(1)]);
+                std::vector<float> affine_B = get_node_attr_from_input_af(weights[node.input(2)]);
+                if (affine_S.size() == 1 && affine_S[0] == 1.f && affine_B.size() == 1 && affine_B[0] == 0.f)
+                {
+                    affine = 0;
+                }
+                else
+                {
+                    affine = 0;
+                    {
+                        for (int j = 0; j < channels; j++)
+                        {
+                            if (affine_S[j] != 1.f || affine_B[j] != 0.f)
+                            {
+                                affine = 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
 
             fprintf(pp, " 0=%d", groups);
             fprintf(pp, " 1=%d", channels);
@@ -3687,6 +4717,47 @@ int main(int argc, char** argv)
             fprintf(pp, " 0=%d", channels);
             fprintf(pp, " 1=%e", eps);
             fprintf(pp, " 2=%d", affine);
+            if (affine)
+            {
+                const onnx::TensorProto& scale = weights[node.input(1)];
+                const onnx::TensorProto& B = weights[node.input(2)];
+
+                fwrite_tensor_proto_data(scale, bp);
+                fwrite_tensor_proto_data(B, bp);
+            }
+        }
+        else if (op == "LayerNorm")
+        {
+            float eps = get_node_attr_f(node, "epsilon", 1e-5f);
+            int affine = get_node_attr_i(node, "affine", 1);
+
+            if (affine)
+            {
+                // discard affine-less S=1 B=0
+                std::vector<float> affine_S = get_node_attr_from_input_af(weights[node.input(1)]);
+                std::vector<float> affine_B = get_node_attr_from_input_af(weights[node.input(2)]);
+                int affine_size = (int)affine_S.size();
+                affine = 0;
+                {
+                    for (int j = 0; j < affine_size; j++)
+                    {
+                        if (affine_S[j] != 1.f || affine_B[j] != 0.f)
+                        {
+                            affine = 1;
+                            break;
+                        }
+                    }
+                }
+
+                if (affine)
+                {
+                    fprintf(pp, " 0=%d", affine_size);
+                }
+            }
+
+            fprintf(pp, " 1=%e", eps);
+            fprintf(pp, " 2=%d", affine);
+
             if (affine)
             {
                 const onnx::TensorProto& scale = weights[node.input(1)];
@@ -3929,10 +5000,11 @@ int main(int argc, char** argv)
             int op_type = 4;
             fprintf(pp, " 0=%d", op_type);
 
-            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 0)
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
             {
-                float b = get_node_attr_from_input_f(weights[node.input(1)]);
-                fprintf(pp, " 1=1");
+                fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
         }
@@ -3941,10 +5013,11 @@ int main(int argc, char** argv)
             int op_type = 5;
             fprintf(pp, " 0=%d", op_type);
 
-            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 0)
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
             {
-                float b = get_node_attr_from_input_f(weights[node.input(1)]);
-                fprintf(pp, " 1=1");
+                fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
         }
@@ -3953,11 +5026,187 @@ int main(int argc, char** argv)
             int op_type = 2;
             fprintf(pp, " 0=%d", op_type);
 
-            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 0)
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
             {
-                float b = get_node_attr_from_input_f(weights[node.input(1)]);
-                fprintf(pp, " 1=1");
+                fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
+            }
+        }
+        else if (op == "MultiHeadAttention")
+        {
+            int embed_dim = get_node_attr_i(node, "embed_dim", 0);
+            int num_heads = get_node_attr_i(node, "num_heads", 0);
+
+            fprintf(pp, " 0=%d", embed_dim);
+            fprintf(pp, " 1=%d", num_heads);
+
+            if (node.input_size() == 5)
+            {
+                const onnx::TensorProto& qkvw = weights[node.input(1)];
+                const onnx::TensorProto& qkvb = weights[node.input(2)];
+                const onnx::TensorProto& ow = weights[node.input(3)];
+                const onnx::TensorProto& ob = weights[node.input(4)];
+
+                int weight_data_size = get_tensor_proto_data_size(ow);
+
+                fprintf(pp, " 2=%d", weight_data_size);
+
+                int quantize_tag = 0;
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // transpose qw
+                {
+                    const float* wptr = qkvw.has_raw_data() ? (const float*)qkvw.raw_data().data() : qkvw.float_data().data();
+                    const float* bptr = qkvb.has_raw_data() ? (const float*)qkvb.raw_data().data() : qkvb.float_data().data();
+
+                    for (int j = 0; j < embed_dim; j++)
+                    {
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            float vb = wptr[k * embed_dim * 3 + j];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+
+                    fwrite(bptr, sizeof(float), embed_dim, bp);
+                }
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // transpose kw
+                {
+                    const float* wptr = qkvw.has_raw_data() ? (const float*)qkvw.raw_data().data() : qkvw.float_data().data();
+                    const float* bptr = qkvb.has_raw_data() ? (const float*)qkvb.raw_data().data() : qkvb.float_data().data();
+                    bptr += embed_dim;
+
+                    for (int j = 0; j < embed_dim; j++)
+                    {
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            float vb = wptr[k * embed_dim * 3 + j + embed_dim];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+
+                    fwrite(bptr, sizeof(float), embed_dim, bp);
+                }
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // transpose vw
+                {
+                    const float* wptr = qkvw.has_raw_data() ? (const float*)qkvw.raw_data().data() : qkvw.float_data().data();
+                    const float* bptr = qkvb.has_raw_data() ? (const float*)qkvb.raw_data().data() : qkvb.float_data().data();
+                    bptr += embed_dim * 2;
+
+                    for (int j = 0; j < embed_dim; j++)
+                    {
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            float vb = wptr[k * embed_dim * 3 + j + embed_dim * 2];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+
+                    fwrite(bptr, sizeof(float), embed_dim, bp);
+                }
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // transpose ow
+                {
+                    const float* wptr = ow.has_raw_data() ? (const float*)ow.raw_data().data() : ow.float_data().data();
+
+                    for (int j = 0; j < embed_dim; j++)
+                    {
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            float vb = wptr[k * embed_dim + j];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+                }
+                fwrite_tensor_proto_data(ob, bp);
+            }
+            else
+            {
+                const onnx::TensorProto& qw = weights[node.input(3)];
+                const onnx::TensorProto& qb = weights[node.input(4)];
+                const onnx::TensorProto& kw = weights[node.input(5)];
+                const onnx::TensorProto& kb = weights[node.input(6)];
+                const onnx::TensorProto& vw = weights[node.input(7)];
+                const onnx::TensorProto& vb = weights[node.input(8)];
+                const onnx::TensorProto& ow = weights[node.input(9)];
+                const onnx::TensorProto& ob = weights[node.input(10)];
+
+                int weight_data_size = get_tensor_proto_data_size(qw);
+
+                fprintf(pp, " 2=%d", weight_data_size);
+
+                int quantize_tag = 0;
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // transpose qw
+                {
+                    const float* wptr = qw.has_raw_data() ? (const float*)qw.raw_data().data() : qw.float_data().data();
+
+                    for (int j = 0; j < embed_dim; j++)
+                    {
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            float vb = wptr[k * embed_dim + j];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+                }
+                fwrite_tensor_proto_data(qb, bp);
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // transpose kw
+                {
+                    const float* wptr = kw.has_raw_data() ? (const float*)kw.raw_data().data() : kw.float_data().data();
+
+                    for (int j = 0; j < embed_dim; j++)
+                    {
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            float vb = wptr[k * embed_dim + j];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+                }
+                fwrite_tensor_proto_data(kb, bp);
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // transpose vw
+                {
+                    const float* wptr = vw.has_raw_data() ? (const float*)vw.raw_data().data() : vw.float_data().data();
+
+                    for (int j = 0; j < embed_dim; j++)
+                    {
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            float vb = wptr[k * embed_dim + j];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+                }
+                fwrite_tensor_proto_data(vb, bp);
+
+                fwrite(&quantize_tag, sizeof(int), 1, bp);
+                // transpose ow
+                {
+                    const float* wptr = ow.has_raw_data() ? (const float*)ow.raw_data().data() : ow.float_data().data();
+
+                    for (int j = 0; j < embed_dim; j++)
+                    {
+                        for (int k = 0; k < embed_dim; k++)
+                        {
+                            float vb = wptr[k * embed_dim + j];
+                            fwrite(&vb, sizeof(float), 1, bp);
+                        }
+                    }
+                }
+                fwrite_tensor_proto_data(ob, bp);
             }
         }
         else if (op == "Neg")
@@ -4053,10 +5302,11 @@ int main(int argc, char** argv)
             int op_type = 6;
             fprintf(pp, " 0=%d", op_type);
 
-            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 0)
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
             {
-                float b = get_node_attr_from_input_f(weights[node.input(1)]);
-                fprintf(pp, " 1=1");
+                fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
         }
@@ -4329,6 +5579,32 @@ int main(int argc, char** argv)
             fwrite(&quantize_tag, sizeof(int), 1, bp);
             fwrite_tensor_proto_data(R, bp);
         }
+        else if (op == "RDiv")
+        {
+            int op_type = 8;
+            fprintf(pp, " 0=%d", op_type);
+
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
+            {
+                fprintf(pp, " 1=%d", with_scalar);
+                fprintf(pp, " 2=%e", b);
+            }
+        }
+        else if (op == "RSub")
+        {
+            int op_type = 7;
+            fprintf(pp, " 0=%d", op_type);
+
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
+            {
+                fprintf(pp, " 1=%d", with_scalar);
+                fprintf(pp, " 2=%e", b);
+            }
+        }
         else if (op == "ShuffleChannel")
         {
             int group = get_node_attr_i(node, "group", 1);
@@ -4338,11 +5614,33 @@ int main(int argc, char** argv)
         }
         else if (op == "Sigmoid")
         {
+            // no param
         }
         else if (op == "Sin")
         {
             int op_type = 9;
             fprintf(pp, " 0=%d", op_type);
+        }
+        else if (op == "SkipLayerNormalization")
+        {
+            const onnx::TensorProto& W = weights[node.input(2)];
+            const onnx::TensorProto& B = weights[node.input(3)];
+            const onnx::TensorProto& B2 = weights[node.input(4)];
+
+            fprintf(pp, " 0=%d", get_tensor_proto_data_size(B));
+
+            int quantize_tag = 0;
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(W, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(B, bp);
+
+            fwrite(&quantize_tag, sizeof(int), 1, bp);
+
+            fwrite_tensor_proto_data(B2, bp);
         }
         else if (op == "Slice")
         {
@@ -4478,10 +5776,11 @@ int main(int argc, char** argv)
             int op_type = 1;
             fprintf(pp, " 0=%d", op_type);
 
-            if (weights.find(node.input(1)) != weights.end() && weights[node.input(1)].dims_size() == 0)
+            int with_scalar = get_node_attr_i(node, "with_scalar", 0);
+            float b = get_node_attr_f(node, "b", 0.f);
+            if (with_scalar)
             {
-                float b = get_node_attr_from_input_f(weights[node.input(1)]);
-                fprintf(pp, " 1=1");
+                fprintf(pp, " 1=%d", with_scalar);
                 fprintf(pp, " 2=%e", b);
             }
         }
@@ -4492,6 +5791,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Swish")
         {
+            // no param
         }
         else if (op == "Tan")
         {

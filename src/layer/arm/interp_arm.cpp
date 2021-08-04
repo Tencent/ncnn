@@ -23,15 +23,20 @@
 namespace ncnn {
 
 #include "interp_bicubic.h"
-#include "interp_bicubic_bf16s.h"
 #include "interp_bilinear.h"
+
+#if NCNN_BF16
+#include "interp_bicubic_bf16s.h"
 #include "interp_bilinear_bf16s.h"
+#endif
 
 #if __ARM_NEON
 #include "interp_bicubic_pack4.h"
-#include "interp_bicubic_pack4_bf16s.h"
 #include "interp_bilinear_pack4.h"
+#if NCNN_BF16
+#include "interp_bicubic_pack4_bf16s.h"
 #include "interp_bilinear_pack4_bf16s.h"
+#endif
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "interp_bicubic_fp16s.h"
 #include "interp_bicubic_pack4_fp16s.h"
@@ -51,7 +56,9 @@ Interp_arm::Interp_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -72,8 +79,10 @@ int Interp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
+#endif
 
     int h = bottom_blob.h;
     int w = bottom_blob.w;
@@ -830,6 +839,7 @@ int Interp_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -1052,5 +1062,6 @@ int Interp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -1,5 +1,27 @@
 name: ios-arm64-gpu
-on: [push, pull_request]
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/ios-arm64-gpu.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/vulkan/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/ios-arm64-gpu.yml'
+    - 'toolchains/ios.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'src/layer/vulkan/**'
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
 jobs:
@@ -7,7 +29,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -15,7 +37,7 @@ jobs:
         submodules: true
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: openmp-install
         key: openmp-ios-install-20201213-4
@@ -42,7 +64,7 @@ jobs:
         sudo cp $GITHUB_WORKSPACE/openmp-install/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "vulkansdk-macos-1.2.162.0"
         key: vulkansdk-macos-1.2.162.0

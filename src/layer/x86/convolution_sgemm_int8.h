@@ -12,14 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static inline signed char float2int8(float v)
-{
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
 static void conv_im2col_sgemm_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& _kernel,
                                        const int kernel_w, const int kernel_h, const int stride_w, const int stride_h, const Option& opt)
 {

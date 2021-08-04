@@ -29,20 +29,27 @@ Flatten_arm::Flatten_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif // NCNN_BF16
 }
 
 int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int elembits = bottom_blob.elembits();
 
+    if (elembits == 8)
+        return forward_int8(bottom_blob, top_blob, opt);
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
 
     int dims = bottom_blob.dims;
 
@@ -473,6 +480,142 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     outptr += 4;
                 }
 #endif
+                for (; i < size; i++)
+                {
+                    *outptr++ = *ptr++;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int Flatten_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int dims = bottom_blob.dims;
+
+    if (dims == 1)
+    {
+        top_blob = bottom_blob;
+        return 0;
+    }
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+    int size = w * h;
+
+    int total = size * channels * elempack;
+
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = total % 8 == 0 ? 8 : 1;
+    }
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    if (out_elempack == 1)
+    {
+        return Flatten::forward(bottom_blob, top_blob, opt);
+    }
+
+    if (dims == 2 && elempack == 1) // out_elempack == 8
+    {
+        top_blob = bottom_blob;
+        top_blob.dims = 1;
+        top_blob.w = total / out_elempack;
+        top_blob.h = 1;
+        top_blob.cstep = top_blob.w;
+        top_blob.elemsize = out_elemsize;
+        top_blob.elempack = out_elempack;
+        return 0;
+    }
+
+    top_blob.create(total / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    if (dims == 2)
+    {
+        if (elempack == 8) // out_elempack == 8
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const signed char* ptr = bottom_blob.row<const signed char>(i);
+                signed char* outptr0 = (signed char*)top_blob + w * i * 8;
+                signed char* outptr1 = (signed char*)top_blob + w * (i * 8 + 1);
+                signed char* outptr2 = (signed char*)top_blob + w * (i * 8 + 2);
+                signed char* outptr3 = (signed char*)top_blob + w * (i * 8 + 3);
+                signed char* outptr4 = (signed char*)top_blob + w * (i * 8 + 4);
+                signed char* outptr5 = (signed char*)top_blob + w * (i * 8 + 5);
+                signed char* outptr6 = (signed char*)top_blob + w * (i * 8 + 6);
+                signed char* outptr7 = (signed char*)top_blob + w * (i * 8 + 7);
+
+                int j = 0;
+                for (; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+
+                    ptr += 8;
+                }
+            }
+        }
+    }
+
+    if (dims == 3)
+    {
+        if (elempack == 8) // out_elempack == 8
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const signed char* ptr = bottom_blob.channel(q);
+                signed char* outptr0 = (signed char*)top_blob + size * q * 8;
+                signed char* outptr1 = (signed char*)top_blob + size * (q * 8 + 1);
+                signed char* outptr2 = (signed char*)top_blob + size * (q * 8 + 2);
+                signed char* outptr3 = (signed char*)top_blob + size * (q * 8 + 3);
+                signed char* outptr4 = (signed char*)top_blob + size * (q * 8 + 4);
+                signed char* outptr5 = (signed char*)top_blob + size * (q * 8 + 5);
+                signed char* outptr6 = (signed char*)top_blob + size * (q * 8 + 6);
+                signed char* outptr7 = (signed char*)top_blob + size * (q * 8 + 7);
+
+                int i = 0;
+                for (; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+
+                    ptr += 8;
+                }
+            }
+        }
+
+        if (elempack == 1) // out_elempack == 8
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const signed char* ptr = bottom_blob.channel(q);
+                signed char* outptr = (signed char*)top_blob + size * q;
+
+                int i = 0;
                 for (; i < size; i++)
                 {
                     *outptr++ = *ptr++;

@@ -18,16 +18,10 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
-#include "neon_mathfun.h"
-#if __aarch64__
-#include "gemm_symm_int8.h"
-#endif
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#include "neon_mathfun_fp16s.h"
-#endif
 #endif // __ARM_NEON
-#include "cpu.h"
-#include "neon_activation.h"
+
+#include "arm_activation.h"
+#include "arm_usability.h"
 
 namespace ncnn {
 
@@ -40,15 +34,16 @@ InnerProduct_arm::InnerProduct_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 
     flatten = 0;
+    activation = 0;
 }
 
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
-#if __ARM_NEON
-    if (opt.use_packing_layout or opt.use_int8_inference)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -58,7 +53,13 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-#endif // __ARM_NEON
+
+#if NCNN_INT8
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
+        return create_pipeline_int8_arm(opt);
+    }
+#endif
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage)
@@ -67,15 +68,12 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage)
     {
         return create_pipeline_bf16s(opt);
     }
-
-    if (opt.use_int8_inference)
-    {
-        return create_pipeline_int8(opt);
-    }
+#endif
 
     return 0;
 }
@@ -89,119 +87,24 @@ int InnerProduct_arm::destroy_pipeline(const Option& opt)
         flatten = 0;
     }
 
+    if (activation)
+    {
+        activation->destroy_pipeline(opt);
+        delete activation;
+        activation = 0;
+    }
+
     return 0;
-}
-
-int InnerProduct_arm::create_pipeline_int8(const Option& opt)
-{
-    // convert fp32 to int8
-    if (weight_data_int8_scales.empty())
-    {
-        return 0;
-    }
-#if __aarch64__
-    // first reorder Matrix A before MatMul
-    const int n = num_output;
-    const int k = weight_data.total() / n;
-    weight_data_int8.create(n * k, (size_t)1u, opt.blob_allocator);
-
-    int8_t* b = weight_data;
-    int8_t* sb = weight_data_int8;
-    reorder_a(b, sb, n, k, k);
-
-    // pre-built scales
-    scales_in.create(num_output, 4u, opt.blob_allocator);
-    for (int i = 0; i < num_output; ++i)
-    {
-        if (std::fabs(static_cast<float>(weight_data_int8_scales[i])) <= 1e-6)
-        {
-            scales_in[i] = 0.f;
-        }
-        else
-        {
-            scales_in[i] = 1.f / (bottom_blob_int8_scale * weight_data_int8_scales[i]);
-        }
-    }
-#endif
-    return 0;
-}
-
-int InnerProduct_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-    const int num_input = weight_data_size / num_output;
-
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h > 1)
-    {
-        return InnerProduct::forward(bottom_blob, top_blob, opt);
-    }
-
-#if __aarch64__
-    Mat bottom_blob_tm = bottom_blob;
-    if (bottom_blob.elemsize != 1)
-    {
-        quantize_float32_to_int8(bottom_blob, bottom_blob_tm, bottom_blob_int8_scale, opt);
-    }
-
-    Mat bottom_blob_tm_flattened = bottom_blob_tm;
-    if (bottom_blob_tm.dims != 1)
-    {
-        Option opt_flatten = opt;
-        opt_flatten.blob_allocator = opt.workspace_allocator;
-        flatten->forward(bottom_blob_tm, bottom_blob_tm_flattened, opt_flatten);
-    }
-
-    top_blob.create(num_output, 4u, opt.blob_allocator);
-    if (top_blob.empty())
-    {
-        return -100;
-    }
-
-    const int w = bottom_blob_tm.w;
-    const int h = bottom_blob_tm.h;
-
-    const int m = 1;
-    const int k = bottom_blob_tm.c * w * h;
-    Mat bottom_blob_reorder(m * k, (size_t)1u, opt.workspace_allocator);
-    {
-        reorder_a(bottom_blob_tm_flattened, bottom_blob_reorder, m, k, k);
-    }
-
-    Mat top_blob_tm(m * num_output, (size_t)4u, opt.workspace_allocator);
-    int32_t* pc = top_blob_tm;
-    const int8_t* pa = bottom_blob_reorder;
-    const int8_t* pb = weight_data_int8;
-    int8kernel((void*)pc, pa, pb, m, k, num_output, num_output, 0, 0, opt);
-
-    float* outptr = top_blob;
-
-    // dequant.fused.relu int32_t to float
-    for (int p = 0; p < num_output; ++p)
-    {
-        float sumfp32 = pc[p] * scales_in[p];
-        if (bias_term)
-        {
-            sumfp32 += bias_data[p];
-        }
-        if (1 == activation_type)
-        {
-            sumfp32 = std::max(0.f, sumfp32);
-        }
-
-        outptr[p] = sumfp32;
-    }
-    return 0;
-#else
-    return InnerProduct::forward(bottom_blob, top_blob, opt);
-#endif
 }
 
 int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+#if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        // TODO
-        return forward_int8(bottom_blob, top_blob, opt);
+        return forward_int8_arm(bottom_blob, top_blob, opt);
     }
+#endif
 
     int elembits = bottom_blob.elembits();
 
@@ -215,8 +118,10 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     const int num_input = weight_data_size / num_output;
 
@@ -290,30 +195,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         sum += m[i] * kptr[i];
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = sum;
                     outptr += 1;
@@ -462,48 +344,10 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
 #endif // __ARM_NEON
 
-        if (activation_type == 1)
-        {
-            sum0 = std::max(sum0, 0.f);
-            sum1 = std::max(sum1, 0.f);
-            sum2 = std::max(sum2, 0.f);
-            sum3 = std::max(sum3, 0.f);
-        }
-        else if (activation_type == 2)
-        {
-            float slope = activation_params[0];
-            sum0 = sum0 > 0.f ? sum0 : sum0 * slope;
-            sum1 = sum1 > 0.f ? sum1 : sum1 * slope;
-            sum2 = sum2 > 0.f ? sum2 : sum2 * slope;
-            sum3 = sum3 > 0.f ? sum3 : sum3 * slope;
-        }
-        else if (activation_type == 3)
-        {
-            float min = activation_params[0];
-            float max = activation_params[1];
-            if (sum0 < min) sum0 = min;
-            if (sum0 > max) sum0 = max;
-            if (sum1 < min) sum1 = min;
-            if (sum1 > max) sum1 = max;
-            if (sum2 < min) sum2 = min;
-            if (sum2 > max) sum2 = max;
-            if (sum3 < min) sum3 = min;
-            if (sum3 > max) sum3 = max;
-        }
-        else if (activation_type == 4)
-        {
-            sum0 = static_cast<float>(1.f / (1.f + exp(-sum0)));
-            sum1 = static_cast<float>(1.f / (1.f + exp(-sum1)));
-            sum2 = static_cast<float>(1.f / (1.f + exp(-sum2)));
-            sum3 = static_cast<float>(1.f / (1.f + exp(-sum3)));
-        }
-        else if (activation_type == 5)
-        {
-            sum0 = static_cast<float>(sum0 * tanh(log(exp(sum0) + 1.f)));
-            sum1 = static_cast<float>(sum1 * tanh(log(exp(sum1) + 1.f)));
-            sum2 = static_cast<float>(sum2 * tanh(log(exp(sum2) + 1.f)));
-            sum3 = static_cast<float>(sum3 * tanh(log(exp(sum3) + 1.f)));
-        }
+        sum0 = activation_ss(sum0, activation_type, activation_params);
+        sum1 = activation_ss(sum1, activation_type, activation_params);
+        sum2 = activation_ss(sum2, activation_type, activation_params);
+        sum3 = activation_ss(sum3, activation_type, activation_params);
 
         top_blob[p] = sum0;
         top_blob[p + 1] = sum1;
@@ -817,30 +661,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
                         sum += (float)m[i] * (float)kptr[i];
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = (__fp16)sum;
                     outptr += 1;
@@ -1384,30 +1205,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
                         sum += (float)(m[i] * kptr[i]);
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = (__fp16)sum;
                     outptr += 1;
@@ -1740,6 +1538,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
@@ -1940,30 +1739,7 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
                         sum += bfloat16_to_float32(m[i]) * bfloat16_to_float32(kptr[i]);
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min) sum = min;
-                        if (sum > max) sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                    }
+                    sum = activation_ss(sum, activation_type, activation_params);
 
                     outptr[0] = float32_to_bfloat16(sum);
                     outptr += 1;
@@ -2123,5 +1899,241 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
     return 0;
 }
+#endif // NCNN_BF16
+
+#if NCNN_INT8
+int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
+{
+    if (activation_type == 1)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 2)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // slope
+        activation->load_param(pd);
+    }
+    else if (activation_type == 3)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Clip);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // min
+        pd.set(1, activation_params[1]); // max
+        activation->load_param(pd);
+    }
+    else if (activation_type == 4)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+    else if (activation_type == 5)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::Mish);
+
+        ncnn::ParamDict pd;
+        activation->load_param(pd);
+    }
+
+    if (activation)
+    {
+        activation->create_pipeline(opt);
+    }
+
+    const int num_input = weight_data_size / num_output;
+
+    int out_elempack = 1;
+
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : 1;
+    }
+
+    // src = inch-outch
+    // dst = pb-inch-outch/pb
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_int8.create(num_input, num_output / out_elempack, (size_t)out_elempack, out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            signed char* g0 = weight_data_int8.row<signed char>(q / out_elempack);
+
+            for (int p = 0; p < num_input; p++)
+            {
+                for (int j = 0; j < out_elempack; j++)
+                {
+                    *g0++ = weight_data_r2.row<signed char>(q + j)[p];
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    {
+        // gemm
+        Mat bottom_blob_unpacked;
+        Option opt_unpack = opt;
+        opt_unpack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_unpack);
+
+        return forward_int8(bottom_blob_unpacked, top_blob, opt);
+    }
+
+    int elembits = bottom_blob.elembits();
+
+    Mat bottom_blob_int8 = bottom_blob;
+    if (elembits != 8)
+    {
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+    }
+
+    Mat bottom_blob_int8_flattened = bottom_blob_int8;
+    if (bottom_blob_int8.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+        flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+    }
+
+    //     int elempack = bottom_blob_int8_flattened.elempack;
+
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : 1;
+    }
+
+    top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    Mat top_blob_int32;
+    top_blob_int32.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
+    if (top_blob_int32.empty())
+        return -100;
+
+#if __ARM_NEON
+    if (out_elempack == 8)
+    {
+        // num_output
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < num_output / out_elempack; p++)
+        {
+            const signed char* kptr = weight_data_int8.row<const signed char>(p);
+            const signed char* sptr = bottom_blob_int8_flattened;
+
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+
+            int i = 0;
+            for (; i + 1 < num_input; i += 2)
+            {
+                int8x8_t _val0 = vdup_n_s8(sptr[0]);
+                int8x8_t _val1 = vdup_n_s8(sptr[1]);
+
+                int8x8_t _w0 = vld1_s8(kptr);
+                int8x8_t _w1 = vld1_s8(kptr + 8);
+
+                int16x8_t _s0 = vmull_s8(_val0, _w0);
+                _s0 = vmlal_s8(_s0, _val1, _w1);
+
+                _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+
+                sptr += 2;
+                kptr += 16;
+            }
+            for (; i < num_input; i++)
+            {
+                int8x8_t _val = vdup_n_s8(sptr[0]);
+
+                int8x8_t _w = vld1_s8(kptr);
+
+                int16x8_t _s0 = vmull_s8(_val, _w);
+                _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+
+                sptr += 1;
+                kptr += 8;
+            }
+
+            int* outptr = (int*)top_blob_int32;
+            vst1q_s32(outptr + p * 8, _sum0);
+            vst1q_s32(outptr + p * 8 + 4, _sum1);
+        }
+    }
+#endif // __ARM_NEON
+
+    if (out_elempack == 1)
+    {
+        // num_output
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < num_output / out_elempack; p++)
+        {
+            const signed char* kptr = weight_data_int8.row<const signed char>(p);
+            const signed char* sptr = bottom_blob_int8_flattened;
+
+            int sum = 0;
+
+            int i = 0;
+            for (; i < num_input; i++)
+            {
+                signed char val = sptr[0];
+
+                signed char w = kptr[0];
+
+                sum += val * w;
+
+                sptr += 1;
+                kptr += 1;
+            }
+
+            int* outptr = (int*)top_blob_int32;
+            outptr[p] = sum;
+        }
+    }
+
+    Mat scale_data(num_output);
+    for (int p = 0; p < num_output; p++)
+    {
+        // dequantize
+        float scale_in;
+        if (weight_data_int8_scales[p] == 0)
+            scale_in = 0;
+        else
+            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+        scale_data[p] = scale_in;
+    }
+
+    dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
 
 } // namespace ncnn

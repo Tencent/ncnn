@@ -35,7 +35,9 @@ UnaryOp_arm::UnaryOp_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 #if __ARM_NEON
@@ -265,8 +267,10 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     int elempack = bottom_top_blob.elempack;
 
@@ -1099,6 +1103,7 @@ static int unary_op_inplace_pack4_bf16s(Mat& a, const Option& opt)
 }
 #endif // __ARM_NEON
 
+#if NCNN_BF16
 template<typename Op>
 static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
 {
@@ -1375,5 +1380,6 @@ int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) 
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

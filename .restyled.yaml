@@ -1,8 +1,14 @@
 # See https://github.com/restyled-io/restyled.io/wiki/Configuring-Restyled
 
-enabled: true
+enabled: false
 
 pull_requests: true
+
+commit_template: |
+  [skip ci] Restyled by ${restyler.name}
+
+exclude:
+  - "src/stb_image*"
 
 statuses:
   differences: true

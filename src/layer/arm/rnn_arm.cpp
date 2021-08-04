@@ -16,12 +16,9 @@
 
 #if __ARM_NEON
 #include <arm_neon.h>
-#include "neon_mathfun.h"
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#include "neon_mathfun_fp16s.h"
-#endif
-#include "neon_activation.h"
 #endif // __ARM_NEON
+
+#include "arm_activation.h"
 
 #include <math.h>
 
@@ -35,7 +32,9 @@ RNN_arm::RNN_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int RNN_arm::create_pipeline(const Option& opt)
@@ -47,10 +46,12 @@ int RNN_arm::create_pipeline(const Option& opt)
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage)
     {
         return create_pipeline_bf16s(opt);
     }
+#endif
 
     int num_directions = direction == 2 ? 2 : 1;
     int size = weight_data_size / num_directions / num_output;
@@ -312,8 +313,10 @@ int RNN_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     int T = bottom_blob.h;
 
@@ -393,8 +396,10 @@ int RNN_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blobs, top_blobs, opt);
+#endif
 
     int T = bottom_blob.h;
     Mat& top_blob = top_blobs[0];
@@ -1070,6 +1075,7 @@ int RNN_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 }
 #endif
 
+#if NCNN_BF16
 static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, const Option& opt)
 {
     int size = bottom_blob.w;
@@ -1403,5 +1409,6 @@ int RNN_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn
