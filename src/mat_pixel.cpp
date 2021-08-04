@@ -2437,7 +2437,8 @@ void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rg
     }
 }
 
-void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* rgb) {
+void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* rgb)
+{
     const int wgap = stride - w * 3;
     if (wgap == 0)
     {
@@ -2577,7 +2578,7 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
 
             _rgb.val[0] = vqmovn_u16(_v);
             vst3_u8(rgb, _rgb);
-            
+
             rgb += 3 * 8;
             hsv += 3 * 8;
         }
@@ -2717,20 +2718,20 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
                 "subs       %0, #1              \n"
                 "vst3.u8    {d4-d6}, [%2]!      \n"
                 "bne        0b                  \n"
-                : "=r"(nn),   // %0
-                "=r"(hsv),    // %1
-                "=r"(rgb)     // %2
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(rgb)  // %2
                 : "0"(nn),
                 "1"(hsv),
                 "2"(rgb),
-                "r"(v1),       // %6
-                "r"(v2),       // %7
-                "r"(v3),       // %8
-                "r"(v4),       // %9
-                "r"(v_1_30),   // %10
-                "r"(v_1_255),  // %11
-                "r"(vf1),      // %12
-                "r"(vdescale)  // %13
+                "r"(v1),      // %6
+                "r"(v2),      // %7
+                "r"(v3),      // %8
+                "r"(v4),      // %9
+                "r"(v_1_30),  // %10
+                "r"(v_1_255), // %11
+                "r"(vf1),     // %12
+                "r"(vdescale) // %13
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -2743,16 +2744,19 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
             float v = hsv[2];
 
             float r, g, b;
-            if(s == 0) {
+            if (s == 0)
+            {
                 r = g = b = v;
             }
-            else {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 hh /= 60.f;
                 int sector = (int)(hh);
                 hh -= sector;
@@ -2781,7 +2785,7 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
     }
 }
 
-void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* hsv) 
+void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* hsv)
 {
     const int wgap = stride - w * 3;
     if (wgap == 0)
@@ -2796,13 +2800,13 @@ void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* 
     static uint32_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6.*i) + 0.5);
-            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1.*i) + 0.5);
+            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6. * i) + 0.5);
+            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1. * i) + 0.5);
         }
         initialized = true;
     }
@@ -2905,15 +2909,15 @@ void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* 
             int diff = vmax - vmin;
 
             float hh, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 hh = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 hh = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 hh = float(b - r) * 30.f / diff + 60.f;
             }
@@ -2922,12 +2926,12 @@ void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* 
                 hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(hh < 0)
+            if (hh < 0)
             {
                 hh += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -2943,14 +2947,15 @@ void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* 
             rgb += 3;
             hsv += 3;
         }
-        
+
 #undef SATURATE_CAST_UCHAR
         rgb += wgap;
         hsv += wgap;
     }
 }
 
-void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* bgr) {
+void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* bgr)
+{
     const int wgap = stride - w * 3;
     if (wgap == 0)
     {
@@ -3090,7 +3095,7 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
 
             _bgr.val[2] = vqmovn_u16(_v);
             vst3_u8(bgr, _bgr);
-            
+
             bgr += 3 * 8;
             hsv += 3 * 8;
         }
@@ -3230,20 +3235,20 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
                 "subs       %0, #1              \n"
                 "vst3.u8    {d4-d6}, [%2]!      \n"
                 "bne        0b                  \n"
-                : "=r"(nn),   // %0
-                "=r"(hsv),    // %1
-                "=r"(bgr)     // %2
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(bgr)  // %2
                 : "0"(nn),
                 "1"(hsv),
                 "2"(bgr),
-                "r"(v1),       // %6
-                "r"(v2),       // %7
-                "r"(v3),       // %8
-                "r"(v4),       // %9
-                "r"(v_1_30),   // %10
-                "r"(v_1_255),  // %11
-                "r"(vf1),      // %12
-                "r"(vdescale)  // %13
+                "r"(v1),      // %6
+                "r"(v2),      // %7
+                "r"(v3),      // %8
+                "r"(v4),      // %9
+                "r"(v_1_30),  // %10
+                "r"(v_1_255), // %11
+                "r"(vf1),     // %12
+                "r"(vdescale) // %13
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
@@ -3256,16 +3261,19 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
             float v = hsv[2];
 
             float r, g, b;
-            if(s == 0) {
+            if (s == 0)
+            {
                 r = g = b = v;
             }
-            else {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 hh /= 60.f;
                 int sector = (int)(hh);
                 hh -= sector;
@@ -3294,7 +3302,7 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
     }
 }
 
-void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* hsv) 
+void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* hsv)
 {
     const int wgap = stride - w * 3;
     if (wgap == 0)
@@ -3309,13 +3317,13 @@ void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* 
     static uint32_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6.*i) + 0.5);
-            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1.*i) + 0.5);
+            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6. * i) + 0.5);
+            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1. * i) + 0.5);
         }
         initialized = true;
     }
@@ -3418,15 +3426,15 @@ void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* 
             int diff = vmax - vmin;
 
             float hh, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 hh = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 hh = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 hh = float(b - r) * 30.f / diff + 60.f;
             }
@@ -3435,12 +3443,12 @@ void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* 
                 hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(hh < 0)
+            if (hh < 0)
             {
                 hh += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -3456,14 +3464,15 @@ void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* 
             bgr += 3;
             hsv += 3;
         }
-        
+
 #undef SATURATE_CAST_UCHAR
         bgr += wgap;
         hsv += wgap;
     }
 }
 
-void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char* gray) {
+void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char* gray)
+{
     const int wgap = stride - w * 3;
     if (wgap == 0)
     {
@@ -3609,7 +3618,7 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             _y16 = vmlal_u8(_y16, vmovn_u16(_v), _R2Y);
             _y16 = vshrq_n_u16(_y16, 8);
             vst1_u8(gray, vmovn_u16(_y16));
-            
+
             hsv += 3 * 8;
             gray += 8;
         }
@@ -3754,9 +3763,9 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
                 "subs       %0, #1              \n"
                 "vst1.u8    {d4}, [%2]!         \n"
                 "bne        0b                  \n"
-                : "=r"(nn),   // %0
-                "=r"(hsv),    // %1
-                "=r"(gray)    // %2
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(gray) // %2
                 : "0"(nn),
                 "1"(hsv),
                 "2"(gray),
@@ -3783,16 +3792,19 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             float v = hsv[2];
 
             float r, g, b;
-            if(s == 0) {
+            if (s == 0)
+            {
                 r = g = b = v;
             }
-            else {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 hh /= 60.f;
                 int sector = (int)(hh);
                 hh -= sector;
@@ -3819,7 +3831,7 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
     }
 }
 
-void gray2hsv(const unsigned char* gray, int w, int h, int stride, unsigned char* hsv) 
+void gray2hsv(const unsigned char* gray, int w, int h, int stride, unsigned char* hsv)
 {
     const int wgap = stride - w;
     if (wgap == 0)
@@ -3870,7 +3882,8 @@ void gray2hsv(const unsigned char* gray, int w, int h, int stride, unsigned char
     }
 }
 
-void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char* rgba) {
+void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char* rgba)
+{
     const int wgap = stride - w * 3;
     if (wgap == 0)
     {
@@ -4012,7 +4025,7 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             _rgba.val[0] = vqmovn_u16(_v);
             _rgba.val[3] = vdup_n_u8(v255);
             vst4_u8(rgba, _rgba);
-            
+
             hsv += 3 * 8;
             rgba += 4 * 8;
         }
@@ -4153,9 +4166,9 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
                 "subs       %0, #1              \n"
                 "vst4.u8    {d4-d7}, [%2]!      \n"
                 "bne        0b                  \n"
-                : "=r"(nn),   // %0
-                "=r"(hsv),    // %1
-                "=r"(rgba)    // %2
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(rgba) // %2
                 : "0"(nn),
                 "1"(hsv),
                 "2"(rgba),
@@ -4180,16 +4193,19 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             float v = hsv[2];
 
             float r, g, b;
-            if(s == 0) {
+            if (s == 0)
+            {
                 r = g = b = v;
             }
-            else {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 hh /= 60.f;
                 int sector = (int)(hh);
                 hh -= sector;
@@ -4219,7 +4235,7 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
     }
 }
 
-void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char* hsv) 
+void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char* hsv)
 {
     const int wgap = stride - w * 4;
     if (wgap == 0)
@@ -4234,13 +4250,13 @@ void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char
     static uint32_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6.*i) + 0.5);
-            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1.*i) + 0.5);
+            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6. * i) + 0.5);
+            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1. * i) + 0.5);
         }
         initialized = true;
     }
@@ -4343,15 +4359,15 @@ void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char
             int diff = vmax - vmin;
 
             float hh, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 hh = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 hh = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 hh = float(b - r) * 30.f / diff + 60.f;
             }
@@ -4360,12 +4376,12 @@ void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char
                 hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(hh < 0)
+            if (hh < 0)
             {
                 hh += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -4381,14 +4397,15 @@ void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char
             rgba += 4;
             hsv += 3;
         }
-        
+
 #undef SATURATE_CAST_UCHAR
         rgba += wgap;
         hsv += wgap;
     }
 }
 
-void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char* bgra) {
+void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char* bgra)
+{
     const int wgap = stride - w * 3;
     if (wgap == 0)
     {
@@ -4530,7 +4547,7 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             _bgra.val[2] = vqmovn_u16(_v);
             _bgra.val[3] = vdup_n_u8(v255);
             vst4_u8(bgra, _bgra);
-            
+
             hsv += 3 * 8;
             bgra += 4 * 8;
         }
@@ -4671,9 +4688,9 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
                 "subs       %0, #1              \n"
                 "vst4.u8    {d4-d7}, [%2]!      \n"
                 "bne        0b                  \n"
-                : "=r"(nn),   // %0
-                "=r"(hsv),    // %1
-                "=r"(bgra)    // %2
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(bgra) // %2
                 : "0"(nn),
                 "1"(hsv),
                 "2"(bgra),
@@ -4698,16 +4715,19 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             float v = hsv[2];
 
             float r, g, b;
-            if(s == 0) {
+            if (s == 0)
+            {
                 r = g = b = v;
             }
-            else {
-                static const int sector_data[][3] = { {0, 3, 1}, 
-                                                      {2, 0, 1}, 
-                                                      {1, 0, 3}, 
-                                                      {1, 2, 0}, 
-                                                      {3, 1, 0}, 
-                                                      {0, 1, 2} };
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
                 hh /= 60.f;
                 int sector = (int)(hh);
                 hh -= sector;
@@ -4737,7 +4757,7 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
     }
 }
 
-void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char* hsv) 
+void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char* hsv)
 {
     const int wgap = stride - w * 4;
     if (wgap == 0)
@@ -4752,13 +4772,13 @@ void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char
     static uint32_t _sdiv_table[256];
     static volatile bool initialized = false;
 
-    if(!initialized)
+    if (!initialized)
     {
         _hdiv_table[0] = _sdiv_table[0] = 0;
-        for(int i = 1; i < 256; i++)
+        for (int i = 1; i < 256; i++)
         {
-            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6.*i) + 0.5);
-            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1.*i) + 0.5);
+            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6. * i) + 0.5);
+            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1. * i) + 0.5);
         }
         initialized = true;
     }
@@ -4837,7 +4857,7 @@ void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char
             _hlow = vrshrq_n_u32(_hlow, hsv_shift);
             _hhigh = vrshrq_n_u32(_hhigh, hsv_shift);
             uint16x8_t _h = vcombine_u16(vmovn_u32(_hlow), vmovn_u32(_hhigh));
-            
+
             uint8x8x3_t _hsv;
             _hsv.val[0] = vmovn_u16(_h);
             _hsv.val[1] = vmovn_u16(_s);
@@ -4861,15 +4881,15 @@ void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char
             int diff = vmax - vmin;
 
             float hh, s;
-            if(diff == 0)
+            if (diff == 0)
             {
                 hh = 0.f;
             }
-            else if(vmax == r) 
+            else if (vmax == r)
             {
                 hh = float(g - b) * 30.f / diff;
             }
-            else if(vmax == g)
+            else if (vmax == g)
             {
                 hh = float(b - r) * 30.f / diff + 60.f;
             }
@@ -4878,12 +4898,12 @@ void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char
                 hh = float(r - g) * 30.f / diff + 120.f;
             }
 
-            if(hh < 0)
+            if (hh < 0)
             {
                 hh += 180.f;
             }
 
-            if(vmax == 0)
+            if (vmax == 0)
             {
                 s = 0.f;
             }
@@ -4899,7 +4919,7 @@ void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char
             bgra += 4;
             hsv += 3;
         }
-        
+
 #undef SATURATE_CAST_UCHAR
         bgra += wgap;
         hsv += wgap;

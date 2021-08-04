@@ -41,11 +41,11 @@ static ncnn::Mat RandomMat_hsv(int w, int h, int elempack)
     unsigned char* p = m;
     for (int i = 0; i < w * h * elempack; i++)
     {
-        if(i % elempack == 0)
+        if (i % elempack == 0)
         {
             p[i] = RAND() % 180;
         }
-        else 
+        else
         {
             p[i] = RAND() % 256;
         }
@@ -59,17 +59,17 @@ static int memcmp_hsv(ncnn::Mat m1, ncnn::Mat m2, int length, int tol)
     int loss = 0;
     unsigned char* ptr1 = m1;
     unsigned char* ptr2 = m2;
-    for(int i = 0; i < length / 3; i++) 
+    for (int i = 0; i < length / 3; i++)
     {
-        if(ptr1[i * 3 + 2] == 0)
+        if (ptr1[i * 3 + 2] == 0)
         {
             loss += tol * 3;
         }
         else
         {
             loss += abs(ptr1[i * 3] - ptr2[i * 3])
-                  + abs(ptr1[i * 3 + 1] - ptr2[i * 3 + 1])
-                  + abs(ptr1[i * 3 + 2] - ptr2[i * 3 + 2]);
+                    + abs(ptr1[i * 3 + 1] - ptr2[i * 3 + 1])
+                    + abs(ptr1[i * 3 + 2] - ptr2[i * 3 + 2]);
         }
     }
     return (loss > length * tol);
@@ -396,7 +396,7 @@ static int test_mat_pixel_yuv420sp2rgb(int w, int h)
     return 0;
 }
 
-static int test_mat_pixel_hsv(int w, int h) 
+static int test_mat_pixel_hsv(int w, int h)
 {
     int tol = 2;
     ncnn::Mat hsv = RandomMat_hsv(w, h, 3);
