@@ -2467,6 +2467,14 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
 
 #if __ARM_NEON
 #if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v3 = vdupq_n_u16(v3);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _hsv = vld3_u8(hsv);
@@ -2480,9 +2488,6 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
             float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
             float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
             float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
-
-            float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
-            float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
 
             _hlow = vmulq_f32(_hlow, _v_1_30);
             _hhigh = vmulq_f32(_hhigh, _v_1_30);
@@ -2498,9 +2503,6 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
             uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
             uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
             uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
-
-            float32x4_t _vf1 = vdupq_n_f32(vf1);
-            float32x4_t _vdescale = vdupq_n_f32(vdescale);
 
             // vtab2 = v * (_v1 - (s * h))
             float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
@@ -2547,11 +2549,6 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
             uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
-
-            uint16x8_t _v1 = vdupq_n_u16(v1);
-            uint16x8_t _v2 = vdupq_n_u16(v2);
-            uint16x8_t _v3 = vdupq_n_u16(v3);
-            uint16x8_t _v4 = vdupq_n_u16(v4);
 
             uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
             _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
@@ -2983,6 +2980,14 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
 
 #if __ARM_NEON
 #if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v3 = vdupq_n_u16(v3);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _hsv = vld3_u8(hsv);
@@ -2996,9 +3001,6 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
             float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
             float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
             float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
-
-            float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
-            float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
 
             _hlow = vmulq_f32(_hlow, _v_1_30);
             _hhigh = vmulq_f32(_hhigh, _v_1_30);
@@ -3014,9 +3016,6 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
             uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
             uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
             uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
-
-            float32x4_t _vf1 = vdupq_n_f32(vf1);
-            float32x4_t _vdescale = vdupq_n_f32(vdescale);
 
             // vtab2 = v * (_v1 - (s * h))
             float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
@@ -3063,11 +3062,6 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
             uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
-
-            uint16x8_t _v1 = vdupq_n_u16(v1);
-            uint16x8_t _v2 = vdupq_n_u16(v2);
-            uint16x8_t _v3 = vdupq_n_u16(v3);
-            uint16x8_t _v4 = vdupq_n_u16(v4);
 
             uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
             _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
@@ -3504,6 +3498,14 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
 
 #if __ARM_NEON
 #if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v3 = vdupq_n_u16(v3);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _hsv = vld3_u8(hsv);
@@ -3517,9 +3519,6 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
             float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
             float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
-
-            float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
-            float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
 
             _hlow = vmulq_f32(_hlow, _v_1_30);
             _hhigh = vmulq_f32(_hhigh, _v_1_30);
@@ -3535,9 +3534,6 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
             uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
             uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
-
-            float32x4_t _vf1 = vdupq_n_f32(vf1);
-            float32x4_t _vdescale = vdupq_n_f32(vdescale);
 
             // vtab2 = v * (_v1 - (s * h))
             float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
@@ -3584,11 +3580,6 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
-
-            uint16x8_t _v1 = vdupq_n_u16(v1);
-            uint16x8_t _v2 = vdupq_n_u16(v2);
-            uint16x8_t _v3 = vdupq_n_u16(v3);
-            uint16x8_t _v4 = vdupq_n_u16(v4);
 
             uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
             _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
@@ -3910,6 +3901,14 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
 
 #if __ARM_NEON
 #if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v3 = vdupq_n_u16(v3);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _hsv = vld3_u8(hsv);
@@ -3923,9 +3922,6 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
             float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
             float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
-
-            float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
-            float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
 
             _hlow = vmulq_f32(_hlow, _v_1_30);
             _hhigh = vmulq_f32(_hhigh, _v_1_30);
@@ -3941,9 +3937,6 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
             uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
             uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
-
-            float32x4_t _vf1 = vdupq_n_f32(vf1);
-            float32x4_t _vdescale = vdupq_n_f32(vdescale);
 
             // vtab2 = v * (_v1 - (s * h))
             float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
@@ -3990,11 +3983,6 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
-
-            uint16x8_t _v1 = vdupq_n_u16(v1);
-            uint16x8_t _v2 = vdupq_n_u16(v2);
-            uint16x8_t _v3 = vdupq_n_u16(v3);
-            uint16x8_t _v4 = vdupq_n_u16(v4);
 
             uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
             _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
@@ -4431,6 +4419,14 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
 
 #if __ARM_NEON
 #if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v3 = vdupq_n_u16(v3);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
             uint8x8x3_t _hsv = vld3_u8(hsv);
@@ -4444,9 +4440,6 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
             float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
             float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
-
-            float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
-            float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
 
             _hlow = vmulq_f32(_hlow, _v_1_30);
             _hhigh = vmulq_f32(_hhigh, _v_1_30);
@@ -4462,9 +4455,6 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
             uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
             uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
-
-            float32x4_t _vf1 = vdupq_n_f32(vf1);
-            float32x4_t _vdescale = vdupq_n_f32(vdescale);
 
             // vtab2 = v * (_v1 - (s * h))
             float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
@@ -4511,11 +4501,6 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
             uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
-
-            uint16x8_t _v1 = vdupq_n_u16(v1);
-            uint16x8_t _v2 = vdupq_n_u16(v2);
-            uint16x8_t _v3 = vdupq_n_u16(v3);
-            uint16x8_t _v4 = vdupq_n_u16(v4);
 
             uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
             _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
