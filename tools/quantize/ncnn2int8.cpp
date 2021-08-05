@@ -547,6 +547,7 @@ int main(int argc, char** argv)
     {
         DataReaderFromEmpty dr;
         quantizer.load_model(dr);
+        quantizer.gen_random_weight = true;
     }
     else
         quantizer.load_model(inbin);

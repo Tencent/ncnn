@@ -2,23 +2,39 @@ name: elf-riscv32-cpu-gcc
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/elf-riscv32-cpu-gcc.yml'
+    - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/elf-riscv32-cpu-gcc.yml'
+    - 'toolchains/riscv32-unknown-elf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
 jobs:
   newlib-rv32imc-gcc:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: rv32imc-install
         key: rv32imc-newlib-install-20210425

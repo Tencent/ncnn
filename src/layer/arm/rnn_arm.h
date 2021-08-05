@@ -36,9 +36,11 @@ protected:
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
+#if NCNN_BF16
     int create_pipeline_bf16s(const Option& opt);
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
 
 public:
     Mat weight_xc_data_packed;

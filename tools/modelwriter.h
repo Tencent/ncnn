@@ -35,6 +35,7 @@
 #include "layer/clip.h"
 #include "layer/concat.h"
 #include "layer/convolution.h"
+#include "layer/convolution1d.h"
 #include "layer/convolutiondepthwise.h"
 #include "layer/crop.h"
 #include "layer/deconvolution.h"
@@ -65,6 +66,7 @@
 #include "layer/permute.h"
 #include "layer/pixelshuffle.h"
 #include "layer/pooling.h"
+#include "layer/pooling1d.h"
 #include "layer/power.h"
 #include "layer/prelu.h"
 #include "layer/priorbox.h"
@@ -89,6 +91,13 @@
 #include "layer/unaryop.h"
 #include "layer/yolodetectionoutput.h"
 #include "layer/yolov3detectionoutput.h"
+
+// for gen_random_weight
+#include "../tests/prng.h"
+
+static struct prng_rand_t g_prng_rand_state;
+#define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
+#define RAND()      prng_rand(&g_prng_rand_state)
 
 class MemoryFootprintAllocator : public ncnn::Allocator
 {
@@ -197,6 +206,8 @@ public:
     // 0=fp32 1=fp16
     int storage_type;
 
+    int gen_random_weight;
+
     // Cut param and bin -1=no cut
     int cutstart;
     int cutend;
@@ -211,7 +222,7 @@ public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
     int fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp);
 
-    int fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp);
+    int fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp);
     int fwrite_weight_data(const ncnn::Mat& data, FILE* bp);
 
     int save(const char* parampath, const char* binpath);
@@ -221,8 +232,11 @@ ModelWriter::ModelWriter()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
     has_custom_layer = false;
+    gen_random_weight = false;
     cutstart = -1;
     cutend = -1;
+
+    SRAND(7767517);
 }
 
 ncnn::Layer* ModelWriter::create_custom_layer(const char* type)
@@ -285,6 +299,21 @@ int ModelWriter::shape_inference()
 
     const size_t layer_count = layers.size();
     const size_t blob_count = blobs.size();
+
+    // recreate layer pipeline for param and weight changes
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        ncnn::Layer* layer = layers[i];
+
+        layer->destroy_pipeline(opt);
+
+        int cret = layer->create_pipeline(opt);
+        if (cret != 0)
+        {
+            NCNN_LOGE("layer create_pipeline %d %s failed", (int)i, layer->name.c_str());
+            return -1;
+        }
+    }
 
     ncnn::Extractor ex = create_extractor();
 
@@ -461,6 +490,9 @@ int ModelWriter::estimate_memory_footprint()
         if (blob.producer == -1 || blob.consumer != -1)
             continue;
 
+        if (layers[blob.producer]->type == "ncnnfused")
+            continue;
+
         // treat blob without any consumers as output
         ncnn::Mat m;
         ex.extract(int(i), m);
@@ -521,34 +553,82 @@ static void replace_denormals_with_zero(float* data, size_t data_length)
     }
 }
 
-int ModelWriter::fwrite_weight_tag_data(int tag, const ncnn::Mat& data, FILE* bp)
+static float RandomFloat(float a = -1.2f, float b = 1.2f)
+{
+    float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
+    float diff = b - a;
+    float r = random * diff;
+    return a + r;
+}
+
+static void Randomize(ncnn::Mat& m, float a = -1.2f, float b = 1.2f)
+{
+    if (m.elemsize == 4)
+    {
+        for (size_t i = 0; i < m.total(); i++)
+        {
+            m[i] = RandomFloat(a, b);
+        }
+    }
+    else if (m.elemsize == 2)
+    {
+        unsigned short* p = m;
+        for (size_t i = 0; i < m.total(); i++)
+        {
+            p[i] = ncnn::float32_to_float16(RandomFloat(a, b));
+        }
+    }
+    else if (m.elemsize == 1)
+    {
+        signed char* p = m;
+        for (size_t i = 0; i < m.total(); i++)
+        {
+            p[i] = (signed char)RandomFloat(-127, 127);
+        }
+    }
+}
+
+int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp)
 {
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
-    if (storage_type == 1 && tag == 0)
+    if (gen_random_weight)
+        Randomize(data_flattened);
+
+    if (data_flattened.elemsize == 4)
     {
-        tag = 0x01306B47; // fp16 magic
+        if (storage_type == 1)
+        {
+            const int tag = 0x01306B47; // fp16 magic
+            fwrite(&tag, sizeof(int), 1, bp);
+            ncnn::Mat data_flattened_fp16;
+            ncnn::cast_float32_to_float16(data_flattened, data_flattened_fp16);
+            fwrite(data_flattened_fp16.data, data_flattened_fp16.elemsize, data_flattened_fp16.w, bp);
+        }
+        else
+        {
+            const int tag = 0; // fp32 magic
+            fwrite(&tag, sizeof(int), 1, bp);
+            replace_denormals_with_zero(data_flattened, data_flattened.w);
+            fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+        }
+    }
+    else if (data_flattened.elemsize == 2)
+    {
+        const int tag = 0x01306B47; // fp16 magic
         fwrite(&tag, sizeof(int), 1, bp);
-        ncnn::Mat data_flattened_fp16;
-        ncnn::cast_float32_to_float16(data_flattened, data_flattened_fp16);
-        fwrite(data_flattened_fp16.data, data_flattened_fp16.elemsize, data_flattened_fp16.w, bp);
+        fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
     }
     else if (data_flattened.elemsize == 1)
     {
-        tag = 0x000D4B38; // int8 magic
+        const int tag = 0x000D4B38; // int8 magic
         fwrite(&tag, sizeof(int), 1, bp);
         fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
     }
     else
     {
-        fwrite(&tag, sizeof(int), 1, bp);
-        if (data_flattened.elemsize == 4) // fp32
-        {
-            replace_denormals_with_zero(data_flattened, data_flattened.w);
-        }
-
-        fwrite(data_flattened.data, data_flattened.elemsize, data_flattened.w, bp);
+        fprintf(stderr, "unknown weight data type %d\n", (int)data_flattened.elemsize);
     }
 
     // padding to 32bit align
@@ -565,6 +645,9 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    if (gen_random_weight)
+        Randomize(data_flattened);
+
     if (data_flattened.elemsize == 4) // fp32
     {
         replace_denormals_with_zero(data_flattened, data_flattened.w);
@@ -782,7 +865,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             }
             fprintf_param_value(" 17=%d", impl_type)
 
-            fwrite_weight_tag_data(0, op->weight_data, bp);
+            fwrite_weight_tag_data(op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
 
 #if NCNN_INT8
@@ -803,6 +886,39 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int outc = blobs[layer->tops[0]].shape.c;
 
                 mac += (uint64_t)op->kernel_h * op->kernel_w * outw * outh * outc * inc;
+            }
+        }
+        else if (layer->type == "Convolution1D")
+        {
+            ncnn::Convolution1D* op = (ncnn::Convolution1D*)layer;
+            ncnn::Convolution1D* op_default = (ncnn::Convolution1D*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", kernel_w)
+            fprintf_param_value(" 2=%d", dilation_w)
+            fprintf_param_value(" 3=%d", stride_w)
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            fprintf_param_value(" 18=%e", pad_value)
+            fprintf_param_value(" 5=%d", bias_term)
+            fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 9=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int outw = blobs[layer->tops[0]].shape.w;
+                int outh = blobs[layer->tops[0]].shape.h;
+
+                mac += (uint64_t)op->kernel_w * outw * outh * inh;
             }
         }
         else if (layer->type == "ConvolutionDepthWise")
@@ -843,11 +959,25 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(0, op->weight_data, bp);
+            fwrite_weight_tag_data(op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
 
 #if NCNN_INT8
             // write int8_scale data
+            if (op->int8_scale_term == 1 || op->int8_scale_term == 101)
+            {
+                op->bottom_blob_int8_scales.w = 1;
+            }
+            if (op->int8_scale_term == 2 || op->int8_scale_term == 102)
+            {
+                op->weight_data_int8_scales.w = 1;
+                op->bottom_blob_int8_scales.w = 1;
+            }
+            if (op->int8_scale_term > 100)
+            {
+                op->top_blob_int8_scales.w = 1;
+            }
+
             if (op->int8_scale_term)
             {
                 fwrite_weight_data(op->weight_data_int8_scales, bp);
@@ -933,7 +1063,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(0, op->weight_data, bp);
+            fwrite_weight_tag_data(op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
 
             if (shape_ready)
@@ -990,7 +1120,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(0, op->weight_data, bp);
+            fwrite_weight_tag_data(op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
 
             if (shape_ready)
@@ -1095,9 +1225,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
 
-            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
-            fwrite_weight_tag_data(0, op->bias_c_data, bp);
-            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
+            fwrite_weight_tag_data(op->weight_xc_data, bp);
+            fwrite_weight_tag_data(op->bias_c_data, bp);
+            fwrite_weight_tag_data(op->weight_hc_data, bp);
         }
         else if (layer->type == "HardSigmoid")
         {
@@ -1129,7 +1259,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
 
-            fwrite_weight_tag_data(0, op->weight_data, bp);
+            fwrite_weight_tag_data(op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);
 
 #if NCNN_INT8
@@ -1182,6 +1312,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 2=%e", width_scale)
             fprintf_param_value(" 3=%d", output_height)
             fprintf_param_value(" 4=%d", output_width)
+            fprintf_param_value(" 5=%d", dynamic_target_size)
+            fprintf_param_value(" 6=%d", align_corner)
         }
         else if (layer->type == "Log")
         {
@@ -1212,9 +1344,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
 
-            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
-            fwrite_weight_tag_data(0, op->bias_c_data, bp);
-            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
+            fwrite_weight_tag_data(op->weight_xc_data, bp);
+            fwrite_weight_tag_data(op->bias_c_data, bp);
+            fwrite_weight_tag_data(op->weight_hc_data, bp);
         }
         else if (layer->type == "MemoryData")
         {
@@ -1313,6 +1445,24 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (op->out_h != op->out_w) fprintf(pp, " 18=%d", op->out_h);
             }
+        }
+        else if (layer->type == "Pooling1D")
+        {
+            ncnn::Pooling1D* op = (ncnn::Pooling1D*)layer;
+            ncnn::Pooling1D* op_default = (ncnn::Pooling1D*)layer_default;
+
+            fprintf_param_value(" 0=%d", pooling_type)
+            fprintf_param_value(" 1=%d", kernel_w)
+            fprintf_param_value(" 2=%d", stride_w)
+            fprintf_param_value(" 3=%d", pad_left)
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 14=%d", op->pad_right);
+            }
+            fprintf_param_value(" 4=%d", global_pooling)
+            fprintf_param_value(" 5=%d", pad_mode)
+            fprintf_param_value(" 6=%d", avgpool_count_include_pad)
+            fprintf_param_value(" 7=%d", adaptive_pooling)
+            fprintf_param_value(" 8=%d", out_w)
         }
         else if (layer->type == "Power")
         {
@@ -1453,9 +1603,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", weight_data_size)
             fprintf_param_value(" 2=%d", direction)
 
-            fwrite_weight_tag_data(0, op->weight_xc_data, bp);
-            fwrite_weight_tag_data(0, op->bias_c_data, bp);
-            fwrite_weight_tag_data(0, op->weight_hc_data, bp);
+            fwrite_weight_tag_data(op->weight_xc_data, bp);
+            fwrite_weight_tag_data(op->bias_c_data, bp);
+            fwrite_weight_tag_data(op->weight_hc_data, bp);
         }
         else if (layer->type == "ROIAlign")
         {

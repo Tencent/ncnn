@@ -75,6 +75,7 @@ public:
     int eliminate_dropout();
     int eliminate_pooling1x1();
     int eliminate_noop();
+    int eliminate_split();
     int eliminate_orphaned_memorydata();
     int eliminate_flatten_after_global_pooling();
     int eliminate_reshape_after_global_pooling();
@@ -377,7 +378,13 @@ int NetOptimize::fuse_convolution_add()
 
         int channels = convolution->num_output;
 
-        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        bool broadcasting_type_ok = false;
+        if (memorydata->w == channels && memorydata->h == 0 && memorydata->c == 0)
+            broadcasting_type_ok = true;
+        if (memorydata->w == 1 && memorydata->h == 1 && memorydata->c == channels)
+            broadcasting_type_ok = true;
+
+        if (!broadcasting_type_ok)
         {
             // not bias-like broadcasting type
             continue;
@@ -385,19 +392,20 @@ int NetOptimize::fuse_convolution_add()
 
         fprintf(stderr, "fuse_convolution_add %s %s\n", convolution->name.c_str(), binaryop->name.c_str());
 
+        ncnn::Mat bias_data = memorydata->data.reshape(channels);
         {
             if (convolution->bias_term == 0)
             {
                 // init bias
                 convolution->bias_term = 1;
-                convolution->bias_data = memorydata->data;
+                convolution->bias_data = bias_data;
             }
             else
             {
                 float* bias = convolution->bias_data;
                 for (int i = 0; i < channels; i++)
                 {
-                    bias[i] = bias[i] + memorydata->data[i];
+                    bias[i] = bias[i] + bias_data[i];
                 }
             }
         }
@@ -635,7 +643,13 @@ int NetOptimize::fuse_convolutiondepthwise_add()
 
         int channels = convolutiondepthwise->num_output;
 
-        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        bool broadcasting_type_ok = false;
+        if (memorydata->w == channels && memorydata->h == 0 && memorydata->c == 0)
+            broadcasting_type_ok = true;
+        if (memorydata->w == 1 && memorydata->h == 1 && memorydata->c == channels)
+            broadcasting_type_ok = true;
+
+        if (!broadcasting_type_ok)
         {
             // not bias-like broadcasting type
             continue;
@@ -643,19 +657,20 @@ int NetOptimize::fuse_convolutiondepthwise_add()
 
         fprintf(stderr, "fuse_convolutiondepthwise_add %s %s\n", convolutiondepthwise->name.c_str(), binaryop->name.c_str());
 
+        ncnn::Mat bias_data = memorydata->data.reshape(channels);
         {
             if (convolutiondepthwise->bias_term == 0)
             {
                 // init bias
                 convolutiondepthwise->bias_term = 1;
-                convolutiondepthwise->bias_data = memorydata->data;
+                convolutiondepthwise->bias_data = bias_data;
             }
             else
             {
                 float* bias = convolutiondepthwise->bias_data;
                 for (int i = 0; i < channels; i++)
                 {
-                    bias[i] = bias[i] + memorydata->data[i];
+                    bias[i] = bias[i] + bias_data[i];
                 }
             }
         }
@@ -893,7 +908,13 @@ int NetOptimize::fuse_deconvolution_add()
 
         int channels = deconvolution->num_output;
 
-        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        bool broadcasting_type_ok = false;
+        if (memorydata->w == channels && memorydata->h == 0 && memorydata->c == 0)
+            broadcasting_type_ok = true;
+        if (memorydata->w == 1 && memorydata->h == 1 && memorydata->c == channels)
+            broadcasting_type_ok = true;
+
+        if (!broadcasting_type_ok)
         {
             // not bias-like broadcasting type
             continue;
@@ -901,19 +922,20 @@ int NetOptimize::fuse_deconvolution_add()
 
         fprintf(stderr, "fuse_deconvolution_add %s %s\n", deconvolution->name.c_str(), binaryop->name.c_str());
 
+        ncnn::Mat bias_data = memorydata->data.reshape(channels);
         {
             if (deconvolution->bias_term == 0)
             {
                 // init bias
                 deconvolution->bias_term = 1;
-                deconvolution->bias_data = memorydata->data;
+                deconvolution->bias_data = bias_data;
             }
             else
             {
                 float* bias = deconvolution->bias_data;
                 for (int i = 0; i < channels; i++)
                 {
-                    bias[i] = bias[i] + memorydata->data[i];
+                    bias[i] = bias[i] + bias_data[i];
                 }
             }
         }
@@ -1145,7 +1167,13 @@ int NetOptimize::fuse_innerproduct_add()
 
         int channels = innerproduct->num_output;
 
-        if (memorydata->w != channels || memorydata->h != 0 || memorydata->c != 0)
+        bool broadcasting_type_ok = false;
+        if (memorydata->w == channels && memorydata->h == 0 && memorydata->c == 0)
+            broadcasting_type_ok = true;
+        if (memorydata->w == 1 && memorydata->h == 1 && memorydata->c == channels)
+            broadcasting_type_ok = true;
+
+        if (!broadcasting_type_ok)
         {
             // not bias-like broadcasting type
             continue;
@@ -1153,19 +1181,20 @@ int NetOptimize::fuse_innerproduct_add()
 
         fprintf(stderr, "fuse_innerproduct_add %s %s\n", innerproduct->name.c_str(), binaryop->name.c_str());
 
+        ncnn::Mat bias_data = memorydata->data.reshape(channels);
         {
             if (innerproduct->bias_term == 0)
             {
                 // init bias
                 innerproduct->bias_term = 1;
-                innerproduct->bias_data = memorydata->data;
+                innerproduct->bias_data = bias_data;
             }
             else
             {
                 float* bias = innerproduct->bias_data;
                 for (int i = 0; i < channels; i++)
                 {
-                    bias[i] = bias[i] + memorydata->data[i];
+                    bias[i] = bias[i] + bias_data[i];
                 }
             }
         }
@@ -1279,6 +1308,75 @@ int NetOptimize::fuse_convolution_activation()
         ncnn::Layer* activation = layers[j];
 
         fprintf(stderr, "fuse_convolution_activation %s %s\n", convolution->name.c_str(), activation->name.c_str());
+
+        if (activation->type == "ReLU")
+        {
+            ncnn::ReLU* relu = (ncnn::ReLU*)activation;
+
+            if (relu->slope == 0.f)
+            {
+                convolution->activation_type = 1;
+            }
+            else
+            {
+                convolution->activation_type = 2;
+                convolution->activation_params = ncnn::Mat(1);
+                convolution->activation_params[0] = relu->slope;
+            }
+        }
+        else if (activation->type == "Clip")
+        {
+            ncnn::Clip* clip = (ncnn::Clip*)activation;
+
+            convolution->activation_type = 3;
+            convolution->activation_params = ncnn::Mat(2);
+            convolution->activation_params[0] = clip->min;
+            convolution->activation_params[1] = clip->max;
+        }
+        else if (activation->type == "Sigmoid")
+        {
+            convolution->activation_type = 4;
+        }
+        else if (activation->type == "Mish")
+        {
+            convolution->activation_type = 5;
+        }
+
+        int top_blob_index_final = activation->tops[0];
+        convolution->tops[0] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = i;
+        activation->type = "ncnnfused";
+    }
+
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "Convolution1D")
+            continue;
+
+        // Convolution1D - Activation
+        int top_blob_index = layers[i]->tops[0];
+
+        size_t j = i + 1;
+        for (; j < layer_count; j++)
+        {
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid" && layers[j]->type != "Mish")
+                continue;
+
+            if (layers[j]->bottoms.size() != 1)
+                continue;
+
+            if (layers[j]->bottoms[0] == top_blob_index)
+                break;
+        }
+
+        if (j == layer_count)
+            continue;
+
+        // fuse Convolution1D - Activation to Convolution1D
+        ncnn::Convolution1D* convolution = (ncnn::Convolution1D*)layers[i];
+        ncnn::Layer* activation = layers[j];
+
+        fprintf(stderr, "fuse_convolution1d_activation %s %s\n", convolution->name.c_str(), activation->name.c_str());
 
         if (activation->type == "ReLU")
         {
@@ -2035,9 +2133,9 @@ int NetOptimize::eliminate_noop()
             fprintf(stderr, "eliminate_noop %s\n", noop->name.c_str());
 
             size_t top_blob_count = noop->tops.size();
-            for (size_t k = 0; k < top_blob_count; k++)
+            for (size_t j = 0; j < top_blob_count; j++)
             {
-                int top_blob_index_final = noop->tops[k];
+                int top_blob_index_final = noop->tops[j];
                 blobs[top_blob_index_final].producer = -1;
             }
             noop->type = "ncnnfused";
@@ -2046,18 +2144,94 @@ int NetOptimize::eliminate_noop()
         }
 
         // Any - Noop
-        int bottom_blob_index = layers[i]->bottoms[0];
+        int bottom_blob_index = noop->bottoms[0];
 
+        int j = i - 1;
+        int any_k = -1;
+        for (; j >= 0; j--)
+        {
+            if (layers[j]->type == "ncnnfused")
+                continue;
+
+            bool link_noop = false;
+            size_t top_blob_count = layers[j]->tops.size();
+            for (size_t k = 0; k < top_blob_count; k++)
+            {
+                if (layers[j]->tops[k] == bottom_blob_index)
+                {
+                    link_noop = true;
+                    any_k = k;
+                    break;
+                }
+            }
+
+            if (link_noop)
+                break;
+        }
+
+        if (j == -1 || any_k == -1)
+            continue;
+
+        ncnn::Layer* any = layers[j];
+
+        fprintf(stderr, "eliminate_noop %s %s\n", any->name.c_str(), noop->name.c_str());
+
+        int top_blob_index_final = noop->tops[0];
+        any->tops[any_k] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = j;
+
+        noop->type = "ncnnfused";
+    }
+
+    return 0;
+}
+
+int NetOptimize::eliminate_split()
+{
+    const size_t layer_count = layers.size();
+    for (size_t i = 0; i < layer_count; i++)
+    {
+        if (layers[i]->type != "Split")
+            continue;
+
+        ncnn::Layer* split = layers[i];
+
+        int real_split_output_count = 0;
+        int real_split_top_blob_index = -1;
+        size_t top_blob_count = split->tops.size();
+        for (size_t j = 0; j < top_blob_count; j++)
+        {
+            int top_blob_index_final = split->tops[j];
+            if (blobs[top_blob_index_final].consumer != -1)
+            {
+                real_split_output_count += 1;
+                real_split_top_blob_index = j;
+            }
+        }
+
+        if (real_split_output_count > 1)
+            continue;
+
+        // Any - Pooling
+        int bottom_blob_index = split->bottoms[0];
+
+        int top_i = -1;
         int j = i - 1;
         for (; j >= 0; j--)
         {
             if (layers[j]->type == "ncnnfused")
                 continue;
 
-            if (layers[j]->tops.size() != 1)
-                continue;
+            for (size_t k = 0; k < layers[j]->tops.size(); k++)
+            {
+                if (layers[j]->tops[k] == bottom_blob_index)
+                {
+                    top_i = k;
+                    break;
+                }
+            }
 
-            if (layers[j]->tops[0] == bottom_blob_index)
+            if (top_i != -1)
                 break;
         }
 
@@ -2066,16 +2240,12 @@ int NetOptimize::eliminate_noop()
 
         ncnn::Layer* any = layers[j];
 
-        fprintf(stderr, "eliminate_noop %s %s\n", any->name.c_str(), noop->name.c_str());
+        fprintf(stderr, "eliminate_split %s %s\n", any->name.c_str(), split->name.c_str());
 
-        size_t top_blob_count = std::min(noop->tops.size(), any->tops.size());
-        for (size_t k = 0; k < top_blob_count; k++)
-        {
-            int top_blob_index_final = noop->tops[k];
-            any->tops[k] = top_blob_index_final;
-            blobs[top_blob_index_final].producer = j;
-        }
-        noop->type = "ncnnfused";
+        int top_blob_index_final = split->tops[real_split_top_blob_index];
+        any->tops[top_i] = top_blob_index_final;
+        blobs[top_blob_index_final].producer = j;
+        split->type = "ncnnfused";
     }
 
     return 0;
@@ -2595,6 +2765,7 @@ int main(int argc, char** argv)
     {
         DataReaderFromEmpty dr;
         optimizer.load_model(dr);
+        optimizer.gen_random_weight = true;
     }
     else
         optimizer.load_model(inbin);
@@ -2633,6 +2804,7 @@ int main(int argc, char** argv)
     optimizer.eliminate_dropout();
     optimizer.eliminate_pooling1x1();
     optimizer.eliminate_noop();
+    optimizer.eliminate_split();
     optimizer.eliminate_flatten_after_global_pooling();
     optimizer.eliminate_reshape_after_global_pooling();
     optimizer.eliminate_reshape_before_binaryop();

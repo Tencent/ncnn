@@ -73,12 +73,10 @@ void main()
     afp res;
 
     // calculate adaptive kernel size
-    int sx = int(floor(afp(gx * psc(w)) / afp(psc(outw))));
-    int ex = int(ceil(afp((gx + 1) * psc(w)) / afp(psc(outw))));
-    int kernel_w = ex - sx;
-    int sy = int(floor(afp(gy * psc(h)) / afp(psc(outh))));
-    int ey = int(ceil(afp((gy + 1) * psc(h)) / afp(psc(outh))));
-    int kernel_h = ey - sy;
+    const int kernel_w = max(psc(w) - psc(outw) + 1, 1);
+    const int kernel_h = max(psc(h) - psc(outh) + 1, 1);
+    const int sx = psc(outw) == 1 ? 0 : gx * (psc(w) - kernel_w) / (psc(outw) - 1);
+    const int sy = psc(outh) == 1 ? 0 : gy * (psc(h) - kernel_h) / (psc(outh) - 1);
 
     if (pooling_type == 0)
     {

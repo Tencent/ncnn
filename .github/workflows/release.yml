@@ -71,6 +71,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -112,6 +114,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -153,6 +157,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -194,6 +200,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -235,6 +243,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -276,6 +286,8 @@ jobs:
         cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
         cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
         strip -g ${{ env.PACKAGENAME }}/bin/*
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
@@ -290,7 +302,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: openmp-install
         key: openmp-macos-release-11.0.0
@@ -425,7 +437,7 @@ jobs:
         sudo cp openmp-macos/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "vulkansdk-macos-1.2.162.0"
         key: vulkansdk-macos-1.2.162.0
@@ -486,8 +498,8 @@ jobs:
         ln -s Versions/Current/Headers glslang.framework/Headers
         ln -s Versions/Current/Resources glslang.framework/Resources
         ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static build-x86_64/install/lib/libglslang.a build-x86_64/install/lib/libSPIRV.a build-x86_64/install/lib/libOGLCompiler.a build-x86_64/install/lib/libOSDependent.a -o build-x86_64/install/lib/libglslang_combined.a
-        libtool -static build-arm64/install/lib/libglslang.a build-arm64/install/lib/libSPIRV.a build-arm64/install/lib/libOGLCompiler.a build-arm64/install/lib/libOSDependent.a -o build-arm64/install/lib/libglslang_combined.a
+        libtool -static build-x86_64/install/lib/libglslang.a build-x86_64/install/lib/libMachineIndependent.a build-x86_64/install/lib/libGenericCodeGen.a build-x86_64/install/lib/libSPIRV.a build-x86_64/install/lib/libOGLCompiler.a build-x86_64/install/lib/libOSDependent.a -o build-x86_64/install/lib/libglslang_combined.a
+        libtool -static build-arm64/install/lib/libglslang.a build-arm64/install/lib/libMachineIndependent.a build-arm64/install/lib/libGenericCodeGen.a build-arm64/install/lib/libSPIRV.a build-arm64/install/lib/libOGLCompiler.a build-arm64/install/lib/libOSDependent.a -o build-arm64/install/lib/libglslang_combined.a
         lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -r build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
@@ -516,7 +528,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: openmp-install
         key: openmp-ios-release-11.0.0
@@ -661,7 +673,7 @@ jobs:
         sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "vulkansdk-macos-1.2.135.0"
         key: vulkansdk-macos-1.2.135.0
@@ -720,8 +732,8 @@ jobs:
         ln -s Versions/Current/Headers glslang.framework/Headers
         ln -s Versions/Current/Resources glslang.framework/Resources
         ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static build/install/lib/libglslang.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
-        libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
+        libtool -static build/install/lib/libglslang.a build/install/lib/libMachineIndependent.a build/install/lib/libGenericCodeGen.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
+        libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libMachineIndependent.a build-simulator/install/lib/libGenericCodeGen.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
         lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
@@ -750,7 +762,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: openmp-install
         key: openmp-ios-bitcode-release-11.0.0
@@ -895,7 +907,7 @@ jobs:
         sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "vulkansdk-macos-1.2.135.0"
         key: vulkansdk-macos-1.2.135.0
@@ -954,8 +966,8 @@ jobs:
         ln -s Versions/Current/Headers glslang.framework/Headers
         ln -s Versions/Current/Resources glslang.framework/Resources
         ln -s Versions/Current/glslang glslang.framework/glslang
-        libtool -static build/install/lib/libglslang.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
-        libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
+        libtool -static build/install/lib/libglslang.a build/install/lib/libMachineIndependent.a build/install/lib/libGenericCodeGen.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
+        libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libMachineIndependent.a build-simulator/install/lib/libGenericCodeGen.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
         lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
         cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
@@ -1112,7 +1124,7 @@ jobs:
         submodules: true
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "1.2.148.1"
         key: vulkansdk-linux-x86_64-1.2.148.1
@@ -1192,7 +1204,7 @@ jobs:
         submodules: true
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "1.2.148.1"
         key: vulkansdk-linux-x86_64-1.2.148.1
@@ -1279,7 +1291,7 @@ jobs:
         source emsdk/emsdk_env.sh
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF \
+            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF  -DNCNN_AV2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -1288,7 +1300,7 @@ jobs:
         source emsdk/emsdk_env.sh
         mkdir build-simd && cd build-simd
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF \
+            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AV2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -1297,7 +1309,7 @@ jobs:
         source emsdk/emsdk_env.sh
         mkdir build-threads && cd build-threads
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF \
+            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AV2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -1306,7 +1318,7 @@ jobs:
         source emsdk/emsdk_env.sh
         mkdir build-simd-threads && cd build-simd-threads
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF \
+            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AV2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -1337,7 +1349,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v1.0.3
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-vs2015-x86-x64-install
@@ -1358,7 +1370,7 @@ jobs:
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1.0.3
+      uses: actions/cache@v2.1.6
       with:
         path: "VulkanSDK"
         key: VulkanSDK-1.1.114.0-Installer
@@ -1398,6 +1410,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1405,6 +1419,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1423,7 +1439,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v1.0.3
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-vs2015-x86-x64-install
@@ -1444,7 +1460,7 @@ jobs:
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1.0.3
+      uses: actions/cache@v2.1.6
       with:
         path: "VulkanSDK"
         key: VulkanSDK-1.1.114.0-Installer
@@ -1482,6 +1498,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1489,6 +1507,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1507,7 +1527,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v1.0.3
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x86-x64-install
@@ -1528,7 +1548,7 @@ jobs:
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1.0.3
+      uses: actions/cache@v2.1.6
       with:
         path: "VulkanSDK"
         key: VulkanSDK-1.1.114.0-Installer
@@ -1568,6 +1588,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1575,6 +1597,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1593,7 +1617,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v1.0.3
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x86-x64-install
@@ -1614,7 +1638,7 @@ jobs:
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1.0.3
+      uses: actions/cache@v2.1.6
       with:
         path: "VulkanSDK"
         key: VulkanSDK-1.1.114.0-Installer
@@ -1652,6 +1676,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1659,6 +1685,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1677,7 +1705,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-vs2019-x86-x64-install
@@ -1698,7 +1726,7 @@ jobs:
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "VulkanSDK"
         key: VulkanSDK-1.1.114.0-Installer
@@ -1738,6 +1766,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1745,6 +1775,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1763,7 +1795,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-vs2019-x86-x64-install
@@ -1784,7 +1816,7 @@ jobs:
         cmake --build . --config Release --target install
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "VulkanSDK"
         key: VulkanSDK-1.1.114.0-Installer
@@ -1822,6 +1854,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
+        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
@@ -1829,6 +1863,8 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2

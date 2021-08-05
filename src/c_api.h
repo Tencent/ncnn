@@ -270,9 +270,11 @@ NCNN_EXPORT int ncnn_net_load_param_bin(ncnn_net_t net, const char* path);
 NCNN_EXPORT int ncnn_net_load_model(ncnn_net_t net, const char* path);
 #endif /* NCNN_STDIO */
 
+#if NCNN_STDIO
 #if NCNN_STRING
 NCNN_EXPORT int ncnn_net_load_param_memory(ncnn_net_t net, const char* mem);
 #endif /* NCNN_STRING */
+#endif /* NCNN_STDIO */
 NCNN_EXPORT int ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem);
 NCNN_EXPORT int ncnn_net_load_model_memory(ncnn_net_t net, const unsigned char* mem);
 

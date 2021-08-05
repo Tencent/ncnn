@@ -2,10 +2,24 @@ name: windows-x64-cpu-vs2019-python
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/windows-x64-cpu-vs2019-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/windows-x64-cpu-vs2019-python.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'python/**'
 jobs:
   windows-vs2019-python:
     runs-on: windows-latest
@@ -14,7 +28,7 @@ jobs:
         python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -30,7 +44,7 @@ jobs:
         pip install pytest setuptools wheel twine
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: "protobuf-install"
         key: protobuf-windows-install

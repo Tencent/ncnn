@@ -28,10 +28,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-// #include <algorithm>
-// #include <map>
+#if defined(USE_NCNN_SIMPLEOCV)
+#include "simpleocv.h"
+#elif defined(USE_LOCAL_IMREADWRITE)
+#include "imreadwrite.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#endif
 #include <string>
 #include <vector>
 
@@ -198,6 +202,42 @@ void QuantNet::print_quant_info() const
     }
 }
 
+/**
+ * Read and resize image
+ * shape is input as [w,h,...]
+ * if w and h both are given, image will be resized to exactly size.
+ * if w and h both are zero or negative, image will not be resized.
+ * if only h is zero or negative, image's width will scaled resize to w, keeping aspect ratio.
+ * if only w is zero or negative, image's height will scaled resize to h
+ * @return ncnn::Mat
+ */
+
+inline ncnn::Mat read_and_resize_image(const std::vector<int>& shape, const std::string& imagepath, int pixel_convert_type)
+{
+    int target_w = shape[0];
+    int target_h = shape[1];
+    cv::Mat bgr = cv::imread(imagepath, 1);
+    if (target_h <= 0 && target_w <= 0)
+    {
+        return ncnn::Mat::from_pixels(bgr.data, pixel_convert_type, bgr.cols, bgr.rows);
+    }
+    if (target_h <= 0 || target_w <= 0)
+    {
+        float scale = 1.0;
+        if (target_h <= 0)
+        {
+            scale = 1.0 * bgr.cols / target_w;
+            target_h = int(1.0 * bgr.rows / scale);
+        }
+        if (target_w <= 0)
+        {
+            scale = 1.0 * bgr.rows / target_h;
+            target_w = int(1.0 * bgr.cols / scale);
+        }
+    }
+    return ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+}
+
 static float compute_kl_divergence(const std::vector<float>& a, const std::vector<float>& b)
 {
     const size_t length = a.size();
@@ -219,6 +259,9 @@ int QuantNet::quantize_KL()
     const int image_count = (int)listspaths[0].size();
 
     const int num_histogram_bins = 2048;
+
+    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
+    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
 
     // initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
@@ -319,15 +362,22 @@ int QuantNet::quantize_KL()
     }
 
     // count the absmax
-    #pragma omp parallel for num_threads(quantize_num_threads)
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < image_count; i++)
     {
+        if (i % 100 == 0)
+        {
+            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+        }
+
         ncnn::Extractor ex = create_extractor();
+
+        const int thread_num = ncnn::get_omp_thread_num();
+        ex.set_blob_allocator(&blob_allocators[thread_num]);
+        ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const std::string& imagepath = listspaths[j][i];
-            const std::vector<int>& shape = shapes[j];
             const int type_to_pixel = type_to_pixels[j];
             const std::vector<float>& mean_vals = means[j];
             const std::vector<float>& norm_vals = norms[j];
@@ -337,12 +387,8 @@ int QuantNet::quantize_KL()
             {
                 pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
             }
-            const int target_w = shape[0];
-            const int target_h = shape[1];
 
-            cv::Mat bgr = cv::imread(imagepath, 1);
-
-            ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
 
             in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -389,15 +435,22 @@ int QuantNet::quantize_KL()
     }
 
     // build histogram
-    #pragma omp parallel for num_threads(quantize_num_threads)
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < image_count; i++)
     {
+        if (i % 100 == 0)
+        {
+            fprintf(stderr, "build histogram %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+        }
+
         ncnn::Extractor ex = create_extractor();
+
+        const int thread_num = ncnn::get_omp_thread_num();
+        ex.set_blob_allocator(&blob_allocators[thread_num]);
+        ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const std::string& imagepath = listspaths[j][i];
-            const std::vector<int>& shape = shapes[j];
             const int type_to_pixel = type_to_pixels[j];
             const std::vector<float>& mean_vals = means[j];
             const std::vector<float>& norm_vals = norms[j];
@@ -407,12 +460,8 @@ int QuantNet::quantize_KL()
             {
                 pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
             }
-            const int target_w = shape[0];
-            const int target_h = shape[1];
 
-            cv::Mat bgr = cv::imread(imagepath, 1);
-
-            ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
 
             in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -671,6 +720,9 @@ int QuantNet::quantize_ACIQ()
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
     const int image_count = (int)listspaths[0].size();
 
+    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
+    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
+
     // initialize conv weight scales
     #pragma omp parallel for num_threads(quantize_num_threads)
     for (int i = 0; i < conv_layer_count; i++)
@@ -773,16 +825,23 @@ int QuantNet::quantize_ACIQ()
         }
     }
 
-    // count the absmax abssum
-    #pragma omp parallel for num_threads(quantize_num_threads)
+    // count the absmax
+    #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
     for (int i = 0; i < image_count; i++)
     {
+        if (i % 100 == 0)
+        {
+            fprintf(stderr, "count the absmax %.2f%% [ %d / %d ]\n", i * 100.f / image_count, i, image_count);
+        }
+
         ncnn::Extractor ex = create_extractor();
+
+        const int thread_num = ncnn::get_omp_thread_num();
+        ex.set_blob_allocator(&blob_allocators[thread_num]);
+        ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
         for (int j = 0; j < input_blob_count; j++)
         {
-            const std::string& imagepath = listspaths[j][i];
-            const std::vector<int>& shape = shapes[j];
             const int type_to_pixel = type_to_pixels[j];
             const std::vector<float>& mean_vals = means[j];
             const std::vector<float>& norm_vals = norms[j];
@@ -792,12 +851,8 @@ int QuantNet::quantize_ACIQ()
             {
                 pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
             }
-            const int target_w = shape[0];
-            const int target_h = shape[1];
 
-            cv::Mat bgr = cv::imread(imagepath, 1);
-
-            ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+            ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
 
             in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -987,6 +1042,9 @@ int QuantNet::quantize_EQ()
     const int conv_layer_count = (int)conv_layers.size();
     const int conv_bottom_blob_count = (int)conv_bottom_blobs.size();
 
+    std::vector<ncnn::UnlockedPoolAllocator> blob_allocators(quantize_num_threads);
+    std::vector<ncnn::UnlockedPoolAllocator> workspace_allocators(quantize_num_threads);
+
     // max 50 images for EQ
     const int image_count = std::min((int)listspaths[0].size(), 50);
 
@@ -1011,15 +1069,22 @@ int QuantNet::quantize_EQ()
 
             std::vector<double> avgsims(search_steps, 0.0);
 
-            #pragma omp parallel for num_threads(quantize_num_threads)
+            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
             for (int ii = 0; ii < image_count; ii++)
             {
+                if (ii % 100 == 0)
+                {
+                    fprintf(stderr, "search weight scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / image_count, ii, image_count, j, weight_scale.w, i, conv_layer_count);
+                }
+
                 ncnn::Extractor ex = create_extractor();
+
+                const int thread_num = ncnn::get_omp_thread_num();
+                ex.set_blob_allocator(&blob_allocators[thread_num]);
+                ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
                 for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    const std::string& imagepath = listspaths[jj][ii];
-                    const std::vector<int>& shape = shapes[jj];
                     const int type_to_pixel = type_to_pixels[jj];
                     const std::vector<float>& mean_vals = means[jj];
                     const std::vector<float>& norm_vals = norms[jj];
@@ -1029,12 +1094,8 @@ int QuantNet::quantize_EQ()
                     {
                         pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
                     }
-                    const int target_w = shape[0];
-                    const int target_h = shape[1];
 
-                    cv::Mat bgr = cv::imread(imagepath, 1);
-
-                    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+                    ncnn::Mat in = read_and_resize_image(shapes[jj], listspaths[jj][ii], pixel_convert_type);
 
                     in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -1117,15 +1178,22 @@ int QuantNet::quantize_EQ()
 
             std::vector<double> avgsims(search_steps, 0.0);
 
-            #pragma omp parallel for num_threads(quantize_num_threads)
+            #pragma omp parallel for num_threads(quantize_num_threads) schedule(static, 1)
             for (int ii = 0; ii < image_count; ii++)
             {
+                if (ii % 100 == 0)
+                {
+                    fprintf(stderr, "search bottom blob scale %.2f%% [ %d / %d ] for %d / %d of %d / %d\n", ii * 100.f / image_count, ii, image_count, j, bottom_blob_scale.w, i, conv_layer_count);
+                }
+
                 ncnn::Extractor ex = create_extractor();
+
+                const int thread_num = ncnn::get_omp_thread_num();
+                ex.set_blob_allocator(&blob_allocators[thread_num]);
+                ex.set_workspace_allocator(&workspace_allocators[thread_num]);
 
                 for (int jj = 0; jj < input_blob_count; jj++)
                 {
-                    const std::string& imagepath = listspaths[jj][ii];
-                    const std::vector<int>& shape = shapes[jj];
                     const int type_to_pixel = type_to_pixels[jj];
                     const std::vector<float>& mean_vals = means[jj];
                     const std::vector<float>& norm_vals = norms[jj];
@@ -1135,12 +1203,8 @@ int QuantNet::quantize_EQ()
                     {
                         pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
                     }
-                    const int target_w = shape[0];
-                    const int target_h = shape[1];
 
-                    cv::Mat bgr = cv::imread(imagepath, 1);
-
-                    ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, pixel_convert_type, bgr.cols, bgr.rows, target_w, target_h);
+                    ncnn::Mat in = read_and_resize_image(shapes[jj], listspaths[jj][ii], pixel_convert_type);
 
                     in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -1263,7 +1327,7 @@ static std::vector<std::vector<std::string> > parse_comma_path_list(char* s)
     return aps;
 }
 
-static float vstr_to_float(const char vstr[16])
+static float vstr_to_float(const char vstr[20])
 {
     double v = 0.0;
 
@@ -1277,7 +1341,7 @@ static float vstr_to_float(const char vstr[16])
     }
 
     // digits before decimal point or exponent
-    unsigned int v1 = 0;
+    uint64_t v1 = 0;
     while (isdigit(*p))
     {
         v1 = v1 * 10 + (*p - '0');
@@ -1291,8 +1355,8 @@ static float vstr_to_float(const char vstr[16])
     {
         p++;
 
-        unsigned int pow10 = 1;
-        unsigned int v2 = 0;
+        uint64_t pow10 = 1;
+        uint64_t v2 = 0;
 
         while (isdigit(*p))
         {
@@ -1317,7 +1381,7 @@ static float vstr_to_float(const char vstr[16])
         }
 
         // digits of exponent
-        unsigned int expon = 0;
+        uint64_t expon = 0;
         while (isdigit(*p))
         {
             expon = expon * 10 + (*p - '0');
@@ -1351,9 +1415,9 @@ static std::vector<std::vector<float> > parse_comma_float_array_list(char* s)
     while (pch != NULL)
     {
         // parse a,b,c
-        char vstr[16];
+        char vstr[20];
         int nconsumed = 0;
-        int nscan = sscanf(pch, "%15[^,]%n", vstr, &nconsumed);
+        int nscan = sscanf(pch, "%19[^,]%n", vstr, &nconsumed);
         if (nscan == 1)
         {
             // ok we get array
@@ -1363,7 +1427,7 @@ static std::vector<std::vector<float> > parse_comma_float_array_list(char* s)
             float v = vstr_to_float(vstr);
             af.push_back(v);
 
-            nscan = sscanf(pch, ",%15[^,]%n", vstr, &nconsumed);
+            nscan = sscanf(pch, ",%19[^,]%n", vstr, &nconsumed);
             while (nscan == 1)
             {
                 pch += nconsumed;
@@ -1371,7 +1435,7 @@ static std::vector<std::vector<float> > parse_comma_float_array_list(char* s)
                 float v = vstr_to_float(vstr);
                 af.push_back(v);
 
-                nscan = sscanf(pch, ",%15[^,]%n", vstr, &nconsumed);
+                nscan = sscanf(pch, ",%19[^,]%n", vstr, &nconsumed);
             }
 
             // array end
@@ -1450,12 +1514,70 @@ static std::vector<int> parse_comma_pixel_type_list(char* s)
     return aps;
 }
 
+static void print_float_array_list(const std::vector<std::vector<float> >& list)
+{
+    for (size_t i = 0; i < list.size(); i++)
+    {
+        const std::vector<float>& array = list[i];
+        fprintf(stderr, "[");
+        for (size_t j = 0; j < array.size(); j++)
+        {
+            fprintf(stderr, "%f", array[j]);
+            if (j != array.size() - 1)
+                fprintf(stderr, ",");
+        }
+        fprintf(stderr, "]");
+        if (i != list.size() - 1)
+            fprintf(stderr, ",");
+    }
+}
+
+static void print_int_array_list(const std::vector<std::vector<int> >& list)
+{
+    for (size_t i = 0; i < list.size(); i++)
+    {
+        const std::vector<int>& array = list[i];
+        fprintf(stderr, "[");
+        for (size_t j = 0; j < array.size(); j++)
+        {
+            fprintf(stderr, "%d", array[j]);
+            if (j != array.size() - 1)
+                fprintf(stderr, ",");
+        }
+        fprintf(stderr, "]");
+        if (i != list.size() - 1)
+            fprintf(stderr, ",");
+    }
+}
+
+static void print_pixel_type_list(const std::vector<int>& list)
+{
+    for (size_t i = 0; i < list.size(); i++)
+    {
+        const int type = list[i];
+        if (type == -233)
+            fprintf(stderr, "RAW");
+        if (type == ncnn::Mat::PIXEL_RGB)
+            fprintf(stderr, "RGB");
+        if (type == ncnn::Mat::PIXEL_BGR)
+            fprintf(stderr, "BGR");
+        if (type == ncnn::Mat::PIXEL_GRAY)
+            fprintf(stderr, "GRAY");
+        if (type == ncnn::Mat::PIXEL_RGBA)
+            fprintf(stderr, "RGBA");
+        if (type == ncnn::Mat::PIXEL_BGRA)
+            fprintf(stderr, "BGRA");
+        if (i != list.size() - 1)
+            fprintf(stderr, ",");
+    }
+}
+
 static void show_usage()
 {
     fprintf(stderr, "Usage: ncnn2table [ncnnparam] [ncnnbin] [list,...] [ncnntable] [(key=value)...]\n");
     fprintf(stderr, "  mean=[104.0,117.0,123.0],...\n");
     fprintf(stderr, "  norm=[1.0,1.0,1.0],...\n");
-    fprintf(stderr, "  shape=[224,224,3],...\n");
+    fprintf(stderr, "  shape=[224,224,3],...[w,h,c] or [w,h] **[0,0] will not resize\n");
     fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  method=kl/aciq/eq\n");
@@ -1519,8 +1641,6 @@ int main(int argc, char** argv)
         const char* key = kv;
         char* value = eqs + 1;
 
-        fprintf(stderr, "%s = %s\n", key, value);
-
         // load mean norm shape
         if (memcmp(key, "mean", 4) == 0)
             net.means = parse_comma_float_array_list(value);
@@ -1567,6 +1687,25 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "malformed thread %d\n", net.quantize_num_threads);
         return -1;
+    }
+
+    // print quantnet config
+    {
+        fprintf(stderr, "mean = ");
+        print_float_array_list(net.means);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "norm = ");
+        print_float_array_list(net.norms);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "shape = ");
+        print_int_array_list(net.shapes);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "pixel = ");
+        print_pixel_type_list(net.type_to_pixels);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "thread = %d\n", net.quantize_num_threads);
+        fprintf(stderr, "method = %s\n", method.c_str());
+        fprintf(stderr, "---------------------------------------\n");
     }
 
     if (method == "kl")

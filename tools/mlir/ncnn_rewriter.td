@@ -54,6 +54,15 @@ def FuseKerasConv2DOpPattern : Pat<
     (NCNN_KerasConv2DOp $x, $weight, $bias, $strides, $padding, $explicit_paddings, $dilations)
 >;
 
+def FuseKerasConv2DOpPattern1 : Pat<
+    (TF_AddV2Op
+        (TF_Conv2DOp $x, $weight, $strides, $use_cudnn_on_gpu, $padding, $explicit_paddings, $data_format, $dilations),
+        $bias
+    ),
+
+    (NCNN_KerasConv2DOp $x, $weight, $bias, $strides, $padding, $explicit_paddings, $dilations)
+>;
+
 def FuseKerasDenseOpPattern : Pat<
     (TF_BiasAddOp
         (TF_MatMulOp $x, $weight, $transpose_a, $transpose_b),
@@ -187,6 +196,15 @@ def FuseInstanceNormAffinePattern : Pat<
         (EqualOperands $rsqrt_var_eps_gamma, $rsqrt_var_eps_gamma_),
         (EqualOperands $mean, $mean_)
     ]
+>;
+
+def FuseSwishPattern : Pat<
+    (TF_MulOp
+        (TF_SigmoidOp $x),
+        $x
+    ),
+
+    (NCNN_SwishOp $x)
 >;
 
 #endif // NCNN_REWRITER_TD

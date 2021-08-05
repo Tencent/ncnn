@@ -51,14 +51,26 @@ NCNN_EXPORT int cpu_support_arm_neon();
 NCNN_EXPORT int cpu_support_arm_vfpv4();
 // asimdhp = aarch64 asimd half precision
 NCNN_EXPORT int cpu_support_arm_asimdhp();
+// asimddp = aarch64 asimd dot product
+NCNN_EXPORT int cpu_support_arm_asimddp();
 
 // avx2 = x86_64 avx2 + fma + f16c
 NCNN_EXPORT int cpu_support_x86_avx2();
+
+// avx = x86_64 avx
+NCNN_EXPORT int cpu_support_x86_avx();
+
+// msa = mips mas
+NCNN_EXPORT int cpu_support_mips_msa();
+// mmi = loongson mmi
+NCNN_EXPORT int cpu_support_loongson_mmi();
 
 // v = riscv vector
 NCNN_EXPORT int cpu_support_riscv_v();
 // zfh = riscv half-precision float
 NCNN_EXPORT int cpu_support_riscv_zfh();
+// vlenb = riscv vector length in bytes
+NCNN_EXPORT int cpu_riscv_vlenb();
 
 // cpu info
 NCNN_EXPORT int get_cpu_count();

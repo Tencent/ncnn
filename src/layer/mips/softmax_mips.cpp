@@ -18,9 +18,8 @@
 #include <math.h>
 
 #if __mips_msa
-#include "mips_mathfun.h"
-
 #include <msa.h>
+#include "msa_mathfun.h"
 #endif // __mips_msa
 
 namespace ncnn {

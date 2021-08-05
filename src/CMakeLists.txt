@@ -27,6 +27,7 @@ set(ncnn_SRCS
     mat.cpp
     mat_pixel.cpp
     mat_pixel_affine.cpp
+    mat_pixel_drawing.cpp
     mat_pixel_resize.cpp
     mat_pixel_rotate.cpp
     modelbin.cpp
@@ -142,6 +143,8 @@ ncnn_add_layer(Softplus)
 ncnn_add_layer(GRU)
 ncnn_add_layer(MultiHeadAttention)
 ncnn_add_layer(GELU)
+ncnn_add_layer(Convolution1D)
+ncnn_add_layer(Pooling1D)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
@@ -152,9 +155,6 @@ add_custom_target(ncnn-generate-spirv DEPENDS ${NCNN_SHADER_SPV_HEX_FILES})
 # create new
 configure_file(layer_declaration.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_declaration.h)
 configure_file(layer_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry.h)
-configure_file(layer_registry_avx2.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry_avx2.h)
-configure_file(layer_registry_arm82.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry_arm82.h)
-configure_file(layer_registry_rvv.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_registry_rvv.h)
 configure_file(layer_type_enum.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h)
 configure_file(layer_shader_registry.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_registry.h)
 configure_file(layer_shader_spv_data.h.in ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_spv_data.h)
@@ -173,7 +173,7 @@ generate_export_header(ncnn)
 
 if(NCNN_SHARED_LIB)
     if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # for cpu_support_x86_avx2
+        # for cpu_support_x86_avx(2)
         target_link_libraries(ncnn PRIVATE gcc)
     endif()
 else()
@@ -186,7 +186,7 @@ if(NCNN_SIMPLESTL)
 
     # do not link gcc lib on darwin and emscripten
     if(CMAKE_CXX_COMPILER_ID MATCHES "(Clang|GNU)" AND NOT CMAKE_SYSTEM_NAME MATCHES "(Darwin|Emscripten)")
-        # for cpu_support_x86_avx2
+        # for cpu_support_x86_avx(2)
         target_link_libraries(ncnn PUBLIC gcc)
     endif()
 endif()
@@ -278,7 +278,7 @@ if(WIN32)
     target_compile_definitions(ncnn PUBLIC NOMINMAX)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
     target_compile_definitions(ncnn PRIVATE _SCL_SECURE_NO_WARNINGS _CRT_SECURE_NO_DEPRECATE)
 
     if(CMAKE_BUILD_TYPE MATCHES "(Release|RELEASE|release)")
@@ -325,7 +325,7 @@ endif()
 
 if(NCNN_TARGET_ARCH STREQUAL "x86")
     if(NCNN_SSE2)
-        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
             target_compile_options(ncnn PRIVATE /arch:SSE2 /D__SSE2__)
         else()
             target_compile_options(ncnn PRIVATE -msse2 -msse)
@@ -336,20 +336,36 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
     endif()
 
     if(NOT NCNN_RUNTIME_CPU AND NCNN_AVX2)
-        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC"))
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
             target_compile_options(ncnn PRIVATE /arch:AVX2)
         else()
             target_compile_options(ncnn PRIVATE -mfma -mf16c -mavx2)
+        endif()
+    elseif(NOT NCNN_RUNTIME_CPU AND NCNN_AVX)
+        if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
+            target_compile_options(ncnn PRIVATE /arch:AVX)
+        else()
+            target_compile_options(ncnn PRIVATE -mavx)
         endif()
     endif()
 endif()
 
 if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)")))
     if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM82)
-        if(NCNN_COMPILER_SUPPORT_ARM82_FP16_DOTPROD)
+        if(NCNN_ARM82DOT)
             target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16+dotprod)
-        elseif(NCNN_COMPILER_SUPPORT_ARM82_FP16)
+        else()
             target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16)
+        endif()
+    endif()
+endif()
+
+if(NCNN_TARGET_ARCH STREQUAL "mips")
+    if(NOT NCNN_RUNTIME_CPU AND NCNN_MSA)
+        if(NCNN_MMI)
+            target_compile_options(ncnn PRIVATE -mmsa -mloongson-mmi)
+        else()
+            target_compile_options(ncnn PRIVATE -mmsa)
         endif()
     endif()
 endif()

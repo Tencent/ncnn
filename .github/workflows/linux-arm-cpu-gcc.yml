@@ -2,23 +2,41 @@ name: linux-arm-cpu-gcc
 on:
   push:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-arm-cpu-gcc.yml'
+    - 'toolchains/arm-linux-gnueabi.toolchain.cmake'
+    - 'toolchains/arm-linux-gnueabihf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'tests/**'
   pull_request:
     branches: [master]
-    paths-ignore: ['**.md']
+    paths:
+    - '.github/workflows/linux-arm-cpu-gcc.yml'
+    - 'toolchains/arm-linux-gnueabi.toolchain.cmake'
+    - 'toolchains/arm-linux-gnueabihf.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'tests/**'
 jobs:
   linux-gcc-arm:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: qemu-install
         key: qemu-arm-install-1
@@ -69,14 +87,14 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.7.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v1
+      uses: actions/cache@v2.1.6
       with:
         path: qemu-install
         key: qemu-arm-install-1
