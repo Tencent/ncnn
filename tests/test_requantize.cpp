@@ -26,6 +26,10 @@ static int test_requantize(const ncnn::Mat& a, int scale_in_data_size, int scale
     ncnn::Mat activation_params(2);
     activation_params[0] = RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);  // beta
+    if (activation_type == 2)
+    {
+        activation_params[0] = RandomFloat(0.001, 1.0); // leakyrelu slope
+    }
     pd.set(3, activation_type);
     pd.set(4, activation_params);
 
@@ -56,6 +60,10 @@ static int test_requantize_pack8(const ncnn::Mat& a, int scale_in_data_size, int
     ncnn::Mat activation_params(2);
     activation_params[0] = RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);  // beta
+    if (activation_type == 2)
+    {
+        activation_params[0] = RandomFloat(0.001, 1.0); // leakyrelu slope
+    }
     pd.set(3, activation_type);
     pd.set(4, activation_params);
 
