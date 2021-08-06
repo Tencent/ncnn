@@ -208,6 +208,92 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
     }
 }
 
+//not tested
+static int rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, unsigned char* to)
+{
+    if (to == NULL || raw == NULL)
+        return -100;
+
+    const int wgap = stride - w * 2; 
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+    uint8_t andOperand[16];
+
+    //little-endian
+    for (int y = 0; y < h; ++y)
+    {
+#if __ARM_NEON
+        int nn = w >> 4;
+        int remain = w - nn << 4;
+#else
+        int remain = w;
+#endif
+#if __ARM_NEON
+        for (; nn > 0; --nn)
+        {
+            uint8x16_t _andOp;
+            uint8x16x2_t _from = vld2q_u8(raw);
+            uint8x16x3_t _rgb;
+            
+            //R channel
+            memset(andOperand, 0xf8, 16);
+            _andOp = vld1q_u8(andOperand);
+            _rgb.val[0] = vandq_u8(_from.val[1], _andOp);
+
+            //G channel
+            memset(andOperand, 0x7, 16);
+            _andOp = vld1q_u8(andOperand);
+            _rgb.val[1] = vshlq_n_u8(vandq_u8(_from.val[1], _andOp), 5);
+            memset(andOperand, 0xe0, 16);
+            _andOp = vld1q_u8(andOperand);
+            _rgb.val[1] = vorrq_u8(_rgb.val[1], vshrq_n_u8(vandq_u8(_from.val[0], _andOp), 3));
+
+            //B channel
+            memset(andOperand, 0x1f, 16);
+            _andOp = vld1q_u8(andOperand);
+            _rgb.val[2] = vshlq_n_u8(vandq_u8(_from.val[0], _andOp), 3);
+
+            vst3q_u8(to, _rgb);
+
+            to += 48;
+            raw += 32;
+        }
+#endif // __ARM_NEON
+        for (; remain > 0; --remain)
+        {
+            //not tested
+            to[0] = raw[1] & 0xf8;
+            unsigned char g_part1 = (raw[1] & 0x7) << 5;
+            unsigned char g_part2 = (raw[0] & 0xe0) >> 3;
+            to[1] = g_part1 | g_part2;
+            to[2] = (raw[0] & 0x1f) << 3;
+
+            to += 3;
+            raw += 2;
+        }
+        raw += wgap;
+    }
+    return 0;
+}
+    
+//not tested
+static int from_rgb565(const unsigned char* rgb565, int w, int h, int stride, Mat& m, Allocator* allocator)
+{
+    unsigned char* converted = new unsigned char[w * h * 3];
+    
+    int return_val = rgb565_to_rgb(rgb565, w, h, stride, converted);
+    if (return_val)
+        return -100;
+    
+    return_val = from_rgb(converted, w, h, w * 3, m, allocator);
+    delete[] converted;
+    return return_val;
+}
+    
 static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     m.create(w, h, 1, 4u, allocator);
