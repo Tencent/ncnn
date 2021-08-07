@@ -227,7 +227,7 @@ static int rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, uns
     {
 #if __ARM_NEON
         int nn = w >> 4;
-        int remain = w - nn << 4;
+        int remain = w - (nn << 4);
 #else
         int remain = w;
 #endif // __ARM_NEON
@@ -237,7 +237,7 @@ static int rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, uns
         for (; nn > 0; --nn)
         {
             uint16x8_t _src = vld1q_u16((uint16_t*)raw);
-            uint8x8x3 _dst;
+            uint8x8x3_t _dst;
 
             _dst.val[0] = vshrn_n_u16(vreinterpretq_u16_u8(vshrq_n_u8(vreinterpretq_u8_u16(_src), 3)), 5);
             _dst.val[1] = vshl_n_u8(vshrn_n_u16(_src, 5), 2);
@@ -297,7 +297,7 @@ static void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, un
                 uint8x8x3_t _src;
                 uint16x8_t _dst;
 
-                _src = vld3_u8(src);
+                _src = vld3_u8(_src);
 
                 _dst = vshll_n_u8(_src.val[0], 8);
                 _dst = vsriq_n_u16(_dst, vshll_n_u8(_src.val[1], 8), 5);
