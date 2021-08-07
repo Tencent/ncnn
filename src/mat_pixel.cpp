@@ -106,15 +106,15 @@ static int from_rgb(const unsigned char* rgb, int w, int h, int stride, Mat& m, 
                 "vst1.f32   {d16-d19}, [%4]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgb),  // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(rgb),  // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(rgb),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(rgb),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10");
         }
 #endif // __aarch64__
@@ -209,10 +209,10 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
 }
 
 //not tested
-static int rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, int to_stride, unsigned char* to)
+void rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, int to_stride, unsigned char* to)
 {
     if (to == NULL || raw == NULL)
-        return -100;
+        return;
 
     const int wgap = stride - w * 2;
     const int to_wgap = to_stride - w * 3;
@@ -265,11 +265,10 @@ static int rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, int
         raw += wgap;
         to += to_wgap;
     }
-    return 0;
 }
 
 //not tested
-static void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, int to_stride, unsigned char* to)
+void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, int to_stride, unsigned char* to)
 {
     if (to == NULL || raw == NULL)
         return;
@@ -327,11 +326,9 @@ static int from_rgb565(const unsigned char* rgb565, int w, int h, int stride, Ma
 {
     unsigned char* rgb = new unsigned char[w * h * 3];
 
-    int return_val = rgb565_to_rgb(rgb565, w, h, stride, w * 3, rgb);
-    if (return_val)
-        return -100;
+    rgb565_to_rgb(rgb565, w, h, stride, w * 3, rgb);
 
-    return_val = from_rgb(rgb, w, h, w * 3, m, allocator);
+    int return_val = from_rgb(rgb, w, h, w * 3, m, allocator);
     delete[] rgb;
     return return_val;
 }
@@ -342,7 +339,7 @@ static void to_rgb565(const Mat& m, unsigned char* rgb565, int stride)
     int w = m.w;
     int h = m.h;
     unsigned char* rgb = new unsigned char[w * h * 3];
-    
+
     to_rgb(m, rgb, w * 3);
 
     rgb_to_rgb565(rgb, w, h, w * 3, stride, rgb565);
@@ -416,11 +413,11 @@ static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m
                 "vst1.f32   {d4-d7}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(gray), // %1
-                "=r"(ptr)   // %2
+                  "=r"(gray), // %1
+                  "=r"(ptr)   // %2
                 : "0"(nn),
-                "1"(gray),
-                "2"(ptr)
+                  "1"(gray),
+                  "2"(ptr)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
         }
 #endif // __aarch64__
@@ -588,17 +585,17 @@ static int from_rgba(const unsigned char* rgba, int w, int h, int stride, Mat& m
                 "vst1.f32   {d20-d23}, [%5]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2), // %4
-                "=r"(ptr3)  // %5
+                  "=r"(rgba), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2), // %4
+                  "=r"(ptr3)  // %5
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2),
-                "5"(ptr3)
+                  "1"(rgba),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2),
+                  "5"(ptr3)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
         }
 #endif // __aarch64__
@@ -784,15 +781,15 @@ static int from_rgb2bgr(const unsigned char* rgb, int w, int h, int stride, Mat&
                 "vst1.f32   {d16-d19}, [%2]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgb),  // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(rgb),  // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(rgb),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(rgb),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10");
         }
 #endif // __aarch64__
@@ -890,7 +887,7 @@ static void to_bgr2rgb_565(const Mat& m, unsigned char* rgb565, int stride)
 {
     int w = m.w;
     int h = m.h;
-    unsigned char* rgb = new unsigned char[h * 1ll *stride];
+    unsigned char* rgb = new unsigned char[w * h * 3ll];
 
     to_bgr2rgb(m, rgb, w * 3);
 
@@ -898,7 +895,6 @@ static void to_bgr2rgb_565(const Mat& m, unsigned char* rgb565, int stride)
 
     delete[] rgb;
 }
-
 
 static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
@@ -975,14 +971,14 @@ static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat
                 "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),  // %0
-                "=r"(rgb), // %1
-                "=r"(ptr)  // %2
+                  "=r"(rgb), // %1
+                  "=r"(ptr)  // %2
                 : "0"(nn),
-                "1"(rgb),
-                "2"(ptr),
-                "r"(R2Y), // %6
-                "r"(G2Y), // %7
-                "r"(B2Y)  // %8
+                  "1"(rgb),
+                  "2"(ptr),
+                  "r"(R2Y), // %6
+                  "r"(G2Y), // %7
+                  "r"(B2Y)  // %8
                 : "cc", "memory", "q0", "q1", "q2", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1165,14 +1161,14 @@ static int from_bgr2gray(const unsigned char* bgr, int w, int h, int stride, Mat
                 "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),  // %0
-                "=r"(bgr), // %1
-                "=r"(ptr)  // %2
+                  "=r"(bgr), // %1
+                  "=r"(ptr)  // %2
                 : "0"(nn),
-                "1"(bgr),
-                "2"(ptr),
-                "r"(R2Y), // %6
-                "r"(G2Y), // %7
-                "r"(B2Y)  // %8
+                  "1"(bgr),
+                  "2"(ptr),
+                  "r"(R2Y), // %6
+                  "r"(G2Y), // %7
+                  "r"(B2Y)  // %8
                 : "cc", "memory", "q0", "q1", "q2", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1365,15 +1361,15 @@ static int from_gray2rgb(const unsigned char* gray, int w, int h, int stride, Ma
                 "vst1.f32   {d4-d7}, [%4]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(gray), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(gray), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(gray),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(gray),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1478,9 +1474,8 @@ static void to_gray2rgba(const Mat& m, unsigned char* rgba, int stride)
 
 static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
-
     m.create(w, h, 3, 4u, allocator);
-  
+
     if (m.empty())
         return -100;
 
@@ -1559,15 +1554,15 @@ static int from_rgba2rgb(const unsigned char* rgba, int w, int h, int stride, Ma
                 "vst1.f32   {d16-d19}, [%4]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(rgba), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(rgba),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1671,15 +1666,15 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
                 "vst1.f32   {d16-d19}, [%2]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2)  // %4
+                  "=r"(rgba), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2)  // %4
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2)
+                  "1"(rgba),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10");
         }
 #endif // __aarch64__
@@ -1704,6 +1699,7 @@ static int from_rgba2bgr(const unsigned char* rgba, int w, int h, int stride, Ma
 
 static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
+    // coeffs for r g b = 0.299f, 0.587f, 0.114f
     const unsigned char Y_shift = 8; //14
     const unsigned char R2Y = 77;
     const unsigned char G2Y = 150;
@@ -1776,14 +1772,14 @@ static int from_rgba2gray(const unsigned char* rgba, int w, int h, int stride, M
                 "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr)   // %2
+                  "=r"(rgba), // %1
+                  "=r"(ptr)   // %2
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr),
-                "r"(R2Y), // %6
-                "r"(G2Y), // %7
-                "r"(B2Y)  // %8
+                  "1"(rgba),
+                  "2"(ptr),
+                  "r"(R2Y), // %6
+                  "r"(G2Y), // %7
+                  "r"(B2Y)  // %8
                 : "cc", "memory", "q0", "q1", "q2", "q8", "q9");
         }
 #endif // __aarch64__
@@ -1897,17 +1893,17 @@ static int from_rgba2bgra(const unsigned char* rgba, int w, int h, int stride, M
                 "vst1.f32   {d20-d23}, [%5]!    \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(rgba), // %1
-                "=r"(ptr0), // %2
-                "=r"(ptr1), // %3
-                "=r"(ptr2), // %4
-                "=r"(ptr3)  // %5
+                  "=r"(rgba), // %1
+                  "=r"(ptr0), // %2
+                  "=r"(ptr1), // %3
+                  "=r"(ptr2), // %4
+                  "=r"(ptr3)  // %5
                 : "0"(nn),
-                "1"(rgba),
-                "2"(ptr0),
-                "3"(ptr1),
-                "4"(ptr2),
-                "5"(ptr3)
+                  "1"(rgba),
+                  "2"(ptr0),
+                  "3"(ptr1),
+                  "4"(ptr2),
+                  "5"(ptr3)
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11");
         }
 #endif // __aarch64__
@@ -2086,14 +2082,14 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
                 "vst1.f32   {d0-d3}, [%2]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),   // %0
-                "=r"(bgra), // %1
-                "=r"(ptr)   // %2
+                  "=r"(bgra), // %1
+                  "=r"(ptr)   // %2
                 : "0"(nn),
-                "1"(bgra),
-                "2"(ptr),
-                "r"(R2Y), // %6
-                "r"(G2Y), // %7
-                "r"(B2Y)  // %8
+                  "1"(bgra),
+                  "2"(ptr),
+                  "r"(R2Y), // %6
+                  "r"(G2Y), // %7
+                  "r"(B2Y)  // %8
                 : "cc", "memory", "q0", "q1", "q2", "q8", "q9");
         }
 #endif // __aarch64__
@@ -2255,22 +2251,22 @@ void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rg
                 "vst3.u8    {d4-d6}, [%5]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),    // %0
-                "=r"(yptr0), // %1
-                "=r"(yptr1), // %2
-                "=r"(vuptr), // %3
-                "=r"(rgb0),  // %4
-                "=r"(rgb1)   // %5
+                  "=r"(yptr0), // %1
+                  "=r"(yptr1), // %2
+                  "=r"(vuptr), // %3
+                  "=r"(rgb0),  // %4
+                  "=r"(rgb1)   // %5
                 : "0"(nn),
-                "1"(yptr0),
-                "2"(yptr1),
-                "3"(vuptr),
-                "4"(rgb0),
-                "5"(rgb1),
-                "w"(_v128), // %12
-                "w"(_v90),  // %13
-                "w"(_v46),  // %14
-                "w"(_v22),  // %15
-                "w"(_v113)  // %16
+                  "1"(yptr0),
+                  "2"(yptr1),
+                  "3"(vuptr),
+                  "4"(rgb0),
+                  "5"(rgb1),
+                  "w"(_v128), // %12
+                  "w"(_v90),  // %13
+                  "w"(_v46),  // %14
+                  "w"(_v22),  // %15
+                  "w"(_v113)  // %16
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12", "d26");
         }
 #endif // __aarch64__
@@ -2446,22 +2442,22 @@ void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned cha
                 "vst3.u8    {d4-d6}, [%5]!      \n"
                 "bne        0b                  \n"
                 : "=r"(nn),    // %0
-                "=r"(yptr0), // %1
-                "=r"(yptr1), // %2
-                "=r"(uvptr), // %3
-                "=r"(rgb0),  // %4
-                "=r"(rgb1)   // %5
+                  "=r"(yptr0), // %1
+                  "=r"(yptr1), // %2
+                  "=r"(uvptr), // %3
+                  "=r"(rgb0),  // %4
+                  "=r"(rgb1)   // %5
                 : "0"(nn),
-                "1"(yptr0),
-                "2"(yptr1),
-                "3"(uvptr),
-                "4"(rgb0),
-                "5"(rgb1),
-                "w"(_v128), // %12
-                "w"(_v90),  // %13
-                "w"(_v46),  // %14
-                "w"(_v22),  // %15
-                "w"(_v113)  // %16
+                  "1"(yptr0),
+                  "2"(yptr1),
+                  "3"(uvptr),
+                  "4"(rgb0),
+                  "5"(rgb1),
+                  "w"(_v128), // %12
+                  "w"(_v90),  // %13
+                  "w"(_v46),  // %14
+                  "w"(_v22),  // %15
+                  "w"(_v113)  // %16
                 : "cc", "memory", "q0", "q1", "q2", "q3", "q8", "q9", "q10", "q11", "q12", "d26");
         }
 #endif // __aarch64__
