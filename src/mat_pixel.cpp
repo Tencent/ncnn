@@ -221,51 +221,39 @@ static int rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, uns
         h = 1;
     }
 
-    uint8_t andOperand[16];
 
     //little-endian
     for (int y = 0; y < h; ++y)
     {
 #if __ARM_NEON
-        int nn = w >> 5;
-        int remain = w - nn << 5;
+        int nn = w >> 4;
+        int remain = w - nn << 4;
 #else
         int remain = w;
-#endif
+#endif // __ARM_NEON
+
 #if __ARM_NEON
+        //optimization code by: developer.arm.com/documentation
         for (; nn > 0; --nn)
         {
-            uint8x16_t _andOp;
-            uint8x16x2_t _from = vld2q_u8(raw);
-            uint8x16x3_t _rgb;
-            
-            //R channel
-            memset(andOperand, 0xf8, 16);
-            _andOp = vld1q_u8(andOperand);
-            _rgb.val[0] = vandq_u8(_from.val[1], _andOp);
+            uint16x8_t _src = vld1q_u16((uint16_t*)raw);
+            uint8x8x3 _dst;
 
-            //G channel
-            memset(andOperand, 0x7, 16);
-            _andOp = vld1q_u8(andOperand);
-            _rgb.val[1] = vshlq_n_u8(vandq_u8(_from.val[1], _andOp), 5);
-            memset(andOperand, 0xe0, 16);
-            _andOp = vld1q_u8(andOperand);
-            _rgb.val[1] = vorrq_u8(_rgb.val[1], vshrq_n_u8(vandq_u8(_from.val[0], _andOp), 3));
+            _dst.val[0] = vshrn_n_u16(vreinterpretq_u16_u8(vshrq_n_u8(vreinterpretq_u8_u16(_src), 3)), 5);
+            _dst.val[1] = vshl_n_u8(vshrn_n_u16(_src, 5), 2);
+            _dst.val[2] = vmovn_u16(vshlq_n_u16(_src, 3));
 
-            //B channel
-            memset(andOperand, 0x1f, 16);
-            _andOp = vld1q_u8(andOperand);
-            _rgb.val[2] = vshlq_n_u8(vandq_u8(_from.val[0], _andOp), 3);
+            vst3_u8(to, _dst);
 
-            vst3q_u8(to, _rgb);
-
-            to += 48;
-            raw += 32;
+            to += 24;
+            raw += 16;
         }
 #endif // __ARM_NEON
+        
+        
         for (; remain > 0; --remain)
         {
-            //not tested
+            //little endian
             to[0] = raw[1] & 0xf8;
             unsigned char g_part1 = (raw[1] & 0x7) << 5;
             unsigned char g_part2 = (raw[0] & 0xe0) >> 3;
@@ -279,19 +267,83 @@ static int rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, uns
     }
     return 0;
 }
-    
+
+//not tested
+static void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, unsigned char* to)
+{
+    if (to == NULL || raw == NULL)
+        return;
+
+    const int wgap = stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+    for (int y = 0; y < h; ++y)
+    {
+#if __ARM_NEON
+            int nn = w / 24;
+            int remain = w - nn * 24;
+#else
+            int remain = w;
+#endif  // __ARM_NEON
+
+#if __ARM_NEON
+            //optimization code by: developer.arm.com/documentation
+            for (; nn > 0; --nn)
+            {
+                uint8x8x3_t _src;
+                uint16x8_t _dst;
+
+                _src = vld3_u8(src);
+
+                _dst = vshll_n_u8(_src.val[0], 8);
+                _dst = vsriq_n_u16(_dst, vshll_n_u8(_src.val[1], 8), 5);
+                _dst = vsriq_n_u16(_dst, vshll_n_u8(_src.val[2], 8), 11);
+
+                vst1q_u16((uint16_t*)to, _dst);
+                to += 16;
+                raw += 24;
+            }
+#endif // __ARM_NEON
+            for (; remain > 0; --remain)
+            {
+                //little-endian
+                to[1] = (raw[0] & 0xf8) | ((raw[1] & 0xe0) >> 5);
+                to[0] = ((raw[1] & 0x1c) << 3) | ((raw[2] & 0xf8) >> 3);
+                raw += 3;
+                to += 2;
+            }
+    }
+}
+
 //not tested
 static int from_rgb565(const unsigned char* rgb565, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
-    unsigned char* converted = new unsigned char[w * h * 3];
+    unsigned char *rgb = new unsigned char[w * h * 3];
     
-    int return_val = rgb565_to_rgb(rgb565, w, h, stride, converted);
+    int return_val = rgb565_to_rgb(rgb565, w, h, stride, rgb);
     if (return_val)
         return -100;
     
-    return_val = from_rgb(converted, w, h, w * 3, m, allocator);
-    delete[] converted;
+    return_val = from_rgb(rgb, w, h, w * 3, m, allocator);
+    delete[] rgb;
     return return_val;
+}
+
+//not tested
+static void to_rgb565(const Mat& m, unsigned char* rgb565, int stride)
+{
+    int w = m.w;
+    int h = m.h;
+    unsigned char *rgb = new unsigned char[w * h * 3];
+
+    to_rgb(m, rgb, stride);
+    
+    rgb_to_rgb565(rgb, w, h, w * 3, rgb565);
+    delete[] rgb;
 }
     
 static int from_gray(const unsigned char* gray, int w, int h, int stride, Mat& m, Allocator* allocator)
