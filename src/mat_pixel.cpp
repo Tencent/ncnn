@@ -297,7 +297,7 @@ static void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, un
                 uint8x8x3_t _src;
                 uint16x8_t _dst;
 
-                _src = vld3_u8(_src);
+                _src = vld3_u8(raw);
 
                 _dst = vshll_n_u8(_src.val[0], 8);
                 _dst = vsriq_n_u16(_dst, vshll_n_u8(_src.val[1], 8), 5);
