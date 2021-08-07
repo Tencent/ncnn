@@ -565,6 +565,10 @@ NCNN_EXPORT void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsig
 NCNN_EXPORT void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // convert yuv420sp(nv21) to rgb with half resize, the faster approximate version
 NCNN_EXPORT void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+// convert rgb565 to rgb
+NCNN_EXPORT void rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, int to_stride, unsigned char* to);
+// convert rgb to rgb565
+NCNN_EXPORT void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, int to_stride, unsigned char* to);
 // image pixel bilinear resize
 NCNN_EXPORT void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 NCNN_EXPORT void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
