@@ -355,6 +355,79 @@ static int test_mat_pixel_yuv420sp2rgb(int w, int h)
     return 0;
 }
 
+
+static int test_mat_pixel_rgb_to_rgb565(int w, int h)
+{
+    unsigned char* testdata_rgb = new unsigned char[w * h * 3];
+    unsigned char* to_rgb565 = new unsigned char[w * h * 2];
+    unsigned char* to_rgb = new unsigned char[w * h * 3];
+    unsigned char* tmp = testdata_rgb;
+    for (int y = 0 ; y < h ; ++y)
+    {
+        for (int x = 0 ; x < w ; ++x)
+        {
+            //precision loss
+            testdata_rgb[0] = (RAND() % 256) & 0xf8;
+            testdata_rgb[1] = (RAND() % 256) & 0xfc;
+            testdata_rgb[2] = (RAND() % 256) & 0xf8;
+            testdata_rgb += 3;
+        }
+    }
+    testdata_rgb = tmp;
+    ncnn::rgb_to_rgb565(testdata_rgb, w, h, w * 3, w * 2, to_rgb565);
+    ncnn::rgb565_to_rgb(to_rgb565, w, h, w * 2, w * 3, to_rgb);
+    if (memcmp(testdata_rgb, to_rgb, w * h * 3) != 0)
+    {
+        delete[] testdata_rgb;
+        delete[] to_rgb565;
+        delete[] to_rgb;
+        fprintf(stderr, "test_mat_pixel_rgb_to_rgb565 failed w=%d h=%d\n", w, h);
+        return -1;
+    }
+    
+
+    delete[] testdata_rgb;
+    delete[] to_rgb565;
+    delete[] to_rgb;
+
+    return 0;
+}
+
+static int test_mat_pixel_rgb565_to_rgb(int w, int h)
+{
+    unsigned char* testdata_rgb565 = new unsigned char[w * h * 2];
+    unsigned char* to_rgb = new unsigned char[w * h * 3];
+    unsigned char* to_rgb565 = new unsigned char[w * h * 2];
+    unsigned char* tmp = testdata_rgb565;
+    for (int y = 0; y < h; ++y)
+    {
+        for (int x = 0; x < w; ++x)
+        {
+            testdata_rgb565[0] = RAND() % 256;
+            testdata_rgb565[1] = RAND() % 256;
+            testdata_rgb565 += 2;
+        }
+    }
+    testdata_rgb565 = tmp;
+    ncnn::rgb565_to_rgb(testdata_rgb565, w, h, w * 2, w * 3, to_rgb);
+    ncnn::rgb_to_rgb565(to_rgb, w, h, w * 3, w * 2, to_rgb565);
+
+    if (memcmp(testdata_rgb565, to_rgb565, w * h * 2) != 0)
+    {
+        fprintf(stderr, "test_mat_pixel_rgb565_to_rgb failed w=%d h=%d\n", w, h);
+        delete[] testdata_rgb565;
+        delete[] to_rgb565;
+        delete[] to_rgb;
+        return -1;
+    }
+
+    delete[] testdata_rgb565;
+    delete[] to_rgb565;
+    delete[] to_rgb;
+
+    return 0;
+}
+
 static int test_mat_pixel_0()
 {
     return 0
@@ -424,6 +497,14 @@ static int test_mat_pixel_6()
            || test_mat_pixel_yuv420sp2rgb(6, 6);
 }
 
+static int test_mat_pixel_8()
+{
+    return 0
+           || test_mat_pixel_rgb_to_rgb565(17, 17)
+           || test_mat_pixel_rgb565_to_rgb(17, 17);
+        
+}
+
 int main()
 {
     SRAND(7767517);
@@ -435,5 +516,6 @@ int main()
            || test_mat_pixel_3()
            || test_mat_pixel_4()
            || test_mat_pixel_5()
-           || test_mat_pixel_6();
+           || test_mat_pixel_6()
+           || test_mat_pixel_8();
 }
