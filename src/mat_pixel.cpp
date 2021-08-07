@@ -227,8 +227,8 @@ static int rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, uns
     for (int y = 0; y < h; ++y)
     {
 #if __ARM_NEON
-        int nn = w >> 4;
-        int remain = w - nn << 4;
+        int nn = w >> 5;
+        int remain = w - nn << 5;
 #else
         int remain = w;
 #endif
