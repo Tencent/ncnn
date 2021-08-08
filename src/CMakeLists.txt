@@ -145,6 +145,7 @@ ncnn_add_layer(MultiHeadAttention)
 ncnn_add_layer(GELU)
 ncnn_add_layer(Convolution1D)
 ncnn_add_layer(Pooling1D)
+ncnn_add_layer(Convolution3D)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)

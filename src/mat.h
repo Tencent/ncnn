@@ -188,6 +188,8 @@ public:
     const Mat channel(int c) const;
     float* row(int y);
     const float* row(int y) const;
+    float* plane(int d);
+    const float* plane(int d) const;
     template<typename T>
     T* row(int y);
     template<typename T>
@@ -1251,6 +1253,16 @@ inline float* Mat::row(int y)
 inline const float* Mat::row(int y) const
 {
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
+}
+
+inline float* Mat::plane(int d)
+{
+    return (float*)((unsigned char*)data + (size_t)w * (size_t)h * d * elemsize);
+}
+
+inline const float* Mat::plane(int d) const
+{
+    return (const float*)((unsigned char*)data + (size_t)w * (size_t)h * d * elemsize);
 }
 
 template<typename T>
