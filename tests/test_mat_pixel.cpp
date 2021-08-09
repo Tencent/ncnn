@@ -404,8 +404,8 @@ static int test_mat_pixel_hsv(int w, int h)
     // Test 1: hsv <-> rgb
     ncnn::Mat rgb(w, h, 3u, 3);
     ncnn::Mat hsv1(w, h, 3u, 3);
-    hsv2rgb(hsv, w, h, w * 3, rgb);
-    rgb2hsv(rgb, w, h, w * 3, hsv1);
+    hsv2rgb(hsv, w, h, w * 3, w * 3, rgb);
+    rgb2hsv(rgb, w, h, w * 3, w * 3, hsv1);
     if (memcmp_hsv(hsv, hsv1, w * h * 3, tol) != 0)
     {
         fprintf(stderr, "test_mat_pixel_hsv hsv<->rgb failed w=%d h=%d tolerance=%d\n", w, h, tol);
@@ -415,8 +415,8 @@ static int test_mat_pixel_hsv(int w, int h)
     // Test 2: hsv <-> bgr
     ncnn::Mat bgr(w, h, 3u, 3);
     ncnn::Mat hsv2(w, h, 3u, 3);
-    hsv2bgr(hsv, w, h, w * 3, bgr);
-    bgr2hsv(bgr, w, h, w * 3, hsv2);
+    hsv2bgr(hsv, w, h, w * 3, w * 3, bgr);
+    bgr2hsv(bgr, w, h, w * 3, w * 3, hsv2);
     if (memcmp_hsv(hsv, hsv2, w * h * 3, tol) != 0)
     {
         fprintf(stderr, "test_mat_pixel_hsv hsv<->bgr failed w=%d h=%d tolerance=%d\n", w, h, tol);
@@ -427,8 +427,8 @@ static int test_mat_pixel_hsv(int w, int h)
     ncnn::Mat gray = RandomMat(w, h, 1);
     ncnn::Mat gray1(w, h, 1u, 1);
     ncnn::Mat hsv3(w, h, 3u, 3);
-    gray2hsv(gray, w, h, w, hsv3);
-    hsv2gray(hsv3, w, h, w * 3, gray1);
+    gray2hsv(gray, w, h, w, w * 3, hsv3);
+    hsv2gray(hsv3, w, h, w * 3, w, gray1);
     if (memcmp(gray, gray1, w * h) != 0)
     {
         fprintf(stderr, "test_mat_pixel_hsv hsv<->gray failed w=%d h=%d\n", w, h);
@@ -438,8 +438,8 @@ static int test_mat_pixel_hsv(int w, int h)
     // Test 4: hsv <-> rgba
     ncnn::Mat rgba(w, h, 4u, 4);
     ncnn::Mat hsv4(w, h, 3u, 3);
-    hsv2rgba(hsv, w, h, w * 3, rgba);
-    rgba2hsv(rgba, w, h, w * 4, hsv4);
+    hsv2rgba(hsv, w, h, w * 3, w * 4, rgba);
+    rgba2hsv(rgba, w, h, w * 4, w * 3, hsv4);
     if (memcmp_hsv(hsv, hsv4, w * h * 3, tol) != 0)
     {
         fprintf(stderr, "test_mat_pixel_hsv hsv<->rgba failed w=%d h=%d tolerance=%d\n", w, h, tol);
@@ -449,8 +449,8 @@ static int test_mat_pixel_hsv(int w, int h)
     // Test 5: hsv <-> bgra
     ncnn::Mat bgra(w, h, 4u, 4);
     ncnn::Mat hsv5(w, h, 3u, 3);
-    hsv2bgra(hsv, w, h, w * 3, bgra);
-    bgra2hsv(bgra, w, h, w * 4, hsv5);
+    hsv2bgra(hsv, w, h, w * 3, w * 4, bgra);
+    bgra2hsv(bgra, w, h, w * 4, w * 3, hsv5);
     if (memcmp_hsv(hsv, hsv5, w * h * 3, tol) != 0)
     {
         fprintf(stderr, "test_mat_pixel_hsv hsv<->bgra failed w=%d h=%d tolerance=%d\n", w, h, tol);

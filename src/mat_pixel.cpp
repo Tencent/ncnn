@@ -2437,9 +2437,10 @@ void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rg
     }
 }
 
-void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* rgb)
+void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* rgb)
 {
     const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 3;
     if (wgap == 0)
     {
         w = w * h;
@@ -2781,13 +2782,14 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
 #undef SATURATE_CAST_UCHAR
 
         hsv += wgap;
-        rgb += wgap;
+        rgb += to_wgap;
     }
 }
 
-void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* hsv)
+void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, int to_stride, unsigned char* hsv)
 {
     const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 3;
     if (wgap == 0)
     {
         w = w * h;
@@ -2950,13 +2952,14 @@ void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, unsigned char* 
 
 #undef SATURATE_CAST_UCHAR
         rgb += wgap;
-        hsv += wgap;
+        hsv += to_wgap;
     }
 }
 
-void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* bgr)
+void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* bgr)
 {
     const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 3;
     if (wgap == 0)
     {
         w = w * h;
@@ -3298,13 +3301,14 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, unsigned char* 
 #undef SATURATE_CAST_UCHAR
 
         hsv += wgap;
-        bgr += wgap;
+        bgr += to_wgap;
     }
 }
 
-void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* hsv)
+void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, int to_stride, unsigned char* hsv)
 {
     const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 3;
     if (wgap == 0)
     {
         w = w * h;
@@ -3467,13 +3471,14 @@ void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, unsigned char* 
 
 #undef SATURATE_CAST_UCHAR
         bgr += wgap;
-        hsv += wgap;
+        hsv += to_wgap;
     }
 }
 
-void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char* gray)
+void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* gray)
 {
     const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w;
     if (wgap == 0)
     {
         w = w * h;
@@ -3827,13 +3832,14 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, unsigned char*
 #undef SATURATE_CAST_UCHAR
 
         hsv += wgap;
-        gray += wgap;
+        gray += to_wgap;
     }
 }
 
-void gray2hsv(const unsigned char* gray, int w, int h, int stride, unsigned char* hsv)
+void gray2hsv(const unsigned char* gray, int w, int h, int stride, int to_stride, unsigned char* hsv)
 {
     const int wgap = stride - w;
+    const int to_wgap = to_stride - w * 3;
     if (wgap == 0)
     {
         w = w * h;
@@ -3878,13 +3884,14 @@ void gray2hsv(const unsigned char* gray, int w, int h, int stride, unsigned char
         }
 
         gray += wgap;
-        hsv += wgap;
+        hsv += to_wgap;
     }
 }
 
-void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char* rgba)
+void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* rgba)
 {
     const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 4;
     if (wgap == 0)
     {
         w = w * h;
@@ -4231,13 +4238,14 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, unsigned char*
 #undef SATURATE_CAST_UCHAR
 
         hsv += wgap;
-        rgba += wgap;
+        rgba += to_wgap;
     }
 }
 
-void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char* hsv)
+void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, int to_stride, unsigned char* hsv)
 {
     const int wgap = stride - w * 4;
+    const int to_wgap = to_stride - w * 3;
     if (wgap == 0)
     {
         w = w * h;
@@ -4400,13 +4408,14 @@ void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, unsigned char
 
 #undef SATURATE_CAST_UCHAR
         rgba += wgap;
-        hsv += wgap;
+        hsv += to_wgap;
     }
 }
 
-void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char* bgra)
+void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* bgra)
 {
     const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 4;
     if (wgap == 0)
     {
         w = w * h;
@@ -4753,13 +4762,14 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, unsigned char*
 #undef SATURATE_CAST_UCHAR
 
         hsv += wgap;
-        bgra += wgap;
+        bgra += to_wgap;
     }
 }
 
-void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char* hsv)
+void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, int to_stride, unsigned char* hsv)
 {
     const int wgap = stride - w * 4;
+    const int to_wgap = to_stride - w * 3;
     if (wgap == 0)
     {
         w = w * h;
@@ -4922,7 +4932,7 @@ void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, unsigned char
 
 #undef SATURATE_CAST_UCHAR
         bgra += wgap;
-        hsv += wgap;
+        hsv += to_wgap;
     }
 }
 
