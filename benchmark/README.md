@@ -1372,6 +1372,83 @@ gpu_device = -1
     mobilenet_yolov3  min = 1178.09  max = 1186.41  avg = 1181.39
 ```
 
+### NanoPi R2S, Rockchip RK3328 (Cortex-A53 1.3GHz x 4) Armbian focal (21.05.1) aarch64
+```
+root@nanopi-r2s:~/ncnn/build/benchmark# ./benchncnn 8 4 0
+loop_count = 8
+num_threads = 4
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   62.20  max =   62.81  avg =   62.49
+     squeezenet_int8  min =   57.92  max =   71.46  avg =   59.76
+           mobilenet  min =   82.88  max =   89.36  avg =   84.52
+      mobilenet_int8  min =   57.16  max =   96.22  avg =   62.29
+        mobilenet_v2  min =   73.68  max =   75.92  avg =   74.17
+        mobilenet_v3  min =   59.57  max =   60.14  avg =   59.84
+          shufflenet  min =   52.34  max =   52.70  avg =   52.53
+       shufflenet_v2  min =   45.51  max =   45.92  avg =   45.73
+             mnasnet  min =   67.75  max =   83.15  avg =   69.82
+     proxylessnasnet  min =   81.70  max =   83.66  avg =   82.31
+     efficientnet_b0  min =  121.10  max =  123.22  avg =  121.55
+   efficientnetv2_b0  min =  138.93  max =  192.15  avg =  154.94
+        regnety_400m  min =   99.62  max =  116.29  avg =  101.97
+           blazeface  min =   18.80  max =   19.15  avg =   19.01
+           googlenet  min =  176.36  max =  202.84  avg =  181.86
+      googlenet_int8  min =  155.50  max =  190.50  avg =  161.20
+            resnet18  min =  165.79  max =  201.57  avg =  172.56
+       resnet18_int8  min =  122.24  max =  160.53  avg =  134.24
+             alexnet  min =  227.07  max =  238.09  avg =  232.19
+          vgg16_int8  min =  522.14  max =  551.75  avg =  531.68
+            resnet50  min =  378.30  max =  440.21  avg =  388.56
+       resnet50_int8  min =  315.76  max =  373.97  avg =  329.88
+      squeezenet_ssd  min =  175.37  max =  200.86  avg =  179.01
+ squeezenet_ssd_int8  min =  134.71  max =  147.57  avg =  136.57
+       mobilenet_ssd  min =  174.43  max =  212.11  avg =  180.61
+  mobilenet_ssd_int8  min =  119.41  max =  153.75  avg =  124.21
+      mobilenet_yolo  min =  366.27  max =  422.67  avg =  383.65
+  mobilenetv2_yolov3  min =  238.56  max =  281.97  avg =  247.56
+         yolov4-tiny  min =  311.45  max =  333.32  avg =  316.79
+           nanodet_m  min =  114.15  max =  122.39  avg =  115.44
+           
+root@nanopi-r2s:~/ncnn/build/benchmark# ./benchncnn 8 2 0
+loop_count = 8
+num_threads = 2
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   89.02  max =   90.52  avg =   89.35
+     squeezenet_int8  min =   81.19  max =   81.90  avg =   81.42
+           mobilenet  min =  131.47  max =  134.39  avg =  132.34
+      mobilenet_int8  min =  102.20  max =  103.03  avg =  102.66
+        mobilenet_v2  min =  102.40  max =  108.12  avg =  103.91
+        mobilenet_v3  min =   89.17  max =   90.10  avg =   89.53
+          shufflenet  min =   65.74  max =   68.86  avg =   66.50
+       shufflenet_v2  min =   62.83  max =   64.41  avg =   63.25
+             mnasnet  min =   98.01  max =   98.24  avg =   98.14
+     proxylessnasnet  min =  121.10  max =  123.55  avg =  121.80
+     efficientnet_b0  min =  187.79  max =  188.41  avg =  188.08
+   efficientnetv2_b0  min =  211.96  max =  213.99  avg =  212.74
+        regnety_400m  min =  124.98  max =  125.49  avg =  125.28
+           blazeface  min =   24.91  max =   25.14  avg =   25.00
+           googlenet  min =  278.47  max =  283.24  avg =  280.79
+      googlenet_int8  min =  243.81  max =  247.82  avg =  245.30
+            resnet18  min =  257.46  max =  259.29  avg =  258.29
+       resnet18_int8  min =  187.18  max =  188.74  avg =  187.70
+             alexnet  min =  384.52  max =  387.07  avg =  385.84
+          vgg16_int8  min =  897.26  max =  901.68  avg =  899.19
+            resnet50  min =  618.85  max =  623.92  avg =  620.85
+       resnet50_int8  min =  512.33  max =  514.93  avg =  513.64
+      squeezenet_ssd  min =  211.21  max =  218.71  avg =  213.02
+ squeezenet_ssd_int8  min =  193.32  max =  193.97  avg =  193.70
+       mobilenet_ssd  min =  271.11  max =  275.58  avg =  272.06
+  mobilenet_ssd_int8  min =  208.80  max =  209.59  avg =  209.05
+      mobilenet_yolo  min =  570.55  max =  575.98  avg =  572.73
+  mobilenetv2_yolov3  min =  329.04  max =  353.84  avg =  340.42
+         yolov4-tiny  min =  435.16  max =  463.68  avg =  457.69
+           nanodet_m  min =  155.70  max =  159.13  avg =  156.50
+```
+
 ### Rockchip RK3288 (Cortex-A17 1.8GHz x 4)
 ```
 root@rk3288:/data/local/tmp/ncnn # ./benchncnn 8 4 0
