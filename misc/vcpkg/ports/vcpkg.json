@@ -1,0 +1,9 @@
+{
+  "name": "ncnn",
+  "version-string": "20210720",
+  "homepage": "https://github.com/tencent/ncnn",
+  "description": "ncnn is a high-performance neural network inference computing framework optimized for mobile platforms. ",
+  "dependencies": [],
+
+  "default-features": []
+}

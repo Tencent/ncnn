@@ -1,0 +1,9 @@
+{
+    "versions": [
+      {
+        "git-tree": "git rev-parse COMMIT-ID:path/to/port",
+        "version-semver": "20210720",
+        "port-version": 0
+      }
+    ]
+  }
