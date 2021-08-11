@@ -55,34 +55,32 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
                 for (int k = 0; k < maxk; k++)
                 {
 #if RVV_SPEC_0_7
-                    asm volatile
-                            (   
-                             "mv        t3,     %[LEN]  \n\t"
-                             "mv        t1,     %[SRC]  \n\t"
-                             "mv        t2,     %[TMP]  \n\t"
-                             "slli      t3,     t3,     1       \n\t"
-                             "vle.v     v0,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v1,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v2,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v3,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v4,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v5,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v6,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v7,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vsseg8e.v v0,     (t2)    \n\t"
-                             :   
-                             :[LEN]"r"(packn), [SRC]"r"(img0), [TMP]"r"(tmpptr)
-                             :"cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "t1", "t2", "t3"
-                            );  
-                        
+                    asm volatile(
+                        "mv        t3,     %[LEN]  \n\t"
+                        "mv        t1,     %[SRC]  \n\t"
+                        "mv        t2,     %[TMP]  \n\t"
+                        "slli      t3,     t3,     1       \n\t"
+                        "vle.v     v0,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v1,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v2,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v3,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v4,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v5,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v6,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v7,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vsseg8e.v v0,     (t2)    \n\t"
+                        :
+                        : [LEN] "r"(packn), [SRC] "r"(img0), [TMP] "r"(tmpptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "t1", "t2", "t3");
+
                     img0 += size * packn;
                     tmpptr += packn * 8;
 
@@ -121,24 +119,22 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
                 for (int k = 0; k < maxk; k++)
                 {
 #if RVV_SPEC_0_7
-                    asm volatile
-                            (
-                             "mv        t3,     %[LEN]  \n\t"
-                             "mv        t1,     %[SRC]  \n\t"
-                             "mv        t2,     %[TMP]  \n\t"
-                             "slli      t3,     t3,     1       \n\t"
-                             "vle.v     v0,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v1,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v2,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v3,     (t1)    \n\t"
-                             "vsseg4e.v v0,     (t2)    \n\t"
-                             :
-                             :[LEN]"r"(packn), [SRC]"r"(img0), [TMP]"r"(tmpptr)
-                             :"cc", "memory", "v0", "v1", "v2", "v3", "t1", "t2", "t3"
-                            );
+                    asm volatile(
+                        "mv        t3,     %[LEN]  \n\t"
+                        "mv        t1,     %[SRC]  \n\t"
+                        "mv        t2,     %[TMP]  \n\t"
+                        "slli      t3,     t3,     1       \n\t"
+                        "vle.v     v0,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v1,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v2,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v3,     (t1)    \n\t"
+                        "vsseg4e.v v0,     (t2)    \n\t"
+                        :
+                        : [LEN] "r"(packn), [SRC] "r"(img0), [TMP] "r"(tmpptr)
+                        : "cc", "memory", "v0", "v1", "v2", "v3", "t1", "t2", "t3");
 
                     img0 += size * packn;
                     tmpptr += packn * 4;
@@ -174,20 +170,18 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
                 for (int k = 0; k < maxk; k++)
                 {
 #if RVV_SPEC_0_7
-                    asm volatile
-                            (
-                             "mv        t3,     %[LEN]  \n\t"
-                             "mv        t1,     %[SRC]  \n\t"
-                             "mv        t2,     %[TMP]  \n\t"
-                             "slli      t3,     t3,     1       \n\t"
-                             "vle.v     v0,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             "vle.v     v1,     (t1)    \n\t"
-                             "add       t1,     t1,     t3      \n\t"
-                             :
-                             :[LEN]"r"(packn), [SRC]"r"(img0), [TMP]"r"(tmpptr)
-                             :"cc", "memory", "v0", "v1", "t1", "t2", "t3"
-                            );
+                    asm volatile(
+                        "mv        t3,     %[LEN]  \n\t"
+                        "mv        t1,     %[SRC]  \n\t"
+                        "mv        t2,     %[TMP]  \n\t"
+                        "slli      t3,     t3,     1       \n\t"
+                        "vle.v     v0,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        "vle.v     v1,     (t1)    \n\t"
+                        "add       t1,     t1,     t3      \n\t"
+                        :
+                        : [LEN] "r"(packn), [SRC] "r"(img0), [TMP] "r"(tmpptr)
+                        : "cc", "memory", "v0", "v1", "t1", "t2", "t3");
 
                     img0 += size * packn;
                     tmpptr += packn * 2;
