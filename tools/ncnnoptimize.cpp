@@ -29,7 +29,7 @@
 
 // ncnn private header
 #include "modelwriter.h"
-
+#pragma warning(disable : 4267)
 class DataReaderFromEmpty : public ncnn::DataReader
 {
 public:

@@ -94,7 +94,7 @@
 
 // for gen_random_weight
 #include "../tests/prng.h"
-
+#pragma warning(disable : 4267 4305)
 static struct prng_rand_t g_prng_rand_state;
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND()      prng_rand(&g_prng_rand_state)
