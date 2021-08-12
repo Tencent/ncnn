@@ -17,7 +17,7 @@
 
 #include <math.h>
 #include "mat.h"
-
+#pragma warning(disable : 4244)
 static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)

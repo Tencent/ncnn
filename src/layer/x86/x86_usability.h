@@ -14,7 +14,7 @@
 
 #ifndef X86_USABILITY_H
 #define X86_USABILITY_H
-
+#pragma warning(disable : 4244)
 static inline signed char float2int8(float v)
 {
     int int32 = round(v);
