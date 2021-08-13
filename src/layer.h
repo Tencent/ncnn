@@ -29,7 +29,7 @@
 
 #include <vulkan/vulkan.h>
 #endif // NCNN_VULKAN
-
+#pragma warning(disable : 4251)
 namespace ncnn {
 
 class NCNN_EXPORT Layer
