@@ -201,9 +201,27 @@ target_include_directories(ncnn
 
 if(NCNN_OPENMP)
     if(NOT NCNN_SIMPLEOMP)
+        if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
+            set(_NCNN_USE_STATIC_OPENMP TRUE)
+        else()
+            set(_NCNN_USE_STATIC_OPENMP FALSE)
+        endif()
+
+        # save original suffixes, set expected suffixes as .a
+        if(_NCNN_USE_STATIC_OPENMP)
+            set(_openmp_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+            set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
+        endif()
+
         find_package(OpenMP)
+        
+        # restore original suffixes
+        if(_NCNN_USE_STATIC_OPENMP)
+            set(CMAKE_FIND_LIBRARY_SUFFIXES ${_openmp_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES})
+        endif()
+
         if(NOT TARGET OpenMP::OpenMP_CXX AND (OpenMP_CXX_FOUND OR OPENMP_FOUND))
-            target_compile_options(ncnn PUBLIC ${OpenMP_CXX_FLAGS})
+            target_compile_options(ncnn PRIVATE ${OpenMP_CXX_FLAGS})
         endif()
     endif()
 
@@ -214,17 +232,14 @@ if(NCNN_OPENMP)
 
         if(NCNN_SIMPLEOMP)
             if(IOS OR APPLE)
-                target_compile_options(ncnn PUBLIC -Xpreprocessor -fopenmp)
+                target_compile_options(ncnn PRIVATE -Xpreprocessor -fopenmp)
             else()
-                target_compile_options(ncnn PUBLIC -fopenmp)
+                target_compile_options(ncnn PRIVATE -fopenmp)
             endif()
-        elseif(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER 20))
-            target_compile_options(ncnn PUBLIC -fopenmp)
-            target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
         elseif(OpenMP_CXX_FOUND)
-            target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
+            target_link_libraries(ncnn PRIVATE OpenMP::OpenMP_CXX)
         else()
-            target_link_libraries(ncnn PUBLIC "${OpenMP_CXX_FLAGS}")
+            target_link_libraries(ncnn PRIVATE "${OpenMP_CXX_FLAGS}")
         endif()
     endif()
 endif()
