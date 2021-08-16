@@ -256,7 +256,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             for (int j = 0; j < nn; j++)
             {
-#if RVV_SPEC_0_7                
+#if RVV_SPEC_0_7
                 vfloat16m1_t _v0 = vle16_v_f16m1(tmpptr, vl);
                 vfloat16m1_t _val0 = vrgathervx_float16xm1(_v0, 0, vl);
                 vfloat16m1_t _val1 = vrgathervx_float16xm1(_v0, 1, vl);
@@ -338,7 +338,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             for (int j = 0; j < nn; j++)
             {
-#if RVV_SPEC_0_7                
+#if RVV_SPEC_0_7
                 vfloat16m1_t _v0 = vle16_v_f16m1(tmpptr, vl / 2);
                 vfloat16m1_t _val0 = vrgathervx_float16xm1(_v0, 0, vl);
                 vfloat16m1_t _val1 = vrgathervx_float16xm1(_v0, 1, vl);
@@ -396,7 +396,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             for (int j = 0; j < nn; j++)
             {
-#if RVV_SPEC_0_7                
+#if RVV_SPEC_0_7
                 vfloat16m1_t _v0 = vle16_v_f16m1(tmpptr, vl / 4);
                 vfloat16m1_t _val0 = vrgathervx_float16xm1(_v0, 0, vl);
                 vfloat16m1_t _val1 = vrgathervx_float16xm1(_v0, 1, vl);
@@ -442,7 +442,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
             for (int j = 0; j < nn; j++)
             {
-#if RVV_SPEC_0_7                  
+#if RVV_SPEC_0_7
                 vfloat16m1_t _v0 = vle16_v_f16m1(tmpptr++, vl / 8);
                 vfloat16m1_t _val0 = vrgathervx_float16xm1(_v0, 0, vl);
 
