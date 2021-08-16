@@ -41,6 +41,8 @@ Quantize_arm::Quantize_arm()
 
 int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    FPSCRGuard fpscr_guard;
+
     int elembits = bottom_blob.elembits();
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
