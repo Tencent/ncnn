@@ -21,6 +21,8 @@ class FPSCRGuard
 public:
     FPSCRGuard()
     {
+        // set round mode to round to nearest for armv7
+        // this impacts all vcvtr instructions in guarded scope
         asm volatile(
             "vmrs   %0, FPSCR               \n"
             "bic    r10, %0, #0x00c00000    \n"
