@@ -27,8 +27,7 @@ public:
             "vmsr   FPSCR, r10              \n"
             : "=r"(FPSCR_value)
             :
-            : "memory", "r10"
-        );
+            : "memory", "r10");
     }
 
     ~FPSCRGuard()
@@ -37,8 +36,7 @@ public:
             "vmsr   FPSCR, %0           \n"
             :
             : "r"(FPSCR_value)
-            : "memory"
-        );
+            : "memory");
     }
 
 private:
