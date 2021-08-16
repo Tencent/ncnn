@@ -42,6 +42,8 @@ Requantize_arm::Requantize_arm()
 
 int Requantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    FPSCRGuard fpscr_guard;
+
     int dims = bottom_blob.dims;
     int elempack = bottom_blob.elempack;
 
