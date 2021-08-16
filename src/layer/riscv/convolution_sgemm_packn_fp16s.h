@@ -458,6 +458,7 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
                 _sum = vfmacc_vv_f16m1(_sum, _val0, _w0, vl);
 
                 kptr0 += packn;
+#endif 
             }
 
             vse16_v_f16m1(outptr0, _sum, vl);
