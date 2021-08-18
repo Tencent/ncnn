@@ -38,6 +38,11 @@ size_t DataReader::read(void* /*buf*/, size_t /*size*/) const
     return 0;
 }
 
+size_t DataReader::reference(size_t /*size*/, const void** /*buf*/) const
+{
+    return 0;
+}
+
 #if NCNN_STDIO
 class DataReaderFromStdioPrivate
 {
@@ -133,6 +138,13 @@ int DataReaderFromMemory::scan(const char* format, void* p) const
 size_t DataReaderFromMemory::read(void* buf, size_t size) const
 {
     memcpy(buf, d->mem, size);
+    d->mem += size;
+    return size;
+}
+
+size_t DataReaderFromMemory::reference(size_t size, const void** buf) const
+{
+    *buf = d->mem;
     d->mem += size;
     return size;
 }
