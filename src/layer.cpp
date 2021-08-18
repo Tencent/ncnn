@@ -253,13 +253,13 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
+#if NCNN_RUNTIME_CPU && NCNN_ARM82
     if (ncnn::cpu_support_arm_asimdhp())
     {
         layer_creator = layer_registry_arm82[index].creator;
     }
     else
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
 #if NCNN_RUNTIME_CPU && NCNN_MMI
     if (ncnn::cpu_support_mips_msa() && ncnn::cpu_support_loongson_mmi())
     {

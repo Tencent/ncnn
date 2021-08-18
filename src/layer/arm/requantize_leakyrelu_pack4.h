@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_in_data, const Mat& scale_out_data, const Mat& bias_data, const Option& opt)
+static void requantize_leakyrelu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& scale_in_data, const Mat& scale_out_data, const Mat& bias_data, float slope, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -25,11 +25,11 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
     int scale_out_data_size = scale_out_data.w;
     int bias_data_size = bias_data.w;
 
-    // int8(relu(v * scale_in) * scale_out)
-    // int8_relu(v * (scale_in * scale_out))
+    // int8(leakyrelu(v * scale_in, slope) * scale_out)
+    // int8_leakyrelu(v * (scale_in * scale_out), slope)
 
-    // int8(relu(v * scale_in + bias) * scale_out)
-    // int8_relu(v * (scale_in * scale_out) + (bias * scale_out))
+    // int8(leakyrelu(v * scale_in + bias, slope) * scale_out)
+    // int8_leakyrelu(v * (scale_in * scale_out) + (bias * scale_out), slope)
 
     if (out_elempack == 8)
     {
@@ -49,6 +49,7 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                 float32x4_t _scale0 = vmulq_f32(_scale_in0, _scale_out0);
                 float32x4_t _scale1 = vmulq_f32(_scale_in1, _scale_out1);
+                float32x4_t _slope = vdupq_n_f32(slope);
 
                 int i = 0;
 #if __aarch64__
@@ -70,10 +71,10 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                     _v11 = vmulq_f32(_v11, _scale1);
                     _v12 = vmulq_f32(_v12, _scale1);
                     _v13 = vmulq_f32(_v13, _scale1);
-                    vst1_s8(ptr, float2int8relu(_v00, _v10));
-                    vst1_s8(ptr + 8, float2int8relu(_v01, _v11));
-                    vst1_s8(ptr + 16, float2int8relu(_v02, _v12));
-                    vst1_s8(ptr + 24, float2int8relu(_v03, _v13));
+                    vst1_s8(ptr, float2int8leakyrelu(_v00, _v10, _slope));
+                    vst1_s8(ptr + 8, float2int8leakyrelu(_v01, _v11, _slope));
+                    vst1_s8(ptr + 16, float2int8leakyrelu(_v02, _v12, _slope));
+                    vst1_s8(ptr + 24, float2int8leakyrelu(_v03, _v13, _slope));
 
                     intptr0 += 16;
                     intptr1 += 16;
@@ -86,7 +87,7 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                     float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr1));
                     _v0 = vmulq_f32(_v0, _scale0);
                     _v1 = vmulq_f32(_v1, _scale1);
-                    vst1_s8(ptr, float2int8relu(_v0, _v1));
+                    vst1_s8(ptr, float2int8leakyrelu(_v0, _v1, _slope));
 
                     intptr0 += 4;
                     intptr1 += 4;
@@ -114,6 +115,7 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 float32x4_t _scale1 = vmulq_f32(_scale_in1, _scale_out1);
                 _bias0 = vmulq_f32(_bias0, _scale_out0);
                 _bias1 = vmulq_f32(_bias1, _scale_out1);
+                float32x4_t _slope = vdupq_n_f32(slope);
 
                 int i = 0;
 #if __aarch64__
@@ -135,10 +137,10 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                     _v11 = vfmaq_f32(_bias1, _v11, _scale1);
                     _v12 = vfmaq_f32(_bias1, _v12, _scale1);
                     _v13 = vfmaq_f32(_bias1, _v13, _scale1);
-                    vst1_s8(ptr, float2int8relu(_v00, _v10));
-                    vst1_s8(ptr + 8, float2int8relu(_v01, _v11));
-                    vst1_s8(ptr + 16, float2int8relu(_v02, _v12));
-                    vst1_s8(ptr + 24, float2int8relu(_v03, _v13));
+                    vst1_s8(ptr, float2int8leakyrelu(_v00, _v10, _slope));
+                    vst1_s8(ptr + 8, float2int8leakyrelu(_v01, _v11, _slope));
+                    vst1_s8(ptr + 16, float2int8leakyrelu(_v02, _v12, _slope));
+                    vst1_s8(ptr + 24, float2int8leakyrelu(_v03, _v13, _slope));
 
                     intptr0 += 16;
                     intptr1 += 16;
@@ -156,8 +158,8 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                     _v01 = vfmaq_f32(_bias0, _v01, _scale0);
                     _v10 = vfmaq_f32(_bias1, _v10, _scale1);
                     _v11 = vfmaq_f32(_bias1, _v11, _scale1);
-                    vst1_s8(ptr, float2int8relu(_v00, _v10));
-                    vst1_s8(ptr + 8, float2int8relu(_v01, _v11));
+                    vst1_s8(ptr, float2int8leakyrelu(_v00, _v10, _slope));
+                    vst1_s8(ptr + 8, float2int8leakyrelu(_v01, _v11, _slope));
 
                     intptr0 += 8;
                     intptr1 += 8;
@@ -185,6 +187,105 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "vmla.f32       q1, q5, %q6     \n"
                         "vmla.f32       q2, q6, %q7     \n"
                         "vmla.f32       q3, q7, %q7     \n"
+                        "vmul.f32       q4, q0, %q10    \n"
+                        "vmul.f32       q5, q1, %q10    \n"
+                        "vmul.f32       q6, q2, %q10    \n"
+                        "vmul.f32       q7, q3, %q10    \n"
+
+                        "vcvtr.s32.f32  s0, s0          \n"
+                        "vcvtr.s32.f32  s1, s1          \n"
+                        "vcvtr.s32.f32  s2, s2          \n"
+                        "vcvtr.s32.f32  s3, s3          \n"
+                        "vcvtr.s32.f32  s4, s4          \n"
+                        "vcvtr.s32.f32  s5, s5          \n"
+                        "vcvtr.s32.f32  s6, s6          \n"
+                        "vcvtr.s32.f32  s7, s7          \n"
+                        "vcvtr.s32.f32  s8, s8          \n"
+                        "vcvtr.s32.f32  s9, s9          \n"
+                        "vcvtr.s32.f32  s10, s10        \n"
+                        "vcvtr.s32.f32  s11, s11        \n"
+                        "vcvtr.s32.f32  s12, s12        \n"
+                        "vcvtr.s32.f32  s13, s13        \n"
+                        "vcvtr.s32.f32  s14, s14        \n"
+                        "vcvtr.s32.f32  s15, s15        \n"
+                        "vcvtr.s32.f32  s16, s16        \n"
+                        "vcvtr.s32.f32  s17, s17        \n"
+                        "vcvtr.s32.f32  s18, s18        \n"
+                        "vcvtr.s32.f32  s19, s19        \n"
+                        "vcvtr.s32.f32  s20, s20        \n"
+                        "vcvtr.s32.f32  s21, s21        \n"
+                        "vcvtr.s32.f32  s22, s22        \n"
+                        "vcvtr.s32.f32  s23, s23        \n"
+                        "vcvtr.s32.f32  s24, s24        \n"
+                        "vcvtr.s32.f32  s25, s25        \n"
+                        "vcvtr.s32.f32  s26, s26        \n"
+                        "vcvtr.s32.f32  s27, s27        \n"
+                        "vcvtr.s32.f32  s28, s28        \n"
+                        "vcvtr.s32.f32  s29, s29        \n"
+                        "vcvtr.s32.f32  s30, s30        \n"
+                        "vcvtr.s32.f32  s31, s31        \n"
+
+                        "vqmovn.s32     d0, q0          \n"
+                        "vqmovn.s32     d2, q1          \n"
+                        "vqmovn.s32     d1, q2          \n"
+                        "vqmovn.s32     d3, q3          \n"
+                        "vqmovn.s32     d8, q4          \n"
+                        "vqmovn.s32     d10, q5         \n"
+                        "vqmovn.s32     d9, q6          \n"
+                        "vqmovn.s32     d11, q7         \n"
+
+                        "vqmovn.s16     d0, q0          \n"
+                        "vqmovn.s16     d1, q2          \n"
+                        "vqmovn.s16     d8, q4          \n"
+                        "vqmovn.s16     d9, q6          \n"
+
+                        "vmax.s8        q0, q0, q4      \n"
+
+                        "vst1.s8        {d0-d1}, [%2 :64]! \n"
+
+                        : "=r"(intptr0),
+                        "=r"(intptr1),
+                        "=r"(ptr)
+                        : "0"(intptr0),
+                        "1"(intptr1),
+                        "2"(ptr),
+                        "w"(_scale0), // %6
+                        "w"(_scale1), // %7
+                        "w"(_bias0),  // %8
+                        "w"(_bias1),  // %9
+                        "w"(_slope)   // %10
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7");
+#endif // __aarch64__
+                }
+                for (; i < size; i++)
+                {
+#if __aarch64__
+                    float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr0));
+                    float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr1));
+                    _v0 = vmlaq_f32(_bias0, _v0, _scale0);
+                    _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+                    vst1_s8(ptr, float2int8leakyrelu(_v0, _v1, _slope));
+
+                    intptr0 += 4;
+                    intptr1 += 4;
+                    ptr += 8;
+#else  // __aarch64__
+                    asm volatile(
+                        "pld            [%0, #128]      \n"
+                        "vld1.s32       {d8-d9}, [%0 :128]! \n"
+                        "pld            [%1, #128]      \n"
+                        "vld1.s32       {d10-d11}, [%1 :128]! \n"
+
+                        "vmov           q0, %q8         \n"
+                        "vmov           q1, %q9         \n"
+
+                        "vcvt.f32.s32   q4, q4          \n"
+                        "vcvt.f32.s32   q5, q5          \n"
+
+                        "vmla.f32       q0, q4, %q6     \n"
+                        "vmla.f32       q1, q5, %q7     \n"
+                        "vmul.f32       q2, q0, %q10    \n"
+                        "vmul.f32       q3, q1, %q10    \n"
 
                         "vcvtr.s32.f32  s0, s0          \n"
                         "vcvtr.s32.f32  s1, s1          \n"
@@ -204,75 +305,16 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "vcvtr.s32.f32  s15, s15        \n"
 
                         "vqmovn.s32     d8, q0          \n"
-                        "vqmovn.s32     d10, q1         \n"
-                        "vqmovn.s32     d9, q2          \n"
+                        "vqmovn.s32     d9, q1          \n"
+                        "vqmovn.s32     d10, q2         \n"
                         "vqmovn.s32     d11, q3         \n"
+
                         "vqmovn.s16     d8, q4          \n"
-                        "vqmovn.s16     d9, q5          \n"
+                        "vqmovn.s16     d10, q5         \n"
 
-                        "vmax.s8        q4, q4, q8      \n"
+                        "vmax.s8        d8, d8, d10     \n"
 
-                        "vst1.s8        {d8-d9}, [%2 :64]! \n"
-
-                        : "=r"(intptr0),
-                        "=r"(intptr1),
-                        "=r"(ptr)
-                        : "0"(intptr0),
-                        "1"(intptr1),
-                        "2"(ptr),
-                        "w"(_scale0), // %6
-                        "w"(_scale1), // %7
-                        "w"(_bias0),  // %8
-                        "w"(_bias1)   // %9
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
-#endif // __aarch64__
-                }
-                for (; i < size; i++)
-                {
-#if __aarch64__
-                    float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr0));
-                    float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr1));
-                    _v0 = vmlaq_f32(_bias0, _v0, _scale0);
-                    _v1 = vmlaq_f32(_bias1, _v1, _scale1);
-                    vst1_s8(ptr, float2int8relu(_v0, _v1));
-
-                    intptr0 += 4;
-                    intptr1 += 4;
-                    ptr += 8;
-#else  // __aarch64__
-                    asm volatile(
-                        "pld            [%0, #128]      \n"
-                        "vld1.s32       {d4-d5}, [%0 :128]! \n"
-                        "pld            [%1, #128]      \n"
-                        "vld1.s32       {d6-d7}, [%1 :128]! \n"
-
-                        "vmov           q0, %q8         \n"
-                        "vmov           q1, %q9         \n"
-
-                        "vcvt.f32.s32   q2, q2          \n"
-                        "vcvt.f32.s32   q3, q3          \n"
-
-                        "veor           d8, d8          \n" // _zero
-
-                        "vmla.f32       q0, q2, %q6     \n"
-                        "vmla.f32       q1, q3, %q7     \n"
-
-                        "vcvtr.s32.f32  s0, s0          \n"
-                        "vcvtr.s32.f32  s1, s1          \n"
-                        "vcvtr.s32.f32  s2, s2          \n"
-                        "vcvtr.s32.f32  s3, s3          \n"
-                        "vcvtr.s32.f32  s4, s4          \n"
-                        "vcvtr.s32.f32  s5, s5          \n"
-                        "vcvtr.s32.f32  s6, s6          \n"
-                        "vcvtr.s32.f32  s7, s7          \n"
-
-                        "vqmovn.s32     d4, q0          \n"
-                        "vqmovn.s32     d5, q1          \n"
-                        "vqmovn.s16     d4, q2          \n"
-
-                        "vmax.s8        d4, d4, d8      \n"
-
-                        "vst1.s8        {d4}, [%2 :64]! \n"
+                        "vst1.s8        {d8}, [%2 :64]! \n"
 
                         : "=r"(intptr0),
                         "=r"(intptr1),
@@ -283,8 +325,9 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                         "w"(_scale0), // %6
                         "w"(_scale1), // %7
                         "w"(_bias0),  // %8
-                        "w"(_bias1)   // %9
-                        : "memory", "q0", "q1", "q2", "q3", "q4");
+                        "w"(_bias1),  // %9
+                        "w"(_slope)   // %10
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5");
 #endif // __aarch64__
                 }
             }
@@ -307,13 +350,14 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
                 float32x4_t _scale_out = scale_out_data_size == 1 ? vdupq_n_f32(scale_out_data[0]) : vld1q_f32((const float*)scale_out_data + q * 4);
 
                 float32x4_t _scale = vmulq_f32(_scale_in, _scale_out);
+                float32x4_t _slope = vdupq_n_f32(slope);
 
                 int i = 0;
                 for (; i < size; i++)
                 {
                     float32x4_t _v = vcvtq_f32_s32(vld1q_s32(intptr));
                     _v = vmulq_f32(_v, _scale);
-                    int8x8_t v = float2int8relu(_v, _v);
+                    int8x8_t v = float2int8leakyrelu(_v, _v, _slope);
                     ptr0[0] = vget_lane_s8(v, 0);
                     ptr1[0] = vget_lane_s8(v, 1);
                     ptr2[0] = vget_lane_s8(v, 2);
@@ -344,6 +388,7 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
 
                 float32x4_t _scale = vmulq_f32(_scale_in, _scale_out);
                 _bias = vmulq_f32(_bias, _scale_out);
+                float32x4_t _slope = vdupq_n_f32(slope);
 
                 int i = 0;
                 for (; i < size; i++)
@@ -354,7 +399,7 @@ static void requantize_relu_pack4_neon(const Mat& bottom_blob, Mat& top_blob, co
 #else
                     _v = vmlaq_f32(_bias, _v, _scale);
 #endif
-                    int8x8_t v = float2int8relu(_v, _v);
+                    int8x8_t v = float2int8leakyrelu(_v, _v, _slope);
                     ptr0[0] = vget_lane_s8(v, 0);
                     ptr1[0] = vget_lane_s8(v, 1);
                     ptr2[0] = vget_lane_s8(v, 2);

@@ -1951,11 +1951,12 @@ int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
     const int num_input = weight_data_size / num_output;
 
     int out_elempack = 1;
-
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
+#endif
 
     // src = inch-outch
     // dst = pb-inch-outch/pb
@@ -2017,10 +2018,12 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
     //     int elempack = bottom_blob_int8_flattened.elempack;
 
     int out_elempack = 1;
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
+#endif
 
     top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
     if (top_blob.empty())
