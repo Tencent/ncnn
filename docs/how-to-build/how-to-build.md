@@ -599,7 +599,6 @@ Then make ncnn,no need to install any other dependencies.
 git clone https://github.com/Tencent/ncnn.git
 cd ncnn
 git submodule update --init
-cd ncnn
 mkdir -p build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_BUILD_EXAMPLES=ON -DNCNN_PLATFORM_API=OFF -DNCNN_SIMPLEOCV=ON ..
