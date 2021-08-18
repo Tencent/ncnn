@@ -16,6 +16,7 @@ $ git submodule update --init
 * [Build for WebAssembly](#build-for-webassembly)
 * [Build for AllWinner D1](#build-for-allwinner-d1)
 * [Build for Loongson 2K1000](#build-for-loongson-2k1000)
+* [Build for Termux on Android](#Build for Termux on Android)
 
 ***
 
@@ -574,3 +575,29 @@ cmake --build . --target install
 Pick `build/install` folder for further usage.
 
 You can run binary inside `build/examples` folder for testing.
+
+***
+
+### Build for Termux on Android
+
+Install app Termux on your phone,and install Ubuntu in Termux.
+
+ If you want use ssh, just install openssh in Termux
+
+```
+pkg install proot-distro
+proot-distro install ubuntu
+```
+
+or you can see what system can be installed using `proot-distro list` 
+
+while you install ubuntu successfully, using `proot-distro login ubuntu` to login Ubuntu.
+
+Then clone ncnn
+
+```
+$ git clone https://github.com/Tencent/ncnn.git
+$ cd ncnn
+$ git submodule update --init
+```
+
