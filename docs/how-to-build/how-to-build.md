@@ -593,11 +593,25 @@ or you can see what system can be installed using `proot-distro list`
 
 while you install ubuntu successfully, using `proot-distro login ubuntu` to login Ubuntu.
 
-Then clone ncnn
+Then make ncnn,no need to install any other dependencies.
 
 ```
-$ git clone https://github.com/Tencent/ncnn.git
-$ cd ncnn
-$ git submodule update --init
+git clone https://github.com/Tencent/ncnn.git
+cd ncnn
+git submodule update --init
+cd ncnn
+mkdir -p build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_BUILD_EXAMPLES=ON -DNCNN_PLATFORM_API=OFF -DNCNN_SIMPLEOCV=ON ..
+make -j$(nproc)
+```
+
+Then you can run a test
+
+> on my Pixel 3 XL using Qualcomm 845,cant load `256-ncnn.png`
+
+```
+cd ../examples
+../build/examples/squeezenet ../images/128-ncnn.png
 ```
 
