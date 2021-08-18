@@ -16,7 +16,7 @@ $ git submodule update --init
 * [Build for WebAssembly](#build-for-webassembly)
 * [Build for AllWinner D1](#build-for-allwinner-d1)
 * [Build for Loongson 2K1000](#build-for-loongson-2k1000)
-* [Build for Termux on Android](#Build for Termux on Android)
+* [Build for Termux on Android](#Build-for-Termux-on-Android)
 
 ***
 
