@@ -75,6 +75,8 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * [Build for WebAssembly](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-webassembly)
 * [Build for AllWinner D1](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-allwinner-d1)
 * [Build for Loongson 2K1000](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-loongson-2k1000)
+* [Build for termux on android](https://github.com/Tencent/ncnn/wiki/how-to-build#build-for-termux-on-android)
+
 
 **[download prebuild binary package for android and ios](https://github.com/Tencent/ncnn/releases)**
 
