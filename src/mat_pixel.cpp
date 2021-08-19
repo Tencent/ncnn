@@ -2551,12 +2551,12 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
             uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
             uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
-                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             uint8x8x3_t _rgb;
             _rgb.val[1] = vqmovn_u16(_s);
@@ -2565,9 +2565,9 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
             _h = _v;
 
             _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
-                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
-                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
-                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _rgb.val[0] = vqmovn_u16(_v);
             vst3_u8(rgb, _rgb);
@@ -3035,12 +3035,12 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
             uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
             uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
-                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             uint8x8x3_t _bgr;
             _bgr.val[1] = vqmovn_u16(_s);
@@ -3049,9 +3049,9 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
             _h = _v;
 
             _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
-                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
-                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
-                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _bgr.val[2] = vqmovn_u16(_v);
             vst3_u8(bgr, _bgr);
@@ -3524,12 +3524,12 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
             uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
             uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
-                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             // r = v, g = s, b = h
             uint16x8_t _y16 = vmull_u8(vmovn_u16(_s), _G2Y);
@@ -3538,9 +3538,9 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             _h = _v;
 
             _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
-                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
-                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
-                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _y16 = vmlal_u8(_y16, vmovn_u16(_v), _R2Y);
             _y16 = vshrq_n_u16(_y16, 8);
@@ -3898,12 +3898,12 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
             uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
             uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
-                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             uint8x8x4_t _rgba;
             _rgba.val[1] = vqmovn_u16(_s);
@@ -3912,9 +3912,9 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             _h = _v;
 
             _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
-                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
-                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
-                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _rgba.val[0] = vqmovn_u16(_v);
             _rgba.val[3] = vdup_n_u8(v255);
@@ -4387,12 +4387,12 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
             uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
             uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
-                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
-                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             uint8x8x4_t _bgra;
             _bgra.val[1] = vqmovn_u16(_s);
@@ -4401,9 +4401,9 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             _h = _v;
 
             _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
-                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
-                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
-                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _bgra.val[2] = vqmovn_u16(_v);
             _bgra.val[3] = vdup_n_u8(v255);
