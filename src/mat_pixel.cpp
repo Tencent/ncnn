@@ -2453,7 +2453,6 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
     float32_t vf1 = 1.f;
     uint16_t v1 = 1;
     uint16_t v2 = 2;
-    uint16_t v3 = 3;
     uint16_t v4 = 4;
     float32_t vdescale = 0.5f;
 #endif // __ARM_NEON
@@ -2475,7 +2474,6 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
         float32x4_t _vdescale = vdupq_n_f32(vdescale);
         uint16x8_t _v1 = vdupq_n_u16(v1);
         uint16x8_t _v2 = vdupq_n_u16(v2);
-        uint16x8_t _v3 = vdupq_n_u16(v3);
         uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
@@ -2552,17 +2550,13 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
-            uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
-            _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v3, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v4, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_vtab2, vcgtq_u16(_vector, _v4)));
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
-            uint16x8_t _s = vandq_u16(_vtab3, vcgtq_u16(_v1, _vector));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v1, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v2, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab2, vceqq_u16(_v3, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab1, vcgtq_u16(_vector, _v3)));
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             uint8x8x3_t _rgb;
             _rgb.val[1] = vqmovn_u16(_s);
@@ -2570,12 +2564,10 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
 
             _h = _v;
 
-            _v = vandq_u16(_h, vcgtq_u16(_v1, _vector));
-            _v = vorrq_u16(_v, vandq_u16(_vtab2, vceqq_u16(_v1, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v2, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v3, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab3, vceqq_u16(_v4, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_h, vcgtq_u16(_vector, _v4)));
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _rgb.val[0] = vqmovn_u16(_v);
             vst3_u8(rgb, _rgb);
@@ -2605,13 +2597,13 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
                 "vcvt.f32.u32    q3, q3         \n"
                 "vcvt.f32.u32    q8, q8         \n"
                 "vcvt.f32.u32    q9, q9         \n"
-                "vdup.f32    q4, %10            \n"
+                "vdup.f32    q4, %9             \n"
                 "vmul.f32    q0, q0, q4         \n"
                 "vmul.f32    q1, q1, q4         \n"
-                "vdup.f32    q4, %11            \n"
+                "vdup.f32    q4, %10            \n"
                 "vmul.f32    q2, q2, q4         \n"
                 "vmul.f32    q3, q3, q4         \n"
-                "vdup.f32    q4, %12            \n"
+                "vdup.f32    q4, %11            \n"
                 "vcvt.u32.f32    q10, q0        \n"
                 "vcvt.u32.f32    q11, q1        \n"
                 "vcvt.f32.u32    q10, q10       \n"
@@ -2628,7 +2620,7 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
                 "vmul.f32   q11, q11, q8        \n"
                 "vsub.f32   q12, q4, q12        \n"
                 "vmul.f32   q12, q12, q9        \n"
-                "vdup.32    q5, %13             \n"
+                "vdup.32    q5, %12             \n"
                 "vadd.f32   q11, q11, q5        \n"
                 "vadd.f32   q12, q12, q5        \n"
                 "vcvt.u32.f32    q11, q11       \n"
@@ -2665,56 +2657,30 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
                 "vmovn.i32  d19, q1             \n"
                 "vdup.u16   q4, %6              \n"
                 "vdup.u16   q5, %7              \n"
-                "vdup.u16   q6, %8              \n"
-                "vdup.u16   q7, %9              \n"
-                "vcgt.u16   q1, q5, q10         \n"
-                "vand       q0, q9, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q2, q12, q1         \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q2, q2, q1          \n"
-                "vcgt.u16   q1, q10, q6         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q2, q2, q1          \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
                 "vqmovn.u16 d5, q2              \n"
                 "vqmovn.u16 d6, q0              \n"
                 "vmov       q0, q8              \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q8, q0, q1          \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q0, q1          \n"
-                "vorr       q8, q8, q1          \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
                 "vqmovn.u16 d4, q8              \n"
                 "subs       %0, #1              \n"
                 "vst3.u8    {d4-d6}, [%2]!      \n"
@@ -2727,13 +2693,12 @@ void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
                 "2"(rgb),
                 "r"(v1),      // %6
                 "r"(v2),      // %7
-                "r"(v3),      // %8
-                "r"(v4),      // %9
-                "r"(v_1_30),  // %10
-                "r"(v_1_255), // %11
-                "r"(vf1),     // %12
-                "r"(vdescale) // %13
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
+                "r"(v4),      // %8
+                "r"(v_1_30),  // %9
+                "r"(v_1_255), // %10
+                "r"(vf1),     // %11
+                "r"(vdescale) // %12
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -2972,7 +2937,6 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
     float32_t vf1 = 1.f;
     uint16_t v1 = 1;
     uint16_t v2 = 2;
-    uint16_t v3 = 3;
     uint16_t v4 = 4;
     float32_t vdescale = 0.5f;
 #endif // __ARM_NEON
@@ -2994,7 +2958,6 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
         float32x4_t _vdescale = vdupq_n_f32(vdescale);
         uint16x8_t _v1 = vdupq_n_u16(v1);
         uint16x8_t _v2 = vdupq_n_u16(v2);
-        uint16x8_t _v3 = vdupq_n_u16(v3);
         uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
@@ -3071,17 +3034,13 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
-            uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
-            _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v3, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v4, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_vtab2, vcgtq_u16(_vector, _v4)));
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
-            uint16x8_t _s = vandq_u16(_vtab3, vcgtq_u16(_v1, _vector));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v1, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v2, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab2, vceqq_u16(_v3, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab1, vcgtq_u16(_vector, _v3)));
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             uint8x8x3_t _bgr;
             _bgr.val[1] = vqmovn_u16(_s);
@@ -3089,12 +3048,10 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
 
             _h = _v;
 
-            _v = vandq_u16(_h, vcgtq_u16(_v1, _vector));
-            _v = vorrq_u16(_v, vandq_u16(_vtab2, vceqq_u16(_v1, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v2, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v3, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab3, vceqq_u16(_v4, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_h, vcgtq_u16(_vector, _v4)));
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _bgr.val[2] = vqmovn_u16(_v);
             vst3_u8(bgr, _bgr);
@@ -3124,13 +3081,13 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
                 "vcvt.f32.u32    q3, q3         \n"
                 "vcvt.f32.u32    q8, q8         \n"
                 "vcvt.f32.u32    q9, q9         \n"
-                "vdup.f32    q4, %10            \n"
+                "vdup.f32    q4, %9             \n"
                 "vmul.f32    q0, q0, q4         \n"
                 "vmul.f32    q1, q1, q4         \n"
-                "vdup.f32    q4, %11            \n"
+                "vdup.f32    q4, %10            \n"
                 "vmul.f32    q2, q2, q4         \n"
                 "vmul.f32    q3, q3, q4         \n"
-                "vdup.f32    q4, %12            \n"
+                "vdup.f32    q4, %11            \n"
                 "vcvt.u32.f32    q10, q0        \n"
                 "vcvt.u32.f32    q11, q1        \n"
                 "vcvt.f32.u32    q10, q10       \n"
@@ -3147,7 +3104,7 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
                 "vmul.f32   q11, q11, q8        \n"
                 "vsub.f32   q12, q4, q12        \n"
                 "vmul.f32   q12, q12, q9        \n"
-                "vdup.32    q5, %13             \n"
+                "vdup.32    q5, %12             \n"
                 "vadd.f32   q11, q11, q5        \n"
                 "vadd.f32   q12, q12, q5        \n"
                 "vcvt.u32.f32    q11, q11       \n"
@@ -3184,56 +3141,30 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
                 "vmovn.i32  d19, q1             \n"
                 "vdup.u16   q4, %6              \n"
                 "vdup.u16   q5, %7              \n"
-                "vdup.u16   q6, %8              \n"
-                "vdup.u16   q7, %9              \n"
-                "vcgt.u16   q1, q5, q10         \n"
-                "vand       q0, q9, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q2, q12, q1         \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q2, q2, q1          \n"
-                "vcgt.u16   q1, q10, q6         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q2, q2, q1          \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
                 "vqmovn.u16 d5, q2              \n"
                 "vqmovn.u16 d4, q0              \n"
                 "vmov       q0, q8              \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q8, q0, q1          \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q0, q1          \n"
-                "vorr       q8, q8, q1          \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
                 "vqmovn.u16 d6, q8              \n"
                 "subs       %0, #1              \n"
                 "vst3.u8    {d4-d6}, [%2]!      \n"
@@ -3246,13 +3177,12 @@ void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, 
                 "2"(bgr),
                 "r"(v1),      // %6
                 "r"(v2),      // %7
-                "r"(v3),      // %8
-                "r"(v4),      // %9
-                "r"(v_1_30),  // %10
-                "r"(v_1_255), // %11
-                "r"(vf1),     // %12
-                "r"(vdescale) // %13
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
+                "r"(v4),      // %8
+                "r"(v_1_30),  // %9
+                "r"(v_1_255), // %10
+                "r"(vf1),     // %11
+                "r"(vdescale) // %12
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -3496,7 +3426,6 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
     float32_t vf1 = 1.f;
     uint16_t v1 = 1;
     uint16_t v2 = 2;
-    uint16_t v3 = 3;
     uint16_t v4 = 4;
     float32_t vdescale = 0.5f;
 #endif // __ARM_NEON
@@ -3518,7 +3447,6 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
         float32x4_t _vdescale = vdupq_n_f32(vdescale);
         uint16x8_t _v1 = vdupq_n_u16(v1);
         uint16x8_t _v2 = vdupq_n_u16(v2);
-        uint16x8_t _v3 = vdupq_n_u16(v3);
         uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
@@ -3595,17 +3523,13 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
-            uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
-            _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v3, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v4, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_vtab2, vcgtq_u16(_vector, _v4)));
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
-            uint16x8_t _s = vandq_u16(_vtab3, vcgtq_u16(_v1, _vector));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v1, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v2, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab2, vceqq_u16(_v3, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab1, vcgtq_u16(_vector, _v3)));
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             // r = v, g = s, b = h
             uint16x8_t _y16 = vmull_u8(vmovn_u16(_s), _G2Y);
@@ -3613,12 +3537,10 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
 
             _h = _v;
 
-            _v = vandq_u16(_h, vcgtq_u16(_v1, _vector));
-            _v = vorrq_u16(_v, vandq_u16(_vtab2, vceqq_u16(_v1, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v2, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v3, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab3, vceqq_u16(_v4, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_h, vcgtq_u16(_vector, _v4)));
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _y16 = vmlal_u8(_y16, vmovn_u16(_v), _R2Y);
             _y16 = vshrq_n_u16(_y16, 8);
@@ -3649,13 +3571,13 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vcvt.f32.u32    q3, q3         \n"
                 "vcvt.f32.u32    q8, q8         \n"
                 "vcvt.f32.u32    q9, q9         \n"
-                "vdup.f32    q4, %10            \n"
+                "vdup.f32    q4, %9             \n"
                 "vmul.f32    q0, q0, q4         \n"
                 "vmul.f32    q1, q1, q4         \n"
-                "vdup.f32    q4, %11            \n"
+                "vdup.f32    q4, %10            \n"
                 "vmul.f32    q2, q2, q4         \n"
                 "vmul.f32    q3, q3, q4         \n"
-                "vdup.f32    q4, %12            \n"
+                "vdup.f32    q4, %11            \n"
                 "vcvt.u32.f32    q10, q0        \n"
                 "vcvt.u32.f32    q11, q1        \n"
                 "vcvt.f32.u32    q10, q10       \n"
@@ -3672,7 +3594,7 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vmul.f32   q11, q11, q8        \n"
                 "vsub.f32   q12, q4, q12        \n"
                 "vmul.f32   q12, q12, q9        \n"
-                "vdup.32    q5, %13             \n"
+                "vdup.32    q5, %12             \n"
                 "vadd.f32   q11, q11, q5        \n"
                 "vadd.f32   q12, q12, q5        \n"
                 "vcvt.u32.f32    q11, q11       \n"
@@ -3709,60 +3631,34 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vmovn.i32  d19, q1             \n"
                 "vdup.u16   q4, %6              \n"
                 "vdup.u16   q5, %7              \n"
-                "vdup.u16   q6, %8              \n"
-                "vdup.u16   q7, %9              \n"
-                "vcgt.u16   q1, q5, q10         \n"
-                "vand       q0, q9, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q2, q12, q1         \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q2, q2, q1          \n"
-                "vcgt.u16   q1, q10, q6         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q2, q2, q1          \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
                 "vqmovn.u16 d4, q2              \n"
-                "vmull.u8   q2, d4, %15         \n"
+                "vmull.u8   q2, d4, %14         \n"
                 "vqmovn.u16 d0, q0              \n"
-                "vmlal.u8   q2, d0, %16         \n"
+                "vmlal.u8   q2, d0, %15         \n"
                 "vmov       q0, q8              \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q8, q0, q1          \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q0, q1          \n"
-                "vorr       q8, q8, q1          \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
                 "vqmovn.u16 d16, q8             \n"
-                "vmlal.u8   q2, d16, %14        \n"
+                "vmlal.u8   q2, d16, %13        \n"
                 "vshr.u16   q2, q2, #8          \n"
                 "vqmovn.u16 d4, q2              \n"
                 "subs       %0, #1              \n"
@@ -3776,16 +3672,15 @@ void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "2"(gray),
                 "r"(v1),       // %6
                 "r"(v2),       // %7
-                "r"(v3),       // %8
-                "r"(v4),       // %9
-                "r"(v_1_30),   // %10
-                "r"(v_1_255),  // %11
-                "r"(vf1),      // %12
-                "r"(vdescale), // %13
-                "w"(_R2Y),     // %14
-                "w"(_G2Y),     // %15
-                "w"(_B2Y)      // %16
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
+                "r"(v4),       // %8
+                "r"(v_1_30),   // %9
+                "r"(v_1_255),  // %10
+                "r"(vf1),      // %11
+                "r"(vdescale), // %12
+                "w"(_R2Y),     // %13
+                "w"(_G2Y),     // %14
+                "w"(_B2Y)      // %15
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -3904,7 +3799,6 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
     float32_t vf1 = 1.f;
     uint16_t v1 = 1;
     uint16_t v2 = 2;
-    uint16_t v3 = 3;
     uint16_t v4 = 4;
     float32_t vdescale = 0.5f;
     uint8_t v255 = 255;
@@ -3927,7 +3821,6 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
         float32x4_t _vdescale = vdupq_n_f32(vdescale);
         uint16x8_t _v1 = vdupq_n_u16(v1);
         uint16x8_t _v2 = vdupq_n_u16(v2);
-        uint16x8_t _v3 = vdupq_n_u16(v3);
         uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
@@ -4004,17 +3897,13 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
-            uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
-            _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v3, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v4, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_vtab2, vcgtq_u16(_vector, _v4)));
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
-            uint16x8_t _s = vandq_u16(_vtab3, vcgtq_u16(_v1, _vector));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v1, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v2, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab2, vceqq_u16(_v3, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab1, vcgtq_u16(_vector, _v3)));
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             uint8x8x4_t _rgba;
             _rgba.val[1] = vqmovn_u16(_s);
@@ -4022,12 +3911,10 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
 
             _h = _v;
 
-            _v = vandq_u16(_h, vcgtq_u16(_v1, _vector));
-            _v = vorrq_u16(_v, vandq_u16(_vtab2, vceqq_u16(_v1, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v2, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v3, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab3, vceqq_u16(_v4, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_h, vcgtq_u16(_vector, _v4)));
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _rgba.val[0] = vqmovn_u16(_v);
             _rgba.val[3] = vdup_n_u8(v255);
@@ -4058,13 +3945,13 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vcvt.f32.u32    q3, q3         \n"
                 "vcvt.f32.u32    q8, q8         \n"
                 "vcvt.f32.u32    q9, q9         \n"
-                "vdup.f32    q4, %10            \n"
+                "vdup.f32    q4, %9             \n"
                 "vmul.f32    q0, q0, q4         \n"
                 "vmul.f32    q1, q1, q4         \n"
-                "vdup.f32    q4, %11            \n"
+                "vdup.f32    q4, %10            \n"
                 "vmul.f32    q2, q2, q4         \n"
                 "vmul.f32    q3, q3, q4         \n"
-                "vdup.f32    q4, %12            \n"
+                "vdup.f32    q4, %11            \n"
                 "vcvt.u32.f32    q10, q0        \n"
                 "vcvt.u32.f32    q11, q1        \n"
                 "vcvt.f32.u32    q10, q10       \n"
@@ -4081,7 +3968,7 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vmul.f32   q11, q11, q8        \n"
                 "vsub.f32   q12, q4, q12        \n"
                 "vmul.f32   q12, q12, q9        \n"
-                "vdup.32    q5, %13             \n"
+                "vdup.32    q5, %12             \n"
                 "vadd.f32   q11, q11, q5        \n"
                 "vadd.f32   q12, q12, q5        \n"
                 "vcvt.u32.f32    q11, q11       \n"
@@ -4118,58 +4005,32 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vmovn.i32  d19, q1             \n"
                 "vdup.u16   q4, %6              \n"
                 "vdup.u16   q5, %7              \n"
-                "vdup.u16   q6, %8              \n"
-                "vdup.u16   q7, %9              \n"
-                "vcgt.u16   q1, q5, q10         \n"
-                "vand       q0, q9, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q2, q12, q1         \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q2, q2, q1          \n"
-                "vcgt.u16   q1, q10, q6         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q2, q2, q1          \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
                 "vqmovn.u16 d5, q2              \n"
                 "vqmovn.u16 d6, q0              \n"
                 "vmov       q0, q8              \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q8, q0, q1          \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q0, q1          \n"
-                "vorr       q8, q8, q1          \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
                 "vqmovn.u16 d4, q8              \n"
-                "vdup.u8    d7, %14             \n"
+                "vdup.u8    d7, %13             \n"
                 "subs       %0, #1              \n"
                 "vst4.u8    {d4-d7}, [%2]!      \n"
                 "bne        0b                  \n"
@@ -4181,14 +4042,13 @@ void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "2"(rgba),
                 "r"(v1),       // %6
                 "r"(v2),       // %7
-                "r"(v3),       // %8
-                "r"(v4),       // %9
-                "r"(v_1_30),   // %10
-                "r"(v_1_255),  // %11
-                "r"(vf1),      // %12
-                "r"(vdescale), // %13
-                "r"(v255)      // %14
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
+                "r"(v4),       // %8
+                "r"(v_1_30),   // %9
+                "r"(v_1_255),  // %10
+                "r"(vf1),      // %11
+                "r"(vdescale), // %12
+                "r"(v255)      // %13
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
@@ -4428,7 +4288,6 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
     float32_t vf1 = 1.f;
     uint16_t v1 = 1;
     uint16_t v2 = 2;
-    uint16_t v3 = 3;
     uint16_t v4 = 4;
     float32_t vdescale = 0.5f;
     uint8_t v255 = 255;
@@ -4451,7 +4310,6 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
         float32x4_t _vdescale = vdupq_n_f32(vdescale);
         uint16x8_t _v1 = vdupq_n_u16(v1);
         uint16x8_t _v2 = vdupq_n_u16(v2);
-        uint16x8_t _v3 = vdupq_n_u16(v3);
         uint16x8_t _v4 = vdupq_n_u16(v4);
         for (; nn > 0; nn--)
         {
@@ -4528,17 +4386,13 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
             uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
             uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
 
-            uint16x8_t _h = vandq_u16(_vtab1, vcgtq_u16(_v2, _vector));
-            _h = vorrq_u16(_h, vandq_u16(_vtab3, vceqq_u16(_v2, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v3, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_v, vceqq_u16(_v4, _vector)));
-            _h = vorrq_u16(_h, vandq_u16(_vtab2, vcgtq_u16(_vector, _v4)));
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
 
-            uint16x8_t _s = vandq_u16(_vtab3, vcgtq_u16(_v1, _vector));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v1, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_v, vceqq_u16(_v2, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab2, vceqq_u16(_v3, _vector)));
-            _s = vorrq_u16(_s, vandq_u16(_vtab1, vcgtq_u16(_vector, _v3)));
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                            vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                            vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
 
             uint8x8x4_t _bgra;
             _bgra.val[1] = vqmovn_u16(_s);
@@ -4546,12 +4400,10 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
 
             _h = _v;
 
-            _v = vandq_u16(_h, vcgtq_u16(_v1, _vector));
-            _v = vorrq_u16(_v, vandq_u16(_vtab2, vceqq_u16(_v1, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v2, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab1, vceqq_u16(_v3, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_vtab3, vceqq_u16(_v4, _vector)));
-            _v = vorrq_u16(_v, vandq_u16(_h, vcgtq_u16(_vector, _v4)));
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                 vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                 vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                 vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
 
             _bgra.val[2] = vqmovn_u16(_v);
             _bgra.val[3] = vdup_n_u8(v255);
@@ -4582,13 +4434,13 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vcvt.f32.u32    q3, q3         \n"
                 "vcvt.f32.u32    q8, q8         \n"
                 "vcvt.f32.u32    q9, q9         \n"
-                "vdup.f32    q4, %10            \n"
+                "vdup.f32    q4, %9             \n"
                 "vmul.f32    q0, q0, q4         \n"
                 "vmul.f32    q1, q1, q4         \n"
-                "vdup.f32    q4, %11            \n"
+                "vdup.f32    q4, %10            \n"
                 "vmul.f32    q2, q2, q4         \n"
                 "vmul.f32    q3, q3, q4         \n"
-                "vdup.f32    q4, %12            \n"
+                "vdup.f32    q4, %11            \n"
                 "vcvt.u32.f32    q10, q0        \n"
                 "vcvt.u32.f32    q11, q1        \n"
                 "vcvt.f32.u32    q10, q10       \n"
@@ -4605,7 +4457,7 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vmul.f32   q11, q11, q8        \n"
                 "vsub.f32   q12, q4, q12        \n"
                 "vmul.f32   q12, q12, q9        \n"
-                "vdup.32    q5, %13             \n"
+                "vdup.32    q5, %12             \n"
                 "vadd.f32   q11, q11, q5        \n"
                 "vadd.f32   q12, q12, q5        \n"
                 "vcvt.u32.f32    q11, q11       \n"
@@ -4642,58 +4494,32 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "vmovn.i32  d19, q1             \n"
                 "vdup.u16   q4, %6              \n"
                 "vdup.u16   q5, %7              \n"
-                "vdup.u16   q6, %8              \n"
-                "vdup.u16   q7, %9              \n"
-                "vcgt.u16   q1, q5, q10         \n"
-                "vand       q0, q9, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q0, q0, q1          \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q2, q12, q1         \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q8, q1          \n"
-                "vorr       q2, q2, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q2, q2, q1          \n"
-                "vcgt.u16   q1, q10, q6         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q2, q2, q1          \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
                 "vqmovn.u16 d5, q2              \n"
                 "vqmovn.u16 d4, q0              \n"
                 "vmov       q0, q8              \n"
-                "vcgt.u16   q1, q4, q10         \n"
-                "vand       q8, q0, q1          \n"
-                "vceq.i16   q1, q4, q10         \n"
-                "vand       q1, q11, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q5, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q6, q10         \n"
-                "vand       q1, q9, q1          \n"
-                "vorr       q8, q8, q1          \n"
-                "vceq.i16   q1, q7, q10         \n"
-                "vand       q1, q12, q1         \n"
-                "vorr       q8, q8, q1          \n"
-                "vcgt.u16   q1, q10, q7         \n"
-                "vand       q1, q0, q1          \n"
-                "vorr       q8, q8, q1          \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
                 "vqmovn.u16 d6, q8              \n"
-                "vdup.u8    d7, %14             \n"
+                "vdup.u8    d7, %13             \n"
                 "subs       %0, #1              \n"
                 "vst4.u8    {d4-d7}, [%2]!      \n"
                 "bne        0b                  \n"
@@ -4705,14 +4531,13 @@ void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride,
                 "2"(bgra),
                 "r"(v1),       // %6
                 "r"(v2),       // %7
-                "r"(v3),       // %8
-                "r"(v4),       // %9
-                "r"(v_1_30),   // %10
-                "r"(v_1_255),  // %11
-                "r"(vf1),      // %12
-                "r"(vdescale), // %13
-                "r"(v255)      // %14
-                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
+                "r"(v4),       // %8
+                "r"(v_1_30),   // %9
+                "r"(v_1_255),  // %10
+                "r"(vf1),      // %11
+                "r"(vdescale), // %12
+                "r"(v255)      // %13
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
         }
 #endif // __aarch64__
 #endif // __ARM_NEON
