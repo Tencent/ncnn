@@ -24,7 +24,9 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 2. [Plain model binary storage](#the-pnnxbin-format)
 3. [One-to-one mapping of PNNX operators and PyTorch python api](#pnnx-operator)
 4. [Preserve math expression as one operator](#pnnx-expression-operator)
-5. [Preserve miscellaneous module as one operator](#pnnx-module-operator)
+5. [Preserve torch function as one operator](#pnnx-torch-function-operator)
+6. [Preserve miscellaneous module as one operator](#pnnx-module-operator)
+7. [Inference via exported PyTorch python code](#pnnx-python-inference)
 
 # Build TorchScript to PNNX converter
 
