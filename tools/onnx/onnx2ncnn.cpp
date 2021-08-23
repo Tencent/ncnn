@@ -2010,7 +2010,14 @@ static void fuse_expand_broadcast(onnx::GraphProto* mutable_graph, std::map<std:
 
             blob_names.erase(node->output(0));
 
-            node2->set_input(1, node->input(0));
+            if (node2->input(0) == node->output(0))
+            {
+                node2->set_input(0, node->input(0));
+            }
+            else
+            {
+                node2->set_input(1, node->input(0));
+            }
 
             reduced_node_count += 1;
             i += 1;
