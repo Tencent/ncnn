@@ -938,6 +938,7 @@ static void to_bgr2rgb_565(const Mat& m, unsigned char* rgb565, int stride)
     delete[] rgb;
 }
 
+
 static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
@@ -2189,6 +2190,18 @@ static int from_rgb2rgba_565(const unsigned char* rgb565, int w, int h, int stri
     return return_val;
 }
 
+//not tested
+//convert pixels from rgb565 to bgra
+static int from_rgb2bgra_565(const unsigned char* rgb565, int w, int h, int stride, Mat& m, Allocator* allocator)
+{
+    unsigned char* rgb = new unsigned char[w * h * 3ll];
+
+    rgb565_to_rgb(rgb565, w, h, stride, w * 3, rgb);
+    int return_val = from_bgr2rgba(rgb, w, h, w * 3, m, allocator);
+    delete[] rgb;
+    return return_val;
+}
+
 void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb)
 {
     const unsigned char* yptr = yuv420sp;
@@ -2684,6 +2697,10 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
     {
         return Mat::from_pixels(pixels, type, w, h, w * 4, allocator);
     }
+    else if (type_from = PIXEL_RGB_565)
+    {
+        return Mat::from_pixels(pixels, type, w, h, w * 2, allocator);
+    }
 
     // unknown convert type
     NCNN_LOGE("unknown convert type %d", type);
@@ -2742,6 +2759,18 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, int st
         case PIXEL_BGRA2GRAY:
             from_bgra2gray(pixels, w, h, stride, m, allocator);
             break;
+        case PIXEL_RGB2BGR_565:
+            from_rgb2bgr_565(pixels, w, h, stride, m, allocator);
+            break;
+        case PIXEL_RGB2GRAY_565:
+            from_rgb2gray_565(pixels, w, h, stride, m, allocator);
+            break;
+        case PIXEL_RGB2RGBA_565:
+            from_rgb2rgba_565(pixels, w, h, stride, m, allocator);
+            break;
+        case PIXEL_RGB2BGRA_565:
+            from_rgb2bgra_565(pixels, w, h, stride, m, allocator);
+            break;
         default:
             // unimplemented convert type
             NCNN_LOGE("unimplemented convert type %d", type);
@@ -2758,6 +2787,9 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, int st
 
         if (type == PIXEL_RGBA || type == PIXEL_BGRA)
             from_rgba(pixels, w, h, stride, m, allocator);
+        
+        if (type == PIXEL_RGB_565)
+            from_rgb565(pixels, w, h, stride, m, allocator);
     }
 
     return m;
@@ -2778,6 +2810,10 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     else if (type_from == PIXEL_RGBA || type_from == PIXEL_BGRA)
     {
         return Mat::from_pixels_resize(pixels, type, w, h, w * 4, target_width, target_height, allocator);
+    }
+    else if (type_from == PIXEL_RGB_565)
+    {
+        return Mat::from_pixels_resize(pixels, type, w, h, w * 2, target_width, target_height, allocator);
     }
 
     // unknown convert type
@@ -2813,7 +2849,14 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
 
         return Mat::from_pixels(dst, type, target_width, target_height, allocator);
     }
+    else if (type_from == PIXEL_RGB_565)
+    {
+        Mat dst(target_width, target_height, (size_t)2u, 2);
+        resize_bilinear_c2(pixels, w, h, stride, dst, target_width, target_height, target_width * 2);
 
+        return Mat::from_pixels(dst, type, target_width, target_height, allocator);
+    }
+    
     // unknown convert type
     NCNN_LOGE("unknown convert type %d", type);
     return Mat();
@@ -2841,7 +2884,10 @@ Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, in
     {
         return from_pixels(pixels + (roiy * w + roix) * 4, type, roiw, roih, w * 4, allocator);
     }
-
+    else if (type_from == PIXEL_RGB_565)
+    {
+        return from_pixels(pixels + (roiy * w + roix) * 2, type, roiw, roih, w * 2, allocator);
+    }
     // unknown convert type
     NCNN_LOGE("unknown convert type %d", type);
     return Mat();
@@ -2869,7 +2915,10 @@ Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, in
     {
         return from_pixels(pixels + roiy * stride + roix * 4, type, roiw, roih, stride, allocator);
     }
-
+    else if (type_from == PIXEL_RGB_565)
+    {
+        return from_pixels(pixels + roiy * stride + roix * 2, type, roiw, roih, stride, allocator);
+    }
     // unknown convert type
     NCNN_LOGE("unknown convert type %d", type);
     return Mat();
@@ -2897,7 +2946,10 @@ Mat Mat::from_pixels_roi_resize(const unsigned char* pixels, int type, int w, in
     {
         return from_pixels_resize(pixels + (roiy * w + roix) * 4, type, roiw, roih, w * 4, target_width, target_height, allocator);
     }
-
+    else if (type_from == PIXEL_RGB_565)
+    {
+        return from_pixels_resize(pixels + (roiy * w + roix) * 2, type, roiw, roih, w * 2, target_width, target_height, allocator);
+    }
     // unknown convert type
     NCNN_LOGE("unknown convert type %d", type);
     return Mat();
@@ -2925,7 +2977,10 @@ Mat Mat::from_pixels_roi_resize(const unsigned char* pixels, int type, int w, in
     {
         return from_pixels_resize(pixels + roiy * stride + roix * 4, type, roiw, roih, stride, target_width, target_height, allocator);
     }
-
+    else if (type_from == PIXEL_RGB_565)
+    {
+        return from_pixels_resize(pixels + roiy * stride + roix * 2, type, roiw, roih, stride, target_width, target_height, allocator);
+    }
     // unknown convert type
     NCNN_LOGE("unknown convert type %d", type);
     return Mat();
