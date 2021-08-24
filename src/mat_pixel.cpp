@@ -209,6 +209,7 @@ static void to_rgb(const Mat& m, unsigned char* rgb, int stride)
 }
 
 //not tested
+//convert pixels from rgb565 to rgb888
 void rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, int to_stride, unsigned char* to)
 {
     if (to == NULL || raw == NULL)
@@ -250,14 +251,32 @@ void rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, int to_st
         }
 #endif // __ARM_NEON
 
+        union
+        {
+            int _test_number;
+            unsigned char _test_byte;
+        };
+        _test_number = 0x00030201;
         for (; remain > 0; --remain)
         {
-            //little endian
-            to[0] = raw[1] & 0xf8;
-            unsigned char g_part1 = (raw[1] & 0x7) << 5;
-            unsigned char g_part2 = (raw[0] & 0xe0) >> 3;
+            unsigned char _byte_fr, _byte_nd;
+            if (_test_byte)
+            {
+                //little endian
+                _byte_fr = raw[1];
+                _byte_nd = raw[0];
+            }
+            else
+            {
+                //big endian
+                _byte_fr = raw[0];
+                _byte_nd = raw[1];
+            }
+            to[0] = _byte_fr & 0xf8;
+            unsigned char g_part1 = (_byte_fr & 0x7) << 5;
+            unsigned char g_part2 = (_byte_nd & 0xe0) >> 3;
             to[1] = g_part1 | g_part2;
-            to[2] = (raw[0] & 0x1f) << 3;
+            to[2] = (_byte_nd & 0x1f) << 3;
 
             to += 3;
             raw += 2;
@@ -268,6 +287,7 @@ void rgb565_to_rgb(const unsigned char* raw, int w, int h, int stride, int to_st
 }
 
 //not tested
+//convert pixels from rgb888 to rgb565
 void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, int to_stride, unsigned char* to)
 {
     if (to == NULL || raw == NULL)
@@ -308,11 +328,30 @@ void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, int to_st
             raw += 24;
         }
 #endif // __ARM_NEON
+        union
+        {
+            int _test_number;
+            unsigned char _test_byte;
+        };
+        _test_number = 0x00030201;
         for (; remain > 0; --remain)
         {
-            //little-endian
-            to[1] = (raw[0] & 0xf8) | ((raw[1] & 0xe0) >> 5);
-            to[0] = ((raw[1] & 0x1c) << 3) | ((raw[2] & 0xf8) >> 3);
+            unsigned char *_byte_fr, *_byte_nd;
+            if (_test_byte)
+            {
+                //little endian
+                _byte_fr = to + 1;
+                _byte_nd = to + 0;
+            }
+            else
+            {
+                //big endian
+                _byte_fr = to + 0;
+                _byte_nd = to + 1;
+            }
+           
+            *_byte_fr = (raw[0] & 0xf8) | ((raw[1] & 0xe0) >> 5);
+            *_byte_nd = ((raw[1] & 0x1c) << 3) | ((raw[2] & 0xf8) >> 3);
             raw += 3;
             to += 2;
         }
@@ -322,6 +361,7 @@ void rgb_to_rgb565(const unsigned char* raw, int w, int h, int stride, int to_st
 }
 
 //not tested
+//store rgb565 in ncnn::Mat of rgb888 format
 static int from_rgb565(const unsigned char* rgb565, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     unsigned char* rgb = new unsigned char[w * h * 3];
@@ -334,6 +374,7 @@ static int from_rgb565(const unsigned char* rgb565, int w, int h, int stride, Ma
 }
 
 //not tested
+//output rgb565 from ncnn::Mat of rgb888 format
 static void to_rgb565(const Mat& m, unsigned char* rgb565, int stride)
 {
     int w = m.w;
@@ -882,7 +923,8 @@ static void to_bgr2rgb(const Mat& m, unsigned char* rgb, int stride)
         rgb += wgap;
     }
 }
-
+//not tested
+//convert pixels from bgr to rgb565
 static void to_bgr2rgb_565(const Mat& m, unsigned char* rgb565, int stride)
 {
     int w = m.w;
@@ -2109,6 +2151,7 @@ static int from_bgra2gray(const unsigned char* bgra, int w, int h, int stride, M
 }
 
 //not tested
+//convert pixels from rgb565 to bgr
 static int from_rgb2bgr_565(const unsigned char* rgb565, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     unsigned char* rgb = new unsigned char[w * h * 3ll];
@@ -2121,6 +2164,7 @@ static int from_rgb2bgr_565(const unsigned char* rgb565, int w, int h, int strid
 }
 
 //not tested
+//convert pixels from rgb565 to gray
 static int from_rgb2gray_565(const unsigned char* rgb565, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     unsigned char* rgb = new unsigned char[w * h * 3ll];
@@ -2133,6 +2177,7 @@ static int from_rgb2gray_565(const unsigned char* rgb565, int w, int h, int stri
 }
 
 //not tested
+//convert pixels from rgb565 to rgba
 static int from_rgb2rgba_565(const unsigned char* rgb565, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     unsigned char* rgb = new unsigned char[w * h * 3ll];
