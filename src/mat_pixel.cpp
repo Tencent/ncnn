@@ -2696,7 +2696,7 @@ Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Alloca
     {
         return Mat::from_pixels(pixels, type, w, h, w * 4, allocator);
     }
-    else if (type_from = PIXEL_RGB_565)
+    else if (type_from == PIXEL_RGB_565)
     {
         return Mat::from_pixels(pixels, type, w, h, w * 2, allocator);
     }
