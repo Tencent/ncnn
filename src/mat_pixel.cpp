@@ -938,7 +938,6 @@ static void to_bgr2rgb_565(const Mat& m, unsigned char* rgb565, int stride)
     delete[] rgb;
 }
 
-
 static int from_rgb2gray(const unsigned char* rgb, int w, int h, int stride, Mat& m, Allocator* allocator)
 {
     // coeffs for r g b = 0.299f, 0.587f, 0.114f
@@ -3002,6 +3001,10 @@ void Mat::to_pixels(unsigned char* pixels, int type) const
     {
         to_pixels(pixels, type, w * 4);
     }
+    else if (type_to == PIXEL_RGB_565)
+    {
+        to_pixels(pixels, type, w * 2);
+    }
 }
 
 void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
@@ -3030,6 +3033,9 @@ void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
         case PIXEL_BGRA2RGBA:
             to_rgba2bgra(*this, pixels, stride);
             break;
+        case PIXEL_BGR2RGB_565:
+            to_bgr2rgb_565(*this, pixels, stride);
+            break;
         default:
             // unimplemented convert type
             NCNN_LOGE("unimplemented convert type %d", type);
@@ -3046,6 +3052,9 @@ void Mat::to_pixels(unsigned char* pixels, int type, int stride) const
 
         if (type == PIXEL_RGBA || type == PIXEL_BGRA)
             to_rgba(*this, pixels, stride);
+
+        if (type == PIXEL_RGB_565)
+            to_rgb565(*this, pixels, stride);
     }
 }
 
@@ -3064,6 +3073,10 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
     else if (type_to == PIXEL_RGBA || type_to == PIXEL_BGRA)
     {
         to_pixels_resize(pixels, type, target_width, target_height, target_width * 4);
+    }
+    else if (type_to == PIXEL_RGB_565)
+    {
+        to_pixels_resize(pixels, type, target_width, target_height, target_width * 2);
     }
 }
 
@@ -3097,6 +3110,14 @@ void Mat::to_pixels_resize(unsigned char* pixels, int type, int target_width, in
         to_pixels(src, type);
 
         resize_bilinear_c4(src, w, h, w * 4, pixels, target_width, target_height, target_stride);
+    }
+    else if (type_to == PIXEL_RGB_565)
+    {
+        Mat src(w, h, (size_t)2u, 2);
+
+        to_pixels(src, type);
+
+        resize_bilinear_c2(src, w, h, w * 2, pixels, target_width, target_height, target_stride);
     }
 }
 #endif // NCNN_PIXEL
