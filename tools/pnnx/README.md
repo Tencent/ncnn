@@ -29,6 +29,7 @@ PNNX tries to define a set of operators and a simple and easy-to-use format that
 7. [Inference via exported PyTorch python code](#pnnx-python-inference)
 8. [Tensor shape propagation](#pnnx-shape-propagation)
 9. [Model optimization](#pnnx-model-optimization)
+10. [Custom operator support](#pnnx-custom-operator)
 
 # Build TorchScript to PNNX converter
 
