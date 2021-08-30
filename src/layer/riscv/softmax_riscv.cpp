@@ -212,7 +212,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 ptr1 += vl;
                 n1 -= vl;
             }
-            ptr1=NULL;
+            ptr1 = NULL;
 
             float s = 0.f;
             int n2 = w * elempack;
@@ -231,7 +231,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 ptr2 += vl;
                 n2 -= vl;
             }
-            ptr2=NULL;
+            ptr2 = NULL;
 
             int n3 = w * elempack;
             float* ptr3 = ptr;

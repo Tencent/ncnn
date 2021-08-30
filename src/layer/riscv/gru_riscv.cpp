@@ -116,10 +116,9 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
                 ptr_hcu += vl;
                 n_out -= vl;
             }
-            ptr_hc  = NULL;
+            ptr_hc = NULL;
             ptr_hcr = NULL;
             ptr_hcu = NULL;
-            
 
             // sigmoid(R)
             // sigmoid(U)
