@@ -141,10 +141,9 @@ int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                     outptr[k] = sum;
                 }
 
+                // move forward output pointer
                 outptr += outd;
             }
-
-            outptr += outw * outd;
         }
     }
 

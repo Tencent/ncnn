@@ -188,8 +188,12 @@ public:
     const Mat channel(int c) const;
     float* row(int y);
     const float* row(int y) const;
-    float* plane(int d);
-    const float* plane(int d) const;
+    Mat slice_w(int d);
+    const Mat slice_w(int w) const;
+    Mat slice_h(int h);
+    const Mat slice_h(int h) const;
+    Mat slice_d(int d);
+    const Mat slice_d(int d) const;
     template<typename T>
     T* row(int y);
     template<typename T>
@@ -1255,14 +1259,34 @@ inline const float* Mat::row(int y) const
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
-inline float* Mat::plane(int d)
+inline Mat Mat::slice_w(int _w)
 {
-    return (float*)((unsigned char*)data + (size_t)w * (size_t)h * d * elemsize);
+    return Mat(_w, h, d, c, (unsigned char*)data + _w * (size_t)h * (size_t)d * elemsize);
 }
 
-inline const float* Mat::plane(int d) const
+inline const Mat Mat::slice_w(int _w) const
 {
-    return (const float*)((unsigned char*)data + (size_t)w * (size_t)h * d * elemsize);
+    return Mat(_w, h, d, c, (unsigned char*)data + _w * (size_t)h * (size_t)d * elemsize);
+}
+
+inline Mat Mat::slice_h(int _h)
+{
+    return Mat(w, _h, d, c, (unsigned char*)data + (size_t)w * _h * (size_t)d * elemsize);
+}
+
+inline const Mat Mat::slice_h(int _h) const
+{
+    return Mat(w, _h, d, c, (unsigned char*)data + (size_t)w * _h * (size_t)d * elemsize);
+}
+
+inline Mat Mat::slice_d(int _d)
+{
+    return Mat(w, h, _d, c, (unsigned char*)data + (size_t)w * (size_t)h * _d * elemsize);
+}
+
+inline const Mat Mat::slice_d(int _d) const
+{
+    return Mat(w, h, _d, c, (unsigned char*)data + (size_t)w * (size_t)h * _d * elemsize);
 }
 
 template<typename T>

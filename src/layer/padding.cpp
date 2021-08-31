@@ -301,6 +301,7 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -396,6 +397,67 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             }
         }
         return 0;
+    }
+
+    int outd = d + front + behind;
+    if(dims == 4) {
+        // Extract each channel, then get a 3D matrix which is ready for padding
+        // Use dims == 3 code to pad the 3D matrix
+        top_blob.create(outw, outh, outd, outc, elemsize, opt.blob_allocator);
+
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int chan = 0; chan < outc; ++chan)
+        {
+            Mat current_channel = bottom_blob.channel(chan);
+            for (int q = 0; q < current_channel.d; q++)
+            {
+                Mat borderm = current_channel.slice_d(q);
+
+                float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
+
+                //Channel padding
+                if (((q < front) || (q >= (channels + front))) && type == 0)
+                {
+                    if (elemsize == 1)
+                    {
+                        borderm.fill(static_cast<signed char>(pad_value));
+                    }
+                    if (elemsize == 2)
+                    {
+                        borderm.fill(opt.use_fp16_storage ? float32_to_float16(pad_value) : float32_to_bfloat16(pad_value));
+                    }
+                    if (elemsize == 4)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                }
+                else
+                {
+                    int q_ = q - front;
+
+                    if (type == 1)
+                    {
+                        q_ = q_ <= 0 ? 0 : q_;
+                        q_ = q_ >= channels - 1 ? channels - 1 : q_;
+                    }
+                    if (type == 2)
+                    {
+                        q_ = abs(q_);
+                        q_ = (channels - 1) - abs(q_ - (channels - 1));
+                    }
+                    const Mat m = bottom_blob.channel(q_);
+                    if (elemsize == 1)
+                        copy_make_border_image<signed char>(m, borderm, top, left, type, static_cast<signed char>(pad_value));
+                    if (elemsize == 2)
+                        copy_make_border_image<unsigned short>(m, borderm, top, left, type, opt.use_fp16_storage ? float32_to_float16(pad_value) : float32_to_bfloat16(pad_value));
+                    if (elemsize == 4)
+                        copy_make_border_image<float>(m, borderm, top, left, type, pad_value);
+                }
+            }
+        }
     }
 
     return 0;
