@@ -276,3 +276,95 @@ TBD
 |nn.UpsamplingNearest2d     |   |
 |nn.ZeroPad2d               |   |
 
+
+| torch.nn.functional | Is Supported |
+|---------------------------|----|
+|F.adaptive_avg_pool1d      | :heavy_check_mark: |
+|F.adaptive_avg_pool2d      | :heavy_check_mark: |
+|F.adaptive_avg_pool3d      | :heavy_check_mark: |
+|F.adaptive_max_pool1d      |  |
+|F.adaptive_max_pool2d      |  |
+|F.adaptive_max_pool3d      |  |
+|F.affine_grid              |  |
+|F.alpha_dropout            |  |
+|F.avg_pool1d               |  |
+|F.avg_pool2d               |  |
+|F.avg_pool3d               |  |
+|F.batch_norm               | :heavy_check_mark: |
+|F.bilinear                 |  |
+|F.celu                     | :heavy_check_mark: |
+|F.conv1d                   | :heavy_check_mark: |
+|F.conv2d                   | :heavy_check_mark: |
+|F.conv3d                   | :heavy_check_mark: |
+|F.conv_transpose1d         | :heavy_check_mark: |
+|F.conv_transpose2d         | :heavy_check_mark: |
+|F.conv_transpose3d         | :heavy_check_mark: |
+|F.cosine_similarity        |  |
+|F.dropout                  |  |
+|F.dropout2d                |  |
+|F.dropout3d                |  |
+|F.elu                      | :heavy_check_mark: |
+|F.elu_                     | :heavy_check_mark: |
+|F.embedding                |  |
+|F.embedding_bag            |  |
+|F.feature_alpha_dropout    |  |
+|F.fold                     |  |
+|F.fractional_max_pool2d    |  |
+|F.fractional_max_pool3d    |  |
+|F.gelu                     | :heavy_check_mark: |
+|F.glu                      |  |
+|F.grid_sample              |  |
+|F.group_norm               | :heavy_check_mark: |
+|F.gumbel_softmax           |  |
+|F.hardshrink               | :heavy_check_mark: |
+|F.hardsigmoid              | :heavy_check_mark: |
+|F.hardswish                | :heavy_check_mark: |
+|F.hardtanh                 | :heavy_check_mark: |
+|F.hardtanh_                | :heavy_check_mark: |
+|F.instance_norm            | :heavy_check_mark: |
+|F.interpolate              |  |
+|F.layer_norm               | :heavy_check_mark: |
+|F.leaky_relu               | :heavy_check_mark: |
+|F.leaky_relu_              | :heavy_check_mark: |
+|F.linear                   | :heavy_check_mark: |
+|F.local_response_norm      |  |
+|F.logsigmoid               | :heavy_check_mark: |
+|F.log_softmax              | :heavy_check_mark: |
+|F.lp_pool1d                |  |
+|F.lp_pool2d                |  |
+|F.max_pool1d               |  |
+|F.max_pool2d               |  |
+|F.max_pool3d               |  |
+|F.max_unpool1d             |  |
+|F.max_unpool2d             |  |
+|F.max_unpool3d             |  |
+|F.mish                     | :heavy_check_mark: |
+|F.normalize                | :heavy_check_mark: |
+|F.one_hot                  |  |
+|F.pad                      |  |
+|F.pairwise_distance        |  |
+|F.pdist                    |  |
+|F.pixel_shuffle            |  |
+|F.pixel_unshuffle          |  |
+|F.prelu                    | :heavy_check_mark: |
+|F.relu                     | :heavy_check_mark: |
+|F.relu_                    | :heavy_check_mark: |
+|F.relu6                    | :heavy_check_mark: |
+|F.rrelu                    | :heavy_check_mark: |
+|F.rrelu_                   | :heavy_check_mark: |
+|F.selu                     | :heavy_check_mark: |
+|F.sigmoid                  | :heavy_check_mark: |
+|F.silu                     | :heavy_check_mark: |
+|F.softmax                  | :heavy_check_mark: |
+|F.softmin                  | :heavy_check_mark: |
+|F.softplus                 | :heavy_check_mark: |
+|F.softshrink               | :heavy_check_mark: |
+|F.softsign                 | :heavy_check_mark: |
+|F.tanh                     | :heavy_check_mark: |
+|F.tanhshrink               | :heavy_check_mark: |
+|F.threshold                | :heavy_check_mark: |
+|F.threshold_               | :heavy_check_mark: |
+|F.unfold                   |  |
+|F.upsample                 |  |
+|F.upsample_bilinear        | :heavy_check_mark: |
+|F.upsample_nearest         |  |
