@@ -154,3 +154,125 @@ Users could ask PNNX to keep module as one big operator when it has complex logi
 Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
 TBD
+
+
+# Supported PyTorch operator status
+
+| torch.nn        | Is Supported |
+|---------------------------|----|
+|nn.AdaptiveAvgPool1d       | :heavy_check_mark: |
+|nn.AdaptiveAvgPool2d       | :heavy_check_mark: |
+|nn.AdaptiveAvgPool3d       | :heavy_check_mark: |
+|nn.AdaptiveMaxPool1d       |   |
+|nn.AdaptiveMaxPool2d       |   |
+|nn.AdaptiveMaxPool3d       |   |
+|nn.AlphaDropout            |   |
+|nn.AvgPool1d               | :heavy_check_mark: |
+|nn.AvgPool2d               | :heavy_check_mark: |
+|nn.AvgPool3d               | :heavy_check_mark: |
+|nn.BatchNorm1d             | :heavy_check_mark: |
+|nn.BatchNorm2d             | :heavy_check_mark: |
+|nn.BatchNorm3d             | :heavy_check_mark: |
+|nn.Bilinear                |   |
+|nn.CELU                    | :heavy_check_mark: |
+|nn.ChannelShuffle          |   |
+|nn.ConstantPad1d           |   |
+|nn.ConstantPad2d           |   |
+|nn.ConstantPad3d           |   |
+|nn.Conv1d                  | :heavy_check_mark: |
+|nn.Conv2d                  | :heavy_check_mark: |
+|nn.Conv3d                  | :heavy_check_mark: |
+|nn.ConvTranspose1d         | :heavy_check_mark: |
+|nn.ConvTranspose2d         | :heavy_check_mark: |
+|nn.ConvTranspose3d         | :heavy_check_mark: |
+|nn.CosineSimilarity        |   |
+|nn.Dropout                 |   |
+|nn.Dropout2d               |   |
+|nn.Dropout3d               |   |
+|nn.ELU                     | :heavy_check_mark: |
+|nn.Embedding               |   |
+|nn.EmbeddingBag            |   |
+|nn.Flatten                 | :heavy_check_mark: |
+|nn.Fold                    |   |
+|nn.FractionalMaxPool2d     |   |
+|nn.FractionalMaxPool3d     |   |
+|nn.GELU                    | :heavy_check_mark: |
+|nn.GroupNorm               | :heavy_check_mark: |
+|nn.GRU                     | :heavy_check_mark: |
+|nn.GRUCell                 |   |
+|nn.Hardshrink              | :heavy_check_mark: |
+|nn.Hardsigmoid             | :heavy_check_mark: |
+|nn.Hardswish               | :heavy_check_mark: |
+|nn.Hardtanh                | :heavy_check_mark: |
+|nn.Identity                |   |
+|nn.InstanceNorm1d          | :heavy_check_mark: |
+|nn.InstanceNorm2d          | :heavy_check_mark: |
+|nn.InstanceNorm3d          | :heavy_check_mark: |
+|nn.LayerNorm               | :heavy_check_mark: |
+|nn.LazyBatchNorm1d         |   |
+|nn.LazyBatchNorm2d         |   |
+|nn.LazyBatchNorm3d         |   |
+|nn.LazyConv1d              |   |
+|nn.LazyConv2d              |   |
+|nn.LazyConv3d              |   |
+|nn.LazyConvTranspose1d     |   |
+|nn.LazyConvTranspose2d     |   |
+|nn.LazyConvTranspose3d     |   |
+|nn.LazyLinear              |   |
+|nn.LeakyReLU               | :heavy_check_mark: |
+|nn.Linear                  | :heavy_check_mark: |
+|nn.LocalResponseNorm       |   |
+|nn.LogSigmoid              | :heavy_check_mark: |
+|nn.LogSoftmax              | :heavy_check_mark: |
+|nn.LPPool1d                |   |
+|nn.LPPool2d                |   |
+|nn.LSTM                    | :heavy_check_mark: |
+|nn.LSTMCell                |   |
+|nn.MaxPool1d               | :heavy_check_mark: |
+|nn.MaxPool2d               | :heavy_check_mark: |
+|nn.MaxPool3d               | :heavy_check_mark: |
+|nn.MaxUnpool1d             |   |
+|nn.MaxUnpool2d             |   |
+|nn.MaxUnpool3d             |   |
+|nn.Mish                    | :heavy_check_mark: |
+|nn.MultiheadAttention      | :heavy_check_mark: |
+|nn.PairwiseDistance        |   |
+|nn.PixelShuffle            |   |
+|nn.PixelUnshuffle          |   |
+|nn.PReLU                   | :heavy_check_mark: |
+|nn.ReflectionPad1d         | :heavy_check_mark: |
+|nn.ReflectionPad2d         | :heavy_check_mark: |
+|nn.ReLU                    | :heavy_check_mark: |
+|nn.ReLU6                   | :heavy_check_mark: |
+|nn.ReplicationPad1d        | :heavy_check_mark: |
+|nn.ReplicationPad2d        | :heavy_check_mark: |
+|nn.ReplicationPad3d        | :heavy_check_mark: |
+|nn.RNN                     | :heavy_check_mark: |
+|nn.RNNBase                 |   |
+|nn.RNNCell                 |   |
+|nn.RReLU                   | :heavy_check_mark: |
+|nn.SELU                    | :heavy_check_mark: |
+|nn.Sigmoid                 | :heavy_check_mark: |
+|nn.SiLU                    | :heavy_check_mark: |
+|nn.Softmax                 |   |
+|nn.Softmax2d               |   |
+|nn.Softmin                 |   |
+|nn.Softplus                | :heavy_check_mark: |
+|nn.Softshrink              | :heavy_check_mark: |
+|nn.Softsign                | :heavy_check_mark: |
+|nn.SyncBatchNorm           |   |
+|nn.Tanh                    | :heavy_check_mark: |
+|nn.Tanhshrink              | :heavy_check_mark: |
+|nn.Threshold               | :heavy_check_mark: |
+|nn.Transformer             |   |
+|nn.TransformerDecoder      |   |
+|nn.TransformerDecoderLayer |   |
+|nn.TransformerEncoder      |   |
+|nn.TransformerEncoderLayer |   |
+|nn.Unflatten               |   |
+|nn.Unfold                  |   |
+|nn.Upsample                | :heavy_check_mark: |
+|nn.UpsamplingBilinear2d    |   |
+|nn.UpsamplingNearest2d     |   |
+|nn.ZeroPad2d               |   |
+
