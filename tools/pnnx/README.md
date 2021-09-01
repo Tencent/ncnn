@@ -68,10 +68,10 @@ Open https://netron.app/ in browser, and drag resnet18.pnnx.param into it.
 ```
 7767517
 4 3
-Input     pnnx_input_1    0 1 x.1
-Conv2d    conv_0_0        1 1 x.1 19 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16) @weight=(16,12,3,3)
-Conv2d    conv_0_1        1 1 19 20 bias=1 dilation=(1,1) groups=1 in_channels=16 kernel_size=(2,2) out_channels=20 padding=(2,2) stride=(2,2) @bias=(20) @weight=(20,16,2,2)
-Output    pnnx_output_0   1 0 20
+Input       pnnx_input_1    0 1 x.1
+nn.Conv2d   conv_0_0        1 1 x.1 19 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16) @weight=(16,12,3,3)
+nn.Conv2d   conv_0_1        1 1 19 20 bias=1 dilation=(1,1) groups=1 in_channels=16 kernel_size=(2,2) out_channels=20 padding=(2,2) stride=(2,2) @bias=(20) @weight=(20,16,2,2)
+Output      pnnx_output_0   1 0 20
 ```
 ### overview
 ```
@@ -93,15 +93,15 @@ Output    pnnx_output_0   1 0 20
 * output count : count of the operands this operator produces as output
 * input operands : name list of all the input blob names, separated by space
 * output operands : name list of all the output blob names, separated by space
-* operator params : key=value pair list, separated by space, operator weights are prefixed by ```@``` symbol
+* operator params : key=value pair list, separated by space, operator weights are prefixed by ```@``` symbol, tensor shapes are prefixed by ```#``` symbol, input parameter keys are prefixed by ```$```
 
 # The pnnx.bin format
-```
-  +---------+---------+---------+---------+---------+---------+
-  | weight1 | weight2 | weight3 | weight4 | ....... | weightN |
-  +---------+---------+---------+---------+---------+---------+
-```
-the model binary is the concatenation of all weight data
+
+pnnx.bin file is a zip file with store-only mode(no compression)
+
+weight binary file has its name composed by operator name and weight name
+
+For example, ```nn.Conv2d   conv_0_0        1 1 x.1 19 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16) @weight=(16,12,3,3)``` would pull conv_0_0.weight and conv_0_0.bias into pnnx.bin zip archive.
 
 # PNNX operator
 PNNX always preserve operators from what PyTorch python api provides.
