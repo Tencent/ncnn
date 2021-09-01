@@ -409,12 +409,14 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return -100;
 
         #pragma omp parallel for num_threads(opt.num_threads)
+        // Get 1 channel of 3D matrix for padding
         for (int chan = 0; chan < outc; ++chan)
         {
             Mat current_channel = bottom_blob.channel(chan);
+            // Pad a w,h,d shaped 3D matrix, use d as channel
             for (int q = 0; q < current_channel.d; q++)
             {
-                Mat borderm = current_channel.slice_d(q);
+                Mat borderm = Mat(w,h,current_channel.slice_d(q), current_channel.elemsize, current_channel.elempack, current_channel.allocator);
 
                 float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
 

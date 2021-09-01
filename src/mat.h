@@ -188,12 +188,12 @@ public:
     const Mat channel(int c) const;
     float* row(int y);
     const float* row(int y) const;
-    Mat slice_w(int d);
-    const Mat slice_w(int w) const;
-    Mat slice_h(int h);
-    const Mat slice_h(int h) const;
-    Mat slice_d(int d);
-    const Mat slice_d(int d) const;
+    float* slice_w(int d);
+    const float* slice_w(int w) const;
+    float* slice_h(int h);
+    const float* slice_h(int h) const;
+    float* slice_d(int d);
+    const float* slice_d(int d) const;
     template<typename T>
     T* row(int y);
     template<typename T>
@@ -1259,34 +1259,34 @@ inline const float* Mat::row(int y) const
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
-inline Mat Mat::slice_w(int _w)
+inline float* Mat::slice_w(int _w)
 {
-    return Mat(_w, h, d, c, (unsigned char*)data + _w * (size_t)h * (size_t)d * elemsize);
+    return (float*)((unsigned char*)data + _w * (size_t)h * (size_t)d * elemsize);
 }
 
-inline const Mat Mat::slice_w(int _w) const
+inline const float* Mat::slice_w(int _w) const
 {
-    return Mat(_w, h, d, c, (unsigned char*)data + _w * (size_t)h * (size_t)d * elemsize);
+    return (const float*)((unsigned char*)data + _w * (size_t)h * (size_t)d * elemsize);
 }
 
-inline Mat Mat::slice_h(int _h)
+inline float* Mat::slice_h(int _h)
 {
-    return Mat(w, _h, d, c, (unsigned char*)data + (size_t)w * _h * (size_t)d * elemsize);
+    return (float*)((unsigned char*)data + (size_t)w * _h * (size_t)d * elemsize);
 }
 
-inline const Mat Mat::slice_h(int _h) const
+inline const float* Mat::slice_h(int _h) const
 {
-    return Mat(w, _h, d, c, (unsigned char*)data + (size_t)w * _h * (size_t)d * elemsize);
+    return (const float*)((unsigned char*)data + (size_t)w * _h * (size_t)d * elemsize);
 }
 
-inline Mat Mat::slice_d(int _d)
+inline float* Mat::slice_d(int _d)
 {
-    return Mat(w, h, _d, c, (unsigned char*)data + (size_t)w * (size_t)h * _d * elemsize);
+    return (float*)((unsigned char*)data + (size_t)w * (size_t)h * _d * elemsize);
 }
 
-inline const Mat Mat::slice_d(int _d) const
+inline const float* Mat::slice_d(int _d) const
 {
-    return Mat(w, h, _d, c, (unsigned char*)data + (size_t)w * (size_t)h * _d * elemsize);
+    return (const float*)((unsigned char*)data + (size_t)w * (size_t)h * _d * elemsize);
 }
 
 template<typename T>

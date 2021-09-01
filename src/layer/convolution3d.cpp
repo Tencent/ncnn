@@ -91,7 +91,7 @@ int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                     for (int q = 0; q < channels; q++)
                     {
                         const Mat m = bottom_blob_bordered.channel(q);
-                        const float* sptr = m.plane(k * stride_d) + i * stride_w + j * stride_h;
+                        const float* sptr = m.slice_d(k * stride_d) + i * stride_w + j * stride_h;
 
                         for (int l = 0; l < maxk; l++)
                         {
