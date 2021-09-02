@@ -322,7 +322,7 @@ TBD
 |F.hardtanh                 | :heavy_check_mark: |
 |F.hardtanh_                | :heavy_check_mark: |
 |F.instance_norm            | :heavy_check_mark: |
-|F.interpolate              |  |
+|F.interpolate              | :heavy_check_mark: |
 |F.layer_norm               | :heavy_check_mark: |
 |F.leaky_relu               | :heavy_check_mark: |
 |F.leaky_relu_              | :heavy_check_mark: |
@@ -365,6 +365,6 @@ TBD
 |F.threshold                | :heavy_check_mark: |
 |F.threshold_               | :heavy_check_mark: |
 |F.unfold                   |  |
-|F.upsample                 |  |
+|F.upsample                 | :heavy_check_mark: |
 |F.upsample_bilinear        | :heavy_check_mark: |
 |F.upsample_nearest         | :heavy_check_mark: |
