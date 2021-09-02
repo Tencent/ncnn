@@ -175,7 +175,7 @@ TBD
 |nn.BatchNorm3d             | :heavy_check_mark: |
 |nn.Bilinear                |   |
 |nn.CELU                    | :heavy_check_mark: |
-|nn.ChannelShuffle          |   |
+|nn.ChannelShuffle          | :heavy_check_mark: |
 |nn.ConstantPad1d           | :heavy_check_mark: |
 |nn.ConstantPad2d           | :heavy_check_mark: |
 |nn.ConstantPad3d           | :heavy_check_mark: |
@@ -237,8 +237,8 @@ TBD
 |nn.Mish                    | :heavy_check_mark: |
 |nn.MultiheadAttention      | :heavy_check_mark: |
 |nn.PairwiseDistance        |   |
-|nn.PixelShuffle            |   |
-|nn.PixelUnshuffle          |   |
+|nn.PixelShuffle            | :heavy_check_mark: |
+|nn.PixelUnshuffle          | :heavy_check_mark: |
 |nn.PReLU                   | :heavy_check_mark: |
 |nn.ReflectionPad1d         | :heavy_check_mark: |
 |nn.ReflectionPad2d         | :heavy_check_mark: |
