@@ -163,9 +163,9 @@ TBD
 |nn.AdaptiveAvgPool1d       | :heavy_check_mark: |
 |nn.AdaptiveAvgPool2d       | :heavy_check_mark: |
 |nn.AdaptiveAvgPool3d       | :heavy_check_mark: |
-|nn.AdaptiveMaxPool1d       |   |
-|nn.AdaptiveMaxPool2d       |   |
-|nn.AdaptiveMaxPool3d       |   |
+|nn.AdaptiveMaxPool1d       | :heavy_check_mark: |
+|nn.AdaptiveMaxPool2d       | :heavy_check_mark: |
+|nn.AdaptiveMaxPool3d       | :heavy_check_mark: |
 |nn.AlphaDropout            |   |
 |nn.AvgPool1d               | :heavy_check_mark: |
 |nn.AvgPool2d               | :heavy_check_mark: |
@@ -176,9 +176,9 @@ TBD
 |nn.Bilinear                |   |
 |nn.CELU                    | :heavy_check_mark: |
 |nn.ChannelShuffle          |   |
-|nn.ConstantPad1d           |   |
-|nn.ConstantPad2d           |   |
-|nn.ConstantPad3d           |   |
+|nn.ConstantPad1d           | :heavy_check_mark: |
+|nn.ConstantPad2d           | :heavy_check_mark: |
+|nn.ConstantPad3d           | :heavy_check_mark: |
 |nn.Conv1d                  | :heavy_check_mark: |
 |nn.Conv2d                  | :heavy_check_mark: |
 |nn.Conv3d                  | :heavy_check_mark: |
