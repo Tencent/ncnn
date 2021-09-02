@@ -221,11 +221,11 @@ TBD
 |nn.LazyLinear              |   |
 |nn.LeakyReLU               | :heavy_check_mark: |
 |nn.Linear                  | :heavy_check_mark: |
-|nn.LocalResponseNorm       |   |
+|nn.LocalResponseNorm       | :heavy_check_mark: |
 |nn.LogSigmoid              | :heavy_check_mark: |
 |nn.LogSoftmax              | :heavy_check_mark: |
-|nn.LPPool1d                |   |
-|nn.LPPool2d                |   |
+|nn.LPPool1d                | :heavy_check_mark: |
+|nn.LPPool2d                | :heavy_check_mark: |
 |nn.LSTM                    | :heavy_check_mark: |
 |nn.LSTMCell                |   |
 |nn.MaxPool1d               | :heavy_check_mark: |
