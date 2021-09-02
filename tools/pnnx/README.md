@@ -254,9 +254,9 @@ TBD
 |nn.SELU                    | :heavy_check_mark: |
 |nn.Sigmoid                 | :heavy_check_mark: |
 |nn.SiLU                    | :heavy_check_mark: |
-|nn.Softmax                 |   |
+|nn.Softmax                 | :heavy_check_mark: |
 |nn.Softmax2d               |   |
-|nn.Softmin                 |   |
+|nn.Softmin                 | :heavy_check_mark: |
 |nn.Softplus                | :heavy_check_mark: |
 |nn.Softshrink              | :heavy_check_mark: |
 |nn.Softsign                | :heavy_check_mark: |
@@ -272,9 +272,9 @@ TBD
 |nn.Unflatten               |   |
 |nn.Unfold                  |   |
 |nn.Upsample                | :heavy_check_mark: |
-|nn.UpsamplingBilinear2d    |   |
-|nn.UpsamplingNearest2d     |   |
-|nn.ZeroPad2d               |   |
+|nn.UpsamplingBilinear2d    | :heavy_check_mark: |
+|nn.UpsamplingNearest2d     | :heavy_check_mark: |
+|nn.ZeroPad2d               | :heavy_check_mark: |
 
 
 | torch.nn.functional | Is Supported |
