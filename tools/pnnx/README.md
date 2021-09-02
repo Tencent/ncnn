@@ -327,7 +327,7 @@ TBD
 |F.leaky_relu               | :heavy_check_mark: |
 |F.leaky_relu_              | :heavy_check_mark: |
 |F.linear                   | :heavy_check_mark: |
-|F.local_response_norm      |  |
+|F.local_response_norm      | :heavy_check_mark: |
 |F.logsigmoid               | :heavy_check_mark: |
 |F.log_softmax              | :heavy_check_mark: |
 |F.lp_pool1d                |  |
@@ -344,8 +344,8 @@ TBD
 |F.pad                      |  |
 |F.pairwise_distance        |  |
 |F.pdist                    |  |
-|F.pixel_shuffle            |  |
-|F.pixel_unshuffle          |  |
+|F.pixel_shuffle            | :heavy_check_mark: |
+|F.pixel_unshuffle          | :heavy_check_mark: |
 |F.prelu                    | :heavy_check_mark: |
 |F.relu                     | :heavy_check_mark: |
 |F.relu_                    | :heavy_check_mark: |
@@ -367,4 +367,4 @@ TBD
 |F.unfold                   |  |
 |F.upsample                 |  |
 |F.upsample_bilinear        | :heavy_check_mark: |
-|F.upsample_nearest         |  |
+|F.upsample_nearest         | :heavy_check_mark: |
