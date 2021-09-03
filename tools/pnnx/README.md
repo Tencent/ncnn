@@ -282,9 +282,9 @@ TBD
 |F.adaptive_avg_pool1d      | :heavy_check_mark: |
 |F.adaptive_avg_pool2d      | :heavy_check_mark: |
 |F.adaptive_avg_pool3d      | :heavy_check_mark: |
-|F.adaptive_max_pool1d      |  |
-|F.adaptive_max_pool2d      |  |
-|F.adaptive_max_pool3d      |  |
+|F.adaptive_max_pool1d      | :heavy_check_mark: |
+|F.adaptive_max_pool2d      | :heavy_check_mark: |
+|F.adaptive_max_pool3d      | :heavy_check_mark: |
 |F.affine_grid              |  |
 |F.alpha_dropout            |  |
 |F.avg_pool1d               | :heavy_check_mark: |
