@@ -313,7 +313,7 @@ TBD
 |F.fractional_max_pool3d    |  |
 |F.gelu                     | :heavy_check_mark: |
 |F.glu                      |  |
-|F.grid_sample              |  |
+|F.grid_sample              | :heavy_check_mark: |
 |F.group_norm               | :heavy_check_mark: |
 |F.gumbel_softmax           |  |
 |F.hardshrink               | :heavy_check_mark: |
