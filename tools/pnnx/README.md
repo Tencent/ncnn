@@ -341,7 +341,7 @@ TBD
 |F.mish                     | :heavy_check_mark: |
 |F.normalize                | :heavy_check_mark: |
 |F.one_hot                  |  |
-|F.pad                      |  |
+|F.pad                      | :heavy_check_mark: |
 |F.pairwise_distance        |  |
 |F.pdist                    |  |
 |F.pixel_shuffle            | :heavy_check_mark: |
