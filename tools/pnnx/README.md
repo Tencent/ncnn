@@ -332,9 +332,9 @@ TBD
 |F.log_softmax              | :heavy_check_mark: |
 |F.lp_pool1d                |  |
 |F.lp_pool2d                |  |
-|F.max_pool1d               |  |
-|F.max_pool2d               |  |
-|F.max_pool3d               |  |
+|F.max_pool1d               | :heavy_check_mark: |
+|F.max_pool2d               | :heavy_check_mark: |
+|F.max_pool3d               | :heavy_check_mark: |
 |F.max_unpool1d             |  |
 |F.max_unpool2d             |  |
 |F.max_unpool3d             |  |
