@@ -330,8 +330,8 @@ TBD
 |F.local_response_norm      | :heavy_check_mark: |
 |F.logsigmoid               | :heavy_check_mark: |
 |F.log_softmax              | :heavy_check_mark: |
-|F.lp_pool1d                |  |
-|F.lp_pool2d                |  |
+|F.lp_pool1d                | :heavy_check_mark: |
+|F.lp_pool2d                | :heavy_check_mark: |
 |F.max_pool1d               | :heavy_check_mark: |
 |F.max_pool2d               | :heavy_check_mark: |
 |F.max_pool3d               | :heavy_check_mark: |
