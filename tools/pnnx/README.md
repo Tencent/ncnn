@@ -287,9 +287,9 @@ TBD
 |F.adaptive_max_pool3d      |  |
 |F.affine_grid              |  |
 |F.alpha_dropout            |  |
-|F.avg_pool1d               |  |
-|F.avg_pool2d               |  |
-|F.avg_pool3d               |  |
+|F.avg_pool1d               | :heavy_check_mark: |
+|F.avg_pool2d               | :heavy_check_mark: |
+|F.avg_pool3d               | :heavy_check_mark: |
 |F.batch_norm               | :heavy_check_mark: |
 |F.bilinear                 |  |
 |F.celu                     | :heavy_check_mark: |
