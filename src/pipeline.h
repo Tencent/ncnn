@@ -106,7 +106,95 @@ public:
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 
+class NCNN_EXPORT Convert2R8g8b8a8UnormPipeline : private Pipeline
+{
+public:
+    explicit Convert2R8g8b8a8UnormPipeline(const VulkanDevice* vkdev);
+    virtual ~Convert2R8g8b8a8UnormPipeline();
+
+    int create(int type_from, int rotate_to, int origin_width, int origin_height, int surface_width, int surface_height, const Option& opt);
+    void destroy();
+
+    friend class VkCompute;
+
+protected:
+    int create_shader_module(const Option& opt);
+    int create_sampler();
+    int create_descriptorset_layout();
+
+public:
+    int type_from;
+    int rotate_to;
+    bool need_resize;
+
+    VkSampler sampler;
+};
+
+static const char Render2R8g8b8a8UnormPipelineVertexShader[] = \
+    "#version 450\n \
+     #extension GL_ARB_separate_shader_objects : enable\n \
+     #extension GL_ARB_shading_language_420pack : enable\n \
+     layout (location = 0) in vec4 pos; \
+     layout (location = 1) in vec2 uv; \
+     layout (binding = 0) uniform UniformBufferObject \
+     { \
+         mat4 projection; \
+         mat4 rotation; \
+         mat4 scale; \
+     } ubo; \
+     layout (location = 0) out vec2 texcoord; \
+     void main() { \
+         texcoord = uv; \
+         gl_Position = ubo.projection * ubo.rotation * ubo.scale * vec4(pos.xyz, 1.0); \
+     }";
+
+static const char Render2R8g8b8a8UnormPipelineFragmentShader[] = \
+    "#version 450\n \
+     #extension GL_ARB_separate_shader_objects : enable\n \
+     #extension GL_ARB_shading_language_420pack : enable\n \
+     layout (binding = 1) uniform sampler2D tex[3]; \
+     layout (location = 0) in vec2 texcoord; \
+     layout (location = 0) out vec4 uFragColor; \
+     void main() { \
+         float y, u, v, r, g, b; \
+         y = texture(tex[0], texcoord).r; \
+         u = texture(tex[1], texcoord).r; \
+         v = texture(tex[2], texcoord).r; \
+         u = u - 0.5; \
+         v = v - 0.5; \
+         r = y + 1.403 * v; \
+         g = y - 0.344 * u - 0.714 * v; \
+         b = y + 1.770 * u; \
+         uFragColor = vec4(r, g, b, 1.0); \
+     }";
+
 #endif // NCNN_VULKAN
+
+class NCNN_EXPORT GraphicsRenderPipeline : private Pipeline
+{
+public:
+    explicit GraphicsRenderPipeline(const VulkanDevice* vkdev);
+    virtual ~GraphicsRenderPipeline();
+
+    int create(int type_from, int rotate_to, int origin_width, int origin_height, int surface_width, int surface_height);
+    void destroy();
+
+protected:
+    int create_descriptorset_layout();
+    int create_pipeline_layout();
+    int create_shader_module();
+
+
+private:
+    int type_from;
+    int rotate_to;
+    bool need_resize;
+
+    VkShaderModule vertex_shader_module;
+    VkShaderModule fragment_shader_module;
+
+    VkSampler sampler;
+};
 
 } // namespace ncnn
 

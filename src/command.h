@@ -31,6 +31,8 @@ class Pipeline;
 class ImportAndroidHardwareBufferPipeline;
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
+class Convert2R8g8b8a8UnormPipeline;
+
 class VkComputePrivate;
 class NCNN_EXPORT VkCompute
 {
@@ -129,6 +131,33 @@ private:
     VkTransferPrivate* const d;
 };
 
+class VkGraphicsPrivate;
+class NCNN_EXPORT VkGraphics
+{
+public:
+    explicit VkGraphics(const VulkanDevice* vkdev);
+    virtual ~VkGraphics();
+
+#if NCNN_PLATFORM_API
+#if __ANDROID_API__ >= 26
+    int specifie_surface(ANativeWindow* window);
+#endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
+
+    int specifie_convert_pipeline(Convert2R8g8b8a8UnormPipeline* pipeline);
+
+    int record_image(const VkImageMat& src);
+
+    int render();
+
+protected:
+    const VulkanDevice* vkdev;
+
+private:
+    VkGraphicsPrivate* const d;
+
+    VkSurfaceKHR surface;
+};
 } // namespace ncnn
 
 #endif // NCNN_VULKAN

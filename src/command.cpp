@@ -3485,6 +3485,596 @@ int VkTransfer::submit_and_wait()
     return 0;
 }
 
+class VkGraphicsPrivate
+{
+public:
+    VkGraphicsPrivate(const VulkanDevice* _vkdev);
+    ~VkGraphicsPrivate();
+
+    int create(VkSurfaceKHR surface, VkFormat format);
+    int destory();
+
+    int create_swapchain();
+    int create_renderpass();
+    int create_framebuffer();
+    int create_fence_semaphore();
+    int create_command_pool();
+    int create_command_buffer();
+
+    const VulkanDevice* vkdev;
+
+    VkCommandPool command_pool;
+    std::vector<VkCommandBuffer> command_buffers;
+
+    uint32_t queue_family_index;
+
+    VkFormat format;
+    uint32_t width;
+    uint32_t height;
+    uint32_t swapchain_length;
+
+    VkSurfaceKHR surface;
+    VkSwapchainKHR swapchain;
+    VkRenderPass renderpass;
+    VkSemaphore semaphore;
+    VkFence fence;
+
+    std::vector<VkImage> images;
+    std::vector<VkImageView> imageviews;
+    std::vector<VkFramebuffer> framebuffers;
+
+    VkDescriptorSetLayout descriptor_set_layout;
+    VkDescriptorPool descriptor_pool;
+    VkDescriptorSet descriptorset;
+};
+
+VkGraphicsPrivate::VkGraphicsPrivate(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev)
+{
+    command_pool = 0;
+
+    queue_family_index = 0;
+
+    surface = 0;
+    swapchain = 0;
+    renderpass = 0;
+    semaphore = 0;
+    fence = 0;
+
+    descriptor_set_layout = 0;
+    descriptor_pool = 0;
+    descriptorset = 0;
+}
+
+VkGraphicsPrivate::~VkGraphicsPrivate()
+{
+    destory();
+}
+
+int VkGraphicsPrivate::create(VkSurfaceKHR _surface, VkFormat _format)
+{   
+    surface = _surface;
+    format = _format;
+
+    queue_family_index = vkdev->info.graphics_queue_family_index();
+
+    create_swapchain();
+    create_renderpass();
+    create_framebuffer();
+    create_fence_semaphore();
+    create_command_pool();
+    create_command_buffer();
+
+    return 0;
+}
+
+int VkGraphicsPrivate::destory()
+{
+    if (command_buffers.data())
+    {
+        vkFreeCommandBuffers(vkdev->vkdevice(), command_pool, swapchain_length, command_buffers.data());
+        command_buffers.clear();
+    }
+
+    if (command_pool)
+    {
+        vkDestroyCommandPool(vkdev->vkdevice(), command_pool, 0);
+        command_pool = 0;
+    }
+    
+    if (fence)
+    {
+        vkDestroyFence(vkdev->vkdevice(), fence, 0);
+        fence = 0;
+    }
+
+    if (semaphore)
+    {
+        vkDestroySemaphore(vkdev->vkdevice(), semaphore, 0);
+        semaphore = 0;
+    }
+
+    if (renderpass)
+    {
+        vkDestroyRenderPass(vkdev->vkdevice(), renderpass, 0);
+        renderpass = 0;
+    }
+
+    if (swapchain)
+    {
+        for (uint32_t i = 0; i < swapchain_length; i++) 
+        {
+            vkDestroyFramebuffer(vkdev->vkdevice(), framebuffers[i], 0);
+            vkDestroyImageView(vkdev->vkdevice(), imageviews[i], 0);
+        }
+        vkDestroySwapchainKHR(vkdev->vkdevice(), swapchain, 0);
+        swapchain = 0;
+    }
+
+    if (surface)
+    {
+        vkDestroySurfaceKHR(vkdev->info.instance(), surface, 0);
+        surface = 0;
+    }
+
+    return 0;
+}
+
+int VkGraphicsPrivate::create_swapchain()
+{
+    VkResult ret;
+
+    if (surface == 0)
+    {
+        NCNN_LOGE("didn't create surface yet");
+        return -1;
+    }
+
+    VkSurfaceCapabilitiesKHR surfaceCapabilities;
+    ret = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkdev->info.physical_device(), surface, &surfaceCapabilities);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed %d", ret);
+        return -1;
+    }
+    width = surfaceCapabilities.currentExtent.width;
+    height = surfaceCapabilities.currentExtent.height;
+
+    uint32_t format_count = 0;
+    ret = vkGetPhysicalDeviceSurfaceFormatsKHR(vkdev->info.physical_device(), surface, &format_count, 0);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkGetPhysicalDeviceSurfaceFormatsKHR failed %d", ret);
+        return -1;
+    }
+    std::vector<VkSurfaceFormatKHR> formats;
+    if (format_count != 0)
+    {
+        formats.resize(format_count);
+        ret = vkGetPhysicalDeviceSurfaceFormatsKHR(vkdev->info.physical_device(), surface, &format_count, formats.data());
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceSurfaceFormatsKHR failed %d", ret);
+            return -1;
+        }
+    }
+    VkFormat chosen_format;
+    VkColorSpaceKHR chosen_color_space;
+    for (uint32_t i = 0; i < format_count; i++)
+    {
+        if (formats[i].format == format) 
+        {
+            chosen_format = formats[i].format;
+            chosen_color_space = formats[i].colorSpace;
+            break;
+        }
+        NCNN_LOGE("unsupport format");
+        return -1;
+    }
+
+    uint32_t present_mode_count;
+    ret = vkGetPhysicalDeviceSurfacePresentModesKHR(vkdev->info.physical_device(), surface, &present_mode_count, 0);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkGetPhysicalDeviceSurfacePresentModesKHR failed %d", ret);
+        return -1;
+    }
+    std::vector<VkPresentModeKHR> present_modes;
+    if (present_mode_count != 0)
+    {
+        present_modes.resize(present_mode_count);
+        ret = vkGetPhysicalDeviceSurfacePresentModesKHR(vkdev->info.physical_device(), surface, &present_mode_count, present_modes.data());
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetPhysicalDeviceSurfacePresentModesKHR failed %d", ret);
+            return -1;
+        }
+    }
+    VkPresentModeKHR chosen_present_mode;
+    for (uint32_t i = 0; i < present_mode_count; i++)
+    {
+        if (present_modes[i] == VK_PRESENT_MODE_FIFO_KHR)
+        {
+            chosen_present_mode = present_modes[i];
+            break;
+        }
+        chosen_present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+    }
+
+    if ((surfaceCapabilities.supportedCompositeAlpha & VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR) != VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR)
+    {
+        NCNN_LOGE("unsupport VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR");
+        return -1;
+    }
+
+    VkSwapchainCreateInfoKHR swapchainCreateInfo;
+    swapchainCreateInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+    swapchainCreateInfo.pNext = 0;
+    swapchainCreateInfo.flags = 0;
+    swapchainCreateInfo.surface = surface;
+    swapchainCreateInfo.minImageCount = surfaceCapabilities.minImageCount;
+    swapchainCreateInfo.imageFormat = chosen_format;
+    swapchainCreateInfo.imageColorSpace = chosen_color_space;
+    swapchainCreateInfo.imageExtent = surfaceCapabilities.currentExtent;
+    swapchainCreateInfo.imageArrayLayers = 1;
+    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    swapchainCreateInfo.queueFamilyIndexCount = 1;
+    swapchainCreateInfo.pQueueFamilyIndices = &queue_family_index;
+    swapchainCreateInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+    swapchainCreateInfo.compositeAlpha = VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR;
+    swapchainCreateInfo.presentMode = chosen_present_mode;
+    swapchainCreateInfo.clipped = VK_FALSE;
+    swapchainCreateInfo.oldSwapchain = VK_NULL_HANDLE;
+
+    ret = vkCreateSwapchainKHR(vkdev->vkdevice(), &swapchainCreateInfo, 0, &swapchain);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateSwapchainKHR failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VkGraphicsPrivate::create_renderpass()
+{
+    VkResult ret;
+
+    VkAttachmentDescription attachmentDescription;
+    attachmentDescription.flags = 0;
+    attachmentDescription.format = format;
+    attachmentDescription.samples = VK_SAMPLE_COUNT_1_BIT;
+    attachmentDescription.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    attachmentDescription.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    attachmentDescription.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    attachmentDescription.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    attachmentDescription.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    attachmentDescription.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentReference;
+    colorAttachmentReference.attachment = 0;
+    colorAttachmentReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpassDescription;
+    subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpassDescription.flags = 0;
+    subpassDescription.inputAttachmentCount = 0;
+    subpassDescription.pInputAttachments = 0;
+    subpassDescription.colorAttachmentCount = 1;
+    subpassDescription.pColorAttachments = &colorAttachmentReference;
+    subpassDescription.pResolveAttachments = 0;
+    subpassDescription.pDepthStencilAttachment = 0;
+    subpassDescription.preserveAttachmentCount = 0;
+    subpassDescription.pPreserveAttachments = 0;
+
+    VkRenderPassCreateInfo renderPassCreateInfo;
+    renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassCreateInfo.pNext = 0;
+    renderPassCreateInfo.attachmentCount = 1;
+    renderPassCreateInfo.pAttachments = &attachmentDescription;
+    renderPassCreateInfo.subpassCount = 1;
+    renderPassCreateInfo.pSubpasses = &subpassDescription;
+    renderPassCreateInfo.dependencyCount = 0;
+    renderPassCreateInfo.pDependencies = 0;
+
+    ret = vkCreateRenderPass(vkdev->vkdevice(), &renderPassCreateInfo, 0, &renderpass);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateRenderPass failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VkGraphicsPrivate::create_framebuffer()
+{
+    VkResult ret;
+
+    if (swapchain == 0 || renderpass == 0)
+    {
+        NCNN_LOGE("didn't create swapchain or renderpass yet");
+        return -1;
+    }
+
+    ret = vkGetSwapchainImagesKHR(vkdev->vkdevice(), swapchain, &swapchain_length, 0);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkGetSwapchainImagesKHR failed %d", ret);
+        return -1;
+    }
+
+    if (swapchain_length != 0)
+    {
+        images.resize(swapchain_length);
+        imageviews.resize(swapchain_length);
+        framebuffers.resize(swapchain_length);
+        command_buffers.resize(swapchain_length);
+        ret = vkGetSwapchainImagesKHR(vkdev->vkdevice(), swapchain, &swapchain_length, images.data());
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkGetSwapchainImagesKHR failed %d", ret);
+            return -1;
+        }
+    }
+
+    for (uint32_t i = 0; i < swapchain_length; i++)
+    {
+        VkImageViewCreateInfo imageViewCreateInfo;
+        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        imageViewCreateInfo.pNext = 0;
+        imageViewCreateInfo.flags = 0;
+        imageViewCreateInfo.image = images[i];
+        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+        imageViewCreateInfo.format = format;
+        imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+        imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+        imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+        imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
+        imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+        imageViewCreateInfo.subresourceRange.levelCount = 1;
+        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+        ret = vkCreateImageView(vkdev->vkdevice(), &imageViewCreateInfo, 0, &imageviews[i]);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkCreateImageView failed %d", ret);
+            return -1;
+        }
+    }
+
+    for (uint32_t i = 0; i < swapchain_length; i++)
+    {
+        VkFramebufferCreateInfo framebufferCreateInfo;
+        framebufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.pNext = 0;
+        framebufferCreateInfo.flags = 0;
+        framebufferCreateInfo.renderPass = renderpass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.pAttachments = &imageviews[i];
+        framebufferCreateInfo.width = width;
+        framebufferCreateInfo.height = height;
+        framebufferCreateInfo.layers = 1;
+
+        ret = vkCreateFramebuffer(vkdev->vkdevice(), &framebufferCreateInfo, 0, &framebuffers[i]);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkCreateFramebuffer failed %d", ret);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
+int VkGraphicsPrivate::create_fence_semaphore()
+{
+    VkResult ret;
+
+    VkFenceCreateInfo fenceCreateInfo;
+    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceCreateInfo.pNext = 0;
+    fenceCreateInfo.flags = 0;
+
+    ret = vkCreateFence(vkdev->vkdevice(), &fenceCreateInfo, 0, &fence);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateFence failed %d", ret);
+        return -1;
+    }
+
+    VkSemaphoreCreateInfo semaphoreCreateInfo;
+    semaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    semaphoreCreateInfo.pNext = 0;
+    semaphoreCreateInfo.flags = 0;
+
+    ret = vkCreateSemaphore(vkdev->vkdevice(), &semaphoreCreateInfo, 0, &semaphore);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateSemaphore failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VkGraphicsPrivate::create_command_pool()
+{
+    VkResult ret;
+
+    VkCommandPoolCreateInfo commandPoolCreateInfo;
+    commandPoolCreateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+    commandPoolCreateInfo.pNext = 0;
+    commandPoolCreateInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    commandPoolCreateInfo.queueFamilyIndex = 0;
+    ret = vkCreateCommandPool(vkdev->vkdevice(), &commandPoolCreateInfo, 0, &command_pool);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateCommandPool failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int VkGraphicsPrivate::create_command_buffer()
+{
+    VkResult ret;
+
+    VkCommandBufferAllocateInfo commandBufferAllocateInfo;
+    commandBufferAllocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    commandBufferAllocateInfo.pNext = 0;
+    commandBufferAllocateInfo.commandPool = command_pool;
+    commandBufferAllocateInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    commandBufferAllocateInfo.commandBufferCount = command_buffers.size();
+
+    ret = vkAllocateCommandBuffers(vkdev->vkdevice(), &commandBufferAllocateInfo, command_buffers.data());
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkAllocateCommandBuffers failed %d", ret);
+        return -1;
+    }
+}
+
+VkGraphics::VkGraphics(const VulkanDevice* _vkdev)
+    : vkdev(_vkdev), d(new VkGraphicsPrivate(_vkdev))
+{
+    surface = 0;
+}
+
+VkGraphics::~VkGraphics()
+{
+    delete d;
+}
+
+#if NCNN_PLATFORM_API
+#if __ANDROID_API__ >= 26
+int VkGraphics::specifie_surface(ANativeWindow* window)
+{
+    VkResult ret;
+
+    VkAndroidSurfaceCreateInfoKHR androidSurfaceCreateInfo;
+    androidSurfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
+    androidSurfaceCreateInfo.pNext = 0;
+    androidSurfaceCreateInfo.flags = 0;
+    androidSurfaceCreateInfo.window = window;
+
+    ret = vkCreateAndroidSurfaceKHR(vkdev->info.instance(), &androidSurfaceCreateInfo, 0, &surface);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateAndroidSurfaceKHR failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+#endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
+
+int VkGraphics::specifie_convert_pipeline(Convert2R8g8b8a8UnormPipeline* pipeline)
+{
+     
+    if (surface == 0)
+    {
+        NCNN_LOGE("didn't specifie surface");
+        return -1;
+    }
+
+    {
+        d->create(surface, VK_FORMAT_R8G8B8A8_UNORM);
+    }
+
+    // for (uint32_t i = 0; i < swapchain_length; i++)
+    // {
+    //     {
+    //         VkCommandBufferBeginInfo commandBufferBeginInfo;
+    //         commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    //         commandBufferBeginInfo.pNext = 0;
+    //         commandBufferBeginInfo.flags = 0;
+    //         commandBufferBeginInfo.pInheritanceInfo = 0;
+
+    //         ret = vkBeginCommandBuffer(compute_command_buffers[i], &commandBufferBeginInfo);
+    //         if (ret != VK_SUCCESS)
+    //         {
+    //             NCNN_LOGE("vkBeginCommandBuffer failed %d", ret);
+    //             return -1;
+    //         }
+    //     }
+
+    //     {
+    //         VkImageMemoryBarrier imageMemoryBarrier;
+    //         imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    //         imageMemoryBarrier.pNext = 0;
+    //         imageMemoryBarrier.srcAccessMask = 0;
+    //         imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    //         imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    //         imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    //         imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    //         imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    //         imageMemoryBarrier.image = images[i];
+    //         imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    //         imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
+    //         imageMemoryBarrier.subresourceRange.levelCount = 1;
+    //         imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
+    //         imageMemoryBarrier.subresourceRange.layerCount = 1;
+
+    //         VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+    //         VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+
+    //         vkCmdPipelineBarrier(compute_command_buffers[i], src_stage, dst_stage, 0, 0, 0, 0, 0, 1, &imageMemoryBarrier);
+    //     }
+
+    //     {
+    //         VkClearValue clearValue;
+    //         clearValue.color.float32[0] = 0.0f;
+    //         clearValue.color.float32[1] = 0.0f;
+    //         clearValue.color.float32[2] = 0.0f;
+    //         clearValue.color.float32[3] = 1.0f;
+
+    //         VkRenderPassBeginInfo renderPassBeginInfo;
+    //         renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    //         renderPassBeginInfo.pNext = 0;
+    //         renderPassBeginInfo.renderPass = renderpass;
+    //         renderPassBeginInfo.framebuffer = framebuffers[i];
+    //         renderPassBeginInfo.renderArea.offset.x = 0;
+    //         renderPassBeginInfo.renderArea.offset.y = 0;
+    //         renderPassBeginInfo.renderArea.extent.width = surface_width;
+    //         renderPassBeginInfo.renderArea.extent.height = surface_height;
+    //         renderPassBeginInfo.clearValueCount = 1;
+    //         renderPassBeginInfo.pClearValues = &clearValue;
+
+    //         vkCmdBeginRenderPass(compute_command_buffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+    //     }
+
+    //     {
+    //         // ret = vkCmdBindPipeline(compute_command_buffers[i], VK_PIPELINE_BIND_POINT_COMPUTE, .pipeline);
+    //         // if (ret != VK_SUCCESS)
+    //         // {
+    //         //     NCNN_LOGE("vkCmdBeginRenderPass failed %d", ret);
+    //         //     return -1;
+    //         // }
+    //     }
+
+    // }
+
+    return 0;
+}
+
+int VkGraphics::record_image(const VkImageMat& src)
+{
+
+    return 0;
+}
+
+int VkGraphics::render()
+{
+
+    return 0;
+}
+
 } // namespace ncnn
 
 #endif // NCNN_VULKAN

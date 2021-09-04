@@ -1826,11 +1826,86 @@ VkAndroidHardwareBufferImageAllocator& VkAndroidHardwareBufferImageAllocator::op
 
 VkBufferMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(size_t /*size*/)
 {
-    return 0;
+    VkResult ret;
+
+    VkExternalMemoryBufferCreateInfo externalMemoryBufferCreateInfo;
+    externalMemoryBufferCreateInfo.sType = VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO;
+    externalMemoryBufferCreateInfo.pNext = 0;
+    externalMemoryBufferCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
+
+    VkBufferCreateInfo bufferCreateInfo;
+    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo.pNext = &externalMemoryBufferCreateInfo;
+    bufferCreateInfo.flags = 0;
+    bufferCreateInfo.size = bufferDesc.width;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+    bufferCreateInfo.queueFamilyIndexCount = 0;
+    bufferCreateInfo.pQueueFamilyIndices = 0;
+
+    VkBuffer buffer = 0;
+    ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateBuffer failed %d", ret);
+        return 0;
+    }
+
+    if (buffer_memory_type_index == (uint32_t)-1)
+    {
+        buffer_memory_type_index = vkdev->find_memory_index(bufferProperties.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    }
+
+    VkImportAndroidHardwareBufferInfoANDROID importAndroidHardwareBufferInfo;
+    importAndroidHardwareBufferInfo.sType = VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID;
+    importAndroidHardwareBufferInfo.pNext = 0;
+    importAndroidHardwareBufferInfo.buffer = hb;
+
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = &importAndroidHardwareBufferInfo;
+    memoryAllocateInfo.allocationSize = bufferProperties.allocationSize;
+    memoryAllocateInfo.memoryTypeIndex = buffer_memory_type_index;
+
+    VkDeviceMemory memory = 0;
+    ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &memory);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        return 0;
+    }
+
+    VkBindBufferMemoryInfo bindBufferMemoryInfo;
+    bindBufferMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO;
+    bindBufferMemoryInfo.pNext = 0;
+    bindBufferMemoryInfo.buffer = buffer;
+    bindBufferMemoryInfo.memory = memory;
+    bindBufferMemoryInfo.memoryOffset = 0;
+    ret = vkdev->vkBindBufferMemory2KHR(vkdev->vkdevice(), 1, &bindBufferMemoryInfo);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkBindBufferMemory2KHR failed %d", ret);
+        vkDestroyBuffer(vkdev->vkdevice(), buffer, 0);
+        return 0;
+    }
+
+    VkBufferMemory* ptr = new VkBufferMemory;
+    ptr->buffer = buffer;
+    ptr->memory = memory;
+    ptr->offset = 0;
+    ptr->capacity = bufferDesc.width;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+    return ptr;
 }
 
-void VkAndroidHardwareBufferImageAllocator::fastFree(VkBufferMemory* /*ptr*/)
+void VkAndroidHardwareBufferImageAllocator::fastFree(VkBufferMemory* ptr)
 {
+    vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+    delete ptr;
 }
 
 VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int /*h*/, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
@@ -1977,7 +2052,7 @@ int VkAndroidHardwareBufferImageAllocator::init()
 
     VkResult ret;
 
-    // resolve externalFormat
+    // resolve externalFormats
     bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
     bufferFormatProperties.pNext = 0;
 
@@ -2032,6 +2107,331 @@ int VkAndroidHardwareBufferImageAllocator::height() const
 uint64_t VkAndroidHardwareBufferImageAllocator::external_format() const
 {
     return bufferFormatProperties.externalFormat;
+}
+
+
+vkMemoryAndroidHardwareBufferAllocator::vkMemoryAndroidHardwareBufferAllocator(const VulkanDevice* _vkdev)
+    : VkAllocator(_vkdev)
+{
+    init();
+}
+
+vkMemoryAndroidHardwareBufferAllocator::~vkMemoryAndroidHardwareBufferAllocator()
+{
+}
+
+
+vkMemoryAndroidHardwareBufferAllocator::vkMemoryAndroidHardwareBufferAllocator(const vkMemoryAndroidHardwareBufferAllocator&)
+    : VkAllocator(0)
+{
+}
+
+vkMemoryAndroidHardwareBufferAllocator& vkMemoryAndroidHardwareBufferAllocator::operator=(const vkMemoryAndroidHardwareBufferAllocator&)
+{
+    return *this;
+}
+
+
+
+VkBufferMemory* vkMemoryAndroidHardwareBufferAllocator::fastMalloc(size_t size)
+{
+    VkResult ret;
+
+    buffer_hb_desc.width = size;
+
+    VkBufferCreateInfo bufferCreateInfo;
+    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferCreateInfo.pNext = 0;
+    bufferCreateInfo.flags = 0;
+    bufferCreateInfo.size = buffer_hb_desc.width;
+    bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    bufferCreateInfo.queueFamilyIndexCount = 0;
+    bufferCreateInfo.pQueueFamilyIndices = 0;
+
+    VkBuffer buffer = 0;
+    ret = vkCreateBuffer(vkdev->vkdevice(), &bufferCreateInfo, 0, &buffer);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateBuffer failed %d", ret);
+        return 0;
+    }
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetBufferMemoryRequirements(vkdev->vkdevice(), buffer, &memoryRequirements);
+
+    if (buffer_memory_type_index == (uint32_t)-1)
+    {
+       buffer_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    }
+
+    VkExportMemoryAllocateInfo exportMemoryAllocateInfo;
+    exportMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO;
+    exportMemoryAllocateInfo.pNext = 0;
+    exportMemoryAllocateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
+
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = &exportMemoryAllocateInfo;
+    memoryAllocateInfo.allocationSize = memoryRequirements.size;
+    memoryAllocateInfo.memoryTypeIndex = buffer_memory_type_index;
+
+    // VkDeviceMemory memory = 0;
+    ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &buffer_memory);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        return 0;
+    }
+
+    VkBindBufferMemoryInfo bindBufferMemoryInfo;
+    bindBufferMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO;
+    bindBufferMemoryInfo.pNext = 0;
+    bindBufferMemoryInfo.buffer = buffer;
+    bindBufferMemoryInfo.memory = buffer_memory;
+    bindBufferMemoryInfo.memoryOffset = 0;
+
+    ret = vkdev->vkBindBufferMemory2KHR(vkdev->vkdevice(), 1, &bindBufferMemoryInfo);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkBindBufferMemory2KHR failed %d", ret);
+        return 0;
+    }
+
+    VkBufferMemory* ptr = new VkBufferMemory;
+    ptr->buffer = buffer;
+    ptr->memory = buffer_memory;
+    ptr->offset = 0;
+    ptr->capacity = buffer_hb_desc.width;
+    ptr->access_flags = 0;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+    return ptr;
+}
+
+void vkMemoryAndroidHardwareBufferAllocator::fastFree(VkBufferMemory* ptr)
+{
+    vkDestroyBuffer(vkdev->vkdevice(), ptr->buffer, 0);
+    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+    delete ptr;
+}
+
+
+VkImageMemory* vkMemoryAndroidHardwareBufferAllocator::fastMalloc(int w, int h, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
+{
+    VkResult ret;
+
+    image_hb_desc.width = w;
+    image_hb_desc.height = h;
+
+    VkImageCreateInfo imageCreateInfo;
+    imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+    imageCreateInfo.pNext = 0;
+    imageCreateInfo.flags = 0;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageCreateInfo.format = image_format;
+    imageCreateInfo.extent.width = image_hb_desc.width;
+    imageCreateInfo.extent.height = image_hb_desc.height;
+    imageCreateInfo.extent.depth = image_depth;
+    imageCreateInfo.mipLevels = 1;
+    imageCreateInfo.arrayLayers = 1;
+    imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageCreateInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    imageCreateInfo.queueFamilyIndexCount = 0;
+    imageCreateInfo.pQueueFamilyIndices = 0;
+    imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    VkImage image = 0;
+    ret = vkCreateImage(vkdev->vkdevice(), &imageCreateInfo, 0, &image);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateImage failed %d", ret);
+        return 0;
+    }
+
+    VkMemoryRequirements memoryRequirements;
+    vkGetImageMemoryRequirements(vkdev->vkdevice(), image, &memoryRequirements);
+    if (image_memory_type_index == (uint32_t)-1)
+    {
+        image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    }
+
+    VkExportMemoryAllocateInfo exportMemoryAllocateInfo;
+    exportMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO;
+    exportMemoryAllocateInfo.pNext = 0;
+    exportMemoryAllocateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID;
+
+    VkMemoryDedicatedAllocateInfo memoryDedicatedAllocateInfo;
+    memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
+    memoryDedicatedAllocateInfo.pNext = &exportMemoryAllocateInfo;
+    memoryDedicatedAllocateInfo.image = image;
+    memoryDedicatedAllocateInfo.buffer = VK_NULL_HANDLE;
+
+    VkMemoryAllocateInfo memoryAllocateInfo;
+    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    memoryAllocateInfo.pNext = &memoryDedicatedAllocateInfo;
+    memoryAllocateInfo.allocationSize = memoryRequirements.size;
+    memoryAllocateInfo.memoryTypeIndex = image_memory_type_index;
+
+    ret = vkAllocateMemory(vkdev->vkdevice(), &memoryAllocateInfo, 0, &image_memory);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkAllocateMemory failed %d", ret);
+        return 0;
+    }
+
+    VkBindImageMemoryInfo bindImageMemoryInfo;
+    bindImageMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
+    bindImageMemoryInfo.pNext = 0;
+    bindImageMemoryInfo.image = image;
+    bindImageMemoryInfo.memory = image_memory;
+    bindImageMemoryInfo.memoryOffset = 0;
+    ret = vkdev->vkBindImageMemory2KHR(vkdev->vkdevice(), 1, &bindImageMemoryInfo);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkBindImageMemory2KHR failed %d", ret);
+        vkDestroyImage(vkdev->vkdevice(), image, 0);
+        return 0;
+    }
+
+    VkImageViewCreateInfo imageViewCreateInfo;
+    imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    imageViewCreateInfo.pNext = 0;
+    imageViewCreateInfo.flags = 0;
+    imageViewCreateInfo.image = image;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.format = image_format;
+    imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+    imageViewCreateInfo.subresourceRange.levelCount = 1;
+    imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+    imageViewCreateInfo.subresourceRange.layerCount = 1;
+
+    VkImageView imageview = 0;
+    ret = vkCreateImageView(vkdev->vkdevice(), &imageViewCreateInfo, 0, &imageview);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateImageView failed %d", ret);
+        vkDestroyImage(vkdev->vkdevice(), image, 0);
+        vkFreeMemory(vkdev->vkdevice(), image_memory, 0);
+        return 0;
+    }
+
+    VkImageMemory* ptr = new VkImageMemory;
+    ptr->image = image;
+    ptr->memory = image_memory;
+    ptr->imageview = imageview;
+    ptr->width = image_hb_desc.width;
+    ptr->height = image_hb_desc.height;
+    ptr->depth = image_depth;
+    ptr->format = image_format;
+    ptr->access_flags = 0;
+    ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
+    ptr->stage_flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+
+    return ptr;
+}
+
+void vkMemoryAndroidHardwareBufferAllocator::fastFree(VkImageMemory* ptr)
+{
+    vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+    vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+    vkFreeMemory(vkdev->vkdevice(), ptr->memory, 0);
+
+    delete ptr;
+}
+
+
+int vkMemoryAndroidHardwareBufferAllocator::init()
+{
+    buffer_hb_desc.width = 0;
+    buffer_hb_desc.height = 1;
+    buffer_hb_desc.format = AHARDWAREBUFFER_FORMAT_BLOB;
+    buffer_hb_desc.rfu0 = 0;
+    buffer_hb_desc.rfu1 = 0;
+    buffer_hb_desc.layers = 1;
+    buffer_hb_desc.usage = AHARDWAREBUFFER_USAGE_GPU_DATA_BUFFER;
+
+    image_hb_desc.width = 0;
+    image_hb_desc.height = 0;
+    image_hb_desc.format = AHARDWAREBUFFER_FORMAT_R8G8B8A8_UNORM;
+    image_hb_desc.rfu0 = 0;
+    image_hb_desc.rfu1 = 0;
+    image_hb_desc.layers = 1;
+    buffer_hb_desc.usage = AHARDWAREBUFFER_USAGE_GPU_SAMPLED_IMAGE;
+    image_depth = 4;
+    image_format = VK_FORMAT_R8G8B8A8_UNORM;
+
+    return 0;
+}
+
+int vkMemoryAndroidHardwareBufferAllocator::width() const
+{
+    return image_hb_desc.width;
+}
+
+int vkMemoryAndroidHardwareBufferAllocator::height() const
+{
+    return image_hb_desc.height;
+}
+
+AHardwareBuffer* vkMemoryAndroidHardwareBufferAllocator::buffer_hb()
+{
+    VkResult ret;
+
+    AHardwareBuffer* hb;
+
+    if (buffer_hb_desc.width == 0 || buffer_hb_desc.height != 1)
+    {
+        return 0;
+    }
+
+    VkMemoryGetAndroidHardwareBufferInfoANDROID memoryGetAndroidHardwareBufferInfo;
+    memoryGetAndroidHardwareBufferInfo.sType = VK_STRUCTURE_TYPE_MEMORY_GET_ANDROID_HARDWARE_BUFFER_INFO_ANDROID;
+    memoryGetAndroidHardwareBufferInfo.pNext = 0;
+    memoryGetAndroidHardwareBufferInfo.memory = buffer_memory;
+
+    ret = vkGetMemoryAndroidHardwareBufferANDROID(vkdev->vkdevice(), &memoryGetAndroidHardwareBufferInfo, &hb);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkGetMemoryAndroidHardwareBufferANDROID failed %d", ret);
+        return 0;
+    }
+
+    return hb;
+}
+
+AHardwareBuffer* vkMemoryAndroidHardwareBufferAllocator::image_hb()
+{
+    VkResult ret;
+
+    AHardwareBuffer* hb;
+
+    if (image_hb_desc.width == 0 || image_hb_desc.height == 0)
+    {
+        return 0;
+    }
+
+    VkMemoryGetAndroidHardwareBufferInfoANDROID memoryGetAndroidHardwareBufferInfo;
+    memoryGetAndroidHardwareBufferInfo.sType = VK_STRUCTURE_TYPE_MEMORY_GET_ANDROID_HARDWARE_BUFFER_INFO_ANDROID;
+    memoryGetAndroidHardwareBufferInfo.pNext = 0;
+    memoryGetAndroidHardwareBufferInfo.memory = image_memory;
+
+    ret = vkGetMemoryAndroidHardwareBufferANDROID(vkdev->vkdevice(), &memoryGetAndroidHardwareBufferInfo, &hb);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkGetMemoryAndroidHardwareBufferANDROID failed %d", ret);
+        return 0;
+    }
+
+    return hb;
 }
 #endif // __ANDROID_API__ >= 26
 

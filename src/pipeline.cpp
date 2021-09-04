@@ -462,6 +462,291 @@ int ImportAndroidHardwareBufferPipeline::create_descriptorset_layout()
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 
+Convert2R8g8b8a8UnormPipeline::Convert2R8g8b8a8UnormPipeline(const VulkanDevice* _vkdev)
+    : Pipeline(_vkdev)
+{
+    sampler = 0;
+}
+
+Convert2R8g8b8a8UnormPipeline::~Convert2R8g8b8a8UnormPipeline()
+{
+    destroy();
+}
+
+int Convert2R8g8b8a8UnormPipeline::create(int type_from, int rotate_to, int origin_width, int origin_height, int surface_width, int surface_height, const Option& opt)
+{
+    need_resize = false;
+    if (rotate_to < 5) // 1 2 3 4
+    {
+        if (origin_width != surface_width || origin_height != surface_height)
+        {
+            need_resize = true;
+        }
+    }
+    else // 5 6 7 8
+    {
+        if (origin_width != surface_height || origin_height != surface_width)
+        {
+            need_resize = true;
+        }
+    }
+
+    set_local_size_xyz(8, 8, 1);
+
+    std::vector<vk_specialization_type> specializations(7);
+    specializations[0].i = origin_width;
+    specializations[1].i = origin_height;
+    specializations[2].i = surface_width;
+    specializations[3].i = surface_height;
+    specializations[4].i = type_from;
+    specializations[5].i = rotate_to;
+    specializations[6].i = need_resize;
+
+    create_shader_module(opt);
+
+    const ShaderInfo& _shader_info = shader_info();
+
+    if ((int)specializations.size() != _shader_info.specialization_count)
+    {
+        NCNN_LOGE("pipeline convert2_r8g8b8a8 specialization count mismatch, expect %d but got %d", _shader_info.specialization_count, (int)specializations.size());
+        return -1;
+    }
+
+    create_sampler();
+
+    create_descriptorset_layout();
+
+    VkPipelineLayout pipeline_layout = 0;
+    VkPipeline pipeline = 0;
+    VkDescriptorUpdateTemplateKHR descriptor_update_template = 0;
+
+    vkdev->create_pipeline_layout(_shader_info.push_constant_count, descriptorset_layout(), &pipeline_layout);
+
+    vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, &pipeline);
+
+    if (vkdev->info.support_VK_KHR_descriptor_update_template())
+    {
+        vkdev->create_descriptor_update_template(_shader_info.binding_count, _shader_info.binding_types, descriptorset_layout(), pipeline_layout, &descriptor_update_template);
+    }
+
+    set_pipeline_layout(pipeline_layout);
+    set_pipeline(pipeline);
+    set_descriptor_update_template(descriptor_update_template);
+
+    return 0;
+}
+
+void Convert2R8g8b8a8UnormPipeline::destroy()
+{
+    if (sampler)
+    {
+        vkDestroySampler(vkdev->vkdevice(), sampler, 0);
+        sampler = 0;
+    }
+}
+
+int Convert2R8g8b8a8UnormPipeline::create_shader_module(const Option& opt)
+{
+    int shader_type_index = LayerShaderType::convert2_r8g8b8a8;
+
+    std::vector<uint32_t> spirv;
+    int retc = compile_spirv_module(shader_type_index, opt, spirv);
+    if (retc != 0)
+    {
+        NCNN_LOGE("compile_spirv_module failed %d", retc);
+        return -1;
+    }
+
+    const uint32_t* spv_data = spirv.data();
+    size_t spv_data_size = spirv.size() * 4;
+
+    ShaderInfo shader_info;
+    int ret = resolve_shader_info(spv_data, spv_data_size, shader_info);
+    if (ret != 0)
+    {
+        NCNN_LOGE("resolve_shader_info failed %d", ret);
+        return -1;
+    }
+
+    set_shader_info(shader_info);
+
+    VkShaderModule shader_module = vkdev->compile_shader_module(spv_data, spv_data_size, local_size_x(), local_size_y(), local_size_z());
+    set_shader_module(shader_module);
+
+    return 0;
+}
+
+int Convert2R8g8b8a8UnormPipeline::create_sampler()
+{
+    VkResult ret;
+
+    VkSamplerCreateInfo samplerCreateInfo;
+    samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerCreateInfo.pNext = 0;
+    samplerCreateInfo.flags = 0;
+    samplerCreateInfo.magFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    samplerCreateInfo.minFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerCreateInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerCreateInfo.mipLodBias = 0.0f;
+    samplerCreateInfo.anisotropyEnable = VK_FALSE;
+    samplerCreateInfo.maxAnisotropy = 1;
+    samplerCreateInfo.compareEnable = VK_FALSE;
+    samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
+    samplerCreateInfo.minLod = 0.0f;
+    samplerCreateInfo.maxLod = 0.0f;
+    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+    samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
+
+    ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateSampler failed %d", ret);
+        return -1;
+    }
+
+    return 0;
+}
+
+int Convert2R8g8b8a8UnormPipeline::create_descriptorset_layout()
+{
+    VkResult ret;
+
+    VkDescriptorSetLayoutBinding descriptorSetLayoutBindings[2];
+    descriptorSetLayoutBindings[0].binding = 0;
+    descriptorSetLayoutBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorSetLayoutBindings[0].descriptorCount = 1;
+    descriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    descriptorSetLayoutBindings[0].pImmutableSamplers = &sampler;
+    descriptorSetLayoutBindings[1].binding = 1;
+    descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    descriptorSetLayoutBindings[1].descriptorCount = 1;
+    descriptorSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    descriptorSetLayoutBindings[1].pImmutableSamplers = 0;
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+    descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutCreateInfo.pNext = 0;
+    descriptorSetLayoutCreateInfo.flags = 0;
+    descriptorSetLayoutCreateInfo.bindingCount = 2;
+    descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBindings;
+
+    if (vkdev->info.support_VK_KHR_push_descriptor())
+    {
+        descriptorSetLayoutCreateInfo.flags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+    }
+
+    VkDescriptorSetLayout descriptorset_layout = 0;
+    ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
+        return -1;
+    }
+
+    set_descriptorset_layout(descriptorset_layout);
+
+    return 0;
+}
+
+GraphicsRenderPipeline::GraphicsRenderPipeline(const VulkanDevice* _vkdev)
+    : Pipeline(_vkdev)
+{
+    sampler = 0;
+}
+
+GraphicsRenderPipeline::~GraphicsRenderPipeline()
+{
+    destroy();
+}
+
+int GraphicsRenderPipeline::create(int type_from, int rotate_to, int origin_width, int origin_height, int surface_width, int surface_height)
+{
+    return 0;
+}
+
+void GraphicsRenderPipeline::destroy()
+{
+    if (sampler)
+    {
+        vkDestroySampler(vkdev->vkdevice(), sampler, 0);
+        sampler = 0;
+    }
+}
+
+int GraphicsRenderPipeline::create_descriptorset_layout()
+{
+    VkResult ret;
+
+    VkDescriptorSetLayoutBinding descriptorSetLayoutBinding[2];
+    descriptorSetLayoutBinding[0].binding = 0;
+    descriptorSetLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorSetLayoutBinding[0].descriptorCount = 1;
+    descriptorSetLayoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    descriptorSetLayoutBinding[0].pImmutableSamplers = 0;
+    descriptorSetLayoutBinding[1].binding = 1;
+    descriptorSetLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorSetLayoutBinding[1].descriptorCount = 1;
+    descriptorSetLayoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    descriptorSetLayoutBinding[1].pImmutableSamplers = 0;
+
+    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
+    descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    descriptorSetLayoutCreateInfo.pNext = 0;
+    descriptorSetLayoutCreateInfo.bindingCount = 2;
+    descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBinding;
+
+    VkDescriptorSetLayout descriptorset_layout;
+    ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
+        return -1;
+    }
+
+    set_descriptorset_layout(descriptorset_layout);
+
+    return 0;
+}
+
+int GraphicsRenderPipeline::create_pipeline_layout()
+{
+    VkResult ret;
+
+    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    pipelineLayoutCreateInfo.pNext = 0;
+    pipelineLayoutCreateInfo.setLayoutCount = 1;
+    pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout();
+    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
+    pipelineLayoutCreateInfo.pPushConstantRanges = 0;
+
+    VkPipelineLayout pipeline_layout;
+    ret = vkCreatePipelineLayout(vkdev->vkdevice(), &pipelineLayoutCreateInfo, 0, &pipeline_layout);
+    if (ret != VK_SUCCESS)
+    {
+        NCNN_LOGE("vkCreatePipelineLayout failed %d", ret);
+        return -1;
+    }
+
+    set_pipeline_layout(pipeline_layout);
+
+    return 0;
+}
+
+int GraphicsRenderPipeline::create_shader_module()
+{
+    shaderc_compiler_t compiler = shaderc_compiler_initialize();
+    return 0;
+}
+
+int GraphicsRenderPipeline::create_sampler()
+{
+    return 0;
+}
+
 #endif // NCNN_VULKAN
 
 } // namespace ncnn

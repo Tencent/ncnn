@@ -80,6 +80,9 @@ public:
     explicit GpuInfo();
     virtual ~GpuInfo();
 
+    // vulkan instance
+    VkInstance instance() const;
+
     // vulkan physical device
     VkPhysicalDevice physical_device() const;
 

@@ -1,0 +1,163 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+layout (constant_id = 0) const int w = 0;
+layout (constant_id = 1) const int h = 0;
+layout (constant_id = 2) const int outw = 0;
+layout (constant_id = 3) const int outh = 0;
+layout (constant_id = 4) const int type_from = 0;
+layout (constant_id = 5) const int rotate_to = 0;
+layout (constant_id = 6) const int need_resize = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D top_blob_image;
+layout (binding = 1, rgba8ui) writeonly uniform unfp image3D android_hardware_buffer_image;
+#endif
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= outw || gy >= outh || gz >= 1)
+        return;
+
+    vec2 pos;
+
+    if (rotate_to == 1)
+    {
+        pos = vec2(gx, gy);
+    }
+
+    if (rotate_to == 2)
+    {
+        pos = vec2(outw - 1 - gx, gy);
+    }
+
+    if (rotate_to == 3)
+    {
+        pos = vec2(outw - 1 - gx, outh - 1 - gy);
+    }
+
+    if (rotate_to == 4)
+    {
+        pos = vec2(gx, outh - 1 - gy);
+    }
+
+    if (rotate_to == 5)
+    {
+        pos = vec2(gy, gx);
+    }
+
+    if (rotate_to == 6)
+    {
+        pos = vec2(gy, outw - 1 - gx);
+    }
+
+    if (rotate_to == 7)
+    {
+        pos = vec2(outh - 1 - gy, outw - 1 - gx);
+    }
+
+    if (rotate_to == 8)
+    {
+        pos = vec2(outh - 1 - gy, gx);
+    }
+
+    if (need_resize == 1)
+    {
+        if (rotate_to < 5) // 1 2 3 4
+        {
+            pos.x = pos.x * (float(w) / outw);
+            pos.y = pos.y * (float(h) / outh);
+        }
+        else // 5 6 7 8
+        {
+            pos.x = pos.x * (float(w) / outh);
+            pos.y = pos.y * (float(h) / outw);
+        }
+    }
+    
+    const int cstep = w * h / 4 * 4;
+
+    if (type_from == 1) // PIXEL_RGB
+    {
+#if NCNN_image_shader
+        vec3 rgb = texture(top_blob_image, pos).rgb;
+
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), rgb.r);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), rgb.g);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), rgb.b);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), 255.f);
+#endif
+    }
+
+    if (type_from == 2) // PIXEL_BGR
+    {
+#if NCNN_image_shader
+        vec3 rgb = texture(top_blob_image, pos).rgb;
+
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), rgb.b);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), rgb.g);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), rgb.r);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), 255.f);
+#endif
+    }
+
+    if (type_from == 3) // PIXEL_GRAY
+    {
+#if NCNN_image_shader
+        float v = texture(top_blob_image, pos).r;
+
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), v);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), v);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), v);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), 255.f);
+#endif
+    }
+
+    if (type_from == 4) // PIXEL_RGBA
+    {
+#if NCNN_image_shader
+        vec4 rgba = texture(top_blob_image, pos).rgba;
+
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba.r);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), rgba.g);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), rgba.b);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), rgba.a);
+#endif
+    }
+
+    if (type_from == 5) // PIXEL_BGRA
+    {
+#if NCNN_image_shader
+        vec4 rgba = texture(top_blob_image, pos).rgba;
+
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba.b);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), rgba.g);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), rgba.r);
+        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), rgba.a);
+#endif
+    }
+}

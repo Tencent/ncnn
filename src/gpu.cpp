@@ -32,7 +32,7 @@
 
 // There is known issue that vkDestroyDebugUtilsMessengerEXT crash on exit when vulkan validation layer enabled
 // upstream fix https://github.com/KhronosGroup/Vulkan-Loader/pull/539
-#define ENABLE_VALIDATION_LAYER 0
+#define ENABLE_VALIDATION_LAYER 1
 
 namespace ncnn {
 
@@ -132,6 +132,9 @@ PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR = 0;
 class GpuInfoPrivate
 {
 public:
+    // vulkan instance
+    VkInstance instance;
+
     // vulkan physical device
     VkPhysicalDevice physical_device;
 
@@ -255,6 +258,11 @@ GpuInfo::GpuInfo(const GpuInfo&)
 GpuInfo& GpuInfo::operator=(const GpuInfo&)
 {
     return *this;
+}
+
+VkInstance GpuInfo::instance() const
+{
+    return d->instance;
 }
 
 VkPhysicalDevice GpuInfo::physical_device() const
@@ -1036,6 +1044,8 @@ int create_gpu_instance()
         delete g_gpu_infos[gpu_info_index];
         g_gpu_infos[gpu_info_index] = new GpuInfo;
         GpuInfoPrivate& gpu_info = *(g_gpu_infos[gpu_info_index]->d);
+
+        gpu_info.instance = g_instance.instance;
 
         // device type
         VkPhysicalDeviceProperties physicalDeviceProperties;

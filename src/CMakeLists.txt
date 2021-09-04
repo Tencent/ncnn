@@ -148,6 +148,7 @@ ncnn_add_layer(Pooling1D)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
+    ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert2_r8g8b8a8.comp)
 endif()
 
 add_custom_target(ncnn-generate-spirv DEPENDS ${NCNN_SHADER_SPV_HEX_FILES})
