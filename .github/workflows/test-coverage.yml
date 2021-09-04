@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -84,9 +84,11 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -95,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -112,9 +114,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -123,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -140,9 +143,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -151,7 +155,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -168,9 +172,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -179,7 +184,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -229,9 +234,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -240,7 +246,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -290,9 +296,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -301,7 +308,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -351,9 +358,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -362,7 +370,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -412,9 +420,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -423,7 +432,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -473,9 +482,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -484,7 +494,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -534,9 +544,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -545,7 +556,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -596,9 +607,10 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -607,7 +619,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -710,9 +722,11 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen128
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -728,9 +742,11 @@ jobs:
         cd build
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen256
-      uses: codecov/codecov-action@v2.0.1
+      uses: codecov/codecov-action@v2.0.3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
