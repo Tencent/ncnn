@@ -147,13 +147,48 @@ def foo(x, y):
 
 ![math.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pnnx.png)
 
+# PNNX torch function operator
+PNNX trys to preserve torch functions and Tensor member functions as one operator from what PyTorch python api provides.
+
+Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
+
+```python
+import torch
+import torch.nn.functional as F
+
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+
+    def forward(self, x):
+        x = F.normalize(x, eps=1e-3)
+        return x
+```
+
+![function.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.onnx.png)
+
+![function.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pt.png)
+
+![function.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pnnx.png)
+
 
 # PNNX module operator
 Users could ask PNNX to keep module as one big operator when it has complex logic.
 
 Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
-TBD
+
+
+# PNNX python inference
+
+
+# PNNX shape propagation
+
+
+# PNNX model optimization
+
+
+# PNNX custom operator
 
 
 # Supported PyTorch operator status
