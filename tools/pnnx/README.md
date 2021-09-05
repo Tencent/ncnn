@@ -169,8 +169,31 @@ class Model(nn.Module):
 # PNNX module operator
 Users could ask PNNX to keep module as one big operator when it has complex logic.
 
+The process is optional and could be enabled via moduleop command line option.
+
+```bash
+pnnx yolov5s.pt inputshape=[1,3,640,640] moduleop=models.common.Focus,models.yolo.Detect
+```
+
 Here is the netron visualization comparision among ONNX, TorchScript and PNNX with the original PyTorch python code shown.
 
+```python
+import torch
+import torch.nn as nn
+
+class Focus(nn.Module):
+    # Focus wh information into c-space
+    def __init__(self, c1, c2, k=1, s=1, p=None, g=1, act=True):  # ch_in, ch_out, kernel, stride, padding, groups
+        super().__init__()
+        self.conv = Conv(c1 * 4, c2, k, s, p, g, act)
+
+    def forward(self, x):  # x(b,c,w,h) -> y(b,4c,w/2,h/2)
+        return self.conv(torch.cat([x[..., ::2, ::2], x[..., 1::2, ::2], x[..., ::2, 1::2], x[..., 1::2, 1::2]], 1))
+```
+
+|ONNX|TorchScript|PNNX|PNNX with module operator|
+|----|---|---|---|
+|![focus.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.onnx.png)|![focus.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pt.png)|![focus.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pnnx.png)|![focus.pnnx2](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pnnx2.png)|
 
 
 # PNNX python inference
@@ -237,6 +260,12 @@ class Model(nn.Module):
 ```
 
 # PNNX shape propagation
+
+The process is optional and could be enabled via inputshape command line option.
+
+```bash
+pnnx shufflenet_v2_x1_0.pt inputshape=[1,3,224,224]
+```
 
 ```python
 def channel_shuffle(x: Tensor, groups: int) -> Tensor:
