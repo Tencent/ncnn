@@ -175,8 +175,88 @@ Here is the netron visualization comparision among ONNX, TorchScript and PNNX wi
 
 # PNNX python inference
 
+```python
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+
+        self.linear_0 = nn.Linear(in_features=128, out_features=256, bias=True)
+        self.linear_1 = nn.Linear(in_features=256, out_features=4, bias=True)
+
+    def forward(self, x):
+        x = self.linear_0(x)
+        x = F.leaky_relu(x, 0.15)
+        x = self.linear_1(x)
+        return x
+```
+
+```python
+import os
+import numpy as np
+import tempfile, zipfile
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+
+        self.linear_0 = nn.Linear(bias=True, in_features=128, out_features=256)
+        self.linear_1 = nn.Linear(bias=True, in_features=256, out_features=4)
+
+        archive = zipfile.ZipFile('../../function.pnnx.bin', 'r')
+        self.linear_0.bias = self.load_pnnx_bin_as_parameter(archive, 'linear_0.bias', (256), 'float32')
+        self.linear_0.weight = self.load_pnnx_bin_as_parameter(archive, 'linear_0.weight', (256,128), 'float32')
+        self.linear_1.bias = self.load_pnnx_bin_as_parameter(archive, 'linear_1.bias', (4), 'float32')
+        self.linear_1.weight = self.load_pnnx_bin_as_parameter(archive, 'linear_1.weight', (4,256), 'float32')
+        archive.close()
+
+    def load_pnnx_bin_as_parameter(self, archive, key, shape, dtype):
+        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype))
+
+    def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):
+        _, tmppath = tempfile.mkstemp()
+        tmpf = open(tmppath, 'wb')
+        with archive.open(key) as keyfile:
+            tmpf.write(keyfile.read())
+        tmpf.close()
+        m = np.memmap(tmppath, dtype=dtype, mode='r', shape=shape).copy()
+        os.remove(tmppath)
+        return torch.from_numpy(m)
+
+    def forward(self, v_x_1):
+        v_7 = self.linear_0(v_x_1)
+        v_input_1 = F.leaky_relu(input=v_7, negative_slope=0.150000)
+        v_12 = self.linear_1(v_input_1)
+        return v_12
+```
 
 # PNNX shape propagation
+
+```python
+def channel_shuffle(x: Tensor, groups: int) -> Tensor:
+    batchsize, num_channels, height, width = x.size()
+    channels_per_group = num_channels // groups
+
+    # reshape
+    x = x.view(batchsize, groups, channels_per_group, height, width)
+
+    x = torch.transpose(x, 1, 2).contiguous()
+
+    # flatten
+    x = x.view(batchsize, -1, height, width)
+
+    return x
+```
+
+|without shape propagation|with shape propagation|
+|----|---|
+|![noshapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/noshapeinfer.png)|![shapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/shapeinfer.pnnx.png)|
 
 
 # PNNX model optimization
