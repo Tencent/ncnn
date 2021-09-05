@@ -56,8 +56,14 @@ torch.jit.save(mod, "resnet18.pt")
 2. Convert TorchScript to PNNX
 
 ```shell
-pnnx resnet18.pt resnet18.pnnx.param resnet18.pnnx.bin
+pnnx resnet18.pt
 ```
+
+Normally, you will get three files
+
+```resnet18.pnnx.param```
+```resnet18.pnnx.bin```
+```resnet18_pnnx.py```
 
 3. Visualize PNNX with Netron
 
