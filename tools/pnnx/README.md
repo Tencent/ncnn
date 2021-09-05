@@ -272,6 +272,7 @@ class Model(nn.Module):
 ```
 
 # PNNX shape propagation
+Users could ask PNNX to resolve all tensor shapes in model graph and constify some common expressions involved when tensor shapes are known.
 
 The process is optional and could be enabled via inputshape command line option.
 
