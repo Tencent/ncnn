@@ -123,11 +123,9 @@ class Model(nn.Module):
         return x
 ```
 
-![MultiheadAttention.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.onnx.png)
-
-![MultiheadAttention.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.pt.png)
-
-![MultiheadAttention.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.pnnx.png)
+|ONNX|TorchScript|PNNX|
+|----|---|---|
+|![MultiheadAttention.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.onnx.png)|![MultiheadAttention.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.pt.png)|![MultiheadAttention.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.pnnx.png)|
 
 # PNNX expression operator
 PNNX trys to preserve expression from what PyTorch python code writes.
@@ -141,11 +139,9 @@ def foo(x, y):
     return torch.sqrt((2 * x + y) / 12)
 ```
 
-![math.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.onnx.png)
-
-![math.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pt.png)
-
-![math.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pnnx.png)
+|ONNX|TorchScript|PNNX|
+|----|---|---|
+|![math.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.onnx.png)|![math.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pt.png)|![math.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pnnx.png)|
 
 # PNNX torch function operator
 PNNX trys to preserve torch functions and Tensor member functions as one operator from what PyTorch python api provides.
@@ -165,11 +161,9 @@ class Model(nn.Module):
         return x
 ```
 
-![function.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.onnx.png)
-
-![function.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pt.png)
-
-![function.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pnnx.png)
+|ONNX|TorchScript|PNNX|
+|----|---|---|
+|![function.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.onnx.png)|![function.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pt.png)|![function.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pnnx.png)|
 
 
 # PNNX module operator
