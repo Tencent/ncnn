@@ -32,7 +32,6 @@ class ImportAndroidHardwareBufferPipeline;
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 class Convert2R8g8b8a8UnormPipeline;
-
 class VkComputePrivate;
 class NCNN_EXPORT VkCompute
 {
