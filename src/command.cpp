@@ -2283,7 +2283,6 @@ void VkCompute::record_import_android_hardware_buffer(const ImportAndroidHardwar
 
 void VkCompute::record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeline* pipeline, const VkImageMat& src, const VkImageMat& dst)
 {
-    // image layout transform any @ any to general @ compute
     {
         VkImageMemoryBarrier* barriers = new VkImageMemoryBarrier[2];
         barriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -2336,7 +2335,6 @@ void VkCompute::record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeli
         }
     }
 
-    // record bind pipeline
     {
         if (vkdev->info.support_VK_KHR_push_descriptor())
         {
@@ -2353,7 +2351,6 @@ void VkCompute::record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeli
         }
     }
 
-    // record update bindings
     {
         VkDescriptorImageInfo descriptorImageInfos[2];
         descriptorImageInfos[0].sampler = pipeline->sampler;
@@ -2369,7 +2366,6 @@ void VkCompute::record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeli
         }
         else
         {
-            // create new descriptor_pool and descriptorset
             VkDescriptorPool descriptor_pool;
             {
                 VkDescriptorPoolSize poolSizes[2];
@@ -2457,7 +2453,6 @@ void VkCompute::record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeli
         }
     }
 
-    // record dispatch
     {
         uint32_t group_count_x = (dst.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
         uint32_t group_count_y = (dst.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
