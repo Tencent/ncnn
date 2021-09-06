@@ -4449,26 +4449,23 @@ int VkRender::render()
         }
     }
 
-    return 0;
-}
-
-int VkRender::reset()
-{
-    d->delayed_records.clear();
-
-    for (uint32_t i = 0; i < d->swapchain_length; i++)
     {
-        VkResult ret = vkResetCommandBuffer(d->render_command_buffers[i], 0);
-        if (ret != VK_SUCCESS)
+        d->delayed_records.clear();
+
+        for (uint32_t i = 0; i < d->swapchain_length; i++)
         {
-            NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
-            return -1;
+            VkResult ret = vkResetCommandBuffer(d->render_command_buffers[i], 0);
+            if (ret != VK_SUCCESS)
+            {
+                NCNN_LOGE("vkResetCommandBuffer failed %d", ret);
+                return -1;
+            }
         }
-    }
 
-    if (vkdev->info.support_VK_KHR_push_descriptor())
-    {
-        d->begin_command_buffer();
+        if (vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            d->begin_command_buffer();
+        }
     }
 
     return 0;

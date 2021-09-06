@@ -1977,7 +1977,7 @@ int VkAndroidHardwareBufferImageAllocator::init()
 
     VkResult ret;
 
-    // resolve externalFormats
+    // resolve externalFormat
     bufferFormatProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_FORMAT_PROPERTIES_ANDROID;
     bufferFormatProperties.pNext = 0;
 

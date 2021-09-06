@@ -152,8 +152,6 @@ public:
 
     int render();
 
-    int reset();
-
 protected:
     const VulkanDevice* vkdev;
 
