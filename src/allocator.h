@@ -429,12 +429,14 @@ public:
     VkAndroidHardwareBufferPropertiesANDROID bufferProperties;
     VkSamplerYcbcrConversionKHR samplerYcbcrConversion;
 };
+#endif // __ANDROID_API__ >= 26
+#endif // NCNN_PLATFORM_API
 
-class NCNN_EXPORT vkMemoryAndroidHardwareBufferAllocator : public VkAllocator
+class NCNN_EXPORT VkR8g8b8a8UnormImageAllocator : public VkAllocator
 {
 public:
-    vkMemoryAndroidHardwareBufferAllocator(const VulkanDevice* _vkdev);
-    virtual ~vkMemoryAndroidHardwareBufferAllocator();
+    VkR8g8b8a8UnormImageAllocator(const VulkanDevice* _vkdev);
+    virtual ~VkR8g8b8a8UnormImageAllocator();
 
 public:
     virtual VkBufferMemory* fastMalloc(size_t size);
@@ -443,29 +445,17 @@ public:
     virtual void fastFree(VkImageMemory* ptr);
 
 private:
-    vkMemoryAndroidHardwareBufferAllocator(const vkMemoryAndroidHardwareBufferAllocator&);
-    vkMemoryAndroidHardwareBufferAllocator& operator=(const vkMemoryAndroidHardwareBufferAllocator&);
+    VkR8g8b8a8UnormImageAllocator(const VkR8g8b8a8UnormImageAllocator&);
+    VkR8g8b8a8UnormImageAllocator& operator=(const VkR8g8b8a8UnormImageAllocator&);
 
 public:
     int init();
 
-    int width() const;
-    int height() const;
-
-    AHardwareBuffer* buffer_hb();
-    AHardwareBuffer* image_hb();
-
 public:
 
-    AHardwareBuffer_Desc buffer_hb_desc;
-    AHardwareBuffer_Desc image_hb_desc;
-    uint32_t image_depth;
-    VkFormat image_format;
-    VkDeviceMemory buffer_memory;
-    VkDeviceMemory image_memory;
+    uint32_t depth;
+    VkFormat format;
 };
-#endif // __ANDROID_API__ >= 26
-#endif // NCNN_PLATFORM_API
 
 #endif // NCNN_VULKAN
 

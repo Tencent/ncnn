@@ -89,6 +89,8 @@ public:
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 
+    void record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeline* pipeline, const VkImageMat& src, const VkImageMat& dst);
+
     int submit_and_wait();
 
     int reset();
@@ -131,32 +133,32 @@ private:
     VkTransferPrivate* const d;
 };
 
-class VkGraphicsPrivate;
-class NCNN_EXPORT VkGraphics
+class VkRenderPrivate;
+class NCNN_EXPORT VkRender
 {
 public:
-    explicit VkGraphics(const VulkanDevice* vkdev);
-    virtual ~VkGraphics();
+    explicit VkRender(const VulkanDevice* vkdev);
+    virtual ~VkRender();
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 26
-    int specifie_surface(ANativeWindow* window);
+    int create(ANativeWindow* window);
 #endif // __ANDROID_API__ >= 26
 #endif // NCNN_PLATFORM_API
 
-    int specifie_convert_pipeline(Convert2R8g8b8a8UnormPipeline* pipeline);
+    int create(VkSurfaceKHR surface);
 
     int record_image(const VkImageMat& src);
 
     int render();
 
+    int reset();
+
 protected:
     const VulkanDevice* vkdev;
 
 private:
-    VkGraphicsPrivate* const d;
-
-    VkSurfaceKHR surface;
+    VkRenderPrivate* const d;
 };
 } // namespace ncnn
 

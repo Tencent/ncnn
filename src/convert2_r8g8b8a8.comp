@@ -29,10 +29,8 @@ layout (constant_id = 4) const int type_from = 0;
 layout (constant_id = 5) const int rotate_to = 0;
 layout (constant_id = 6) const int need_resize = 0;
 
-#if NCNN_image_shader
-layout (binding = 0) uniform unfp sampler3D top_blob_image;
-layout (binding = 1, rgba8ui) writeonly uniform unfp image3D android_hardware_buffer_image;
-#endif
+layout (binding = 0) uniform sampler2D top_blob_image;
+layout (binding = 1, rgba8) writeonly uniform image3D android_hardware_buffer_image;
 
 void main()
 {
@@ -98,66 +96,49 @@ void main()
             pos.y = pos.y * (float(h) / outw);
         }
     }
-    
-    const int cstep = w * h / 4 * 4;
 
     if (type_from == 1) // PIXEL_RGB
     {
-#if NCNN_image_shader
-        vec3 rgb = texture(top_blob_image, pos).rgb;
+        vec4 rgba;
+        rgba.rgb = texture(top_blob_image, pos).rgb * 255.f;
+        rgba.a = 255.f;
 
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), rgb.r);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), rgb.g);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), rgb.b);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), 255.f);
-#endif
+        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
     }
 
     if (type_from == 2) // PIXEL_BGR
     {
-#if NCNN_image_shader
-        vec3 rgb = texture(top_blob_image, pos).rgb;
+        vec4 rgba;
+        rgba.bgr = texture(top_blob_image, pos).rgb;
+        rgba.a = 255.f;
 
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), rgb.b);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), rgb.g);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), rgb.r);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), 255.f);
-#endif
+        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
     }
 
     if (type_from == 3) // PIXEL_GRAY
     {
-#if NCNN_image_shader
-        float v = texture(top_blob_image, pos).r;
+        vec4 rgba;
+        rgba.r = texture(top_blob_image, pos).r;
+        rgba.g = texture(top_blob_image, pos).r;
+        rgba.b = texture(top_blob_image, pos).r;
+        rgba.a = 255.f;
 
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), v);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), v);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), v);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), 255.f);
-#endif
+        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
     }
 
     if (type_from == 4) // PIXEL_RGBA
     {
-#if NCNN_image_shader
-        vec4 rgba = texture(top_blob_image, pos).rgba;
+        vec4 rgba;
+        rgba.rgba = texture(top_blob_image, pos).rgba;
 
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba.r);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), rgba.g);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), rgba.b);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), rgba.a);
-#endif
+        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
     }
 
     if (type_from == 5) // PIXEL_BGRA
     {
-#if NCNN_image_shader
-        vec4 rgba = texture(top_blob_image, pos).rgba;
+        vec4 rgba;
+        rgba.bgra = texture(top_blob_image, pos).rgba;
 
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba.b);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 1), rgba.g);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 2), rgba.r);
-        image3d_st1(android_hardware_buffer_image, ivec3(gx, gy, 3), rgba.a);
-#endif
+        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
     }
 }

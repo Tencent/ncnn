@@ -521,7 +521,6 @@ int Convert2R8g8b8a8UnormPipeline::create(int type_from, int rotate_to, int orig
     VkDescriptorUpdateTemplateKHR descriptor_update_template = 0;
 
     vkdev->create_pipeline_layout(_shader_info.push_constant_count, descriptorset_layout(), &pipeline_layout);
-
     vkdev->create_pipeline(shader_module(), pipeline_layout, specializations, &pipeline);
 
     if (vkdev->info.support_VK_KHR_descriptor_update_template())
@@ -648,102 +647,6 @@ int Convert2R8g8b8a8UnormPipeline::create_descriptorset_layout()
 
     set_descriptorset_layout(descriptorset_layout);
 
-    return 0;
-}
-
-GraphicsRenderPipeline::GraphicsRenderPipeline(const VulkanDevice* _vkdev)
-    : Pipeline(_vkdev)
-{
-    sampler = 0;
-}
-
-GraphicsRenderPipeline::~GraphicsRenderPipeline()
-{
-    destroy();
-}
-
-int GraphicsRenderPipeline::create(int type_from, int rotate_to, int origin_width, int origin_height, int surface_width, int surface_height)
-{
-    return 0;
-}
-
-void GraphicsRenderPipeline::destroy()
-{
-    if (sampler)
-    {
-        vkDestroySampler(vkdev->vkdevice(), sampler, 0);
-        sampler = 0;
-    }
-}
-
-int GraphicsRenderPipeline::create_descriptorset_layout()
-{
-    VkResult ret;
-
-    VkDescriptorSetLayoutBinding descriptorSetLayoutBinding[2];
-    descriptorSetLayoutBinding[0].binding = 0;
-    descriptorSetLayoutBinding[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    descriptorSetLayoutBinding[0].descriptorCount = 1;
-    descriptorSetLayoutBinding[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    descriptorSetLayoutBinding[0].pImmutableSamplers = 0;
-    descriptorSetLayoutBinding[1].binding = 1;
-    descriptorSetLayoutBinding[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorSetLayoutBinding[1].descriptorCount = 1;
-    descriptorSetLayoutBinding[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    descriptorSetLayoutBinding[1].pImmutableSamplers = 0;
-
-    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
-    descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    descriptorSetLayoutCreateInfo.pNext = 0;
-    descriptorSetLayoutCreateInfo.bindingCount = 2;
-    descriptorSetLayoutCreateInfo.pBindings = descriptorSetLayoutBinding;
-
-    VkDescriptorSetLayout descriptorset_layout;
-    ret = vkCreateDescriptorSetLayout(vkdev->vkdevice(), &descriptorSetLayoutCreateInfo, 0, &descriptorset_layout);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkCreateDescriptorSetLayout failed %d", ret);
-        return -1;
-    }
-
-    set_descriptorset_layout(descriptorset_layout);
-
-    return 0;
-}
-
-int GraphicsRenderPipeline::create_pipeline_layout()
-{
-    VkResult ret;
-
-    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo;
-    pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-    pipelineLayoutCreateInfo.pNext = 0;
-    pipelineLayoutCreateInfo.setLayoutCount = 1;
-    pipelineLayoutCreateInfo.pSetLayouts = &descriptorset_layout();
-    pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
-    pipelineLayoutCreateInfo.pPushConstantRanges = 0;
-
-    VkPipelineLayout pipeline_layout;
-    ret = vkCreatePipelineLayout(vkdev->vkdevice(), &pipelineLayoutCreateInfo, 0, &pipeline_layout);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkCreatePipelineLayout failed %d", ret);
-        return -1;
-    }
-
-    set_pipeline_layout(pipeline_layout);
-
-    return 0;
-}
-
-int GraphicsRenderPipeline::create_shader_module()
-{
-    shaderc_compiler_t compiler = shaderc_compiler_initialize();
-    return 0;
-}
-
-int GraphicsRenderPipeline::create_sampler()
-{
     return 0;
 }
 
