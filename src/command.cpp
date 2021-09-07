@@ -2372,7 +2372,7 @@ void VkCompute::record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeli
                 poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 poolSizes[0].descriptorCount = 1;
                 poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                poolSizes[1].descriptorCount = 2;
+                poolSizes[1].descriptorCount = 1;
 
                 VkDescriptorPoolCreateInfo descriptorPoolCreateInfo;
                 descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -2439,7 +2439,7 @@ void VkCompute::record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeli
                 writeDescriptorSets[1].pBufferInfo = 0;
                 writeDescriptorSets[1].pTexelBufferView = 0;
 
-                vkUpdateDescriptorSets(vkdev->vkdevice(), 3, writeDescriptorSets, 0, 0);
+                vkUpdateDescriptorSets(vkdev->vkdevice(), 2, writeDescriptorSets, 0, 0);
             }
 
             VkComputePrivate::record r;
@@ -3756,6 +3756,8 @@ VkRenderPrivate::VkRenderPrivate(const VulkanDevice* _vkdev)
 {
     render_command_pool = 0;
 
+    format = VK_FORMAT_R8G8B8A8_UNORM;
+
     surface = 0;
     swapchain = 0;
 
@@ -3911,9 +3913,8 @@ int VkRenderPrivate::create_swapchain()
     VkColorSpaceKHR chosen_color_space;
     for (uint32_t i = 0; i < format_count; i++)
     {
-        if (formats[i].format == VK_FORMAT_R8G8B8A8_UNORM) 
+        if (formats[i].format == format) 
         {
-            format = formats[i].format;
             chosen_format = formats[i].format;
             chosen_color_space = formats[i].colorSpace;
             break;
@@ -3967,7 +3968,7 @@ int VkRenderPrivate::create_swapchain()
     swapchainCreateInfo.imageColorSpace = chosen_color_space;
     swapchainCreateInfo.imageExtent = surfaceCapabilities.currentExtent;
     swapchainCreateInfo.imageArrayLayers = 1;
-    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    swapchainCreateInfo.imageUsage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     swapchainCreateInfo.queueFamilyIndexCount = 0;
     swapchainCreateInfo.pQueueFamilyIndices = 0;
@@ -4305,7 +4306,7 @@ int VkRender::record_image(const VkImageMat& src)
             barriers[0].subresourceRange.layerCount = 1;
 
             VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
             if (vkdev->info.support_VK_KHR_push_descriptor())
             {
@@ -4326,10 +4327,8 @@ int VkRender::record_image(const VkImageMat& src)
         }
     }
 
-    // NCNN_XADD(&src.data->command_refcount, 1);
-    // NCNN_XADD(&dst.data->command_refcount, 1);
-    // d->image_blocks_to_destroy.push_back(src.data);
-    // d->image_blocks_to_destroy.push_back(dst.data);
+    NCNN_XADD(&src.data->command_refcount, 1);
+
     return 0;
 }
 
@@ -4395,12 +4394,14 @@ int VkRender::render()
     }
 
     {
+        VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+
         VkSubmitInfo submitInfo;
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
         submitInfo.pNext = 0;
         submitInfo.waitSemaphoreCount = 1;
         submitInfo.pWaitSemaphores = &d->render_semaphore;
-        submitInfo.pWaitDstStageMask = 0;
+        submitInfo.pWaitDstStageMask = &pipelineStageFlags;
         submitInfo.commandBufferCount = 1;
         submitInfo.pCommandBuffers = &d->render_command_buffers[next_index];
         submitInfo.signalSemaphoreCount = 0;

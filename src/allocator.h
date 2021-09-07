@@ -453,7 +453,6 @@ public:
 
 public:
 
-    uint32_t depth;
     VkFormat format;
 };
 

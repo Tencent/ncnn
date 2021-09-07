@@ -109,7 +109,7 @@ void main()
     if (type_from == 2) // PIXEL_BGR
     {
         vec4 rgba;
-        rgba.bgr = texture(top_blob_image, pos).rgb;
+        rgba.bgr = texture(top_blob_image, pos).rgb * 255.f;
         rgba.a = 255.f;
 
         imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
@@ -118,9 +118,9 @@ void main()
     if (type_from == 3) // PIXEL_GRAY
     {
         vec4 rgba;
-        rgba.r = texture(top_blob_image, pos).r;
-        rgba.g = texture(top_blob_image, pos).r;
-        rgba.b = texture(top_blob_image, pos).r;
+        rgba.r = texture(top_blob_image, pos).r * 255.f;
+        rgba.g = texture(top_blob_image, pos).r * 255.f;
+        rgba.b = texture(top_blob_image, pos).r * 255.f;
         rgba.a = 255.f;
 
         imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
@@ -129,7 +129,7 @@ void main()
     if (type_from == 4) // PIXEL_RGBA
     {
         vec4 rgba;
-        rgba.rgba = texture(top_blob_image, pos).rgba;
+        rgba.rgba = texture(top_blob_image, pos).rgba * 255.f;
 
         imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
     }
@@ -137,7 +137,7 @@ void main()
     if (type_from == 5) // PIXEL_BGRA
     {
         vec4 rgba;
-        rgba.bgra = texture(top_blob_image, pos).rgba;
+        rgba.bgra = texture(top_blob_image, pos).rgba * 255.f;
 
         imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
     }

@@ -1851,7 +1851,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     imageCreateInfo.pNext = &externalMemoryImageCreateInfo;
     imageCreateInfo.flags = 0;
-    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_3D;
     imageCreateInfo.format = VK_FORMAT_UNDEFINED;
     imageCreateInfo.extent.width = bufferDesc.width;
     imageCreateInfo.extent.height = bufferDesc.height;
@@ -1929,7 +1929,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     imageViewCreateInfo.pNext = &samplerYcbcrConversionInfo;
     imageViewCreateInfo.flags = 0;
     imageViewCreateInfo.image = image;
-    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
     imageViewCreateInfo.format = VK_FORMAT_UNDEFINED;
     imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
     imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -2045,7 +2045,6 @@ VkR8g8b8a8UnormImageAllocator::~VkR8g8b8a8UnormImageAllocator()
 {
 }
 
-
 VkR8g8b8a8UnormImageAllocator::VkR8g8b8a8UnormImageAllocator(const VkR8g8b8a8UnormImageAllocator&)
     : VkAllocator(0)
 {
@@ -2056,8 +2055,6 @@ VkR8g8b8a8UnormImageAllocator& VkR8g8b8a8UnormImageAllocator::operator=(const Vk
     return *this;
 }
 
-
-
 VkBufferMemory* VkR8g8b8a8UnormImageAllocator::fastMalloc(size_t /*size*/)
 {
     return 0;
@@ -2066,7 +2063,6 @@ VkBufferMemory* VkR8g8b8a8UnormImageAllocator::fastMalloc(size_t /*size*/)
 void VkR8g8b8a8UnormImageAllocator::fastFree(VkBufferMemory* /*ptr*/)
 {
 }
-
 
 VkImageMemory* VkR8g8b8a8UnormImageAllocator::fastMalloc(int w, int h, int /*c*/, size_t /*elemsize*/, int /*elempack*/)
 {
@@ -2080,12 +2076,12 @@ VkImageMemory* VkR8g8b8a8UnormImageAllocator::fastMalloc(int w, int h, int /*c*/
     imageCreateInfo.format = format;
     imageCreateInfo.extent.width = w;
     imageCreateInfo.extent.height = h;
-    imageCreateInfo.extent.depth = depth;
+    imageCreateInfo.extent.depth = 1;
     imageCreateInfo.mipLevels = 1;
     imageCreateInfo.arrayLayers = 1;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageCreateInfo.usage = VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
     imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.queueFamilyIndexCount = 0;
     imageCreateInfo.pQueueFamilyIndices = 0;
@@ -2147,10 +2143,10 @@ VkImageMemory* VkR8g8b8a8UnormImageAllocator::fastMalloc(int w, int h, int /*c*/
     imageViewCreateInfo.image = image;
     imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     imageViewCreateInfo.format = format;
-    imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+    imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_R;
+    imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_G;
+    imageViewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_B;
+    imageViewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_A;
     imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
     imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
     imageViewCreateInfo.subresourceRange.levelCount = 1;
@@ -2173,7 +2169,7 @@ VkImageMemory* VkR8g8b8a8UnormImageAllocator::fastMalloc(int w, int h, int /*c*/
     ptr->imageview = imageview;
     ptr->width = w;
     ptr->height = h;
-    ptr->depth = depth;
+    ptr->depth = 1;
     ptr->format = format;
     ptr->access_flags = 0;
     ptr->image_layout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -2193,7 +2189,6 @@ void VkR8g8b8a8UnormImageAllocator::fastFree(VkImageMemory* ptr)
 
 int VkR8g8b8a8UnormImageAllocator::init()
 {
-    depth = 4;
     format = VK_FORMAT_R8G8B8A8_UNORM;
 
     return 0;
