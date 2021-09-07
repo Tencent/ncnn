@@ -1851,7 +1851,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
     imageCreateInfo.pNext = &externalMemoryImageCreateInfo;
     imageCreateInfo.flags = 0;
-    imageCreateInfo.imageType = VK_IMAGE_TYPE_3D;
+    imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
     imageCreateInfo.format = VK_FORMAT_UNDEFINED;
     imageCreateInfo.extent.width = bufferDesc.width;
     imageCreateInfo.extent.height = bufferDesc.height;
@@ -1929,7 +1929,7 @@ VkImageMemory* VkAndroidHardwareBufferImageAllocator::fastMalloc(int /*w*/, int 
     imageViewCreateInfo.pNext = &samplerYcbcrConversionInfo;
     imageViewCreateInfo.flags = 0;
     imageViewCreateInfo.image = image;
-    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
+    imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     imageViewCreateInfo.format = VK_FORMAT_UNDEFINED;
     imageViewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
     imageViewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
