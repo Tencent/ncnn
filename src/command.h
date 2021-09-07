@@ -147,9 +147,11 @@ public:
 
     int create(VkSurfaceKHR surface);
 
-    int record_image(const VkImageMat& src);
+    void record_image(const VkImageMat& src);
 
     int render();
+
+    int reset();
 
 protected:
     const VulkanDevice* vkdev;

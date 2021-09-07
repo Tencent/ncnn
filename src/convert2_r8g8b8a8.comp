@@ -30,7 +30,7 @@ layout (constant_id = 5) const int rotate_to = 0;
 layout (constant_id = 6) const int need_resize = 0;
 
 layout (binding = 0) uniform sampler2D top_blob_image;
-layout (binding = 1, rgba8) writeonly uniform image3D android_hardware_buffer_image;
+layout (binding = 1) writeonly uniform image3D android_hardware_buffer_image;
 
 void main()
 {

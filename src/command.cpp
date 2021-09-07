@@ -2473,6 +2473,9 @@ void VkCompute::record_convert2_r8g8b8a8_image(const Convert2R8g8b8a8UnormPipeli
             d->delayed_records.push_back(r);
         }
     }
+
+    NCNN_XADD(&src.data->command_refcount, 1);
+    d->image_blocks_to_destroy.push_back(src.data);
 }
 
 int VkCompute::submit_and_wait()
@@ -3716,6 +3719,8 @@ public:
     std::vector<VkImage> images;
     std::vector<VkImageView> imageviews;
 
+    std::vector<VkImageMemory*> image_blocks_to_destroy;
+
 struct record
     {
         enum
@@ -3767,6 +3772,21 @@ VkRenderPrivate::VkRenderPrivate(const VulkanDevice* _vkdev)
 
 VkRenderPrivate::~VkRenderPrivate()
 {
+    for (size_t i = 0; i < image_blocks_to_destroy.size(); i++)
+    {
+        VkImageMemory* ptr = image_blocks_to_destroy[i];
+
+        int old_command_refcount = NCNN_XADD(&ptr->command_refcount, -1);
+        if (ptr->refcount == 0 && old_command_refcount == 1)
+        {
+            vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+            vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+
+            delete ptr;
+        }
+    }
+    image_blocks_to_destroy.clear();
+
     destory();
 }
 
@@ -4163,7 +4183,7 @@ int VkRender::create(VkSurfaceKHR surface)
     return 0;
 }
 
-int VkRender::record_image(const VkImageMat& src)
+void VkRender::record_image(const VkImageMat& src)
 {
     for (uint32_t i = 0; i < d->swapchain_length; i++)
     {
@@ -4306,7 +4326,7 @@ int VkRender::record_image(const VkImageMat& src)
             barriers[0].subresourceRange.layerCount = 1;
 
             VkPipelineStageFlags src_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            VkPipelineStageFlags dst_stage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
             if (vkdev->info.support_VK_KHR_push_descriptor())
             {
@@ -4328,8 +4348,7 @@ int VkRender::record_image(const VkImageMat& src)
     }
 
     NCNN_XADD(&src.data->command_refcount, 1);
-
-    return 0;
+    d->image_blocks_to_destroy.push_back(src.data);
 }
 
 int VkRender::render()
@@ -4338,62 +4357,62 @@ int VkRender::render()
 
     uint32_t next_index;
 
-    ret = vkAcquireNextImageKHR(vkdev->vkdevice(), d->swapchain, UINT64_MAX, d->render_semaphore, VK_NULL_HANDLE, &next_index);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkAcquireNextImageKHR failed %d", ret);
-        return -1;
-    }
-
-    ret = vkResetFences(vkdev->vkdevice(), 1, &d->render_fence);
-    if (ret != VK_SUCCESS)
-    {
-        NCNN_LOGE("vkResetFences failed %d", ret);
-        return -1;
-    }
-
-    if (!vkdev->info.support_VK_KHR_push_descriptor())
-    {
-        d->begin_command_buffer();
-
-        const size_t record_count = d->delayed_records.size();
-
-        for (size_t i = 0; i < record_count; i++)
-        {
-            const VkRenderPrivate::record& r = d->delayed_records[i];
-
-            switch (r.type)
-            {
-            case VkRenderPrivate::record::TYPE_image_barrers:
-            {
-                vkCmdPipelineBarrier(r.command_buffer, r.image_barrers.src_stage, r.image_barrers.dst_stage, 0, 0, 0, 0, 0, r.image_barrers.barrier_count, r.image_barrers.barriers);
-                delete[] r.image_barrers.barriers;
-                break;
-            }
-            case VkRenderPrivate::record::TYPE_copy_image:
-            {
-                vkCmdCopyImage(r.command_buffer, r.copy_image.src, r.copy_image.src_layout, r.copy_image.dst, r.copy_image.dst_layout, r.copy_image.region_count, r.copy_image.regions);
-                delete[] r.copy_image.regions;
-                break;
-            }
-            default:
-                break;
-            }
-        }
-    }
-
-    {
-        d->end_command_buffer();
-    }
-
     VkQueue render_queue = vkdev->acquire_queue(vkdev->info.compute_queue_family_index());
     if (render_queue == 0)
     {
         NCNN_LOGE("out of compute queue");
         return -1;
     }
+    
+    {
+        ret = vkAcquireNextImageKHR(vkdev->vkdevice(), d->swapchain, UINT64_MAX, d->render_semaphore, VK_NULL_HANDLE, &next_index);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkAcquireNextImageKHR failed %d", ret);
+            return -1;
+        }
+
+        ret = vkResetFences(vkdev->vkdevice(), 1, &d->render_fence);
+        if (ret != VK_SUCCESS)
+        {
+            NCNN_LOGE("vkResetFences failed %d", ret);
+            return -1;
+        }
+    }
 
     {
+        if (!vkdev->info.support_VK_KHR_push_descriptor())
+        {
+            d->begin_command_buffer();
+
+            const size_t record_count = d->delayed_records.size();
+
+            for (size_t i = 0; i < record_count; i++)
+            {
+                const VkRenderPrivate::record& r = d->delayed_records[i];
+
+                switch (r.type)
+                {
+                case VkRenderPrivate::record::TYPE_image_barrers:
+                {
+                    vkCmdPipelineBarrier(r.command_buffer, r.image_barrers.src_stage, r.image_barrers.dst_stage, 0, 0, 0, 0, 0, r.image_barrers.barrier_count, r.image_barrers.barriers);
+                    delete[] r.image_barrers.barriers;
+                    break;
+                }
+                case VkRenderPrivate::record::TYPE_copy_image:
+                {
+                    vkCmdCopyImage(r.command_buffer, r.copy_image.src, r.copy_image.src_layout, r.copy_image.dst, r.copy_image.dst_layout, r.copy_image.region_count, r.copy_image.regions);
+                    delete[] r.copy_image.regions;
+                    break;
+                }
+                default:
+                    break;
+                }
+            }
+        }
+
+        d->end_command_buffer();
+
         VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
         VkSubmitInfo submitInfo;
@@ -4445,6 +4464,13 @@ int VkRender::render()
         }
     }
 
+    vkdev->reclaim_queue(vkdev->info.compute_queue_family_index(), render_queue);
+
+    return 0;
+}
+
+int VkRender::reset()
+{
     {
         d->delayed_records.clear();
 
@@ -4462,6 +4488,23 @@ int VkRender::render()
         {
             d->begin_command_buffer();
         }
+    }
+
+    {
+        for (size_t i = 0; i < d->image_blocks_to_destroy.size(); i++)
+        {
+            VkImageMemory* ptr = d->image_blocks_to_destroy[i];
+
+            int old_command_refcount = NCNN_XADD(&ptr->command_refcount, -1);
+            if (ptr->refcount == 0 && old_command_refcount == 1)
+            {
+                vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
+                vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
+
+                    delete ptr;
+            }
+        }
+        d->image_blocks_to_destroy.clear();
     }
 
     return 0;
