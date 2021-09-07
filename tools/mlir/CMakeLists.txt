@@ -58,3 +58,4 @@ target_link_libraries(mlir2ncnn
     MLIRStandard
     MLIRTransforms
 )
+ncnn_install_tool(mlir2ncnn)
