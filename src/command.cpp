@@ -4413,7 +4413,7 @@ int VkRender::render()
 
         d->end_command_buffer();
 
-        VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 
         VkSubmitInfo submitInfo;
         submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
