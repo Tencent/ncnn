@@ -133,11 +133,7 @@ void main()
     if (type_from == 4) // PIXEL_RGBA
     {
         vec4 rgba;
-        // rgba.rgba = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgba * 255.f;
-        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).g * 255.f;
-        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
-        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
-        rgba.a = texture(top_blob_image, vec3(pos.x, pos.y, 3)).r * 255.f;
+        rgba.rgba = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgba * 255.f;
 
         imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
