@@ -391,8 +391,8 @@ int ImportAndroidHardwareBufferPipeline::create_sampler(VkAndroidHardwareBufferI
     samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerCreateInfo.pNext = &samplerYcbcrConversionInfo;
     samplerCreateInfo.flags = 0;
-    samplerCreateInfo.magFilter = /*need_resize ? VK_FILTER_LINEAR : */VK_FILTER_NEAREST;
-    samplerCreateInfo.minFilter = /*need_resize ? VK_FILTER_LINEAR : */VK_FILTER_NEAREST;
+    samplerCreateInfo.magFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    samplerCreateInfo.minFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
     samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -404,8 +404,8 @@ int ImportAndroidHardwareBufferPipeline::create_sampler(VkAndroidHardwareBufferI
     samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
     samplerCreateInfo.minLod = 0.0f;
     samplerCreateInfo.maxLod = 0.0f;
-    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE; //VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE; FIXME
-    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;                     //VK_FALSE; FIXME ?
+    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK; //VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE; FIXME
+    samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;                     //VK_FALSE; FIXME ?
 
     ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
     if (ret != VK_SUCCESS)
@@ -474,19 +474,19 @@ Convert2R8g8b8a8UnormPipeline::~Convert2R8g8b8a8UnormPipeline()
     destroy();
 }
 
-int Convert2R8g8b8a8UnormPipeline::create(int type_from, int rotate_to, int origin_width, int origin_height, int surface_width, int surface_height, const Option& opt)
+int Convert2R8g8b8a8UnormPipeline::create(int type_from, int rotate_to, int origin_width, int origin_height, int target_width, int target_height, const Option& opt)
 {
     need_resize = false;
     if (rotate_to < 5) // 1 2 3 4
     {
-        if (origin_width != surface_width || origin_height != surface_height)
+        if (origin_width != target_width || origin_height != target_height)
         {
             need_resize = true;
         }
     }
     else // 5 6 7 8
     {
-        if (origin_width != surface_height || origin_height != surface_width)
+        if (origin_width != target_height || origin_height != target_width)
         {
             need_resize = true;
         }
@@ -497,8 +497,8 @@ int Convert2R8g8b8a8UnormPipeline::create(int type_from, int rotate_to, int orig
     std::vector<vk_specialization_type> specializations(7);
     specializations[0].i = origin_width;
     specializations[1].i = origin_height;
-    specializations[2].i = surface_width;
-    specializations[3].i = surface_height;
+    specializations[2].i = target_width;
+    specializations[3].i = target_height;
     specializations[4].i = type_from;
     specializations[5].i = rotate_to;
     specializations[6].i = need_resize;
@@ -597,8 +597,8 @@ int Convert2R8g8b8a8UnormPipeline::create_sampler()
     samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
     samplerCreateInfo.minLod = 0.0f;
     samplerCreateInfo.maxLod = 0.0f;
-    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
-    samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
+    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
 
     ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
     if (ret != VK_SUCCESS)

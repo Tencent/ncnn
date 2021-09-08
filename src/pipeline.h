@@ -112,7 +112,7 @@ public:
     explicit Convert2R8g8b8a8UnormPipeline(const VulkanDevice* vkdev);
     virtual ~Convert2R8g8b8a8UnormPipeline();
 
-    int create(int type_from, int rotate_to, int origin_width, int origin_height, int surface_width, int surface_height, const Option& opt);
+    int create(int type_from, int rotate_to, int origin_width, int origin_height, int target_width, int target_height, const Option& opt);
     void destroy();
 
     friend class VkCompute;
@@ -123,8 +123,6 @@ protected:
     int create_descriptorset_layout();
 
 public:
-    int type_from;
-    int rotate_to;
     bool need_resize;
 
     VkSampler sampler;

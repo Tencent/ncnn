@@ -29,8 +29,8 @@ layout (constant_id = 4) const int type_from = 0;
 layout (constant_id = 5) const int rotate_to = 0;
 layout (constant_id = 6) const int need_resize = 0;
 
-layout (binding = 0) uniform sampler2D top_blob_image;
-layout (binding = 1) writeonly uniform image3D android_hardware_buffer_image;
+layout (binding = 0) uniform sampler3D top_blob_image;
+layout (binding = 1) writeonly uniform image2D android_hardware_buffer_image;
 
 void main()
 {
@@ -100,45 +100,49 @@ void main()
     if (type_from == 1) // PIXEL_RGB
     {
         vec4 rgba;
-        rgba.rgb = texture(top_blob_image, pos).rgb * 255.f;
+        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
+        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
+        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
         rgba.a = 255.f;
 
-        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
+        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 
     if (type_from == 2) // PIXEL_BGR
     {
         vec4 rgba;
-        rgba.bgr = texture(top_blob_image, pos).rgb * 255.f;
+        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
+        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
+        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
         rgba.a = 255.f;
 
-        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
+        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 
     if (type_from == 3) // PIXEL_GRAY
     {
         vec4 rgba;
-        rgba.r = texture(top_blob_image, pos).r * 255.f;
-        rgba.g = texture(top_blob_image, pos).r * 255.f;
-        rgba.b = texture(top_blob_image, pos).r * 255.f;
+        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
+        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
+        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
         rgba.a = 255.f;
 
-        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
+        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 
     if (type_from == 4) // PIXEL_RGBA
     {
         vec4 rgba;
-        rgba.rgba = texture(top_blob_image, pos).rgba * 255.f;
+        rgba.rgba = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgba * 255.f;
 
-        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
+        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 
     if (type_from == 5) // PIXEL_BGRA
     {
         vec4 rgba;
-        rgba.bgra = texture(top_blob_image, pos).rgba * 255.f;
+        rgba.bgra = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgba * 255.f;
 
-        imageStore(android_hardware_buffer_image, ivec3(gx, gy, 0), rgba);
+        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 }
