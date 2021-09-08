@@ -390,8 +390,9 @@ int ImportAndroidHardwareBufferPipeline::create_sampler(VkAndroidHardwareBufferI
     VkSamplerCreateInfo samplerCreateInfo;
     samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
     samplerCreateInfo.pNext = &samplerYcbcrConversionInfo;
-    samplerCreateInfo.magFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-    samplerCreateInfo.minFilter = need_resize ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
+    samplerCreateInfo.flags = 0;
+    samplerCreateInfo.magFilter = /*need_resize ? VK_FILTER_LINEAR : */VK_FILTER_NEAREST;
+    samplerCreateInfo.minFilter = /*need_resize ? VK_FILTER_LINEAR : */VK_FILTER_NEAREST;
     samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
     samplerCreateInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
     samplerCreateInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
@@ -403,8 +404,8 @@ int ImportAndroidHardwareBufferPipeline::create_sampler(VkAndroidHardwareBufferI
     samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
     samplerCreateInfo.minLod = 0.0f;
     samplerCreateInfo.maxLod = 0.0f;
-    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK; //VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE; FIXME
-    samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;                     //VK_FALSE; FIXME ?
+    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE; //VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE; FIXME
+    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;                     //VK_FALSE; FIXME ?
 
     ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
     if (ret != VK_SUCCESS)

@@ -3901,6 +3901,12 @@ int VkRenderPrivate::create_swapchain()
         return -1;
     }
 
+    if (vkdev->info.support_VK_KHR_swapchain() == 0)
+    {
+        NCNN_LOGE("not support swapchain");
+        return -1;
+    }
+
     VkSurfaceCapabilitiesKHR surfaceCapabilities;
     ret = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkdev->info.physical_device(), surface, &surfaceCapabilities);
     if (ret != VK_SUCCESS)
