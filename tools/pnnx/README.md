@@ -316,6 +316,59 @@ def channel_shuffle(x: Tensor, groups: int) -> Tensor:
 
 # PNNX custom operator
 
+```python
+import os
+
+import torch
+from torch.autograd import Function
+from torch.utils.cpp_extension import load, _import_module_from_library
+
+module_path = os.path.dirname(__file__)
+upfirdn2d_op = load(
+    'upfirdn2d',
+    sources=[
+        os.path.join(module_path, 'upfirdn2d.cpp'),
+        os.path.join(module_path, 'upfirdn2d_kernel.cu'),
+    ],
+    is_python_module=False
+)
+
+def upfirdn2d(input, kernel, up=1, down=1, pad=(0, 0)):
+    pad_x0 = pad[0]
+    pad_x1 = pad[1]
+    pad_y0 = pad[0]
+    pad_y1 = pad[1]
+
+    kernel_h, kernel_w = kernel.shape
+    batch, channel, in_h, in_w = input.shape
+
+    input = input.reshape(-1, in_h, in_w, 1)
+
+    out_h = (in_h * up + pad_y0 + pad_y1 - kernel_h) // down + 1
+    out_w = (in_w * up + pad_x0 + pad_x1 - kernel_w) // down + 1
+
+    out = torch.ops.upfirdn2d_op.upfirdn2d(input, kernel, up, up, down, down, pad_x0, pad_x1, pad_y0, pad_y1)
+
+    out = out.view(-1, channel, out_h, out_w)
+
+    return out
+```
+
+```cpp
+#include <torch/extension.h>
+
+torch::Tensor upfirdn2d(const torch::Tensor& input, const torch::Tensor& kernel,
+                        int64_t up_x, int64_t up_y, int64_t down_x, int64_t down_y,
+                        int64_t pad_x0, int64_t pad_x1, int64_t pad_y0, int64_t pad_y1) {
+    // operator body
+}
+
+TORCH_LIBRARY(upfirdn2d_op, m) {
+    m.def("upfirdn2d", upfirdn2d);
+}
+```
+
+<img src="https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/customop.pnnx.png" width="400" />
 
 # Supported PyTorch operator status
 
