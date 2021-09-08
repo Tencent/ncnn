@@ -120,8 +120,8 @@ void main()
     {
         vec4 rgba;
         rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
-        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
-        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
+        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
+        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
         rgba.a = 255.f;
     }
 
