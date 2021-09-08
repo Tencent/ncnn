@@ -309,6 +309,10 @@ def channel_shuffle(x: Tensor, groups: int) -> Tensor:
 
 # PNNX model optimization
 
+|without model optimization|with model optimization|
+|----|---|
+|![noshapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/optless.pnnx.png)|![shapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/opt.pnnx.png)|
+
 
 # PNNX custom operator
 
