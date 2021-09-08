@@ -150,7 +150,7 @@ def foo(x, y):
 ```
 
 |ONNX|TorchScript|PNNX|
-|----|---|---|
+|---|---|---|
 |![math.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.onnx.png)|![math.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pt.png)|![math.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pnnx.png)|
 
 # PNNX torch function operator
@@ -172,7 +172,7 @@ class Model(nn.Module):
 ```
 
 |ONNX|TorchScript|PNNX|
-|----|---|---|
+|---|---|---|
 |![function.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.onnx.png)|![function.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pt.png)|![function.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pnnx.png)|
 
 
@@ -202,7 +202,7 @@ class Focus(nn.Module):
 ```
 
 |ONNX|TorchScript|PNNX|PNNX with module operator|
-|----|---|---|---|
+|---|---|---|---|
 |![focus.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.onnx.png)|![focus.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pt.png)|![focus.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pnnx.png)|![focus.pnnx2](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pnnx2.png)|
 
 
@@ -303,15 +303,15 @@ def channel_shuffle(x: Tensor, groups: int) -> Tensor:
 ```
 
 |without shape propagation|with shape propagation|
-|----|---|
+|---|---|
 |![noshapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/noshapeinfer.png)|![shapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/shapeinfer.pnnx.png)|
 
 
 # PNNX model optimization
 
-|without model optimization|with model optimization|
-|----|---|
-|![noshapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/optless.pnnx.png)|![shapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/opt.pnnx.png)|
+|ONNX|TorchScript|PNNX without optimization|PNNX with optimization|
+|---|---|---|---|
+|![optlessonnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/optless.onnx.png)|![optlesspt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/optless.pt.png)|![optless](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/optless.pnnx.png)|![opt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/opt.pnnx.png)|
 
 
 # PNNX custom operator
