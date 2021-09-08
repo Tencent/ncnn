@@ -97,15 +97,14 @@ void main()
         }
     }
 
+    vec4 rgba;
+
     if (type_from == 1) // PIXEL_RGB
     {
-        vec4 rgba;
         rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
         rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
         rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
         rgba.a = 255.f;
-
-        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 
     if (type_from == 2) // PIXEL_BGR
@@ -115,8 +114,6 @@ void main()
         rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
         rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
         rgba.a = 255.f;
-
-        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 
     if (type_from == 3) // PIXEL_GRAY
@@ -126,23 +123,19 @@ void main()
         rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
         rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
         rgba.a = 255.f;
-
-        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 
     if (type_from == 4) // PIXEL_RGBA
     {
         vec4 rgba;
         rgba.rgba = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgba * 255.f;
-
-        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
 
     if (type_from == 5) // PIXEL_BGRA
     {
         vec4 rgba;
         rgba.bgra = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgba * 255.f;
-
-        imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
     }
+
+    imageStore(android_hardware_buffer_image, ivec2(gx, gy), rgba);
 }
