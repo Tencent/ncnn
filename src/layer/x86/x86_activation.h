@@ -206,9 +206,7 @@ static inline __m256 hardswish_avx(__m256 inputs, __m256 a, __m256 b)
     b = _mm256_max_ps(b, _mm256_setzero_ps());
     b = _mm256_min_ps(b, one);
     return _mm256_mul_ps(b, inputs);
-
 }
-
 
 static inline __m256 abs_avx(__m256 inputs)
 {
