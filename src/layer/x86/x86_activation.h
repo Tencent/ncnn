@@ -17,6 +17,7 @@
 
 #include <math.h>
 #include "mat.h"
+#include "x86_usability.h"
 
 static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
 {
@@ -46,6 +47,23 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     {
         v = v * tanh(log(exp(v) + 1.f));
     }
+    else if (activation_type == 6)
+    {
+        v = static_cast<float>(v / (1.f + expf(-v)));
+    }
+    else if (activation_type == 7)
+    {
+        float alpha = activation_params[0];
+        float beta = activation_params[1];
+        float lower = -beta / alpha;
+        float upper = (1.f / alpha) + lower;
+        if (v < lower)
+            v = 0.f;
+        else if (v > upper)
+            ;
+        else
+            v = v * (v * alpha + beta);
+    }
 
     return v;
 }
@@ -70,6 +88,21 @@ static inline __m128 tanh_sse(__m128 inputs)
 static inline __m128 mish_sse(__m128 inputs)
 {
     return _mm_mul_ps(inputs, tanh_sse(log_ps(_mm_add_ps(exp_ps(inputs), _mm_set1_ps(1.f)))));
+}
+
+static inline __m128 swish_sse(__m128 inputs)
+{
+    const __m128 one = _mm_set1_ps(1.0f);
+    return _mm_div_ps(inputs, _mm_add_ps(one, exp_ps(_mm_sub_ps(_mm_setzero_ps(), inputs))));
+}
+
+static inline __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
+{
+    const __m128 one = _mm_set1_ps(1.0f);
+    b = _mm_add_ps(_mm_mul_ps(inputs, a), b);
+    b = _mm_max_ps(b, _mm_setzero_ps());
+    b = _mm_min_ps(b, one);
+    return _mm_mul_ps(b, inputs);
 }
 
 static inline __m128 abs_sse(__m128 inputs)
@@ -120,6 +153,16 @@ static inline __m128 activation_sse(__m128 _v, int activation_type, const ncnn::
     {
         return mish_sse(_v);
     }
+    else if (activation_type == 6)
+    {
+        return swish_sse(_v);
+    }
+    else if (activation_type == 7)
+    {
+        __m128 _a = _mm_set1_ps(activation_params[0]);
+        __m128 _b = _mm_set1_ps(activation_params[1]);
+        return hardswish_sse(_v, _a, _b);
+    }
 
     return _v;
 }
@@ -149,6 +192,23 @@ static inline __m256 mish_avx(__m256 inputs)
 {
     return _mm256_mul_ps(inputs, tanh_avx(log256_ps(_mm256_add_ps(exp256_ps(inputs), _mm256_set1_ps(1.f)))));
 }
+
+static inline __m256 swish_avx(__m256 inputs)
+{
+    const __m256 one = _mm256_set1_ps(1.0f);
+    return _mm256_div_ps(inputs, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs))));
+}
+
+static inline __m256 hardswish_avx(__m256 inputs, __m256 a, __m256 b)
+{
+    const __m256 one = _mm256_set1_ps(1.0f);
+    b = _mm256_comp_fmadd_ps(inputs, a, b);
+    b = _mm256_max_ps(b, _mm256_setzero_ps());
+    b = _mm256_min_ps(b, one);
+    return _mm256_mul_ps(b, inputs);
+
+}
+
 
 static inline __m256 abs_avx(__m256 inputs)
 {
@@ -197,6 +257,16 @@ static inline __m256 activation_avx(__m256 _v, int activation_type, const ncnn::
     else if (activation_type == 5)
     {
         return mish_avx(_v);
+    }
+    else if (activation_type == 6)
+    {
+        return swish_avx(_v);
+    }
+    else if (activation_type == 7)
+    {
+        __m256 _a = _mm256_set1_ps(activation_params[0]);
+        __m256 _b = _mm256_set1_ps(activation_params[1]);
+        return hardswish_avx(_v, _a, _b);
     }
 
     return _v;

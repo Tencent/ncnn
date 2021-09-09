@@ -288,6 +288,23 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         y = logf(expf(x) + 1);
                     sum = static_cast<float>(x * tanh(y));
                 }
+                else if (activation_type == 6)
+                {
+                    sum = static_cast<float>(sum / (1.f + expf(-sum)));
+                }
+                else if (activation_type == 7)
+                {
+                    float alpha = activation_params[0];
+                    float beta = activation_params[1];
+                    float lower = -beta / alpha;
+                    float upper = (1.f / alpha) + lower;
+                    if (sum < lower)
+                        sum = 0.f;
+                    else if (sum > upper)
+                        ;
+                    else
+                        sum = sum * (sum * alpha + beta);
+                }
 
                 outptr[j] = sum;
             }
@@ -484,6 +501,23 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                     else
                         y = logf(expf(x) + 1);
                     sumfp32 = static_cast<float>(x * tanh(y));
+                }
+                else if (activation_type == 6)
+                {
+                    sum = static_cast<float>(sum / (1.f + expf(-sum)));
+                }
+                else if (activation_type == 7)
+                {
+                    float alpha = activation_params[0];
+                    float beta = activation_params[1];
+                    float lower = -beta / alpha;
+                    float upper = (1.f / alpha) + lower;
+                    if (sum < lower)
+                        sum = 0.f;
+                    else if (sum > upper)
+                        ;
+                    else
+                        sum = sum * (sum * alpha + beta);
                 }
 
                 if (use_int8_requantize)
