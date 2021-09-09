@@ -4081,7 +4081,7 @@ int main(int argc, char** argv)
         else if (op == "Concat")
         {
             int axis = get_node_attr_i(node, "axis", 1);
-            fprintf(pp, " 0=%d", axis - 1);
+            fprintf(pp, " 0=%d", axis > 0 ? axis - 1 : axis);
         }
         else if (op == "Constant")
         {
