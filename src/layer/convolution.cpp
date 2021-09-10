@@ -504,7 +504,7 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                 }
                 else if (activation_type == 6)
                 {
-                    sum = static_cast<float>(sum / (1.f + expf(-sum)));
+                    sumfp32 = static_cast<float>(sumfp32 / (1.f + expf(-sumfp32)));
                 }
                 else if (activation_type == 7)
                 {
@@ -512,12 +512,12 @@ int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                     float beta = activation_params[1];
                     float lower = -beta / alpha;
                     float upper = (1.f / alpha) + lower;
-                    if (sum < lower)
-                        sum = 0.f;
-                    else if (sum > upper)
+                    if (sumfp32 < lower)
+                        sumfp32 = 0.f;
+                    else if (sumfp32 > upper)
                         ;
                     else
-                        sum = sum * (sum * alpha + beta);
+                        sumfp32 = sumfp32 * (sumfp32 * alpha + beta);
                 }
 
                 if (use_int8_requantize)
