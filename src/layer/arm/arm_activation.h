@@ -44,22 +44,22 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
         v = v * tanh(log(exp(v) + 1.f));
     }
     else if (activation_type == 6)
-	{
-		v = v / (1.f + exp(-v));
-	}
-	else if (activation_type == 7)
-	{
-		const float alpha = activation_params[0];
-		const float beta = activation_params[1];
-		const float lower = -beta / alpha;
-		const float upper = (1.f / alpha) + lower;
-		if (v < lower)
-			v = 0.f;
-		else if (v > upper)
-			;
-		else
-			v = v * (v * alpha + beta);
-	}
+    {
+        v = v / (1.f + exp(-v));
+    }
+    else if (activation_type == 7)
+    {
+        const float alpha = activation_params[0];
+        const float beta = activation_params[1];
+        const float lower = -beta / alpha;
+        const float upper = (1.f / alpha) + lower;
+        if (v < lower)
+            v = 0.f;
+        else if (v > upper)
+            ;
+        else
+            v = v * (v * alpha + beta);
+    }
 
     return v;
 }
@@ -99,22 +99,22 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
         _v = vmulq_f32(_v, tanh_ps(log_ps(vaddq_f32(exp_ps(_v), vdupq_n_f32(1.f)))));
     }
     else if (activation_type == 6)
-	{
-		float32x4_t _one = vdupq_n_f32(1.f);
-		_v = divq_ps(_v, vaddq_f32(_one, exp_ps(vnegq_f32(_v))));
-	}
-	else if (activation_type == 7)
-	{
-		const float32x4_t alpha = vdupq_n_f32(activation_params[0]);
-		const float32x4_t beta = vdupq_n_f32(activation_params[1]);
+    {
+        float32x4_t _one = vdupq_n_f32(1.f);
+        _v = divq_ps(_v, vaddq_f32(_one, exp_ps(vnegq_f32(_v))));
+    }
+    else if (activation_type == 7)
+    {
+        const float32x4_t alpha = vdupq_n_f32(activation_params[0]);
+        const float32x4_t beta = vdupq_n_f32(activation_params[1]);
         const float32x4_t _zero = vdupq_n_f32(0.f);
-		const float32x4_t _one = vdupq_n_f32(1.f);
-		float32x4_t _ans = vdupq_n_f32(beta);
-		_ans = vmlaq_n_f32(_ans, _v, alpha);
-		_ans = vmaxq_f32(_ans, _zero);
-		_ans = vminq_f32(_ans, _one);
-		_v = vmulq_f32(_ans, _v);
-	}
+        const float32x4_t _one = vdupq_n_f32(1.f);
+        float32x4_t _ans = vdupq_n_f32(beta);
+        _ans = vmlaq_n_f32(_ans, _v, alpha);
+        _ans = vmaxq_f32(_ans, _zero);
+        _ans = vminq_f32(_ans, _one);
+        _v = vmulq_f32(_ans, _v);
+    }
 
     return _v;
 }
@@ -151,22 +151,22 @@ static inline __fp16 activation_ss(__fp16 v, int activation_type, const ncnn::Ma
         v = v * tanh(log(exp(v) + (__fp16)1.f));
     }
     else if (activation_type == 6)
-	{
-		v = v / ((__fp16)1.f + exp(-v));
-	}
-	else if (activation_type == 7)
-	{
+    {
+        v = v / ((__fp16)1.f + exp(-v));
+    }
+    else if (activation_type == 7)
+    {
         const __fp16 alpha = (__fp16)(activation_params[0]);
-		const __fp16 beta = (__fp16)(activation_params[1]);
-		const __fp16 lower = -beta / alpha;
-		const __fp16 upper = ((__fp16)1.f / alpha) + lower;
-		if (v < lower)
-			v = (__fp16)0.f;
-		else if (v > upper)
-			;
-		else
-			v = v * (v * alpha + beta);
-	}
+        const __fp16 beta = (__fp16)(activation_params[1]);
+        const __fp16 lower = -beta / alpha;
+        const __fp16 upper = ((__fp16)1.f / alpha) + lower;
+        if (v < lower)
+            v = (__fp16)0.f;
+        else if (v > upper)
+            ;
+        else
+            v = v * (v * alpha + beta);
+    }
 
     return v;
 }
@@ -202,22 +202,22 @@ static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, con
         _v = vmul_f16(_v, tanh_ps(log_ps(vadd_f16(exp_ps(_v), vdup_n_f16(1.f)))));
     }
     else if (activation_type == 6)
-	{
-		const float16x4_t _one = vdup_n_f16(1.f);
-		_v = vdivq_f16(_v, vadd_f16(_one, exp_ps(vneg_f16(_v))));
-	}
-	else if (activation_type == 7)
-	{
-		const float16x4_t alpha = vdup_n_f16((__fp16)activation_params[0]);
-		const float16x4_t beta = vdup_n_f16((__fp16)activation_params[1]);
+    {
+        const float16x4_t _one = vdup_n_f16(1.f);
+        _v = vdivq_f16(_v, vadd_f16(_one, exp_ps(vneg_f16(_v))));
+    }
+    else if (activation_type == 7)
+    {
+        const float16x4_t alpha = vdup_n_f16((__fp16)activation_params[0]);
+        const float16x4_t beta = vdup_n_f16((__fp16)activation_params[1]);
         const float16x4_t _zero = vdup_n_f16(0.f);
-		const float16x4_t _one = vdup_n_f16(1.f);
-		float16x4_t _ans = vdup_n_f16((__fp16)beta);
-		_ans = vfma_n_f16(_ans, _v, alpha);
-		_ans = vmax_f16(_ans, _zero);
-		_ans = vmin_f16(_ans, _one);
-		_v = vmul_f16(_ans, _v);
-	}
+        const float16x4_t _one = vdup_n_f16(1.f);
+        float16x4_t _ans = vdup_n_f16((__fp16)beta);
+        _ans = vfma_n_f16(_ans, _v, alpha);
+        _ans = vmax_f16(_ans, _zero);
+        _ans = vmin_f16(_ans, _one);
+        _v = vmul_f16(_ans, _v);
+    }
 
     return _v;
 }
@@ -252,23 +252,23 @@ static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, con
     {
         _v = vmulq_f16(_v, tanh_ps(log_ps(vaddq_f16(exp_ps(_v), vdupq_n_f16(1.f)))));
     }
-	else if (activation_type == 6)
-	{
-		const float16x8_t _one = vdupq_n_f16(1.f);
-		_v = vdivq_f16(_v, vaddq_f16(_one, exp_ps(vnegq_f16(_v))));
-	}
-	else if (activation_type == 7)
-	{
-		const float16x8_t alpha = vdupq_n_f16((__fp16)activation_params[0]);
-		const float16x8_t beta = vdupq_n_f16((__fp16)activation_params[1]);
+    else if (activation_type == 6)
+    {
+        const float16x8_t _one = vdupq_n_f16(1.f);
+        _v = vdivq_f16(_v, vaddq_f16(_one, exp_ps(vnegq_f16(_v))));
+    }
+    else if (activation_type == 7)
+    {
+        const float16x8_t alpha = vdupq_n_f16((__fp16)activation_params[0]);
+        const float16x8_t beta = vdupq_n_f16((__fp16)activation_params[1]);
         const float16x8_t _zero = vdupq_n_f16(0.f);
-		const float16x8_t _one = vdupq_n_f16(1.f);
-		float16x8_t _ans = vdupq_n_f16((__fp16)beta);
-		_ans = vfmaq_n_f16(_ans, _v, alpha);
-		_ans = vmaxq_f16(_ans, _zero);
-		_ans = vminq_f16(_ans, _one);
-		_v = vmulq_f16(_ans, _v);
-	}
+        const float16x8_t _one = vdupq_n_f16(1.f);
+        float16x8_t _ans = vdupq_n_f16((__fp16)beta);
+        _ans = vfmaq_n_f16(_ans, _v, alpha);
+        _ans = vmaxq_f16(_ans, _zero);
+        _ans = vminq_f16(_ans, _one);
+        _v = vmulq_f16(_ans, _v);
+    }
     return _v;
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
