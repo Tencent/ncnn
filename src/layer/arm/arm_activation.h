@@ -101,12 +101,12 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
     else if (activation_type == 6)
     {
         float32x4_t _one = vdupq_n_f32(1.f);
-        _v = divq_ps(_v, vaddq_f32(_one, exp_ps(vnegq_f32(_v))));
+        _v = vdivq_f32(_v, vaddq_f32(_one, exp_ps(vnegq_f32(_v))));
     }
     else if (activation_type == 7)
     {
-        const float32x4_t alpha = vdupq_n_f32(activation_params[0]);
-        const float32x4_t beta = vdupq_n_f32(activation_params[1]);
+        const float alpha = activation_params[0];
+        const float beta = activation_params[1];
         const float32x4_t _zero = vdupq_n_f32(0.f);
         const float32x4_t _one = vdupq_n_f32(1.f);
         float32x4_t _ans = vdupq_n_f32(beta);
@@ -212,7 +212,7 @@ static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, con
         const float16x4_t beta = vdup_n_f16((__fp16)activation_params[1]);
         const float16x4_t _zero = vdup_n_f16(0.f);
         const float16x4_t _one = vdup_n_f16(1.f);
-        float16x4_t _ans = vdup_n_f16((__fp16)beta);
+        float16x4_t _ans = beta;
         _ans = vfma_n_f16(_ans, _v, alpha);
         _ans = vmax_f16(_ans, _zero);
         _ans = vmin_f16(_ans, _one);
@@ -263,8 +263,8 @@ static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, con
         const float16x8_t beta = vdupq_n_f16((__fp16)activation_params[1]);
         const float16x8_t _zero = vdupq_n_f16(0.f);
         const float16x8_t _one = vdupq_n_f16(1.f);
-        float16x8_t _ans = vdupq_n_f16((__fp16)beta);
-        _ans = vfmaq_n_f16(_ans, _v, alpha);
+        float16x8_t _ans = beta;
+        _ans = vfmaq_laneq_f16(_ans, _v, alpha);
         _ans = vmaxq_f16(_ans, _zero);
         _ans = vminq_f16(_ans, _one);
         _v = vmulq_f16(_ans, _v);
