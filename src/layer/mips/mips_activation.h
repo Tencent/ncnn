@@ -101,18 +101,18 @@ static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat
     else if (activation_type == 6)
     {
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-		_v = __msa_fdiv_w(_v, __msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_v, 31))));
+        _v = __msa_fdiv_w(_v, __msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_v, 31))));
     }
     else if (activation_type == 7)
     {
-		v4f32 _alpha = (v4f32)__msa_fill_w_f32(activation_params[0]);
-		v4f32 _beta = (v4f32)__msa_fill_w_f32(activation_params[1]);
-		v4f32 _zero = (v4f32)__msa_fill_w(0);
-		v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
-		v4f32 _outp = __msa_fmadd_w(_beta, _v, _alpha);
-		_outp = __msa_fmax_w(_outp, _zero);
-		_outp = __msa_fmin_w(_outp, _one);
-		_v = __msa_fmul_w(_outp, _v);
+        v4f32 _alpha = (v4f32)__msa_fill_w_f32(activation_params[0]);
+        v4f32 _beta = (v4f32)__msa_fill_w_f32(activation_params[1]);
+        v4f32 _zero = (v4f32)__msa_fill_w(0);
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v4f32 _outp = __msa_fmadd_w(_beta, _v, _alpha);
+        _outp = __msa_fmax_w(_outp, _zero);
+        _outp = __msa_fmin_w(_outp, _one);
+        _v = __msa_fmul_w(_outp, _v);
     }
 
     return _v;

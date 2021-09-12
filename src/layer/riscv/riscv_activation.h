@@ -110,8 +110,8 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
             _v = vfmerge_vfm_f##SEW##m##LMUL(_lower, _v, .0f, vl);                                                                                           \
                                                                                                                                                              \
             vfloat##SEW##m##LMUL##_t _p0 = vfadd_vf_f##SEW##m##LMUL_m(                                                                                       \
-                                   _apply, _v, /*op1*/ vfmul_vf_f##SEW##m##LMUL##_b##MLEN_m(_apply, _v, _v, alpha, vl), beta,                                \
-                                   vl);                                                                                                                      \
+                _apply, _v, /*op1*/ vfmul_vf_f##SEW##m##LMUL##_b##MLEN_m(_apply, _v, _v, alpha, vl), beta,                                                   \
+                vl);                                                                                                                                         \
             _v = vfmul_vv_f##SEW##m##LMUL##_b##MLEN_m(_apply, _v, /*op1*/ _v, _p0, vl);                                                                      \
         }                                                                                                                                                    \
                                                                                                                                                              \
