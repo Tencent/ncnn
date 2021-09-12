@@ -1372,7 +1372,7 @@ int NetOptimize::fuse_convolution_activation()
         size_t j = i + 1;
         for (; j < layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid" && layers[j]->type != "Mish" && layers[j]->type != "Swish" && layers[j]->type != "HardSwish")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid" && layers[j]->type != "Mish")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -1422,19 +1422,6 @@ int NetOptimize::fuse_convolution_activation()
         else if (activation->type == "Mish")
         {
             convolution->activation_type = 5;
-        }
-        else if (activation->type == "Swish")
-        {
-            convolution->activation_type = 6;
-        }
-        else if (activation->type == "HardSwish")
-        {
-            ncnn::HardSwish* hardswish = (ncnn::HardSwish*)activation;
-
-            convolution->activation_type = 7;
-            convolution->activation_params = ncnn::Mat(2);
-            convolution->activation_params[0] = hardswish->alpha;
-            convolution->activation_params[1] = hardswish->beta;
         }
 
         int top_blob_index_final = activation->tops[0];
@@ -1677,7 +1664,7 @@ int NetOptimize::fuse_innerproduct_activation()
         size_t j = i + 1;
         for (; j < layer_count; j++)
         {
-            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid")
+            if (layers[j]->type != "ReLU" && layers[j]->type != "Clip" && layers[j]->type != "Sigmoid" && layers[j]->type != "Mish" && layers[j]->type != "Swish" && layers[j]->type != "HardSwish")
                 continue;
 
             if (layers[j]->bottoms.size() != 1)
@@ -1723,6 +1710,23 @@ int NetOptimize::fuse_innerproduct_activation()
         else if (activation->type == "Sigmoid")
         {
             innerproduct->activation_type = 4;
+        }
+        else if (activation->type == "Mish")
+        {
+            innerproduct->activation_type = 5;
+        }
+        else if (activation->type == "Swish")
+        {
+            innerproduct->activation_type = 6;
+        }
+        else if (activation->type == "HardSwish")
+        {
+            ncnn::HardSwish* hardswish = (ncnn::HardSwish*)activation;
+
+            innerproduct->activation_type = 7;
+            innerproduct->activation_params = ncnn::Mat(2);
+            innerproduct->activation_params[0] = hardswish->alpha;
+            innerproduct->activation_params[1] = hardswish->beta;
         }
 
         int top_blob_index_final = activation->tops[0];
