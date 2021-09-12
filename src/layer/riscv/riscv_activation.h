@@ -43,6 +43,23 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     {
         v = v * tanh(log(exp(v) + 1.f));
     }
+    else if (activation_type == 6)
+    {
+        v = v / (1.f + exp(-v));
+    }
+    else if (activation_type == 7)
+    {
+        const float alpha = activation_params[0];
+        const float beta = activation_params[1];
+        const float lower = -beta / alpha;
+        const float upper = (1.f / alpha) + lower;
+        if (v < lower)
+            v = 0.f;
+        else if (v > upper)
+            ;
+        else
+            v = v * (v * alpha + beta);
+    }
 
     return v;
 }
@@ -80,6 +97,22 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
         else if (activation_type == 5)                                                                                                                       \
         {                                                                                                                                                    \
             _v = vfmul_vv_f##SEW##m##LMUL(_v, tanh_ps(log_ps(vfadd_vf_f##SEW##m##LMUL(exp_ps(_v, vl), 1.f, vl), vl), vl), vl);                               \
+        }                                                                                                                                                    \
+        else if (activation_type == 6)                                                                                                                       \
+        {                                                                                                                                                    \
+            _v = vfdiv_vv_f##SEW##m##LMUL(_v, vfadd_vf_f##SEW##m##LMUL(exp_ps(vfneg_v_f##SEW##m##LMUL(_v, vl), vl), 1.f, vl), vl);                           \
+        }                                                                                                                                                    \
+        else if (activation_type == 7)                                                                                                                       \
+        {                                                                                                                                                    \
+            vbool##MLEN##_t _lower = vmfle_vf_f##SEW##m##LMUL##_b##MLEN(_v, lower, vl);                                                                      \
+            vbool##MLEN##_t _higher = vmfle_vf_f##SEW##m##LMUL##_b##MLEN(_v, upper, vl);                                                                     \
+            vbool##MLEN##_t _apply = vmnor_mm_b##MLEN(_lower, _higher, vl);                                                                                  \
+            _v = vfmerge_vfm_f##SEW##m##LMUL(_lower, _v, .0f, vl);                                                                                           \
+                                                                                                                                                             \
+            vfloat##SEW##m##LMUL##_t _p0 = vfadd_vf_f##SEW##m##LMUL_m(                                                                                       \
+                                   _apply, _v, /*op1*/ vfmul_vf_f##SEW##m##LMUL##_b##MLEN_m(_apply, _v, _v, alpha, vl), beta,                                \
+                                   vl);                                                                                                                      \
+            _v = vfmul_vv_f##SEW##m##LMUL##_b##MLEN_m(_apply, _v, /*op1*/ _v, _p0, vl);                                                                      \
         }                                                                                                                                                    \
                                                                                                                                                              \
         return _v;                                                                                                                                           \
