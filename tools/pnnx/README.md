@@ -372,10 +372,10 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 
 # Supported PyTorch operator status
 
-| torch.nn        | Is Supported |
-|---------------------------|----|
+| torch.nn        | Is Supported | Export to ncnn |
+|---------------------------|----|---|
 |nn.AdaptiveAvgPool1d       | :heavy_check_mark: |
-|nn.AdaptiveAvgPool2d       | :heavy_check_mark: |
+|nn.AdaptiveAvgPool2d       | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.AdaptiveAvgPool3d       | :heavy_check_mark: |
 |nn.AdaptiveMaxPool1d       | :heavy_check_mark: |
 |nn.AdaptiveMaxPool2d       | :heavy_check_mark: |
@@ -394,13 +394,13 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.ConstantPad2d           | :heavy_check_mark: |
 |nn.ConstantPad3d           | :heavy_check_mark: |
 |nn.Conv1d                  | :heavy_check_mark: |
-|nn.Conv2d                  | :heavy_check_mark: |
+|nn.Conv2d                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Conv3d                  | :heavy_check_mark: |
 |nn.ConvTranspose1d         | :heavy_check_mark: |
 |nn.ConvTranspose2d         | :heavy_check_mark: |
 |nn.ConvTranspose3d         | :heavy_check_mark: |
 |nn.CosineSimilarity        |   |
-|nn.Dropout                 |   |
+|nn.Dropout                 |   | :heavy_check_mark:* |
 |nn.Dropout2d               |   |
 |nn.Dropout3d               |   |
 |nn.ELU                     | :heavy_check_mark: |
@@ -434,7 +434,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.LazyConvTranspose3d     |   |
 |nn.LazyLinear              |   |
 |nn.LeakyReLU               | :heavy_check_mark: |
-|nn.Linear                  | :heavy_check_mark: |
+|nn.Linear                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LocalResponseNorm       | :heavy_check_mark: |
 |nn.LogSigmoid              | :heavy_check_mark: |
 |nn.LogSoftmax              | :heavy_check_mark: |
@@ -443,7 +443,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.LSTM                    | :heavy_check_mark: |
 |nn.LSTMCell                |   |
 |nn.MaxPool1d               | :heavy_check_mark: |
-|nn.MaxPool2d               | :heavy_check_mark: |
+|nn.MaxPool2d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.MaxPool3d               | :heavy_check_mark: |
 |nn.MaxUnpool1d             |   |
 |nn.MaxUnpool2d             |   |
@@ -456,8 +456,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.PReLU                   | :heavy_check_mark: |
 |nn.ReflectionPad1d         | :heavy_check_mark: |
 |nn.ReflectionPad2d         | :heavy_check_mark: |
-|nn.ReLU                    | :heavy_check_mark: |
-|nn.ReLU6                   | :heavy_check_mark: |
+|nn.ReLU                    | :heavy_check_mark: | :heavy_check_mark: |
+|nn.ReLU6                   | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReplicationPad1d        | :heavy_check_mark: |
 |nn.ReplicationPad2d        | :heavy_check_mark: |
 |nn.ReplicationPad3d        | :heavy_check_mark: |
@@ -491,10 +491,10 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.ZeroPad2d               | :heavy_check_mark: |
 
 
-| torch.nn.functional | Is Supported |
-|---------------------------|----|
+| torch.nn.functional | Is Supported | Export to ncnn |
+|---------------------------|----|----|
 |F.adaptive_avg_pool1d      | :heavy_check_mark: |
-|F.adaptive_avg_pool2d      | :heavy_check_mark: |
+|F.adaptive_avg_pool2d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_avg_pool3d      | :heavy_check_mark: |
 |F.adaptive_max_pool1d      | :heavy_check_mark: |
 |F.adaptive_max_pool2d      | :heavy_check_mark: |
