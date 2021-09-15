@@ -353,7 +353,10 @@ y = activation(x3, act_type, act_params)
 | 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
-| 18        | pad_value     | float | 0.f       |                   |
+| 18        | output_pad_right| int | 0         |                   |
+| 19        | output_pad_bottom| int | output_pad_right |           |
+| 20        | output_w      | int   | 0         |                   |
+| 21        | output_h      | int   | output_w  |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -388,7 +391,10 @@ y = activation(x3, act_type, act_params)
 | 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
-| 18        | pad_value     | float | 0.f       |                   |
+| 18        | output_pad_right| int | 0         |                   |
+| 19        | output_pad_bottom| int | output_pad_right |           |
+| 20        | output_w      | int   | 0         |                   |
+| 21        | output_h      | int   | output_w  |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -878,6 +884,11 @@ else                    y = pad(x0, pads param from x1)
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | per_channel_pad_data| float | [per_channel_pad_data_size] |
+
+Padding type:
+- 0 = CONSTANT
+- 1 = REPLICATE
+- 2 = REFLECT
 
 # permute
 ```
