@@ -426,12 +426,12 @@ int ImportAndroidHardwareBufferPipeline::create_descriptorset_layout()
     descriptorSetLayoutBindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     descriptorSetLayoutBindings[0].pImmutableSamplers = &sampler;
     descriptorSetLayoutBindings[1].binding = 1;
-    descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorSetLayoutBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;//BUFFER;
     descriptorSetLayoutBindings[1].descriptorCount = 1;
     descriptorSetLayoutBindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     descriptorSetLayoutBindings[1].pImmutableSamplers = 0;
     descriptorSetLayoutBindings[2].binding = 2;
-    descriptorSetLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    descriptorSetLayoutBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;//BUFFER;
     descriptorSetLayoutBindings[2].descriptorCount = 1;
     descriptorSetLayoutBindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     descriptorSetLayoutBindings[2].pImmutableSamplers = 0;
@@ -598,7 +598,7 @@ int Convert2R8g8b8a8UnormPipeline::create_sampler()
     samplerCreateInfo.minLod = 0.0f;
     samplerCreateInfo.maxLod = 0.0f;
     samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-    samplerCreateInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
 
     ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
     if (ret != VK_SUCCESS)
