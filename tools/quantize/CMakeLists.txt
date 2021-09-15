@@ -37,3 +37,5 @@ target_link_libraries(ncnn2int8 PRIVATE ncnn)
 
 # add ncnn2int8 tool to a virtual project group
 set_property(TARGET ncnn2int8 PROPERTY FOLDER "tools/optimization")
+ncnn_install_tool(ncnn2table)
+ncnn_install_tool(ncnn2int8)
