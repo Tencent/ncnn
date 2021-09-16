@@ -21,16 +21,20 @@
 
 static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
 {
-    if (activation_type == 1)
+    switch (activation_type)
+    {
+    case 1:
     {
         v = fmax(v, 0.f);
+        break;
     }
-    else if (activation_type == 2)
+    case 2:
     {
         float slope = activation_params[0];
         v = v > 0.f ? v : v * slope;
+        break;
     }
-    else if (activation_type == 3)
+    case 3:
     {
         float min = activation_params[0];
         float max = activation_params[1];
@@ -38,20 +42,24 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
             v = min;
         if (v > max)
             v = max;
+        break;
     }
-    else if (activation_type == 4)
+    case 4:
     {
         v = 1.f / (1.f + exp(-v));
+        break;
     }
-    else if (activation_type == 5)
+    case 5:
     {
         v = v * tanh(log(exp(v) + 1.f));
+        break;
     }
-    else if (activation_type == 6)
+    case 6:
     {
         v = static_cast<float>(v / (1.f + expf(-v)));
+        break;
     }
-    else if (activation_type == 7)
+    case 7:
     {
         float alpha = activation_params[0];
         float beta = activation_params[1];
@@ -63,6 +71,8 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
             ;
         else
             v = v * (v * alpha + beta);
+        break;
+    }
     }
 
     return v;
@@ -127,42 +137,45 @@ static inline __m128 prelu_sse(__m128 inputs, __m128 alphas)
 static inline __m128 activation_sse(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
-    if (activation_type == 1)
+    switch(activation_type)
     {
+	case 1:
+	{
         // Relu
         return _mm_max_ps(_v, _mm_setzero_ps());
     }
-    else if (activation_type == 2)
+	case 2:
     {
         // Leaky relu
         return lrelu_sse(_v, activation_params[0]);
     }
-    else if (activation_type == 3)
+	case 3:
     {
         // min max clip
         __m128 min = _mm_set1_ps(activation_params[0]);
         __m128 max = _mm_set1_ps(activation_params[1]);
         return _mm_min_ps(_mm_max_ps(_v, min), max);
     }
-    else if (activation_type == 4)
+	case 4:
     {
         // Sigmoid
         return sigmoid_sse(_v);
     }
-    else if (activation_type == 5)
+	case 5:
     {
         return mish_sse(_v);
     }
-    else if (activation_type == 6)
+	case 6:
     {
         return swish_sse(_v);
     }
-    else if (activation_type == 7)
+	case 7:
     {
         __m128 _a = _mm_set1_ps(activation_params[0]);
         __m128 _b = _mm_set1_ps(activation_params[1]);
         return hardswish_sse(_v, _a, _b);
     }
+	}
 
     return _v;
 }
@@ -230,42 +243,45 @@ static inline __m256 prelu_avx(__m256 inputs, __m256 alphas)
 static inline __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
-    if (activation_type == 1)
+    switch(activation_type)
+	{
+	case 1:
     {
         // Relu
         return _mm256_max_ps(_v, _mm256_setzero_ps());
     }
-    else if (activation_type == 2)
+	case 2:
     {
         // Leaky relu
         return lrelu_avx(_v, activation_params[0]);
     }
-    else if (activation_type == 3)
+	case 3:
     {
         // min max clip
         __m256 min = _mm256_set1_ps(activation_params[0]);
         __m256 max = _mm256_set1_ps(activation_params[1]);
         return _mm256_min_ps(_mm256_max_ps(_v, min), max);
     }
-    else if (activation_type == 4)
+	case 4:
     {
         // Sigmoid
         return sigmoid_avx(_v);
     }
-    else if (activation_type == 5)
+	case 5:
     {
         return mish_avx(_v);
     }
-    else if (activation_type == 6)
+	case 6:
     {
         return swish_avx(_v);
     }
-    else if (activation_type == 7)
+	case 7:
     {
         __m256 _a = _mm256_set1_ps(activation_params[0]);
         __m256 _b = _mm256_set1_ps(activation_params[1]);
         return hardswish_avx(_v, _a, _b);
     }
+	}
 
     return _v;
 }
