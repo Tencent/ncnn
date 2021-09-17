@@ -224,7 +224,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 vfloat32m1_t _s = vfmv_s_f_f32m1(vundefined_f32m1(), s, vl);
 
                 _p = exp_ps(vfsub_vf_f32m8(_p, m, vl), vl);
-                _s = vfredosum_vs_f32m8_f32m1(_s, _p, _s, vl);
+                _s = vfredsum_vs_f32m8_f32m1(_s, _p, _s, vl);
 
                 vse32_v_f32m8(ptr2, _p, vl);
                 s = vfmv_f_s_f32m1_f32(_s);
