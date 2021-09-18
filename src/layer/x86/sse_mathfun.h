@@ -221,7 +221,7 @@ _PS_CONST(cephes_exp_p3, 4.1665795894E-2f);
 _PS_CONST(cephes_exp_p4, 1.6666665459E-1f);
 _PS_CONST(cephes_exp_p5, 5.0000001201E-1f);
 
-static inline v4sf exp_ps(v4sf x)
+static forceinline v4sf exp_ps(v4sf x)
 {
     v4sf tmp = _mm_setzero_ps(), fx;
 #ifdef USE_SSE2
