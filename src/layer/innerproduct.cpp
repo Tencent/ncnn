@@ -236,6 +236,19 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         {
             sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
         }
+        else if (activation_type == 6)
+        {
+            float alpha = activation_params[0];
+            float beta = activation_params[1];
+            float lower = -beta / alpha;
+            float upper = (1.f / alpha) + lower;
+            if (sum < lower)
+                sum = 0.f;
+            else if (sum > upper)
+                ;
+            else
+                sum = sum * (sum * alpha + beta);
+        }
 
         top_blob[p] = sum;
     }
@@ -324,6 +337,19 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 {
                     sumfp32 = static_cast<float>(sumfp32 * tanh(log(exp(sumfp32) + 1.f)));
                 }
+                else if (activation_type == 6)
+                {
+                    float alpha = activation_params[0];
+                    float beta = activation_params[1];
+                    float lower = -beta / alpha;
+                    float upper = (1.f / alpha) + lower;
+                    if (sumfp32 < lower)
+                        sumfp32 = 0.f;
+                    else if (sumfp32 > upper)
+                        ;
+                    else
+                        sumfp32 = sumfp32 * (sumfp32 * alpha + beta);
+                }
 
                 outptr[p] = sumfp32;
             }
@@ -394,6 +420,19 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         else if (activation_type == 5)
         {
             sumfp32 = static_cast<float>(sumfp32 * tanh(log(exp(sumfp32) + 1.f)));
+        }
+        else if (activation_type == 6)
+        {
+            float alpha = activation_params[0];
+            float beta = activation_params[1];
+            float lower = -beta / alpha;
+            float upper = (1.f / alpha) + lower;
+            if (sumfp32 < lower)
+                sumfp32 = 0.f;
+            else if (sumfp32 > upper)
+                ;
+            else
+                sumfp32 = sumfp32 * (sumfp32 * alpha + beta);
         }
 
         outptr[p] = sumfp32;
