@@ -28,7 +28,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     pd.set(5, bias);     // bias_term
     pd.set(6, outch * c * kernel * kernel);
 
-    int activation_type = RAND() % 8; // 0 1 2 3 4 5 6 7
+    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 7) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
@@ -139,7 +139,7 @@ static int test_convolution_vec(int w, int outch, int kernel, int dilation, int 
     pd.set(5, bias);     // bias_term
     pd.set(6, outch * w * kernel * kernel);
 
-    int activation_type = RAND() % 8; // 0 1 2 3 4 5 6 7
+    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 7) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
@@ -190,7 +190,7 @@ static int test_convolution_int8(int w, int h, int c, int outch, int kernel, int
     pd.set(6, outch * c * kernel * kernel);
     pd.set(8, requant ? 101 : 1); // int8_scale_term
 
-    int activation_type = RAND() % 8; // 0 1 2 3 4 5 6 7
+    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
     ncnn::Mat activation_params(2);
     activation_params[0] = (activation_type == 7) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
     activation_params[1] = RandomFloat(0, 1);                                               // beta
