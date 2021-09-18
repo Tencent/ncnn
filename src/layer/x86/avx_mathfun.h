@@ -92,20 +92,20 @@ _PS256_CONST(cephes_log_q1, -2.12194440e-4f);
 _PS256_CONST(cephes_log_q2, 0.693359375f);
 
 #ifndef __AVX2__
-#define AVX2_BITOP_USING_SSE2(fn)                            \
+#define AVX2_BITOP_USING_SSE2(fn)                                 \
     static forceinline __m256i _mm256_comp_##fn(__m256i x, int a) \
-    {                                                        \
-        /* use SSE2 instruction to perform the bitop AVX2 */ \
-        __m128i x1, x2;                                      \
-        __m256i ret;                                         \
-        COPY_IMM_TO_XMM(x, x1, x2);                          \
-        x1 = _mm_##fn(x1, a);                                \
-        x2 = _mm_##fn(x2, a);                                \
-        COPY_XMM_TO_IMM(x1, x2, ret);                        \
-        return (ret);                                        \
+    {                                                             \
+        /* use SSE2 instruction to perform the bitop AVX2 */      \
+        __m128i x1, x2;                                           \
+        __m256i ret;                                              \
+        COPY_IMM_TO_XMM(x, x1, x2);                               \
+        x1 = _mm_##fn(x1, a);                                     \
+        x2 = _mm_##fn(x2, a);                                     \
+        COPY_XMM_TO_IMM(x1, x2, ret);                             \
+        return (ret);                                             \
     }
 #define AVX2_INTOP_USING_SSE2(fn)                                         \
-    static forceinline __m256i _mm256_comp_##fn(__m256i x, __m256i y)          \
+    static forceinline __m256i _mm256_comp_##fn(__m256i x, __m256i y)     \
     {                                                                     \
         /* use SSE2 instructions to perform the AVX2 integer operation */ \
         __m128i x1, x2;                                                   \
@@ -119,15 +119,15 @@ _PS256_CONST(cephes_log_q2, 0.693359375f);
         return (ret);                                                     \
     }
 #else
-#define AVX2_BITOP_USING_SSE2(fn)                            \
+#define AVX2_BITOP_USING_SSE2(fn)                                 \
     static forceinline __m256i _mm256_comp_##fn(__m256i x, int a) \
-    {                                                        \
-        return _mm256_##fn(x, a);                            \
+    {                                                             \
+        return _mm256_##fn(x, a);                                 \
     }
-#define AVX2_INTOP_USING_SSE2(fn)                                \
+#define AVX2_INTOP_USING_SSE2(fn)                                     \
     static forceinline __m256i _mm256_comp_##fn(__m256i x, __m256i y) \
-    {                                                            \
-        return _mm256_##fn(x, y);                                \
+    {                                                                 \
+        return _mm256_##fn(x, y);                                     \
     }
 #endif
 #ifndef __AVX2__

@@ -137,45 +137,45 @@ static forceinline __m128 prelu_sse(__m128 inputs, __m128 alphas)
 static forceinline __m128 activation_sse(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
-    switch(activation_type)
+    switch (activation_type)
     {
-	case 1:
-	{
+    case 1:
+    {
         // Relu
         return _mm_max_ps(_v, _mm_setzero_ps());
     }
-	case 2:
+    case 2:
     {
         // Leaky relu
         return lrelu_sse(_v, activation_params[0]);
     }
-	case 3:
+    case 3:
     {
         // min max clip
         __m128 min = _mm_set1_ps(activation_params[0]);
         __m128 max = _mm_set1_ps(activation_params[1]);
         return _mm_min_ps(_mm_max_ps(_v, min), max);
     }
-	case 4:
+    case 4:
     {
         // Sigmoid
         return sigmoid_sse(_v);
     }
-	case 5:
+    case 5:
     {
         return mish_sse(_v);
     }
-	case 6:
+    case 6:
     {
         return swish_sse(_v);
     }
-	case 7:
+    case 7:
     {
         __m128 _a = _mm_set1_ps(activation_params[0]);
         __m128 _b = _mm_set1_ps(activation_params[1]);
         return hardswish_sse(_v, _a, _b);
     }
-	}
+    }
 
     return _v;
 }
@@ -243,45 +243,45 @@ static forceinline __m256 prelu_avx(__m256 inputs, __m256 alphas)
 static forceinline __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
-    switch(activation_type)
-	{
-	case 1:
+    switch (activation_type)
+    {
+    case 1:
     {
         // Relu
         return _mm256_max_ps(_v, _mm256_setzero_ps());
     }
-	case 2:
+    case 2:
     {
         // Leaky relu
         return lrelu_avx(_v, activation_params[0]);
     }
-	case 3:
+    case 3:
     {
         // min max clip
         __m256 min = _mm256_set1_ps(activation_params[0]);
         __m256 max = _mm256_set1_ps(activation_params[1]);
         return _mm256_min_ps(_mm256_max_ps(_v, min), max);
     }
-	case 4:
+    case 4:
     {
         // Sigmoid
         return sigmoid_avx(_v);
     }
-	case 5:
+    case 5:
     {
         return mish_avx(_v);
     }
-	case 6:
+    case 6:
     {
         return swish_avx(_v);
     }
-	case 7:
+    case 7:
     {
         __m256 _a = _mm256_set1_ps(activation_params[0]);
         __m256 _b = _mm256_set1_ps(activation_params[1]);
         return hardswish_avx(_v, _a, _b);
     }
-	}
+    }
 
     return _v;
 }
