@@ -183,11 +183,7 @@ void main()
     {
         sum = sum * tanh(log(exp(sum) + afp(1.f)));
     }
-	    if (activation_type == 6)
-    {
-        sum = sum / (exp(-sum) + afp(1.f));
-    }
-    if (activation_type == 7)
+    if (activation_type == 6)
     {
 		const afp alpha = afp(activation_param_0);
         const afp beta = afp(activation_param_1);

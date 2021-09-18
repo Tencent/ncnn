@@ -93,13 +93,6 @@ int ConvolutionDepthWise_riscv::create_pipeline(const Option& opt)
     }
     else if (activation_type == 6)
     {
-        activation = ncnn::create_layer(ncnn::LayerType::Swish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 7)
-    {
         activation = ncnn::create_layer(ncnn::LayerType::HardSwish);
 
         ncnn::ParamDict pd;

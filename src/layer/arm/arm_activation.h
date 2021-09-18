@@ -45,10 +45,6 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     }
     else if (activation_type == 6)
     {
-        v = v / (1.f + exp(-v));
-    }
-    else if (activation_type == 7)
-    {
         const float alpha = activation_params[0];
         const float beta = activation_params[1];
         const float lower = -beta / alpha;
@@ -100,11 +96,6 @@ static inline float32x4_t activation_ps(float32x4_t _v, int activation_type, con
     }
     else if (activation_type == 6)
     {
-        float32x4_t _one = vdupq_n_f32(1.f);
-        _v = vdivq_f32(_v, vaddq_f32(_one, exp_ps(vnegq_f32(_v))));
-    }
-    else if (activation_type == 7)
-    {
         const float alpha = activation_params[0];
         const float beta = activation_params[1];
         const float32x4_t _zero = vdupq_n_f32(0.f);
@@ -151,10 +142,6 @@ static inline __fp16 activation_ss(__fp16 v, int activation_type, const ncnn::Ma
         v = v * tanh(log(exp(v) + (__fp16)1.f));
     }
     else if (activation_type == 6)
-    {
-        v = v / ((__fp16)1.f + exp(-v));
-    }
-    else if (activation_type == 7)
     {
         const __fp16 alpha = (__fp16)(activation_params[0]);
         const __fp16 beta = (__fp16)(activation_params[1]);
@@ -203,11 +190,6 @@ static inline float16x4_t activation_ps(float16x4_t _v, int activation_type, con
     }
     else if (activation_type == 6)
     {
-        const float16x4_t _one = vdup_n_f16(1.f);
-        _v = vdiv_f16(_v, vadd_f16(_one, exp_ps(vneg_f16(_v))));
-    }
-    else if (activation_type == 7)
-    {
         const __fp16 alpha = (__fp16)activation_params[0];
         const __fp16 beta = (__fp16)activation_params[1];
         const float16x4_t _zero = vdup_n_f16(0.f);
@@ -253,11 +235,6 @@ static inline float16x8_t activation_ps(float16x8_t _v, int activation_type, con
         _v = vmulq_f16(_v, tanh_ps(log_ps(vaddq_f16(exp_ps(_v), vdupq_n_f16(1.f)))));
     }
     else if (activation_type == 6)
-    {
-        const float16x8_t _one = vdupq_n_f16(1.f);
-        _v = vdivq_f16(_v, vaddq_f16(_one, exp_ps(vnegq_f16(_v))));
-    }
-    else if (activation_type == 7)
     {
         const __fp16 alpha_fp16 = (__fp16)activation_params[0];
         const __fp16 beta_fp16 = (__fp16)activation_params[1];

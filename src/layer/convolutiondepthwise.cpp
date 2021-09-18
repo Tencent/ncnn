@@ -275,10 +275,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     }
                     else if (activation_type == 6)
                     {
-                        sum = static_cast<float>(sum / (1.f + expf(-sum)));
-                    }
-                    else if (activation_type == 7)
-                    {
                         float alpha = activation_params[0];
                         float beta = activation_params[1];
                         float lower = -beta / alpha;
@@ -378,10 +374,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             sum = static_cast<float>(x * tanh(y));
                         }
                         else if (activation_type == 6)
-                        {
-                            sum = static_cast<float>(sum / (1.f + expf(-sum)));
-                        }
-                        else if (activation_type == 7)
                         {
                             float alpha = activation_params[0];
                             float beta = activation_params[1];
@@ -613,10 +605,6 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                     }
                     else if (activation_type == 6)
                     {
-                        sumfp32 = static_cast<float>(sumfp32 / (1.f + expf(-sumfp32)));
-                    }
-                    else if (activation_type == 7)
-                    {
                         float alpha = activation_params[0];
                         float beta = activation_params[1];
                         float lower = -beta / alpha;
@@ -735,10 +723,6 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                             sumfp32 = static_cast<float>(x * tanh(y));
                         }
                         else if (activation_type == 6)
-                        {
-                            sumfp32 = static_cast<float>(sumfp32 / (1.f + expf(-sumfp32)));
-                        }
-                        else if (activation_type == 7)
                         {
                             float alpha = activation_params[0];
                             float beta = activation_params[1];

@@ -297,17 +297,6 @@ void main()
     }
     if (activation_type == 6)
     {
-        sum0[0] = sum0[0] / (exp(-sum0[0]) + afp(1.f));
-        sum0[1] = sum0[1] / (exp(-sum0[1]) + afp(1.f));
-        sum1[0] = sum1[0] / (exp(-sum1[0]) + afp(1.f));
-        sum1[1] = sum1[1] / (exp(-sum1[1]) + afp(1.f));
-        sum2[0] = sum2[0] / (exp(-sum2[0]) + afp(1.f));
-        sum2[1] = sum2[1] / (exp(-sum2[1]) + afp(1.f));
-        sum3[0] = sum3[0] / (exp(-sum3[0]) + afp(1.f));
-        sum3[1] = sum3[1] / (exp(-sum3[1]) + afp(1.f));
-    }
-    if (activation_type == 7)
-    {
         const afp alpha = afp(activation_param_0);
         const afp beta = afp(activation_param_1);
         sum0[0] = sum0[0] * clamp(sum0[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));

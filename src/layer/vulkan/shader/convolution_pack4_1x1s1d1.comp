@@ -218,13 +218,6 @@ void main()
     }
     if (activation_type == 6)
     {
-        sum0 = sum0 / (exp(-sum0) + afp(1.f));
-        sum1 = sum1 / (exp(-sum1) + afp(1.f));
-        sum2 = sum2 / (exp(-sum2) + afp(1.f));
-        sum3 = sum3 / (exp(-sum3) + afp(1.f));
-    }
-    if (activation_type == 7)
-    {
         const afp alpha = afp(activation_param_0);
         const afp beta = afp(activation_param_1);
         sum0 = sum0 * clamp(sum0 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));

@@ -56,11 +56,6 @@ static forceinline float activation_ss(float v, int activation_type, const ncnn:
     }
     case 6:
     {
-        v = static_cast<float>(v / (1.f + expf(-v)));
-        break;
-    }
-    case 7:
-    {
         float alpha = activation_params[0];
         float beta = activation_params[1];
         float lower = -beta / alpha;
@@ -167,10 +162,6 @@ static forceinline __m128 activation_sse(__m128 _v, int activation_type, const n
     }
     case 6:
     {
-        return swish_sse(_v);
-    }
-    case 7:
-    {
         __m128 _a = _mm_set1_ps(activation_params[0]);
         __m128 _b = _mm_set1_ps(activation_params[1]);
         return hardswish_sse(_v, _a, _b);
@@ -272,10 +263,6 @@ static forceinline __m256 activation_avx(__m256 _v, int activation_type, const n
         return mish_avx(_v);
     }
     case 6:
-    {
-        return swish_avx(_v);
-    }
-    case 7:
     {
         __m256 _a = _mm256_set1_ps(activation_params[0]);
         __m256 _b = _mm256_set1_ps(activation_params[1]);

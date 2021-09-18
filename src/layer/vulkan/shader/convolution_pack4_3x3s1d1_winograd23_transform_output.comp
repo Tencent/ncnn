@@ -189,13 +189,6 @@ void main()
     }
     if (activation_type == 6)
     {
-        v00 = v00 / (exp(-v00) + afp(1.f));
-        v01 = v01 / (exp(-v01) + afp(1.f));
-        v10 = v10 / (exp(-v10) + afp(1.f));
-        v11 = v11 / (exp(-v11) + afp(1.f));
-    }
-    if (activation_type == 7)
-    {
         const afp alpha = afp(activation_param_0);
         const afp beta = afp(activation_param_1);
         v00 = v00 * clamp(v00 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));

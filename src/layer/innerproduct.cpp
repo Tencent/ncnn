@@ -166,10 +166,6 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
                 else if (activation_type == 6)
                 {
-                    sum = static_cast<float>(sum / (1.f + expf(-sum)));
-                }
-                else if (activation_type == 7)
-                {
                     float alpha = activation_params[0];
                     float beta = activation_params[1];
                     float lower = -beta / alpha;

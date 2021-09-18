@@ -45,10 +45,6 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     }
     else if (activation_type == 6)
     {
-        v = v / (1.f + exp(-v));
-    }
-    else if (activation_type == 7)
-    {
         const float alpha = activation_params[0];
         const float beta = activation_params[1];
         const float lower = -beta / alpha;
@@ -99,10 +95,6 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
             _v = vfmul_vv_f##SEW##m##LMUL(_v, tanh_ps(log_ps(vfadd_vf_f##SEW##m##LMUL(exp_ps(_v, vl), 1.f, vl), vl), vl), vl);                               \
         }                                                                                                                                                    \
         else if (activation_type == 6)                                                                                                                       \
-        {                                                                                                                                                    \
-            _v = vfdiv_vv_f##SEW##m##LMUL(_v, vfadd_vf_f##SEW##m##LMUL(exp_ps(vfneg_v_f##SEW##m##LMUL(_v, vl), vl), 1.f, vl), vl);                           \
-        }                                                                                                                                                    \
-        else if (activation_type == 7)                                                                                                                       \
         {                                                                                                                                                    \
             vbool##MLEN##_t _lower = vmfle_vf_f##SEW##m##LMUL##_b##MLEN(_v, lower, vl);                                                                      \
             vbool##MLEN##_t _higher = vmfle_vf_f##SEW##m##LMUL##_b##MLEN(_v, upper, vl);                                                                     \
