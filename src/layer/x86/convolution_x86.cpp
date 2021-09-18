@@ -120,6 +120,16 @@ int Convolution_x86::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
+    else if (activation_type == 6)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::HardSwish);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // alpha
+        pd.set(1, activation_params[1]); // beta
+
+        activation->load_param(pd);
+    }
 
     if (activation)
     {
@@ -686,13 +696,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             }
                         }
 
-                        _sum = activation_avx(_sum, activation_type, activation_params);
-
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
+            }
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
             }
         }
     }

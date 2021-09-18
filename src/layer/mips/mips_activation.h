@@ -43,6 +43,19 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     {
         v = v * tanh(log(exp(v) + 1.f));
     }
+    else if (activation_type == 6)
+    {
+        const float alpha = activation_params[0];
+        const float beta = activation_params[1];
+        const float lower = -beta / alpha;
+        const float upper = (1.f / alpha) + lower;
+        if (v < lower)
+            v = 0.f;
+        else if (v > upper)
+            ;
+        else
+            v = v * (v * alpha + beta);
+    }
 
     return v;
 }
@@ -80,6 +93,17 @@ static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat
     else if (activation_type == 5)
     {
         _v = __msa_fmul_w(_v, tanh_ps(log_ps(__msa_fadd_w(exp_ps(_v), (v4f32)__msa_fill_w_f32(1.f)))));
+    }
+    else if (activation_type == 6)
+    {
+        v4f32 _alpha = (v4f32)__msa_fill_w_f32(activation_params[0]);
+        v4f32 _beta = (v4f32)__msa_fill_w_f32(activation_params[1]);
+        v4f32 _zero = (v4f32)__msa_fill_w(0);
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v4f32 _outp = __msa_fmadd_w(_beta, _v, _alpha);
+        _outp = __msa_fmax_w(_outp, _zero);
+        _outp = __msa_fmin_w(_outp, _one);
+        _v = __msa_fmul_w(_outp, _v);
     }
 
     return _v;

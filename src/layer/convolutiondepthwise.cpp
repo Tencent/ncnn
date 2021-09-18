@@ -273,6 +273,19 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             y = logf(expf(x) + 1);
                         sum = static_cast<float>(x * tanh(y));
                     }
+                    else if (activation_type == 6)
+                    {
+                        float alpha = activation_params[0];
+                        float beta = activation_params[1];
+                        float lower = -beta / alpha;
+                        float upper = (1.f / alpha) + lower;
+                        if (sum < lower)
+                            sum = 0.f;
+                        else if (sum > upper)
+                            ;
+                        else
+                            sum = sum * (sum * alpha + beta);
+                    }
 
                     outptr[j] = sum;
                 }
@@ -359,6 +372,19 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             else
                                 y = logf(expf(x) + 1);
                             sum = static_cast<float>(x * tanh(y));
+                        }
+                        else if (activation_type == 6)
+                        {
+                            float alpha = activation_params[0];
+                            float beta = activation_params[1];
+                            float lower = -beta / alpha;
+                            float upper = (1.f / alpha) + lower;
+                            if (sum < lower)
+                                sum = 0.f;
+                            else if (sum > upper)
+                                ;
+                            else
+                                sum = sum * (sum * alpha + beta);
                         }
 
                         outptr[j] = sum;
@@ -577,6 +603,19 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                             y = logf(expf(x) + 1);
                         sumfp32 = static_cast<float>(x * tanh(y));
                     }
+                    else if (activation_type == 6)
+                    {
+                        float alpha = activation_params[0];
+                        float beta = activation_params[1];
+                        float lower = -beta / alpha;
+                        float upper = (1.f / alpha) + lower;
+                        if (sumfp32 < lower)
+                            sumfp32 = 0.f;
+                        else if (sumfp32 > upper)
+                            ;
+                        else
+                            sumfp32 = sumfp32 * (sumfp32 * alpha + beta);
+                    }
 
                     if (use_int8_requantize)
                     {
@@ -682,6 +721,19 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                             else
                                 y = logf(expf(x) + 1);
                             sumfp32 = static_cast<float>(x * tanh(y));
+                        }
+                        else if (activation_type == 6)
+                        {
+                            float alpha = activation_params[0];
+                            float beta = activation_params[1];
+                            float lower = -beta / alpha;
+                            float upper = (1.f / alpha) + lower;
+                            if (sumfp32 < lower)
+                                sumfp32 = 0.f;
+                            else if (sumfp32 > upper)
+                                ;
+                            else
+                                sumfp32 = sumfp32 * (sumfp32 * alpha + beta);
                         }
 
                         if (use_int8_requantize)

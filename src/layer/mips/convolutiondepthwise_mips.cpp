@@ -79,6 +79,16 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
         ncnn::ParamDict pd;
         activation->load_param(pd);
     }
+    else if (activation_type == 6)
+    {
+        activation = ncnn::create_layer(ncnn::LayerType::HardSwish);
+
+        ncnn::ParamDict pd;
+        pd.set(0, activation_params[0]); // alpha
+        pd.set(1, activation_params[1]); // beta
+
+        activation->load_param(pd);
+    }
 
     if (activation)
     {

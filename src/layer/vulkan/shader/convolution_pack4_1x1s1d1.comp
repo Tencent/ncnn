@@ -216,6 +216,15 @@ void main()
         sum2 = sum2 * tanh(log(exp(sum2) + afp(1.f)));
         sum3 = sum3 * tanh(log(exp(sum3) + afp(1.f)));
     }
+    if (activation_type == 6)
+    {
+        const afp alpha = afp(activation_param_0);
+        const afp beta = afp(activation_param_1);
+        sum0 = sum0 * clamp(sum0 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum1 = sum1 * clamp(sum1 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum2 = sum2 * clamp(sum2 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum3 = sum3 * clamp(sum3 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
 
 #if NCNN_image_shader
     image3d_st4(top_blob, ivec3(sx4.r, sy4.r, gz), sum0);
