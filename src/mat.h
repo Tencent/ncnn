@@ -1259,35 +1259,6 @@ inline const float* Mat::row(int y) const
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
-inline float* Mat::slice_w(int _w)
-{
-    return (float*)((unsigned char*)data + _w * (size_t)h * (size_t)d * elemsize);
-}
-
-inline const float* Mat::slice_w(int _w) const
-{
-    return (const float*)((unsigned char*)data + _w * (size_t)h * (size_t)d * elemsize);
-}
-
-inline float* Mat::slice_h(int _h)
-{
-    return (float*)((unsigned char*)data + (size_t)w * _h * (size_t)d * elemsize);
-}
-
-inline const float* Mat::slice_h(int _h) const
-{
-    return (const float*)((unsigned char*)data + (size_t)w * _h * (size_t)d * elemsize);
-}
-
-inline float* Mat::slice_d(int _d)
-{
-    return (float*)((unsigned char*)data + (size_t)w * (size_t)h * _d * elemsize);
-}
-
-inline const float* Mat::slice_d(int _d) const
-{
-    return (const float*)((unsigned char*)data + (size_t)w * (size_t)h * _d * elemsize);
-}
 
 template<typename T>
 inline T* Mat::row(int y)
