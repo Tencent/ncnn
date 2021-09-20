@@ -28,6 +28,9 @@ public:
     int stride_w;
     int stride_h;
     int stride_d;
+    int dilation_w;
+    int dilation_h;
+    int dilation_d;
     int bias_term;
 
     int weight_data_size;
