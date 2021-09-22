@@ -96,15 +96,19 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
         }                                                                                                                                                    \
         else if (activation_type == 6)                                                                                                                       \
         {                                                                                                                                                    \
-            vbool##MLEN##_t _lower = vmfle_vf_f##SEW##m##LMUL##_b##MLEN(_v, lower, vl);                                                                      \
-            vbool##MLEN##_t _higher = vmfle_vf_f##SEW##m##LMUL##_b##MLEN(_v, upper, vl);                                                                     \
+            const float alpha = activation_params[0];                                                                                                        \
+            const float beta = activation_params[1];                                                                                                         \
+            const float lower = -beta / alpha;                                                                                                               \
+            const float upper = (1.f / alpha) + lower;                                                                                                       \
+            vbool##MLEN##_t _lower = vmflt_vf_f##SEW##m##LMUL##_b##MLEN(_v, lower, vl);                                                                      \
+            vbool##MLEN##_t _higher = vmfgt_vf_f##SEW##m##LMUL##_b##MLEN(_v, upper, vl);                                                                     \
             vbool##MLEN##_t _apply = vmnor_mm_b##MLEN(_lower, _higher, vl);                                                                                  \
             _v = vfmerge_vfm_f##SEW##m##LMUL(_lower, _v, .0f, vl);                                                                                           \
                                                                                                                                                              \
             vfloat##SEW##m##LMUL##_t _p0 = vfadd_vf_f##SEW##m##LMUL_m(                                                                                       \
-                _apply, _v, /*op1*/ vfmul_vf_f##SEW##m##LMUL##_b##MLEN_m(_apply, _v, _v, alpha, vl), beta,                                                   \
+                _apply, _v, /*op1*/ vfmul_vf_f##SEW##m##LMUL##_m(_apply, _v, _v, alpha, vl), beta,                                                           \
                 vl);                                                                                                                                         \
-            _v = vfmul_vv_f##SEW##m##LMUL##_b##MLEN_m(_apply, _v, /*op1*/ _v, _p0, vl);                                                                      \
+            _v = vfmul_vv_f##SEW##m##LMUL##_m(_apply, _v, /*op1*/ _v, _p0, vl);                                                                              \
         }                                                                                                                                                    \
                                                                                                                                                              \
         return _v;                                                                                                                                           \
