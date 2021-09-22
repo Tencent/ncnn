@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <vector>
 
-static void draw_objects(const cv::Mat&bgr,const cv::Mat& fgr,const cv::Mat& pha)
+static void draw_objects(const cv::Mat& bgr, const cv::Mat& fgr, const cv::Mat& pha)
 {
     cv::Mat fgr8U;
     fgr.convertTo(fgr8U, CV_8UC3, 255.0, 0);
@@ -26,9 +26,9 @@ static void draw_objects(const cv::Mat&bgr,const cv::Mat& fgr,const cv::Mat& pha
         {
             uchar data = pha8U.at<uchar>(i, j);
             float alpha = (float)data / 255;
-            comp.at < cv::Vec3b>(i, j)[0] = fgr8U.at < cv::Vec3b>(i, j)[0] * alpha + (1 - alpha) * 155;
-            comp.at < cv::Vec3b>(i, j)[1] = fgr8U.at < cv::Vec3b>(i, j)[1] * alpha + (1 - alpha) * 255;
-            comp.at < cv::Vec3b>(i, j)[2] = fgr8U.at < cv::Vec3b>(i, j)[2] * alpha + (1 - alpha) * 120;
+            comp.at<cv::Vec3b>(i, j)[0] = fgr8U.at<cv::Vec3b>(i, j)[0] * alpha + (1 - alpha) * 155;
+            comp.at<cv::Vec3b>(i, j)[1] = fgr8U.at<cv::Vec3b>(i, j)[1] * alpha + (1 - alpha) * 255;
+            comp.at<cv::Vec3b>(i, j)[2] = fgr8U.at<cv::Vec3b>(i, j)[2] * alpha + (1 - alpha) * 120;
         }
     }
 
@@ -42,7 +42,7 @@ static int detect_rvm(const cv::Mat& bgr, cv::Mat& pha, cv::Mat& fgr)
     const float downsample_ratio = 0.5f;
     const int target_width = 512;
     const int target_height = 512;
-    
+
     ncnn::Net net;
     net.opt.use_vulkan_compute = false;
     //original pretrained model from https://github.com/PeterL1n/RobustVideoMatting
@@ -61,16 +61,16 @@ static int detect_rvm(const cv::Mat& bgr, cv::Mat& pha, cv::Mat& fgr)
     r4i.fill(0.0f);
 
     ncnn::Extractor ex = net.create_extractor();
-    const float mean_vals1[3] = { 123.675f, 116.28f,  103.53f };
-    const float norm_vals1[3] = { 0.01712475f, 0.0175f, 0.01742919f };
-    const float mean_vals2[3] = { 0, 0, 0 };
-    const float norm_vals2[3] = { 1 / 255.0,1 / 255.0,1 / 255.0 };
+    const float mean_vals1[3] = {123.675f, 116.28f, 103.53f};
+    const float norm_vals1[3] = {0.01712475f, 0.0175f, 0.01742919f};
+    const float mean_vals2[3] = {0, 0, 0};
+    const float norm_vals2[3] = {1 / 255.0, 1 / 255.0, 1 / 255.0};
     ncnn::Mat ncnn_in2 = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, bgr.cols, bgr.rows, target_width, target_height);
-    ncnn::Mat ncnn_in1 = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, bgr.cols, bgr.rows, target_width*downsample_ratio, target_height*downsample_ratio);
+    ncnn::Mat ncnn_in1 = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR2RGB, bgr.cols, bgr.rows, target_width * downsample_ratio, target_height * downsample_ratio);
 
     ncnn_in1.substract_mean_normalize(mean_vals1, norm_vals1);
     ncnn_in2.substract_mean_normalize(mean_vals2, norm_vals2);
-    
+
     ex.input("src1", ncnn_in1);
     ex.input("src2", ncnn_in2);
     ex.input("r1i", r1i);
@@ -127,6 +127,6 @@ int main(int argc, char** argv)
     cv::Mat fgr, pha;
     detect_rvm(m, pha, fgr);
     draw_objects(m, fgr, pha);
-    
+
     return 0;
 }
