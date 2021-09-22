@@ -151,8 +151,8 @@ void main()
     {
         const afp alpha = afp(activation_param_0);
         const afp beta = afp(activation_param_1);
-	    sum[0] = sum[0] * clamp(sum[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-	    sum[1] = sum[1] * clamp(sum[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum[0] = sum[0] * clamp(sum[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum[1] = sum[1] * clamp(sum[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
     }
 
 #if NCNN_image_shader
