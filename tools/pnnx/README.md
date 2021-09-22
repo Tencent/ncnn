@@ -497,7 +497,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.adaptive_avg_pool2d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_avg_pool3d      | :heavy_check_mark: |
 |F.adaptive_max_pool1d      | :heavy_check_mark: |
-|F.adaptive_max_pool2d      | :heavy_check_mark: |
+|F.adaptive_max_pool2d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_max_pool3d      | :heavy_check_mark: |
 |F.affine_grid              | :heavy_check_mark: |
 |F.alpha_dropout            |  |
@@ -525,21 +525,21 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.fold                     |  |
 |F.fractional_max_pool2d    |  |
 |F.fractional_max_pool3d    |  |
-|F.gelu                     | :heavy_check_mark: |
+|F.gelu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.glu                      |  |
 |F.grid_sample              | :heavy_check_mark: |
 |F.group_norm               | :heavy_check_mark: |
 |F.gumbel_softmax           |  |
 |F.hardshrink               | :heavy_check_mark: |
-|F.hardsigmoid              | :heavy_check_mark: |
-|F.hardswish                | :heavy_check_mark: |
+|F.hardsigmoid              | :heavy_check_mark: | :heavy_check_mark: |
+|F.hardswish                | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardtanh                 | :heavy_check_mark: |
 |F.hardtanh_                | :heavy_check_mark: |
 |F.instance_norm            | :heavy_check_mark: |
 |F.interpolate              | :heavy_check_mark: |
 |F.layer_norm               | :heavy_check_mark: |
-|F.leaky_relu               | :heavy_check_mark: |
-|F.leaky_relu_              | :heavy_check_mark: |
+|F.leaky_relu               | :heavy_check_mark: | :heavy_check_mark: |
+|F.leaky_relu_              | :heavy_check_mark: | :heavy_check_mark: |
 |F.linear                   | :heavy_check_mark: |
 |F.local_response_norm      | :heavy_check_mark: |
 |F.logsigmoid               | :heavy_check_mark: |
@@ -552,7 +552,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.max_unpool1d             |  |
 |F.max_unpool2d             |  |
 |F.max_unpool3d             |  |
-|F.mish                     | :heavy_check_mark: |
+|F.mish                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.normalize                | :heavy_check_mark: | :heavy_check_mark: |
 |F.one_hot                  |  |
 |F.pad                      | :heavy_check_mark: |
@@ -561,20 +561,20 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.pixel_shuffle            | :heavy_check_mark: |
 |F.pixel_unshuffle          | :heavy_check_mark: |
 |F.prelu                    | :heavy_check_mark: |
-|F.relu                     | :heavy_check_mark: |
-|F.relu_                    | :heavy_check_mark: |
-|F.relu6                    | :heavy_check_mark: |
+|F.relu                     | :heavy_check_mark: | :heavy_check_mark: |
+|F.relu_                    | :heavy_check_mark: | :heavy_check_mark: |
+|F.relu6                    | :heavy_check_mark: | :heavy_check_mark: |
 |F.rrelu                    | :heavy_check_mark: |
 |F.rrelu_                   | :heavy_check_mark: |
-|F.selu                     | :heavy_check_mark: |
+|F.selu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.sigmoid                  | :heavy_check_mark: | :heavy_check_mark: |
-|F.silu                     | :heavy_check_mark: |
+|F.silu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.softmax                  | :heavy_check_mark: |
 |F.softmin                  | :heavy_check_mark: |
 |F.softplus                 | :heavy_check_mark: |
 |F.softshrink               | :heavy_check_mark: |
 |F.softsign                 | :heavy_check_mark: |
-|F.tanh                     | :heavy_check_mark: |
+|F.tanh                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.tanhshrink               | :heavy_check_mark: |
 |F.threshold                | :heavy_check_mark: |
 |F.threshold_               | :heavy_check_mark: |
