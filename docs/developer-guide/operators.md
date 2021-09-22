@@ -858,7 +858,7 @@ y = wrap_packing(x)
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | out_elempack  | int   | 1         |                   |
 | 1         | use_padding   | int   | 0         |                   |
-| 2         | cast_type_from| float | 0         |                   |
+| 2         | cast_type_from| int   | 0         |                   |
 | 3         | cast_type_to  | int   | 0         |                   |
 | 4         | storage_type_from| int | 0        |                   |
 | 5         | storage_type_to| int  | 0         |                   |
@@ -876,7 +876,7 @@ else                    y = pad(x0, pads param from x1)
 | 2         | left          | int  | 0         |                   |
 | 3         | right         | int  | 0         |                   |
 | 4         | type          | int  | 0         |                   |
-| 5         | value         | int  | 0         |                   |
+| 5         | value         | float | 0         |                   |
 | 6         | per_channel_pad_data_size| int | 0 |                 |
 | 7         | front         | int  | stride_w  |                   |
 | 8         | behind        | int  | pad_left  |                   |
