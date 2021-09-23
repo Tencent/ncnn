@@ -101,38 +101,38 @@ void main()
 
     if (type_from == 1) // PIXEL_RGB
     {
-        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
-        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
-        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
-        rgba.a = 255.f;
+        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r / 255.f;
+        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r / 255.f;
+        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r / 255.f;
+        rgba.a = 1.f;
     }
 
     if (type_from == 2) // PIXEL_BGR
     {
-        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
-        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r * 255.f;
-        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r * 255.f;
-        rgba.a = 255.f;
+        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r / 255.f;
+        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 1)).r / 255.f;
+        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 2)).r / 255.f;
+        rgba.a = 1.f;
     }
 
     if (type_from == 3) // PIXEL_GRAY
     {
-        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
-        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
-        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r * 255.f;
-        rgba.a = 255.f;
+        rgba.r = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r / 255.f;
+        rgba.g = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r / 255.f;
+        rgba.b = texture(top_blob_image, vec3(pos.x, pos.y, 0)).r / 255.f;
+        rgba.a = 1.f;
     }
 
     if (type_from == 4) // PIXEL_RGBA
     {
-        rgba.rgb = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgb * 255.f;
-        rgba.a = 255.f;
+        rgba.rgb = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgb / 255.f;
+        rgba.a = 1.f;
     }
 
     if (type_from == 5) // PIXEL_BGRA
     {
-        rgba.bgr = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgb * 255.f;
-        rgba.a = 255.f;
+        rgba.bgr = texture(top_blob_image, vec3(pos.x, pos.y, 0)).rgb / 255.f;
+        rgba.a = 1.f;
     }
 
     imageStore(r8g8b8a8_image, ivec2(gx, gy), rgba);
