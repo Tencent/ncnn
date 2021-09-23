@@ -228,7 +228,7 @@ static int detect_scrfd(const cv::Mat& bgr, std::vector<FaceObject>& faceobjects
     // Insight face does not provided a trained scrfd_crowdhuman model
     // but I have one for detecing cat face, you can have a try here:
     // https://drive.google.com/file/d/1JogkKa0f_09HkENbCnXy9hRYxm35wKTn
-    
+
     scrfd.load_param("scrfd_crowdhuman.param");
     scrfd.load_model("scrfd_crowdhuman.bin");
 
