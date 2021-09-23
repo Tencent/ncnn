@@ -597,7 +597,7 @@ int Convert2R8g8b8a8UnormPipeline::create_sampler()
     samplerCreateInfo.compareOp = VK_COMPARE_OP_NEVER;
     samplerCreateInfo.minLod = 0.0f;
     samplerCreateInfo.maxLod = 0.0f;
-    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+    samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
     samplerCreateInfo.unnormalizedCoordinates = VK_TRUE;
 
     ret = vkCreateSampler(vkdev->vkdevice(), &samplerCreateInfo, 0, &sampler);
