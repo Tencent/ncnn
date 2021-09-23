@@ -411,7 +411,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.FractionalMaxPool2d     |   |
 |nn.FractionalMaxPool3d     |   |
 |nn.GELU                    | :heavy_check_mark: | :heavy_check_mark: |
-|nn.GroupNorm               | :heavy_check_mark: |
+|nn.GroupNorm               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRU                     | :heavy_check_mark: |
 |nn.GRUCell                 |   |
 |nn.Hardshrink              | :heavy_check_mark: |
@@ -420,9 +420,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Hardtanh                | :heavy_check_mark: |
 |nn.Identity                |   |
 |nn.InstanceNorm1d          | :heavy_check_mark: |
-|nn.InstanceNorm2d          | :heavy_check_mark: |
+|nn.InstanceNorm2d          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.InstanceNorm3d          | :heavy_check_mark: |
-|nn.LayerNorm               | :heavy_check_mark: |
+|nn.LayerNorm               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LazyBatchNorm1d         |   |
 |nn.LazyBatchNorm2d         |   |
 |nn.LazyBatchNorm3d         |   |
@@ -435,7 +435,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.LazyLinear              |   |
 |nn.LeakyReLU               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Linear                  | :heavy_check_mark: | :heavy_check_mark: |
-|nn.LocalResponseNorm       | :heavy_check_mark: |
+|nn.LocalResponseNorm       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LogSigmoid              | :heavy_check_mark: |
 |nn.LogSoftmax              | :heavy_check_mark: |
 |nn.LPPool1d                | :heavy_check_mark: |
@@ -449,10 +449,10 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.MaxUnpool2d             |   |
 |nn.MaxUnpool3d             |   |
 |nn.Mish                    | :heavy_check_mark: | :heavy_check_mark: |
-|nn.MultiheadAttention      | :heavy_check_mark: |
+|nn.MultiheadAttention      | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.PairwiseDistance        |   |
-|nn.PixelShuffle            | :heavy_check_mark: |
-|nn.PixelUnshuffle          | :heavy_check_mark: |
+|nn.PixelShuffle            | :heavy_check_mark: | :heavy_check_mark: |
+|nn.PixelUnshuffle          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.PReLU                   | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReflectionPad1d         | :heavy_check_mark: |
 |nn.ReflectionPad2d         | :heavy_check_mark: | :heavy_check_mark: |
@@ -468,7 +468,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.SELU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Sigmoid                 | :heavy_check_mark: | :heavy_check_mark: |
 |nn.SiLU                    | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Softmax                 | :heavy_check_mark: |
+|nn.Softmax                 | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmax2d               |   |
 |nn.Softmin                 | :heavy_check_mark: |
 |nn.Softplus                | :heavy_check_mark: |
@@ -486,8 +486,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Unflatten               |   |
 |nn.Unfold                  |   |
 |nn.Upsample                | :heavy_check_mark: | :heavy_check_mark: |
-|nn.UpsamplingBilinear2d    | :heavy_check_mark: |
-|nn.UpsamplingNearest2d     | :heavy_check_mark: |
+|nn.UpsamplingBilinear2d    | :heavy_check_mark: | :heavy_check_mark: |
+|nn.UpsamplingNearest2d     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ZeroPad2d               | :heavy_check_mark: | :heavy_check_mark: |
 
 
