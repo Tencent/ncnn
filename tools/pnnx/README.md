@@ -508,7 +508,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.bilinear                 |  |
 |F.celu                     | :heavy_check_mark: |
 |F.conv1d                   | :heavy_check_mark: |
-|F.conv2d                   | :heavy_check_mark: |
+|F.conv2d                   | :heavy_check_mark: | :heavy_check_mark:* |
 |F.conv3d                   | :heavy_check_mark: |
 |F.conv_transpose1d         | :heavy_check_mark: |
 |F.conv_transpose2d         | :heavy_check_mark: |
@@ -540,7 +540,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.layer_norm               | :heavy_check_mark: |
 |F.leaky_relu               | :heavy_check_mark: | :heavy_check_mark: |
 |F.leaky_relu_              | :heavy_check_mark: | :heavy_check_mark: |
-|F.linear                   | :heavy_check_mark: |
+|F.linear                   | :heavy_check_mark: | :heavy_check_mark:* |
 |F.local_response_norm      | :heavy_check_mark: |
 |F.logsigmoid               | :heavy_check_mark: |
 |F.log_softmax              | :heavy_check_mark: |
