@@ -369,12 +369,14 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     convdw3x3s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
                 }
-#endif
                 if (!opt.use_weight_fp16_storage)
                 {
-                    convdw3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-                }
+#endif
 
+                    convdw3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+#if __AVX2__
+                }
+#endif
                 if (activation)
                 {
                     activation->forward_inplace(top_blob, opt);
@@ -389,12 +391,13 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     convdw3x3s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
                 }
-#endif
                 if (!opt.use_weight_fp16_storage)
                 {
+#endif
                     convdw3x3s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+#if __AVX2__
                 }
-
+#endif
                 if (activation)
                 {
                     activation->forward_inplace(top_blob, opt);
