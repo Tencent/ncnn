@@ -79,7 +79,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     }
 
     int elembits = bottom_blob.elembits();
-
+    printf("TEST1\n");
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
@@ -87,10 +87,13 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
+    printf("TEST2\n");
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
-
+#endif
+    printf("TEST3\n");
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
     const word_type vl = vsetvl_e32m1(packn);
@@ -102,6 +105,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
+    printf("TEST4\n");
 
 #if __riscv_vector
     if (elempack == packn)
@@ -157,7 +161,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
             {
                 int front_ = front / elempack;
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
                 {
                     Mat borderm = top_blob.channel(q);
@@ -185,6 +189,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         }
     }
 #endif // __riscv_vector
+    printf("TEST6\n");
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
@@ -194,9 +199,12 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
         convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
     }
+    printf("TEST7\n");
 
     Mat top_blob_unpacked;
     int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
+    printf("TEST8\n");
+
     if (ret != 0)
         return ret;
 
@@ -207,6 +215,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
     }
 #endif
+    printf("TEST9\n");
 
     convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
@@ -281,7 +290,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
             if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
             {
                 int front_ = front / elempack;
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
                 {
                     Mat borderm = top_blob.channel(q);
@@ -426,7 +435,7 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
             if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
             {
                 int front_ = front / elempack;
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
                 {
                     Mat borderm = top_blob.channel(q);
