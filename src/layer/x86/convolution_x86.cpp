@@ -490,7 +490,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
 #endif
 
-
                 conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
 #if __AVX2__
             }
