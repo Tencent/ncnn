@@ -19,6 +19,7 @@
 #ifdef _WIN32
 #include <algorithm>
 #include <windows.h> // Sleep()
+#include <direct.h>
 #else
 #include <unistd.h> // sleep()
 #endif
@@ -32,6 +33,7 @@
 #include "datareader.h"
 #include "net.h"
 #include "gpu.h"
+#include <sys/stat.h>
 
 class DataReaderFromEmpty : public ncnn::DataReader
 {
@@ -59,6 +61,13 @@ static ncnn::VulkanDevice* g_vkdev = 0;
 static ncnn::VkAllocator* g_blob_vkallocator = 0;
 static ncnn::VkAllocator* g_staging_vkallocator = 0;
 #endif // NCNN_VULKAN
+
+static char paramdir[256];
+bool fileexist(const char* filename)
+{
+    struct stat my_stat;
+    return (stat(filename, &my_stat) == 0);
+}
 
 void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& opt)
 {
@@ -95,6 +104,16 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
 
     char parampath[256];
     sprintf(parampath, MODEL_DIR "%s.param", comment);
+    if (fileexist(parampath) == false)
+    {
+        sprintf(parampath, "%s/%s.param", paramdir, comment);
+
+        if (fileexist(parampath) == false)
+        {
+            NCNN_LOGE("fopen %s failed", comment);
+            return;
+        }
+    }
     net.load_param(parampath);
 
     DataReaderFromEmpty dr;
@@ -165,6 +184,24 @@ int main(int argc, char** argv)
     int powersave = 0;
     int gpu_device = -1;
     int cooling_down = 1;
+
+    char* buffer;
+    buffer = getcwd(NULL, 0);
+    sprintf(paramdir, "%s/%s", getcwd(NULL, 0), argv[0]);
+    int cnt = 0;
+    for (int i = strlen(paramdir); i >= 0; --i)
+    {
+        if (paramdir[i] == '/')
+        {
+            paramdir[i + 1] = '\0';
+            cnt++;
+            if (cnt > 3)
+            {
+                strcat(paramdir, "benchmark");
+                break;
+            }
+        }
+    }
 
     if (argc >= 2)
     {
