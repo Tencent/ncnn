@@ -99,7 +99,6 @@ pnnx.Output             output      1 0 out
             if (dim0 == 2 && dim1 == 3) op->params["0"] = 1;
             if (dim0 == 3 && dim1 == 2) op->params["0"] = 1;
         }
-
     }
 };
 

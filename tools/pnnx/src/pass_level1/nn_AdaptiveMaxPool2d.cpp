@@ -43,4 +43,3 @@ public:
 REGISTER_GLOBAL_PNNX_FUSE_MODULE_PASS(AdaptiveMaxPool2d)
 
 } // namespace pnnx
-

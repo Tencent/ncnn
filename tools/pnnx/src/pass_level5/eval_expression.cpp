@@ -46,26 +46,26 @@ static bool token_is_literal(const std::string& t)
     iss >> std::noskipws >> f;
     return iss.eof() && !iss.fail();
 
-//     for (size_t i = 0; i < t.size(); i++)
-//     {
-//         if (i == 0 && t[i] == '-')
-//             continue;
-//
-//         if (t[i] < '0' || t[i] > '9')
-//         {
-//             if (t[i] != '.' && t[i] != 'e')
-//                 return false;
-//         }
-//     }
-//
-//     return true;
+    //     for (size_t i = 0; i < t.size(); i++)
+    //     {
+    //         if (i == 0 && t[i] == '-')
+    //             continue;
+    //
+    //         if (t[i] < '0' || t[i] > '9')
+    //         {
+    //             if (t[i] != '.' && t[i] != 'e')
+    //                 return false;
+    //         }
+    //     }
+    //
+    //     return true;
 }
 
 static std::string eval_expression(const Operator* op)
 {
     std::string expr = op->params.at("expr").s;
 
-//     fprintf(stderr, "eval_expression %s\n", expr.c_str());
+    //     fprintf(stderr, "eval_expression %s\n", expr.c_str());
 
     // split into tokens
     std::vector<std::string> tokens;
@@ -119,7 +119,7 @@ static std::string eval_expression(const Operator* op)
                 int input_index = std::stoi(a.substr(1));
                 if (op->inputs[input_index]->shape.empty())
                 {
-                    std::string r = std::string("size(") + a + "," +  b + ")";
+                    std::string r = std::string("size(") + a + "," + b + ")";
                     exprstack.push(r);
                 }
                 else
@@ -131,7 +131,7 @@ static std::string eval_expression(const Operator* op)
             }
             else
             {
-                std::string r = std::string("size(") + a + "," +  b + ")";
+                std::string r = std::string("size(") + a + "," + b + ")";
                 exprstack.push(r);
             }
         }
@@ -255,7 +255,7 @@ static std::string eval_expression(const Operator* op)
     std::string r = exprstack.top();
     exprstack.pop();
 
-//     fprintf(stderr, "eval_expression return %s\n", r.c_str());
+    //     fprintf(stderr, "eval_expression return %s\n", r.c_str());
 
     return r;
 }
@@ -330,7 +330,7 @@ static std::string canonicalize_arguments(const Operator* op, std::vector<Operan
         }
     }
 
-//     fprintf(stderr, "canonicalize_arguments return %s\n", r.c_str());
+    //     fprintf(stderr, "canonicalize_arguments return %s\n", r.c_str());
 
     return r;
 }
@@ -366,4 +366,3 @@ void eval_expression(Graph& graph)
 }
 
 } // namespace pnnx
-

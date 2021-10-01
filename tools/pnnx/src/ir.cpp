@@ -219,7 +219,6 @@ Parameter::Parameter(const torch::jit::Value* value)
     {
         fprintf(stderr, "unknown Parameter value kind %s\n", value_node->kind().toDisplayString());
     }
-
 }
 
 Attribute::Attribute(const at::Tensor& t)
@@ -584,13 +583,13 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
         return -1;
     }
 
-//     FILE* binfp = fopen(binpath, "wb");
-//     if (!binfp)
-//     {
-//         fprintf(stderr, "fopen %s failed\n", binpath);
-//         fclose(paramfp);
-//         return -1;
-//     }
+    //     FILE* binfp = fopen(binpath, "wb");
+    //     if (!binfp)
+    //     {
+    //         fprintf(stderr, "fopen %s failed\n", binpath);
+    //         fclose(paramfp);
+    //         return -1;
+    //     }
 
     // magic
     fprintf(paramfp, "7767517\n");
@@ -612,7 +611,7 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             fprintf(paramfp, " %s", oprand->name.c_str());
         }
 
-        for (const auto& it: op->params)
+        for (const auto& it : op->params)
         {
             fprintf(paramfp, " %s=", it.first.c_str());
 
@@ -693,7 +692,7 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
 
             std::string filename = op->name + "." + it.first;
             szw.write_file(filename, attr.data.data(), attr.data.size());
-//             fwrite(attr.data.data(), attr.data.size() * sizeof(float), 1, binfp);
+            //             fwrite(attr.data.data(), attr.data.size() * sizeof(float), 1, binfp);
         }
 
         if (op->inputnames.size() == op->inputs.size())
@@ -750,7 +749,7 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
     }
 
     fclose(paramfp);
-//     fclose(binfp);
+    //     fclose(binfp);
 
     return 0;
 }
@@ -1039,7 +1038,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
             const int param_count = op->params.size();
             int param_index = 0;
-            for (const auto& it: op->params)
+            for (const auto& it : op->params)
             {
                 fprintf(pyfp, "%s=", it.first.c_str());
 
@@ -1135,7 +1134,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             if (op->type.substr(0, 3) != "nn.")
                 continue;
 
-            for (const auto& it: op->attrs)
+            for (const auto& it : op->attrs)
             {
                 if (it.first == "running_mean" || it.first == "running_var")
                 {
@@ -1397,7 +1396,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
 
                 int i = 0;
-                for (const auto& it: op->params)
+                for (const auto& it : op->params)
                 {
                     if (op->type.substr(0, 7) == "Tensor." && i == 0)
                     {
@@ -1680,7 +1679,7 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
             fprintf(paramfp, " %s", oprand->name.c_str());
         }
 
-        for (const auto& it: op->params)
+        for (const auto& it : op->params)
         {
             if (!string_is_positive_integer(it.first))
             {
@@ -1690,17 +1689,17 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
 
             const int idkey = std::stoi(it.first);
             const Parameter& param = it.second;
-//             if (param.type == 0)
-//             {
-//                 fprintf(paramfp, "None");
-//             }
-//             if (param.type == 1)
-//             {
-//                 if (param.b)
-//                     fprintf(paramfp, "True");
-//                 else
-//                     fprintf(paramfp, "False");
-//             }
+            //             if (param.type == 0)
+            //             {
+            //                 fprintf(paramfp, "None");
+            //             }
+            //             if (param.type == 1)
+            //             {
+            //                 if (param.b)
+            //                     fprintf(paramfp, "True");
+            //                 else
+            //                     fprintf(paramfp, "False");
+            //             }
             if (param.type == 2)
             {
                 fprintf(paramfp, " %d=%d", idkey, param.i);
@@ -1709,10 +1708,10 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
             {
                 fprintf(paramfp, " %d=%e", idkey, param.f);
             }
-//             if (param.type == 4)
-//             {
-//                 fprintf(paramfp, "%s", param.s.c_str());
-//             }
+            //             if (param.type == 4)
+            //             {
+            //                 fprintf(paramfp, "%s", param.s.c_str());
+            //             }
             if (param.type == 5)
             {
                 const int array_size = (int)param.ai.size();
@@ -1731,55 +1730,55 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
                     fprintf(paramfp, ",%e", param.af[i]);
                 }
             }
-//             if (param.type == 7)
-//             {
-//                 fprintf(paramfp, "(");
-//                 for (size_t i = 0; i < param.as.size(); i++)
-//                 {
-//                     fprintf(paramfp, "%s", param.as[i].c_str());
-//                     if (i + 1 != param.as.size())
-//                         fprintf(paramfp, ",");
-//                 }
-//                 fprintf(paramfp, ")");
-//             }
+            //             if (param.type == 7)
+            //             {
+            //                 fprintf(paramfp, "(");
+            //                 for (size_t i = 0; i < param.as.size(); i++)
+            //                 {
+            //                     fprintf(paramfp, "%s", param.as[i].c_str());
+            //                     if (i + 1 != param.as.size())
+            //                         fprintf(paramfp, ",");
+            //                 }
+            //                 fprintf(paramfp, ")");
+            //             }
         }
 
         for (const auto& it : op->attrs)
         {
-//             fprintf(paramfp, " @%s=", it.first.c_str());
+            //             fprintf(paramfp, " @%s=", it.first.c_str());
 
             const Attribute& attr = it.second;
 
             fwrite(attr.data.data(), attr.data.size(), 1, binfp);
         }
 
-//         if (op->inputnames.size() == op->inputs.size())
-//         {
-//             for (size_t i = 0; i < op->inputs.size(); i++)
-//             {
-//                 const Operand* oprand = op->inputs[i];
-//                 fprintf(paramfp, " $%s=%s", op->inputnames[i].c_str(), oprand->name.c_str());
-//             }
-//         }
+        //         if (op->inputnames.size() == op->inputs.size())
+        //         {
+        //             for (size_t i = 0; i < op->inputs.size(); i++)
+        //             {
+        //                 const Operand* oprand = op->inputs[i];
+        //                 fprintf(paramfp, " $%s=%s", op->inputnames[i].c_str(), oprand->name.c_str());
+        //             }
+        //         }
 
-//         for (const Operand* oprand : op->outputs)
-//         {
-//             if (oprand->shape.empty())
-//                 continue;
-//
-//             fprintf(paramfp, " #%s=", oprand->name.c_str());
-//
-//             fprintf(paramfp, "(");
-//             for (int64_t i = 0; i < oprand->shape.size() - 1; i++)
-//             {
-//                 fprintf(paramfp, "%d,", oprand->shape[i]);
-//             }
-//             if (oprand->shape.size() > 0)
-//                 fprintf(paramfp, "%d", oprand->shape[oprand->shape.size() - 1]);
-//             fprintf(paramfp, ")");
-//
-//             fprintf(paramfp, type_to_string(oprand->type));
-//         }
+        //         for (const Operand* oprand : op->outputs)
+        //         {
+        //             if (oprand->shape.empty())
+        //                 continue;
+        //
+        //             fprintf(paramfp, " #%s=", oprand->name.c_str());
+        //
+        //             fprintf(paramfp, "(");
+        //             for (int64_t i = 0; i < oprand->shape.size() - 1; i++)
+        //             {
+        //                 fprintf(paramfp, "%d,", oprand->shape[i]);
+        //             }
+        //             if (oprand->shape.size() > 0)
+        //                 fprintf(paramfp, "%d", oprand->shape[oprand->shape.size() - 1]);
+        //             fprintf(paramfp, ")");
+        //
+        //             fprintf(paramfp, type_to_string(oprand->type));
+        //         }
 
         fprintf(paramfp, "\n");
     }
@@ -1868,12 +1867,12 @@ int Graph::parse(const std::string& param)
             if (key[0] == '@')
             {
                 // attribute
-//                 load_attribute(op, key.substr(1), value, szr);
+                //                 load_attribute(op, key.substr(1), value, szr);
             }
             else if (key[0] == '$')
             {
                 // operand input key
-//                 load_input_key(op, key.substr(1), value);
+                //                 load_input_key(op, key.substr(1), value);
             }
             else if (key[0] == '#')
             {

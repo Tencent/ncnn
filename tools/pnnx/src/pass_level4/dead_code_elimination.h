@@ -19,4 +19,3 @@ namespace pnnx {
 void dead_code_elimination(Graph& graph);
 
 }
-

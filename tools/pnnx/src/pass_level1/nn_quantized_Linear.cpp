@@ -33,33 +33,33 @@ public:
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
-//         mod.dump(true, false, false);
+        //         mod.dump(true, false, false);
 
-//         graph->dump();
+        //         graph->dump();
 
         const torch::jit::Node* quantized_linear = find_node_by_kind(graph, "quantized::linear");
 
-//         for (auto aa : quantized_linear->schema().arguments())
-//         {
-//             fprintf(stderr, "arg %s\n", aa.name().c_str());
-//         }
+        //         for (auto aa : quantized_linear->schema().arguments())
+        //         {
+        //             fprintf(stderr, "arg %s\n", aa.name().c_str());
+        //         }
 
-//         torch::jit::Node* packed_params_node = 0;
-//         for (const auto& n : graph->nodes())
-//         {
-//             if (n->kind() == c10::prim::GetAttr && n->s(torch::jit::attr::name) == "_packed_params")
-//             {
-//                 packed_params_node = n;
-//                 break;
-//             }
-//         }
+        //         torch::jit::Node* packed_params_node = 0;
+        //         for (const auto& n : graph->nodes())
+        //         {
+        //             if (n->kind() == c10::prim::GetAttr && n->s(torch::jit::attr::name) == "_packed_params")
+        //             {
+        //                 packed_params_node = n;
+        //                 break;
+        //             }
+        //         }
 
         const auto& packed_params = mod.attr("_packed_params").toObject();
 
-//         for (auto aa : torch::jit::script::Object(packed_params).get_methods())
-//         {
-//             fprintf(stderr, "method %s\n", aa.name().c_str());
-//         }
+        //         for (auto aa : torch::jit::script::Object(packed_params).get_methods())
+        //         {
+        //             fprintf(stderr, "method %s\n", aa.name().c_str());
+        //         }
 
         auto x = torch::jit::script::Object(packed_params).run_method("_weight_bias").toTuple();
 
@@ -73,13 +73,13 @@ public:
         {
             op->attrs["weight.q_per_channel_scales"] = weight.q_per_channel_scales();
             op->attrs["weight.q_per_channel_zero_points"] = weight.q_per_channel_zero_points();
-//             op->params["weight.q_per_channel_axis"] = weight.q_per_channel_axis();
+            //             op->params["weight.q_per_channel_axis"] = weight.q_per_channel_axis();
         }
 
         op->params["in_features"] = weight.size(1);
         op->params["out_features"] = weight.size(0);
-//         op->params["in_features"] = mod.attr("in_features").toInt();
-//         op->params["out_features"] = mod.attr("out_features").toInt();
+        //         op->params["in_features"] = mod.attr("in_features").toInt();
+        //         op->params["out_features"] = mod.attr("out_features").toInt();
 
         op->params["output_scale"] = quantized_linear->namedInput("Y_scale_i");
         op->params["output_zero_point"] = quantized_linear->namedInput("Y_zero_point_i");

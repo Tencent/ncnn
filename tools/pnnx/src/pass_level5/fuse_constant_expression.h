@@ -19,4 +19,3 @@ namespace pnnx {
 void fuse_constant_expression(Graph& graph);
 
 } // namespace pnnx
-

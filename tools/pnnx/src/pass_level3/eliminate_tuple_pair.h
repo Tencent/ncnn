@@ -19,4 +19,3 @@ namespace pnnx {
 void eliminate_tuple_pair(Graph& graph);
 
 } // namespace pnnx
-

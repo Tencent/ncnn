@@ -33,16 +33,16 @@ public:
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
-//         mod.dump(true, false, false);
+        //         mod.dump(true, false, false);
 
-//         graph->dump();
+        //         graph->dump();
 
         const torch::jit::Node* quantize_per_tensor = find_node_by_kind(graph, "aten::quantize_per_tensor");
 
-//         for (auto aa : quantize_per_tensor->schema().arguments())
-//         {
-//             fprintf(stderr, "arg %s\n", aa.name().c_str());
-//         }
+        //         for (auto aa : quantize_per_tensor->schema().arguments())
+        //         {
+        //             fprintf(stderr, "arg %s\n", aa.name().c_str());
+        //         }
 
         // scale, zero_point
         op->params["scale"] = quantize_per_tensor->namedInput("scale");

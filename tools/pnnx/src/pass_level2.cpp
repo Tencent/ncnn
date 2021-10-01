@@ -351,14 +351,14 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
         if (!matched)
             break;
 
-//         fprintf(stderr, "matched !\n");
+        //         fprintf(stderr, "matched !\n");
 
         // lets replace
 
         // remove all matched_operators
         for (auto& _x : matched_operators)
         {
-//             fprintf(stderr, "remove %s\n", _x.second->name.c_str());
+            //             fprintf(stderr, "remove %s\n", _x.second->name.c_str());
 
             Operator* x = (Operator*)_x.second;
             for (auto& r : x->inputs)
@@ -416,7 +416,6 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
         pass->write(captured_params, captured_attrs, op);
     }
-
 }
 
 void pass_level2(Graph& g)

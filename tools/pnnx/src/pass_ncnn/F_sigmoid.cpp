@@ -47,4 +47,3 @@ REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_sigmoid, 20)
 } // namespace ncnn
 
 } // namespace pnnx
-

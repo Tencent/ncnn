@@ -33,16 +33,16 @@ public:
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
-//         mod.dump(true, false, false);
+        //         mod.dump(true, false, false);
 
-//         graph->dump();
+        //         graph->dump();
 
         const torch::jit::Node* dequantize = find_node_by_kind(graph, "aten::dequantize");
 
-//         for (auto aa : dequantize->schema().arguments())
-//         {
-//             fprintf(stderr, "arg %s\n", aa.name().c_str());
-//         }
+        //         for (auto aa : dequantize->schema().arguments())
+        //         {
+        //             fprintf(stderr, "arg %s\n", aa.name().c_str());
+        //         }
     }
 };
 
