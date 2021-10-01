@@ -15,6 +15,37 @@
 #ifndef ARM_USABILITY_H
 #define ARM_USABILITY_H
 
+class FPSCRGuard
+{
+#if !__aarch64__
+public:
+    FPSCRGuard()
+    {
+        // set round mode to round to nearest for armv7
+        // this impacts all vcvtr instructions in guarded scope
+        asm volatile(
+            "vmrs   %0, FPSCR               \n"
+            "bic    r10, %0, #0x00c00000    \n"
+            "vmsr   FPSCR, r10              \n"
+            : "=r"(FPSCR_value)
+            :
+            : "memory", "r10");
+    }
+
+    ~FPSCRGuard()
+    {
+        asm volatile(
+            "vmsr   FPSCR, %0           \n"
+            :
+            : "r"(FPSCR_value)
+            : "memory");
+    }
+
+private:
+    int FPSCR_value;
+#endif // !__aarch64__
+};
+
 static inline signed char float2int8(float v)
 {
     int int32 = round(v);
