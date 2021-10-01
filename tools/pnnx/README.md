@@ -61,11 +61,15 @@ pnnx resnet18.pt inputshape=[1,3,224,224]
 
 Normally, you will get five files
 
-```resnet18.pnnx.param```
-```resnet18.pnnx.bin```
-```resnet18_pnnx.py```
-```resnet18.ncnn.param```
-```resnet18.ncnn.bin```
+```resnet18.pnnx.param``` PNNX graph definition
+
+```resnet18.pnnx.bin``` PNNX model weight
+
+```resnet18_pnnx.py``` PyTorch script for inference, the python code for model construction and weight initialization
+
+```resnet18.ncnn.param``` ncnn graph definition
+
+```resnet18.ncnn.bin``` ncnn model weight
 
 3. Visualize PNNX with Netron
 
