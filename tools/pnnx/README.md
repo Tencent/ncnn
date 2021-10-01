@@ -56,28 +56,48 @@ torch.jit.save(mod, "resnet18.pt")
 2. Convert TorchScript to PNNX
 
 ```shell
-pnnx resnet18.pt
+pnnx resnet18.pt inputshape=[1,3,224,224]
 ```
 
-Normally, you will get three files
+Normally, you will get five files
 
 ```resnet18.pnnx.param```
 ```resnet18.pnnx.bin```
 ```resnet18_pnnx.py```
+```resnet18.ncnn.param```
+```resnet18.ncnn.bin```
 
 3. Visualize PNNX with Netron
 
 Open https://netron.app/ in browser, and drag resnet18.pnnx.param into it.
+
+4. PNNX command line options
+
+```
+Usage: pnnx [model.pt] [(key=value)...]
+  pnnxparam=model.pnnx.param
+  pnnxbin=model.pnnx.bin
+  pnnxpy=model_pnnx.py
+  ncnnparam=model.ncnn.param
+  ncnnbin=model.ncnn.bin
+  optlevel=2
+  device=cpu/gpu
+  inputshape=[1,3,224,224],...
+  customop=/home/nihui/.cache/torch_extensions/fused/fused.so,...
+  moduleop=models.common.Focus,models.yolo.Detect,...
+Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
+              pnnx yolov5s.pt inputshape=[1,3,640,640] device=gpu moduleop=models.common.Focus,models.yolo.Detect
+```
 
 # The pnnx.param format
 ### example
 ```
 7767517
 4 3
-Input       pnnx_input_1    0 1 x.1
-nn.Conv2d   conv_0_0        1 1 x.1 19 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16) @weight=(16,12,3,3)
-nn.Conv2d   conv_0_1        1 1 19 20 bias=1 dilation=(1,1) groups=1 in_channels=16 kernel_size=(2,2) out_channels=20 padding=(2,2) stride=(2,2) @bias=(20) @weight=(20,16,2,2)
-Output      pnnx_output_0   1 0 20
+pnnx.Input      input       0 1 0
+nn.Conv2d       conv_0      1 1 0 1 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16) @weight=(16,12,3,3)
+nn.Conv2d       conv_1      1 1 1 2 bias=1 dilation=(1,1) groups=1 in_channels=16 kernel_size=(2,2) out_channels=20 padding=(2,2) stride=(2,2) @bias=(20) @weight=(20,16,2,2)
+pnnx.Output     output      1 0 2
 ```
 ### overview
 ```
@@ -107,7 +127,7 @@ pnnx.bin file is a zip file with store-only mode(no compression)
 
 weight binary file has its name composed by operator name and weight name
 
-For example, ```nn.Conv2d   conv_0_0        1 1 x.1 19 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16) @weight=(16,12,3,3)``` would pull conv_0_0.weight and conv_0_0.bias into pnnx.bin zip archive.
+For example, ```nn.Conv2d       conv_0      1 1 0 1 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16) @weight=(16,12,3,3)``` would pull conv_0.weight and conv_0.bias into pnnx.bin zip archive.
 
 weight binaries can be listed or modified with any archive application eg. 7zip
 
@@ -180,6 +200,19 @@ class Model(nn.Module):
 Users could ask PNNX to keep module as one big operator when it has complex logic.
 
 The process is optional and could be enabled via moduleop command line option.
+
+After pass_level0, all modules will be presented in terminal output, then you can pick the intersting ones as module operators.
+```
+############# pass_level0
+inline module = models.common.Bottleneck
+inline module = models.common.C3
+inline module = models.common.Concat
+inline module = models.common.Conv
+inline module = models.common.Focus
+inline module = models.common.SPP
+inline module = models.yolo.Detect
+inline module = utils.activations.SiLU
+```
 
 ```bash
 pnnx yolov5s.pt inputshape=[1,3,640,640] moduleop=models.common.Focus,models.yolo.Detect
