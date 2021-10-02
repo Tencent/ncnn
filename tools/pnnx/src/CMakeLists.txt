@@ -207,6 +207,8 @@ set(pnnx_pass_level5_SRCS
 )
 
 set(pnnx_pass_ncnn_SRCS
+    pass_ncnn/convert_input.cpp
+    pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/F_adaptive_avg_pool2d.cpp

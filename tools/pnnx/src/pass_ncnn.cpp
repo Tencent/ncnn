@@ -15,6 +15,8 @@
 
 #include "pass_ncnn.h"
 
+#include "pass_ncnn/convert_input.h"
+#include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/insert_split.h"
 #include "pass_level4/dead_code_elimination.h"
@@ -52,6 +54,10 @@ void pass_ncnn(Graph& g)
     dead_code_elimination(g);
 
     canonicalize(g);
+
+    ncnn::convert_input(g);
+
+    ncnn::eliminate_output(g);
 }
 
 } // namespace pnnx

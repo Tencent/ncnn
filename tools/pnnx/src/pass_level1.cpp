@@ -38,7 +38,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         const auto& in = g->inputs()[i];
 
         char name[32];
-        sprintf(name, "pnnx_input_%d", i);
+        sprintf(name, "pnnx_input_%d", i - 1);
 
         Operator* op = pg.new_operator("pnnx.Input", name);
         Operand* r = pg.new_operand(in);
