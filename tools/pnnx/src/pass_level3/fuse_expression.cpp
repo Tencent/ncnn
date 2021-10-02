@@ -80,7 +80,7 @@ static bool operand_maybe_tensor(Operand* operand)
 
 static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, bool checksubgraph = true)
 {
-//     fprintf(stderr, "fuse_expression %s\n", operand->name.c_str());
+    //     fprintf(stderr, "fuse_expression %s\n", operand->name.c_str());
 
     Operator* op = operand->producer;
 
@@ -113,7 +113,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     if (op->type == "prim::Constant")
     {
         const Parameter& param = op->params["value"];
-//         fprintf(stderr, "fuse_expression prim::Constant %d\n", param.type);
+        //         fprintf(stderr, "fuse_expression prim::Constant %d\n", param.type);
         if (param.type == 0)
         {
             expr += "None";
@@ -344,7 +344,7 @@ void fuse_expression(Graph& graph)
                 std::string expr;
                 std::vector<Operand*> inputs;
                 fuse_expression(graph, op->outputs[0], expr, inputs, false);
-//                 fprintf(stderr, "expr = %s\n", expr.c_str());
+                //                 fprintf(stderr, "expr = %s\n", expr.c_str());
 
                 // lets rewrite graph
                 char name[32];

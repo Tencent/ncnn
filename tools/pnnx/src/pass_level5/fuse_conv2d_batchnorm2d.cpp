@@ -84,7 +84,7 @@ pnnx.Output             output      1 0 out
             }
             else
             {
-                a[i] = - bn_running_mean[i] / sqrt_var;
+                a[i] = -bn_running_mean[i] / sqrt_var;
                 b[i] = 1.f / sqrt_var;
             }
         }

@@ -61,11 +61,15 @@ pnnx resnet18.pt inputshape=[1,3,224,224]
 
 Normally, you will get five files
 
-```resnet18.pnnx.param```
-```resnet18.pnnx.bin```
-```resnet18_pnnx.py```
-```resnet18.ncnn.param```
-```resnet18.ncnn.bin```
+```resnet18.pnnx.param``` PNNX graph definition
+
+```resnet18.pnnx.bin``` PNNX model weight
+
+```resnet18_pnnx.py``` PyTorch script for inference, the python code for model construction and weight initialization
+
+```resnet18.ncnn.param``` ncnn graph definition
+
+```resnet18.ncnn.bin``` ncnn model weight
 
 3. Visualize PNNX with Netron
 
@@ -95,8 +99,8 @@ Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
 7767517
 4 3
 pnnx.Input      input       0 1 0
-nn.Conv2d       conv_0      1 1 0 1 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16) @weight=(16,12,3,3)
-nn.Conv2d       conv_1      1 1 1 2 bias=1 dilation=(1,1) groups=1 in_channels=16 kernel_size=(2,2) out_channels=20 padding=(2,2) stride=(2,2) @bias=(20) @weight=(20,16,2,2)
+nn.Conv2d       conv_0      1 1 0 1 bias=1 dilation=(1,1) groups=1 in_channels=12 kernel_size=(3,3) out_channels=16 padding=(0,0) stride=(1,1) @bias=(16)f32 @weight=(16,12,3,3)f32
+nn.Conv2d       conv_1      1 1 1 2 bias=1 dilation=(1,1) groups=1 in_channels=16 kernel_size=(2,2) out_channels=20 padding=(2,2) stride=(2,2) @bias=(20)f32 @weight=(20,16,2,2)f32
 pnnx.Output     output      1 0 2
 ```
 ### overview

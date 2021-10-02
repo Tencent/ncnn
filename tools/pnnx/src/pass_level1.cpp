@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 #include <torch/csrc/jit/passes/quantization/helper.h>
 
 #include "pass_level1.h"
@@ -55,7 +54,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         {
             // pass
             std::string name = n->s(torch::jit::attr::name);
-//             std::string name = n->debugName();
+            //             std::string name = n->debugName();
 
             auto class_type = n->output(0)->type()->cast<torch::jit::ClassType>();
 
@@ -63,12 +62,12 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
             {
                 std::string class_type_str = class_type->str();
                 class_type_to_names[class_type_str] = name;
-//             class_type_to_names[class_type_str] = class_type_str + "." + name;
+                //             class_type_to_names[class_type_str] = class_type_str + "." + name;
             }
             else
             {
                 // Tensor from some class
-//                 Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
+                //                 Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
                 Operator* op = pg.new_operator("pnnx.Attribute", name);
 
                 for (int i = 0; i < n->outputs().size(); i++)
@@ -79,7 +78,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                     op->outputs.push_back(r);
                 }
 
-                std::deque<std::string> module_names;// = split(n->input(0)->node()->s(torch::jit::attr::name), '.');
+                std::deque<std::string> module_names; // = split(n->input(0)->node()->s(torch::jit::attr::name), '.');
                 {
                     auto np = n->input(0)->node();
                     while (np->hasAttribute(torch::jit::attr::name))
@@ -102,9 +101,9 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 op->name = wrapped_name;
 
-//                 op->params["this"] = n->input(i)
+                //                 op->params["this"] = n->input(i)
 
-//                 sub_mod.dump(true, true, true);
+                //                 sub_mod.dump(true, true, true);
 
                 op->attrs[name] = sub_mod.attr(name).toTensor();
             }
@@ -114,32 +113,32 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
         switch (n->kind())
         {
-//         case c10::prim::CallFunction:
-//         {
-//             fprintf(stderr, "function %s", n->kind().toDisplayString());
+        //         case c10::prim::CallFunction:
+        //         {
+        //             fprintf(stderr, "function %s", n->kind().toDisplayString());
 
-//             AT_ASSERT(cur->input(0)->node()->kind() == c10::prim::Constant);
-//             auto function_constant = cur->input(0)->node();
-//             auto fun_type = function_constant->output()->type()->expect<torch::jit::FunctionType>();
-//             if (!fun_type->function()->isGraphFunction())
-//             {
-//                 continue;
-//             }
-//             cur->removeInput(0);
+        //             AT_ASSERT(cur->input(0)->node()->kind() == c10::prim::Constant);
+        //             auto function_constant = cur->input(0)->node();
+        //             auto fun_type = function_constant->output()->type()->expect<torch::jit::FunctionType>();
+        //             if (!fun_type->function()->isGraphFunction())
+        //             {
+        //                 continue;
+        //             }
+        //             cur->removeInput(0);
 
-//             fprintf(stderr, "inline funtion %s\n", fun_type->function()->name().c_str());
+        //             fprintf(stderr, "inline funtion %s\n", fun_type->function()->name().c_str());
 
-//             GRAPH_UPDATE("Inlining function '", fun_type->function()->name(), "' to ", *cur);
-//             GRAPH_UPDATE("Function body: ", *fun_type->function()->optimized_graph());
-//             inlineCallTo(cur, fun_type->function(), false);
-//             break;
-//         }
+        //             GRAPH_UPDATE("Inlining function '", fun_type->function()->name(), "' to ", *cur);
+        //             GRAPH_UPDATE("Function body: ", *fun_type->function()->optimized_graph());
+        //             inlineCallTo(cur, fun_type->function(), false);
+        //             break;
+        //         }
         case c10::prim::CallMethod:
         {
             auto class_type = n->input(0)->type()->cast<torch::jit::ClassType>();
-//             const std::string& name = n->s(torch::jit::attr::name);
+            //             const std::string& name = n->s(torch::jit::attr::name);
 
-//             fprintf(stderr, "call %s\n", class_type->str().c_str());
+            //             fprintf(stderr, "call %s\n", class_type->str().c_str());
 
             std::string name = class_type_to_names[class_type->str()];
 
@@ -186,7 +185,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 auto class_type = n->input(0)->type()->cast<torch::jit::ClassType>();
                 torch::jit::Function& function = class_type->getMethod(n->s(torch::jit::attr::name));
 
-                std::deque<std::string> module_names;// = split(n->input(0)->node()->s(torch::jit::attr::name), '.');
+                std::deque<std::string> module_names; // = split(n->input(0)->node()->s(torch::jit::attr::name), '.');
                 {
                     auto np = n->input(0)->node();
                     while (np->hasAttribute(torch::jit::attr::name))
@@ -263,7 +262,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 {
                     at::Tensor t = n->t(torch::jit::attr::value);
 
-//                     fprintf(stderr, "value_kind = %s %d %d\n", torch::jit::toString(value_kind), t.dim(), (int)t.scalar_type());
+                    //                     fprintf(stderr, "value_kind = %s %d %d\n", torch::jit::toString(value_kind), t.dim(), (int)t.scalar_type());
 
                     if (t.dim() == 0)
                     {
@@ -309,16 +308,15 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
             char name[32];
             sprintf(name, "pnnx_%d", pnnx_unknown_index++);
 
-//             if (n->kind().toDisplayString() == std::string("quantized::cat"))
-//             {
-//
-//             for (auto aa : n->schema().arguments())
-//             {
-//                 fprintf(stderr, "%s arg %s\n", n->kind().toDisplayString(), aa.name().c_str());
-//             }
-//
-//             }
-
+            //             if (n->kind().toDisplayString() == std::string("quantized::cat"))
+            //             {
+            //
+            //             for (auto aa : n->schema().arguments())
+            //             {
+            //                 fprintf(stderr, "%s arg %s\n", n->kind().toDisplayString(), aa.name().c_str());
+            //             }
+            //
+            //             }
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 

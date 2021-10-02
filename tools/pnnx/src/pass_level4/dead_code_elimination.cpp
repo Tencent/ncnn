@@ -40,7 +40,7 @@ void dead_code_elimination(Graph& graph)
             {
                 need_eliminate = true;
 
-//                 fprintf(stderr, "delete %s %s\n", op->type.c_str(), op->name.c_str());
+                //                 fprintf(stderr, "delete %s %s\n", op->type.c_str(), op->name.c_str());
 
                 for (Operand* operand : op->inputs)
                 {
@@ -82,7 +82,7 @@ void dead_code_elimination(Graph& graph)
             {
                 need_eliminate = true;
 
-//                 fprintf(stderr, "delete operand %s\n", operand->name.c_str());
+                //                 fprintf(stderr, "delete operand %s\n", operand->name.c_str());
 
                 graph.operands.erase(graph.operands.begin() + i);
                 delete operand;

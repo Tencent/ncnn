@@ -44,7 +44,6 @@ void fuse_chunk_unpack(Graph& graph)
 
             matched = true;
 
-
             op->outputs[0]->producer = 0;
             op->outputs[0]->remove_consumer(op2);
 

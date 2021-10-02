@@ -33,9 +33,9 @@ public:
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
-//         mod.dump(true, true, true);
+        //         mod.dump(true, true, true);
 
-//         graph->dump();
+        //         graph->dump();
 
         const torch::jit::Node* rnn = find_node_by_kind(graph, "aten::rnn_tanh");
         const torch::jit::Node* rnn_relu = find_node_by_kind(graph, "aten::rnn_relu");
@@ -45,10 +45,10 @@ public:
             rnn = rnn_relu;
         }
 
-//         for (auto aa : rnn->schema().arguments())
-//         {
-//             fprintf(stderr, "arg %s\n", aa.name().c_str());
-//         }
+        //         for (auto aa : rnn->schema().arguments())
+        //         {
+        //             fprintf(stderr, "arg %s\n", aa.name().c_str());
+        //         }
 
         const auto& weight_ih_l0 = mod.attr("weight_ih_l0").toTensor();
 

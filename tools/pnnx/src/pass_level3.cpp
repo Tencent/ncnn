@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 #include "pass_level3.h"
 
 #include "pass_level3/eliminate_tuple_pair.h"
@@ -36,9 +35,9 @@ void pass_level3(Graph& g)
 
     fuse_expression(g);
 
-//     dead_code_elimination(g);
+    //     dead_code_elimination(g);
 
-//     canonicalize(g);
+    //     canonicalize(g);
 }
 
 } // namespace pnnx

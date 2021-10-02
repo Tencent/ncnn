@@ -1102,37 +1102,43 @@ num_threads = 4
 powersave = 0
 gpu_device = -1
 cooling_down = 1
-          squeezenet  min =   30.41  max =   31.60  avg =   30.77
-     squeezenet_int8  min =   22.90  max =   23.25  avg =   23.05
-           mobilenet  min =   41.15  max =   43.74  avg =   42.54
-      mobilenet_int8  min =   21.51  max =   21.73  avg =   21.59
-        mobilenet_v2  min =   38.40  max =   48.42  avg =   39.99
-        mobilenet_v3  min =   28.59  max =   28.92  avg =   28.75
-          shufflenet  min =   21.45  max =   22.02  avg =   21.80
-       shufflenet_v2  min =   17.89  max =   18.75  avg =   18.41
-             mnasnet  min =   32.63  max =   32.99  avg =   32.86
-     proxylessnasnet  min =   34.64  max =   35.23  avg =   34.95
-     efficientnet_b0  min =   54.21  max =   55.11  avg =   54.53
-   efficientnetv2_b0  min =   60.40  max =   67.12  avg =   61.59
-        regnety_400m  min =   44.48  max =   45.19  avg =   44.73
-           blazeface  min =    6.30  max =    6.60  avg =    6.42
-           googlenet  min =   82.00  max =   83.10  avg =   82.61
-      googlenet_int8  min =   62.26  max =   62.93  avg =   62.58
-            resnet18  min =   76.44  max =   77.69  avg =   76.99
-       resnet18_int8  min =   47.11  max =   60.65  avg =   49.32
-             alexnet  min =   69.62  max =   71.72  avg =   70.07
-               vgg16  min =  404.06  max =  420.23  avg =  409.68
-          vgg16_int8  min =  255.44  max =  279.67  avg =  259.34
-            resnet50  min =  181.19  max =  189.97  avg =  182.90
-       resnet50_int8  min =  123.59  max =  124.25  avg =  123.87
-      squeezenet_ssd  min =   89.93  max =  100.39  avg =   91.84
- squeezenet_ssd_int8  min =   64.18  max =   70.68  avg =   65.32
-       mobilenet_ssd  min =   89.30  max =   97.50  avg =   90.63
-  mobilenet_ssd_int8  min =   45.81  max =   46.21  avg =   45.97
-      mobilenet_yolo  min =  195.86  max =  203.00  avg =  198.64
-  mobilenetv2_yolov3  min =  125.46  max =  132.40  avg =  127.01
-         yolov4-tiny  min =  150.44  max =  154.86  avg =  151.87
-           nanodet_m  min =   50.55  max =   51.29  avg =   50.97
+          squeezenet  min =   29.58  max =   30.03  avg =   29.80
+     squeezenet_int8  min =   23.84  max =   24.06  avg =   23.98
+           mobilenet  min =   41.79  max =   42.97  avg =   42.38
+      mobilenet_int8  min =   20.87  max =   21.08  avg =   20.96
+        mobilenet_v2  min =   38.08  max =   40.18  avg =   38.68
+        mobilenet_v3  min =   28.25  max =   28.93  avg =   28.61
+          shufflenet  min =   21.43  max =   21.97  avg =   21.80
+       shufflenet_v2  min =   18.05  max =   18.50  avg =   18.29
+             mnasnet  min =   33.17  max =   36.31  avg =   33.71
+     proxylessnasnet  min =   35.14  max =   36.26  avg =   35.43
+     efficientnet_b0  min =   54.37  max =   55.14  avg =   54.68
+   efficientnetv2_b0  min =   60.19  max =   61.31  avg =   60.72
+        regnety_400m  min =   44.23  max =   45.58  avg =   44.55
+           blazeface  min =    6.25  max =    6.41  avg =    6.34
+           googlenet  min =   80.06  max =   81.35  avg =   80.71
+      googlenet_int8  min =   62.14  max =   63.17  avg =   62.56
+            resnet18  min =   76.07  max =   77.96  avg =   76.69
+       resnet18_int8  min =   47.49  max =   48.82  avg =   47.97
+             alexnet  min =   67.96  max =   69.36  avg =   68.54
+               vgg16  min =  409.22  max =  428.95  avg =  415.21
+          vgg16_int8  min =  261.93  max =  268.01  avg =  263.84
+            resnet50  min =  187.20  max =  190.96  avg =  188.85
+       resnet50_int8  min =  122.45  max =  129.28  avg =  124.39
+      squeezenet_ssd  min =   84.70  max =   86.36  avg =   85.47
+ squeezenet_ssd_int8  min =   63.30  max =   65.30  avg =   63.75
+       mobilenet_ssd  min =   87.79  max =   89.27  avg =   88.64
+  mobilenet_ssd_int8  min =   45.61  max =   45.88  avg =   45.70
+      mobilenet_yolo  min =  191.45  max =  199.32  avg =  193.56
+  mobilenetv2_yolov3  min =  122.49  max =  126.64  avg =  124.34
+         yolov4-tiny  min =  144.92  max =  153.81  avg =  146.79
+           nanodet_m  min =   50.20  max =   57.32  avg =   51.66
+          yolox-nano  min =   77.93  max =   81.16  avg =   78.94
+     yolox-nano_int8  min =   70.78  max =   76.06  avg =   72.04
+          yolox-tiny  min =  199.43  max =  202.16  avg =  200.72
+     yolox-tiny_int8  min =  142.00  max =  143.77  avg =  143.04
+             yolox_s  min =  666.32  max =  679.94  avg =  671.99
+        yolox-s_int8  min =  458.40  max =  462.57  avg =  460.08
 ```
 
 ### Station P2, Rockchip RK3568 (Cortex-A55 2.0GHz x 4)

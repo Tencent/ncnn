@@ -19,5 +19,3 @@ namespace pnnx {
 void canonicalize(Graph& graph);
 
 }
-
-

@@ -33,14 +33,14 @@ public:
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
-//         graph->dump();
+        //         graph->dump();
 
         const torch::jit::Node* gn = find_node_by_kind(graph, "aten::group_norm");
 
-//         for (auto aa : gn->schema().arguments())
-//         {
-//             fprintf(stderr, "arg %s\n", aa.name().c_str());
-//         }
+        //         for (auto aa : gn->schema().arguments())
+        //         {
+        //             fprintf(stderr, "arg %s\n", aa.name().c_str());
+        //         }
 
         op->params["num_groups"] = gn->namedInput("num_groups");
         op->params["eps"] = gn->namedInput("eps");

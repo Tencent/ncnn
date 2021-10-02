@@ -47,26 +47,26 @@ static bool token_is_literal(const std::string& t)
     iss >> std::noskipws >> f;
     return iss.eof() && !iss.fail();
 
-//     for (size_t i = 0; i < t.size(); i++)
-//     {
-//         if (i == 0 && t[i] == '-')
-//             continue;
-//
-//         if (t[i] < '0' || t[i] > '9')
-//         {
-//             if (t[i] != '.' && t[i] != 'e')
-//                 return false;
-//         }
-//     }
-//
-//     return true;
+    //     for (size_t i = 0; i < t.size(); i++)
+    //     {
+    //         if (i == 0 && t[i] == '-')
+    //             continue;
+    //
+    //         if (t[i] < '0' || t[i] > '9')
+    //         {
+    //             if (t[i] != '.' && t[i] != 'e')
+    //                 return false;
+    //         }
+    //     }
+    //
+    //     return true;
 }
 
 static std::string expand_expression(Graph& graph, const Operator* op)
 {
     std::string expr = op->params.at("expr").s;
 
-//     fprintf(stderr, "ncnn expand_expression %s\n", expr.c_str());
+    //     fprintf(stderr, "ncnn expand_expression %s\n", expr.c_str());
 
     // split into tokens
     std::vector<std::string> tokens;
@@ -108,10 +108,10 @@ static std::string expand_expression(Graph& graph, const Operator* op)
     {
         const std::string& t = tokens[i];
 
-//         if (t == "size")
-//         {
-//         }
-        if (/*t == "int" || */t == "sqrt" || t == "rsqrt")
+        //         if (t == "size")
+        //         {
+        //         }
+        if (/*t == "int" || */ t == "sqrt" || t == "rsqrt")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -133,7 +133,7 @@ static std::string expand_expression(Graph& graph, const Operator* op)
             op_unary->inputs.push_back(op_unary_in);
             op_unary->outputs.push_back(op_unary_out);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || */t == "pow")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || /*t == "floor_divide" || */ t == "pow")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -198,9 +198,9 @@ static std::string expand_expression(Graph& graph, const Operator* op)
                 op_binary->outputs.push_back(op_binary_out);
             }
         }
-//         else if (t == "[") // list
-//         {
-//         }
+        //         else if (t == "[") // list
+        //         {
+        //         }
         else if (t[0] == '@')
         {
             exprstack.push(t);
@@ -215,7 +215,7 @@ static std::string expand_expression(Graph& graph, const Operator* op)
     std::string r = exprstack.top();
     exprstack.pop();
 
-//     fprintf(stderr, "expand_expression return %s\n", r.c_str());
+    //     fprintf(stderr, "expand_expression return %s\n", r.c_str());
 
     return r;
 }
@@ -249,7 +249,7 @@ void expand_expression(Graph& graph)
             {
                 new_output_operand->consumers.push_back(x);
 
-                for (size_t j = 0 ; j < x->inputs.size(); j++)
+                for (size_t j = 0; j < x->inputs.size(); j++)
                 {
                     if (x->inputs[j] == old_output_operand)
                     {
@@ -273,7 +273,6 @@ void expand_expression(Graph& graph)
         if (!matched)
             break;
     }
-
 }
 
 } // namespace ncnn

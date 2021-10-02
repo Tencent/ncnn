@@ -20,43 +20,94 @@
 #include <string>
 #include <vector>
 
-namespace torch { namespace jit { class Value; } }
-namespace at { class Tensor; }
+namespace torch {
+namespace jit {
+class Value;
+}
+} // namespace torch
+namespace at {
+class Tensor;
+}
 
 namespace pnnx {
 
 class Parameter
 {
 public:
-    Parameter() : type(0) {}
-    Parameter(bool _b) : type(1), b(_b) {}
-    Parameter(int _i) : type(2), i(_i) {}
-    Parameter(long _l) : type(2), i(_l) {}
-    Parameter(float _f) : type(3), f(_f) {}
-    Parameter(double _d) : type(3), f(_d) {}
-    Parameter(const char* _s) : type(4), s(_s) {}
-    Parameter(const std::string& _s) : type(4), s(_s) {}
-    Parameter(const std::initializer_list<int>& _ai) : type(5), ai(_ai) {}
-    Parameter(const std::initializer_list<long>& _ai) : type(5)
+    Parameter()
+        : type(0)
+    {
+    }
+    Parameter(bool _b)
+        : type(1), b(_b)
+    {
+    }
+    Parameter(int _i)
+        : type(2), i(_i)
+    {
+    }
+    Parameter(long _l)
+        : type(2), i(_l)
+    {
+    }
+    Parameter(float _f)
+        : type(3), f(_f)
+    {
+    }
+    Parameter(double _d)
+        : type(3), f(_d)
+    {
+    }
+    Parameter(const char* _s)
+        : type(4), s(_s)
+    {
+    }
+    Parameter(const std::string& _s)
+        : type(4), s(_s)
+    {
+    }
+    Parameter(const std::initializer_list<int>& _ai)
+        : type(5), ai(_ai)
+    {
+    }
+    Parameter(const std::initializer_list<long>& _ai)
+        : type(5)
     {
         for (const auto& x : _ai)
             ai.push_back((int)x);
     }
-    Parameter(const std::vector<int>& _ai) : type(5), ai(_ai) {}
-    Parameter(const std::initializer_list<float>& _af) : type(6), af(_af) {}
-    Parameter(const std::initializer_list<double>& _af) : type(6)
+    Parameter(const std::vector<int>& _ai)
+        : type(5), ai(_ai)
+    {
+    }
+    Parameter(const std::initializer_list<float>& _af)
+        : type(6), af(_af)
+    {
+    }
+    Parameter(const std::initializer_list<double>& _af)
+        : type(6)
     {
         for (const auto& x : _af)
             af.push_back((float)x);
     }
-    Parameter(const std::vector<float>& _af) : type(6), af(_af) {}
-    Parameter(const std::initializer_list<const char*>& _as) : type(7)
+    Parameter(const std::vector<float>& _af)
+        : type(6), af(_af)
+    {
+    }
+    Parameter(const std::initializer_list<const char*>& _as)
+        : type(7)
     {
         for (const auto& x : _as)
             as.push_back(std::string(x));
     }
-    Parameter(const std::initializer_list<std::string>& _as) : type(7), as(_as) {}
-    Parameter(const std::vector<std::string>& _as) : type(7), as(_as) {}
+    Parameter(const std::initializer_list<std::string>& _as)
+        : type(7), as(_as)
+    {
+    }
+    Parameter(const std::vector<std::string>& _as)
+        : type(7), as(_as)
+    {
+    }
 
     Parameter(const torch::jit::Value* value);
 
@@ -78,7 +129,10 @@ public:
 class Attribute
 {
 public:
-    Attribute() : type(0) {}
+    Attribute()
+        : type(0)
+    {
+    }
 
     Attribute(const at::Tensor& t);
 
@@ -108,7 +162,9 @@ public:
 
 private:
     friend class Graph;
-    Operand() {}
+    Operand()
+    {
+    }
 };
 
 class Operator
@@ -126,7 +182,9 @@ public:
 
 private:
     friend class Graph;
-    Operator() {}
+    Operator()
+    {
+    }
 };
 
 class Graph

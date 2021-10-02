@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 #include "inline_block.h"
 #include "../pass_level1.h"
 
@@ -97,8 +96,8 @@ static void inlineCalls(torch::jit::Block* block, const std::vector<std::string>
 
             inlined_modules.insert(class_type_str_no_torch_prefix);
 
-//             fprintf(stderr, "inline %s\n", class_type_str_no_torch_prefix.c_str());
-//             fprintf(stderr, "inline method %s   %s   %s\n", function.name().c_str(), class_type->str().c_str(), n->input(0)->node()->s(torch::jit::attr::name).c_str());
+            //             fprintf(stderr, "inline %s\n", class_type_str_no_torch_prefix.c_str());
+            //             fprintf(stderr, "inline method %s   %s   %s\n", function.name().c_str(), class_type->str().c_str(), n->input(0)->node()->s(torch::jit::attr::name).c_str());
 
             pnnx::inlineCallTo(n, &function);
         }

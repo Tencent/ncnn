@@ -34,7 +34,7 @@ struct local_file_header
     uint32_t uncompressed_size;
     uint16_t file_name_length;
     uint16_t extra_field_length;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 struct central_directory_file_header
 {
@@ -54,7 +54,7 @@ struct central_directory_file_header
     uint16_t internal_file_attrs;
     uint32_t external_file_attrs;
     uint32_t lfh_offset;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 struct end_of_central_directory_record
 {
@@ -65,16 +65,16 @@ struct end_of_central_directory_record
     uint32_t cd_size;
     uint32_t cd_offset;
     uint16_t comment_length;
-} __attribute__ ((packed));
+} __attribute__((packed));
 
 static uint32_t CRC32_TABLE[256];
 
 static void CRC32_TABLE_INIT()
 {
-    for (int i=0; i<256; i++)
+    for (int i = 0; i < 256; i++)
     {
         uint32_t c = i;
-        for (int j=0; j<8; j++)
+        for (int j = 0; j < 8; j++)
         {
             if (c & 1)
                 c = (c >> 1) ^ 0xedb88320;
@@ -94,7 +94,7 @@ static uint32_t CRC32_buffer(const unsigned char* data, int len)
 {
     uint32_t x = 0xffffffff;
 
-    for (int i=0; i<len; i++)
+    for (int i = 0; i < len; i++)
         x = CRC32(x, data[i]);
 
     return x ^ 0xffffffff;
@@ -160,7 +160,7 @@ int StoreZipReader::open(const std::string& path)
 
             filemetas[name] = fm;
 
-//             fprintf(stderr, "%s = %d  %d\n", name.c_str(), fm.offset, fm.size);
+            //             fprintf(stderr, "%s = %d  %d\n", name.c_str(), fm.offset, fm.size);
 
             fseek(fp, lfh.compressed_size, SEEK_CUR);
         }

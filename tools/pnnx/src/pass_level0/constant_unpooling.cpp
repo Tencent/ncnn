@@ -12,7 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-
 #include "constant_unpooling.h"
 
 #include <unordered_map>
@@ -56,13 +55,15 @@ void ConstantUnpooling(std::shared_ptr<torch::jit::Graph>& graph, torch::jit::Bl
             torch::jit::WithInsertPoint guard(node);
 
             std::unordered_map<torch::jit::Value*, torch::jit::Value*> value_map;
-            auto value_map_func = [&](torch::jit::Value* v) { return value_map.at(v); };
+            auto value_map_func = [&](torch::jit::Value* v) {
+                return value_map.at(v);
+            };
 
-//             graph->setInsertPoint(node);
+            //             graph->setInsertPoint(node);
 
             auto* new_constant_node = graph->insertNode(graph->createClone(in->node(), value_map_func, false));
 
-//             fprintf(stderr, "new_constant_node %s\n", new_constant_node->outputs()[0]->debugName().c_str());
+            //             fprintf(stderr, "new_constant_node %s\n", new_constant_node->outputs()[0]->debugName().c_str());
 
             // create new constant node
             node->replaceInput(i, new_constant_node->outputs()[0]);

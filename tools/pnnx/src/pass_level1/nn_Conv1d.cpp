@@ -35,15 +35,15 @@ public:
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
-//         {
-//             pnnx::Graph pnnx_graph;
-//
-//             pnnx_graph.load(mod, graph);
-//
-//             pnnx::fuse_expression(pnnx_graph);
-//
-//             pnnx_graph.save("tmp.param", "tmp.bin");
-//         }
+        //         {
+        //             pnnx::Graph pnnx_graph;
+        //
+        //             pnnx_graph.load(mod, graph);
+        //
+        //             pnnx::fuse_expression(pnnx_graph);
+        //
+        //             pnnx_graph.save("tmp.param", "tmp.bin");
+        //         }
 
         const torch::jit::Node* convolution = find_node_by_kind(graph, "aten::_convolution");
         const torch::jit::Node* convolution_mode = find_node_by_kind(graph, "aten::_convolution_mode");

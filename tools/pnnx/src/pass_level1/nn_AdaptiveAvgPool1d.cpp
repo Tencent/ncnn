@@ -42,4 +42,3 @@ public:
 REGISTER_GLOBAL_PNNX_FUSE_MODULE_PASS(AdaptiveAvgPool1d)
 
 } // namespace pnnx
-

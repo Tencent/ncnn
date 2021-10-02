@@ -33,14 +33,14 @@ public:
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
-//         graph->dump();
+        //         graph->dump();
 
         const torch::jit::Node* in = find_node_by_kind(graph, "aten::instance_norm");
 
-//         for (auto aa : in->schema().arguments())
-//         {
-//             fprintf(stderr, "arg %s\n", aa.name().c_str());
-//         }
+        //         for (auto aa : in->schema().arguments())
+        //         {
+        //             fprintf(stderr, "arg %s\n", aa.name().c_str());
+        //         }
 
         op->params["eps"] = in->namedInput("eps");
         op->params["affine"] = mod.hasattr("weight") && mod.hasattr("bias");

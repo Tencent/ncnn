@@ -67,25 +67,38 @@ pnnx.Output             output      1 0 out
         }
         if (input_rank == 3)
         {
-            if (dims[1] == 2 && dims[2] == 1) op->params["0"] = 1;
-            else if (dims[0] == 2 && dims[1] == 0 && dims[2] == 1) op->params["0"] = 1;
+            if (dims[1] == 2 && dims[2] == 1)
+                op->params["0"] = 1;
+            else if (dims[0] == 2 && dims[1] == 0 && dims[2] == 1)
+                op->params["0"] = 1;
         }
         if (input_rank == 4)
         {
-            if (dims[1] == 1 && dims[2] == 3 && dims[3] == 2) op->params["0"] = 1;
-            else if (dims[1] == 2 && dims[2] == 1 && dims[3] == 3) op->params["0"] = 2;
-            else if (dims[1] == 2 && dims[2] == 3 && dims[3] == 1) op->params["0"] = 3;
-            else if (dims[1] == 3 && dims[2] == 1 && dims[3] == 2) op->params["0"] = 4;
-            else if (dims[1] == 3 && dims[2] == 2 && dims[3] == 1) op->params["0"] = 5;
+            if (dims[1] == 1 && dims[2] == 3 && dims[3] == 2)
+                op->params["0"] = 1;
+            else if (dims[1] == 2 && dims[2] == 1 && dims[3] == 3)
+                op->params["0"] = 2;
+            else if (dims[1] == 2 && dims[2] == 3 && dims[3] == 1)
+                op->params["0"] = 3;
+            else if (dims[1] == 3 && dims[2] == 1 && dims[3] == 2)
+                op->params["0"] = 4;
+            else if (dims[1] == 3 && dims[2] == 2 && dims[3] == 1)
+                op->params["0"] = 5;
         }
         if (input_rank == 5)
         {
-            if (dims[1] == 1 && dims[2] == 3 && dims[3] == 4 && dims[4] == 2) op->params["0"] = 1;
-            else if (dims[1] == 2 && dims[2] == 1 && dims[3] == 3 && dims[4] == 4) op->params["0"] = 2;
-            else if (dims[1] == 2 && dims[2] == 3 && dims[3] == 4 && dims[4] == 1) op->params["0"] = 3;
-            else if (dims[1] == 3 && dims[2] == 4 && dims[3] == 1 && dims[4] == 2) op->params["0"] = 4;
-            else if (dims[1] == 3 && dims[2] == 4 && dims[3] == 2 && dims[4] == 1) op->params["0"] = 5;
-            else fprintf(stderr, "unsupported permute dims!\n");
+            if (dims[1] == 1 && dims[2] == 3 && dims[3] == 4 && dims[4] == 2)
+                op->params["0"] = 1;
+            else if (dims[1] == 2 && dims[2] == 1 && dims[3] == 3 && dims[4] == 4)
+                op->params["0"] = 2;
+            else if (dims[1] == 2 && dims[2] == 3 && dims[3] == 4 && dims[4] == 1)
+                op->params["0"] = 3;
+            else if (dims[1] == 3 && dims[2] == 4 && dims[3] == 1 && dims[4] == 2)
+                op->params["0"] = 4;
+            else if (dims[1] == 3 && dims[2] == 4 && dims[3] == 2 && dims[4] == 1)
+                op->params["0"] = 5;
+            else
+                fprintf(stderr, "unsupported permute dims!\n");
         }
     }
 };

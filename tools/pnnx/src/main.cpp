@@ -163,7 +163,7 @@ int main(int argc, char** argv)
     std::string ncnnbinpath = ptbase + ".ncnn.bin";
     int optlevel = 2;
     std::string device = "cpu";
-    std::vector< std::vector<int64_t> > input_shapes;
+    std::vector<std::vector<int64_t> > input_shapes;
     std::vector<std::string> customop_modules;
     std::vector<std::string> module_operators;
 
@@ -224,8 +224,8 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
     }
 
-//     at::AutoNonVariableTypeMode nonVarTypeModeGuard(true);
-//     torch::autograd::AutoGradMode guard(false);
+    //     at::AutoNonVariableTypeMode nonVarTypeModeGuard(true);
+    //     torch::autograd::AutoGradMode guard(false);
 
     for (auto m : customop_modules)
     {
@@ -251,25 +251,25 @@ int main(int argc, char** argv)
 
     mod.eval();
 
-//     mod.dump(true, false, false);
-//     mod.dump(true, true, true);
+    //     mod.dump(true, false, false);
+    //     mod.dump(true, true, true);
 
     auto g = mod.get_method("forward").graph();
 
-//     g->dump();
+    //     g->dump();
 
     fprintf(stderr, "############# pass_level0\n");
 
     pnnx::pass_level0(mod, g, input_tensors, module_operators);
 
-//     g->dump();
+    //     g->dump();
 
     fprintf(stderr, "############# pass_level1\n");
 
     pnnx::Graph pnnx_graph;
     pnnx::pass_level1(mod, g, pnnx_graph);
 
-//     g->dump();
+    //     g->dump();
 
     fprintf(stderr, "############# pass_level2\n");
 
@@ -301,7 +301,7 @@ int main(int argc, char** argv)
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
 
-//     if (optlevel >= 2)
+    //     if (optlevel >= 2)
     {
         fprintf(stderr, "############# pass_ncnn\n");
 
@@ -310,10 +310,10 @@ int main(int argc, char** argv)
         pnnx_graph.ncnn(ncnnparampath, ncnnbinpath);
     }
 
-//     pnnx::Graph pnnx_graph2;
+    //     pnnx::Graph pnnx_graph2;
 
-//     pnnx_graph2.load("pnnx.param", "pnnx.bin");
-//     pnnx_graph2.save("pnnx2.param", "pnnx2.bin");
+    //     pnnx_graph2.load("pnnx.param", "pnnx.bin");
+    //     pnnx_graph2.save("pnnx2.param", "pnnx2.bin");
 
     return 0;
 }

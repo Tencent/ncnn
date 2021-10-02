@@ -72,9 +72,7 @@ void insert_split(Graph& graph)
         if (!matched)
             break;
     }
-
 }
-
 
 } // namespace ncnn
 
