@@ -398,8 +398,15 @@ static void load_shape(Operator* op, const std::string& key, const std::string& 
         std::string elem;
         std::getline(lcss, elem, ',');
 
-        int i = std::stoi(elem);
-        operand->shape.push_back(i);
+        if (elem == "?")
+        {
+            operand->shape.push_back(-1);
+        }
+        else
+        {
+            int i = std::stoi(elem);
+            operand->shape.push_back(i);
+        }
     }
 }
 
@@ -583,14 +590,6 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
         return -1;
     }
 
-    //     FILE* binfp = fopen(binpath, "wb");
-    //     if (!binfp)
-    //     {
-    //         fprintf(stderr, "fopen %s failed\n", binpath);
-    //         fclose(paramfp);
-    //         return -1;
-    //     }
-
     // magic
     fprintf(paramfp, "7767517\n");
 
@@ -692,7 +691,6 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
 
             std::string filename = op->name + "." + it.first;
             szw.write_file(filename, attr.data.data(), attr.data.size());
-            //             fwrite(attr.data.data(), attr.data.size() * sizeof(float), 1, binfp);
         }
 
         if (op->inputnames.size() == op->inputs.size())
@@ -717,10 +715,18 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             fprintf(paramfp, "(");
             for (int i = 0; i < (int)oprand->shape.size() - 1; i++)
             {
-                fprintf(paramfp, "%d,", oprand->shape[i]);
+                if (oprand->shape[i] == -1)
+                    fprintf(paramfp, "?,");
+                else
+                    fprintf(paramfp, "%d,", oprand->shape[i]);
             }
             if (oprand->shape.size() > 0)
-                fprintf(paramfp, "%d", oprand->shape[oprand->shape.size() - 1]);
+            {
+                if (oprand->shape[oprand->shape.size() - 1] == -1)
+                    fprintf(paramfp, "?");
+                else
+                    fprintf(paramfp, "%d", oprand->shape[oprand->shape.size() - 1]);
+            }
             fprintf(paramfp, ")");
 
             fprintf(paramfp, type_to_string(oprand->type));
@@ -736,10 +742,18 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
             fprintf(paramfp, "(");
             for (int i = 0; i < (int)oprand->shape.size() - 1; i++)
             {
-                fprintf(paramfp, "%d,", oprand->shape[i]);
+                if (oprand->shape[i] == -1)
+                    fprintf(paramfp, "?,");
+                else
+                    fprintf(paramfp, "%d,", oprand->shape[i]);
             }
             if (oprand->shape.size() > 0)
-                fprintf(paramfp, "%d", oprand->shape[oprand->shape.size() - 1]);
+            {
+                if (oprand->shape[oprand->shape.size() - 1] == -1)
+                    fprintf(paramfp, "?");
+                else
+                    fprintf(paramfp, "%d", oprand->shape[oprand->shape.size() - 1]);
+            }
             fprintf(paramfp, ")");
 
             fprintf(paramfp, type_to_string(oprand->type));
@@ -749,7 +763,6 @@ int Graph::save(const std::string& parampath, const std::string& binpath)
     }
 
     fclose(paramfp);
-    //     fclose(binfp);
 
     return 0;
 }
@@ -1918,16 +1931,25 @@ Operand* Graph::new_operand(const torch::jit::Value* v)
 {
     Operand* r = new Operand;
     r->name = v->debugName();
-    if (v->isCompleteTensor())
-    {
-        auto pt = v->type()->cast<c10::TensorType>();
 
-        r->type = get_at_tensor_type(pt->scalarType().value());
-        const int ndim = (int)pt->dim().value();
-        r->shape.resize(ndim);
-        for (int i = 0; i < ndim; i++)
-            r->shape[i] = (int)pt->sizes()[i].value();
+    auto pt = v->type()->cast<c10::TensorType>();
+    if (pt)
+    {
+        if (pt->scalarType().has_value() && pt->dim().has_value())
+        {
+            r->type = get_at_tensor_type(pt->scalarType().value());
+            const int ndim = (int)pt->dim().value();
+            r->shape.resize(ndim);
+            for (int i = 0; i < ndim; i++)
+            {
+                if (pt->sizes()[i].has_value())
+                    r->shape[i] = (int)pt->sizes()[i].value();
+                else
+                    r->shape[i] = -1;
+            }
+        }
     }
+
     operands.push_back(r);
     return r;
 }

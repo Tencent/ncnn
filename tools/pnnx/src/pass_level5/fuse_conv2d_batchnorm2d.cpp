@@ -42,7 +42,7 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "conv2d_batchnorm2d";
+        return "convbn2d";
     }
 
     void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const

@@ -16,7 +16,7 @@
 
 namespace pnnx {
 
-void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors)
+void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2)
 {
     // collect all intermediate output tensors
     std::vector<torch::jit::Value*> values;
@@ -54,13 +54,77 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
     auto outputs = mod.copy().forward(inputs).toTuple();
 
-    // assign shape info
-    int index = 0;
-    for (auto e : outputs->elements())
+    if (input_tensors2.empty())
     {
-        values[index]->setType(c10::TensorType::create(e.toTensor()));
+        // assign shape info
+        int index = 0;
+        for (auto e : outputs->elements())
+        {
+            values[index]->setType(c10::TensorType::create(e.toTensor()));
 
-        index++;
+            index++;
+        }
+    }
+    else
+    {
+        std::vector<torch::jit::IValue> inputs2;
+        for (size_t i = 0; i < input_tensors2.size(); i++)
+        {
+            const at::Tensor& it = input_tensors2[i];
+
+            inputs2.push_back(it);
+            graph->inputs()[1 + i]->setType(c10::TensorType::create(it));
+        }
+
+        auto outputs2 = mod.copy().forward(inputs2).toTuple();
+
+        fprintf(stderr, "assign dynamic shape info\n");
+
+        // assign dynamic shape info
+        for (size_t i = 0; i < input_tensors.size(); i++)
+        {
+            auto type1 = c10::TensorType::create(input_tensors[i]);
+            auto type2 = c10::TensorType::create(input_tensors2[i]);
+
+            std::vector<c10::ShapeSymbol> sizes1 = type1->symbolic_sizes().sizes().value();
+            std::vector<c10::ShapeSymbol> sizes2 = type2->symbolic_sizes().sizes().value();
+
+            for (size_t i = 0; i < sizes1.size(); i++)
+            {
+                if (sizes1[i] == sizes2[i])
+                    continue;
+
+                sizes1[i] = c10::ShapeSymbol::fromStaticSize(-1);
+            }
+
+            auto finaltype = type1->withSymbolicShapes(c10::SymbolicShape(sizes1));
+
+            graph->inputs()[1 + i]->setType(finaltype);
+        }
+
+        int index = 0;
+        for (auto e : outputs->elements())
+        {
+            auto type1 = c10::TensorType::create(e.toTensor());
+            auto type2 = c10::TensorType::create(outputs2->elements()[index].toTensor());
+
+            std::vector<c10::ShapeSymbol> sizes1 = type1->symbolic_sizes().sizes().value();
+            std::vector<c10::ShapeSymbol> sizes2 = type2->symbolic_sizes().sizes().value();
+
+            for (size_t i = 0; i < sizes1.size(); i++)
+            {
+                if (sizes1[i] == sizes2[i])
+                    continue;
+
+                sizes1[i] = c10::ShapeSymbol::fromStaticSize(-1);
+            }
+
+            auto finaltype = type1->withSymbolicShapes(c10::SymbolicShape(sizes1));
+
+            values[index]->setType(finaltype);
+
+            index++;
+        }
     }
 
     // restore old graph output

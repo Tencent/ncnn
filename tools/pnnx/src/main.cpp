@@ -129,10 +129,11 @@ static void show_usage()
     fprintf(stderr, "  optlevel=2\n");
     fprintf(stderr, "  device=cpu/gpu\n");
     fprintf(stderr, "  inputshape=[1,3,224,224],...\n");
+    fprintf(stderr, "  inputshape2=[1,3,320,320],...\n");
     fprintf(stderr, "  customop=/home/nihui/.cache/torch_extensions/fused/fused.so,...\n");
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
-    fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640] device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
+    fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
 }
 
 int main(int argc, char** argv)
@@ -164,6 +165,7 @@ int main(int argc, char** argv)
     int optlevel = 2;
     std::string device = "cpu";
     std::vector<std::vector<int64_t> > input_shapes;
+    std::vector<std::vector<int64_t> > input_shapes2;
     std::vector<std::string> customop_modules;
     std::vector<std::string> module_operators;
 
@@ -200,6 +202,8 @@ int main(int argc, char** argv)
             device = value;
         if (strcmp(key, "inputshape") == 0)
             input_shapes = parse_comma_int_array_list(value);
+        if (strcmp(key, "inputshape2") == 0)
+            input_shapes2 = parse_comma_int_array_list(value);
         if (strcmp(key, "customop") == 0)
             customop_modules = parse_comma_string_array_list(value);
         if (strcmp(key, "moduleop") == 0)
@@ -215,6 +219,9 @@ int main(int argc, char** argv)
         fprintf(stderr, "device = %s\n", device.c_str());
         fprintf(stderr, "inputshape = ");
         print_int64_array_list(input_shapes);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "inputshape2 = ");
+        print_int64_array_list(input_shapes2);
         fprintf(stderr, "\n");
         fprintf(stderr, "customop = ");
         print_string_list(customop_modules);
@@ -247,6 +254,16 @@ int main(int argc, char** argv)
         input_tensors.push_back(t);
     }
 
+    std::vector<at::Tensor> input_tensors2;
+    for (auto shape : input_shapes2)
+    {
+        at::Tensor t = torch::ones(shape);
+        if (device == "gpu")
+            t = t.cuda();
+
+        input_tensors2.push_back(t);
+    }
+
     torch::jit::Module mod = torch::jit::load(ptpath);
 
     mod.eval();
@@ -260,7 +277,7 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "############# pass_level0\n");
 
-    pnnx::pass_level0(mod, g, input_tensors, module_operators);
+    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators);
 
     //     g->dump();
 
