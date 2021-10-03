@@ -52,6 +52,7 @@
 #include "TargetConditionals.h"
 #if TARGET_OS_IPHONE
 #define __IOS__ 1
+#endif
 // define missing cpu model for old sdk
 #ifndef CPUFAMILY_ARM_HURRICANE
 #define CPUFAMILY_ARM_HURRICANE 0x67ceee93
@@ -76,13 +77,6 @@
 #ifndef CPUFAMILY_ARM_AVALANCHE_BLIZZARD
 #define CPUFAMILY_ARM_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
-#elif TARGET_OS_OSX
-#define __OSX__ 1
-// M1
-#ifndef CPUFAMILY_AARCH64_FIRESTORM_ICESTORM
-#define CPUFAMILY_AARCH64_FIRESTORM_ICESTORM 0x1b588bb3
-#endif
-#endif // TARGET_OS_IPHONE
 #endif // __APPLE__
 
 #if defined(__SSE3__)
