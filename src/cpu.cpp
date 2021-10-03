@@ -801,7 +801,7 @@ static int setup_thread_affinity_masks()
         else
             g_thread_affinity_mask_big.enable(i);
     }
-#elif __APPLE__
+#elif __APPLE__ and __aarch64__
     // affinity info from cpu model
     if (g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL)
     {
