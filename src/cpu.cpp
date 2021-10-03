@@ -77,6 +77,10 @@
 #ifndef CPUFAMILY_ARM_AVALANCHE_BLIZZARD
 #define CPUFAMILY_ARM_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
+// M1
+#ifndef CPUFAMILY_AARCH64_FIRESTORM_ICESTORM
+#define CPUFAMILY_AARCH64_FIRESTORM_ICESTORM 0x1b588bb3
+#endif
 #endif // __APPLE__
 
 #if defined(__SSE3__)
@@ -795,7 +799,7 @@ static int setup_thread_affinity_masks()
         else
             g_thread_affinity_mask_big.enable(i);
     }
-#elif __APPLE__ and __aarch64__
+#elif __APPLE__
     // affinity info from cpu model
     if (g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL)
     {
