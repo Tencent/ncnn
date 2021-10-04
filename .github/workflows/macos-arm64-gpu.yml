@@ -70,11 +70,13 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
         hdiutil attach vulkansdk-macos-1.2.189.0.dmg
         cp -r /Volumes/vulkansdk-macos-1.2.189.0 .
+
+        find vulkansdk-macos-1.2.189.0
+
         rm -rf vulkansdk-macos-1.2.189.0/Applications
         find vulkansdk-macos-1.2.189.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
         hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
 
-        find vulkansdk-macos-1.2.189.0 -type f
     - name: build
       run: |
         export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
