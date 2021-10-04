@@ -149,7 +149,7 @@ Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 ```shell
 wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
 hdiutil attach vulkansdk-macos-1.2.189.0.dmg
-cp -r /Volumes/vulkansdk-macos-1.2.189.0 .
+sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
 hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
 
 # setup env
@@ -377,7 +377,7 @@ Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 ```shell
 wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
 hdiutil attach vulkansdk-macos-1.2.189.0.dmg
-cp -r /Volumes/vulkansdk-macos-1.2.189.0 .
+sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
 hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
 
 # setup env

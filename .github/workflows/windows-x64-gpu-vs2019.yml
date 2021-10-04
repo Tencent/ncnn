@@ -57,8 +57,6 @@ jobs:
         Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.189.0/windows/VulkanSDK-1.2.189.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
         $installer = Start-Process -FilePath VulkanSDK.exe -Wait -PassThru -ArgumentList @("/S");
         $installer.WaitForExit();
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.189.0/windows/vulkan-runtime-components.zip?Human=true -OutFile VulkanRT.zip
-        7z x -aoa ./VulkanRT.zip -oVulkanRT
     - name: cache-swiftshader
       id: cache-swiftshader
       uses: actions/cache@v2.1.6
@@ -95,7 +93,6 @@ jobs:
         cmake --build . --config Release -j 2
     - name: test
       run: |
-        Copy-Item -Path '.\VulkanRT\VulkanRT-1.2.189.0-Components\x64\vulkan-1.dll' -Destination 'build\tests'
         $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
         $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         cd build; ctest -C Release --output-on-failure -j 2
