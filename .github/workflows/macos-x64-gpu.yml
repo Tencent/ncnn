@@ -86,14 +86,14 @@ jobs:
       uses: actions/cache@v2.1.6
       with:
         path: swiftshader-install
-        key: swiftshader-macos-install-20210711
+        key: swiftshader-macos-install-20211002
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: 4716eec90fcbb105b4694807121c7a57d7cf8fd9
+        ref: f43b9df4c8a9959047e2e1d7e111554ab3f9a3bf
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
@@ -103,10 +103,6 @@ jobs:
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
         cd swiftshader
-
-        # workaround ar build issue on macos
-        sed -i -e 's!^  for (const auto b : work_list) {$!  for (const auto\& b : work_list) {!' third_party/SPIRV-Tools/source/cfa.h
-
         mkdir -p build; cd build
         cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_EGL=FALSE -DSWIFTSHADER_BUILD_GLESv2=FALSE -DSWIFTSHADER_BUILD_GLES_CM=FALSE -DSWIFTSHADER_BUILD_VULKAN=TRUE -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 2
