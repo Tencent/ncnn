@@ -265,18 +265,18 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _vb1 = _mm256_loadu_ps(vb + 8);
                     __m256 _vb2 = _mm256_loadu_ps(vb + 16);
                     __m256 _vb3 = _mm256_loadu_ps(vb + 24);
-                    _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
-                    _sum1 = _mm256_fmadd_ps(_vb0, _va1, _sum1); // sum1 = (a00-a07) * k10
-                    _sum2 = _mm256_fmadd_ps(_vb0, _va2, _sum2); // sum2 = (a00-a07) * k20
-                    _sum3 = _mm256_fmadd_ps(_vb0, _va3, _sum3); // sum3 = (a00-a07) * k30
+                    _sum0 = _mm256_comp_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
+                    _sum1 = _mm256_comp_fmadd_ps(_vb0, _va1, _sum1); // sum1 = (a00-a07) * k10
+                    _sum2 = _mm256_comp_fmadd_ps(_vb0, _va2, _sum2); // sum2 = (a00-a07) * k20
+                    _sum3 = _mm256_comp_fmadd_ps(_vb0, _va3, _sum3); // sum3 = (a00-a07) * k30
                     _va0 = _mm256_broadcast_ss(va + 4);
                     _va1 = _mm256_broadcast_ss(va + 5);
                     _va2 = _mm256_broadcast_ss(va + 6);
                     _va3 = _mm256_broadcast_ss(va + 7);
-                    _sum4 = _mm256_fmadd_ps(_vb0, _va0, _sum4); // sum4 = (a00-a07) * k40
-                    _sum5 = _mm256_fmadd_ps(_vb0, _va1, _sum5); // sum5 = (a00-a07) * k50
-                    _sum6 = _mm256_fmadd_ps(_vb0, _va2, _sum6); // sum6 = (a00-a07) * k60
-                    _sum7 = _mm256_fmadd_ps(_vb0, _va3, _sum7); // sum7 = (a00-a07) * k70
+                    _sum4 = _mm256_comp_fmadd_ps(_vb0, _va0, _sum4); // sum4 = (a00-a07) * k40
+                    _sum5 = _mm256_comp_fmadd_ps(_vb0, _va1, _sum5); // sum5 = (a00-a07) * k50
+                    _sum6 = _mm256_comp_fmadd_ps(_vb0, _va2, _sum6); // sum6 = (a00-a07) * k60
+                    _sum7 = _mm256_comp_fmadd_ps(_vb0, _va3, _sum7); // sum7 = (a00-a07) * k70
 
                     va += 8;
 
@@ -285,18 +285,18 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     _va1 = _mm256_broadcast_ss(va + 1);
                     _va2 = _mm256_broadcast_ss(va + 2);
                     _va3 = _mm256_broadcast_ss(va + 3);
-                    _sum0 = _mm256_fmadd_ps(_vb1, _va0, _sum0); // sum0 += (a10-a17) * k01
-                    _sum1 = _mm256_fmadd_ps(_vb1, _va1, _sum1); // sum1 += (a10-a17) * k11
-                    _sum2 = _mm256_fmadd_ps(_vb1, _va2, _sum2); // sum2 += (a10-a17) * k21
-                    _sum3 = _mm256_fmadd_ps(_vb1, _va3, _sum3); // sum3 += (a10-a17) * k31
+                    _sum0 = _mm256_comp_fmadd_ps(_vb1, _va0, _sum0); // sum0 += (a10-a17) * k01
+                    _sum1 = _mm256_comp_fmadd_ps(_vb1, _va1, _sum1); // sum1 += (a10-a17) * k11
+                    _sum2 = _mm256_comp_fmadd_ps(_vb1, _va2, _sum2); // sum2 += (a10-a17) * k21
+                    _sum3 = _mm256_comp_fmadd_ps(_vb1, _va3, _sum3); // sum3 += (a10-a17) * k31
                     _va0 = _mm256_broadcast_ss(va + 4);
                     _va1 = _mm256_broadcast_ss(va + 5);
                     _va2 = _mm256_broadcast_ss(va + 6);
                     _va3 = _mm256_broadcast_ss(va + 7);
-                    _sum4 = _mm256_fmadd_ps(_vb1, _va0, _sum4); // sum4 += (a10-a17) * k41
-                    _sum5 = _mm256_fmadd_ps(_vb1, _va1, _sum5); // sum5 += (a10-a17) * k51
-                    _sum6 = _mm256_fmadd_ps(_vb1, _va2, _sum6); // sum6 += (a10-a17) * k61
-                    _sum7 = _mm256_fmadd_ps(_vb1, _va3, _sum7); // sum7 += (a10-a17) * k71
+                    _sum4 = _mm256_comp_fmadd_ps(_vb1, _va0, _sum4); // sum4 += (a10-a17) * k41
+                    _sum5 = _mm256_comp_fmadd_ps(_vb1, _va1, _sum5); // sum5 += (a10-a17) * k51
+                    _sum6 = _mm256_comp_fmadd_ps(_vb1, _va2, _sum6); // sum6 += (a10-a17) * k61
+                    _sum7 = _mm256_comp_fmadd_ps(_vb1, _va3, _sum7); // sum7 += (a10-a17) * k71
 
                     va += 8;
 
@@ -305,18 +305,18 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     _va1 = _mm256_broadcast_ss(va + 1);
                     _va2 = _mm256_broadcast_ss(va + 2);
                     _va3 = _mm256_broadcast_ss(va + 3);
-                    _sum0 = _mm256_fmadd_ps(_vb2, _va0, _sum0); // sum0 += (a20-a27) * k02
-                    _sum1 = _mm256_fmadd_ps(_vb2, _va1, _sum1); // sum1 += (a20-a27) * k12
-                    _sum2 = _mm256_fmadd_ps(_vb2, _va2, _sum2); // sum2 += (a20-a27) * k22
-                    _sum3 = _mm256_fmadd_ps(_vb2, _va3, _sum3); // sum3 += (a20-a27) * k32
+                    _sum0 = _mm256_comp_fmadd_ps(_vb2, _va0, _sum0); // sum0 += (a20-a27) * k02
+                    _sum1 = _mm256_comp_fmadd_ps(_vb2, _va1, _sum1); // sum1 += (a20-a27) * k12
+                    _sum2 = _mm256_comp_fmadd_ps(_vb2, _va2, _sum2); // sum2 += (a20-a27) * k22
+                    _sum3 = _mm256_comp_fmadd_ps(_vb2, _va3, _sum3); // sum3 += (a20-a27) * k32
                     _va0 = _mm256_broadcast_ss(va + 4);
                     _va1 = _mm256_broadcast_ss(va + 5);
                     _va2 = _mm256_broadcast_ss(va + 6);
                     _va3 = _mm256_broadcast_ss(va + 7);
-                    _sum4 = _mm256_fmadd_ps(_vb2, _va0, _sum4); // sum4 += (a20-a27) * k42
-                    _sum5 = _mm256_fmadd_ps(_vb2, _va1, _sum5); // sum5 += (a20-a27) * k52
-                    _sum6 = _mm256_fmadd_ps(_vb2, _va2, _sum6); // sum6 += (a20-a27) * k62
-                    _sum7 = _mm256_fmadd_ps(_vb2, _va3, _sum7); // sum7 += (a20-a27) * k72
+                    _sum4 = _mm256_comp_fmadd_ps(_vb2, _va0, _sum4); // sum4 += (a20-a27) * k42
+                    _sum5 = _mm256_comp_fmadd_ps(_vb2, _va1, _sum5); // sum5 += (a20-a27) * k52
+                    _sum6 = _mm256_comp_fmadd_ps(_vb2, _va2, _sum6); // sum6 += (a20-a27) * k62
+                    _sum7 = _mm256_comp_fmadd_ps(_vb2, _va3, _sum7); // sum7 += (a20-a27) * k72
 
                     va += 8;
 
@@ -325,18 +325,18 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     _va1 = _mm256_broadcast_ss(va + 1);
                     _va2 = _mm256_broadcast_ss(va + 2);
                     _va3 = _mm256_broadcast_ss(va + 3);
-                    _sum0 = _mm256_fmadd_ps(_vb3, _va0, _sum0); // sum0 += (a30-a37) * k03
-                    _sum1 = _mm256_fmadd_ps(_vb3, _va1, _sum1); // sum1 += (a30-a37) * k13
-                    _sum2 = _mm256_fmadd_ps(_vb3, _va2, _sum2); // sum2 += (a30-a37) * k23
-                    _sum3 = _mm256_fmadd_ps(_vb3, _va3, _sum3); // sum3 += (a30-a37) * k33
+                    _sum0 = _mm256_comp_fmadd_ps(_vb3, _va0, _sum0); // sum0 += (a30-a37) * k03
+                    _sum1 = _mm256_comp_fmadd_ps(_vb3, _va1, _sum1); // sum1 += (a30-a37) * k13
+                    _sum2 = _mm256_comp_fmadd_ps(_vb3, _va2, _sum2); // sum2 += (a30-a37) * k23
+                    _sum3 = _mm256_comp_fmadd_ps(_vb3, _va3, _sum3); // sum3 += (a30-a37) * k33
                     _va0 = _mm256_broadcast_ss(va + 4);
                     _va1 = _mm256_broadcast_ss(va + 5);
                     _va2 = _mm256_broadcast_ss(va + 6);
                     _va3 = _mm256_broadcast_ss(va + 7);
-                    _sum4 = _mm256_fmadd_ps(_vb3, _va0, _sum4); // sum4 += (a30-a37) * k43
-                    _sum5 = _mm256_fmadd_ps(_vb3, _va1, _sum5); // sum5 += (a30-a37) * k53
-                    _sum6 = _mm256_fmadd_ps(_vb3, _va2, _sum6); // sum6 += (a30-a37) * k63
-                    _sum7 = _mm256_fmadd_ps(_vb3, _va3, _sum7); // sum7 += (a30-a37) * k73
+                    _sum4 = _mm256_comp_fmadd_ps(_vb3, _va0, _sum4); // sum4 += (a30-a37) * k43
+                    _sum5 = _mm256_comp_fmadd_ps(_vb3, _va1, _sum5); // sum5 += (a30-a37) * k53
+                    _sum6 = _mm256_comp_fmadd_ps(_vb3, _va2, _sum6); // sum6 += (a30-a37) * k63
+                    _sum7 = _mm256_comp_fmadd_ps(_vb3, _va3, _sum7); // sum7 += (a30-a37) * k73
 
                     va += 8;
                     vb += 32;
@@ -354,14 +354,14 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _va6 = _mm256_broadcast_ss(va + 6);
                     __m256 _va7 = _mm256_broadcast_ss(va + 7);
                     __m256 _vb0 = _mm256_loadu_ps(vb);
-                    _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
-                    _sum1 = _mm256_fmadd_ps(_vb0, _va1, _sum1); // sum1 = (a00-a07) * k10
-                    _sum2 = _mm256_fmadd_ps(_vb0, _va2, _sum2); // sum2 = (a00-a07) * k20
-                    _sum3 = _mm256_fmadd_ps(_vb0, _va3, _sum3); // sum3 = (a00-a07) * k30
-                    _sum4 = _mm256_fmadd_ps(_vb0, _va4, _sum4); // sum4 = (a00-a07) * k40
-                    _sum5 = _mm256_fmadd_ps(_vb0, _va5, _sum5); // sum5 = (a00-a07) * k50
-                    _sum6 = _mm256_fmadd_ps(_vb0, _va6, _sum6); // sum6 = (a00-a07) * k60
-                    _sum7 = _mm256_fmadd_ps(_vb0, _va7, _sum7); // sum7 = (a00-a07) * k70
+                    _sum0 = _mm256_comp_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
+                    _sum1 = _mm256_comp_fmadd_ps(_vb0, _va1, _sum1); // sum1 = (a00-a07) * k10
+                    _sum2 = _mm256_comp_fmadd_ps(_vb0, _va2, _sum2); // sum2 = (a00-a07) * k20
+                    _sum3 = _mm256_comp_fmadd_ps(_vb0, _va3, _sum3); // sum3 = (a00-a07) * k30
+                    _sum4 = _mm256_comp_fmadd_ps(_vb0, _va4, _sum4); // sum4 = (a00-a07) * k40
+                    _sum5 = _mm256_comp_fmadd_ps(_vb0, _va5, _sum5); // sum5 = (a00-a07) * k50
+                    _sum6 = _mm256_comp_fmadd_ps(_vb0, _va6, _sum6); // sum6 = (a00-a07) * k60
+                    _sum7 = _mm256_comp_fmadd_ps(_vb0, _va7, _sum7); // sum7 = (a00-a07) * k70
 
                     va += 8;
                     vb += 8;
@@ -539,10 +539,10 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _va2 = _mm256_loadu_ps(va + 16);
                     __m256 _va3 = _mm256_loadu_ps(va + 24);
 
-                    _sum0 = _mm256_fmadd_ps(_va0, _vb0, _sum0); // sum0 += (k00-k70) * a00
-                    _sum1 = _mm256_fmadd_ps(_va1, _vb1, _sum1); // sum1 += (k01-k71) * a10
-                    _sum2 = _mm256_fmadd_ps(_va2, _vb2, _sum2); // sum2 += (k02-k72) * a20
-                    _sum3 = _mm256_fmadd_ps(_va3, _vb3, _sum3); // sum3 += (k03-k73) * a30
+                    _sum0 = _mm256_comp_fmadd_ps(_va0, _vb0, _sum0); // sum0 += (k00-k70) * a00
+                    _sum1 = _mm256_comp_fmadd_ps(_va1, _vb1, _sum1); // sum1 += (k01-k71) * a10
+                    _sum2 = _mm256_comp_fmadd_ps(_va2, _vb2, _sum2); // sum2 += (k02-k72) * a20
+                    _sum3 = _mm256_comp_fmadd_ps(_va3, _vb3, _sum3); // sum3 += (k03-k73) * a30
 
                     va += 32;
                     vb += 4;
@@ -558,7 +558,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _vb0 = _mm256_broadcast_ss(vb);
                     __m256 _va = _mm256_loadu_ps(va);
 
-                    _sum0_7 = _mm256_fmadd_ps(_va, _vb0, _sum0_7); // sum0 += (k00-k70) * a00
+                    _sum0_7 = _mm256_comp_fmadd_ps(_va, _vb0, _sum0_7); // sum0 += (k00-k70) * a00
 
                     va += 8;
                     vb += 1;
@@ -658,10 +658,10 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _vb1 = _mm256_loadu_ps(vb + 8);
                     __m256 _vb2 = _mm256_loadu_ps(vb + 16);
                     __m256 _vb3 = _mm256_loadu_ps(vb + 24);
-                    _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
-                    _sum1 = _mm256_fmadd_ps(_vb0, _va1, _sum1); // sum1 = (a00-a07) * k10
-                    _sum2 = _mm256_fmadd_ps(_vb0, _va2, _sum2); // sum2 = (a00-a07) * k20
-                    _sum3 = _mm256_fmadd_ps(_vb0, _va3, _sum3); // sum3 = (a00-a07) * k30
+                    _sum0 = _mm256_comp_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
+                    _sum1 = _mm256_comp_fmadd_ps(_vb0, _va1, _sum1); // sum1 = (a00-a07) * k10
+                    _sum2 = _mm256_comp_fmadd_ps(_vb0, _va2, _sum2); // sum2 = (a00-a07) * k20
+                    _sum3 = _mm256_comp_fmadd_ps(_vb0, _va3, _sum3); // sum3 = (a00-a07) * k30
 
                     va += 4;
 
@@ -670,10 +670,10 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     _va1 = _mm256_broadcast_ss(va + 1);
                     _va2 = _mm256_broadcast_ss(va + 2);
                     _va3 = _mm256_broadcast_ss(va + 3);
-                    _sum0 = _mm256_fmadd_ps(_vb1, _va0, _sum0); // sum0 += (a10-a17) * k01
-                    _sum1 = _mm256_fmadd_ps(_vb1, _va1, _sum1); // sum1 += (a10-a17) * k11
-                    _sum2 = _mm256_fmadd_ps(_vb1, _va2, _sum2); // sum2 += (a10-a17) * k21
-                    _sum3 = _mm256_fmadd_ps(_vb1, _va3, _sum3); // sum3 += (a10-a17) * k31
+                    _sum0 = _mm256_comp_fmadd_ps(_vb1, _va0, _sum0); // sum0 += (a10-a17) * k01
+                    _sum1 = _mm256_comp_fmadd_ps(_vb1, _va1, _sum1); // sum1 += (a10-a17) * k11
+                    _sum2 = _mm256_comp_fmadd_ps(_vb1, _va2, _sum2); // sum2 += (a10-a17) * k21
+                    _sum3 = _mm256_comp_fmadd_ps(_vb1, _va3, _sum3); // sum3 += (a10-a17) * k31
 
                     va += 4;
 
@@ -682,10 +682,10 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     _va1 = _mm256_broadcast_ss(va + 1);
                     _va2 = _mm256_broadcast_ss(va + 2);
                     _va3 = _mm256_broadcast_ss(va + 3);
-                    _sum0 = _mm256_fmadd_ps(_vb2, _va0, _sum0); // sum0 += (a20-a27) * k02
-                    _sum1 = _mm256_fmadd_ps(_vb2, _va1, _sum1); // sum1 += (a20-a27) * k12
-                    _sum2 = _mm256_fmadd_ps(_vb2, _va2, _sum2); // sum2 += (a20-a27) * k22
-                    _sum3 = _mm256_fmadd_ps(_vb2, _va3, _sum3); // sum3 += (a20-a27) * k32
+                    _sum0 = _mm256_comp_fmadd_ps(_vb2, _va0, _sum0); // sum0 += (a20-a27) * k02
+                    _sum1 = _mm256_comp_fmadd_ps(_vb2, _va1, _sum1); // sum1 += (a20-a27) * k12
+                    _sum2 = _mm256_comp_fmadd_ps(_vb2, _va2, _sum2); // sum2 += (a20-a27) * k22
+                    _sum3 = _mm256_comp_fmadd_ps(_vb2, _va3, _sum3); // sum3 += (a20-a27) * k32
 
                     va += 4;
 
@@ -694,10 +694,10 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     _va1 = _mm256_broadcast_ss(va + 1);
                     _va2 = _mm256_broadcast_ss(va + 2);
                     _va3 = _mm256_broadcast_ss(va + 3);
-                    _sum0 = _mm256_fmadd_ps(_vb3, _va0, _sum0); // sum0 += (a30-a37) * k03
-                    _sum1 = _mm256_fmadd_ps(_vb3, _va1, _sum1); // sum1 += (a30-a37) * k13
-                    _sum2 = _mm256_fmadd_ps(_vb3, _va2, _sum2); // sum2 += (a30-a37) * k23
-                    _sum3 = _mm256_fmadd_ps(_vb3, _va3, _sum3); // sum3 += (a30-a37) * k33
+                    _sum0 = _mm256_comp_fmadd_ps(_vb3, _va0, _sum0); // sum0 += (a30-a37) * k03
+                    _sum1 = _mm256_comp_fmadd_ps(_vb3, _va1, _sum1); // sum1 += (a30-a37) * k13
+                    _sum2 = _mm256_comp_fmadd_ps(_vb3, _va2, _sum2); // sum2 += (a30-a37) * k23
+                    _sum3 = _mm256_comp_fmadd_ps(_vb3, _va3, _sum3); // sum3 += (a30-a37) * k33
 
                     va += 4;
                     vb += 32;
@@ -711,10 +711,10 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _va2 = _mm256_broadcast_ss(va + 2);
                     __m256 _va3 = _mm256_broadcast_ss(va + 3);
                     __m256 _vb0 = _mm256_loadu_ps(vb);
-                    _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
-                    _sum1 = _mm256_fmadd_ps(_vb0, _va1, _sum1); // sum1 = (a00-a07) * k10
-                    _sum2 = _mm256_fmadd_ps(_vb0, _va2, _sum2); // sum2 = (a00-a07) * k20
-                    _sum3 = _mm256_fmadd_ps(_vb0, _va3, _sum3); // sum3 = (a00-a07) * k30
+                    _sum0 = _mm256_comp_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
+                    _sum1 = _mm256_comp_fmadd_ps(_vb0, _va1, _sum1); // sum1 = (a00-a07) * k10
+                    _sum2 = _mm256_comp_fmadd_ps(_vb0, _va2, _sum2); // sum2 = (a00-a07) * k20
+                    _sum3 = _mm256_comp_fmadd_ps(_vb0, _va3, _sum3); // sum3 = (a00-a07) * k30
 
                     va += 4;
                     vb += 8;
@@ -839,10 +839,10 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m128 _va2 = _mm_loadu_ps(va + 8);
                     __m128 _va3 = _mm_loadu_ps(va + 12);
 
-                    _sum0 = _mm_fmadd_ps(_va0, _vb0, _sum0); // sum0 += (k00-k30) * a00
-                    _sum1 = _mm_fmadd_ps(_va1, _vb1, _sum1); // sum1 += (k01-k31) * a10
-                    _sum2 = _mm_fmadd_ps(_va2, _vb2, _sum2); // sum2 += (k02-k32) * a20
-                    _sum3 = _mm_fmadd_ps(_va3, _vb3, _sum3); // sum3 += (k03-k33) * a30
+                    _sum0 = _mm_comp_fmadd_ps(_va0, _vb0, _sum0); // sum0 += (k00-k30) * a00
+                    _sum1 = _mm_comp_fmadd_ps(_va1, _vb1, _sum1); // sum1 += (k01-k31) * a10
+                    _sum2 = _mm_comp_fmadd_ps(_va2, _vb2, _sum2); // sum2 += (k02-k32) * a20
+                    _sum3 = _mm_comp_fmadd_ps(_va3, _vb3, _sum3); // sum3 += (k03-k33) * a30
 
                     va += 16;
                     vb += 4;
@@ -858,7 +858,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m128 _vb0 = _mm_set1_ps(vb[0]);
                     __m128 _va = _mm_loadu_ps(va);
 
-                    _sum0_3 = _mm_fmadd_ps(_va, _vb0, _sum0_3); // sum0 += (k00-k30) * a00
+                    _sum0_3 = _mm_comp_fmadd_ps(_va, _vb0, _sum0_3); // sum0 += (k00-k30) * a00
 
                     va += 4;
                     vb += 1;
@@ -929,10 +929,10 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _vb2 = _mm256_loadu_ps(vb + 16);
                     __m256 _vb3 = _mm256_loadu_ps(vb + 24);
 
-                    _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
-                    _sum0 = _mm256_fmadd_ps(_vb1, _va1, _sum0); // sum0 += (a10-a17) * k01
-                    _sum0 = _mm256_fmadd_ps(_vb2, _va2, _sum0); // sum0 += (a20-a27) * k02
-                    _sum0 = _mm256_fmadd_ps(_vb3, _va3, _sum0); // sum0 += (a30-a37) * k03
+                    _sum0 = _mm256_comp_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
+                    _sum0 = _mm256_comp_fmadd_ps(_vb1, _va1, _sum0); // sum0 += (a10-a17) * k01
+                    _sum0 = _mm256_comp_fmadd_ps(_vb2, _va2, _sum0); // sum0 += (a20-a27) * k02
+                    _sum0 = _mm256_comp_fmadd_ps(_vb3, _va3, _sum0); // sum0 += (a30-a37) * k03
 
                     va += 4;
                     vb += 32;
@@ -944,7 +944,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _va0 = _mm256_broadcast_ss(va);
                     __m256 _vb0 = _mm256_loadu_ps(vb);
 
-                    _sum0 = _mm256_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
+                    _sum0 = _mm256_comp_fmadd_ps(_vb0, _va0, _sum0); // sum0 = (a00-a07) * k00
 
                     va += 1;
                     vb += 8;
@@ -1009,7 +1009,7 @@ static void conv_im2col_sgemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m128 _k0 = _mm_loadu_ps(va);
                     va += 4;
 
-                    _sum0 = _mm_fmadd_ps(_p0, _k0, _sum0);
+                    _sum0 = _mm_comp_fmadd_ps(_p0, _k0, _sum0);
                 }
 
                 float output_sum0[4] = {0.f};

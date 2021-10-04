@@ -97,6 +97,34 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr3 = (float*)top_blob + w * (i * 4 + 3);
 
                 int j = 0;
+                for (; j + 3 < w; j += 4)
+                {
+                    // transpose 4x4
+                    v4f32 _r0 = (v4f32)__msa_ld_w(ptr, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(ptr + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(ptr + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(ptr + 4 * 3, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                    __msa_st_w((v4i32)_r0123_0, outptr0, 0);
+                    __msa_st_w((v4i32)_r0123_1, outptr1, 0);
+                    __msa_st_w((v4i32)_r0123_2, outptr2, 0);
+                    __msa_st_w((v4i32)_r0123_3, outptr3, 0);
+
+                    ptr += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
                 for (; j < w; j++)
                 {
                     *outptr0++ = ptr[0];
@@ -126,6 +154,34 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr3 = (float*)top_blob + size * (q * 4 + 3);
 
                 int i = 0;
+                for (; i + 3 < size; i += 4)
+                {
+                    // transpose 4x4
+                    v4f32 _r0 = (v4f32)__msa_ld_w(ptr, 0);
+                    v4f32 _r1 = (v4f32)__msa_ld_w(ptr + 4, 0);
+                    v4f32 _r2 = (v4f32)__msa_ld_w(ptr + 4 * 2, 0);
+                    v4f32 _r3 = (v4f32)__msa_ld_w(ptr + 4 * 3, 0);
+
+                    v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                    v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                    v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                    v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                    v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                    v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                    __msa_st_w((v4i32)_r0123_0, outptr0, 0);
+                    __msa_st_w((v4i32)_r0123_1, outptr1, 0);
+                    __msa_st_w((v4i32)_r0123_2, outptr2, 0);
+                    __msa_st_w((v4i32)_r0123_3, outptr3, 0);
+
+                    ptr += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
                 for (; i < size; i++)
                 {
                     *outptr0++ = ptr[0];
@@ -148,6 +204,14 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr = (float*)top_blob + size * q;
 
                 int i = 0;
+#if __mips_msa
+                for (; i + 3 < size; i += 4)
+                {
+                    __msa_st_w(__msa_ld_w(ptr, 0), outptr, 0);
+                    ptr += 4;
+                    outptr += 4;
+                }
+#endif // __mips_msa
                 for (; i < size; i++)
                 {
                     *outptr++ = *ptr++;

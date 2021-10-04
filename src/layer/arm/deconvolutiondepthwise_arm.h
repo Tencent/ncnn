@@ -34,7 +34,9 @@ protected:
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif
+#if NCNN_BF16
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 
 public:
     std::vector<ncnn::Layer*> group_ops;
@@ -47,8 +49,10 @@ public:
     Mat weight_data_fp16;
     Mat bias_data_fp16;
 
+#if NCNN_BF16
     // bf16
     Mat weight_data_bf16;
+#endif
 };
 
 } // namespace ncnn

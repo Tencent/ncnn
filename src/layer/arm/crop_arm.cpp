@@ -29,7 +29,9 @@ Crop_arm::Crop_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 #if __ARM_NEON

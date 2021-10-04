@@ -34,9 +34,12 @@ namespace ncnn {
 
 #if __ARM_NEON
 #include "convolutiondepthwise_3x3_pack4.h"
-#include "convolutiondepthwise_3x3_pack4_bf16s.h"
 #include "convolutiondepthwise_5x5_pack4.h"
+
+#if NCNN_BF16
+#include "convolutiondepthwise_3x3_pack4_bf16s.h"
 #include "convolutiondepthwise_5x5_pack4_bf16s.h"
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 #include "convolutiondepthwise_3x3_pack8_int8.h"
@@ -58,7 +61,9 @@ ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 
     activation = 0;
 }
@@ -167,6 +172,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
         if (opt.use_bf16_storage)
         {
 #if __ARM_NEON
@@ -186,6 +192,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
             return 0;
         }
+#endif // NCNN_BF16
 
 #if __ARM_NEON
         // pack4
@@ -362,8 +369,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -1158,6 +1167,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
@@ -1456,6 +1466,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
 
     return 0;
 }
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)

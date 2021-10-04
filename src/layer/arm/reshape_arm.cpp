@@ -29,7 +29,9 @@ Reshape_arm::Reshape_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -41,8 +43,10 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
 
     int elempack = bottom_blob.elempack;
 

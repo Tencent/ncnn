@@ -58,6 +58,11 @@ static void convdw3x3s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             int j = 0;
             for (; j + 1 < outw; j += 2)
             {
+                __builtin_prefetch(r0 + 128);
+                __builtin_prefetch(r1 + 128);
+                __builtin_prefetch(r2 + 128);
+                __builtin_prefetch(r3 + 128);
+
                 v4f32 _sum00 = _bias0;
                 v4f32 _sum01 = _bias0;
                 v4f32 _sum10 = _bias0;
@@ -138,6 +143,11 @@ static void convdw3x3s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             }
             for (; j < outw; j++)
             {
+                __builtin_prefetch(r0 + 96);
+                __builtin_prefetch(r1 + 96);
+                __builtin_prefetch(r2 + 96);
+                __builtin_prefetch(r3 + 96);
+
                 v4f32 _sum0 = _bias0;
                 v4f32 _sum1 = _bias0;
 
@@ -204,6 +214,10 @@ static void convdw3x3s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             int j = 0;
             for (; j + 1 < outw; j += 2)
             {
+                __builtin_prefetch(r0 + 128);
+                __builtin_prefetch(r1 + 128);
+                __builtin_prefetch(r2 + 128);
+
                 v4f32 _sum00 = _bias0;
                 v4f32 _sum01 = _bias0;
 
@@ -254,6 +268,10 @@ static void convdw3x3s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             }
             for (; j < outw; j++)
             {
+                __builtin_prefetch(r0 + 96);
+                __builtin_prefetch(r1 + 96);
+                __builtin_prefetch(r2 + 96);
+
                 v4f32 _sum0 = _bias0;
 
                 v4f32 _r00 = (v4f32)__msa_ld_w(r0, 0);
@@ -342,6 +360,10 @@ static void convdw3x3s2_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             int j = 0;
             for (; j + 1 < outw; j += 2)
             {
+                __builtin_prefetch(r0 + 160);
+                __builtin_prefetch(r1 + 160);
+                __builtin_prefetch(r2 + 160);
+
                 v4f32 _sum00 = _bias0;
                 v4f32 _sum01 = _bias0;
 
@@ -395,6 +417,10 @@ static void convdw3x3s2_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             }
             for (; j < outw; j++)
             {
+                __builtin_prefetch(r0 + 96);
+                __builtin_prefetch(r1 + 96);
+                __builtin_prefetch(r2 + 96);
+
                 v4f32 _sum0 = _bias0;
 
                 v4f32 _r00 = (v4f32)__msa_ld_w(r0, 0);

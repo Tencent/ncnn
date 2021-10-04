@@ -1230,12 +1230,14 @@ int ncnn_net_load_model(ncnn_net_t net, const char* path)
 }
 #endif /* NCNN_STDIO */
 
+#if NCNN_STDIO
 #if NCNN_STRING
 int ncnn_net_load_param_memory(ncnn_net_t net, const char* mem)
 {
     return ((Net*)net->pthis)->load_param_mem(mem);
 }
 #endif /* NCNN_STRING */
+#endif /* NCNN_STDIO */
 
 int ncnn_net_load_param_bin_memory(ncnn_net_t net, const unsigned char* mem)
 {

@@ -50,10 +50,11 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i = 0; i < size; i++)
             {
-                v4f32 _ptr = (v4f32)__msa_ld_w(ptr, 0);
-                _ptr = __msa_fmax_w(_ptr, _min);
-                _ptr = __msa_fmin_w(_ptr, _max);
-                __msa_st_w((v4i32)_ptr, ptr, 0);
+                __builtin_prefetch(ptr + 32);
+                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+                _p = __msa_fmax_w(_p, _min);
+                _p = __msa_fmin_w(_p, _max);
+                __msa_st_w((v4i32)_p, ptr, 0);
 
                 ptr += 4;
             }
@@ -75,10 +76,11 @@ int Clip_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (; i + 3 < size; i += 4)
         {
-            v4f32 _ptr = (v4f32)__msa_ld_w(ptr, 0);
-            _ptr = __msa_fmax_w(_ptr, _min);
-            _ptr = __msa_fmin_w(_ptr, _max);
-            __msa_st_w((v4i32)_ptr, ptr, 0);
+            __builtin_prefetch(ptr + 32);
+            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+            _p = __msa_fmax_w(_p, _min);
+            _p = __msa_fmin_w(_p, _max);
+            __msa_st_w((v4i32)_p, ptr, 0);
 
             ptr += 4;
         }

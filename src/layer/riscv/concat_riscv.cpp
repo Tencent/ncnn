@@ -35,7 +35,9 @@ Concat_riscv::Concat_riscv()
 #endif
 #endif // __riscv_vector
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -47,8 +49,10 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
+#endif
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;

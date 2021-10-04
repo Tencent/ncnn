@@ -30,7 +30,9 @@ protected:
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif
+#if NCNN_BF16
     int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+#endif
 };
 
 } // namespace ncnn

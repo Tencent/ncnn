@@ -40,7 +40,6 @@ int Pooling_mips::create_pipeline(const Option& /*opt*/)
         support_bf16_storage = false;
         support_fp16_storage = false;
         support_int8_storage = false;
-        support_image_storage = false;
         support_tensor_storage = false;
 
         support_weight_fp16_storage = false;
@@ -54,8 +53,6 @@ int Pooling_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     {
         return Pooling::forward(bottom_blob, top_blob, opt);
     }
-
-    int elembits = bottom_blob.elembits();
 
     // max value in NxN window
     // avg value in NxN window

@@ -27,16 +27,19 @@
 
 namespace ncnn {
 
-#include "convolution_bf16s.h"
 #include "convolution_sgemm.h"
 
 #include "convolution_1x1.h"
-#include "convolution_1x1_bf16s.h"
 #include "convolution_2x2.h"
 #include "convolution_3x3.h"
 #include "convolution_4x4.h"
 #include "convolution_5x5.h"
 #include "convolution_7x7.h"
+
+#if NCNN_BF16
+#include "convolution_bf16s.h"
+#include "convolution_1x1_bf16s.h"
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 #include "convolution_sgemm_int8.h"
@@ -47,27 +50,30 @@ namespace ncnn {
 
 #if __ARM_NEON
 #include "convolution_pack4.h"
-#include "convolution_pack4_bf16s.h"
 #include "convolution_pack1to4.h"
-#include "convolution_pack1to4_bf16s.h"
 #include "convolution_pack4to1.h"
-#include "convolution_pack4to1_bf16s.h"
 #include "convolution_sgemm_pack4.h"
-#include "convolution_sgemm_pack4_bf16s.h"
 #include "convolution_1x1_pack4.h"
-#include "convolution_1x1_pack4_bf16s.h"
 #include "convolution_1x1_pack4to1.h"
-#include "convolution_1x1_pack4to1_bf16s.h"
 #include "convolution_3x3_pack1to4.h"
-#include "convolution_3x3_pack1to4_bf16s.h"
 #include "convolution_3x3_pack4.h"
-#include "convolution_3x3_pack4_bf16s.h"
 #include "convolution_3x3_pack4to1.h"
-#include "convolution_3x3_pack4to1_bf16s.h"
 #include "convolution_5x5_pack4.h"
-#include "convolution_5x5_pack4_bf16s.h"
 #include "convolution_7x7_pack1to4.h"
+
+#if NCNN_BF16
+#include "convolution_pack4_bf16s.h"
+#include "convolution_pack1to4_bf16s.h"
+#include "convolution_pack4to1_bf16s.h"
+#include "convolution_sgemm_pack4_bf16s.h"
+#include "convolution_1x1_pack4_bf16s.h"
+#include "convolution_1x1_pack4to1_bf16s.h"
+#include "convolution_3x3_pack1to4_bf16s.h"
+#include "convolution_3x3_pack4_bf16s.h"
+#include "convolution_3x3_pack4to1_bf16s.h"
+#include "convolution_5x5_pack4_bf16s.h"
 #include "convolution_7x7_pack1to4_bf16s.h"
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 #include "convolution_pack8to4_int8.h"
@@ -122,7 +128,9 @@ Convolution_arm::Convolution_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 
     activation = 0;
     convolution_dilation1 = 0;
@@ -188,10 +196,12 @@ int Convolution_arm::create_pipeline(const Option& opt)
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage)
     {
         return create_pipeline_bf16s(opt);
     }
+#endif
 
     if ((!support_packing || !opt.use_packing_layout) && !opt.use_bf16_storage && kernel_w == kernel_h && dilation_w != 1 && dilation_h == dilation_w && stride_w == 1 && stride_h == 1)
     {
@@ -449,8 +459,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -1538,6 +1550,7 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int Convolution_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int maxk = kernel_w * kernel_h;
@@ -1812,6 +1825,7 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
     return 0;
 }
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 int Convolution_arm::create_pipeline_int8_arm(const Option& opt)

@@ -255,18 +255,19 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             int nn = inch * maxk * 4; // inch always > 0
 
-            v4f32 _sum0 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum1 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum2 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum3 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum4 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum5 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum6 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum7 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum8 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum9 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _suma = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sumb = (v4f32)__msa_ld_w(biasptr, 0);
+            v4i32 _bias = __msa_ld_w(biasptr, 0);
+            v4f32 _sum0 = (v4f32)__msa_splati_w(_bias, 0);
+            v4f32 _sum1 = (v4f32)__msa_splati_w(_bias, 0);
+            v4f32 _sum2 = (v4f32)__msa_splati_w(_bias, 0);
+            v4f32 _sum3 = (v4f32)__msa_splati_w(_bias, 1);
+            v4f32 _sum4 = (v4f32)__msa_splati_w(_bias, 1);
+            v4f32 _sum5 = (v4f32)__msa_splati_w(_bias, 1);
+            v4f32 _sum6 = (v4f32)__msa_splati_w(_bias, 2);
+            v4f32 _sum7 = (v4f32)__msa_splati_w(_bias, 2);
+            v4f32 _sum8 = (v4f32)__msa_splati_w(_bias, 2);
+            v4f32 _sum9 = (v4f32)__msa_splati_w(_bias, 3);
+            v4f32 _suma = (v4f32)__msa_splati_w(_bias, 3);
+            v4f32 _sumb = (v4f32)__msa_splati_w(_bias, 3);
 
             for (int j = 0; j < nn; j++)
             {
@@ -318,14 +319,15 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             int nn = inch * maxk * 4; // inch always > 0
 
-            v4f32 _sum0 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum1 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum2 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum3 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum4 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum5 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum6 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum7 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4i32 _bias = __msa_ld_w(biasptr, 0);
+            v4f32 _sum0 = (v4f32)__msa_splati_w(_bias, 0);
+            v4f32 _sum1 = (v4f32)__msa_splati_w(_bias, 0);
+            v4f32 _sum2 = (v4f32)__msa_splati_w(_bias, 1);
+            v4f32 _sum3 = (v4f32)__msa_splati_w(_bias, 1);
+            v4f32 _sum4 = (v4f32)__msa_splati_w(_bias, 2);
+            v4f32 _sum5 = (v4f32)__msa_splati_w(_bias, 2);
+            v4f32 _sum6 = (v4f32)__msa_splati_w(_bias, 3);
+            v4f32 _sum7 = (v4f32)__msa_splati_w(_bias, 3);
 
             for (int j = 0; j < nn; j++)
             {
@@ -368,10 +370,11 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             int nn = inch * maxk * 4; // inch always > 0
 
-            v4f32 _sum0 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum1 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum2 = (v4f32)__msa_ld_w(biasptr, 0);
-            v4f32 _sum3 = (v4f32)__msa_ld_w(biasptr, 0);
+            v4i32 _bias = __msa_ld_w(biasptr, 0);
+            v4f32 _sum0 = (v4f32)__msa_splati_w(_bias, 0);
+            v4f32 _sum1 = (v4f32)__msa_splati_w(_bias, 1);
+            v4f32 _sum2 = (v4f32)__msa_splati_w(_bias, 2);
+            v4f32 _sum3 = (v4f32)__msa_splati_w(_bias, 3);
 
             for (int j = 0; j < nn; j++)
             {
@@ -567,11 +570,11 @@ static void convolution_im2col_sgemm_transform_kernel_pack4to1_msa(const Mat& _k
     kernel_tm.create(4 * 4 * maxk, inch / 4, outch / 4 + outch % 4, 4u);
 
     int q = 0;
-    for (; q + (4 - 1) < outch; q += 4)
+    for (; q + 3 < outch; q += 4)
     {
         float* g00 = kernel_tm.channel(q / 4);
 
-        for (int p = 0; p + (4 - 1) < inch; p += 4)
+        for (int p = 0; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
             {
@@ -595,7 +598,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack4to1_msa(const Mat& _k
 
         float* g00 = kernel_tm.channel(q / 4 + q % 4);
 
-        for (int p = 0; p + (4 - 1) < inch; p += 4)
+        for (int p = 0; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
             {
