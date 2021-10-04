@@ -452,7 +452,6 @@ public:
     int init();
 
 public:
-
     VkFormat format;
 };
 

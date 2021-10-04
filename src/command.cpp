@@ -3721,7 +3721,7 @@ public:
 
     std::vector<VkImageMemory*> image_blocks_to_destroy;
 
-struct record
+    struct record
     {
         enum
         {
