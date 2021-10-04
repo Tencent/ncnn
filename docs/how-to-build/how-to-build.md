@@ -147,13 +147,13 @@ brew install protobuf libomp
 
 Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 ```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.162.0/mac/vulkansdk-macos-1.2.162.0.dmg?Human=true -O vulkansdk-macos-1.2.162.0.dmg
-hdiutil attach vulkansdk-macos-1.2.162.0.dmg
-cp -r /Volumes/vulkansdk-macos-1.2.162.0 .
-hdiutil detach /Volumes/vulkansdk-macos-1.2.162.0
+wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
+hdiutil attach vulkansdk-macos-1.2.189.0.dmg
+sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
+hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
 
 # setup env
-export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
+export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
 ```
 
 ```shell
@@ -162,8 +162,8 @@ mkdir -p build
 cd build
 
 cmake -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
-    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
+    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/include \
+    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
 
 cmake --build . -j 4
@@ -375,13 +375,13 @@ sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VER
 
 Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 ```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.162.0/mac/vulkansdk-macos-1.2.162.0.dmg?Human=true -O vulkansdk-macos-1.2.162.0.dmg
-hdiutil attach vulkansdk-macos-1.2.162.0.dmg
-cp -r /Volumes/vulkansdk-macos-1.2.162.0 .
-hdiutil detach /Volumes/vulkansdk-macos-1.2.162.0
+wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
+hdiutil attach vulkansdk-macos-1.2.189.0.dmg
+sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
+hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
 
 # setup env
-export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
+export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
 ```
 
 Build library for iPhoneOS:
@@ -404,8 +404,8 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS
     -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
     -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
     -DOpenMP_libomp_LIBRARY="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
-    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/dylib/iOS/libMoltenVK.dylib \
+    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/include \
+    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/dylib/iOS/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
 
 cmake --build . -j 4
