@@ -591,7 +591,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         // forward
         ncnn::VkCompute cmd(vkdev);
 
-        if (opt.use_image_storage)
+        if (op->support_image_storage && opt.use_image_storage)
         {
             // upload
             std::vector<ncnn::VkImageMat> a_gpu(a.size());
@@ -999,7 +999,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         // forward
         ncnn::VkCompute cmd(vkdev);
 
-        if (opt.use_image_storage)
+        if (op->support_image_storage && opt.use_image_storage)
         {
             // upload
             ncnn::VkImageMat a_gpu;
