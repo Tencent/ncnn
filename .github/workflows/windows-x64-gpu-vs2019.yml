@@ -93,7 +93,7 @@ jobs:
         cmake --build . --config Release -j 2
     - name: test
       run: |
-        $env:VK_ICD_FILENAMES="$env:GITHUB_WORKSPACE\swiftshader-install\vk_swiftshader_icd.json"
+        Copy-Item -Path "$env:GITHUB_WORKSPACE\swiftshader-install\vulkan-1.dll" -Destination 'build\tests'
         $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         cd build; ctest -C Release --output-on-failure -j 2
     - name: build-shared
