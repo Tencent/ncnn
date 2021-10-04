@@ -2102,8 +2102,8 @@ VkImageMemory* VkR8g8b8a8UnormImageAllocator::fastMalloc(int w, int h, int /*c*/
         image_memory_type_index = vkdev->find_memory_index(memoryRequirements.memoryTypeBits, 0, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     }
 
-    VkMemoryDedicatedAllocateInfo memoryDedicatedAllocateInfo;
-    memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO;
+    VkMemoryDedicatedAllocateInfoKHR memoryDedicatedAllocateInfo;
+    memoryDedicatedAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO_KHR;
     memoryDedicatedAllocateInfo.pNext = 0;
     memoryDedicatedAllocateInfo.image = image;
     memoryDedicatedAllocateInfo.buffer = VK_NULL_HANDLE;
@@ -2122,8 +2122,8 @@ VkImageMemory* VkR8g8b8a8UnormImageAllocator::fastMalloc(int w, int h, int /*c*/
         return 0;
     }
 
-    VkBindImageMemoryInfo bindImageMemoryInfo;
-    bindImageMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO;
+    VkBindImageMemoryInfoKHR bindImageMemoryInfo;
+    bindImageMemoryInfo.sType = VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO_KHR;
     bindImageMemoryInfo.pNext = 0;
     bindImageMemoryInfo.image = image;
     bindImageMemoryInfo.memory = memory;
