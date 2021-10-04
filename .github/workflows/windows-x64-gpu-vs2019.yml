@@ -61,8 +61,8 @@ jobs:
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
-        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.121.2/windows/VulkanSDK-1.1.121.2-Installer.exe?Human=true -OutFile VulkanSDK-1.1.121.2-Installer.exe
+        7z x -aoa ./VulkanSDK-1.1.121.2-Installer.exe -oVulkanSDK
         Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
     - name: cache-swiftshader
       id: cache-swiftshader
