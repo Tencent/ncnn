@@ -88,8 +88,10 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
@@ -197,6 +199,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
     Mat top_blob_unpacked;
     int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
+
     if (ret != 0)
         return ret;
 
