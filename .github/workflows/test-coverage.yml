@@ -93,6 +93,74 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
 
+  linux-gcc-gpu-lavapipe:
+    runs-on: ubuntu-20.04
+    steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.9.1
+      with:
+        access_token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: lcov
+      run: sudo apt-get install lcov
+
+    - name: vulkansdk
+      run: |
+        sudo apt-get update
+        sudo apt install -y libvulkan-dev vulkan-utils libxcb-randr0
+
+    - name: cache-lavapipe
+      id: cache-lavapipe
+      uses: actions/cache@v2.1.6
+      with:
+        path: lavapipe-install
+        key: lavapipe-linux-install-20211002
+    - name: checkout-lavapipe
+      if: steps.cache-lavapipe.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: mesa3d/mesa
+        path: mesa
+        ref: 0a592db57360a7847ca9c57e47f6200a2992f2e9
+    - name: lavapipe
+      if: steps.cache-lavapipe.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p "$GITHUB_WORKSPACE/lavapipe-install"
+        echo 'deb-src http://azure.archive.ubuntu.com/ubuntu focal main' | sudo tee -a /etc/apt/sources.list
+        echo 'deb-src http://azure.archive.ubuntu.com/ubuntu focal-updates main' | sudo tee -a /etc/apt/sources.list
+        sudo apt-get update
+        sudo apt-get build-dep mesa
+        cd mesa
+        mkdir build
+        cd build
+        meson -Dprefix="$GITHUB_WORKSPACE/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
+        ninja
+        ninja install
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+    - name: test
+      run: |
+        export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
+        cd build && ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/glslang/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v2.1.0
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+
   linux-gcc-sse2:
     runs-on: ubuntu-latest
     steps:
