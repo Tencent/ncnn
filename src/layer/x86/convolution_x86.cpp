@@ -426,11 +426,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 conv1x1s1_sgemm_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-#endif
             if (!opt.use_weight_fp16_storage)
             {
+#endif
+
                 conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+#if __AVX2__
             }
+#endif
 
             if (activation)
             {
@@ -445,12 +448,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 conv1x1s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-#endif
             if (!opt.use_weight_fp16_storage)
 
             {
+#endif
+
                 conv1x1s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+#if __AVX2__
             }
+#endif
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
@@ -480,13 +486,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 conv2x2s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-#endif
-
             if (!opt.use_weight_fp16_storage)
             {
-                conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-            }
+#endif
 
+                conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+#if __AVX2__
+            }
+#endif
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
