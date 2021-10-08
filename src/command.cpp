@@ -3821,7 +3821,7 @@ int VkRenderPrivate::destory()
         vkDestroyCommandPool(vkdev->vkdevice(), render_command_pool, 0);
         render_command_pool = 0;
     }
-    
+
     if (render_fence)
     {
         vkDestroyFence(vkdev->vkdevice(), render_fence, 0);
@@ -3836,7 +3836,7 @@ int VkRenderPrivate::destory()
 
     if (swapchain)
     {
-        for (uint32_t i = 0; i < swapchain_length; i++) 
+        for (uint32_t i = 0; i < swapchain_length; i++)
         {
             vkDestroyImageView(vkdev->vkdevice(), imageviews[i], 0);
         }
@@ -3939,7 +3939,7 @@ int VkRenderPrivate::create_swapchain()
     VkColorSpaceKHR chosen_color_space;
     for (uint32_t i = 0; i < format_count; i++)
     {
-        if (formats[i].format == format) 
+        if (formats[i].format == format)
         {
             chosen_format = formats[i].format;
             chosen_color_space = formats[i].colorSpace;
@@ -4369,7 +4369,7 @@ int VkRender::render()
         NCNN_LOGE("out of compute queue");
         return -1;
     }
-    
+
     {
         ret = vkAcquireNextImageKHR(vkdev->vkdevice(), d->swapchain, UINT64_MAX, d->render_semaphore, VK_NULL_HANDLE, &next_index);
         if (ret != VK_SUCCESS)
@@ -4507,7 +4507,7 @@ int VkRender::reset()
                 vkDestroyImageView(vkdev->vkdevice(), ptr->imageview, 0);
                 vkDestroyImage(vkdev->vkdevice(), ptr->image, 0);
 
-                    delete ptr;
+                delete ptr;
             }
         }
         d->image_blocks_to_destroy.clear();
