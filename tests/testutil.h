@@ -381,12 +381,6 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.num_threads = 1;
     opt.use_vulkan_compute = false;
 
-    if (!op->support_packing) opt.use_packing_layout = false;
-    if (!op->support_bf16_storage) opt.use_bf16_storage = false;
-    if (!op->support_fp16_storage) opt.use_fp16_storage = false;
-    if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
-    if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
-
     op->create_pipeline(opt);
 
     std::vector<ncnn::Mat> a4(a.size());
@@ -561,11 +555,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
 
-    if (!op->support_packing) opt.use_packing_layout = false;
-    if (!op->support_bf16_storage) opt.use_bf16_storage = false;
-    if (!op->support_image_storage) opt.use_image_storage = false;
-    if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
-
 #if __APPLE__
     opt.use_image_storage = false;
 #endif
@@ -602,7 +591,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         // forward
         ncnn::VkCompute cmd(vkdev);
 
-        if (opt.use_image_storage)
+        if (op->support_image_storage && opt.use_image_storage)
         {
             // upload
             std::vector<ncnn::VkImageMat> a_gpu(a.size());
@@ -813,12 +802,6 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.num_threads = 1;
     opt.use_vulkan_compute = false;
 
-    if (!op->support_packing) opt.use_packing_layout = false;
-    if (!op->support_bf16_storage) opt.use_bf16_storage = false;
-    if (!op->support_fp16_storage) opt.use_fp16_storage = false;
-    if (!op->support_fp16_storage) opt.use_fp16_arithmetic = false;
-    if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
-
     op->create_pipeline(opt);
 
     ncnn::Mat a4;
@@ -976,11 +959,6 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     opt.num_threads = 1;
     opt.use_vulkan_compute = true;
 
-    if (!op->support_packing) opt.use_packing_layout = false;
-    if (!op->support_bf16_storage) opt.use_bf16_storage = false;
-    if (!op->support_image_storage) opt.use_image_storage = false;
-    if (!op->support_weight_fp16_storage) opt.use_weight_fp16_storage = false;
-
 #if __APPLE__
     opt.use_image_storage = false;
 #endif
@@ -1021,7 +999,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         // forward
         ncnn::VkCompute cmd(vkdev);
 
-        if (opt.use_image_storage)
+        if (op->support_image_storage && opt.use_image_storage)
         {
             // upload
             ncnn::VkImageMat a_gpu;
