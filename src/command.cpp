@@ -4515,7 +4515,6 @@ int VkRender::reset()
 
     return 0;
 }
-
 } // namespace ncnn
 
 #endif // NCNN_VULKAN
