@@ -22,17 +22,20 @@ If you want to build ncnn with some options not as default, or just like to buil
 
 * A compiler with C++11 support
 * CMake >= 3.4
-
+* python >= 3.x
+* 
 **On Mac**
 
 * A compiler with C++11 support
 * CMake >= 3.4
-
+* python >= 3.x
+* 
 **On Windows**
 
 * Visual Studio 2015 or higher
 * CMake >= 3.4
-
+* python >= 3.x
+* 
 ## Build
 1. clone ncnn and init submodule.
 ```bash
@@ -44,7 +47,7 @@ git submodule init && git submodule update
 mkdir build
 cd build
 cmake -DNCNN_PYTHON=ON ..
-make
+cmake --build .
 ```
 
 ## Install
@@ -63,14 +66,15 @@ python3 setup.py install
 **test**
 ```bash
 cd /pathto/ncnn/python
-python3 tests/test.py
+python -m pip install -U pytest
+python tests/test_***.py
 ```
 
 **benchmark**
 
 ```bash
 cd /pathto/ncnn/python
-python3 tests/benchmark.py
+python tests/benchmark.py
 ```
 
 ## Numpy
