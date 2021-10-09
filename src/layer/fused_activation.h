@@ -19,7 +19,7 @@
 #include "mat.h"
 #include "layer_type.h"
 
-static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
+static NCNN_FORCEINLINE float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
 {
     switch (activation_type)
     {
@@ -73,7 +73,7 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
     return v;
 }
 
-static inline ncnn::Layer* create_activation_layer(int activation_type, const ncnn::Mat& activation_params, const ncnn::Option& opt)
+static ncnn::Layer* create_activation_layer(int activation_type, const ncnn::Mat& activation_params, const ncnn::Option& opt)
 {
     ncnn::Layer* activation = 0;
 

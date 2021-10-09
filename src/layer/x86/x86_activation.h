@@ -24,31 +24,31 @@
 #include <emmintrin.h>
 #include "sse_mathfun.h"
 
-static forceinline __m128 sigmoid_sse(__m128 inputs)
+static NCNN_FORCEINLINE __m128 sigmoid_sse(__m128 inputs)
 {
     const __m128 one = _mm_set1_ps(1.0f);
     return _mm_div_ps(one, _mm_add_ps(one, exp_ps(_mm_sub_ps(_mm_setzero_ps(), inputs))));
 }
 
-static forceinline __m128 tanh_sse(__m128 inputs)
+static NCNN_FORCEINLINE __m128 tanh_sse(__m128 inputs)
 {
     const __m128 one = _mm_set1_ps(1.0f);
     const __m128 two = _mm_set1_ps(2.0f);
     return _mm_sub_ps(_mm_mul_ps(sigmoid_sse(_mm_mul_ps(inputs, two)), two), one);
 }
 
-static forceinline __m128 mish_sse(__m128 inputs)
+static NCNN_FORCEINLINE __m128 mish_sse(__m128 inputs)
 {
     return _mm_mul_ps(inputs, tanh_sse(log_ps(_mm_add_ps(exp_ps(inputs), _mm_set1_ps(1.f)))));
 }
 
-static forceinline __m128 swish_sse(__m128 inputs)
+static NCNN_FORCEINLINE __m128 swish_sse(__m128 inputs)
 {
     const __m128 one = _mm_set1_ps(1.0f);
     return _mm_div_ps(inputs, _mm_add_ps(one, exp_ps(_mm_sub_ps(_mm_setzero_ps(), inputs))));
 }
 
-static forceinline __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
+static NCNN_FORCEINLINE __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
 {
     const __m128 one = _mm_set1_ps(1.0f);
     b = _mm_add_ps(_mm_mul_ps(inputs, a), b);
@@ -57,26 +57,26 @@ static forceinline __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
     return _mm_mul_ps(b, inputs);
 }
 
-static forceinline __m128 abs_sse(__m128 inputs)
+static NCNN_FORCEINLINE __m128 abs_sse(__m128 inputs)
 {
     return _mm_max_ps(_mm_sub_ps(_mm_setzero_ps(), inputs), inputs);
 }
 
-static forceinline __m128 lrelu_sse(__m128 inputs, float slope)
+static NCNN_FORCEINLINE __m128 lrelu_sse(__m128 inputs, float slope)
 {
     __m128 pos = _mm_max_ps(_mm_setzero_ps(), inputs);
     __m128 neg = _mm_min_ps(_mm_setzero_ps(), inputs);
     return _mm_add_ps(pos, _mm_mul_ps(_mm_set1_ps(slope), neg));
 }
 
-static forceinline __m128 prelu_sse(__m128 inputs, __m128 alphas)
+static NCNN_FORCEINLINE __m128 prelu_sse(__m128 inputs, __m128 alphas)
 {
     __m128 pos = _mm_max_ps(_mm_setzero_ps(), inputs);
     __m128 neg = _mm_min_ps(_mm_setzero_ps(), inputs);
     return _mm_add_ps(pos, _mm_mul_ps(alphas, neg));
 }
 
-static forceinline __m128 activation_sse(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
+static NCNN_FORCEINLINE __m128 activation_sse(__m128 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
     switch (activation_type)
@@ -122,13 +122,13 @@ static forceinline __m128 activation_sse(__m128 _v, int activation_type, const n
 #include <immintrin.h>
 #include "avx_mathfun.h"
 
-static forceinline __m256 sigmoid_avx(__m256 inputs)
+static NCNN_FORCEINLINE __m256 sigmoid_avx(__m256 inputs)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
     return _mm256_div_ps(one, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs))));
 }
 
-static forceinline __m256 tanh_avx(__m256 inputs)
+static NCNN_FORCEINLINE __m256 tanh_avx(__m256 inputs)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
     const __m256 two = _mm256_set1_ps(2.0f);
@@ -139,18 +139,18 @@ static forceinline __m256 tanh_avx(__m256 inputs)
 #endif
 }
 
-static forceinline __m256 mish_avx(__m256 inputs)
+static NCNN_FORCEINLINE __m256 mish_avx(__m256 inputs)
 {
     return _mm256_mul_ps(inputs, tanh_avx(log256_ps(_mm256_add_ps(exp256_ps(inputs), _mm256_set1_ps(1.f)))));
 }
 
-static forceinline __m256 swish_avx(__m256 inputs)
+static NCNN_FORCEINLINE __m256 swish_avx(__m256 inputs)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
     return _mm256_div_ps(inputs, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs))));
 }
 
-static forceinline __m256 hardswish_avx(__m256 inputs, __m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 hardswish_avx(__m256 inputs, __m256 a, __m256 b)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
     b = _mm256_comp_fmadd_ps(inputs, a, b);
@@ -159,26 +159,26 @@ static forceinline __m256 hardswish_avx(__m256 inputs, __m256 a, __m256 b)
     return _mm256_mul_ps(b, inputs);
 }
 
-static forceinline __m256 abs_avx(__m256 inputs)
+static NCNN_FORCEINLINE __m256 abs_avx(__m256 inputs)
 {
     return _mm256_max_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs), inputs);
 }
 
-static forceinline __m256 lrelu_avx(__m256 inputs, float slope)
+static NCNN_FORCEINLINE __m256 lrelu_avx(__m256 inputs, float slope)
 {
     __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
     __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
     return _mm256_add_ps(pos, _mm256_mul_ps(_mm256_set1_ps(slope), neg));
 }
 
-static forceinline __m256 prelu_avx(__m256 inputs, __m256 alphas)
+static NCNN_FORCEINLINE __m256 prelu_avx(__m256 inputs, __m256 alphas)
 {
     __m256 pos = _mm256_max_ps(_mm256_setzero_ps(), inputs);
     __m256 neg = _mm256_min_ps(_mm256_setzero_ps(), inputs);
     return _mm256_add_ps(pos, _mm256_mul_ps(alphas, neg));
 }
 
-static forceinline __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
+static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
     switch (activation_type)
