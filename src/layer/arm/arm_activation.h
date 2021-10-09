@@ -15,50 +15,7 @@
 #ifndef ARM_ACTIVATION_H
 #define ARM_ACTIVATION_H
 
-static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
-{
-    if (activation_type == 1)
-    {
-        v = std::max(v, 0.f);
-    }
-    else if (activation_type == 2)
-    {
-        const float slope = activation_params[0];
-        v = v > 0.f ? v : v * slope;
-    }
-    else if (activation_type == 3)
-    {
-        const float min = activation_params[0];
-        const float max = activation_params[1];
-        if (v < min)
-            v = min;
-        if (v > max)
-            v = max;
-    }
-    else if (activation_type == 4)
-    {
-        v = 1.f / (1.f + exp(-v));
-    }
-    else if (activation_type == 5)
-    {
-        v = v * tanh(log(exp(v) + 1.f));
-    }
-    else if (activation_type == 6)
-    {
-        const float alpha = activation_params[0];
-        const float beta = activation_params[1];
-        const float lower = -beta / alpha;
-        const float upper = (1.f / alpha) + lower;
-        if (v < lower)
-            v = 0.f;
-        else if (v > upper)
-            ;
-        else
-            v = v * (v * alpha + beta);
-    }
-
-    return v;
-}
+#include "fused_activation.h"
 
 #if __ARM_NEON
 #include <arm_neon.h>
