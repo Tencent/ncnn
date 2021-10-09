@@ -137,7 +137,12 @@ int Pooling_vulkan::create_pipeline(const Option& _opt)
 
         if (pooling_type == PoolMethod_MAX)
         {
-            pd.set(5, -FLT_MAX);
+            // FLT_MAX becomes NaN during fp16 conversion in shader with swiftshader
+            // use a proper fp16-representable max as workaround   --- nihui
+            if (opt.use_fp16_packed || opt.use_fp16_storage || opt.use_fp16_arithmetic)
+                pd.set(5, -65000.f);
+            else
+                pd.set(5, -FLT_MAX);
         }
         else if (pooling_type == PoolMethod_AVE)
         {
