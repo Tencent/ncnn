@@ -20,7 +20,6 @@
 #include "fused_activation.h"
 #include "x86_usability.h"
 
-
 #if __SSE2__
 #include <emmintrin.h>
 #include "sse_mathfun.h"
