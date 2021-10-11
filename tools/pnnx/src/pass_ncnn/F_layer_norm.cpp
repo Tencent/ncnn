@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.layer_norm            op_0        3 1 input out weight=None bias=None normalized_shape=%normalized_shape eps=%eps
+F.layer_norm            op_0        1 1 input out weight=None bias=None normalized_shape=%normalized_shape eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
