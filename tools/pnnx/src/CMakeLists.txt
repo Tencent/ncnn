@@ -215,20 +215,29 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_adaptive_max_pool2d.cpp
     pass_ncnn/F_batch_norm.cpp
     pass_ncnn/F_conv2d.cpp
+    pass_ncnn/F_elu.cpp
     pass_ncnn/F_gelu.cpp
     pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp
     pass_ncnn/F_hardtanh.cpp
+    pass_ncnn/F_instance_norm.cpp
+    pass_ncnn/F_layer_norm.cpp
     pass_ncnn/F_leaky_relu.cpp
     pass_ncnn/F_linear.cpp
+    pass_ncnn/F_local_response_norm.cpp
     pass_ncnn/F_mish.cpp
     pass_ncnn/F_normalize.cpp
+    pass_ncnn/F_pad.cpp
+    pass_ncnn/F_pixel_shuffle.cpp
+    pass_ncnn/F_pixel_unshuffle.cpp
+    pass_ncnn/F_prelu.cpp
     pass_ncnn/F_relu.cpp
     pass_ncnn/F_relu6.cpp
     pass_ncnn/F_selu.cpp
     pass_ncnn/F_sigmoid.cpp
     pass_ncnn/F_silu.cpp
+    pass_ncnn/F_softmax.cpp
     pass_ncnn/F_tanh.cpp
     pass_ncnn/F_upsample.cpp
     pass_ncnn/nn_AdaptiveAvgPool2d.cpp

@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class F_group_norm : public GraphRewriterPass
+class F_layer_norm : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,41 +26,39 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.group_norm            op_0        3 1 input out weight=None bias=None num_groups=%num_groups eps=%eps
+F.layer_norm            op_0        3 1 input out weight=None bias=None normalized_shape=%normalized_shape eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "GroupNorm";
+        return "LayerNorm";
     }
 
     const char* name_str() const
     {
-        return "gn";
+        return "ln";
     }
 
     void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
     {
-        int input_rank = op->inputs[0]->shape.size();
-
-        if (input_rank <= 2)
+        const std::vector<int>& normalized_shape = captured_params.at("normalized_shape").ai;
+        int affine_size = normalized_shape[0];
+        for (size_t i = 1; i < normalized_shape.size(); i++)
         {
-            fprintf(stderr, "group_norm not possible for %d-rank tensor\n", input_rank);
-            return;
+            affine_size *= normalized_shape[i];
         }
 
-        op->params["0"] = captured_params.at("num_groups");
-        op->params["1"] = op->inputs[0]->shape[1];
-        op->params["2"] = captured_params.at("eps");
-        op->params["3"] = 0;
+        op->params["0"] = affine_size;
+        op->params["1"] = captured_params.at("eps");
+        op->params["2"] = 0;
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_group_norm, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_layer_norm, 20)
 
-class F_group_norm_1 : public GraphRewriterPass
+class F_layer_norm_1 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -70,19 +68,19 @@ public:
 pnnx.Input              input       0 1 input
 pnnx.Attribute          op_weight   0 1 weight @qwq
 pnnx.Attribute          op_bias     0 1 bias @qwq
-F.group_norm            op_0        3 1 input weight bias out num_groups=%num_groups eps=%eps
+F.layer_norm            op_0        3 1 input weight bias out normalized_shape=%normalized_shape eps=%eps
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "GroupNorm";
+        return "LayerNorm";
     }
 
     const char* name_str() const
     {
-        return "gn";
+        return "ln";
     }
 
     void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
@@ -97,17 +95,23 @@ pnnx.Output             output      1 0 out
                 bias = x.second;
         }
 
-        op->params["0"] = captured_params.at("num_groups");
-        op->params["1"] = weight.shape[0];
-        op->params["2"] = captured_params.at("eps");
-        op->params["3"] = 1;
+        const std::vector<int>& normalized_shape = captured_params.at("normalized_shape").ai;
+        int affine_size = normalized_shape[0];
+        for (size_t i = 1; i < normalized_shape.size(); i++)
+        {
+            affine_size *= normalized_shape[i];
+        }
+
+        op->params["0"] = affine_size;
+        op->params["1"] = captured_params.at("eps");
+        op->params["2"] = 1;
 
         op->attrs["0"] = weight;
         op->attrs["1"] = bias;
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_group_norm_1, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_layer_norm_1, 20)
 
 } // namespace ncnn
 
