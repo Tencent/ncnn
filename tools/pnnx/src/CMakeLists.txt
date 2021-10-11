@@ -1,6 +1,6 @@
 
 set(Torch_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch/share/cmake/Torch")
-set(TorchVision_DIR "/home/nihui/osd/vision-0.10.0/build/install/share/cmake/TorchVision")
+set(TorchVision_DIR "/home/nihui/osd/vision/build/install/share/cmake/TorchVision")
 
 find_package(Torch REQUIRED)
 find_package(TorchVision REQUIRED)
@@ -213,10 +213,13 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/insert_split.cpp
     pass_ncnn/F_adaptive_avg_pool2d.cpp
     pass_ncnn/F_adaptive_max_pool2d.cpp
+    pass_ncnn/F_batch_norm.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_gelu.cpp
+    pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp
+    pass_ncnn/F_hardtanh.cpp
     pass_ncnn/F_leaky_relu.cpp
     pass_ncnn/F_linear.cpp
     pass_ncnn/F_mish.cpp
@@ -243,6 +246,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_GroupNorm.cpp
     pass_ncnn/nn_Hardsigmoid.cpp
     pass_ncnn/nn_Hardswish.cpp
+    pass_ncnn/nn_Hardtanh.cpp
     pass_ncnn/nn_InstanceNorm2d.cpp
     pass_ncnn/nn_LayerNorm.cpp
     pass_ncnn/nn_LeakyReLU.cpp

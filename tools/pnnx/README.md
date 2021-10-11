@@ -455,7 +455,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Hardshrink              | :heavy_check_mark: |
 |nn.Hardsigmoid             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Hardswish               | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Hardtanh                | :heavy_check_mark: |
+|nn.Hardtanh                | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Identity                |   |
 |nn.InstanceNorm1d          | :heavy_check_mark: |
 |nn.InstanceNorm2d          | :heavy_check_mark: | :heavy_check_mark: |
@@ -542,7 +542,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.avg_pool1d               | :heavy_check_mark: |
 |F.avg_pool2d               | :heavy_check_mark: |
 |F.avg_pool3d               | :heavy_check_mark: |
-|F.batch_norm               | :heavy_check_mark: |
+|F.batch_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.bilinear                 |  |
 |F.celu                     | :heavy_check_mark: |
 |F.conv1d                   | :heavy_check_mark: |
@@ -566,13 +566,13 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.gelu                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.glu                      |  |
 |F.grid_sample              | :heavy_check_mark: |
-|F.group_norm               | :heavy_check_mark: |
+|F.group_norm               | :heavy_check_mark: | :heavy_check_mark:* |
 |F.gumbel_softmax           |  |
 |F.hardshrink               | :heavy_check_mark: |
 |F.hardsigmoid              | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardswish                | :heavy_check_mark: | :heavy_check_mark: |
-|F.hardtanh                 | :heavy_check_mark: |
-|F.hardtanh_                | :heavy_check_mark: |
+|F.hardtanh                 | :heavy_check_mark: | :heavy_check_mark: |
+|F.hardtanh_                | :heavy_check_mark: | :heavy_check_mark: |
 |F.instance_norm            | :heavy_check_mark: |
 |F.interpolate              | :heavy_check_mark: |
 |F.layer_norm               | :heavy_check_mark: |

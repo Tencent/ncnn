@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class F_hardswish : public GraphRewriterPass
+class F_hardtanh : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,23 +26,23 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.hardswish             op_0        1 1 input out
+F.hardtanh              op_0        1 1 input out min_val=%0 max_val=%1
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "HardSwish";
+        return "Clip";
     }
 
     const char* name_str() const
     {
-        return "hswish";
+        return "htanh";
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_hardswish, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_hardtanh, 20)
 
 } // namespace ncnn
 
