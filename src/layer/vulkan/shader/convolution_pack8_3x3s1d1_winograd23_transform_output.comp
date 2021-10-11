@@ -208,6 +208,19 @@ void main()
         v11[0] = v11[0] * tanh(log(exp(v11[0]) + afp(1.f)));
         v11[1] = v11[1] * tanh(log(exp(v11[1]) + afp(1.f)));
     }
+    if (activation_type == 6)
+    {
+        const afp alpha = afp(activation_param_0);
+        const afp beta = afp(activation_param_1);
+        v00[0] = v00[0] * clamp(v00[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v00[1] = v00[1] * clamp(v00[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v01[0] = v01[0] * clamp(v01[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v01[1] = v01[1] * clamp(v01[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v10[0] = v10[0] * clamp(v10[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v10[1] = v10[1] * clamp(v10[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v11[0] = v11[0] * clamp(v11[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v11[1] = v11[1] * clamp(v11[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
 
     // store 2x2
 #if NCNN_image_shader

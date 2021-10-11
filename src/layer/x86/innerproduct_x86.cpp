@@ -1701,49 +1701,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
 #if NCNN_INT8
 int InnerProduct_x86::create_pipeline_int8_x86(const Option& opt)
 {
-    if (activation_type == 1)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 2)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // slope
-        activation->load_param(pd);
-    }
-    else if (activation_type == 3)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // min
-        pd.set(1, activation_params[1]); // max
-        activation->load_param(pd);
-    }
-    else if (activation_type == 4)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 5)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-
-    if (activation)
-    {
-        activation->create_pipeline(opt);
-    }
+    activation = create_activation_layer(activation_type, activation_params, opt);
 
     const int num_input = weight_data_size / num_output;
 

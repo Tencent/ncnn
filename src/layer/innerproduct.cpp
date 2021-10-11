@@ -16,6 +16,8 @@
 
 #include "layer_type.h"
 
+#include "fused_activation.h"
+
 namespace ncnn {
 
 InnerProduct::InnerProduct()
@@ -138,34 +140,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     sum += m[i] * kptr[i];
                 }
 
-                if (activation_type == 1)
-                {
-                    sum = std::max(sum, 0.f);
-                }
-                else if (activation_type == 2)
-                {
-                    float slope = activation_params[0];
-                    sum = sum > 0.f ? sum : sum * slope;
-                }
-                else if (activation_type == 3)
-                {
-                    float min = activation_params[0];
-                    float max = activation_params[1];
-                    if (sum < min)
-                        sum = min;
-                    if (sum > max)
-                        sum = max;
-                }
-                else if (activation_type == 4)
-                {
-                    sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                }
-                else if (activation_type == 5)
-                {
-                    sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-                }
-
-                outptr[p] = sum;
+                outptr[p] = activation_ss(sum, activation_type, activation_params);
             }
         }
 
@@ -197,34 +172,7 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             }
         }
 
-        if (activation_type == 1)
-        {
-            sum = std::max(sum, 0.f);
-        }
-        else if (activation_type == 2)
-        {
-            float slope = activation_params[0];
-            sum = sum > 0.f ? sum : sum * slope;
-        }
-        else if (activation_type == 3)
-        {
-            float min = activation_params[0];
-            float max = activation_params[1];
-            if (sum < min)
-                sum = min;
-            if (sum > max)
-                sum = max;
-        }
-        else if (activation_type == 4)
-        {
-            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-        }
-        else if (activation_type == 5)
-        {
-            sum = static_cast<float>(sum * tanh(log(exp(sum) + 1.f)));
-        }
-
-        top_blob[p] = sum;
+        top_blob[p] = activation_ss(sum, activation_type, activation_params);
     }
 
     return 0;
@@ -285,34 +233,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 if (bias_term)
                     sumfp32 += bias_data[p];
 
-                if (activation_type == 1)
-                {
-                    sumfp32 = std::max(sumfp32, 0.f);
-                }
-                else if (activation_type == 2)
-                {
-                    float slope = activation_params[0];
-                    sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
-                }
-                else if (activation_type == 3)
-                {
-                    float min = activation_params[0];
-                    float max = activation_params[1];
-                    if (sumfp32 < min)
-                        sumfp32 = min;
-                    if (sumfp32 > max)
-                        sumfp32 = max;
-                }
-                else if (activation_type == 4)
-                {
-                    sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
-                }
-                else if (activation_type == 5)
-                {
-                    sumfp32 = static_cast<float>(sumfp32 * tanh(log(exp(sumfp32) + 1.f)));
-                }
-
-                outptr[p] = sumfp32;
+                outptr[p] = activation_ss(sumfp32, activation_type, activation_params);
             }
         }
 
@@ -356,34 +277,7 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         if (bias_term)
             sumfp32 += bias_data[p];
 
-        if (activation_type == 1)
-        {
-            sumfp32 = std::max(sumfp32, 0.f);
-        }
-        else if (activation_type == 2)
-        {
-            float slope = activation_params[0];
-            sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
-        }
-        else if (activation_type == 3)
-        {
-            float min = activation_params[0];
-            float max = activation_params[1];
-            if (sumfp32 < min)
-                sumfp32 = min;
-            if (sumfp32 > max)
-                sumfp32 = max;
-        }
-        else if (activation_type == 4)
-        {
-            sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
-        }
-        else if (activation_type == 5)
-        {
-            sumfp32 = static_cast<float>(sumfp32 * tanh(log(exp(sumfp32) + 1.f)));
-        }
-
-        outptr[p] = sumfp32;
+        outptr[p] = activation_ss(sumfp32, activation_type, activation_params);
     }
 
     return 0;
