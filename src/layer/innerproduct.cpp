@@ -141,7 +141,6 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
 
                 outptr[p] = activation_ss(sum, activation_type, activation_params);
-                ;
             }
         }
 
@@ -174,7 +173,6 @@ int InnerProduct::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         }
 
         top_blob[p] = activation_ss(sum, activation_type, activation_params);
-        ;
     }
 
     return 0;
@@ -236,7 +234,6 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                     sumfp32 += bias_data[p];
 
                 outptr[p] = activation_ss(sumfp32, activation_type, activation_params);
-                ;
             }
         }
 
@@ -281,7 +278,6 @@ int InnerProduct::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
             sumfp32 += bias_data[p];
 
         outptr[p] = activation_ss(sumfp32, activation_type, activation_params);
-        ;
     }
 
     return 0;

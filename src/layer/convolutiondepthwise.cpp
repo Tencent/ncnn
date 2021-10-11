@@ -242,7 +242,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     }
 
                     outptr[j] = activation_ss(sum, activation_type, activation_params);
-                    ;
                 }
 
                 outptr += outw;
@@ -295,7 +294,6 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         }
 
                         outptr[j] = activation_ss(sum, activation_type, activation_params);
-                        ;
                     }
 
                     outptr += outw;
