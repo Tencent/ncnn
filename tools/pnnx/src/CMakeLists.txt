@@ -254,6 +254,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_GELU.cpp
     pass_ncnn/nn_GroupNorm.cpp
+    pass_ncnn/nn_GRU.cpp
     pass_ncnn/nn_Hardsigmoid.cpp
     pass_ncnn/nn_Hardswish.cpp
     pass_ncnn/nn_Hardtanh.cpp
@@ -262,6 +263,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_LeakyReLU.cpp
     pass_ncnn/nn_Linear.cpp
     pass_ncnn/nn_LocalResponseNorm.cpp
+    pass_ncnn/nn_LSTM.cpp
     pass_ncnn/nn_MaxPool2d.cpp
     pass_ncnn/nn_Mish.cpp
     pass_ncnn/nn_MultiheadAttention.cpp
@@ -272,6 +274,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ReLU.cpp
     pass_ncnn/nn_ReLU6.cpp
     pass_ncnn/nn_ReplicationPad2d.cpp
+    pass_ncnn/nn_RNN.cpp
     pass_ncnn/nn_SiLU.cpp
     pass_ncnn/nn_Sigmoid.cpp
     pass_ncnn/nn_Softmax.cpp
