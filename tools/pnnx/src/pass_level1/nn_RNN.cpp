@@ -45,6 +45,15 @@ public:
             rnn = rnn_relu;
         }
 
+        const torch::jit::Node* return_tuple = find_node_by_kind(graph, "prim::TupleConstruct");
+        if (return_tuple->inputs()[0] == rnn->outputs()[1] && return_tuple->inputs()[1] == rnn->outputs()[0])
+        {
+            // mark the swapped output tuple
+            // we would restore the fine order in pass_level3/fuse_rnn_unpack
+            fprintf(stderr, "swapped detected !\n");
+            op->params["pnnx_rnn_output_swapped"] = 1;
+        }
+
         //         for (auto aa : rnn->schema().arguments())
         //         {
         //             fprintf(stderr, "arg %s\n", aa.name().c_str());
