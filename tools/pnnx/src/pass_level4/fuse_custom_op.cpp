@@ -14,10 +14,14 @@
 
 #include "fuse_custom_op.h"
 
+#include <set>
+
 namespace pnnx {
 
 void fuse_custom_op(Graph& graph)
 {
+    std::set<std::string> custom_ops;
+
     for (;;)
     {
         bool need_fuse = false;
@@ -35,7 +39,7 @@ void fuse_custom_op(Graph& graph)
             if (op_type_namespace == "aten" || op_type_namespace == "prim")
                 continue;
 
-            fprintf(stderr, "found custom op %s\n", op->type.c_str());
+            custom_ops.insert(op->type);
 
             std::string op_type_name = op->type.substr(op->type.find_last_of(':') + 1);
 
@@ -63,7 +67,7 @@ void fuse_custom_op(Graph& graph)
                 }
                 else if (arg->type == "pnnx.Expression")
                 {
-                    op->params[std::string("arg_") + std::to_string(j)] = arg->params["expr"];
+                    op->params[std::string("arg_") + std::to_string(j)] = Parameter::parse_from_string(arg->params["expr"].s);
                     op->inputs[j]->remove_consumer(op);
                 }
                 else
@@ -79,6 +83,11 @@ void fuse_custom_op(Graph& graph)
 
         if (!need_fuse)
             break;
+    }
+
+    for (auto x : custom_ops)
+    {
+        fprintf(stderr, "custom op = %s\n", x.c_str());
     }
 }
 

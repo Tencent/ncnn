@@ -14,6 +14,7 @@
 
 #include "pass_ncnn.h"
 
+#include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_input.h"
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
@@ -53,6 +54,8 @@ void pass_ncnn(Graph& g)
     dead_code_elimination(g);
 
     canonicalize(g);
+
+    ncnn::convert_custom_op(g);
 
     ncnn::convert_input(g);
 
