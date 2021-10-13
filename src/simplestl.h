@@ -536,15 +536,38 @@ struct NCNN_EXPORT string : public vector<char>
     }
     bool operator==(const string& str2) const
     {
-        return strcmp(data_, str2.data_) == 0;
+        if(strlen(data_) == strlen(str2.data_)
+        {
+            return strcmp(data_, str2.data_) == 0;
+        }
+        else
+        {
+            return false;
+        }
+        
     }
     bool operator==(const char* str2) const
     {
-        return strcmp(data_, str2) == 0;
+        if(strlen(data_) == strlen(str2)
+        {
+            return strcmp(data_, str2) == 0;
+        }
+        else
+        {
+            return false;
+        }
+        
     }
     bool operator!=(const char* str2) const
     {
-        return strcmp(data_, str2) != 0;
+        if(strlen(data_) == strlen(str2)
+        {
+            return strcmp(data_, str2) != 0;
+        }
+        else
+        {
+            return true;
+        }
     }
     string& operator+=(const string& str1)
     {
