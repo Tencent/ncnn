@@ -12,38 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level3.h"
-
-#include "pass_level3/eliminate_tuple_pair.h"
-#include "pass_level3/fuse_attribute_expression.h"
-#include "pass_level3/fuse_cat_tensors.h"
-#include "pass_level3/fuse_chunk_unpack.h"
-#include "pass_level3/fuse_expression.h"
-#include "pass_level3/fuse_rnn_unpack.h"
-
-// #include "pass_level4/canonicalize.h"
-// #include "pass_level4/fuse_custom_op.h"
-// #include "pass_level4/dead_code_elimination.h"
+#include "ir.h"
 
 namespace pnnx {
 
-void pass_level3(Graph& g)
-{
-    fuse_cat_tensors(g);
-
-    fuse_chunk_unpack(g);
-
-    fuse_rnn_unpack(g);
-
-    fuse_attribute_expression(g);
-
-    eliminate_tuple_pair(g);
-
-    fuse_expression(g);
-
-    //     dead_code_elimination(g);
-
-    //     canonicalize(g);
-}
+void fuse_attribute_expression(Graph& graph);
 
 } // namespace pnnx
