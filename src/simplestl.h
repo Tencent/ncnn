@@ -538,7 +538,7 @@ struct NCNN_EXPORT string : public vector<char>
     {
         if(strlen(data_) == strlen(str2.data_)
         {
-            return strcmp(data_, str2.data_) == 0;
+            return strncmp(data_, str2.data_, strlen(data_)) == 0;
         }
         else
         {
@@ -550,7 +550,7 @@ struct NCNN_EXPORT string : public vector<char>
     {
         if(strlen(data_) == strlen(str2)
         {
-            return strcmp(data_, str2) == 0;
+            return strncmp(data_, str2, strlen(data_)) == 0;
         }
         else
         {
@@ -562,7 +562,7 @@ struct NCNN_EXPORT string : public vector<char>
     {
         if(strlen(data_) == strlen(str2)
         {
-            return strcmp(data_, str2) != 0;
+            return strncmp(data_, str2, strlen(data_)) != 0;
         }
         else
         {
