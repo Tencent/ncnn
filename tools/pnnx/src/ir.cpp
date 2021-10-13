@@ -1705,25 +1705,74 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
 
         for (const auto& it : op->params)
         {
+            const Parameter& param = it.second;
+
             if (!string_is_positive_integer(it.first))
             {
-                fprintf(stderr, "ignore %s param %s\n", op->type.c_str(), it.first.c_str());
+                fprintf(stderr, "ignore %s %s param %s=", op->type.c_str(), op->name.c_str(), it.first.c_str());
+
+                if (param.type == 0)
+                {
+                    fprintf(stderr, "None");
+                }
+                if (param.type == 1)
+                {
+                    if (param.b)
+                        fprintf(stderr, "True");
+                    else
+                        fprintf(stderr, "False");
+                }
+                if (param.type == 2)
+                {
+                    fprintf(stderr, "%d", param.i);
+                }
+                if (param.type == 3)
+                {
+                    fprintf(stderr, "%e", param.f);
+                }
+                if (param.type == 4)
+                {
+                    fprintf(stderr, "%s", param.s.c_str());
+                }
+                if (param.type == 5)
+                {
+                    fprintf(stderr, "(");
+                    for (size_t i = 0; i < param.ai.size(); i++)
+                    {
+                        fprintf(stderr, "%d", param.ai[i]);
+                        if (i + 1 != param.ai.size())
+                            fprintf(stderr, ",");
+                    }
+                    fprintf(stderr, ")");
+                }
+                if (param.type == 6)
+                {
+                    fprintf(stderr, "(");
+                    for (size_t i = 0; i < param.af.size(); i++)
+                    {
+                        fprintf(stderr, "%e", param.af[i]);
+                        if (i + 1 != param.af.size())
+                            fprintf(stderr, ",");
+                    }
+                    fprintf(stderr, ")");
+                }
+                if (param.type == 7)
+                {
+                    fprintf(stderr, "(");
+                    for (size_t i = 0; i < param.as.size(); i++)
+                    {
+                        fprintf(stderr, "%s", param.as[i].c_str());
+                        if (i + 1 != param.as.size())
+                            fprintf(stderr, ",");
+                    }
+                    fprintf(stderr, ")");
+                }
+                fprintf(stderr, "\n");
+
                 continue;
             }
 
             const int idkey = std::stoi(it.first);
-            const Parameter& param = it.second;
-            //             if (param.type == 0)
-            //             {
-            //                 fprintf(paramfp, "None");
-            //             }
-            //             if (param.type == 1)
-            //             {
-            //                 if (param.b)
-            //                     fprintf(paramfp, "True");
-            //                 else
-            //                     fprintf(paramfp, "False");
-            //             }
             if (param.type == 2)
             {
                 fprintf(paramfp, " %d=%d", idkey, param.i);
@@ -1732,10 +1781,6 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
             {
                 fprintf(paramfp, " %d=%e", idkey, param.f);
             }
-            //             if (param.type == 4)
-            //             {
-            //                 fprintf(paramfp, "%s", param.s.c_str());
-            //             }
             if (param.type == 5)
             {
                 const int array_size = (int)param.ai.size();
@@ -1754,17 +1799,6 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
                     fprintf(paramfp, ",%e", param.af[i]);
                 }
             }
-            //             if (param.type == 7)
-            //             {
-            //                 fprintf(paramfp, "(");
-            //                 for (size_t i = 0; i < param.as.size(); i++)
-            //                 {
-            //                     fprintf(paramfp, "%s", param.as[i].c_str());
-            //                     if (i + 1 != param.as.size())
-            //                         fprintf(paramfp, ",");
-            //                 }
-            //                 fprintf(paramfp, ")");
-            //             }
         }
 
         for (const auto& it : op->attrs)

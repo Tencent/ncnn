@@ -17,6 +17,7 @@
 #include <math.h>
 #include <string.h>
 
+#include <set>
 #include <iostream>
 #include <sstream>
 #include <algorithm>
@@ -108,10 +109,17 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
     {
         const std::string& t = tokens[i];
 
-        //         if (t == "size")
-        //         {
-        //         }
-        if (/*t == "int" || */ t == "sqrt" || t == "rsqrt")
+        if (t == "size")
+        {
+            // not supported
+            return std::string();
+        }
+        else if (t == "int")
+        {
+            // not supported
+            return std::string();
+        }
+        else if (t == "sqrt" || t == "rsqrt")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -198,9 +206,11 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
                 op_binary->outputs.push_back(op_binary_out);
             }
         }
-        //         else if (t == "[") // list
-        //         {
-        //         }
+        else if (t == "[") // list
+        {
+            // not supported
+            return std::string();
+        }
         else if (t[0] == '@')
         {
             exprstack.push(t);
@@ -224,6 +234,8 @@ void expand_expression(Graph& graph)
 {
     int pnnx_expr_index = 0;
 
+    std::set<Operator*> nonsupported_expr_ops;
+
     while (1)
     {
         bool matched = false;
@@ -234,9 +246,19 @@ void expand_expression(Graph& graph)
             if (op->type != "pnnx.Expression")
                 continue;
 
+            if (nonsupported_expr_ops.find(op) != nonsupported_expr_ops.end())
+                continue;
+
             matched = true;
 
             std::string outname = expand_expression(graph, op, pnnx_expr_index);
+
+            if (outname.empty())
+            {
+                // not supported expr
+                nonsupported_expr_ops.insert(op);
+                break;
+            }
 
             // link new output
             Operand* old_output_operand = op->outputs[0];
