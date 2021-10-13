@@ -282,7 +282,7 @@ static inline void float2int8_loop(const __m256& _v0, signed char* output)
 }
 #endif
 
-static inline void _mm256_comp_fmadd_ps4(__m256& _sum,
+static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps4(__m256& _sum,
         const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3,
         const __m256& _v0, const __m256& _v1, const __m256& _v2, const __m256& _v3)
 {
@@ -296,7 +296,7 @@ static inline void _mm256_comp_fmadd_ps4(__m256& _sum,
     _sum = _mm256_add_ps(_sum, _sum0123);
 }
 
-static inline void _mm256_comp_fmadd_ps8(__m256& _sum,
+static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps8(__m256& _sum,
         const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3, const __m256& _w4, const __m256& _w5, const __m256& _w6, const __m256& _w7,
         const __m256& _v0, const __m256& _v1, const __m256& _v2, const __m256& _v3, const __m256& _v4, const __m256& _v5, const __m256& _v6, const __m256& _v7)
 {
