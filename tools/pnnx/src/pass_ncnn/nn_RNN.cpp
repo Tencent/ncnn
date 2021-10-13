@@ -102,7 +102,6 @@ pnnx.Output             output      1 0 out
         op->attrs["6"] = captured_attrs.at("op_0.weight_hh_l0");
         if (bidirectional)
             op->attrs["7"] = captured_attrs.at("op_0.weight_hh_l0_reverse");
-
     }
 };
 
