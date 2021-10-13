@@ -62,7 +62,7 @@ static bool token_is_literal(const std::string& t)
     //     return true;
 }
 
-static std::string expand_expression(Graph& graph, const Operator* op)
+static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx_expr_index)
 {
     std::string expr = op->params.at("expr").s;
 
@@ -119,7 +119,7 @@ static std::string expand_expression(Graph& graph, const Operator* op)
             std::string r = t + "(" + (token_is_argument(a) ? op->inputs[std::stoi(a.substr(1))]->name : a) + ")";
             exprstack.push(r);
 
-            Operator* op_unary = graph.new_operator_before("UnaryOp", t, op);
+            Operator* op_unary = graph.new_operator_before("UnaryOp", t + "_" + std::to_string(pnnx_expr_index++), op);
 
             if (t == "sqrt") op_unary->params["0"] = 5;
             if (t == "rsqrt") op_unary->params["0"] = 6;
@@ -143,7 +143,7 @@ static std::string expand_expression(Graph& graph, const Operator* op)
             std::string r = t + "(" + (token_is_argument(a) ? op->inputs[std::stoi(a.substr(1))]->name : a) + "," + (token_is_argument(b) ? op->inputs[std::stoi(b.substr(1))]->name : b) + ")";
             exprstack.push(r);
 
-            Operator* op_binary = graph.new_operator_before("BinaryOp", t, op);
+            Operator* op_binary = graph.new_operator_before("BinaryOp", t + "_" + std::to_string(pnnx_expr_index++), op);
 
             if (t == "add") op_binary->params["0"] = 0;
             if (t == "sub") op_binary->params["0"] = 1;
@@ -222,6 +222,8 @@ static std::string expand_expression(Graph& graph, const Operator* op)
 
 void expand_expression(Graph& graph)
 {
+    int pnnx_expr_index = 0;
+
     while (1)
     {
         bool matched = false;
@@ -234,7 +236,7 @@ void expand_expression(Graph& graph)
 
             matched = true;
 
-            std::string outname = expand_expression(graph, op);
+            std::string outname = expand_expression(graph, op, pnnx_expr_index);
 
             // link new output
             Operand* old_output_operand = op->outputs[0];
