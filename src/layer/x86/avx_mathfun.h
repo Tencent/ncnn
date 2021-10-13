@@ -155,16 +155,11 @@ typedef union imm_xmm_union
     }
 
 #if _MSC_VER
-#pragma WARNING(Using SSE2 to perform AVX2 bitshift ops)
+#pragma message("Using SSE2 to perform AVX2 bitshift ops")
 #else
 #warning "Using SSE2 to perform AVX2 bitshift ops"
 #endif
 
-#if _MSC_VER
-#pragma WARNING(Using SSE2 to perform AVX2 bitshift ops)
-#else
-#warning "Using SSE2 to perform AVX2 integer ops"
-#endif
 #endif /* __AVX2__ */
 AVX2_BITOP_USING_SSE2(slli_epi32)
 AVX2_BITOP_USING_SSE2(srli_epi32)
