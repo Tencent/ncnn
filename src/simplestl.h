@@ -536,7 +536,7 @@ struct NCNN_EXPORT string : public vector<char>
     }
     bool operator==(const string& rhs) const
     {
-        if(this->length() == rhs.length())
+        if (this->length() == rhs.length())
         {
             return memcmp(data_, rhs.data_, strlen(data_)) == 0;
         }
