@@ -1,7 +1,7 @@
 ![](https://raw.githubusercontent.com/Tencent/ncnn/master/images/256-ncnn.png)
 # ncnn
 
-[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://raw.githubusercontent.com/Tencent/ncnn/master/LICENSE.txt) 
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://raw.githubusercontent.com/Tencent/ncnn/master/LICENSE.txt)
 [![Build Status](https://travis-ci.org/Tencent/ncnn.svg?branch=master)](https://travis-ci.org/Tencent/ncnn)
 [![download](https://img.shields.io/github/downloads/Tencent/ncnn/total.svg)](https://github.com/Tencent/ncnn/releases)
 [![codecov](https://codecov.io/gh/Tencent/ncnn/branch/master/graph/badge.svg)](https://codecov.io/gh/Tencent/ncnn)
@@ -133,7 +133,7 @@ ncnn 是一个为手机端极致优化的高性能神经网络前向计算框架
 * 支持多核并行计算加速，ARM big.LITTLE cpu 调度优化
 * 支持基于全新低消耗的 vulkan api GPU 加速
 * 整体库体积小于 700K，并可轻松精简到小于 300K
-* 可扩展的模型设计，支持 8bit 量化和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) 模型
+* 可扩展的模型设计，支持 8bit [量化](tools/quantize) 和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) 模型
 * 支持直接内存零拷贝引用加载网络模型
 * 可注册自定义层实现并扩展
 * 恩，很强就是了，不怕被塞卷 QvQ
