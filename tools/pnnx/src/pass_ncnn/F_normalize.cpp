@@ -54,6 +54,8 @@ pnnx.Output             output      1 0 out
         op->params["2"] = captured_params.at("eps");
         op->params["3"] = 1; // scale_data_size
         op->params["9"] = 1; // eps_mode
+
+        op->attrs["0"] = Attribute({1}, std::vector<float>(1, 1.f));
     }
 };
 
