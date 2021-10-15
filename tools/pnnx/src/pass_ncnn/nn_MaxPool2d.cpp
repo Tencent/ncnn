@@ -50,7 +50,7 @@ pnnx.Output             output      1 0 out
         op->params["12"] = captured_params.at("stride").ai[0];
         op->params["3"] = captured_params.at("padding").ai[1];
         op->params["13"] = captured_params.at("padding").ai[0];
-        op->params["5"] = captured_params.at("ceil_mode").b ? 1 : 0;
+        op->params["5"] = captured_params.at("ceil_mode").b ? 0 : 1;
     }
 };
 
