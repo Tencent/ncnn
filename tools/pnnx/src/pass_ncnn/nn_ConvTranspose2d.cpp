@@ -133,17 +133,18 @@ pnnx.Output             output      1 0 out
         // transpose inch-outch/group-kh-kw to outch/group-inch-kh-kw
         const int inch = captured_params.at("in_channels").i;
         const int outch = captured_params.at("out_channels").i;
+        const int groups = captured_params.at("groups").i;
         const int kh = captured_params.at("kernel_size").ai[1];
         const int kw = captured_params.at("kernel_size").ai[0];
         std::vector<float> new_weight;
         {
             const float* w = (const float*)captured_attrs.at("op_0.weight").data.data();
 
-            new_weight.resize(outch * inch * kh * kw);
+            new_weight.resize(outch / groups * inch * kh * kw);
             float* w2 = (float*)new_weight.data();
             const int maxk = kh * kw;
 
-            for (int i = 0; i < outch; i++)
+            for (int i = 0; i < outch / groups; i++)
             {
                 for (int j = 0; j < inch; j++)
                 {
@@ -157,7 +158,7 @@ pnnx.Output             output      1 0 out
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = Attribute({outch, inch, kh, kw}, new_weight);
+        op->attrs["1"] = Attribute({outch / groups, inch, kh, kw}, new_weight);
         if (captured_params.at("bias").b)
             op->attrs["2"] = captured_attrs.at("op_0.bias");
     }
