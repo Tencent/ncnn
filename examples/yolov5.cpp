@@ -26,9 +26,9 @@
 #include <stdio.h>
 #include <vector>
 
-#define V60 1 //YOLOv5 v6.0
+#define YOLOV5_V60 1 //YOLOv5 v6.0
 
-#if V60
+#if YOLOV5_V60
 #define MAX_STRIDE 64
 #else
 #define MAX_STRIDE 32
@@ -79,7 +79,7 @@ public:
 };
 
 DEFINE_LAYER_CREATOR(YoloV5Focus)
-#endif //V60
+#endif //YOLOV5_V60
 
 struct Object
 {
@@ -274,14 +274,17 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     yolov5.opt.use_vulkan_compute = true;
     // yolov5.opt.use_bf16_storage = true;
 
-#if !V60
-    yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
-#endif
-
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
+#if YOLOV5_V60
+    yolov5.load_param("yolov5s_6.0.param");
+    yolov5.load_model("yolov5s_6.0.bin");
+#else
+    yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
+
     yolov5.load_param("yolov5s.param");
     yolov5.load_model("yolov5s.bin");
+#endif
 
     const int target_size = 640;
     const float prob_threshold = 0.25f;
@@ -349,7 +352,11 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 16
     {
         ncnn::Mat out;
+#if YOLOV5_V60
+        ex.extract("376", out);
+#else
         ex.extract("781", out);
+#endif
 
         ncnn::Mat anchors(6);
         anchors[0] = 30.f;
@@ -368,8 +375,11 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 32
     {
         ncnn::Mat out;
+#if YOLOV5_V60
+        ex.extract("401", out);
+#else
         ex.extract("801", out);
-
+#endif
         ncnn::Mat anchors(6);
         anchors[0] = 116.f;
         anchors[1] = 90.f;
