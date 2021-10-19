@@ -26,12 +26,12 @@
 #include <stdio.h>
 #include <vector>
 
-#define V60         1      //YOLOv5 v6.0
+#define V60 1 //YOLOv5 v6.0
 
 #if V60
-#define MAX_STRIDE            64
+#define MAX_STRIDE 64
 #else
-#define MAX_STRIDE            32
+#define MAX_STRIDE 32
 class YoloV5Focus : public ncnn::Layer
 {
 public:
