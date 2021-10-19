@@ -26,6 +26,12 @@
 #include <stdio.h>
 #include <vector>
 
+#define IS_YOLOV5_V60 1
+
+#if IS_YOLOV5_V60
+#define MAX_STRIDE 64
+#else
+#define MAX_STRIDE 32
 class YoloV5Focus : public ncnn::Layer
 {
 public:
@@ -73,6 +79,9 @@ public:
 };
 
 DEFINE_LAYER_CREATOR(YoloV5Focus)
+
+#define MAX_STRIDE 32
+#endif //IS_YOLOV5_V60
 
 struct Object
 {
@@ -281,7 +290,7 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     int img_w = bgr.cols;
     int img_h = bgr.rows;
 
-    // letterbox pad to multiple of 32
+    // letterbox pad to multiple of MAX_STRIDE
     int w = img_w;
     int h = img_h;
     float scale = 1.f;
@@ -302,8 +311,8 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // pad to target_size rectangle
     // yolov5/utils/datasets.py letterbox
-    int wpad = (w + 31) / 32 * 32 - w;
-    int hpad = (h + 31) / 32 * 32 - h;
+    int wpad = (w + MAX_STRIDE - 1) / MAX_STRIDE * MAX_STRIDE - w;
+    int hpad = (h + MAX_STRIDE - 1) / MAX_STRIDE * MAX_STRIDE - h;
     ncnn::Mat in_pad;
     ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
 
