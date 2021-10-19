@@ -26,12 +26,12 @@
 #include <stdio.h>
 #include <vector>
 
-#define IS_YOLOV5_V60 1
+#define V60         1      //YOLOv5 v6.0
 
-#if IS_YOLOV5_V60
-#define MAX_STRIDE 64
+#if V60
+#define MAX_STRIDE            64
 #else
-#define MAX_STRIDE 32
+#define MAX_STRIDE            32
 class YoloV5Focus : public ncnn::Layer
 {
 public:
@@ -79,9 +79,7 @@ public:
 };
 
 DEFINE_LAYER_CREATOR(YoloV5Focus)
-
-#define MAX_STRIDE 32
-#endif //IS_YOLOV5_V60
+#endif //V60
 
 struct Object
 {
@@ -276,7 +274,9 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     yolov5.opt.use_vulkan_compute = true;
     // yolov5.opt.use_bf16_storage = true;
 
+#if !V60
     yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
+#endif
 
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
