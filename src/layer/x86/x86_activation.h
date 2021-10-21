@@ -45,7 +45,7 @@ static NCNN_FORCEINLINE __m128 mish_sse(__m128 inputs)
 static NCNN_FORCEINLINE __m128 swish_sse(__m128 inputs)
 {
     const __m128 one = _mm_set1_ps(1.0f);
-    return _mm_div_ps(inputs, _mm_add_ps(one, exp_ps(_mm_sub_ps(_mm_setzero_ps(), inputs))));
+    return _mm_mul_ps(inputs, sigmoid_sse(inputs));
 }
 
 static NCNN_FORCEINLINE __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
@@ -147,7 +147,7 @@ static NCNN_FORCEINLINE __m256 mish_avx(__m256 inputs)
 static NCNN_FORCEINLINE __m256 swish_avx(__m256 inputs)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
-    return _mm256_div_ps(inputs, _mm256_add_ps(one, exp256_ps(_mm256_sub_ps(_mm256_setzero_ps(), inputs))));
+    return _mm256_mul_ps(inputs, sigmoid_avx(inputs));
 }
 
 static NCNN_FORCEINLINE __m256 hardswish_avx(__m256 inputs, __m256 a, __m256 b)
