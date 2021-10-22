@@ -35,7 +35,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
     // set new graph output
     auto old_output = graph->outputs()[0];
 
-    torch::jit::Node* new_return_node = graph->createTuple(at::ArrayRef(values));
+    torch::jit::Node* new_return_node = graph->createTuple(at::ArrayRef<torch::jit::Value*>(values));
 
     graph->appendNode(new_return_node);
 

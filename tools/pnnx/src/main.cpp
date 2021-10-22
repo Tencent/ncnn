@@ -98,7 +98,7 @@ static void print_int64_array_list(const std::vector<std::vector<int64_t> >& lis
         fprintf(stderr, "[");
         for (size_t j = 0; j < array.size(); j++)
         {
-            fprintf(stderr, "%lld", array[j]);
+            fprintf(stderr, "%ld", array[j]);
             if (j != array.size() - 1)
                 fprintf(stderr, ",");
         }

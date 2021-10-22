@@ -38,7 +38,7 @@ void ConstantUnpooling(std::shared_ptr<torch::jit::Graph>& graph, torch::jit::Bl
             continue;
         }
 
-        for (int i = 0; i < node->inputs().size(); i++)
+        for (int i = 0; i < (int)node->inputs().size(); i++)
         {
             const auto& in = node->input(i);
 

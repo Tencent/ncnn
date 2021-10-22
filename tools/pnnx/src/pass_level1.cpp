@@ -18,6 +18,10 @@
 
 namespace pnnx {
 
+void FuseModulePass::write(const torch::jit::Module& /*mod*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/, Operator* /*op*/) const
+{
+}
+
 static std::vector<const FuseModulePass*> g_global_pnnx_fuse_module_passes;
 
 const std::vector<const FuseModulePass*>& get_global_pnnx_fuse_module_passes()
@@ -32,7 +36,7 @@ FuseModulePassRegister::FuseModulePassRegister(const FuseModulePass* pass)
 
 void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& g, Graph& pg)
 {
-    for (int i = 1; i < g->inputs().size(); i++)
+    for (int i = 1; i < (int)g->inputs().size(); i++)
     {
         const auto& in = g->inputs()[i];
 
@@ -70,7 +74,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 //                 Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
                 Operator* op = pg.new_operator("pnnx.Attribute", name);
 
-                for (int i = 0; i < n->outputs().size(); i++)
+                for (int i = 0; i < (int)n->outputs().size(); i++)
                 {
                     const auto& on = n->output(i);
                     Operand* r = pg.new_operand(on);
@@ -161,7 +165,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             Operator* op = pg.new_operator(optypename, name);
 
-            for (int i = 1; i < n->inputs().size(); i++)
+            for (int i = 1; i < (int)n->inputs().size(); i++)
             {
                 const auto& in = n->input(i);
                 Operand* r = pg.get_operand(in->debugName());
@@ -169,7 +173,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 op->inputs.push_back(r);
             }
 
-            for (int i = 0; i < n->outputs().size(); i++)
+            for (int i = 0; i < (int)n->outputs().size(); i++)
             {
                 const auto& on = n->output(i);
                 Operand* r = pg.new_operand(on);
@@ -222,7 +226,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
-            for (int i = 0; i < n->inputs().size(); i++)
+            for (int i = 0; i < (int)n->inputs().size(); i++)
             {
                 const auto& in = n->input(i);
                 Operand* r = pg.get_operand(in->debugName());
@@ -230,7 +234,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 op->inputs.push_back(r);
             }
 
-            for (int i = 0; i < n->outputs().size(); i++)
+            for (int i = 0; i < (int)n->outputs().size(); i++)
             {
                 const auto& on = n->output(i);
                 Operand* r = pg.new_operand(on);
@@ -320,7 +324,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
-            for (int i = 0; i < n->inputs().size(); i++)
+            for (int i = 0; i < (int)n->inputs().size(); i++)
             {
                 const auto& in = n->input(i);
                 Operand* r = pg.get_operand(in->debugName());
@@ -328,7 +332,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 op->inputs.push_back(r);
             }
 
-            for (int i = 0; i < n->outputs().size(); i++)
+            for (int i = 0; i < (int)n->outputs().size(); i++)
             {
                 const auto& on = n->output(i);
                 Operand* r = pg.new_operand(on);
@@ -341,7 +345,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         }
     }
 
-    for (int i = 0; i < g->outputs().size(); i++)
+    for (int i = 0; i < (int)g->outputs().size(); i++)
     {
         const auto& in = g->outputs()[i];
 

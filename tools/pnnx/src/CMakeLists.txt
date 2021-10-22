@@ -322,6 +322,8 @@ set(pnnx_SRCS
     ${pnnx_pass_ncnn_SRCS}
 )
 
+add_definitions(-Wall -Wextra)
+
 add_executable(pnnx ${pnnx_SRCS})
 target_link_libraries(pnnx
     TorchVision::TorchVision

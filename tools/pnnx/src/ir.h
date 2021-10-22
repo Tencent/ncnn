@@ -50,6 +50,10 @@ public:
         : type(2), i(_l)
     {
     }
+    Parameter(long long _l)
+        : type(2), i(_l)
+    {
+    }
     Parameter(float _f)
         : type(3), f(_f)
     {

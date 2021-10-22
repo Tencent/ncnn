@@ -459,7 +459,7 @@ static void load_attribute(Operator* op, const std::string& key, const std::stri
 
     if (filesize != bytesize)
     {
-        fprintf(stderr, "file size not match expect %u but got %u\n", bytesize, filesize);
+        fprintf(stderr, "file size not match expect %lu but got %lu\n", bytesize, filesize);
     }
 
     a.data.resize(bytesize);
@@ -887,7 +887,7 @@ static std::string expand_expression(const Operator* op)
             for (int j = 0; j < (int)elements.size() - 1; j++)
             {
                 r += elements[j];
-                if (j + 1 != elements.size())
+                if (j + 1 != (int)elements.size())
                     r += ", ";
             }
             if (!elements.empty())

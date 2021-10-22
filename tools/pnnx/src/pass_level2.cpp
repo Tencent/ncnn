@@ -248,7 +248,6 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
     while (1)
     {
         const int graph_op_count = (int)graph.ops.size();
-        const int pattern_graph_op_count = (int)pattern_graph.ops.size();
 
         bool matched = true;
 
