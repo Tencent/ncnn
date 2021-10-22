@@ -17,7 +17,7 @@
 
 static inline signed char float2int8(float v)
 {
-    int int32 = round(v);
+    int int32 = (int)round(v);
     if (int32 > 127) return 127;
     if (int32 < -127) return -127;
     return (signed char)int32;
@@ -42,14 +42,14 @@ static inline int64_t float2int8_sse(const __m128& _v0, const __m128& _v1)
 
     int v0_i[4];
     int v1_i[4];
-    v0_i[0] = round(v0[0]);
-    v0_i[1] = round(v0[1]);
-    v0_i[2] = round(v0[2]);
-    v0_i[3] = round(v0[3]);
-    v1_i[0] = round(v1[0]);
-    v1_i[1] = round(v1[1]);
-    v1_i[2] = round(v1[2]);
-    v1_i[3] = round(v1[3]);
+    v0_i[0] = (int)round(v0[0]);
+    v0_i[1] = (int)round(v0[1]);
+    v0_i[2] = (int)round(v0[2]);
+    v0_i[3] = (int)round(v0[3]);
+    v1_i[0] = (int)round(v1[0]);
+    v1_i[1] = (int)round(v1[1]);
+    v1_i[2] = (int)round(v1[2]);
+    v1_i[3] = (int)round(v1[3]);
 
     __m128i _v0_i = _mm_loadu_si128((const __m128i*)v0_i);
     __m128i _v1_i = _mm_loadu_si128((const __m128i*)v1_i);
@@ -82,22 +82,22 @@ static inline __m128i float2int8_sse(const __m128& _v0, const __m128& _v1, const
     int v1_i[4];
     int v2_i[4];
     int v3_i[4];
-    v0_i[0] = round(v0[0]);
-    v0_i[1] = round(v0[1]);
-    v0_i[2] = round(v0[2]);
-    v0_i[3] = round(v0[3]);
-    v1_i[0] = round(v1[0]);
-    v1_i[1] = round(v1[1]);
-    v1_i[2] = round(v1[2]);
-    v1_i[3] = round(v1[3]);
-    v2_i[0] = round(v2[0]);
-    v2_i[1] = round(v2[1]);
-    v2_i[2] = round(v2[2]);
-    v2_i[3] = round(v2[3]);
-    v3_i[0] = round(v3[0]);
-    v3_i[1] = round(v3[1]);
-    v3_i[2] = round(v3[2]);
-    v3_i[3] = round(v3[3]);
+    v0_i[0] = (int)round(v0[0]);
+    v0_i[1] = (int)round(v0[1]);
+    v0_i[2] = (int)round(v0[2]);
+    v0_i[3] = (int)round(v0[3]);
+    v1_i[0] = (int)round(v1[0]);
+    v1_i[1] = (int)round(v1[1]);
+    v1_i[2] = (int)round(v1[2]);
+    v1_i[3] = (int)round(v1[3]);
+    v2_i[0] = (int)round(v2[0]);
+    v2_i[1] = (int)round(v2[1]);
+    v2_i[2] = (int)round(v2[2]);
+    v2_i[3] = (int)round(v2[3]);
+    v3_i[0] = (int)round(v3[0]);
+    v3_i[1] = (int)round(v3[1]);
+    v3_i[2] = (int)round(v3[2]);
+    v3_i[3] = (int)round(v3[3]);
 
     __m128i _v0_i = _mm_loadu_si128((const __m128i*)v0_i);
     __m128i _v1_i = _mm_loadu_si128((const __m128i*)v1_i);
@@ -282,7 +282,7 @@ static inline void float2int8_loop(const __m256& _v0, signed char* output)
 }
 #endif
 
-static inline void _mm256_comp_fmadd_ps4(__m256& _sum,
+static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps4(__m256& _sum,
         const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3,
         const __m256& _v0, const __m256& _v1, const __m256& _v2, const __m256& _v3)
 {
@@ -296,7 +296,7 @@ static inline void _mm256_comp_fmadd_ps4(__m256& _sum,
     _sum = _mm256_add_ps(_sum, _sum0123);
 }
 
-static inline void _mm256_comp_fmadd_ps8(__m256& _sum,
+static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps8(__m256& _sum,
         const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3, const __m256& _w4, const __m256& _w5, const __m256& _w6, const __m256& _w7,
         const __m256& _v0, const __m256& _v1, const __m256& _v2, const __m256& _v3, const __m256& _v4, const __m256& _v5, const __m256& _v6, const __m256& _v7)
 {

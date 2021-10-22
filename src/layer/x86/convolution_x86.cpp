@@ -495,41 +495,32 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                                 __m256 _val7 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 7);
 
                                 __m256 _w0 = _mm256_loadu_ps(kptr);
-                                __m256 _mul0 = _mm256_mul_ps(_val0, _w0);
                                 __m256 _w1 = _mm256_loadu_ps(kptr + 8);
-                                __m256 _mul1 = _mm256_mul_ps(_val1, _w1);
                                 __m256 _w2 = _mm256_loadu_ps(kptr + 16);
-                                __m256 _mul2 = _mm256_mul_ps(_val2, _w2);
                                 __m256 _w3 = _mm256_loadu_ps(kptr + 24);
-                                __m256 _mul3 = _mm256_mul_ps(_val3, _w3);
                                 __m256 _w4 = _mm256_loadu_ps(kptr + 32);
-                                __m256 _mul4 = _mm256_mul_ps(_val4, _w4);
                                 __m256 _w5 = _mm256_loadu_ps(kptr + 40);
-                                __m256 _mul5 = _mm256_mul_ps(_val5, _w5);
                                 __m256 _w6 = _mm256_loadu_ps(kptr + 48);
-                                __m256 _mul6 = _mm256_mul_ps(_val6, _w6);
                                 __m256 _w7 = _mm256_loadu_ps(kptr + 56);
-                                __m256 _mul7 = _mm256_mul_ps(_val7, _w7);
-                                __m256 _sum01 = _mm256_add_ps(_mul0, _mul1);
-                                __m256 _sum23 = _mm256_add_ps(_mul2, _mul3);
-                                __m256 _sum45 = _mm256_add_ps(_mul4, _mul5);
-                                __m256 _sum67 = _mm256_add_ps(_mul6, _mul7);
-                                __m256 _sum_lo = _mm256_add_ps(_sum01, _sum23);
-                                __m256 _sum_hi = _mm256_add_ps(_sum45, _sum67);
-                                __m256 _sum_all = _mm256_add_ps(_sum_lo, _sum_hi);
-                                _sum = _mm256_add_ps(_sum_all, _sum);
+
+                                _mm256_comp_fmadd_ps8(_sum,
+                                                      _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7,
+                                                      _w0, _w1, _w2, _w3, _w4, _w5, _w6, _w7);
 
                                 kptr += 64;
                             }
                         }
-
-                        _sum = activation_avx(_sum, activation_type, activation_params);
 
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -591,13 +582,16 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             }
                         }
 
-                        _sum = activation_avx(_sum, activation_type, activation_params);
-
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -650,13 +644,16 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             }
                         }
 
-                        _sum = activation_avx(_sum, activation_type, activation_params);
-
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
             }
         }
     }

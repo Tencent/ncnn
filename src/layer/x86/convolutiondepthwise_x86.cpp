@@ -428,13 +428,16 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                                 _sum = _mm256_comp_fmadd_ps(_val, _w, _sum);
                             }
 
-                            _sum = activation_avx(_sum, activation_type, activation_params);
-
                             _mm256_storeu_ps(outptr + j * 8, _sum);
                         }
 
                         outptr += outw * 8;
                     }
+                }
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
