@@ -23,7 +23,7 @@ static void pooling2x2s2_max_pack4_avx(const Mat& bottom_blob, Mat& top_blob, co
 
     const int tailstep = (w - 2 * outw + w) * 4;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < inch; q++)
     {
         const Mat img0 = bottom_blob.channel(q);
