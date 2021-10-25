@@ -69,7 +69,8 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
     if (opt.use_packing_layout)
     {
 #if __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                                                                     : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
@@ -151,14 +152,15 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         if (opt.use_packing_layout)
         {
 #if __AVX__
-            num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+            num_output_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                                                                                : 1;
 #else
             num_output_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
         }
 #endif // __SSE2__
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
 #if __SSE2__
@@ -871,7 +873,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (opt.use_packing_layout)
     {
 #if __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                                                                     : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
@@ -887,8 +890,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if __AVX__
     if (out_elempack == 8)
     {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -988,8 +991,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     if (out_elempack == 4)
     {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             __m128 _sum0 = _mm_set1_ps(0.f);
@@ -1102,7 +1105,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         int remain_num_output_start = 0;
         int nn_num_output = num_output >> 3;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < nn_num_output; pp++)
         {
             int p = pp * 8;
@@ -1210,7 +1213,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         int nn_num_output = num_output >> 2;
 #endif // __AVX__
 
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int pp = 0; pp < nn_num_output; pp++)
         {
             int p = remain_num_output_start + (pp * 4);
@@ -1314,8 +1317,8 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         int remain_num_output_start = 0;
 #endif // __SSE2__
 
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = remain_num_output_start; p < num_output; p++)
         {
             float sum = 0.f;
@@ -1412,7 +1415,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
     int nn_num_output = num_output >> 3;
     int remain_num_output_start = nn_num_output << 3;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = pp * 8;
@@ -1555,7 +1558,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
     int nn_offset = remain_num_output_start;
     remain_num_output_start += (nn_num_output << 2);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_num_output; pp++)
     {
         int p = nn_offset + (pp * 4);
@@ -1643,8 +1646,8 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
         _mm_storeu_ps(output_ptr + p, _mm256_castps256_ps128(_sums_a));
     }
 
-// num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
+    // num_output
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
         float sum = 0.f;
@@ -1793,8 +1796,8 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
 #if __SSE2__
     if (out_elempack == 8)
     {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             __m128i _sum0 = _mm_setzero_si128();
@@ -1833,8 +1836,8 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
 
     if (out_elempack == 1)
     {
-        // num_output
-        #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
             int sum = 0;

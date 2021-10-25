@@ -44,6 +44,7 @@ namespace ncnn {
 
 #if __SSE2__
 #include "convolution_1x1_pack4.h"
+#include "convolution_3x3_pack1to4.h"
 
 #if NCNN_INT8
 #include "convolution_pack8to4_int8.h"
@@ -142,8 +143,10 @@ int Convolution_x86::create_pipeline(const Option& opt)
     if (opt.use_packing_layout)
     {
 #if __AVX__
-        elempack = num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        elempack = num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4
+                                                               : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                                                                     : 1;
 #else
         elempack = num_input % 4 == 0 ? 4 : 1;
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -329,7 +332,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (opt.use_packing_layout)
     {
 #if __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
+                                                                     : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
@@ -458,8 +462,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -495,32 +499,41 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                                 __m256 _val7 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 7);
 
                                 __m256 _w0 = _mm256_loadu_ps(kptr);
+                                __m256 _mul0 = _mm256_mul_ps(_val0, _w0);
                                 __m256 _w1 = _mm256_loadu_ps(kptr + 8);
+                                __m256 _mul1 = _mm256_mul_ps(_val1, _w1);
                                 __m256 _w2 = _mm256_loadu_ps(kptr + 16);
+                                __m256 _mul2 = _mm256_mul_ps(_val2, _w2);
                                 __m256 _w3 = _mm256_loadu_ps(kptr + 24);
+                                __m256 _mul3 = _mm256_mul_ps(_val3, _w3);
                                 __m256 _w4 = _mm256_loadu_ps(kptr + 32);
+                                __m256 _mul4 = _mm256_mul_ps(_val4, _w4);
                                 __m256 _w5 = _mm256_loadu_ps(kptr + 40);
+                                __m256 _mul5 = _mm256_mul_ps(_val5, _w5);
                                 __m256 _w6 = _mm256_loadu_ps(kptr + 48);
+                                __m256 _mul6 = _mm256_mul_ps(_val6, _w6);
                                 __m256 _w7 = _mm256_loadu_ps(kptr + 56);
-
-                                _mm256_comp_fmadd_ps8(_sum,
-                                                      _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7,
-                                                      _w0, _w1, _w2, _w3, _w4, _w5, _w6, _w7);
+                                __m256 _mul7 = _mm256_mul_ps(_val7, _w7);
+                                __m256 _sum01 = _mm256_add_ps(_mul0, _mul1);
+                                __m256 _sum23 = _mm256_add_ps(_mul2, _mul3);
+                                __m256 _sum45 = _mm256_add_ps(_mul4, _mul5);
+                                __m256 _sum67 = _mm256_add_ps(_mul6, _mul7);
+                                __m256 _sum_lo = _mm256_add_ps(_sum01, _sum23);
+                                __m256 _sum_hi = _mm256_add_ps(_sum45, _sum67);
+                                __m256 _sum_all = _mm256_add_ps(_sum_lo, _sum_hi);
+                                _sum = _mm256_add_ps(_sum_all, _sum);
 
                                 kptr += 64;
                             }
                         }
+
+                        _sum = activation_avx(_sum, activation_type, activation_params);
 
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -547,8 +560,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -582,16 +595,13 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             }
                         }
 
+                        _sum = activation_avx(_sum, activation_type, activation_params);
+
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -599,8 +609,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 4 && out_elempack == 8)
     {
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -644,16 +654,13 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             }
                         }
 
+                        _sum = activation_avx(_sum, activation_type, activation_params);
+
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -671,8 +678,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -721,8 +728,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 8 && out_elempack == 4)
     {
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -812,8 +819,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -870,9 +877,28 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (elempack == 1 && out_elempack == 4)
     {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+            conv3x3s1_pack1to4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv3x3s2_pack1to4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
+        {
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -920,8 +946,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 4 && out_elempack == 1)
     {
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -997,8 +1023,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
-            #pragma omp parallel for num_threads(opt.num_threads)
+// num_output
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob.channel(p);
@@ -1452,7 +1478,7 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
             if (inner_top_blob.empty())
                 return -100;
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < bottom_blob.c; c++)
             {
                 float* outptr = inner_bottom_blob.channel(c);
@@ -1472,7 +1498,7 @@ int Convolution_x86::forwardDilation_x86(const Mat& bottom_blob, Mat& top_blob, 
             opt_g.blob_allocator = inner_top_blob.allocator;
             convolution_dilation1->forward(inner_bottom_blob, inner_top_blob, opt_g);
 
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int c = 0; c < num_output; c++)
             {
                 float* outptr = (float*)top_blob.channel(c) + x * outw + y;
