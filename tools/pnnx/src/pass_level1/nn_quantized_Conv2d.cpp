@@ -28,7 +28,7 @@ public:
 
     const char* type_str() const
     {
-        return "nn.quantized.modules.conv.Conv2d";
+        return "nn.quantized.Conv2d";
     }
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const

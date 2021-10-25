@@ -60,8 +60,8 @@ pnnx.Output             output      1 0 out
         // transpose inch-outch-kh-kw to outch-inch-kh-kw
         const int inch = captured_params.at("in_channels").i;
         const int outch = captured_params.at("out_channels").i;
-        const int kh = captured_params.at("kernel_size").ai[1];
-        const int kw = captured_params.at("kernel_size").ai[0];
+        const int kh = captured_params.at("kernel_size").ai[0];
+        const int kw = captured_params.at("kernel_size").ai[1];
         std::vector<float> new_weight;
         {
             const float* w = (const float*)captured_attrs.at("op_0.weight").data.data();
@@ -70,13 +70,14 @@ pnnx.Output             output      1 0 out
             float* w2 = (float*)new_weight.data();
             const int maxk = kh * kw;
 
+            // reorder weight from inch-outch to outch-inch
             for (int i = 0; i < outch; i++)
             {
                 for (int j = 0; j < inch; j++)
                 {
                     for (int k = 0; k < maxk; k++)
                     {
-                        w2[i * inch * maxk + j * maxk + k] = w[j * outch * maxk + i * maxk + k];
+                        w2[(i * inch + j) * maxk + k] = w[(j * outch + i) * maxk + k];
                     }
                 }
             }
@@ -134,8 +135,8 @@ pnnx.Output             output      1 0 out
         const int inch = captured_params.at("in_channels").i;
         const int outch = captured_params.at("out_channels").i;
         const int groups = captured_params.at("groups").i;
-        const int kh = captured_params.at("kernel_size").ai[1];
-        const int kw = captured_params.at("kernel_size").ai[0];
+        const int kh = captured_params.at("kernel_size").ai[0];
+        const int kw = captured_params.at("kernel_size").ai[1];
         std::vector<float> new_weight;
         {
             const float* w = (const float*)captured_attrs.at("op_0.weight").data.data();
@@ -144,13 +145,21 @@ pnnx.Output             output      1 0 out
             float* w2 = (float*)new_weight.data();
             const int maxk = kh * kw;
 
-            for (int i = 0; i < outch / groups; i++)
+            for (int g = 0; g < groups; g++)
             {
-                for (int j = 0; j < inch; j++)
+                // reorder weight from inch-outch to outch-inch
+                int outch_g = outch / groups;
+                int inch_g = inch / groups;
+                float* wg2 = w2 + g * outch_g * inch_g * maxk;
+                const float* wg = w + g * outch_g * inch_g * maxk;
+                for (int i = 0; i < outch_g; i++)
                 {
-                    for (int k = 0; k < maxk; k++)
+                    for (int j = 0; j < inch_g; j++)
                     {
-                        w2[i * inch * maxk + j * maxk + k] = w[j * outch * maxk + i * maxk + k];
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            wg2[(i * inch_g + j) * maxk + k] = wg[(j * outch_g + i) * maxk + k];
+                        }
                     }
                 }
             }
