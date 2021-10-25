@@ -215,7 +215,6 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
                 _sum3 = _mm_comp_fmadd_ps(_w2, _val32, _sum3);
                 _sum3 = _mm_comp_fmadd_ps(_w3, _val33, _sum3);
 
-
                 tmpptr += 16;
                 kptr0 += 16;
             }
@@ -258,7 +257,6 @@ static void conv1x1s1_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_blob, con
                 _sum1 = _mm_comp_fmadd_ps(_w1, _val11, _sum1);
                 _sum1 = _mm_comp_fmadd_ps(_w2, _val12, _sum1);
                 _sum1 = _mm_comp_fmadd_ps(_w3, _val13, _sum1);
-
 
                 tmpptr += 8;
                 kptr0 += 16;

@@ -77,8 +77,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         if (opt.use_packing_layout)
         {
 #if __AVX__
-            elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4
-                       : 1;
+            elempack = channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 #else
             elempack = channels % 4 == 0 ? 4 : 1;
 #endif
@@ -294,8 +293,7 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     if (opt.use_packing_layout)
     {
 #if __AVX__
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4
-                       : 1;
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
 #endif
@@ -574,10 +572,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     if (opt.use_packing_layout)
     {
 #if __AVX__
-        g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4
-                     : 1;
-        out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4
-                         : 1;
+        g_elempack = channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
+        out_g_elempack = num_output_g % 8 == 0 ? 8 : num_output_g % 4 == 0 ? 4 : 1;
 #else
         g_elempack = channels_g % 4 == 0 ? 4 : 1;
         out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
