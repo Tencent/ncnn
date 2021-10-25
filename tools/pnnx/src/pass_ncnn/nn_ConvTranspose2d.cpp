@@ -131,7 +131,7 @@ pnnx.Output             output      1 0 out
         op->params["6"] = (int)(captured_attrs.at("op_0.weight").data.size() / sizeof(float));
         op->params["7"] = captured_params.at("groups");
 
-        // transpose inch-outch/group-kh-kw to outch/group-inch-kh-kw
+        // transpose group-inch/group-outch/group-kh-kw to group-outch/group-inch/group-kh-kw
         const int inch = captured_params.at("in_channels").i;
         const int outch = captured_params.at("out_channels").i;
         const int groups = captured_params.at("groups").i;
@@ -143,15 +143,15 @@ pnnx.Output             output      1 0 out
 
             new_weight.resize(outch / groups * inch * kh * kw);
             float* w2 = (float*)new_weight.data();
+            const int outch_g = outch / groups;
+            const int inch_g = inch / groups;
             const int maxk = kh * kw;
 
             for (int g = 0; g < groups; g++)
             {
                 // reorder weight from inch-outch to outch-inch
-                int outch_g = outch / groups;
-                int inch_g = inch / groups;
                 float* wg2 = w2 + g * outch_g * inch_g * maxk;
-                const float* wg = w + g * outch_g * inch_g * maxk;
+                const float* wg = w + g * inch_g * outch_g * maxk;
                 for (int i = 0; i < outch_g; i++)
                 {
                     for (int j = 0; j < inch_g; j++)

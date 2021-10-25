@@ -61,7 +61,7 @@ pnnx.Output             output      1 0 out
         int channels = captured_params.at("num_features").i;
         float bn_eps = captured_params.at("eps").f;
         bool has_bn_affine = captured_params.at("affine").b;
-        bool has_conv_bias = captured_params.at("bias").b;
+        bool has_convtranspose_bias = captured_params.at("bias").b;
 
         const float* bn_running_mean = (const float*)captured_attrs.at("op_1.running_mean").data.data();
         const float* bn_running_var = (const float*)captured_attrs.at("op_1.running_var").data.data();
@@ -92,7 +92,7 @@ pnnx.Output             output      1 0 out
 
         op->attrs["weight"] = captured_attrs.at("op_0.weight");
 
-        if (has_conv_bias)
+        if (has_convtranspose_bias)
         {
             op->attrs["bias"] = captured_attrs.at("op_0.bias");
         }
@@ -110,18 +110,34 @@ pnnx.Output             output      1 0 out
         float* conv_weight = (float*)op->attrs["weight"].data.data();
         float* conv_bias = (float*)op->attrs["bias"].data.data();
 
-        // inch-outch/group-kh-kw
+        // group-inch/group-outch/group-kh-kw
+        const int inch = captured_params.at("in_channels").i;
+        const int outch = captured_params.at("out_channels").i;
+        const int groups = captured_params.at("groups").i;
+        const int kh = captured_params.at("kernel_size").ai[0];
+        const int kw = captured_params.at("kernel_size").ai[1];
 
-        const int weight_per_outch = op->params["kernel_size"].ai[1] * op->params["kernel_size"].ai[2] * op->params["kernel_size"].ai[3];
+        const int outch_g = outch / groups;
+        const int inch_g = inch / groups;
+        const int maxk = kh * kw;
+
+        for (int g = 0; g < groups; g++)
+        {
+            float* wg = conv_weight + g * inch_g * outch_g * maxk;
+            for (int i = 0; i < inch_g; i++)
+            {
+                for (int j = 0; j < outch_g; j++)
+                {
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        wg[(i * outch_g + j) * maxk + k] *= b[g * outch_g + j];
+                    }
+                }
+            }
+        }
 
         for (int i = 0; i < channels; i++)
         {
-            float* conv_weight_outch = conv_weight + weight_per_outch * i;
-            for (int j = 0; j < weight_per_outch; j++)
-            {
-                conv_weight_outch[j] *= b[i];
-            }
-
             conv_bias[i] = conv_bias[i] * b[i] + a[i];
         }
     }

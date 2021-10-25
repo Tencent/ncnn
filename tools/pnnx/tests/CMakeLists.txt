@@ -165,3 +165,6 @@ pnnx_add_test(mobilenet_v2)
 pnnx_add_test(resnet18)
 pnnx_add_test(shufflenet_v2_x1_0)
 pnnx_add_test(squeezenet1_1)
+
+pnnx_add_test(pnnx_fuse_conv2d_batchnorm2d)
+pnnx_add_test(pnnx_fuse_convtranspose2d_batchnorm2d)
