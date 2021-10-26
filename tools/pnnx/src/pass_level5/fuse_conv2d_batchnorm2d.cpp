@@ -109,7 +109,8 @@ pnnx.Output             output      1 0 out
         float* conv_weight = (float*)op->attrs["weight"].data.data();
         float* conv_bias = (float*)op->attrs["bias"].data.data();
 
-        const int weight_per_outch = op->params["kernel_size"].ai[1] * op->params["kernel_size"].ai[2] * op->params["kernel_size"].ai[3];
+        const int outch = captured_params.at("out_channels").i;
+        const int weight_per_outch = op->attrs["weight"].data.size() / sizeof(float) / outch;
 
         for (int i = 0; i < channels; i++)
         {
