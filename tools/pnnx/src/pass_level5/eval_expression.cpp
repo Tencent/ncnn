@@ -230,7 +230,7 @@ static std::string eval_expression(const Operator* op)
             for (int j = 0; j < (int)elements.size() - 1; j++)
             {
                 r += elements[j];
-                if (j + 1 != elements.size())
+                if (j + 1 != (int)elements.size())
                     r += ",";
             }
             if (!elements.empty())
