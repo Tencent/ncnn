@@ -13,7 +13,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void pooling3x3s2_max_pack4_avx(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
+static void pooling3x3s2_max_pack4_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -23,7 +23,7 @@ static void pooling3x3s2_max_pack4_avx(const Mat& bottom_blob, Mat& top_blob, co
 
     const int tailstep = (w - 2 * outw + w) * 4;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < inch; q++)
     {
         const Mat img0 = bottom_blob.channel(q);
