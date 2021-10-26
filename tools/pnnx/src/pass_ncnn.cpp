@@ -21,6 +21,7 @@
 #include "pass_ncnn/insert_split.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
+#include "pass_level5/unroll_rnn_op.h"
 
 namespace pnnx {
 
@@ -38,6 +39,8 @@ NcnnGraphRewriterPassRegister::NcnnGraphRewriterPassRegister(const GraphRewriter
 
 void pass_ncnn(Graph& g)
 {
+    unroll_rnn_op(g);
+
     ncnn::insert_split(g);
 
     ncnn::expand_expression(g);

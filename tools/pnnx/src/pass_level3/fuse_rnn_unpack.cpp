@@ -24,7 +24,6 @@ void fuse_rnn_unpack(Graph& graph)
     {
         bool matched = false;
 
-        // pattern match from end to beginning
         for (size_t i = 0; i < graph.ops.size(); i++)
         {
             Operator* op = graph.ops[i];

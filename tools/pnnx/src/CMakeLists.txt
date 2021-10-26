@@ -208,6 +208,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_slice_indices.cpp
+    pass_level5/unroll_rnn_op.cpp
 )
 
 set(pnnx_pass_ncnn_SRCS

@@ -24,6 +24,7 @@
 #include "pass_level5/fuse_contiguous_view.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
 #include "pass_level5/fuse_slice_indices.h"
+#include "pass_level5/unroll_rnn_op.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
 
@@ -50,6 +51,8 @@ void pass_level5(Graph& g)
     eliminate_view_reshape(g);
 
     fuse_channel_shuffle(g);
+
+    // unroll_rnn_op(g);
 
     dead_code_elimination(g);
 
