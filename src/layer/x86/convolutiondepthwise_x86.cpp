@@ -29,6 +29,7 @@
 namespace ncnn {
 
 #if __SSE2__
+#include "convolutiondepthwise_3x3_pack4.h"
 #if __AVX__
 #if __AVX2__
 #include "convolutiondepthwise_3x3_pack8_fp16.h"
@@ -38,6 +39,7 @@ namespace ncnn {
 #endif
 #endif // __SSE2__
 #include "convolutiondepthwise_3x3.h"
+
 #if NCNN_INT8
 #include "convolutiondepthwise_3x3_int8.h"
 #endif // NCNN_INT8
@@ -447,6 +449,28 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         if (elempack == 4)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
             {
                 const int maxk = kernel_w * kernel_h;
 
