@@ -450,7 +450,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.FractionalMaxPool3d     |   |
 |nn.GELU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GroupNorm               | :heavy_check_mark: | :heavy_check_mark: |
-|nn.GRU                     | :heavy_check_mark: |
+|nn.GRU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRUCell                 |   |
 |nn.Hardshrink              | :heavy_check_mark: |
 |nn.Hardsigmoid             | :heavy_check_mark: | :heavy_check_mark: |
@@ -478,7 +478,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.LogSoftmax              | :heavy_check_mark: |
 |nn.LPPool1d                | :heavy_check_mark: |
 |nn.LPPool2d                | :heavy_check_mark: |
-|nn.LSTM                    | :heavy_check_mark: |
+|nn.LSTM                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LSTMCell                |   |
 |nn.MaxPool1d               | :heavy_check_mark: |
 |nn.MaxPool2d               | :heavy_check_mark: | :heavy_check_mark: |
@@ -499,7 +499,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.ReplicationPad1d        | :heavy_check_mark: |
 |nn.ReplicationPad2d        | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReplicationPad3d        | :heavy_check_mark: |
-|nn.RNN                     | :heavy_check_mark: |
+|nn.RNN                     | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.RNNBase                 |   |
 |nn.RNNCell                 |   |
 |nn.RReLU                   | :heavy_check_mark: |
