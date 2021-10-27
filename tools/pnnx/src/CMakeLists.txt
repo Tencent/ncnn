@@ -1,9 +1,18 @@
 
-set(Torch_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch/share/cmake/Torch")
-set(TorchVision_DIR "/home/nihui/osd/vision/build/install/share/cmake/TorchVision")
+set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
+set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
+
+set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
+set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
 find_package(Torch REQUIRED)
-find_package(TorchVision REQUIRED)
+find_package(TorchVision)
+
+if(TorchVision_FOUND)
+    message(STATUS "Building with TorchVision")
+else()
+    message(WARNING "Building without TorchVision")
+endif()
 
 include_directories(${TORCH_INCLUDE_DIRS})
 
@@ -326,11 +335,12 @@ set(pnnx_SRCS
 add_definitions(-Wall -Wextra)
 
 add_executable(pnnx ${pnnx_SRCS})
-target_link_libraries(pnnx
-    TorchVision::TorchVision
-    ${TORCH_LIBRARIES}
-    dl
-)
+
+if(TorchVision_FOUND)
+    target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)
+endif()
+
+target_link_libraries(pnnx ${TORCH_LIBRARIES} dl)
 
 #set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
 #set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
