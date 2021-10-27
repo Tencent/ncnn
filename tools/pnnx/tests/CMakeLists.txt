@@ -168,3 +168,4 @@ pnnx_add_test(squeezenet1_1)
 
 pnnx_add_test(pnnx_fuse_conv2d_batchnorm2d)
 pnnx_add_test(pnnx_fuse_convtranspose2d_batchnorm2d)
+pnnx_add_test(pnnx_fuse_linear_batchnorm1d)
