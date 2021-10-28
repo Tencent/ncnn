@@ -14,6 +14,8 @@
 
 #include "pass_level2.h"
 
+#include <torch/csrc/api/include/torch/torch.h>
+
 namespace pnnx {
 
 class torch_permute : public GraphRewriterPass
@@ -32,7 +34,11 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
+#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
         return "torch.permute";
+#else
+        return "Tensor.permute";
+#endif
     }
 };
 

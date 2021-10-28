@@ -21,12 +21,20 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = torch.permute(x, (1, 0, 2))
-        x = torch.permute(x, (0, 1, 2))
-        y = torch.permute(y, (2, 3, 1, 0))
-        y = torch.permute(y, (3, 1, 0, 2))
-        z = torch.permute(z, (1, 3, 0, 4, 2))
-        z = torch.permute(z, (0, 2, 4, 3, 1))
+        if torch.__version__ < '1.9':
+            x = x.permute(1, 0, 2)
+            x = x.permute(0, 1, 2)
+            y = y.permute(2, 3, 1, 0)
+            y = y.permute(3, 1, 0, 2)
+            z = z.permute(1, 3, 0, 4, 2)
+            z = z.permute(0, 2, 4, 3, 1)
+        else:
+            x = torch.permute(x, (1, 0, 2))
+            x = torch.permute(x, (0, 1, 2))
+            y = torch.permute(y, (2, 3, 1, 0))
+            y = torch.permute(y, (3, 1, 0, 2))
+            z = torch.permute(z, (1, 3, 0, 4, 2))
+            z = torch.permute(z, (0, 2, 4, 3, 1))
         return x, y, z
 
 def test():

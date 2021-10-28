@@ -24,14 +24,18 @@ class Model(nn.Module):
         self.attention_0_1 = nn.MultiheadAttention(embed_dim=64, num_heads=8, bias=False, add_bias_kv=False, add_zero_attn=False)
         self.attention_0_2 = nn.MultiheadAttention(embed_dim=64, num_heads=16, bias=True, add_bias_kv=True, add_zero_attn=True)
 
-        self.attention_1_0 = nn.MultiheadAttention(embed_dim=40, num_heads=4, batch_first=True)
-        self.attention_1_1 = nn.MultiheadAttention(embed_dim=40, num_heads=8, bias=False, add_bias_kv=False, add_zero_attn=False, batch_first=True)
-        self.attention_1_2 = nn.MultiheadAttention(embed_dim=40, num_heads=10, bias=True, add_bias_kv=True, add_zero_attn=True, batch_first=True)
+        if torch.__version__ >= '1.9':
+            self.attention_1_0 = nn.MultiheadAttention(embed_dim=40, num_heads=4, batch_first=True)
+            self.attention_1_1 = nn.MultiheadAttention(embed_dim=40, num_heads=8, bias=False, add_bias_kv=False, add_zero_attn=False, batch_first=True)
+            self.attention_1_2 = nn.MultiheadAttention(embed_dim=40, num_heads=10, bias=True, add_bias_kv=True, add_zero_attn=True, batch_first=True)
 
     def forward(self, xq, xk, xv, yq, yk, yv):
         x0, x0w = self.attention_0_0(xq, xk, xv)
         x1, x1w = self.attention_0_1(xq, xk, xv)
         x2, x2w = self.attention_0_2(xq, xk, xv)
+
+        if torch.__version__ < '1.9':
+            return x0, x0w, x1, x1w, x2, x2w
 
         y0, y0w = self.attention_1_0(yq, yk, yv)
         y1, y1w = self.attention_1_1(yq, yk, yv)

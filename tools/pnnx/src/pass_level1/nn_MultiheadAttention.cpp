@@ -35,7 +35,7 @@ public:
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
-        //         mod.dump(true, true, true);
+        //         mod.dump(false, false, false);
 
         //         graph->dump();
 
@@ -43,7 +43,6 @@ public:
 
         op->params["num_heads"] = div_num_heads->input(1)->node()->t(torch::jit::attr::value).item<long>();
 
-#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
         const torch::jit::Node* transpose_batch_seq = find_node_by_kind(graph, "aten::transpose");
 
         int transpose_dim0 = transpose_batch_seq->input(1)->node()->i(torch::jit::attr::value);
@@ -52,6 +51,7 @@ public:
         {
             op->params["batch_first"] = true;
         }
+#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
         else
         {
             op->params["batch_first"] = false;
@@ -88,6 +88,15 @@ public:
         else
         {
             op->params["bias"] = false;
+#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR == 8
+            // the output projection bias always there no matter bias is False in pytorch 1.8
+            // this behavior changes since https://github.com/pytorch/pytorch/commit/58d1b3639bc07f9519de18e5a18e575f260c7eeb
+            if (mod.attr("out_proj").toModule().hasattr("bias"))
+            {
+                const auto& out_proj_bias = mod.attr("out_proj").toModule().attr("bias").toTensor();
+                op->attrs["out_proj.bias"] = out_proj_bias;
+            }
+#endif
         }
 
         if (mod.hasattr("bias_k") && mod.hasattr("bias_v"))
