@@ -14,6 +14,8 @@
 
 #include "pass_level1.h"
 
+#include <torch/csrc/api/include/torch/torch.h>
+
 #include "../utils.h"
 
 namespace pnnx {
@@ -41,6 +43,7 @@ public:
 
         op->params["num_heads"] = div_num_heads->input(1)->node()->t(torch::jit::attr::value).item<long>();
 
+#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
         const torch::jit::Node* transpose_batch_seq = find_node_by_kind(graph, "aten::transpose");
 
         int transpose_dim0 = transpose_batch_seq->input(1)->node()->i(torch::jit::attr::value);
@@ -53,6 +56,7 @@ public:
         {
             op->params["batch_first"] = false;
         }
+#endif
 
         const torch::jit::Node* add_zero_attn = find_node_by_kind(graph, "aten::zeros");
         if (add_zero_attn)

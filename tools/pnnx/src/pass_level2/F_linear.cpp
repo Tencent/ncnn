@@ -39,4 +39,84 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear, 10)
 
+class F_linear_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+aten::t                 op_0        1 1 weight 9
+aten::matmul            op_1        2 1 input 9 a
+prim::Constant          op_2        0 1 19 value=1
+aten::add_              op_3        3 1 a bias 19 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.linear";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_1, 9)
+
+class F_linear_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+aten::t                 op_0        1 1 weight 9
+aten::matmul            op_1        2 1 input 9 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.linear";
+    }
+
+    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    {
+        op->params["bias"] = Parameter();
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_2, 10)
+
+class F_linear_3 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+pnnx.Input              input_2     0 1 bias
+aten::t                 op_0        1 1 weight 14
+prim::Constant          op_1        0 1 15 value=1
+prim::Constant          op_2        0 1 30 value=1
+aten::addmm             op_3        5 1 bias input 14 15 30 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.linear";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_linear_3, 10)
+
 } // namespace pnnx
