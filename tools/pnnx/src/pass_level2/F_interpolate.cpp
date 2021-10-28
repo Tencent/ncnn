@@ -533,6 +533,110 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
+79 78
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 scale_w value=%scale_w
+prim::Constant          op_1        0 1 scale_h value=%scale_h
+prim::Constant          op_2        0 1 108 value=cpu
+prim::Constant          op_3        0 1 scale_d value=%scale_d
+prim::Constant          op_4        0 1 12 value=None
+prim::Constant          op_5        0 1 10 value=0
+prim::Constant          op_6        0 1 5 value=2
+prim::Constant          op_7        0 1 9 value=6
+prim::Constant          op_8        0 1 34 value=3
+prim::Constant          op_9        0 1 62 value=4
+aten::size              op_10       2 1 input 5 6
+prim::NumToTensor       op_11       1 1 6 7
+prim::Constant          op_12       0 1 111 value=0
+aten::to                op_13       5 1 7 9 10 111 12 13
+prim::Constant          op_14       0 1 112 value=6
+prim::Constant          op_15       0 1 113 value=0
+prim::Constant          op_16       0 1 114 value=0
+prim::Constant          op_17       0 1 115 value=None
+aten::to                op_18       6 1 scale_d 108 112 113 114 115 20
+aten::detach            op_19       1 1 20 23
+aten::mul               op_20       2 1 13 23 24
+prim::Constant          op_21       0 1 116 value=6
+prim::Constant          op_22       0 1 117 value=0
+prim::Constant          op_23       0 1 118 value=0
+prim::Constant          op_24       0 1 119 value=None
+aten::to                op_25       5 1 24 116 117 118 119 28
+aten::floor             op_26       1 1 28 30
+aten::Int               op_27       1 1 30 32
+aten::size              op_28       2 1 input 34 35
+prim::NumToTensor       op_29       1 1 35 36
+prim::Constant          op_30       0 1 120 value=6
+prim::Constant          op_31       0 1 121 value=0
+prim::Constant          op_32       0 1 122 value=0
+prim::Constant          op_33       0 1 123 value=None
+aten::to                op_34       5 1 36 120 121 122 123 41
+prim::Constant          op_35       0 1 124 value=cpu
+prim::Constant          op_36       0 1 125 value=6
+prim::Constant          op_37       0 1 126 value=0
+prim::Constant          op_38       0 1 127 value=0
+prim::Constant          op_39       0 1 128 value=None
+aten::to                op_40       6 1 scale_h 124 125 126 127 128 48
+aten::detach            op_41       1 1 48 51
+aten::mul               op_42       2 1 41 51 52
+prim::Constant          op_43       0 1 129 value=6
+prim::Constant          op_44       0 1 130 value=0
+prim::Constant          op_45       0 1 131 value=0
+prim::Constant          op_46       0 1 132 value=None
+aten::to                op_47       5 1 52 129 130 131 132 56
+aten::floor             op_48       1 1 56 58
+aten::Int               op_49       1 1 58 60
+aten::size              op_50       2 1 input 62 63
+prim::NumToTensor       op_51       1 1 63 64
+prim::Constant          op_52       0 1 133 value=6
+prim::Constant          op_53       0 1 134 value=0
+prim::Constant          op_54       0 1 135 value=0
+prim::Constant          op_55       0 1 136 value=None
+aten::to                op_56       5 1 64 133 134 135 136 69
+prim::Constant          op_57       0 1 137 value=cpu
+prim::Constant          op_58       0 1 138 value=6
+prim::Constant          op_59       0 1 139 value=0
+prim::Constant          op_60       0 1 140 value=0
+prim::Constant          op_61       0 1 141 value=None
+aten::to                op_62       6 1 scale_w 137 138 139 140 141 76
+aten::detach            op_63       1 1 76 79
+aten::mul               op_64       2 1 69 79 80
+prim::Constant          op_65       0 1 142 value=6
+prim::Constant          op_66       0 1 143 value=0
+prim::Constant          op_67       0 1 144 value=0
+prim::Constant          op_68       0 1 145 value=None
+aten::to                op_69       5 1 80 142 143 144 145 84
+aten::floor             op_70       1 1 84 89
+aten::Int               op_71       1 1 89 91
+prim::ListConstruct     op_72       3 1 32 60 91 size
+prim::Constant          op_73       0 1 scale_d_none value=None
+prim::Constant          op_74       0 1 scale_h_none value=None
+prim::Constant          op_75       0 1 scale_w_none value=None
+aten::upsample_nearest3d op_76      5 1 input size scale_d_none scale_h_none scale_w_none out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.interpolate";
+    }
+
+    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    {
+        op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["mode"] = "nearest";
+        op->params["recompute_scale_factor"] = true;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_5, 10)
+
+class F_interpolate_5_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
 77 76
 pnnx.Input              input       0 1 input
 prim::Constant          op_0        0 1 scale_w value=%scale_w
@@ -627,7 +731,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_5, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_interpolate_5_1, 10)
 
 class F_interpolate_6 : public GraphRewriterPass
 {

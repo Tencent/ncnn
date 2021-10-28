@@ -39,7 +39,7 @@ prim::Constant          op_11       0 1 52 value=0
 prim::Constant          op_12       0 1 53 value=*
 prim::Constant          op_13       0 1 54 value=*
 prim::ListConstruct     op_14       4 1 10 52 53 54 11
-prim::Constant          op_15       0 1 55 value=0
+prim::Constant          op_15       0 1 55 value=%padzero
 aten::constant_pad_nd   op_16       3 1 input.1 11 55 div.1
 prim::Constant          op_17       0 1 56 value=1
 prim::ListConstruct     op_18       2 1 size 56 16
@@ -64,6 +64,25 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.local_response_norm";
+    }
+
+    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("padzero").type == 2)
+            return captured_params.at("padzero").i == 0;
+
+        if (captured_params.at("padzero").type == 3)
+            return captured_params.at("padzero").f == 0.f;
+
+        return false;
+    }
+
+    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    {
+        op->params["size"] = captured_params.at("size");
+        op->params["alpha"] = captured_params.at("alpha");
+        op->params["beta"] = captured_params.at("beta");
+        op->params["k"] = captured_params.at("k");
     }
 };
 
@@ -117,7 +136,7 @@ prim::Constant          op_36       0 1 106 value=0
 prim::Constant          op_37       0 1 107 value=*
 prim::Constant          op_38       0 1 108 value=*
 prim::ListConstruct     op_39       6 1 103 104 105 106 107 108 53
-prim::Constant          op_40       0 1 109 value=0
+prim::Constant          op_40       0 1 109 value=%padzero
 aten::constant_pad_nd   op_41       3 1 input.1 53 109 div0.1
 prim::Constant          op_42       0 1 110 value=1
 prim::Constant          op_43       0 1 111 value=1
@@ -147,6 +166,25 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.local_response_norm";
+    }
+
+    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("padzero").type == 2)
+            return captured_params.at("padzero").i == 0;
+
+        if (captured_params.at("padzero").type == 3)
+            return captured_params.at("padzero").f == 0.f;
+
+        return false;
+    }
+
+    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    {
+        op->params["size"] = captured_params.at("size");
+        op->params["alpha"] = captured_params.at("alpha");
+        op->params["beta"] = captured_params.at("beta");
+        op->params["k"] = captured_params.at("k");
     }
 };
 
@@ -204,7 +242,7 @@ prim::Constant          op_40       0 1 114 value=0
 prim::Constant          op_41       0 1 115 value=*
 prim::Constant          op_42       0 1 116 value=*
 prim::ListConstruct     op_43       6 1 111 112 113 114 115 116 60
-prim::Constant          op_44       0 1 117 value=0
+prim::Constant          op_44       0 1 117 value=%padzero
 aten::constant_pad_nd   op_45       3 1 input.1 60 117 div0.1
 prim::Constant          op_46       0 1 118 value=1
 prim::Constant          op_47       0 1 119 value=1
@@ -234,6 +272,25 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.local_response_norm";
+    }
+
+    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("padzero").type == 2)
+            return captured_params.at("padzero").i == 0;
+
+        if (captured_params.at("padzero").type == 3)
+            return captured_params.at("padzero").f == 0.f;
+
+        return false;
+    }
+
+    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    {
+        op->params["size"] = captured_params.at("size");
+        op->params["alpha"] = captured_params.at("alpha");
+        op->params["beta"] = captured_params.at("beta");
+        op->params["k"] = captured_params.at("k");
     }
 };
 
