@@ -81,8 +81,8 @@ public:
         //         op->params["in_features"] = mod.attr("in_features").toInt();
         //         op->params["out_features"] = mod.attr("out_features").toInt();
 
-        op->params["output_scale"] = quantized_linear->namedInput("Y_scale_i");
-        op->params["output_zero_point"] = quantized_linear->namedInput("Y_zero_point_i");
+        op->params["scale"] = quantized_linear->namedInput("Y_scale_i");
+        op->params["zero_point"] = quantized_linear->namedInput("Y_zero_point_i");
     }
 };
 

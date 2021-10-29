@@ -92,8 +92,8 @@ public:
         op->params["groups"] = mod.attr("groups").toInt();
         op->params["padding_mode"] = "zeros";
 
-        op->params["output_scale"] = quantized_convolution->namedInput("output_scale");
-        op->params["output_zero_point"] = quantized_convolution->namedInput("output_zero_point");
+        op->params["scale"] = quantized_convolution->namedInput("output_scale");
+        op->params["zero_point"] = quantized_convolution->namedInput("output_zero_point");
     }
 };
 
@@ -109,7 +109,7 @@ public:
 
     const char* type_str() const
     {
-        return "nn.intrinsic.quantized.modules.conv_relu.ConvReLU2d";
+        return "nn.intrinsic.quantized.ConvReLU2d";
     }
 
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
@@ -173,8 +173,8 @@ public:
         op->params["groups"] = mod.attr("groups").toInt();
         op->params["padding_mode"] = "zeros";
 
-        op->params["output_scale"] = quantized_convolution->namedInput("output_scale");
-        op->params["output_zero_point"] = quantized_convolution->namedInput("output_zero_point");
+        op->params["scale"] = quantized_convolution->namedInput("output_scale");
+        op->params["zero_point"] = quantized_convolution->namedInput("output_zero_point");
     }
 };
 

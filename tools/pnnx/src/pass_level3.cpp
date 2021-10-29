@@ -15,6 +15,7 @@
 #include "pass_level3.h"
 
 #include "pass_level3/eliminate_tuple_pair.h"
+#include "pass_level3/expand_quantization_modules.h"
 #include "pass_level3/fuse_attribute_expression.h"
 #include "pass_level3/fuse_cat_tensors.h"
 #include "pass_level3/fuse_chunk_unpack.h"
@@ -34,6 +35,8 @@ void pass_level3(Graph& g)
     fuse_chunk_unpack(g);
 
     fuse_rnn_unpack(g);
+
+    expand_quantization_modules(g);
 
     fuse_attribute_expression(g);
 
