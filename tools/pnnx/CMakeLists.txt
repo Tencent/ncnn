@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD 14)
 #set(CMAKE_BUILD_TYPE relwithdebinfo)
 #set(CMAKE_BUILD_TYPE release)
 
+option(PNNX_COVERAGE "build for coverage" OFF)
+
 set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
 set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
 

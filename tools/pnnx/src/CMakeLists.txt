@@ -319,11 +319,16 @@ add_definitions(-Wall -Wextra)
 
 add_executable(pnnx ${pnnx_SRCS})
 
+if(PNNX_COVERAGE)
+    target_compile_options(pnnx PUBLIC -coverage -fprofile-arcs -ftest-coverage)
+    target_link_libraries(pnnx PUBLIC -coverage -lgcov)
+endif()
+
 if(TorchVision_FOUND)
     target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)
 endif()
 
-target_link_libraries(pnnx ${TORCH_LIBRARIES} dl)
+target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} dl)
 
 #set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
 #set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
