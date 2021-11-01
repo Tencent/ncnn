@@ -1049,10 +1049,21 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
             fprintf(pyfp, "        self.%s = %s(", sanitize_identifier(op->name).c_str(), op->type.c_str());
 
-            const int param_count = op->params.size();
+            int param_count = op->params.size();
+            if (op->type == "nn.quantized.Conv2d" || op->type == "nn.quantized.Linear")
+            {
+                param_count -= 2;// ignore scale and zero_point
+            }
+
             int param_index = 0;
             for (const auto& it : op->params)
             {
+                if (op->type == "nn.quantized.Conv2d" || op->type == "nn.quantized.Linear")
+                {
+                    if (it.first == "scale" || it.first == "zero_point")
+                        continue;
+                }
+
                 fprintf(pyfp, "%s=", it.first.c_str());
 
                 const Parameter& param = it.second;
@@ -1147,6 +1158,38 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             if (op->type.substr(0, 3) != "nn.")
                 continue;
 
+            if (op->type == "nn.quantized.Conv2d" || op->type == "nn.quantized.Linear")
+            {
+                for (const auto& it : op->attrs)
+                {
+                    if (it.first == "weight" || it.first == "bias")
+                    {
+                        fprintf(pyfp, "        self_%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), it.first.c_str(), op->name.c_str(), it.first.c_str());
+                    }
+                    else
+                    {
+                        // unknown attr
+                        continue;
+                    }
+
+                    const Attribute& attr = it.second;
+                    for (size_t i = 0; i < attr.shape.size(); i++)
+                    {
+                        fprintf(pyfp, "%d", attr.shape[i]);
+                        if (i + 1 != attr.shape.size())
+                            fprintf(pyfp, ",");
+                    }
+
+                    fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
+                }
+
+                fprintf(pyfp, "        self.%s.set_weight_bias(self_%s_weight, self_%s_bias)\n", sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(op->name).c_str());
+                fprintf(pyfp, "        self.%s.scale = %f\n", sanitize_identifier(op->name).c_str(), op->params.at("scale").f);
+                fprintf(pyfp, "        self.%s.zero_point = %d\n", sanitize_identifier(op->name).c_str(), op->params.at("zero_point").i);
+
+                continue;
+            }
+
             for (const auto& it : op->attrs)
             {
                 if (it.first == "running_mean" || it.first == "running_var")
@@ -1177,8 +1220,8 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
     // utility function
     {
-        fprintf(pyfp, "    def load_pnnx_bin_as_parameter(self, archive, key, shape, dtype):\n");
-        fprintf(pyfp, "        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype))\n");
+        fprintf(pyfp, "    def load_pnnx_bin_as_parameter(self, archive, key, shape, dtype, requires_grad=True):\n");
+        fprintf(pyfp, "        return nn.Parameter(self.load_pnnx_bin_as_tensor(archive, key, shape, dtype), requires_grad)\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "    def load_pnnx_bin_as_tensor(self, archive, key, shape, dtype):\n");
         fprintf(pyfp, "        _, tmppath = tempfile.mkstemp()\n");

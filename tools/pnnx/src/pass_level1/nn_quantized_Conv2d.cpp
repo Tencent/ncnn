@@ -91,6 +91,7 @@ public:
         op->params["dilation"] = {mod.attr("dilation").toTuple()->elements()[0].toInt(), mod.attr("dilation").toTuple()->elements()[1].toInt()};
         op->params["groups"] = mod.attr("groups").toInt();
         op->params["padding_mode"] = "zeros";
+        op->params["bias"] = mod.hasattr("bias");
 
         op->params["scale"] = quantized_convolution->namedInput("output_scale");
         op->params["zero_point"] = quantized_convolution->namedInput("output_zero_point");
@@ -172,6 +173,7 @@ public:
         op->params["dilation"] = {mod.attr("dilation").toTuple()->elements()[0].toInt(), mod.attr("dilation").toTuple()->elements()[1].toInt()};
         op->params["groups"] = mod.attr("groups").toInt();
         op->params["padding_mode"] = "zeros";
+        op->params["bias"] = mod.hasattr("bias");
 
         op->params["scale"] = quantized_convolution->namedInput("output_scale");
         op->params["zero_point"] = quantized_convolution->namedInput("output_zero_point");
