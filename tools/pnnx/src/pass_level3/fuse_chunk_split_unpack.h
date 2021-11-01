@@ -16,6 +16,6 @@
 
 namespace pnnx {
 
-void fuse_chunk_unpack(Graph& graph);
+void fuse_chunk_split_unpack(Graph& graph);
 
 } // namespace pnnx

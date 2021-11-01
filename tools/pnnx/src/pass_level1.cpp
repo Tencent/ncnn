@@ -114,7 +114,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             continue;
         }
-        else if (n->kind() == c10::prim::Constant || n->kind() == c10::prim::ListConstruct)
+        else if (n->kind() == c10::prim::Constant)// || n->kind() == c10::prim::ListConstruct)
         {
             char name[32];
             sprintf(name, "pnnx_%d", pnnx_unknown_index++);

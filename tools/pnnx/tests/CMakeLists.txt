@@ -156,6 +156,7 @@ pnnx_add_test(torch_flatten)
 pnnx_add_test(torch_mean)
 pnnx_add_test(torch_permute)
 pnnx_add_test(torch_sum)
+pnnx_add_test(torch_split)
 pnnx_add_test(torch_transpose)
 pnnx_add_test(torch_unsqueeze)
 
@@ -164,7 +165,8 @@ pnnx_add_test(resnet18)
 pnnx_add_test(shufflenet_v2_x1_0)
 pnnx_add_test(squeezenet1_1)
 
-pnnx_add_test(quantization_shufflenet_v2_x1_0)
+# TODO enable end2end quantization model test
+#pnnx_add_test(quantization_shufflenet_v2_x1_0)
 
 pnnx_add_test(pnnx_fuse_conv2d_batchnorm2d)
 pnnx_add_test(pnnx_fuse_convtranspose2d_batchnorm2d)

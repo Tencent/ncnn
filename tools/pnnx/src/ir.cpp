@@ -99,14 +99,14 @@ Parameter::Parameter(const torch::jit::Node* value_node)
 {
     type = 0;
 
-    if (!value_node->hasAttribute(torch::jit::attr::value))
-    {
-        fprintf(stderr, "no attribute value\n");
-        return;
-    }
-
     if (value_node->kind() == c10::prim::Constant)
     {
+        if (!value_node->hasAttribute(torch::jit::attr::value))
+        {
+            fprintf(stderr, "no attribute value\n");
+            return;
+        }
+
         switch (value_node->output()->type()->kind())
         {
         case c10::TypeKind::NoneType:

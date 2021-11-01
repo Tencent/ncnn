@@ -12,13 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "fuse_chunk_unpack.h"
+#include "fuse_chunk_split_unpack.h"
 #include <algorithm>
 #include "pass_level2.h"
 
 namespace pnnx {
 
-void fuse_chunk_unpack(Graph& graph)
+void fuse_chunk_split_unpack(Graph& graph)
 {
     while (1)
     {
@@ -28,7 +28,7 @@ void fuse_chunk_unpack(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "torch.chunk")
+            if (op->type != "torch.chunk" && op->type != "torch.split")
                 continue;
 
             if (op->outputs.size() != 1)
