@@ -114,6 +114,42 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             continue;
         }
+        else if (n->kind() == c10::prim::Constant || n->kind() == c10::prim::ListConstruct)
+        {
+            char name[32];
+            sprintf(name, "pnnx_%d", pnnx_unknown_index++);
+
+            Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
+
+            for (int i = 0; i < (int)n->inputs().size(); i++)
+            {
+                const auto& in = n->input(i);
+                Operand* r = pg.get_operand(in->debugName());
+                r->consumers.push_back(op);
+                op->inputs.push_back(r);
+            }
+
+            for (int i = 0; i < (int)n->outputs().size(); i++)
+            {
+                const auto& on = n->output(i);
+                Operand* r = pg.new_operand(on);
+                r->producer = op;
+                op->outputs.push_back(r);
+            }
+
+            op->params["value"] = n;
+
+            if (op->params["value"].type == 8)
+            {
+                op->type = "pnnx.Attribute";
+
+                op->params.erase("value");
+
+                op->attrs[name] = n->t(torch::jit::attr::value);
+            }
+
+            continue;
+        }
 
         switch (n->kind())
         {
@@ -215,94 +251,6 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 ow->write(sub_mod, function.graph(), op);
 
                 break;
-            }
-
-            break;
-        }
-        case c10::prim::Constant:
-        {
-            char name[32];
-            sprintf(name, "pnnx_%d", pnnx_unknown_index++);
-
-            Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
-
-            for (int i = 0; i < (int)n->inputs().size(); i++)
-            {
-                const auto& in = n->input(i);
-                Operand* r = pg.get_operand(in->debugName());
-                r->consumers.push_back(op);
-                op->inputs.push_back(r);
-            }
-
-            for (int i = 0; i < (int)n->outputs().size(); i++)
-            {
-                const auto& on = n->output(i);
-                Operand* r = pg.new_operand(on);
-                r->producer = op;
-                op->outputs.push_back(r);
-            }
-
-            if (!n->hasAttribute(torch::jit::attr::value))
-            {
-                op->params["value"] = Parameter();
-            }
-            else
-            {
-                torch::jit::AttributeKind value_kind = n->kindOf(torch::jit::attr::value);
-
-                if (value_kind == torch::jit::AttributeKind::f)
-                {
-                    op->params["value"] = n->f(torch::jit::attr::value);
-                }
-                else if (value_kind == torch::jit::AttributeKind::i)
-                {
-                    op->params["value"] = n->i(torch::jit::attr::value);
-                }
-                else if (value_kind == torch::jit::AttributeKind::s)
-                {
-                    op->params["value"] = n->s(torch::jit::attr::value);
-                }
-                else if (value_kind == torch::jit::AttributeKind::t)
-                {
-                    at::Tensor t = n->t(torch::jit::attr::value);
-
-                    //                     fprintf(stderr, "value_kind = %s %d %d\n", torch::jit::toString(value_kind), t.dim(), (int)t.scalar_type());
-
-                    if (t.dim() == 0)
-                    {
-                        if (t.scalar_type() == c10::ScalarType::Long)
-                        {
-                            op->params["value"] = t.item<long>();
-                        }
-                        else if (t.scalar_type() == c10::ScalarType::Int)
-                        {
-                            op->params["value"] = t.item<int>();
-                        }
-                        else if (t.scalar_type() == c10::ScalarType::Double)
-                        {
-                            op->params["value"] = t.item<double>();
-                        }
-                        else if (t.scalar_type() == c10::ScalarType::Float)
-                        {
-                            op->params["value"] = t.item<float>();
-                        }
-                        else
-                        {
-                            op->params["value"] = Parameter();
-                            op->params["value"].type = 7;
-                        }
-                    }
-                    else
-                    {
-                        op->params["value"] = Parameter();
-                        op->params["value"].type = 7;
-                    }
-                }
-                else
-                {
-                    op->params["value"] = Parameter();
-                    op->params["value"].type = 7;
-                }
             }
 
             break;

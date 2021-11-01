@@ -23,6 +23,7 @@
 namespace torch {
 namespace jit {
 class Value;
+class Node;
 }
 } // namespace torch
 namespace at {
@@ -113,6 +114,7 @@ public:
     {
     }
 
+    Parameter(const torch::jit::Node* value_node);
     Parameter(const torch::jit::Value* value);
 
     static Parameter parse_from_string(const std::string& value);

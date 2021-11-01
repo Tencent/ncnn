@@ -86,7 +86,7 @@ void fuse_attribute_expression(Graph& graph)
                     continue;
                 }
             }
-            else if (op2->type == "aten::mul" || op2->type == "aten::div" || op2->type != "aten::pow")
+            else if (op2->type == "aten::mul" || op2->type == "aten::div" || op2->type == "aten::pow")
             {
                 if (op2->inputs[0] != op->outputs[0])
                     continue;

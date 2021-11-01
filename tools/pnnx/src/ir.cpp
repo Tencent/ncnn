@@ -95,9 +95,15 @@ int get_at_tensor_type(const at::ScalarType& st)
     return 0; // unknown type
 }
 
-Parameter::Parameter(const torch::jit::Value* value)
+Parameter::Parameter(const torch::jit::Node* value_node)
 {
-    const torch::jit::Node* value_node = value->node();
+    type = 0;
+
+    if (!value_node->hasAttribute(torch::jit::attr::value))
+    {
+        fprintf(stderr, "no attribute value\n");
+        return;
+    }
 
     if (value_node->kind() == c10::prim::Constant)
     {
@@ -160,12 +166,15 @@ Parameter::Parameter(const torch::jit::Value* value)
                 }
                 else
                 {
-                    fprintf(stderr, "unknown Parameter value kind %s of TensorType\n", value_node->kind().toDisplayString());
+                    fprintf(stderr, "unknown Parameter value kind %s of TensorType, t.dim = 0\n", value_node->kind().toDisplayString());
                 }
             }
             else
             {
-                fprintf(stderr, "unknown Parameter value kind %s of TensorType\n", value_node->kind().toDisplayString());
+                const int ndim = (int)t.dim();
+
+                type = 8;
+                fprintf(stderr, "unknown Parameter value kind %s of TensorType, t.dim = %d\n", value_node->kind().toDisplayString(), ndim);
             }
 
             break;
@@ -219,6 +228,10 @@ Parameter::Parameter(const torch::jit::Value* value)
     {
         fprintf(stderr, "unknown Parameter value kind %s\n", value_node->kind().toDisplayString());
     }
+}
+
+Parameter::Parameter(const torch::jit::Value* value) : Parameter(value->node())
+{
 }
 
 Attribute::Attribute(const at::Tensor& t)

@@ -34,6 +34,12 @@ public:
     void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
     {
         const torch::jit::Node* leaky_relu = find_node_by_kind(graph, "aten::leaky_relu");
+        const torch::jit::Node* leaky_relu_ = find_node_by_kind(graph, "aten::leaky_relu_");
+
+        if (leaky_relu_)
+        {
+            leaky_relu = leaky_relu_;
+        }
 
         op->params["negative_slope"] = leaky_relu->namedInput("negative_slope");
     }
