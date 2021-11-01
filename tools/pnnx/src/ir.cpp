@@ -1065,7 +1065,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             int param_count = op->params.size();
             if (op->type == "nn.quantized.Conv2d" || op->type == "nn.quantized.Linear")
             {
-                param_count -= 2;// ignore scale and zero_point
+                param_count -= 2; // ignore scale and zero_point
             }
 
             int param_index = 0;
