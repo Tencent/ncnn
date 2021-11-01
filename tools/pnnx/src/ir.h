@@ -24,7 +24,7 @@ namespace torch {
 namespace jit {
 class Value;
 class Node;
-}
+} // namespace jit
 } // namespace torch
 namespace at {
 class Tensor;

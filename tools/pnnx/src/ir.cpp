@@ -230,7 +230,8 @@ Parameter::Parameter(const torch::jit::Node* value_node)
     }
 }
 
-Parameter::Parameter(const torch::jit::Value* value) : Parameter(value->node())
+Parameter::Parameter(const torch::jit::Value* value)
+    : Parameter(value->node())
 {
 }
 
