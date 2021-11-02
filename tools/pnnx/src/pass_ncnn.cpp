@@ -16,6 +16,9 @@
 
 #include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_input.h"
+#include "pass_ncnn/convert_torch_cat.h"
+#include "pass_ncnn/convert_torch_chunk.h"
+#include "pass_ncnn/convert_torch_split.h"
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/insert_split.h"
@@ -53,6 +56,10 @@ void pass_ncnn(Graph& g)
             pnnx_graph_rewrite(g, rewriter, opindex);
         }
     }
+
+    ncnn::convert_torch_cat(g);
+    ncnn::convert_torch_chunk(g);
+    ncnn::convert_torch_split(g);
 
     dead_code_elimination(g);
 

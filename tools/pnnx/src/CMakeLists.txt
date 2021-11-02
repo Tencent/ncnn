@@ -208,6 +208,9 @@ set(pnnx_pass_level5_SRCS
 set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_custom_op.cpp
     pass_ncnn/convert_input.cpp
+    pass_ncnn/convert_torch_cat.cpp
+    pass_ncnn/convert_torch_chunk.cpp
+    pass_ncnn/convert_torch_split.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/insert_split.cpp
@@ -285,8 +288,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_slice.cpp
     pass_ncnn/Tensor_view.cpp
-    pass_ncnn/torch_cat.cpp
-    pass_ncnn/torch_chunk.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_permute.cpp
     pass_ncnn/torch_transpose.cpp

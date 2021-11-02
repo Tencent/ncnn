@@ -32,7 +32,7 @@ aten::pow               op_1        2 1 input norm_type 4
 prim::Constant          op_2        0 1 padding_w value=0
 prim::ListConstruct     op_3        1 1 padding_w padding
 prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
-prim::Constant          op_5        0 1 count_include_pad value=1
+prim::Constant          op_5        0 1 count_include_pad value=True
 aten::avg_pool1d        op_6        6 1 4 kernel_size_tuple stride padding ceil_mode count_include_pad out.1
 aten::sign              op_7        1 1 out.1 14
 aten::abs               op_8        1 1 out.1 input.1
@@ -49,11 +49,6 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.lp_pool1d";
-    }
-
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
-    {
-        op->params["ceil_mode"] = captured_params.at("ceil_mode").i != 0;
     }
 };
 
@@ -74,7 +69,7 @@ aten::pow               op_0        2 1 input norm_type 4
 prim::Constant          op_1        0 1 padding_w value=0
 prim::ListConstruct     op_2        1 1 padding_w padding
 prim::Constant          op_3        0 1 ceil_mode value=%ceil_mode
-prim::Constant          op_4        0 1 count_include_pad value=1
+prim::Constant          op_4        0 1 count_include_pad value=True
 aten::avg_pool1d        op_5        6 1 4 kernel_size stride padding ceil_mode count_include_pad out.1
 aten::sign              op_6        1 1 out.1 14
 aten::abs               op_7        1 1 out.1 input.1
@@ -91,11 +86,6 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.lp_pool1d";
-    }
-
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
-    {
-        op->params["ceil_mode"] = captured_params.at("ceil_mode").i != 0;
     }
 };
 

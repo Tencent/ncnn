@@ -36,11 +36,6 @@ pnnx.Output             output      1 0 out
     {
         return "torch.mean";
     }
-
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
-    {
-        op->params["keepdim"] = captured_params.at("keepdim").i != 0;
-    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_mean, 20)

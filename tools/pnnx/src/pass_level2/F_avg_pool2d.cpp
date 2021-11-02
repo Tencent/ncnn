@@ -39,13 +39,6 @@ pnnx.Output             output      1 0 out
     {
         return "F.avg_pool2d";
     }
-
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
-    {
-        op->params["ceil_mode"] = captured_params.at("ceil_mode").i != 0;
-        op->params["count_include_pad"] = captured_params.at("count_include_pad").i != 0;
-        op->params["divisor_override"] = captured_params.at("divisor_override");
-    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_avg_pool2d, 10)

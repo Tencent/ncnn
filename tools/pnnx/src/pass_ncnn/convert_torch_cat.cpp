@@ -12,33 +12,43 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level2.h"
+#include "convert_torch_cat.h"
 
 namespace pnnx {
 
-class F_rrelu : public GraphRewriterPass
+namespace ncnn {
+
+void convert_torch_cat(Graph& graph)
 {
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-7 6
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 lower
-pnnx.Input              input_2     0 1 upper
-prim::Constant          op_0        0 1 training value=False
-prim::Constant          op_1        0 1 generator value=None
-aten::rrelu             op_2        5 1 input lower upper training generator out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
+    int op_index = 0;
 
-    const char* type_str() const
+    for (Operator* op : graph.ops)
     {
-        return "F.rrelu";
-    }
-};
+        if (op->type != "torch.cat")
+            continue;
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_rrelu, 10)
+        op->type = "Concat";
+        op->name = std::string("cat_") + std::to_string(op_index++);
+
+        int axis = op->params.at("dim").i;
+        if (axis == 0)
+        {
+            fprintf(stderr, "cat along batch axis is not supported\n");
+            continue;
+        }
+
+        if (axis < 0)
+        {
+            int input_rank = op->inputs[0]->shape.size();
+            axis = input_rank + axis;
+        }
+
+        op->params["0"] = axis;
+
+        op->params.erase("dim");
+    }
+}
+
+} // namespace ncnn
 
 } // namespace pnnx

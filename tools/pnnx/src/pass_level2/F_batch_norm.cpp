@@ -28,7 +28,7 @@ pnnx.Input              input_1     0 1 running_mean
 pnnx.Input              input_2     0 1 running_var
 pnnx.Input              input_3     0 1 weight
 pnnx.Input              input_4     0 1 bias
-prim::Constant          op_0        0 1 training value=0
+prim::Constant          op_0        0 1 training value=*
 prim::Constant          op_1        0 1 momentum value=*
 prim::Constant          op_2        0 1 eps value=%eps
 prim::Constant          op_3        0 1 cudnn_enabled value=*

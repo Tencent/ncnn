@@ -95,7 +95,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "linear";
     }
 };
@@ -125,7 +125,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "linear";
     }
 };
@@ -156,7 +156,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bilinear";
     }
 };
@@ -186,7 +186,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bilinear";
     }
 };
@@ -216,7 +216,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bilinear";
     }
 };
@@ -247,7 +247,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bicubic";
     }
 };
@@ -277,7 +277,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bicubic";
     }
 };
@@ -307,7 +307,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bicubic";
     }
 };
@@ -339,7 +339,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "trilinear";
     }
 };
@@ -369,7 +369,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "trilinear";
     }
 };
@@ -399,7 +399,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "trilinear";
     }
 };

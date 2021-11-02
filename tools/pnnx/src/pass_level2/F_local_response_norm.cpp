@@ -27,8 +27,8 @@ pnnx.Input              input       0 1 input
 prim::Constant          op_0        0 1 k value=%k
 prim::Constant          op_1        0 1 alpha value=%alpha
 prim::Constant          op_2        0 1 24 value=None
-prim::Constant          op_3        0 1 23 value=1
-prim::Constant          op_4        0 1 22 value=0
+prim::Constant          op_3        0 1 23 value=True
+prim::Constant          op_4        0 1 22 value=False
 prim::Constant          op_5        0 1 7 value=1
 prim::Constant          op_6        0 1 10 value=0
 prim::Constant          op_7        0 1 size value=%size
@@ -99,8 +99,8 @@ pnnx.Input              input       0 1 input
 prim::Constant          op_0        0 1 k value=%k
 prim::Constant          op_1        0 1 alpha value=%alpha
 prim::Constant          op_2        0 1 66 value=None
-prim::Constant          op_3        0 1 65 value=1
-prim::Constant          op_4        0 1 64 value=0
+prim::Constant          op_3        0 1 65 value=True
+prim::Constant          op_4        0 1 64 value=False
 prim::Constant          op_5        0 1 7 value=1
 prim::Constant          op_6        0 1 10 value=0
 prim::Constant          op_7        0 1 29 value=2
@@ -201,8 +201,8 @@ pnnx.Input              input       0 1 input
 prim::Constant          op_0        0 1 k value=%k
 prim::Constant          op_1        0 1 alpha value=%alpha
 prim::Constant          op_2        0 1 73 value=None
-prim::Constant          op_3        0 1 72 value=1
-prim::Constant          op_4        0 1 71 value=0
+prim::Constant          op_3        0 1 72 value=True
+prim::Constant          op_4        0 1 71 value=False
 prim::Constant          op_5        0 1 7 value=1
 prim::Constant          op_6        0 1 10 value=0
 prim::Constant          op_7        0 1 29 value=2

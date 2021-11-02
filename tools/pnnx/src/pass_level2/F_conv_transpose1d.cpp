@@ -31,7 +31,7 @@ pnnx.Input              input_4     0 1 padding
 pnnx.Input              input_5     0 1 dilation
 pnnx.Input              input_6     0 1 output_padding
 pnnx.Input              input_7     0 1 groups
-prim::Constant          op_0        0 1 transposed value=1
+prim::Constant          op_0        0 1 transposed value=True
 prim::Constant          op_1        0 1 benchmark value=*
 prim::Constant          op_2        0 1 deterministic value=*
 prim::Constant          op_3        0 1 cudnn_enabled value=*

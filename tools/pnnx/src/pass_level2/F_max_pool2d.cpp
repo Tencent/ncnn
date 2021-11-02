@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["ceil_mode"] = captured_params.at("ceil_mode").i != 0;
+        op->params["ceil_mode"] = captured_params.at("ceil_mode");
         op->params["return_indices"] = false;
     }
 };
@@ -73,7 +73,7 @@ pnnx.Output             output      2 0 out indices
 
     void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
     {
-        op->params["ceil_mode"] = captured_params.at("ceil_mode").i != 0;
+        op->params["ceil_mode"] = captured_params.at("ceil_mode");
         op->params["return_indices"] = true;
     }
 };

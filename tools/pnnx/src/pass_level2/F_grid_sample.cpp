@@ -54,7 +54,7 @@ pnnx.Output             output      1 0 out
         if (captured_params.at("padding_mode").i == 2)
             op->params["padding_mode"] = "reflection";
 
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
+        op->params["align_corners"] = captured_params.at("align_corners");
     }
 };
 

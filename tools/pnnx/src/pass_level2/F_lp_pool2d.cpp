@@ -32,7 +32,7 @@ prim::Constant          op_1        0 1 padding_h value=0
 prim::Constant          op_2        0 1 padding_w value=0
 prim::ListConstruct     op_3        2 1 padding_h padding_w padding
 prim::Constant          op_4        0 1 ceil_mode value=%ceil_mode
-prim::Constant          op_5        0 1 count_include_pad value=1
+prim::Constant          op_5        0 1 count_include_pad value=True
 prim::Constant          op_6        0 1 divisor_override value=None
 aten::avg_pool2d        op_7        7 1 4 kernel_size stride padding ceil_mode count_include_pad divisor_override out.1
 aten::sign              op_8        1 1 out.1 14
@@ -50,11 +50,6 @@ pnnx.Output             output      1 0 out
     const char* type_str() const
     {
         return "F.lp_pool2d";
-    }
-
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
-    {
-        op->params["ceil_mode"] = captured_params.at("ceil_mode").i != 0;
     }
 };
 

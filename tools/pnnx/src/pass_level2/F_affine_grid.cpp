@@ -35,11 +35,6 @@ pnnx.Output             output      1 0 out
     {
         return "F.affine_grid";
     }
-
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
-    {
-        op->params["align_corners"] = captured_params.at("align_corners").i != 0;
-    }
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_affine_grid, 10)

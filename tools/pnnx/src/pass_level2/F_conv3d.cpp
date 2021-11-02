@@ -30,7 +30,7 @@ pnnx.Input              input_3     0 1 stride
 pnnx.Input              input_4     0 1 padding
 pnnx.Input              input_5     0 1 dilation
 pnnx.Input              input_6     0 1 groups
-prim::Constant          op_0        0 1 transposed value=0
+prim::Constant          op_0        0 1 transposed value=False
 prim::Constant          op_1        0 1 output_padding_d value=0
 prim::Constant          op_2        0 1 output_padding_h value=0
 prim::Constant          op_3        0 1 output_padding_w value=0
