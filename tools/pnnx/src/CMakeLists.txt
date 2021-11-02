@@ -216,7 +216,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/expand_expression.cpp
     pass_ncnn/insert_split.cpp
 
-    pass_ncnn/eliminate_dropout.cpp
+    pass_ncnn/eliminate_noop.cpp
     pass_ncnn/fuse_convolution_activation.cpp
     pass_ncnn/fuse_convolutiondepthwise_activation.cpp
     pass_ncnn/fuse_deconvolution_activation.cpp
@@ -294,6 +294,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_UpsamplingBilinear2d.cpp
     pass_ncnn/nn_UpsamplingNearest2d.cpp
     pass_ncnn/nn_ZeroPad2d.cpp
+    pass_ncnn/Tensor_contiguous.cpp
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_slice.cpp
     pass_ncnn/Tensor_view.cpp

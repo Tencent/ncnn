@@ -18,7 +18,35 @@ namespace pnnx {
 
 namespace ncnn {
 
-void eliminate_dropout(Graph& graph);
+class Tensor_contiguous : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Tensor.contiguous       op_0        1 1 input out %*=%*
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Noop";
+    }
+
+    const char* name_str() const
+    {
+        return "contiguous";
+    }
+
+    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    {
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(Tensor_contiguous, 20)
 
 } // namespace ncnn
 

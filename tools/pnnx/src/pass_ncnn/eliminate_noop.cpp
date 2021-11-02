@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "eliminate_dropout.h"
+#include "eliminate_noop.h"
 
 #include <algorithm>
 
@@ -20,7 +20,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-void eliminate_dropout(Graph& graph)
+void eliminate_noop(Graph& graph)
 {
     for (;;)
     {
@@ -30,10 +30,7 @@ void eliminate_dropout(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Dropout")
-                continue;
-
-            if (op->params.find("0") != op->params.end() && op->params.at("0").f != 1.f)
+            if (op->type != "Noop")
                 continue;
 
             need_eliminate = true;
