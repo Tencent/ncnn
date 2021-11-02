@@ -12,40 +12,33 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "eliminate_view_reshape.h"
+#include "eliminate_dropout.h"
 
 #include <algorithm>
-#include "pass_level2.h"
 
 namespace pnnx {
 
-void eliminate_view_reshape(Graph& graph)
+namespace ncnn {
+
+void eliminate_dropout(Graph& graph)
 {
-    while (1)
+    for (;;)
     {
-        bool matched = false;
+        bool need_eliminate = false;
 
         for (size_t i = 0; i < graph.ops.size(); i++)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+            if (op->type != "Dropout")
                 continue;
 
-            const std::vector<int>& input_shape = op->inputs[0]->shape;
-            const std::vector<int>& output_shape = op->outputs[0]->shape;
-            if (input_shape != output_shape)
+            if (op->params.find("0") != op->params.end() && op->params.at("0").f != 1.f)
                 continue;
 
-            if (input_shape.empty())
-                continue;
+            need_eliminate = true;
 
-            matched = true;
-
-            for (auto& x : op->inputs)
-            {
-                x->remove_consumer(op);
-            }
+            op->inputs[0]->remove_consumer(op);
 
             Operand* op_out = op->outputs[0];
 
@@ -75,9 +68,11 @@ void eliminate_view_reshape(Graph& graph)
             break;
         }
 
-        if (!matched)
+        if (!need_eliminate)
             break;
     }
 }
+
+} // namespace ncnn
 
 } // namespace pnnx

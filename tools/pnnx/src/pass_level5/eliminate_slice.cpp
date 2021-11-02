@@ -35,7 +35,6 @@ void eliminate_slice(Graph& graph)
             if (op->inputs.size() != 1)
                 continue;
 
-            int dim = op->params.at("dim").i;
             int start = op->params.at("start").i;
             int end = op->params.at("end").i;
             int step = op->params.at("step").i;
@@ -72,7 +71,7 @@ void eliminate_slice(Graph& graph)
                 op->inputs.clear();
                 op->outputs.clear();
 
-                graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op));
+                graph.ops.erase(graph.ops.begin() + i);
                 delete op;
 
                 break;

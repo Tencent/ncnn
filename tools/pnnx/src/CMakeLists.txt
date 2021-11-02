@@ -216,6 +216,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/expand_expression.cpp
     pass_ncnn/insert_split.cpp
 
+    pass_ncnn/eliminate_dropout.cpp
     pass_ncnn/fuse_convolution_activation.cpp
     pass_ncnn/fuse_convolutiondepthwise_activation.cpp
     pass_ncnn/fuse_deconvolution_activation.cpp
