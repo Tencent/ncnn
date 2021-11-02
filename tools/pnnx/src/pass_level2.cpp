@@ -156,19 +156,33 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
         return false;
 
     // match params
-    if (a->params.size() != b->params.size())
-        return false;
-
-    for (const auto& p : a->params)
+    if (b->params.size() == 1 && b->params.find("%*") != b->params.end() && b->params.at("%*").type == 4 && b->params.at("%*").s == "%*")
     {
-        const std::string& akey = p.first;
-        const Parameter& ap = p.second;
+        for (const auto& p : a->params)
+        {
+            const std::string& pkey = p.first;
+            const Parameter& pp = p.second;
 
-        if (b->params.find(akey) == b->params.end())
+            // capture all parameters
+            captured_params[b->name + '.' + pkey] = pp;
+        }
+    }
+    else
+    {
+        if (a->params.size() != b->params.size())
             return false;
 
-        if (!match_parameter(ap, b->params.at(akey), captured_params))
-            return false;
+        for (const auto& p : a->params)
+        {
+            const std::string& akey = p.first;
+            const Parameter& ap = p.second;
+
+            if (b->params.find(akey) == b->params.end())
+                return false;
+
+            if (!match_parameter(ap, b->params.at(akey), captured_params))
+                return false;
+        }
     }
 
     for (const auto& a : a->attrs)

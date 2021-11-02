@@ -22,6 +22,13 @@
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/insert_split.h"
+
+#include "pass_ncnn/fuse_convolution_activation.h"
+#include "pass_ncnn/fuse_convolutiondepthwise_activation.h"
+#include "pass_ncnn/fuse_deconvolution_activation.h"
+#include "pass_ncnn/fuse_deconvolutiondepthwise_activation.h"
+#include "pass_ncnn/fuse_innerproduct_activation.h"
+
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
 #include "pass_level5/unroll_rnn_op.h"
@@ -60,6 +67,12 @@ void pass_ncnn(Graph& g)
     ncnn::convert_torch_cat(g);
     ncnn::convert_torch_chunk(g);
     ncnn::convert_torch_split(g);
+
+    ncnn::fuse_convolution_activation(g);
+    ncnn::fuse_convolutiondepthwise_activation(g);
+    ncnn::fuse_deconvolution_activation(g);
+    ncnn::fuse_deconvolutiondepthwise_activation(g);
+    ncnn::fuse_innerproduct_activation(g);
 
     dead_code_elimination(g);
 

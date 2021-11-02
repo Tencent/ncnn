@@ -161,6 +161,7 @@ pnnx_add_test(torch_transpose)
 pnnx_add_test(torch_unsqueeze)
 
 pnnx_add_test(mobilenet_v2)
+pnnx_add_test(mobilenet_v3_small)
 pnnx_add_test(resnet18)
 pnnx_add_test(shufflenet_v2_x1_0)
 pnnx_add_test(squeezenet1_1)
