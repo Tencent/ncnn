@@ -52,7 +52,7 @@ pnnx.Output             output      1 0 out
 
         op->params["0"] = affine_size;
         op->params["1"] = captured_params.at("eps");
-        op->params["2"] = captured_params.at("elementwise_affine");
+        op->params["2"] = captured_params.at("elementwise_affine").b ? 1 : 0;
 
         if (captured_params.at("elementwise_affine").b)
         {

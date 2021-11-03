@@ -14,6 +14,7 @@
 
 #include "pass_ncnn.h"
 
+#include "pass_ncnn/convert_attribute.h"
 #include "pass_ncnn/convert_custom_op.h"
 #include "pass_ncnn/convert_input.h"
 #include "pass_ncnn/convert_torch_cat.h"
@@ -84,6 +85,8 @@ void pass_ncnn(Graph& g)
     canonicalize(g);
 
     ncnn::convert_custom_op(g);
+
+    ncnn::convert_attribute(g);
 
     ncnn::convert_input(g);
 

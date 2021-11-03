@@ -45,7 +45,7 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = captured_params.at("num_features");
         op->params["1"] = captured_params.at("eps");
-        op->params["2"] = captured_params.at("affine");
+        op->params["2"] = captured_params.at("affine").b ? 1 : 0;
 
         if (captured_params.at("affine").b)
         {
