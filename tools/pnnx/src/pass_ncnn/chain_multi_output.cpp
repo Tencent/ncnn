@@ -72,7 +72,7 @@ void chain_multi_output(Graph& graph)
                 }
 
                 if (!match_tuple_expr_output)
-                     continue;
+                    continue;
 
                 // chain op0 as output and delete op0
                 std::vector<Operand*> new_inputs;
