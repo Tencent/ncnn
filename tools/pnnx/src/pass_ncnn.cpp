@@ -24,6 +24,7 @@
 #include "pass_ncnn/expand_expression.h"
 #include "pass_ncnn/insert_split.h"
 #include "pass_ncnn/chain_multi_output.h"
+#include "pass_ncnn/solve_batch_index.h"
 
 #include "pass_ncnn/eliminate_noop.h"
 #include "pass_ncnn/fuse_convolution_activation.h"
@@ -59,6 +60,8 @@ void pass_ncnn(Graph& g)
     ncnn::expand_expression(g);
 
     ncnn::chain_multi_output(g);
+
+    ncnn::solve_batch_index(g);
 
     for (auto x : g_global_pnnx_ncnn_graph_rewriter_passes)
     {

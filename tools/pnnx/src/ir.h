@@ -166,6 +166,8 @@ public:
     int type;
     std::vector<int> shape;
 
+    std::map<std::string, Parameter> params;
+
 private:
     friend class Graph;
     Operand()

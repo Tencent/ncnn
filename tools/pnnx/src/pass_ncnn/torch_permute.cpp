@@ -49,6 +49,9 @@ pnnx.Output             output      1 0 out
 
         const int input_rank = (int)op->inputs[0]->shape.size();
 
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+        fprintf(stderr, "batch_index = %d\n", batch_index);
+
         if (input_rank > 5)
         {
             fprintf(stderr, "permute %d-rank tensor is not supported yet!\n", input_rank);

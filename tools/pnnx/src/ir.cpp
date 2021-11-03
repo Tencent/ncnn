@@ -1878,6 +1878,16 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
 
         //         for (const Operand* oprand : op->outputs)
         //         {
+        //             if (oprand->params.find("__batch_index") == oprand->params.end())
+        //                 continue;
+        //
+        //             const int batch_index = oprand->params.at("__batch_index").i;
+        //
+        //             fprintf(paramfp, " #%s=%d", oprand->name.c_str(), batch_index);
+        //         }
+
+        //         for (const Operand* oprand : op->outputs)
+        //         {
         //             if (oprand->shape.empty())
         //                 continue;
         //
