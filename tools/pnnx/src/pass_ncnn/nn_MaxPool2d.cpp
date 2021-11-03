@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return "maxpool2d";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["0"] = 0;
         op->params["1"] = captured_params.at("kernel_size").ai[1];

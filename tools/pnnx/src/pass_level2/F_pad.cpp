@@ -36,7 +36,7 @@ pnnx.Output             output      1 0 out
         return "F.pad";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["mode"] = "constant";
     }
@@ -63,7 +63,7 @@ pnnx.Output             output      1 0 out
         return "F.pad";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["mode"] = "reflect";
     }
@@ -90,7 +90,7 @@ pnnx.Output             output      1 0 out
         return "F.pad";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["mode"] = "replicate";
     }
@@ -117,7 +117,7 @@ pnnx.Output             output      1 0 out
         return "F.pad";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["mode"] = "reflect";
     }
@@ -144,7 +144,7 @@ pnnx.Output             output      1 0 out
         return "F.pad";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["mode"] = "replicate";
     }
@@ -171,7 +171,7 @@ pnnx.Output             output      1 0 out
         return "F.pad";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["mode"] = "replicate";
     }

@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
         return "Tensor.contiguous";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("memory_format").i == 0)
             op->params["memory_format"] = "torch.contiguous_format";

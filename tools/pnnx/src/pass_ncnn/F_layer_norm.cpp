@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return "ln";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& normalized_shape = captured_params.at("normalized_shape").ai;
         int affine_size = normalized_shape[0];
@@ -83,7 +83,7 @@ pnnx.Output             output      1 0 out
         return "ln";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         Attribute weight;
         Attribute bias;

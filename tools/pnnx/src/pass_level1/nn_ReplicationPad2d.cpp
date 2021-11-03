@@ -31,7 +31,7 @@ public:
         return "nn.ReplicationPad2d";
     }
 
-    void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
     {
         const torch::jit::Node* replication_pad2d = find_node_by_kind(graph, "aten::replication_pad2d");
 

@@ -31,7 +31,7 @@ public:
         return "nn.Upsample";
     }
 
-    void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
     {
         const torch::jit::Node* upsample_nearest1d = find_node_by_kind(graph, "aten::upsample_nearest1d");
         const torch::jit::Node* upsample_linear1d = find_node_by_kind(graph, "aten::upsample_linear1d");

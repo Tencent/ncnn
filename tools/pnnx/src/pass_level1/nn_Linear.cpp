@@ -31,7 +31,7 @@ public:
         return "nn.Linear";
     }
 
-    void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
     {
         const torch::jit::Node* addmm = find_node_by_kind(graph, "aten::addmm");
 

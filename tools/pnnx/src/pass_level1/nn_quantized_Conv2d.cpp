@@ -31,7 +31,7 @@ public:
         return "nn.quantized.Conv2d";
     }
 
-    void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
     {
         //         graph->dump();
 
@@ -113,7 +113,7 @@ public:
         return "nn.intrinsic.quantized.ConvReLU2d";
     }
 
-    void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
     {
         //         graph->dump();
 

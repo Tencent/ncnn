@@ -28,7 +28,9 @@ public:
 
     virtual const char* type_str() const = 0;
 
-    virtual void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const;
+    virtual void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const;
+
+    virtual void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const;
 };
 
 class FuseModulePassRegister

@@ -41,7 +41,7 @@ pnnx.Output             output      2 0 out out_hidden
         return "rnn";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const std::string nonlinearity = captured_params.at("nonlinearity").s;
 

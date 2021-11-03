@@ -41,13 +41,13 @@ pnnx.Output             output      1 0 out
         return "permute";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["0"] = 0;
 
         const std::vector<int>& dims = captured_params.at("dims").ai;
 
-        int input_rank = op->inputs[0]->shape.size();
+        const int input_rank = (int)op->inputs[0]->shape.size();
 
         if (input_rank > 5)
         {
@@ -55,7 +55,7 @@ pnnx.Output             output      1 0 out
             return;
         }
 
-        if (dims.size() != input_rank)
+        if (input_rank != (int)dims.size())
         {
             fprintf(stderr, "permute %d-rank tensor with %d-rank dims is not possible\n", input_rank, (int)dims.size());
             return;

@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return "gmp";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["0"] = 0;
         op->params["4"] = 1;
@@ -73,7 +73,7 @@ pnnx.Output             output      1 0 out
         return "amp";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["0"] = 0;
         op->params["7"] = 1;

@@ -35,7 +35,7 @@ pnnx.Output             output      2 0 out indices
         return "F.adaptive_max_pool1d";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["return_indices"] = true;
     }

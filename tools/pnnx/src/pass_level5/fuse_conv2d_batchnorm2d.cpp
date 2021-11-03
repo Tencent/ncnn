@@ -45,7 +45,7 @@ pnnx.Output             output      1 0 out
         return "convbn2d";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         op->params["in_channels"] = captured_params.at("in_channels");
         op->params["out_channels"] = captured_params.at("out_channels");

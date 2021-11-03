@@ -42,7 +42,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
         return "lstm";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         const bool bidirectional = captured_params.at("bidirectional").b;
         const int num_directions = bidirectional ? 2 : 1;

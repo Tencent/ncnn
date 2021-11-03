@@ -46,7 +46,7 @@ pnnx.Output             output      1 0 out
         return "slice";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -57,7 +57,7 @@ pnnx.Output             output      1 0 out
         return dim0 < dim1 && dim1 < dim2 && dim2 < dim3 && dim3 < dim4;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -116,7 +116,7 @@ pnnx.Output             output      1 0 out
         return "slice";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -126,7 +126,7 @@ pnnx.Output             output      1 0 out
         return dim0 < dim1 && dim1 < dim2 && dim2 < dim3;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -180,7 +180,7 @@ pnnx.Output             output      1 0 out
         return "slice";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -189,7 +189,7 @@ pnnx.Output             output      1 0 out
         return dim0 < dim1 && dim1 < dim2;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -238,7 +238,7 @@ pnnx.Output             output      1 0 out
         return "slice";
     }
 
-    bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+    bool match(const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -246,7 +246,7 @@ pnnx.Output             output      1 0 out
         return dim0 < dim1;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
@@ -290,7 +290,7 @@ pnnx.Output             output      1 0 out
         return "slice";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int dim0 = captured_params.at("dim0").i;
         int start0 = captured_params.at("start0").i;

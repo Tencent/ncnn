@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return "upsample";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::string& mode = captured_params.at("mode").s;
         const std::vector<float>& scale_factor = captured_params.at("scale_factor").af;

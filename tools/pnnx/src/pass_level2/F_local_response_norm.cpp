@@ -77,7 +77,7 @@ pnnx.Output             output      1 0 out
         return false;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["size"] = captured_params.at("size");
         op->params["alpha"] = captured_params.at("alpha");
@@ -179,7 +179,7 @@ pnnx.Output             output      1 0 out
         return false;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["size"] = captured_params.at("size");
         op->params["alpha"] = captured_params.at("alpha");
@@ -285,7 +285,7 @@ pnnx.Output             output      1 0 out
         return false;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["size"] = captured_params.at("size");
         op->params["alpha"] = captured_params.at("alpha");

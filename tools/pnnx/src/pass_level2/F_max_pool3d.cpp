@@ -39,7 +39,7 @@ pnnx.Output             output      1 0 out
         return "F.max_pool3d";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["ceil_mode"] = captured_params.at("ceil_mode");
         op->params["return_indices"] = false;
@@ -71,7 +71,7 @@ pnnx.Output             output      2 0 out indices
         return "F.max_pool3d";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["ceil_mode"] = captured_params.at("ceil_mode");
         op->params["return_indices"] = true;

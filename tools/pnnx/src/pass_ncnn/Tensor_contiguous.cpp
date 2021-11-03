@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return "contiguous";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* /*op*/, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
     }
 };

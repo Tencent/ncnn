@@ -85,7 +85,7 @@ pnnx.Output             output      1 0 out
         return "F.linear";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["bias"] = Parameter();
     }

@@ -28,13 +28,13 @@ public:
 
     virtual const char* name_str() const;
 
-    virtual bool match_captured_params(const std::map<std::string, Parameter>& captured_params) const;
+    virtual bool match(const std::map<std::string, Parameter>& captured_params) const;
 
-    virtual bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const;
+    virtual bool match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const;
 
-    virtual void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const;
+    virtual void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const;
 
-    virtual void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const;
+    virtual void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const;
 };
 
 class GraphRewriterPassRegister

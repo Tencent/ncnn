@@ -25,17 +25,17 @@ const char* GraphRewriterPass::name_str() const
     return type_str();
 }
 
-bool GraphRewriterPass::match_captured_params(const std::map<std::string, Parameter>& captured_params) const
+bool GraphRewriterPass::match(const std::map<std::string, Parameter>& /*captured_params*/) const
 {
     return true;
 }
 
-bool GraphRewriterPass::match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
+bool GraphRewriterPass::match(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
 {
-    return match_captured_params(captured_params);
+    return match(captured_params);
 }
 
-void GraphRewriterPass::write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+void GraphRewriterPass::write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
 {
     for (auto x : captured_params)
     {
@@ -43,9 +43,9 @@ void GraphRewriterPass::write(const std::map<std::string, Parameter>& captured_p
     }
 }
 
-void GraphRewriterPass::write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/, Operator* op) const
+void GraphRewriterPass::write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& /*captured_attrs*/) const
 {
-    write(captured_params, op);
+    write(op, captured_params);
 }
 
 static std::map<int, std::vector<const GraphRewriterPass*> > g_global_pnnx_graph_rewriter_passes;
@@ -348,7 +348,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                     break;
             }
 
-            if (matched && !pass->match_captured_params_attrs(captured_params, captured_attrs))
+            if (matched && !pass->match(captured_params, captured_attrs))
             {
                 matched_operators.clear();
                 matched_inputs.clear();
@@ -427,7 +427,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             op->outputs.push_back(r);
         }
 
-        pass->write(captured_params, captured_attrs, op);
+        pass->write(op, captured_params, captured_attrs);
     }
 }
 

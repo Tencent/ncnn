@@ -45,7 +45,7 @@ pnnx.Output             output      1 0 out
         return "channelshuffle";
     }
 
-    bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params) const
     {
         const std::string& expr = captured_params.at("expr").s;
         const std::string& expr2 = captured_params.at("expr2").s;
@@ -61,7 +61,7 @@ pnnx.Output             output      1 0 out
         return true;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::string& expr = captured_params.at("expr").s;
 
@@ -97,7 +97,7 @@ pnnx.Output             output      1 0 out
         return "channelshuffle";
     }
 
-    bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
+    bool match_captured_params_attrs(const std::map<std::string, Parameter>& captured_params) const
     {
         // (1,2,58,28,28)
         // (1,-1,28,28)
@@ -110,7 +110,7 @@ pnnx.Output             output      1 0 out
         return true;
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& shape = captured_params.at("shape").ai;
 

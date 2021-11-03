@@ -33,7 +33,7 @@ public:
         return "nn.Conv3d";
     }
 
-    void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
     {
         //         {
         //             pnnx::Graph pnnx_graph;

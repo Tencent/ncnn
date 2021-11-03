@@ -31,7 +31,7 @@ public:
         return "nn.MaxPool2d";
     }
 
-    void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
     {
         const torch::jit::Node* max_pool2d = find_node_by_kind(graph, "aten::max_pool2d");
         const torch::jit::Node* max_pool2d_with_indices = find_node_by_kind(graph, "aten::max_pool2d_with_indices");

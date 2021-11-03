@@ -60,7 +60,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = captured_params.at("scale");
         op->params["mode"] = "nearest";
@@ -115,7 +115,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = captured_params.at("scale");
         op->params["align_corners"] = captured_params.at("align_corners");
@@ -195,7 +195,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["mode"] = "nearest";
@@ -275,7 +275,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["align_corners"] = captured_params.at("align_corners");
@@ -355,7 +355,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["align_corners"] = captured_params.at("align_corners");
@@ -436,7 +436,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["align_corners"] = captured_params.at("align_corners");
@@ -516,7 +516,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["align_corners"] = captured_params.at("align_corners");
@@ -621,7 +621,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["mode"] = "nearest";
@@ -723,7 +723,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["mode"] = "nearest";
@@ -828,7 +828,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["align_corners"] = captured_params.at("align_corners");
@@ -932,7 +932,7 @@ pnnx.Output             output      1 0 out
         return "F.interpolate";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
         op->params["align_corners"] = captured_params.at("align_corners");

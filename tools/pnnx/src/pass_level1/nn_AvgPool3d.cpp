@@ -31,7 +31,7 @@ public:
         return "nn.AvgPool3d";
     }
 
-    void write(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& graph, Operator* op) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
     {
         const torch::jit::Node* avg_pool3d = find_node_by_kind(graph, "aten::avg_pool3d");
 

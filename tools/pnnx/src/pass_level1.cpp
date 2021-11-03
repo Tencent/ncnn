@@ -18,8 +18,13 @@
 
 namespace pnnx {
 
-void FuseModulePass::write(const torch::jit::Module& /*mod*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/, Operator* /*op*/) const
+void FuseModulePass::write(Operator* /*op*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/) const
 {
+}
+
+void FuseModulePass::write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& /*mod*/) const
+{
+    write(op, graph);
 }
 
 static std::vector<const FuseModulePass*> g_global_pnnx_fuse_module_passes;
@@ -248,7 +253,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 op->name = wrapped_name;
 
-                ow->write(sub_mod, function.graph(), op);
+                ow->write(op, function.graph(), sub_mod);
 
                 break;
             }

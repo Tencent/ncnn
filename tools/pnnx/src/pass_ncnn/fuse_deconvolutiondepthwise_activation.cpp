@@ -51,7 +51,7 @@ pnnx.Output             output      1 0 out
         return captured_params.find("op_0.9") == captured_params.end();
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         for (const auto& p : captured_params)
         {
@@ -118,7 +118,7 @@ pnnx.Output             output      1 0 out
         return captured_params.find("op_0.9") == captured_params.end();
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         for (const auto& p : captured_params)
         {
@@ -183,7 +183,7 @@ pnnx.Output             output      1 0 out
         return captured_params.find("op_0.9") == captured_params.end();
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         for (const auto& p : captured_params)
         {
@@ -236,7 +236,7 @@ pnnx.Output             output      1 0 out
         return captured_params.find("op_0.9") == captured_params.end();
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
         for (const auto& p : captured_params)
         {

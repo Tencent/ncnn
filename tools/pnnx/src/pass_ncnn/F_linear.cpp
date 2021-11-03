@@ -42,7 +42,7 @@ pnnx.Output             output      1 0 out
         return "linear";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
         Attribute weight;
         for (const auto& x : captured_attrs)
@@ -88,7 +88,7 @@ pnnx.Output             output      1 0 out
         return "linear";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/, const std::map<std::string, Attribute>& captured_attrs) const
     {
         Attribute weight;
         Attribute bias;

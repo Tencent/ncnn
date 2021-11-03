@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return "pixelunshuffle";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         op->params["0"] = captured_params.at("downscale_factor");
         op->params["1"] = 0;

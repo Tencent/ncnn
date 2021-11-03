@@ -38,7 +38,7 @@ pnnx.Output             output      1 0 out
         return "F.grid_sample";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         if (captured_params.at("mode").i == 0)
             op->params["mode"] = "bilinear";

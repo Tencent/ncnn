@@ -41,7 +41,7 @@ pnnx.Output             output      1 0 out
         return "softmax";
     }
 
-    void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         int axis = captured_params.at("dim").i;
         op->params["0"] = axis > 0 ? axis - 1 : axis;
