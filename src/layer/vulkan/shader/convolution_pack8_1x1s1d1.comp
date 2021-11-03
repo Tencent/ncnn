@@ -295,6 +295,19 @@ void main()
         sum3[0] = sum3[0] * tanh(log(exp(sum3[0]) + afp(1.f)));
         sum3[1] = sum3[1] * tanh(log(exp(sum3[1]) + afp(1.f)));
     }
+    if (activation_type == 6)
+    {
+        const afp alpha = afp(activation_param_0);
+        const afp beta = afp(activation_param_1);
+        sum0[0] = sum0[0] * clamp(sum0[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum0[1] = sum0[1] * clamp(sum0[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum1[0] = sum1[0] * clamp(sum1[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum1[1] = sum1[1] * clamp(sum1[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum2[0] = sum2[0] * clamp(sum2[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum2[1] = sum2[1] * clamp(sum2[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum3[0] = sum3[0] * clamp(sum3[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum3[1] = sum3[1] * clamp(sum3[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
 
 #if NCNN_image_shader
     image3d_st8(top_blob, ivec3(sx4.r, sy4.r, gz), sum0);

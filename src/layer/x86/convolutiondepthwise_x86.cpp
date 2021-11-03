@@ -29,6 +29,7 @@
 namespace ncnn {
 
 #if __SSE2__
+#include "convolutiondepthwise_3x3_pack4.h"
 #if __AVX__
 #if __AVX2__
 #include "convolutiondepthwise_3x3_pack8_fp16.h"
@@ -38,6 +39,7 @@ namespace ncnn {
 #endif
 #endif // __SSE2__
 #include "convolutiondepthwise_3x3.h"
+
 #if NCNN_INT8
 #include "convolutiondepthwise_3x3_int8.h"
 #endif // NCNN_INT8
@@ -55,56 +57,7 @@ ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 
 int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 {
-    if (activation_type == 1)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 2)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // slope
-        activation->load_param(pd);
-    }
-    else if (activation_type == 3)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // min
-        pd.set(1, activation_params[1]); // max
-
-        activation->load_param(pd);
-    }
-    else if (activation_type == 4)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 5)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 5)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    if (activation)
-    {
-        activation->create_pipeline(opt);
-    }
+    activation = create_activation_layer(activation_type, activation_params, opt);
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
@@ -477,13 +430,16 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
                                 _sum = _mm256_comp_fmadd_ps(_val, _w, _sum);
                             }
 
-                            _sum = activation_avx(_sum, activation_type, activation_params);
-
                             _mm256_storeu_ps(outptr + j * 8, _sum);
                         }
 
                         outptr += outw * 8;
                     }
+                }
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
                 }
 
                 return 0;
@@ -493,6 +449,28 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
 
         if (elempack == 4)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
             {
                 const int maxk = kernel_w * kernel_h;
 

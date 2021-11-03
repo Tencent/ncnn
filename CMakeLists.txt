@@ -82,6 +82,7 @@ option(NCNN_BUILD_BENCHMARK "build benchmark" ON)
 option(NCNN_PYTHON "build python api" OFF)
 option(NCNN_INT8 "int8 inference" ON)
 option(NCNN_BF16 "bf16 inference" ON)
+option(NCNN_FORCE_INLINE "force inline some function" ON)
 
 if(ANDROID OR IOS OR NCNN_SIMPLESTL OR CMAKE_CROSSCOMPILING)
     option(NCNN_DISABLE_RTTI "disable rtti" ON)
