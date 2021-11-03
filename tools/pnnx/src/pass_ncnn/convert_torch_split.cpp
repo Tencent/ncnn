@@ -49,10 +49,6 @@ void convert_torch_split(Graph& graph)
             int input_rank = op->inputs[0]->shape.size();
             axis = input_rank + axis;
         }
-        else
-        {
-            axis -= 1;
-        }
 
         if (split_size_or_sections.type == 1)
         {
@@ -66,7 +62,7 @@ void convert_torch_split(Graph& graph)
             op->params["0"] = split_size_or_sections;
         }
 
-        op->params["1"] = axis;
+        op->params["1"] = axis - 1;
 
         op->params.erase("split_size_or_sections");
         op->params.erase("dim");

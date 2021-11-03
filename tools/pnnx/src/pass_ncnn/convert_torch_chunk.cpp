@@ -42,16 +42,12 @@ void convert_torch_chunk(Graph& graph)
             int input_rank = op->inputs[0]->shape.size();
             axis = input_rank + axis;
         }
-        else
-        {
-            axis -= 1;
-        }
 
         int chunks = op->params.at("chunks").i;
         op->params["0"].type = 5;
         op->params["0"].ai.resize(chunks, -233);
 
-        op->params["1"] = axis;
+        op->params["1"] = axis - 1;
 
         op->params.erase("chunks");
         op->params.erase("dim");
