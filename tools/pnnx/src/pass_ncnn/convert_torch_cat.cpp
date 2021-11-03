@@ -42,6 +42,10 @@ void convert_torch_cat(Graph& graph)
             int input_rank = op->inputs[0]->shape.size();
             axis = input_rank + axis;
         }
+        else
+        {
+            axis -= 1;
+        }
 
         op->params["0"] = axis;
 
