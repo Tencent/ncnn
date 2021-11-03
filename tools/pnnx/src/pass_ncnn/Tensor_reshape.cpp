@@ -44,7 +44,7 @@ pnnx.Output             output      1 0 out
     void write(const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs, Operator* op) const
     {
         const std::vector<int>& shape = captured_params.at("shape").ai;
-        size_t shape_rank = shape.size();
+        const int shape_rank = (int)shape.size();
 
         if (shape_rank > 5)
         {
@@ -74,7 +74,7 @@ pnnx.Output             output      1 0 out
         }
         if (shape_rank == 5)
         {
-            op->params["0"] = shape[4] * shape[3];
+            op->params["0"] = shape[4] == -1 || shape[3] == -1 ? -1 : shape[4] * shape[3];
             op->params["1"] = shape[2];
             op->params["2"] = shape[1];
         }
