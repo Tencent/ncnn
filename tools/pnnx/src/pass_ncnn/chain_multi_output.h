@@ -12,51 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "eliminate_output.h"
+#include "pass_ncnn.h"
 
 namespace pnnx {
 
 namespace ncnn {
 
-void eliminate_output(Graph& graph)
-{
-    for (;;)
-    {
-        bool need_eliminate = false;
-
-        for (int i = (int)graph.ops.size() - 1; i >= 0; i--)
-        {
-            Operator* op = graph.ops[i];
-
-            if (op->type != "pnnx.Output")
-                continue;
-
-            need_eliminate = true;
-
-            for (Operand* r : op->inputs)
-            {
-                r->remove_consumer(op);
-            }
-
-            op->inputs.clear();
-
-            for (Operand* r : op->outputs)
-            {
-                r->producer = 0;
-            }
-
-            op->outputs.clear();
-
-            graph.ops.erase(graph.ops.begin() + i);
-            delete op;
-
-            break;
-        }
-
-        if (!need_eliminate)
-            break;
-    }
-}
+void chain_multi_output(Graph& graph);
 
 } // namespace ncnn
 

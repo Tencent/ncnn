@@ -215,6 +215,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/insert_split.cpp
+    pass_ncnn/chain_multi_output.cpp
 
     pass_ncnn/eliminate_noop.cpp
     pass_ncnn/fuse_convolution_activation.cpp
