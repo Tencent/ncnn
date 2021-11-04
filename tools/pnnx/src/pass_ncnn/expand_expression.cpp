@@ -282,6 +282,10 @@ void expand_expression(Graph& graph)
                 }
             }
 
+            new_output_operand->type = old_output_operand->type;
+            new_output_operand->shape = old_output_operand->shape;
+            new_output_operand->params = old_output_operand->params;
+
             old_output_operand->producer = 0;
             old_output_operand->consumers.clear();
 

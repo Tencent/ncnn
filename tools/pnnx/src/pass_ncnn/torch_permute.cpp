@@ -47,15 +47,20 @@ pnnx.Output             output      1 0 out
 
         const std::vector<int>& dims = captured_params.at("dims").ai;
 
-        const int input_rank = (int)op->inputs[0]->shape.size();
+        int input_rank = (int)op->inputs[0]->shape.size();
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
-        fprintf(stderr, "batch_index = %d\n", batch_index);
 
         if (input_rank > 5)
         {
             fprintf(stderr, "permute %d-rank tensor is not supported yet!\n", input_rank);
             return;
+        }
+
+        if (input_rank == 0)
+        {
+            // assume input is fine
+            input_rank = (int)dims.size();
         }
 
         if (input_rank != (int)dims.size())
@@ -64,41 +69,50 @@ pnnx.Output             output      1 0 out
             return;
         }
 
+        // drop permute batch index
+        std::vector<int> new_dims;
+        for (int i = 0; i < (int)dims.size(); i++)
+        {
+            if (dims[i] == batch_index)
+                continue;
+
+            int new_dim = dims[i] > batch_index ? dims[i] - 1 : dims[i];
+            new_dims.push_back(new_dim);
+        }
+
         if (input_rank == 2)
         {
             // noop
         }
         if (input_rank == 3)
         {
-            if (dims[1] == 2 && dims[2] == 1)
-                op->params["0"] = 1;
-            else if (dims[0] == 2 && dims[1] == 0 && dims[2] == 1)
+            if (new_dims == std::vector<int>{1, 0})
                 op->params["0"] = 1;
         }
         if (input_rank == 4)
         {
-            if (dims[1] == 1 && dims[2] == 3 && dims[3] == 2)
+            if (new_dims == std::vector<int>{0, 2, 1})
                 op->params["0"] = 1;
-            else if (dims[1] == 2 && dims[2] == 1 && dims[3] == 3)
+            else if (new_dims == std::vector<int>{1, 0, 2})
                 op->params["0"] = 2;
-            else if (dims[1] == 2 && dims[2] == 3 && dims[3] == 1)
+            else if (new_dims == std::vector<int>{1, 2, 0})
                 op->params["0"] = 3;
-            else if (dims[1] == 3 && dims[2] == 1 && dims[3] == 2)
+            else if (new_dims == std::vector<int>{2, 0, 1})
                 op->params["0"] = 4;
-            else if (dims[1] == 3 && dims[2] == 2 && dims[3] == 1)
+            else if (new_dims == std::vector<int>{2, 1, 0})
                 op->params["0"] = 5;
         }
         if (input_rank == 5)
         {
-            if (dims[1] == 1 && dims[2] == 3 && dims[3] == 4 && dims[4] == 2)
+            if (new_dims == std::vector<int>{0, 2, 3, 1})
                 op->params["0"] = 1;
-            else if (dims[1] == 2 && dims[2] == 1 && dims[3] == 3 && dims[4] == 4)
+            else if (new_dims == std::vector<int>{1, 0, 2, 3})
                 op->params["0"] = 2;
-            else if (dims[1] == 2 && dims[2] == 3 && dims[3] == 4 && dims[4] == 1)
+            else if (new_dims == std::vector<int>{1, 2, 3, 0})
                 op->params["0"] = 3;
-            else if (dims[1] == 3 && dims[2] == 4 && dims[3] == 1 && dims[4] == 2)
+            else if (new_dims == std::vector<int>{2, 3, 0, 1})
                 op->params["0"] = 4;
-            else if (dims[1] == 3 && dims[2] == 4 && dims[3] == 2 && dims[4] == 1)
+            else if (new_dims == std::vector<int>{2, 3, 1, 0})
                 op->params["0"] = 5;
             else
                 fprintf(stderr, "unsupported permute dims!\n");

@@ -30,8 +30,10 @@ void convert_torch_cat(Graph& graph)
         op->type = "Concat";
         op->name = std::string("cat_") + std::to_string(op_index++);
 
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
         int axis = op->params.at("dim").i;
-        if (axis == 0)
+        if (axis == batch_index)
         {
             fprintf(stderr, "cat along batch axis is not supported\n");
             continue;
@@ -43,7 +45,10 @@ void convert_torch_cat(Graph& graph)
             axis = input_rank + axis;
         }
 
-        op->params["0"] = axis - 1;
+        if (axis > batch_index)
+            axis -= 1;
+
+        op->params["0"] = axis;
 
         op->params.erase("dim");
     }

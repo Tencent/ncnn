@@ -52,6 +52,13 @@ pnnx.Output             output      1 0 out
             return;
         }
 
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
+        if (batch_index != 0)
+        {
+            fprintf(stderr, "reshape tensor with batch index %d is not supported yet!\n", batch_index);
+        }
+
         if (shape_rank == 1)
         {
             fprintf(stderr, "reshape across batch dim is not supported yet!\n");

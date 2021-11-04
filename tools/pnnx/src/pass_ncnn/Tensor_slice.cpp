@@ -60,6 +60,8 @@ pnnx.Output             output      1 0 out
 
         int input_rank = op->inputs[0]->shape.size();
 
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
         if (input_rank > 5)
         {
             fprintf(stderr, "slice %d-rank tensor with %d-rank axes is not possible!\n", input_rank, axes_rank);
@@ -68,7 +70,7 @@ pnnx.Output             output      1 0 out
 
         for (int i = 0; i < axes_rank; i++)
         {
-            if (axes[i] == 0 && (starts[i] != 0 || ends[i] != -1))
+            if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != -1))
             {
                 fprintf(stderr, "slice along batch axis is not supported\n");
                 return;
@@ -80,7 +82,8 @@ pnnx.Output             output      1 0 out
                 axes[i] = input_rank + axes[i];
             }
 
-            axes[i] -= 1;
+            if (axes[i] > batch_index)
+                axes[i] -= 1;
         }
 
         op->params["9"] = starts;

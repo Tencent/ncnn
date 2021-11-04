@@ -37,8 +37,10 @@ void convert_torch_split(Graph& graph)
             continue;
         }
 
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
         int axis = op->params.at("dim").i;
-        if (axis == 0)
+        if (axis == batch_index)
         {
             fprintf(stderr, "split along batch axis is not supported\n");
             continue;
@@ -49,6 +51,9 @@ void convert_torch_split(Graph& graph)
             int input_rank = op->inputs[0]->shape.size();
             axis = input_rank + axis;
         }
+
+        if (axis > batch_index)
+            axis -= 1;
 
         if (split_size_or_sections.type == 1)
         {
@@ -62,7 +67,7 @@ void convert_torch_split(Graph& graph)
             op->params["0"] = split_size_or_sections;
         }
 
-        op->params["1"] = axis - 1;
+        op->params["1"] = axis;
 
         op->params.erase("split_size_or_sections");
         op->params.erase("dim");

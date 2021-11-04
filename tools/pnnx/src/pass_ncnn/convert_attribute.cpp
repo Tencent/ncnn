@@ -30,26 +30,44 @@ void convert_attribute(Graph& graph)
         const std::string& key = op->attrs.begin()->first;
         const Attribute& data = op->attrs.begin()->second;
 
-        if (data.shape.size() == 1)
+        const int batch_index = op->outputs[0]->params["__batch_index"].i;
+
+        if ((int)data.shape.size() > 5)
         {
-            op->params["0"] = data.shape[0];
+            fprintf(stderr, "pnnx attribute %d-rank tensor is not supported yet!\n", (int)data.shape.size());
+            return;
         }
-        if (data.shape.size() == 2)
+
+        // drop batch index
+        std::vector<int> new_shape;
+        for (int i = 0; i < (int)data.shape.size(); i++)
         {
-            op->params["0"] = data.shape[1];
-            op->params["1"] = data.shape[0];
+            if (i == batch_index)
+                continue;
+
+            new_shape.push_back(data.shape[i]);
         }
-        if (data.shape.size() == 3)
+
+        if (new_shape.size() == 1)
         {
-            op->params["0"] = data.shape[2];
-            op->params["1"] = data.shape[1];
-            op->params["2"] = data.shape[0];
+            op->params["0"] = new_shape[0];
         }
-        if (data.shape.size() == 4)
+        if (new_shape.size() == 2)
         {
-            op->params["0"] = data.shape[3];
-            op->params["1"] = data.shape[2];
-            op->params["2"] = data.shape[1];
+            op->params["0"] = new_shape[1];
+            op->params["1"] = new_shape[0];
+        }
+        if (new_shape.size() == 3)
+        {
+            op->params["0"] = new_shape[2];
+            op->params["1"] = new_shape[1];
+            op->params["2"] = new_shape[0];
+        }
+        if (new_shape.size() == 4)
+        {
+            op->params["0"] = new_shape[2] * new_shape[3];
+            op->params["1"] = new_shape[1];
+            op->params["2"] = new_shape[0];
         }
 
         op->attrs["0"] = data;

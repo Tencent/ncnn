@@ -45,9 +45,11 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = 0;
 
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
         int dim0 = captured_params.at("dim0").i;
         int dim1 = captured_params.at("dim1").i;
-        if (dim0 == 0 || dim1 == 0)
+        if (dim0 == batch_index || dim1 == batch_index)
         {
             fprintf(stderr, "permute across batch dim is not supported yet!\n");
             return;
@@ -61,6 +63,11 @@ pnnx.Output             output      1 0 out
             return;
         }
 
+        if (dim0 > batch_index)
+            dim0 -= 1;
+        if (dim1 > batch_index)
+            dim1 -= 1;
+
         if (input_rank == 1)
         {
             fprintf(stderr, "permute across one-rank tensor is not supported yet!\n");
@@ -72,32 +79,32 @@ pnnx.Output             output      1 0 out
         }
         if (input_rank == 3)
         {
-            if (dim0 == 1 && dim1 == 2) op->params["0"] = 1;
-            if (dim0 == 2 && dim1 == 1) op->params["0"] = 1;
+            if (dim0 == 0 && dim1 == 1) op->params["0"] = 1;
+            if (dim0 == 1 && dim1 == 0) op->params["0"] = 1;
         }
         if (input_rank == 4)
         {
-            if (dim0 == 1 && dim1 == 2) op->params["0"] = 2;
-            if (dim0 == 2 && dim1 == 1) op->params["0"] = 2;
-            if (dim0 == 1 && dim1 == 3) op->params["0"] = 5;
-            if (dim0 == 3 && dim1 == 1) op->params["0"] = 5;
-            if (dim0 == 2 && dim1 == 3) op->params["0"] = 1;
-            if (dim0 == 3 && dim1 == 2) op->params["0"] = 1;
+            if (dim0 == 0 && dim1 == 1) op->params["0"] = 2;
+            if (dim0 == 1 && dim1 == 0) op->params["0"] = 2;
+            if (dim0 == 0 && dim1 == 2) op->params["0"] = 5;
+            if (dim0 == 2 && dim1 == 0) op->params["0"] = 5;
+            if (dim0 == 1 && dim1 == 2) op->params["0"] = 1;
+            if (dim0 == 2 && dim1 == 1) op->params["0"] = 1;
         }
         if (input_rank == 5)
         {
-            if (dim0 == 4 || dim1 == 4)
+            if (dim0 == 3 || dim1 == 3)
             {
                 fprintf(stderr, "permute across 5-rank tensor is not supported yet!\n");
                 return;
             }
 
-            if (dim0 == 1 && dim1 == 2) op->params["0"] = 2;
-            if (dim0 == 2 && dim1 == 1) op->params["0"] = 2;
-            if (dim0 == 1 && dim1 == 3) op->params["0"] = 5;
-            if (dim0 == 3 && dim1 == 1) op->params["0"] = 5;
-            if (dim0 == 2 && dim1 == 3) op->params["0"] = 1;
-            if (dim0 == 3 && dim1 == 2) op->params["0"] = 1;
+            if (dim0 == 0 && dim1 == 1) op->params["0"] = 2;
+            if (dim0 == 1 && dim1 == 0) op->params["0"] = 2;
+            if (dim0 == 0 && dim1 == 2) op->params["0"] = 5;
+            if (dim0 == 2 && dim1 == 0) op->params["0"] = 5;
+            if (dim0 == 1 && dim1 == 2) op->params["0"] = 1;
+            if (dim0 == 2 && dim1 == 1) op->params["0"] = 1;
         }
     }
 };
