@@ -36,7 +36,7 @@ void eliminate_output(Graph& graph)
             // canonicalize output name
             for (int j = 0; j < (int)op->inputs.size(); j++)
             {
-                op->inputs[j]->name = std::string("out_") + std::to_string(j);
+                op->inputs[j]->name = std::string("out") + std::to_string(j);
             }
 
             for (Operand* r : op->inputs)

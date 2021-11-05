@@ -30,7 +30,7 @@ void convert_input(Graph& graph)
         op->type = "Input";
 
         // canonicalize output name
-        op->outputs[0]->name = std::string("in_") + std::to_string(index);
+        op->outputs[0]->name = std::string("in") + std::to_string(index);
         index++;
     }
 }
