@@ -20,10 +20,18 @@ namespace ncnn {
 
 void convert_input(Graph& graph)
 {
+    int index = 0;
+
     for (Operator* op : graph.ops)
     {
-        if (op->type == "pnnx.Input")
-            op->type = "Input";
+        if (op->type != "pnnx.Input")
+            continue;
+
+        op->type = "Input";
+
+        // canonicalize output name
+        op->outputs[0]->name = std::string("in_") + std::to_string(index);
+        index++;
     }
 }
 
