@@ -302,6 +302,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_slice.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_flatten.cpp
+    pass_ncnn/torch_mean.cpp
     pass_ncnn/torch_permute.cpp
     pass_ncnn/torch_transpose.cpp
 )
