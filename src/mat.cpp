@@ -48,7 +48,17 @@ Mat Mat::clone(Allocator* _allocator) const
 
     if (total() > 0)
     {
-        memcpy(m.data, data, total() * elemsize);
+        if (cstep == m.cstep)
+            memcpy(m.data, data, total() * elemsize);
+        else
+        {
+            // copy by channel for differnet cstep
+            size_t size = w * h;
+            for (int i = 0; i < c; i++)
+            {
+                memcpy(m.channel(i), channel(i), size * elemsize);
+            }
+        }
     }
 
     return m;
