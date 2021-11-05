@@ -1723,7 +1723,7 @@ static bool string_is_positive_integer(const std::string& t)
     return true;
 }
 
-int Graph::ncnn(const std::string& parampath, const std::string& binpath)
+int Graph::ncnn(const std::string& parampath, const std::string& binpath, const std::string& pypath)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
     if (!paramfp)
@@ -1910,6 +1910,78 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath)
 
     fclose(paramfp);
     fclose(binfp);
+
+    FILE* pyfp = fopen(pypath.c_str(), "wb");
+    if (!pyfp)
+    {
+        fprintf(stderr, "fopen %s failed\n", pypath.c_str());
+        return -1;
+    }
+
+    fprintf(pyfp, "import numpy as np\n");
+    fprintf(pyfp, "import ncnn\n");
+    fprintf(pyfp, "import torch\n");
+
+    fprintf(pyfp, "\n");
+
+    // test inference
+    {
+        fprintf(pyfp, "def test_inference():\n");
+        fprintf(pyfp, "    torch.manual_seed(0)\n");
+
+        for (const Operator* op : ops)
+        {
+            if (op->type != "Input")
+                continue;
+
+            const Operand* r = op->outputs[0];
+            std::string input_name = r->name;
+            fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+
+            for (size_t i = 0; i < r->shape.size(); i++)
+            {
+                fprintf(pyfp, "%d", r->shape[i]);
+                if (i + 1 != r->shape.size())
+                    fprintf(pyfp, ", ");
+            }
+            fprintf(pyfp, ")\n");
+        }
+
+        fprintf(pyfp, "    out = []\n");
+        fprintf(pyfp, "\n");
+
+        fprintf(pyfp, "    with ncnn.Net() as net:\n");
+        fprintf(pyfp, "         net.load_param(\"%s\")\n", parampath.c_str());
+        fprintf(pyfp, "         net.load_model(\"%s\")\n", binpath.c_str());
+        fprintf(pyfp, "         outcount = len(net.output_names())\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "         with net.create_extractor() as ex:\n");
+
+        for (const Operator* op : ops)
+        {
+            if (op->type != "Input")
+                continue;
+
+            const Operand* r = op->outputs[0];
+            std::string input_name = r->name;
+            fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.squeeze(0).numpy()).clone())\n", input_name.c_str(), input_name.c_str());
+        }
+
+        fprintf(pyfp, "\n");
+
+        fprintf(pyfp, "            for i in range(outcount):\n");
+        fprintf(pyfp, "                _, outi = ex.extract(\"out\" + str(i))\n");
+        fprintf(pyfp, "                out.append(torch.from_numpy(np.array(outi)).unsqueeze(0))\n");
+
+        fprintf(pyfp, "\n");
+
+        fprintf(pyfp, "    if len(out) == 1:\n");
+        fprintf(pyfp, "        return out[0]\n");
+        fprintf(pyfp, "    else:\n");
+        fprintf(pyfp, "        return tuple(out)\n");
+    }
+
+    fclose(pyfp);
 
     return 0;
 }

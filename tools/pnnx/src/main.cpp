@@ -126,6 +126,7 @@ static void show_usage()
     fprintf(stderr, "  pnnxpy=model_pnnx.py\n");
     fprintf(stderr, "  ncnnparam=model.ncnn.param\n");
     fprintf(stderr, "  ncnnbin=model.ncnn.bin\n");
+    fprintf(stderr, "  ncnnpy=model_ncnn.py\n");
     fprintf(stderr, "  optlevel=2\n");
     fprintf(stderr, "  device=cpu/gpu\n");
     fprintf(stderr, "  inputshape=[1,3,224,224],...\n");
@@ -162,6 +163,7 @@ int main(int argc, char** argv)
     std::string pnnxpypath = ptbase + "_pnnx.py";
     std::string ncnnparampath = ptbase + ".ncnn.param";
     std::string ncnnbinpath = ptbase + ".ncnn.bin";
+    std::string ncnnpypath = ptbase + "_ncnn.py";
     int optlevel = 2;
     std::string device = "cpu";
     std::vector<std::vector<int64_t> > input_shapes;
@@ -196,6 +198,8 @@ int main(int argc, char** argv)
             ncnnparampath = std::string(value);
         if (strcmp(key, "ncnnbin") == 0)
             ncnnbinpath = std::string(value);
+        if (strcmp(key, "ncnnpy") == 0)
+            ncnnpypath = std::string(value);
         if (strcmp(key, "optlevel") == 0)
             optlevel = atoi(value);
         if (strcmp(key, "device") == 0)
@@ -215,6 +219,9 @@ int main(int argc, char** argv)
         fprintf(stderr, "pnnxparam = %s\n", pnnxparampath.c_str());
         fprintf(stderr, "pnnxbin = %s\n", pnnxbinpath.c_str());
         fprintf(stderr, "pnnxpy = %s\n", pnnxpypath.c_str());
+        fprintf(stderr, "ncnnparam = %s\n", ncnnparampath.c_str());
+        fprintf(stderr, "ncnnbin = %s\n", ncnnbinpath.c_str());
+        fprintf(stderr, "ncnnpy = %s\n", ncnnpypath.c_str());
         fprintf(stderr, "optlevel = %d\n", optlevel);
         fprintf(stderr, "device = %s\n", device.c_str());
         fprintf(stderr, "inputshape = ");
@@ -324,7 +331,7 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph);
 
-        pnnx_graph.ncnn(ncnnparampath, ncnnbinpath);
+        pnnx_graph.ncnn(ncnnparampath, ncnnbinpath, ncnnpypath);
     }
 
     //     pnnx::Graph pnnx_graph2;

@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.InstanceNorm2d       op_0        1 1 input out num_features=%num_features eps=%eps affine=%affine @weight @bias
+nn.InstanceNorm2d       op_0        1 1 input out num_features=%num_features eps=%eps affine=%affine track_running_stats=%track_running_stats @weight @bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

@@ -203,7 +203,7 @@ public:
 
     int python(const std::string& pypath, const std::string& binpath);
 
-    int ncnn(const std::string& parampath, const std::string& binpath);
+    int ncnn(const std::string& parampath, const std::string& binpath, const std::string& pypath);
 
     int parse(const std::string& param);
 

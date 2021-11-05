@@ -177,3 +177,5 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_add_test(F_mish)
     pnnx_add_test(nn_Mish)
 endif()
+
+add_subdirectory(ncnn)
