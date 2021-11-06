@@ -49,7 +49,7 @@ pnnx.Output             output      1 0 out
         op->attrs["1"] = captured_attrs.at("op_0.running_mean");
         op->attrs["2"] = captured_attrs.at("op_0.running_var");
 
-        if (captured_params.at("num_features").b)
+        if (captured_params.at("affine").b)
         {
             op->attrs["0"] = captured_attrs.at("op_0.weight");
             op->attrs["3"] = captured_attrs.at("op_0.bias");
