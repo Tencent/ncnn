@@ -6,6 +6,7 @@ macro(pnnx_ncnn_add_test name)
 endmacro()
 
 pnnx_ncnn_add_test(nn_BatchNorm2d)
+pnnx_ncnn_add_test(nn_ChannelShuffle)
 pnnx_ncnn_add_test(nn_GroupNorm)
 pnnx_ncnn_add_test(nn_InstanceNorm2d)
 pnnx_ncnn_add_test(nn_LayerNorm)
