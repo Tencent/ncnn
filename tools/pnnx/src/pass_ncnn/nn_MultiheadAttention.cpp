@@ -64,72 +64,28 @@ pnnx.Output             output      1 0 out
         std::vector<float> v_weight(embed_dim * embed_dim);
         std::vector<float> v_bias(embed_dim);
         {
+            // qkv - embed_dim - embed_dim
             const float* wptr = (const float*)captured_attrs.at("op_0.in_proj_weight").data.data();
+            // qkv - embed_dim
             const float* bptr = (const float*)captured_attrs.at("op_0.in_proj_bias").data.data();
 
-            // transpose qw
             {
-                float* pq = q_weight.data();
-                for (int j = 0; j < embed_dim; j++)
-                {
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        *pq++ = wptr[k * embed_dim * 3 + j];
-                    }
-                }
-
+                memcpy(q_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
                 memcpy(q_bias.data(), bptr, embed_dim * sizeof(float));
+                wptr += embed_dim * embed_dim;
                 bptr += embed_dim;
             }
 
-            // transpose kw
             {
-                float* pk = k_weight.data();
-                for (int j = 0; j < embed_dim; j++)
-                {
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        *pk++ = wptr[k * embed_dim * 3 + j + embed_dim];
-                    }
-                }
-
+                memcpy(k_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
                 memcpy(k_bias.data(), bptr, embed_dim * sizeof(float));
+                wptr += embed_dim * embed_dim;
                 bptr += embed_dim;
             }
 
-            // transpose vw
             {
-                float* pv = v_weight.data();
-                for (int j = 0; j < embed_dim; j++)
-                {
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        *pv++ = wptr[k * embed_dim * 3 + j + embed_dim * 2];
-                    }
-                }
-
+                memcpy(v_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
                 memcpy(v_bias.data(), bptr, embed_dim * sizeof(float));
-            }
-        }
-
-        std::vector<float> o_weight(embed_dim * embed_dim);
-        std::vector<float> o_bias(embed_dim);
-        {
-            const float* wptr = (const float*)captured_attrs.at("op_0.out_proj.weight").data.data();
-            const float* bptr = (const float*)captured_attrs.at("op_0.out_proj.bias").data.data();
-
-            // transpose ow
-            {
-                float* po = o_weight.data();
-                for (int j = 0; j < embed_dim; j++)
-                {
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        *po++ = wptr[k * embed_dim + j];
-                    }
-                }
-
-                memcpy(o_bias.data(), bptr, embed_dim * sizeof(float));
             }
         }
 
@@ -147,6 +103,10 @@ pnnx.Output             output      1 0 out
         op->attrs["6"].data = {0, 0, 0, 0};
         op->attrs["7"] = Attribute({embed_dim, embed_dim}, v_weight);
         op->attrs["8"] = Attribute({embed_dim}, v_bias);
+        op->attrs["9"] = Attribute();
+        op->attrs["9"].data = {0, 0, 0, 0};
+        op->attrs["a"] = captured_attrs.at("op_0.out_proj.weight");
+        op->attrs["b"] = captured_attrs.at("op_0.out_proj.bias");
     }
 };
 

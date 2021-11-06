@@ -10,6 +10,7 @@ pnnx_ncnn_add_test(nn_GroupNorm)
 pnnx_ncnn_add_test(nn_InstanceNorm2d)
 pnnx_ncnn_add_test(nn_LayerNorm)
 pnnx_ncnn_add_test(nn_LocalResponseNorm)
+pnnx_ncnn_add_test(nn_MultiheadAttention)
 pnnx_ncnn_add_test(nn_PixelShuffle)
 pnnx_ncnn_add_test(nn_PixelUnshuffle)
 
