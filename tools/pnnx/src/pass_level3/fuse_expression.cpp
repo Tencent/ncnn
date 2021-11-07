@@ -70,7 +70,7 @@ static bool operand_maybe_tensor(Operand* operand)
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
     }
 
-    if (op->type == "aten::sqrt" || op->type == "aten::rsqrt")
+    if (op->type == "aten::sqrt" || op->type == "aten::rsqrt" || op->type == "aten::neg")
     {
         return operand_maybe_tensor(op->inputs[0]);
     }
@@ -275,6 +275,12 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         fuse_expression(graph, op->inputs[0], expr, inputs);
         expr += ")";
     }
+    else if (op->type == "aten::neg")
+    {
+        expr += "neg(";
+        fuse_expression(graph, op->inputs[0], expr, inputs);
+        expr += ")";
+    }
     else
     {
         auto it = std::find(inputs.begin(), inputs.end(), operand);
@@ -334,7 +340,7 @@ void fuse_expression(Graph& graph)
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::pow")
+            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::pow")
             {
                 need_fuse = true;
             }

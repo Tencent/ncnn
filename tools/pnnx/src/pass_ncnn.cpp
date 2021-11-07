@@ -55,8 +55,6 @@ void pass_ncnn(Graph& g)
 {
     unroll_rnn_op(g);
 
-    ncnn::insert_split(g);
-
     ncnn::expand_expression(g);
 
     ncnn::chain_multi_output(g);
@@ -75,6 +73,8 @@ void pass_ncnn(Graph& g)
     ncnn::convert_torch_cat(g);
     ncnn::convert_torch_chunk(g);
     ncnn::convert_torch_split(g);
+
+    ncnn::insert_split(g);
 
     ncnn::eliminate_noop(g);
     ncnn::fuse_convolution_activation(g);

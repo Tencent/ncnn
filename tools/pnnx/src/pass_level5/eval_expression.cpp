@@ -135,7 +135,7 @@ static std::string eval_expression(const Operator* op)
                 exprstack.push(r);
             }
         }
-        else if (t == "int" || t == "sqrt" || t == "rsqrt")
+        else if (t == "int" || t == "sqrt" || t == "rsqrt" || t == "neg")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -157,6 +157,11 @@ static std::string eval_expression(const Operator* op)
                 if (t == "rsqrt")
                 {
                     float r = 1.f / sqrt(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "neg")
+                {
+                    float r = -af;
                     exprstack.push(std::to_string(r));
                 }
             }

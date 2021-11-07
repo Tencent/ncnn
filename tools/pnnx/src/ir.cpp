@@ -847,11 +847,13 @@ static std::string expand_expression(const Operator* op)
             std::string r = a + ".size(" + b + ")";
             exprstack.push(r);
         }
-        else if (t == "int" || t == "sqrt")
+        else if (t == "int" || t == "sqrt" || t == "rsqrt" || t == "neg")
         {
             std::string unaryop;
             if (t == "int") unaryop = "int";
             if (t == "sqrt") unaryop = "torch.sqrt";
+            if (t == "rsqrt") unaryop = "torch.rsqrt";
+            if (t == "neg") unaryop = "torch.neg";
 
             std::string a = exprstack.top();
             exprstack.pop();
