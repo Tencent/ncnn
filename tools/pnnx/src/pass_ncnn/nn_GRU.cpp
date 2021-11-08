@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pass_ncnn.h"
+#include <string.h>
 
 namespace pnnx {
 
@@ -64,6 +65,8 @@ pnnx.Output             output      2 0 out out_hidden
                 op->attrs["2"] = captured_attrs.at("op_0.weight_ih_l0_reverse");
         }
 
+        op->attrs["3"] = Attribute();
+        op->attrs["3"].data = {0, 0, 0, 0};
         if (captured_params.at("bias").b)
         {
             // reduce bias_ih and bias_hh
@@ -72,15 +75,17 @@ pnnx.Output             output      2 0 out out_hidden
                 const float* bias_ih = (const float*)captured_attrs.at("op_0.bias_ih_l0").data.data();
                 const float* bias_hh = (const float*)captured_attrs.at("op_0.bias_hh_l0").data.data();
 
-                new_bias.resize(3 * num_output);
+                new_bias.resize(4 * num_output);
                 float* bias = (float*)new_bias.data();
-                for (int i = 0; i < 3 * num_output; i++)
+                for (int i = 0; i < 2 * num_output; i++)
                 {
                     bias[i] = bias_ih[i] + bias_hh[i];
                 }
+                memcpy(bias + num_output * 2, bias_ih + num_output * 2, num_output * sizeof(float));
+                memcpy(bias + num_output * 3, bias_hh + num_output * 2, num_output * sizeof(float));
             }
 
-            op->attrs["3"] = Attribute({3, num_output}, new_bias);
+            op->attrs["4"] = Attribute({4, num_output}, new_bias);
 
             if (bidirectional)
             {
@@ -89,26 +94,38 @@ pnnx.Output             output      2 0 out out_hidden
                     const float* bias_ih = (const float*)captured_attrs.at("op_0.bias_ih_l0_reverse").data.data();
                     const float* bias_hh = (const float*)captured_attrs.at("op_0.bias_hh_l0_reverse").data.data();
 
-                    new_bias_reverse.resize(3 * num_output);
+                    new_bias_reverse.resize(4 * num_output);
                     float* bias = (float*)new_bias_reverse.data();
-                    for (int i = 0; i < 3 * num_output; i++)
+                    for (int i = 0; i < 2 * num_output; i++)
                     {
                         bias[i] = bias_ih[i] + bias_hh[i];
                     }
+                    memcpy(bias + num_output * 2, bias_ih + num_output * 2, num_output * sizeof(float));
+                    memcpy(bias + num_output * 3, bias_hh + num_output * 2, num_output * sizeof(float));
                 }
 
-                op->attrs["4"] = Attribute({3, num_output}, new_bias_reverse);
+                op->attrs["5"] = Attribute({4, num_output}, new_bias_reverse);
+            }
+        }
+        else
+        {
+            std::vector<float> bias(4 * num_output, 0.f);
+            op->attrs["4"] = Attribute({4, num_output}, bias);
+
+            if (bidirectional)
+            {
+                op->attrs["5"] = Attribute({4, num_output}, bias);
             }
         }
 
-        op->attrs["5"] = Attribute();
-        op->attrs["5"].data = {0, 0, 0, 0};
+        op->attrs["6"] = Attribute();
+        op->attrs["6"].data = {0, 0, 0, 0};
 
         // RUN-hidden-hidden
         {
-            op->attrs["6"] = captured_attrs.at("op_0.weight_hh_l0");
+            op->attrs["7"] = captured_attrs.at("op_0.weight_hh_l0");
             if (bidirectional)
-                op->attrs["7"] = captured_attrs.at("op_0.weight_hh_l0_reverse");
+                op->attrs["8"] = captured_attrs.at("op_0.weight_hh_l0_reverse");
         }
     }
 };
@@ -131,6 +148,22 @@ pnnx.Output             output      2 0 out out_hidden
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_GRU_1, 20)
+
+class nn_GRU_2 : public nn_GRU
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.GRU                  op_0        1 1 input out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_GRU_2, 20)
 
 } // namespace ncnn
 

@@ -110,6 +110,8 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             }
         }
 
+        op->attrs["3"] = Attribute();
+        op->attrs["3"].data = {0, 0, 0, 0};
         if (captured_params.at("bias").b)
         {
             // reduce bias_ih and bias_hh
@@ -151,7 +153,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 }
             }
 
-            op->attrs["3"] = Attribute({4, num_output}, new_bias);
+            op->attrs["4"] = Attribute({4, num_output}, new_bias);
 
             if (bidirectional)
             {
@@ -192,12 +194,22 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     }
                 }
 
-                op->attrs["4"] = Attribute({4, num_output}, new_bias_reverse);
+                op->attrs["5"] = Attribute({4, num_output}, new_bias_reverse);
+            }
+        }
+        else
+        {
+            std::vector<float> bias(4 * num_output, 0.f);
+            op->attrs["4"] = Attribute({4, num_output}, bias);
+
+            if (bidirectional)
+            {
+                op->attrs["5"] = Attribute({4, num_output}, bias);
             }
         }
 
-        op->attrs["5"] = Attribute();
-        op->attrs["5"].data = {0, 0, 0, 0};
+        op->attrs["6"] = Attribute();
+        op->attrs["6"].data = {0, 0, 0, 0};
 
         // reorder IFGO-hidden-hidden to IFOG-hidden-hidden
         {
@@ -222,7 +234,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                 memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
             }
-            op->attrs["6"] = Attribute({4, num_output, num_output}, new_weight_hh);
+            op->attrs["7"] = Attribute({4, num_output, num_output}, new_weight_hh);
 
             if (bidirectional)
             {
@@ -247,7 +259,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                     memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
                 }
-                op->attrs["7"] = Attribute({4, num_output, num_output}, new_weight_hh_reverse);
+                op->attrs["8"] = Attribute({4, num_output, num_output}, new_weight_hh_reverse);
             }
         }
     }
@@ -272,6 +284,22 @@ pnnx.Output             output      3 0 out out_hidden out_cell
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LSTM_1, 20)
+
+class nn_LSTM_2 : public nn_LSTM
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.LSTM                 op_0        1 1 input out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LSTM_2, 20)
 
 } // namespace ncnn
 

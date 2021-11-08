@@ -40,7 +40,8 @@ public:
         const torch::jit::Node* lstm = find_node_by_kind(graph, "aten::lstm");
 
         const torch::jit::Node* return_tuple = find_node_by_kind(graph, "prim::TupleConstruct");
-        if (return_tuple->inputs()[0] == lstm->outputs()[1] && return_tuple->inputs()[1] == lstm->outputs()[2] && return_tuple->inputs()[2] == lstm->outputs()[0])
+        if (return_tuple && return_tuple->inputs().size() == 3 && lstm->outputs().size() == 3
+            && return_tuple->inputs()[0] == lstm->outputs()[1] && return_tuple->inputs()[1] == lstm->outputs()[2] && return_tuple->inputs()[2] == lstm->outputs()[0])
         {
             // mark the swapped output tuple
             // we would restore the fine order in pass_level3/fuse_rnn_unpack
