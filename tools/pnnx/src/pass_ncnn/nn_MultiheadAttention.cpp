@@ -112,6 +112,22 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention, 20)
 
+class nn_MultiheadAttention_1 : public nn_MultiheadAttention
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+nn.MultiheadAttention   op_0        1 1 input out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention_1, 20)
+
 } // namespace ncnn
 
 } // namespace pnnx

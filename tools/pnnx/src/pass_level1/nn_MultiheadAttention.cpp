@@ -40,6 +40,11 @@ public:
         //         graph->dump();
 
         const torch::jit::Node* div_num_heads = find_node_by_kind(graph, "aten::div");
+        const torch::jit::Node* div_num_heads_18 = find_node_by_kind(graph, "aten::floor_divide");
+        if (div_num_heads_18)
+        {
+            div_num_heads = div_num_heads_18;
+        }
 
         op->params["num_heads"] = div_num_heads->input(1)->node()->t(torch::jit::attr::value).item<long>();
 

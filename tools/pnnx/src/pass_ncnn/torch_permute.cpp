@@ -122,6 +122,22 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_permute, 20)
 
+class Tensor_permute : public torch_permute
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+Tensor.permute          op_0        1 1 input out dims=%dims
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(Tensor_permute, 20)
+
 } // namespace ncnn
 
 } // namespace pnnx
