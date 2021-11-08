@@ -43,10 +43,10 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["0"] = captured_params.at("padding").ai[0];
-        op->params["1"] = captured_params.at("padding").ai[1];
-        op->params["2"] = captured_params.at("padding").ai[2];
-        op->params["3"] = captured_params.at("padding").ai[3];
+        op->params["0"] = captured_params.at("padding").ai[2];
+        op->params["1"] = captured_params.at("padding").ai[3];
+        op->params["2"] = captured_params.at("padding").ai[0];
+        op->params["3"] = captured_params.at("padding").ai[1];
         op->params["4"] = 0;
         op->params["5"] = 0.f;
     }
