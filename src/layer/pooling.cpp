@@ -17,6 +17,7 @@
 #include "layer_type.h"
 
 #include <float.h>
+#include <math.h>
 
 namespace ncnn {
 
@@ -116,17 +117,14 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                const int hk = std::max(h - out_h + 1, 1);
-                const int wk = std::max(w - out_w + 1, 1);
-
                 for (int i = 0; i < out_h; i++)
                 {
-                    int ih0 = out_h == 1 ? 0 : i * (h - hk) / (out_h - 1);
-                    int ih1 = ih0 + hk;
+                    const int ih0 = floor(((float)h / out_h) * i);
+                    const int ih1 = ceil(((float)h / out_h) * (i + 1));
                     for (int j = 0; j < out_w; j++)
                     {
-                        int iw0 = out_w == 1 ? 0 : j * (w - wk) / (out_w - 1);
-                        int iw1 = iw0 + wk;
+                        const int iw0 = floor(((float)w / out_w) * j);
+                        const int iw1 = ceil(((float)w / out_w) * (j + 1));
 
                         float max = inptr[ih0 * w + iw0];
                         for (int ih = ih0; ih < ih1; ih++)
@@ -151,17 +149,16 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                const int hk = std::max(h - out_h + 1, 1);
-                const int wk = std::max(w - out_w + 1, 1);
-
                 for (int i = 0; i < out_h; i++)
                 {
-                    int ih0 = out_h == 1 ? 0 : i * (h - hk) / (out_h - 1);
-                    int ih1 = ih0 + hk;
+                    const int ih0 = floor(((float)h / out_h) * i);
+                    const int ih1 = ceil(((float)h / out_h) * (i + 1));
+                    const int hk = ih1 - ih0;
                     for (int j = 0; j < out_w; j++)
                     {
-                        int iw0 = out_w == 1 ? 0 : j * (w - wk) / (out_w - 1);
-                        int iw1 = iw0 + wk;
+                        const int iw0 = floor(((float)w / out_w) * j);
+                        const int iw1 = ceil(((float)w / out_w) * (j + 1));
+                        const int wk = iw1 - iw0;
 
                         float sum = 0;
                         for (int ih = ih0; ih < ih1; ih++)
