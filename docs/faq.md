@@ -237,6 +237,8 @@
    Make sure that your param file starts with the magic number 7767517.
 
    you may find more info on use-ncnn-with-alexnet
+   
+   自己添加softmax层时，需要加入1=1
 
 - ## set_vulkan_compute failed, network use_vulkan_compute disabled
 
