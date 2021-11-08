@@ -238,7 +238,7 @@
 
    you may find more info on use-ncnn-with-alexnet
    
-   自己添加softmax层时，需要加入1=1
+   When adding the softmax layer yourself, you need to add 1=1
 
 - ## set_vulkan_compute failed, network use_vulkan_compute disabled
 
