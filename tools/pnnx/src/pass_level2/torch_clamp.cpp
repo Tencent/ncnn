@@ -16,50 +16,50 @@
 
 namespace pnnx {
 
-class F_mish : public GraphRewriterPass
+class torch_clamp : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-aten::mish              op_0        1 1 input out
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 min
+pnnx.Input              input_2     0 1 max
+aten::clamp             op_0        3 1 input min max out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "F.mish";
+        return "torch.clamp";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clamp, 20)
 
-class F_mish_1 : public GraphRewriterPass
+class torch_clamp_1 : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
-pnnx.Input              input       0 1 input
-prim::Constant          op_0        0 1 11 value=1
-prim::Constant          op_1        0 1 12 value=20
-aten::softplus          op_2        3 1 input 11 12 a
-aten::tanh              op_3        1 1 a b
-aten::mul               op_4        2 1 input b out
+5 4
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 min
+pnnx.Input              input_2     0 1 max
+aten::clamp_            op_0        3 1 input min max out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "F.mish";
+        return "torch.clamp";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_mish_1, 9)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clamp_1, 20)
 
 } // namespace pnnx

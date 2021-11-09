@@ -16,46 +16,41 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-def silu_forward_0(x):
-    return x * torch.sigmoid(x)
-
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
-        x = F.silu(x)
-        y = F.silu(y)
-        z = F.silu(z)
-        w = silu_forward_0(w)
-        return x, y, z, w
+    def forward(self, x, y, z):
+        x = torch.clamp(x, max=2)
+        y = torch.clamp(y, min=0)
+        z = torch.clamp(z, min=-1, max=1)
+        return x, y, z
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 16)
-    y = torch.rand(12, 2, 16)
-    z = torch.rand(1, 3, 12, 16)
-    w = torch.rand(1, 5, 7, 9, 11)
+    x = torch.rand(1, 3, 16)
+    y = torch.rand(1, 5, 9, 11)
+    z = torch.rand(14, 8, 5, 9, 10)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_silu.pt")
+    mod = torch.jit.trace(net, (x, y, z))
+    mod.save("test_torch_clamp.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_silu.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[1,5,7,9,11]")
+    os.system("../src/pnnx test_torch_clamp.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
 
     # pnnx inference
-    import test_F_silu_pnnx
-    b = test_F_silu_pnnx.test_inference()
+    import test_torch_clamp_pnnx
+    b = test_torch_clamp_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.equal(a0, b0):
             return False
     return True
 

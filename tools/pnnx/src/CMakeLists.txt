@@ -164,6 +164,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_view.cpp
     pass_level2/torch_cat.cpp
     pass_level2/torch_chunk.cpp
+    pass_level2/torch_clamp.cpp
     pass_level2/torch_flatten.cpp
     pass_level2/torch_mean.cpp
     pass_level2/torch_sum.cpp
@@ -183,7 +184,6 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp
-    pass_level3/fuse_silu.cpp
 )
 
 set(pnnx_pass_level4_SRCS
@@ -301,6 +301,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_slice.cpp
     pass_ncnn/Tensor_view.cpp
+    pass_ncnn/torch_clamp.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_mean.cpp
     pass_ncnn/torch_permute.cpp

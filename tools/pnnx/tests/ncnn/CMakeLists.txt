@@ -24,6 +24,8 @@ pnnx_ncnn_add_test(nn_ReflectionPad2d)
 pnnx_ncnn_add_test(nn_ReplicationPad2d)
 pnnx_ncnn_add_test(nn_RNN)
 pnnx_ncnn_add_test(nn_Softmax)
+pnnx_ncnn_add_test(nn_UpsamplingBilinear2d)
+pnnx_ncnn_add_test(nn_UpsamplingNearest2d)
 pnnx_ncnn_add_test(nn_ZeroPad2d)
 
 pnnx_ncnn_add_test(mobilenet_v2)

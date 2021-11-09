@@ -152,6 +152,7 @@ pnnx_add_test(Tensor_view)
 
 pnnx_add_test(torch_cat)
 pnnx_add_test(torch_chunk)
+pnnx_add_test(torch_clamp)
 pnnx_add_test(torch_flatten)
 pnnx_add_test(torch_mean)
 pnnx_add_test(torch_permute)

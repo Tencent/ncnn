@@ -21,7 +21,6 @@
 #include "pass_level3/fuse_chunk_split_unpack.h"
 #include "pass_level3/fuse_expression.h"
 #include "pass_level3/fuse_rnn_unpack.h"
-#include "pass_level3/fuse_silu.h"
 
 // #include "pass_level4/canonicalize.h"
 // #include "pass_level4/fuse_custom_op.h"
@@ -36,8 +35,6 @@ void pass_level3(Graph& g)
     fuse_chunk_split_unpack(g);
 
     fuse_rnn_unpack(g);
-
-    fuse_silu(g);
 
     expand_quantization_modules(g);
 
