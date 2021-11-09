@@ -74,10 +74,12 @@ void main()
     afpvec8 res;
 
     // calculate adaptive kernel size
-    const int kernel_w = max(psc(w) - psc(outw) + 1, 1);
-    const int kernel_h = max(psc(h) - psc(outh) + 1, 1);
-    const int sx = psc(outw) == 1 ? 0 : gx * (psc(w) - kernel_w) / (psc(outw) - 1);
-    const int sy = psc(outh) == 1 ? 0 : gy * (psc(h) - kernel_h) / (psc(outh) - 1);
+    const int iw0 = int(floor((afp(psc(w)) / afp(psc(outw))) * afp(gx)));
+    const int iw1 = int(ceil((afp(psc(w)) / afp(psc(outw))) * afp(gx + 1)));
+    const int kernel_w = iw1 - iw0;
+    const int ih0 = int(floor((afp(psc(h)) / afp(psc(outh))) * afp(gy)));
+    const int ih1 = int(ceil((afp(psc(h)) / afp(psc(outh))) * afp(gy + 1)));
+    const int kernel_h = ih1 - ih0;
 
     if (pooling_type == 0)
     {
