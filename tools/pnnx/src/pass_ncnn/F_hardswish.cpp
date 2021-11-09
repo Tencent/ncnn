@@ -40,6 +40,12 @@ pnnx.Output             output      1 0 out
     {
         return "hswish";
     }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["0"] = 1.f / 6;
+        op->params["1"] = 0.5f;
+    }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_hardswish, 20)
