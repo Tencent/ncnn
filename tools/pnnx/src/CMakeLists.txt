@@ -33,6 +33,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_ConvTranspose3d.cpp
     pass_level1/nn_Dropout.cpp
     pass_level1/nn_ELU.cpp
+    pass_level1/nn_Embedding.cpp
     pass_level1/nn_GELU.cpp
     pass_level1/nn_GroupNorm.cpp
     pass_level1/nn_GRU.cpp
@@ -266,6 +267,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ConvTranspose2d.cpp
     pass_ncnn/nn_Dropout.cpp
     pass_ncnn/nn_ELU.cpp
+    pass_ncnn/nn_Embedding.cpp
     pass_ncnn/nn_GELU.cpp
     pass_ncnn/nn_GroupNorm.cpp
     pass_ncnn/nn_GRU.cpp
