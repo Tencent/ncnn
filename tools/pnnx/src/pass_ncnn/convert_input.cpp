@@ -28,6 +28,7 @@ void convert_input(Graph& graph)
             continue;
 
         op->type = "Input";
+        op->name = std::string("in") + std::to_string(index);
 
         // canonicalize output name
         op->outputs[0]->name = std::string("in") + std::to_string(index);
