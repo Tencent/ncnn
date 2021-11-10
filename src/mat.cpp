@@ -53,10 +53,10 @@ Mat Mat::clone(Allocator* _allocator) const
         else
         {
             // copy by channel for differnet cstep
-            size_t size = w * h;
+            size_t size = w * h * elemsize;
             for (int i = 0; i < c; i++)
             {
-                memcpy(m.channel(i), channel(i), size * elemsize);
+                memcpy(m.channel(i), channel(i), size);
             }
         }
     }
