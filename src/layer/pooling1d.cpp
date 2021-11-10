@@ -107,8 +107,10 @@ int Pooling1D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
                 for (int j = 0; j < out_w; j++)
                 {
-                    const int iw0 = floor(((float)w / out_w) * j);
-                    const int iw1 = ceil(((float)w / out_w) * (j + 1));
+                    // floor div
+                    const int iw0 = w * j / out_w;
+                    // ceil div
+                    const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
 
                     float max = inptr[iw0];
                     for (int iw = iw0; iw < iw1; iw++)
@@ -130,8 +132,10 @@ int Pooling1D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
                 for (int j = 0; j < out_w; j++)
                 {
-                    const int iw0 = floor(((float)w / out_w) * j);
-                    const int iw1 = ceil(((float)w / out_w) * (j + 1));
+                    // floor div
+                    const int iw0 = w * j / out_w;
+                    // ceil div
+                    const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
                     const int wk = iw1 - iw0;
 
                     float sum = 0;
