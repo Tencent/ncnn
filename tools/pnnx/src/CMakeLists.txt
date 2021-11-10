@@ -359,8 +359,7 @@ endif()
 #set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
 #set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
 
-if(WIN32)
-    file(GLOB TORCH_DLLS "${TORCH_INSTALL_PREFIX}/lib/*.dll")
-    add_custom_command(TARGET pnnx POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${TORCH_DLLS} $<TARGET_FILE_DIR:pnnx>)
-endif(WIN32)
+set_target_properties(pnnx PROPERTIES INSTALL_RPATH "$ORIGIN/")
+set_target_properties(pnnx PROPERTIES MACOSX_RPATH TRUE)
+
+install(TARGETS pnnx RUNTIME DESTINATION bin)
