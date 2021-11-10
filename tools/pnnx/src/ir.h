@@ -22,8 +22,8 @@
 
 namespace torch {
 namespace jit {
-class Value;
-class Node;
+struct Value;
+struct Node;
 } // namespace jit
 } // namespace torch
 namespace at {
