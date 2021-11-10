@@ -10,7 +10,9 @@ set(CMAKE_CXX_STANDARD 14)
 
 option(PNNX_COVERAGE "build for coverage" OFF)
 
-set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
+#set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
+#set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/pytorch-v1.10.0/build/install" CACHE STRING "")
+set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/libtorch" CACHE STRING "")
 set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
 
 set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")

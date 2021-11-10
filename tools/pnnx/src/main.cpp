@@ -14,7 +14,11 @@
 
 #include <stdio.h>
 
+#if _WIN32
+#include <windows.h>
+#else
 #include <dlfcn.h>
+#endif
 
 #include <string>
 #include <vector>
@@ -131,7 +135,11 @@ static void show_usage()
     fprintf(stderr, "  device=cpu/gpu\n");
     fprintf(stderr, "  inputshape=[1,3,224,224],...\n");
     fprintf(stderr, "  inputshape2=[1,3,320,320],...\n");
+#if _WIN32
+    fprintf(stderr, "  customop=C:\\Users\\nihui\\AppData\\Local\\torch_extensions\\torch_extensions\\Cache\\fused\\fused.dll,...\n");
+#else
     fprintf(stderr, "  customop=/home/nihui/.cache/torch_extensions/fused/fused.so,...\n");
+#endif
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
     fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
@@ -244,11 +252,19 @@ int main(int argc, char** argv)
     for (auto m : customop_modules)
     {
         fprintf(stderr, "load custom module %s\n", m.c_str());
+#if _WIN32
+        HMODULE handle = LoadLibraryExA(m.c_str(), NULL, LOAD_WITH_ALTERED_SEARCH_PATH);
+        if (!handle)
+        {
+            fprintf(stderr, "LoadLibraryExA %s failed %s\n", m.c_str(), GetLastError());
+        }
+#else
         void* handle = dlopen(m.c_str(), RTLD_LAZY);
         if (!handle)
         {
             fprintf(stderr, "dlopen %s failed %s\n", m.c_str(), dlerror());
         }
+#endif
     }
 
     std::vector<at::Tensor> input_tensors;

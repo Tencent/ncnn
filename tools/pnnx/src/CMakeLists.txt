@@ -348,7 +348,17 @@ if(TorchVision_FOUND)
     target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)
 endif()
 
-target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} dl)
+if(WIN32)
+    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES})
+else()
+    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} dl)
+endif()
 
 #set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
 #set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
+
+if(WIN32)
+    file(GLOB TORCH_DLLS "${TORCH_INSTALL_PREFIX}/lib/*.dll")
+    add_custom_command(TARGET pnnx POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${TORCH_DLLS} $<TARGET_FILE_DIR:pnnx>)
+endif(WIN32)
