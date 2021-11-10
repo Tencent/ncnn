@@ -335,7 +335,9 @@ set(pnnx_SRCS
     ${pnnx_pass_ncnn_SRCS}
 )
 
-add_definitions(-Wall -Wextra)
+if(NOT MSVC)
+    add_definitions(-Wall -Wextra)
+endif()
 
 add_executable(pnnx ${pnnx_SRCS})
 
