@@ -147,7 +147,7 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                 if (t.scalar_type() == c10::ScalarType::Long)
                 {
                     type = 2;
-                    i = (int)t.item<long>();
+                    i = (int)t.item<int64_t>();
                 }
                 else if (t.scalar_type() == c10::ScalarType::Int)
                 {

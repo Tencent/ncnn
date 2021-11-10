@@ -46,7 +46,7 @@ public:
             div_num_heads = div_num_heads_18;
         }
 
-        op->params["num_heads"] = div_num_heads->input(1)->node()->t(torch::jit::attr::value).item<long>();
+        op->params["num_heads"] = (int)div_num_heads->input(1)->node()->t(torch::jit::attr::value).item<int64_t>();
 
         const torch::jit::Node* transpose_batch_seq = find_node_by_kind(graph, "aten::transpose");
 
