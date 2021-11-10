@@ -24,13 +24,12 @@ namespace pnnx {
 
 // https://stackoverflow.com/questions/1537964/visual-c-equivalent-of-gccs-attribute-packed
 #ifdef _MSC_VER
-#define PACK( __Declaration__ ) __pragma( pack(push, 1) ) __Declaration__ __pragma( pack(pop))
+#define PACK(__Declaration__) __pragma(pack(push, 1)) __Declaration__ __pragma(pack(pop))
 #else
-#define PACK( __Declaration__ ) __Declaration__ __attribute__((__packed__))
+#define PACK(__Declaration__) __Declaration__ __attribute__((__packed__))
 #endif
 
-PACK(struct local_file_header
-{
+PACK(struct local_file_header {
     uint16_t version;
     uint16_t flag;
     uint16_t compression;
@@ -43,8 +42,7 @@ PACK(struct local_file_header
     uint16_t extra_field_length;
 });
 
-PACK(struct central_directory_file_header
-{
+PACK(struct central_directory_file_header {
     uint16_t version_made;
     uint16_t version;
     uint16_t flag;
@@ -63,8 +61,7 @@ PACK(struct central_directory_file_header
     uint32_t lfh_offset;
 });
 
-PACK(struct end_of_central_directory_record
-{
+PACK(struct end_of_central_directory_record {
     uint16_t disk_number;
     uint16_t start_disk;
     uint16_t cd_records;
