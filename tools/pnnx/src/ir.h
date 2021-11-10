@@ -75,7 +75,7 @@ public:
         : type(5), ai(_ai)
     {
     }
-    Parameter(const std::initializer_list<long>& _ai)
+    Parameter(const std::initializer_list<int64_t>& _ai)
         : type(5)
     {
         for (const auto& x : _ai)
