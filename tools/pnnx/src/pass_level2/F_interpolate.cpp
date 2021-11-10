@@ -197,7 +197,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["mode"] = "nearest";
         op->params["recompute_scale_factor"] = true;
     }
@@ -277,7 +277,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bilinear";
         op->params["recompute_scale_factor"] = true;
@@ -357,7 +357,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bilinear";
         op->params["recompute_scale_factor"] = true;
@@ -438,7 +438,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bicubic";
         op->params["recompute_scale_factor"] = true;
@@ -518,7 +518,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "bicubic";
         op->params["recompute_scale_factor"] = true;
@@ -623,7 +623,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["mode"] = "nearest";
         op->params["recompute_scale_factor"] = true;
     }
@@ -725,7 +725,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["mode"] = "nearest";
         op->params["recompute_scale_factor"] = true;
     }
@@ -830,7 +830,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "trilinear";
         op->params["recompute_scale_factor"] = true;
@@ -934,7 +934,7 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["scale_factor"] = {captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f};
+        op->params["scale_factor"] = Parameter({captured_params.at("scale_d").f, captured_params.at("scale_h").f, captured_params.at("scale_w").f});
         op->params["align_corners"] = captured_params.at("align_corners");
         op->params["mode"] = "trilinear";
         op->params["recompute_scale_factor"] = true;

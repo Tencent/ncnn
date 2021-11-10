@@ -59,9 +59,9 @@ public:
                 int nscan = sscanf(expr.c_str(), "(int(sub(add(mul(sub(size(@0,2),1),%d),%d),%d)),int(sub(add(mul(sub(size(@1,3),1),%d),%d),%d)))", &stride0, &kernel_size0, &padding0, &stride1, &kernel_size1, &padding1);
                 if (nscan == 6)
                 {
-                    op->params["kernel_size"] = {kernel_size0, kernel_size1};
-                    op->params["stride"] = {stride0, stride1};
-                    op->params["padding"] = {padding0 / 2, padding1 / 2};
+                    op->params["kernel_size"] = Parameter({kernel_size0, kernel_size1});
+                    op->params["stride"] = Parameter({stride0, stride1});
+                    op->params["padding"] = Parameter({padding0 / 2, padding1 / 2});
                 }
             }
         }
