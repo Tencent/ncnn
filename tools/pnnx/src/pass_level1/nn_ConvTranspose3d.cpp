@@ -40,7 +40,7 @@ public:
         op->params["groups"] = convolution->namedInput("groups");
         op->params["in_channels"] = weight.size(0);
         op->params["out_channels"] = weight.size(1) * op->params["groups"].i;
-        op->params["kernel_size"] = Parameter({weight.size(2), weight.size(3), weight.size(4)});
+        op->params["kernel_size"] = Parameter{weight.size(2), weight.size(3), weight.size(4)};
         op->params["stride"] = convolution->namedInput("stride");
         op->params["padding"] = convolution->namedInput("padding");
         op->params["output_padding"] = convolution->namedInput("output_padding");

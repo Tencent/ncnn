@@ -85,10 +85,10 @@ public:
 
         op->params["in_channels"] = mod.attr("in_channels").toInt();
         op->params["out_channels"] = mod.attr("out_channels").toInt();
-        op->params["kernel_size"] = Parameter({mod.attr("kernel_size").toTuple()->elements()[0].toInt(), mod.attr("kernel_size").toTuple()->elements()[1].toInt()});
-        op->params["stride"] = Parameter({mod.attr("stride").toTuple()->elements()[0].toInt(), mod.attr("stride").toTuple()->elements()[1].toInt()});
-        op->params["padding"] = Parameter({mod.attr("padding").toTuple()->elements()[0].toInt(), mod.attr("padding").toTuple()->elements()[1].toInt()});
-        op->params["dilation"] = Parameter({mod.attr("dilation").toTuple()->elements()[0].toInt(), mod.attr("dilation").toTuple()->elements()[1].toInt()});
+        op->params["kernel_size"] = Parameter{mod.attr("kernel_size").toTuple()->elements()[0].toInt(), mod.attr("kernel_size").toTuple()->elements()[1].toInt()};
+        op->params["stride"] = Parameter{mod.attr("stride").toTuple()->elements()[0].toInt(), mod.attr("stride").toTuple()->elements()[1].toInt()};
+        op->params["padding"] = Parameter{mod.attr("padding").toTuple()->elements()[0].toInt(), mod.attr("padding").toTuple()->elements()[1].toInt()};
+        op->params["dilation"] = Parameter{mod.attr("dilation").toTuple()->elements()[0].toInt(), mod.attr("dilation").toTuple()->elements()[1].toInt()};
         op->params["groups"] = mod.attr("groups").toInt();
         op->params["padding_mode"] = "zeros";
         op->params["bias"] = mod.hasattr("bias");
@@ -167,10 +167,10 @@ public:
 
         op->params["in_channels"] = mod.attr("in_channels").toInt();
         op->params["out_channels"] = mod.attr("out_channels").toInt();
-        op->params["kernel_size"] = Parameter({mod.attr("kernel_size").toTuple()->elements()[0].toInt(), mod.attr("kernel_size").toTuple()->elements()[1].toInt()});
-        op->params["stride"] = Parameter({mod.attr("stride").toTuple()->elements()[0].toInt(), mod.attr("stride").toTuple()->elements()[1].toInt()});
-        op->params["padding"] = Parameter({mod.attr("padding").toTuple()->elements()[0].toInt(), mod.attr("padding").toTuple()->elements()[1].toInt()});
-        op->params["dilation"] = Parameter({mod.attr("dilation").toTuple()->elements()[0].toInt(), mod.attr("dilation").toTuple()->elements()[1].toInt()});
+        op->params["kernel_size"] = Parameter{mod.attr("kernel_size").toTuple()->elements()[0].toInt(), mod.attr("kernel_size").toTuple()->elements()[1].toInt()};
+        op->params["stride"] = Parameter{mod.attr("stride").toTuple()->elements()[0].toInt(), mod.attr("stride").toTuple()->elements()[1].toInt()};
+        op->params["padding"] = Parameter{mod.attr("padding").toTuple()->elements()[0].toInt(), mod.attr("padding").toTuple()->elements()[1].toInt()};
+        op->params["dilation"] = Parameter{mod.attr("dilation").toTuple()->elements()[0].toInt(), mod.attr("dilation").toTuple()->elements()[1].toInt()};
         op->params["groups"] = mod.attr("groups").toInt();
         op->params["padding_mode"] = "zeros";
         op->params["bias"] = mod.hasattr("bias");

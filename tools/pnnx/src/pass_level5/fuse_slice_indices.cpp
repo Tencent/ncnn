@@ -83,10 +83,10 @@ pnnx.Output             output      1 0 out
         int step3 = captured_params.at("step3").i;
         int step4 = captured_params.at("step4").i;
 
-        op->params["dims"] = Parameter({dim0, dim1, dim2, dim3, dim4});
-        op->params["starts"] = Parameter({start0, start1, start2, start3, start4});
-        op->params["ends"] = Parameter({end0, end1, end2, end3, end4});
-        op->params["steps"] = Parameter({step0, step1, step2, step3, step4});
+        op->params["dims"] = Parameter{dim0, dim1, dim2, dim3, dim4};
+        op->params["starts"] = Parameter{start0, start1, start2, start3, start4};
+        op->params["ends"] = Parameter{end0, end1, end2, end3, end4};
+        op->params["steps"] = Parameter{step0, step1, step2, step3, step4};
     }
 };
 
@@ -148,10 +148,10 @@ pnnx.Output             output      1 0 out
         int step2 = captured_params.at("step2").i;
         int step3 = captured_params.at("step3").i;
 
-        op->params["dims"] = Parameter({dim0, dim1, dim2, dim3});
-        op->params["starts"] = Parameter({start0, start1, start2, start3});
-        op->params["ends"] = Parameter({end0, end1, end2, end3});
-        op->params["steps"] = Parameter({step0, step1, step2, step3});
+        op->params["dims"] = Parameter{dim0, dim1, dim2, dim3};
+        op->params["starts"] = Parameter{start0, start1, start2, start3};
+        op->params["ends"] = Parameter{end0, end1, end2, end3};
+        op->params["steps"] = Parameter{step0, step1, step2, step3};
     }
 };
 
@@ -207,10 +207,10 @@ pnnx.Output             output      1 0 out
         int step1 = captured_params.at("step1").i;
         int step2 = captured_params.at("step2").i;
 
-        op->params["dims"] = Parameter({dim0, dim1, dim2});
-        op->params["starts"] = Parameter({start0, start1, start2});
-        op->params["ends"] = Parameter({end0, end1, end2});
-        op->params["steps"] = Parameter({step0, step1, step2});
+        op->params["dims"] = Parameter{dim0, dim1, dim2};
+        op->params["starts"] = Parameter{start0, start1, start2};
+        op->params["ends"] = Parameter{end0, end1, end2};
+        op->params["steps"] = Parameter{step0, step1, step2};
     }
 };
 
@@ -260,10 +260,10 @@ pnnx.Output             output      1 0 out
         int step0 = captured_params.at("step0").i;
         int step1 = captured_params.at("step1").i;
 
-        op->params["dims"] = Parameter({dim0, dim1});
-        op->params["starts"] = Parameter({start0, start1});
-        op->params["ends"] = Parameter({end0, end1});
-        op->params["steps"] = Parameter({step0, step1});
+        op->params["dims"] = Parameter{dim0, dim1};
+        op->params["starts"] = Parameter{start0, start1};
+        op->params["ends"] = Parameter{end0, end1};
+        op->params["steps"] = Parameter{step0, step1};
     }
 };
 
@@ -297,10 +297,10 @@ pnnx.Output             output      1 0 out
         int end0 = captured_params.at("end0").i;
         int step0 = captured_params.at("step0").i;
 
-        op->params["dims"] = Parameter({dim0});
-        op->params["starts"] = Parameter({start0});
-        op->params["ends"] = Parameter({end0});
-        op->params["steps"] = Parameter({step0});
+        op->params["dims"] = Parameter{dim0};
+        op->params["starts"] = Parameter{start0};
+        op->params["ends"] = Parameter{end0};
+        op->params["steps"] = Parameter{step0};
     }
 };
 

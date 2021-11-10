@@ -84,7 +84,7 @@ pnnx.Output             output      1 0 out
         else
         {
             op->params["9"] = 2;
-            op->params["10"] = Parameter({slope});
+            op->params["10"] = Parameter{slope};
         }
     }
 };
@@ -150,7 +150,7 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["9"] = 3;
-        op->params["10"] = Parameter({min, max});
+        op->params["10"] = Parameter{min, max};
     }
 };
 
