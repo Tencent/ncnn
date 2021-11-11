@@ -217,8 +217,8 @@ int DeconvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob,
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = 1;
 #if __riscv_vector
     if (opt.use_packing_layout)
@@ -229,7 +229,7 @@ int DeconvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob,
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }
@@ -511,13 +511,13 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }
@@ -732,13 +732,13 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }
