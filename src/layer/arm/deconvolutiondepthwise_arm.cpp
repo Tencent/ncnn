@@ -173,6 +173,8 @@ int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
             pd.set(13, stride_h);
             pd.set(4, 0);  // pad_w
             pd.set(14, 0); // pad_h
+            pd.set(18, output_pad_right);
+            pd.set(19, output_pad_bottom);
             pd.set(5, bias_term);
             pd.set(6, maxk * channels_g * num_output_g); // weight_data_size
             pd.set(9, activation_type);
