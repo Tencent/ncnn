@@ -238,6 +238,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_hardswish.cpp
     pass_ncnn/F_hardtanh.cpp
     pass_ncnn/F_instance_norm.cpp
+    pass_ncnn/F_interpolate.cpp
     pass_ncnn/F_layer_norm.cpp
     pass_ncnn/F_leaky_relu.cpp
     pass_ncnn/F_linear.cpp
@@ -255,6 +256,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_silu.cpp
     pass_ncnn/F_softmax.cpp
     pass_ncnn/F_tanh.cpp
+    pass_ncnn/F_upsample_bilinear.cpp
+    pass_ncnn/F_upsample_nearest.cpp
     pass_ncnn/F_upsample.cpp
     pass_ncnn/nn_AdaptiveAvgPool2d.cpp
     pass_ncnn/nn_AdaptiveMaxPool2d.cpp
