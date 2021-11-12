@@ -164,8 +164,8 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
             float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-            cubic_coeffs(w, outw, xofs, alpha);
-            cubic_coeffs(h, outh, yofs, beta);
+            cubic_coeffs(w, outw, xofs, alpha, align_corner);
+            cubic_coeffs(h, outh, yofs, beta, align_corner);
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -244,8 +244,8 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
         float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-        cubic_coeffs(w, outw, xofs, alpha);
-        cubic_coeffs(h, outh, yofs, beta);
+        cubic_coeffs(w, outw, xofs, alpha, align_corner);
+        cubic_coeffs(h, outh, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
