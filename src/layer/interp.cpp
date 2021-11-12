@@ -190,13 +190,22 @@ static inline void interpolate_cubic(float fx, float* coeffs)
     coeffs[3] = 1.f - coeffs[0] - coeffs[1] - coeffs[2];
 }
 
-static void cubic_coeffs(int w, int outw, int* xofs, float* alpha)
+static void cubic_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
 {
     double scale = (double)w / outw;
+    if (align_corner)
+    {
+        scale = (double)(w - 1) / (outw - 1);
+    }
 
     for (int dx = 0; dx < outw; dx++)
     {
         float fx = (float)((dx + 0.5) * scale - 0.5);
+        if (align_corner)
+        {
+            fx = static_cast<float>(dx * scale);
+        }
+
         int sx = static_cast<int>(floor(fx));
         fx -= sx;
 
@@ -547,8 +556,8 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         float* alpha = (float*)(buf + outw + outh);           //new float[outw * 4];
         float* beta = (float*)(buf + outw + outh + outw * 4); //new float[outh * 4];
 
-        cubic_coeffs(w, outw, xofs, alpha);
-        cubic_coeffs(h, outh, yofs, beta);
+        cubic_coeffs(w, outw, xofs, alpha, align_corner);
+        cubic_coeffs(h, outh, yofs, beta, align_corner);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

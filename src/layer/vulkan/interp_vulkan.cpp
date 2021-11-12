@@ -143,9 +143,10 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
     if (resize_type == 3)
     {
         {
-            std::vector<vk_specialization_type> specializations(0 + 2);
-            specializations[0 + 0].i = shape_packed.w;
-            specializations[0 + 1].i = out_shape_packed.w;
+            std::vector<vk_specialization_type> specializations(1 + 2);
+            specializations[0].i = align_corner;
+            specializations[1 + 0].i = shape_packed.w;
+            specializations[1 + 1].i = out_shape_packed.w;
 
             Mat local_size_xyz(64, 1, 1, (void*)0);
             if (out_shape_packed.dims != 0)
@@ -160,9 +161,10 @@ int Interp_vulkan::create_pipeline(const Option& _opt)
             pipeline_interp_bicubic_coeffs_x->create(LayerShaderType::interp_bicubic_coeffs, opt, specializations);
         }
         {
-            std::vector<vk_specialization_type> specializations(0 + 2);
-            specializations[0 + 0].i = shape_packed.h;
-            specializations[0 + 1].i = out_shape_packed.h;
+            std::vector<vk_specialization_type> specializations(1 + 2);
+            specializations[0].i = align_corner;
+            specializations[1 + 0].i = shape_packed.h;
+            specializations[1 + 1].i = out_shape_packed.h;
 
             Mat local_size_xyz(64, 1, 1, (void*)0);
             if (out_shape_packed.dims != 0)
@@ -440,6 +442,11 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[1].i = outw;
             constants[2].f = (float)bottom_blob.w / outw;
 
+            if (align_corner)
+            {
+                constants[2].f = (w - 1) / (float)(outw - 1);
+            }
+
             // record
             cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha);
         }
@@ -461,6 +468,11 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[0].i = bottom_blob.h;
             constants[1].i = outh;
             constants[2].f = (float)bottom_blob.h / outh;
+
+            if (align_corner)
+            {
+                constants[2].f = (h - 1) / (float)(outh - 1);
+            }
 
             // record
             cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, bindings, constants, beta);
@@ -606,6 +618,11 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[1].i = outw;
             constants[2].f = (float)bottom_blob.w / outw;
 
+            if (align_corner)
+            {
+                constants[2].f = (w - 1) / (float)(outw - 1);
+            }
+
             // record
             cmd.record_pipeline(pipeline_interp_bicubic_coeffs_x, bindings, constants, alpha);
         }
@@ -627,6 +644,11 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[0].i = bottom_blob.h;
             constants[1].i = outh;
             constants[2].f = (float)bottom_blob.h / outh;
+
+            if (align_corner)
+            {
+                constants[2].f = (h - 1) / (float)(outh - 1);
+            }
 
             // record
             cmd.record_pipeline(pipeline_interp_bicubic_coeffs_y, bindings, constants, beta);
