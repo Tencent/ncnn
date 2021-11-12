@@ -20,41 +20,41 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.act_0 = nn.Hardswish()
+        self.bn_0 = nn.BatchNorm1d(num_features=32)
+        self.bn_1 = nn.BatchNorm1d(num_features=32, eps=1e-1, affine=False)
+        self.bn_2 = nn.BatchNorm1d(num_features=11, affine=True)
 
-    def forward(self, x, y, z):
-        x = self.act_0(x)
-        y = self.act_0(y)
-        z = self.act_0(z)
-        return x, y, z
+    def forward(self, x, y):
+        x = self.bn_0(x)
+        x = self.bn_1(x)
+
+        y = self.bn_2(y)
+
+        return x, y
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12)
-    y = torch.rand(1, 12, 64)
-    z = torch.rand(1, 12, 24, 64)
+    x = torch.rand(1, 32, 64)
+    y = torch.rand(1, 11, 1)
 
-    a = net(x, y, z)
+    a0, a1 = net(x, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_nn_Hardswish.pt")
+    mod = torch.jit.trace(net, (x, y))
+    mod.save("test_nn_BatchNorm1d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Hardswish.pt inputshape=[1,12],[1,12,64],[1,12,24,64]")
+    os.system("../../src/pnnx test_nn_BatchNorm1d.pt inputshape=[1,32,64],[1,11,1]")
 
     # ncnn inference
-    import test_nn_Hardswish_ncnn
-    b = test_nn_Hardswish_ncnn.test_inference()
+    import test_nn_BatchNorm1d_ncnn
+    b0, b1 = test_nn_BatchNorm1d_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

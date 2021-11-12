@@ -20,12 +20,13 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.act_0 = nn.Hardswish()
+        self.act_0 = nn.ELU()
+        self.act_1 = nn.ELU(alpha=1.3)
 
     def forward(self, x, y, z):
         x = self.act_0(x)
         y = self.act_0(y)
-        z = self.act_0(z)
+        z = self.act_1(z)
         return x, y, z
 
 def test():
@@ -41,15 +42,15 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_nn_Hardswish.pt")
+    mod.save("test_nn_ELU.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Hardswish.pt inputshape=[1,12],[1,12,64],[1,12,24,64]")
+    os.system("../../src/pnnx test_nn_ELU.pt inputshape=[1,12],[1,12,64],[1,12,24,64]")
 
     # ncnn inference
-    import test_nn_Hardswish_ncnn
-    b = test_nn_Hardswish_ncnn.test_inference()
+    import test_nn_ELU_ncnn
+    b = test_nn_ELU_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):

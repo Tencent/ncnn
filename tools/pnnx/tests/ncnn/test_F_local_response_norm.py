@@ -20,41 +20,33 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.act_0 = nn.Hardswish()
-
-    def forward(self, x, y, z):
-        x = self.act_0(x)
-        y = self.act_0(y)
-        z = self.act_0(z)
-        return x, y, z
+    def forward(self, x):
+        x = F.local_response_norm(x, 4)
+        x = F.local_response_norm(x, size=4, alpha=0.001, beta=0.2, k=1.9)
+        return x
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12)
-    y = torch.rand(1, 12, 64)
-    z = torch.rand(1, 12, 24, 64)
+    x = torch.rand(1, 3, 12, 16)
 
-    a = net(x, y, z)
+    a = net(x)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_nn_Hardswish.pt")
+    mod = torch.jit.trace(net, x)
+    mod.save("test_F_local_response_norm.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Hardswish.pt inputshape=[1,12],[1,12,64],[1,12,24,64]")
+    os.system("../../src/pnnx test_F_local_response_norm.pt inputshape=[1,3,12,16]")
 
     # ncnn inference
-    import test_nn_Hardswish_ncnn
-    b = test_nn_Hardswish_ncnn.test_inference()
+    import test_F_local_response_norm_ncnn
+    b = test_F_local_response_norm_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

@@ -26,7 +26,68 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.pad                   op_0        1 1 input out pad=%pad mode=%mode value=%value
+F.pad                   op_0        1 1 input out pad=%pad mode=constant value=%value
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Padding";
+    }
+
+    const char* name_str() const
+    {
+        return "pad";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pad = captured_params.at("pad").ai;
+
+        float pad_value = 0.f;
+        if (captured_params.at("value").type == 2)
+            pad_value = captured_params.at("value").i;
+        if (captured_params.at("value").type == 3)
+            pad_value = captured_params.at("value").f;
+
+        if (pad.size() == 2)
+        {
+            op->params["0"] = 0;
+            op->params["1"] = 0;
+            op->params["2"] = pad[0];
+            op->params["3"] = pad[1];
+        }
+        else if (pad.size() >= 4)
+        {
+            op->params["0"] = pad[2];
+            op->params["1"] = pad[3];
+            op->params["2"] = pad[0];
+            op->params["3"] = pad[1];
+        }
+        if (pad.size() >= 6)
+        {
+            op->params["7"] = pad[4];
+            op->params["8"] = pad[5];
+        }
+
+        op->params["4"] = 0; // constant
+        op->params["5"] = pad_value;
+        op->params["6"] = 0; // per_channel_pad_data_size
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_pad, 20)
+
+class F_pad_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+F.pad                   op_0        1 1 input out pad=%pad mode=%mode
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -46,12 +107,19 @@ pnnx.Output             output      1 0 out
         const std::vector<int>& pad = captured_params.at("pad").ai;
         const std::string& mode = captured_params.at("mode").s;
 
-        op->params["0"] = pad[0];
-        op->params["1"] = pad[1];
-        if (pad.size() >= 4)
+        if (pad.size() == 2)
         {
-            op->params["2"] = pad[2];
-            op->params["3"] = pad[3];
+            op->params["0"] = 0;
+            op->params["1"] = 0;
+            op->params["2"] = pad[0];
+            op->params["3"] = pad[1];
+        }
+        else if (pad.size() >= 4)
+        {
+            op->params["0"] = pad[2];
+            op->params["1"] = pad[3];
+            op->params["2"] = pad[0];
+            op->params["3"] = pad[1];
         }
         if (pad.size() >= 6)
         {
@@ -66,12 +134,12 @@ pnnx.Output             output      1 0 out
         if (mode == "replicate")
             op->params["4"] = 1;
 
-        op->params["5"] = captured_params.at("value");
+        op->params["5"] = 0; // value
         op->params["6"] = 0; // per_channel_pad_data_size
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_pad, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_pad_1, 20)
 
 } // namespace ncnn
 

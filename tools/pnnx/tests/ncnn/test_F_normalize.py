@@ -20,41 +20,38 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.act_0 = nn.Hardswish()
+    def forward(self, x):
+        x = F.normalize(x)
+        x = F.normalize(x, eps=1e-3)
 
-    def forward(self, x, y, z):
-        x = self.act_0(x)
-        y = self.act_0(y)
-        z = self.act_0(z)
-        return x, y, z
+        # TODO
+        #y = F.normalize(y, p=1, dim=1)
+        #y = F.normalize(y, dim=2)
+
+        return x
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12)
-    y = torch.rand(1, 12, 64)
-    z = torch.rand(1, 12, 24, 64)
+    x = torch.rand(1, 12, 24, 64)
 
-    a = net(x, y, z)
+    a = net(x)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_nn_Hardswish.pt")
+    mod = torch.jit.trace(net, x)
+    mod.save("test_F_normalize.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Hardswish.pt inputshape=[1,12],[1,12,64],[1,12,24,64]")
+    os.system("../../src/pnnx test_F_normalize.pt inputshape=[1,12,24,64]")
 
     # ncnn inference
-    import test_nn_Hardswish_ncnn
-    b = test_nn_Hardswish_ncnn.test_inference()
+    import test_F_normalize_ncnn
+    b = test_F_normalize_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

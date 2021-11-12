@@ -43,10 +43,15 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        int p = captured_params.at("p").i;
-        if (p != 2)
+        float p = 0.f;
+        if (captured_params.at("p").type == 2)
+            p = captured_params.at("p").i;
+        if (captured_params.at("p").type == 3)
+            p = captured_params.at("p").f;
+
+        if (p != 2.f)
         {
-            fprintf(stderr, "unsupported normalize p=%d\n", p);
+            fprintf(stderr, "unsupported normalize p=%f\n", p);
             return;
         }
 

@@ -39,7 +39,7 @@ def test():
     y = torch.rand(1, 12, 64)
     z = torch.rand(1, 12, 24, 64)
 
-    a0, a1, a2 = net(x, y, z)
+    a = net(x, y, z)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
@@ -51,9 +51,12 @@ def test():
 
     # ncnn inference
     import test_nn_Softmax_ncnn
-    b0, b1, b2 = test_nn_Softmax_ncnn.test_inference()
+    b = test_nn_Softmax_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():
