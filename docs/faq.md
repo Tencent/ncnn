@@ -290,7 +290,7 @@ ex.extract("output2", out);
 
    yuv420sp2rgb yuv420sp2rgb_nv12
 
-   **[@zz大佬](https://github.com/zchrissirhcz/xxYUV)**
+   **[@metarutaiga](https://github.com/metarutaiga/xxYUV)**
 
 - ## 如何 resize crop rotate 图片
 
