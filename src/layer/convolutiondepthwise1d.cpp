@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "convolution1d.h"
+#include "convolutiondepthwise1d.h"
 
 #include "layer_type.h"
 
@@ -20,13 +20,13 @@
 
 namespace ncnn {
 
-Convolution1D::Convolution1D()
+ConvolutionDepthWise1D::ConvolutionDepthWise1D()
 {
     one_blob_only = true;
     support_inplace = false;
 }
 
-int Convolution1D::load_param(const ParamDict& pd)
+int ConvolutionDepthWise1D::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);
     kernel_w = pd.get(1, 0);
@@ -37,13 +37,20 @@ int Convolution1D::load_param(const ParamDict& pd)
     pad_value = pd.get(18, 0.f);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
+    group = pd.get(7, 1);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
+
+    if (num_output % group != 0)
+    {
+        // reject invalid group
+        return -100;
+    }
 
     return 0;
 }
 
-int Convolution1D::load_model(const ModelBin& mb)
+int ConvolutionDepthWise1D::load_model(const ModelBin& mb)
 {
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
@@ -59,18 +66,27 @@ int Convolution1D::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Convolution1D::create_pipeline(const Option& opt)
+int ConvolutionDepthWise1D::create_pipeline(const Option& opt)
 {
     return 0;
 }
 
-int Convolution1D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int ConvolutionDepthWise1D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
+    // convolv with NxN kernel
+    // value = value + bias
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     size_t elemsize = bottom_blob.elemsize;
 
-    //     NCNN_LOGE("Convolution1D input %d x %d  pad = %d  ksize=%d  stride=%d", w, h, pad_w, kernel_w, stride_w);
+    if (h % group != 0 || num_output % group != 0)
+    {
+        // reject invalid group
+        return -100;
+    }
+
+    //     NCNN_LOGE("ConvolutionDepthWise1D input %d x %d  pad = %d  ksize=%d  stride=%d", w, h, pad_w, kernel_w, stride_w);
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
 
@@ -89,47 +105,91 @@ int Convolution1D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (top_blob.empty())
         return -100;
 
-    // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < num_output; p++)
+    // depth-wise
+    if (h == group && group == num_output)
     {
-        float* outptr = top_blob.row(p);
-
-        for (int j = 0; j < outw; j++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < group; g++)
         {
-            float sum = 0.f;
+            float* outptr = top_blob.row(g);
+            const float* kptr = (const float*)weight_data + kernel_w * g;
 
-            if (bias_term)
-                sum = bias_data[p];
-
-            const float* kptr = (const float*)weight_data + kernel_w * h * p;
-
-            for (int q = 0; q < h; q++)
+            for (int j = 0; j < outw; j++)
             {
-                const float* sptr = bottom_blob_bordered.row(q) + j * stride_w;
+                float sum = 0.f;
+
+                if (bias_term)
+                    sum = bias_data[g];
+
+                const float* sptr = bottom_blob_bordered.row(g) + j * stride_w;
 
                 for (int k = 0; k < kernel_w; k++)
                 {
                     float val = *sptr;
-                    float wt = kptr[k];
-                    sum += val * wt;
+                    float w = kptr[k];
+                    sum += val * w;
 
                     sptr += dilation_w;
                 }
 
-                kptr += kernel_w;
+                outptr[j] = activation_ss(sum, activation_type, activation_params);
             }
+        }
+    }
+    else
+    {
+        // group convolution
+        const int h_g = h / group;
+        const int num_output_g = num_output / group;
 
-            sum = activation_ss(sum, activation_type, activation_params);
+#ifdef _WIN32
+        #pragma omp parallel for num_threads(opt.num_threads)
+#else // _WIN32
+        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
+#endif // _WIN32
+        for (int g = 0; g < group; g++)
+        {
+            for (int p = 0; p < num_output_g; p++)
+            {
+                float* outptr = top_blob.row(g * num_output_g + p);
+                const float* weight_data_ptr = (const float*)weight_data + kernel_w * h_g * num_output_g * g;
 
-            outptr[j] = sum;
+                for (int j = 0; j < outw; j++)
+                {
+                    float sum = 0.f;
+
+                    if (bias_term)
+                        sum = bias_data[num_output_g * g + p];
+
+                    const float* kptr = weight_data_ptr + kernel_w * h_g * p;
+
+                    // h_g
+                    for (int q = 0; q < h_g; q++)
+                    {
+                        const float* sptr = bottom_blob_bordered.row(h_g * g + q) + j * stride_w;
+
+                        for (int k = 0; k < kernel_w; k++)
+                        {
+                            float val = *sptr;
+                            float w = kptr[k];
+                            sum += val * w;
+
+                            sptr += dilation_w;
+                        }
+
+                        kptr += kernel_w;
+                    }
+
+                    outptr[j] = activation_ss(sum, activation_type, activation_params);
+                }
+            }
         }
     }
 
     return 0;
 }
 
-void Convolution1D::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
+void ConvolutionDepthWise1D::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
 {
     int w = bottom_blob.w;
 
