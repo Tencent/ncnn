@@ -265,7 +265,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_BatchNorm1d.cpp
     pass_ncnn/nn_BatchNorm2d.cpp
     pass_ncnn/nn_ChannelShuffle.cpp
+    pass_ncnn/nn_ConstantPad1d.cpp
     pass_ncnn/nn_ConstantPad2d.cpp
+    pass_ncnn/nn_Conv1d.cpp
     pass_ncnn/nn_Conv2d.cpp
     pass_ncnn/nn_ConvTranspose2d.cpp
     pass_ncnn/nn_Dropout.cpp
@@ -289,9 +291,11 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_PixelShuffle.cpp
     pass_ncnn/nn_PixelUnshuffle.cpp
     pass_ncnn/nn_PReLU.cpp
+    pass_ncnn/nn_ReflectionPad1d.cpp
     pass_ncnn/nn_ReflectionPad2d.cpp
     pass_ncnn/nn_ReLU.cpp
     pass_ncnn/nn_ReLU6.cpp
+    pass_ncnn/nn_ReplicationPad1d.cpp
     pass_ncnn/nn_ReplicationPad2d.cpp
     pass_ncnn/nn_RNN.cpp
     pass_ncnn/nn_SELU.cpp
