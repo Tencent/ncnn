@@ -20,7 +20,7 @@ static int test_convolutiondepthwise1d(int w, int h, int outh, int kernel, int d
     ncnn::Mat a = RandomMat(w, h);
 
     ncnn::ParamDict pd;
-    pd.set(0, outh);    // num_output
+    pd.set(0, outh);     // num_output
     pd.set(1, kernel);   // kernel_w
     pd.set(2, dilation); // dilation_w
     pd.set(3, stride);   // stride_w
