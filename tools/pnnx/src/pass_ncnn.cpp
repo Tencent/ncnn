@@ -61,11 +61,11 @@ void pass_ncnn(Graph& g)
 
     ncnn::solve_batch_index(g);
 
+    int opindex = 0;
     for (auto x : g_global_pnnx_ncnn_graph_rewriter_passes)
     {
         for (auto rewriter : x.second)
         {
-            int opindex = 0;
             pnnx_graph_rewrite(g, rewriter, opindex);
         }
     }

@@ -21,6 +21,7 @@ namespace ncnn {
 
 void insert_split(Graph& graph)
 {
+    int opindex = 0;
     while (1)
     {
         bool matched = false;
@@ -36,7 +37,7 @@ void insert_split(Graph& graph)
                 matched = true;
 
                 // insert split
-                Operator* split = graph.new_operator_before("Split", "splitncnn", graph.ops[i + 1]);
+                Operator* split = graph.new_operator_before("Split", std::string("splitncnn_") + std::to_string(opindex++), graph.ops[i + 1]);
 
                 split->inputs.push_back(x);
 

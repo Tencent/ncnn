@@ -259,6 +259,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
         }
     }
 
+    std::vector<Operator*> new_ops;
+
     while (1)
     {
         const int graph_op_count = (int)graph.ops.size();
@@ -409,7 +411,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             cur = graph.ops[cur_index];
         }
 
-        Operator* op = graph.new_operator_before(pass->type_str(), std::string(pass->name_str()) + "_" + std::to_string(opindex++), cur);
+        Operator* op = graph.new_operator_before(pass->type_str(), std::string(pass->name_str()), cur);
 
         for (const auto& k : pattern_graph_inputs)
         {
@@ -428,6 +430,14 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
         }
 
         pass->write(op, captured_params, captured_attrs);
+
+        new_ops.push_back(op);
+    }
+
+    // assign new op name number
+    for (int i = (int)new_ops.size() - 1; i >= 0; i--)
+    {
+         new_ops[i]->name = new_ops[i]->name + "_" + std::to_string(opindex++);
     }
 }
 
