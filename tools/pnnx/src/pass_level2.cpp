@@ -437,7 +437,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
     // assign new op name number
     for (int i = (int)new_ops.size() - 1; i >= 0; i--)
     {
-         new_ops[i]->name = new_ops[i]->name + "_" + std::to_string(opindex++);
+        new_ops[i]->name = new_ops[i]->name + "_" + std::to_string(opindex++);
     }
 }
 
