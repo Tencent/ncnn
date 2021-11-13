@@ -41,6 +41,8 @@ class GraphRewriterPassRegister
 {
 public:
     GraphRewriterPassRegister(const GraphRewriterPass* pass, int priority);
+    ~GraphRewriterPassRegister();
+    const GraphRewriterPass* pass;
 };
 
 #define REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(CLASS, PRIORITY) \

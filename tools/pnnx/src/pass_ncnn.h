@@ -25,6 +25,8 @@ class NcnnGraphRewriterPassRegister
 {
 public:
     NcnnGraphRewriterPassRegister(const GraphRewriterPass* pass, int priority);
+    ~NcnnGraphRewriterPassRegister();
+    const GraphRewriterPass* pass;
 };
 
 #define REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(CLASS, PRIORITY) \

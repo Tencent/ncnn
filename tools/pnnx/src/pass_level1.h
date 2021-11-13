@@ -37,6 +37,8 @@ class FuseModulePassRegister
 {
 public:
     FuseModulePassRegister(const FuseModulePass* pass);
+    ~FuseModulePassRegister();
+    const FuseModulePass* pass;
 };
 
 const std::vector<const FuseModulePass*>& get_global_pnnx_fuse_module_passes();

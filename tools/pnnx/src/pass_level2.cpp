@@ -50,7 +50,7 @@ void GraphRewriterPass::write(Operator* op, const std::map<std::string, Paramete
 
 static std::map<int, std::vector<const GraphRewriterPass*> > g_global_pnnx_graph_rewriter_passes;
 
-GraphRewriterPassRegister::GraphRewriterPassRegister(const GraphRewriterPass* pass, int priority)
+GraphRewriterPassRegister::GraphRewriterPassRegister(const GraphRewriterPass* _pass, int priority) : pass(_pass)
 {
     if (g_global_pnnx_graph_rewriter_passes.find(priority) == g_global_pnnx_graph_rewriter_passes.end())
     {
@@ -58,6 +58,11 @@ GraphRewriterPassRegister::GraphRewriterPassRegister(const GraphRewriterPass* pa
     }
 
     g_global_pnnx_graph_rewriter_passes[priority].push_back(pass);
+}
+
+GraphRewriterPassRegister::~GraphRewriterPassRegister()
+{
+    delete pass;
 }
 
 static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std::string, Parameter>& captured_params)

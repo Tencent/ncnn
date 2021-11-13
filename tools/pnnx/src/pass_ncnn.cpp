@@ -41,7 +41,7 @@ namespace pnnx {
 
 static std::map<int, std::vector<const GraphRewriterPass*> > g_global_pnnx_ncnn_graph_rewriter_passes;
 
-NcnnGraphRewriterPassRegister::NcnnGraphRewriterPassRegister(const GraphRewriterPass* pass, int priority)
+NcnnGraphRewriterPassRegister::NcnnGraphRewriterPassRegister(const GraphRewriterPass* _pass, int priority) : pass(_pass)
 {
     if (g_global_pnnx_ncnn_graph_rewriter_passes.find(priority) == g_global_pnnx_ncnn_graph_rewriter_passes.end())
     {
@@ -49,6 +49,11 @@ NcnnGraphRewriterPassRegister::NcnnGraphRewriterPassRegister(const GraphRewriter
     }
 
     g_global_pnnx_ncnn_graph_rewriter_passes[priority].push_back(pass);
+}
+
+NcnnGraphRewriterPassRegister::~NcnnGraphRewriterPassRegister()
+{
+    delete pass;
 }
 
 void pass_ncnn(Graph& g)

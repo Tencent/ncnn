@@ -198,6 +198,9 @@ private:
 class Graph
 {
 public:
+    Graph();
+    ~Graph();
+
     int load(const std::string& parampath, const std::string& binpath);
     int save(const std::string& parampath, const std::string& binpath);
 
@@ -219,6 +222,10 @@ public:
 
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;
+
+private:
+    Graph(const Graph& rhs);
+    Graph& operator=(const Graph& rhs);
 };
 
 } // namespace pnnx

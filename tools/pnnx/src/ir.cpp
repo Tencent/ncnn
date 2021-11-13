@@ -348,6 +348,31 @@ Parameter Parameter::parse_from_string(const std::string& value)
     return p;
 }
 
+Graph::Graph()
+{
+}
+
+Graph::~Graph()
+{
+    for (auto x : ops)
+        delete x;
+
+    for (auto x : operands)
+        delete x;
+
+    ops.clear();
+    operands.clear();
+}
+
+Graph::Graph(const Graph& /*rhs*/)
+{
+}
+
+Graph& Graph::operator=(const Graph& /*rhs*/)
+{
+    return *this;
+}
+
 static void load_parameter(Operator* op, const std::string& key, const std::string& value)
 {
     op->params[key] = Parameter::parse_from_string(value);
