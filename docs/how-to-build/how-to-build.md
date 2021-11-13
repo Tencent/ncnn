@@ -155,7 +155,7 @@ brew install protobuf libomp
 ```
 
 Download and install Vulkan SDK from <https://vulkan.lunarg.com/sdk/home>
-```
+
 
 ```shell
 wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
