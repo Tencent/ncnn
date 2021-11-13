@@ -137,9 +137,16 @@ nmake install
 Note: To speed up compilation process on multi core machines, configuring `cmake` to use `jom` or `ninja` using `-G` flag is recommended.
 
 ***
-
 ### Build for macOS
-First install Xcode or Xcode Command Line Tools according to your needs.
+
+We've published ncnn to [brew](https://formulae.brew.sh/formula/ncnn#default) now, you can just use following method to install ncnn if you have the Xcode Command Line Tools installed.
+
+```shell
+brew update
+brew install ncnn
+```
+
+Or if you want to compile and build ncnn locally, first install Xcode or Xcode Command Line Tools according to your needs.
 
 Then install `protobuf` and `libomp` via homebrew
 
@@ -147,7 +154,9 @@ Then install `protobuf` and `libomp` via homebrew
 brew install protobuf libomp
 ```
 
-Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
+Download and install Vulkan SDK from <https://vulkan.lunarg.com/sdk/home>
+
+
 ```shell
 wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
 hdiutil attach vulkansdk-macos-1.2.189.0.dmg
