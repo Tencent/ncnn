@@ -34,7 +34,8 @@ const std::vector<const FuseModulePass*>& get_global_pnnx_fuse_module_passes()
     return g_global_pnnx_fuse_module_passes;
 }
 
-FuseModulePassRegister::FuseModulePassRegister(const FuseModulePass* _pass) : pass(_pass)
+FuseModulePassRegister::FuseModulePassRegister(const FuseModulePass* _pass)
+    : pass(_pass)
 {
     g_global_pnnx_fuse_module_passes.push_back(pass);
 }
