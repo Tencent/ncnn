@@ -2118,3 +2118,28 @@ cooling_down = 0
          yolov4-tiny  min =   12.17  max =   13.95  avg =   12.82
            nanodet_m  min =    3.54  max =    4.78  avg =    3.86
 ```
+
+### Ingenic T40XP Xburst2 Core X2 1.4Ghz (without MSA)
+```
+loop_count = 8
+num_threads = 2
+powersave = 0
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =  921.23  max =  944.03  avg =  930.71
+     squeezenet_int8  min = 3280.89  max = 3404.83  avg = 3359.68
+           mobilenet  min = 1277.61  max = 1298.51  avg = 1284.38
+      mobilenet_int8  min = 4342.67  max = 4350.21  avg = 4345.85
+        mobilenet_v2  min =  780.92  max =  783.93  avg =  782.79
+        mobilenet_v3  min =  650.59  max =  655.08  avg =  652.06
+          shufflenet  min =  352.75  max =  353.69  avg =  353.24
+       shufflenet_v2  min =  362.82  max =  364.08  avg =  363.38
+             mnasnet  min =  790.45  max =  791.89  avg =  790.99
+     proxylessnasnet  min =  868.71  max =  870.47  avg =  869.17
+     efficientnet_b0  min = 1491.44  max = 1492.36  avg = 1491.95
+   efficientnetv2_b0  min = 2135.04  max = 2148.02  avg = 2139.99
+        regnety_400m  min = 1000.53  max = 1005.29  avg = 1001.81
+           blazeface  min =  102.72  max =  104.18  avg =  103.51
+           googlenet  min = 3652.89  max = 3705.40  avg = 3675.43
+      googlenet_int8  min = 8067.30  max = 8070.22  avg = 8069.21
+      

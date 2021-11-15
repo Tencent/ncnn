@@ -193,12 +193,22 @@
 
    检测：
 
-   参考up的一篇文章(https://zhuanlan.zhihu.com/p/128974102)，步骤三就是去掉后处理,再导出onnx,其中去掉后处理可以是项目内测试时去掉后续步骤的结果。
+   参考up的一篇文章<https://zhuanlan.zhihu.com/p/128974102>，步骤三就是去掉后处理,再导出onnx,其中去掉后处理可以是项目内测试时去掉后续步骤的结果。
 
 - ## pytorch 有的层导不出 onnx 怎么办？
 
+ 方式一:
+ 
    ONNX_ATEN_FALLBACK
 完全自定义的op，先改成能导出的（如 concat slice），转到 ncnn 后再修改 param
+
+ 方式二：
+ 
+ 可以使用PNNX来试试，参考以下文章大概说明:
+ 
+   1. [Windows/Linux/macOS 编译 PNNX 步骤](https://zhuanlan.zhihu.com/p/431833958)
+
+   2. [5分钟学会！用 PNNX 转换 TorchScript 模型到 ncnn 模型](https://zhuanlan.zhihu.com/p/427512763)
 
 # 使用
 

@@ -542,9 +542,9 @@ y0, hidden y1 = gru(x0, hidden x1)
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_xc_data| float | [input_size, num_output * 3, num_directions] |
-| bias_c_data   | float | [num_output, 4, num_directions] |
-| weight_hc_data| float | [num_output, num_output * 3, num_directions] |
+| weight_xc_data| float/fp16/int8 | [input_size, num_output * 3, num_directions] |
+| bias_c_data   | float/fp16/int8 | [num_output, 4, num_directions] |
+| weight_hc_data| float/fp16/int8 | [num_output, num_output * 3, num_directions] |
 
 Direction flag:
 - 0 = forward only
@@ -734,9 +734,9 @@ y0, hidden y1, cell y2 = lstm(x0, hidden x1, cell x2)
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_xc_data| float | [input_size, num_output * 4, num_directions] |
-| bias_c_data   | float | [num_output, 4, num_directions] |
-| weight_hc_data| float | [num_output, num_output * 4, num_directions] |
+| weight_xc_data| float/fp16/int8 | [input_size, num_output * 4, num_directions] |
+| bias_c_data   | float/fp16/int8 | [num_output, 4, num_directions] |
+| weight_hc_data| float/fp16/int8 | [num_output, num_output * 4, num_directions] |
 
 Direction flag:
 - 0 = forward only
@@ -1144,9 +1144,9 @@ y0, hidden y1 = rnn(x0, hidden x1)
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_xc_data| float | [input_size, num_output, num_directions] |
-| bias_c_data   | float | [num_output, 1, num_directions] |
-| weight_hc_data| float | [num_output, num_output, num_directions] |
+| weight_xc_data| float/fp16/int8 | [input_size, num_output, num_directions] |
+| bias_c_data   | float/fp16/int8 | [num_output, 1, num_directions] |
+| weight_hc_data| float/fp16/int8 | [num_output, num_output, num_directions] |
 
 Direction flag:
 - 0 = forward only
