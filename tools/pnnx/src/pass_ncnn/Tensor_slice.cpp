@@ -45,7 +45,7 @@ pnnx.Output             output      1 0 out
     {
         std::vector<int> axes = captured_params.at("dims").ai;
         const std::vector<int>& starts = captured_params.at("starts").ai;
-        const std::vector<int>& ends = captured_params.at("ends").ai;
+        std::vector<int> ends = captured_params.at("ends").ai;
         const std::vector<int>& steps = captured_params.at("steps").ai;
         int axes_rank = axes.size();
 
@@ -84,6 +84,9 @@ pnnx.Output             output      1 0 out
 
             if (axes[i] > batch_index)
                 axes[i] -= 1;
+
+            if (ends[i] == -1)
+                ends[i] = -233;
         }
 
         op->params["9"] = starts;
