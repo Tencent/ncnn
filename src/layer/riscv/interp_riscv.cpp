@@ -980,8 +980,8 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
                         int sx = xofs[x] * packn;
                         const __fp16* Sp = ptr + sx;
 
-                        vfloat16m1_t _S0 = vle16_v_f16m1(S1p, vl);
-                        vfloat16m1_t _S1 = vle16_v_f16m1(S1p + packn, vl);
+                        vfloat16m1_t _S0 = vle16_v_f16m1(Sp, vl);
+                        vfloat16m1_t _S1 = vle16_v_f16m1(Sp + packn, vl);
                         vfloat16m1_t _p = vfmacc_vf_f16m1(vfmul_vf_f16m1(_S0, alphap[0], vl), alphap[1], _S1, vl);
 
                         vse16_v_f16m1(outptr, _p, vl);
@@ -1017,10 +1017,10 @@ int Interp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vect
                         int sx = xofs[x] * packn;
                         const __fp16* Sp = ptr + sx;
 
-                        vfloat16m1_t _S0 = vle16_v_f16m1(S3p - packn, vl);
-                        vfloat16m1_t _S1 = vle16_v_f16m1(S3p, vl);
-                        vfloat16m1_t _S2 = vle16_v_f16m1(S3p + packn, vl);
-                        vfloat16m1_t _S3 = vle16_v_f16m1(S3p + packn * 2, vl);
+                        vfloat16m1_t _S0 = vle16_v_f16m1(Sp - packn, vl);
+                        vfloat16m1_t _S1 = vle16_v_f16m1(Sp, vl);
+                        vfloat16m1_t _S2 = vle16_v_f16m1(Sp + packn, vl);
+                        vfloat16m1_t _S3 = vle16_v_f16m1(Sp + packn * 2, vl);
                         vfloat16m1_t _p = vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmacc_vf_f16m1(vfmul_vf_f16m1(_S0, alphap[0], vl), alphap[1], _S1, vl), alphap[2], _S2, vl), alphap[3], _S3, vl);
 
                         vse16_v_f16m1(outptr, _p, vl);
