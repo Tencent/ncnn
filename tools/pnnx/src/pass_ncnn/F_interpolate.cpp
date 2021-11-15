@@ -44,16 +44,29 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::string& mode = captured_params.at("mode").s;
-        const std::vector<float>& scale_factor = captured_params.at("scale_factor").af;
+        std::vector<float> scale_factor;
+        if (captured_params.at("scale_factor").type == 3)
+        {
+            scale_factor.push_back(captured_params.at("scale_factor").f);
+        }
+        else
+        {
+            scale_factor = captured_params.at("scale_factor").af;
+        }
 
         if (mode == "nearest")
             op->params["0"] = 1;
-        if (mode == "bilinear")
+        if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (scale_factor.size() == 2)
+        if (scale_factor.size() == 1)
+        {
+            op->params["1"] = 1.f;
+            op->params["2"] = scale_factor[0];
+        }
+        else if (scale_factor.size() == 2)
         {
             op->params["1"] = scale_factor[0];
             op->params["2"] = scale_factor[1];
@@ -95,16 +108,29 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::string& mode = captured_params.at("mode").s;
-        const std::vector<float>& scale_factor = captured_params.at("scale_factor").af;
+        std::vector<float> scale_factor;
+        if (captured_params.at("scale_factor").type == 3)
+        {
+            scale_factor.push_back(captured_params.at("scale_factor").f);
+        }
+        else
+        {
+            scale_factor = captured_params.at("scale_factor").af;
+        }
 
         if (mode == "nearest")
             op->params["0"] = 1;
-        if (mode == "bilinear")
+        if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (scale_factor.size() == 2)
+        if (scale_factor.size() == 1)
+        {
+            op->params["1"] = 1.f;
+            op->params["2"] = scale_factor[0];
+        }
+        else if (scale_factor.size() == 2)
         {
             op->params["1"] = scale_factor[0];
             op->params["2"] = scale_factor[1];

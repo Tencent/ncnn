@@ -49,15 +49,25 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
-        if (mode == "bilinear")
+        if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (scale_factor.size() == 2)
+        if (scale_factor.size() == 1)
+        {
+            op->params["1"] = 1.f;
+            op->params["2"] = scale_factor[0];
+        }
+        else if (scale_factor.size() == 2)
         {
             op->params["1"] = scale_factor[0];
             op->params["2"] = scale_factor[1];
+        }
+        else if (size.size() == 1)
+        {
+            op->params["3"] = 1;
+            op->params["4"] = size[0];
         }
         else if (size.size() == 2)
         {
@@ -105,12 +115,17 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
-        if (mode == "bilinear")
+        if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (size.size() == 2)
+        if (size.size() == 1)
+        {
+            op->params["3"] = 1;
+            op->params["4"] = size[0];
+        }
+        else if (size.size() == 2)
         {
             op->params["3"] = size[0];
             op->params["4"] = size[1];
@@ -157,15 +172,25 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
-        if (mode == "bilinear")
+        if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (scale_factor.size() == 2)
+        if (scale_factor.size() == 1)
+        {
+            op->params["1"] = 1.f;
+            op->params["2"] = scale_factor[0];
+        }
+        else if (scale_factor.size() == 2)
         {
             op->params["1"] = scale_factor[0];
             op->params["2"] = scale_factor[1];
+        }
+        else if (size.size() == 1)
+        {
+            op->params["3"] = 1;
+            op->params["4"] = size[0];
         }
         else if (size.size() == 2)
         {
@@ -213,12 +238,17 @@ pnnx.Output             output      1 0 out
 
         if (mode == "nearest")
             op->params["0"] = 1;
-        if (mode == "bilinear")
+        if (mode == "bilinear" || mode == "linear")
             op->params["0"] = 2;
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (size.size() == 2)
+        if (size.size() == 1)
+        {
+            op->params["3"] = 1;
+            op->params["4"] = size[0];
+        }
+        else if (size.size() == 2)
         {
             op->params["3"] = size[0];
             op->params["4"] = size[1];

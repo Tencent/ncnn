@@ -20,6 +20,15 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+        self.up_1d_0_0 = nn.Upsample(size=16)
+        self.up_1d_0_1 = nn.Upsample(scale_factor=2, mode='nearest')
+        self.up_1d_0_2 = nn.Upsample(size=(20), mode='nearest')
+        self.up_1d_0_3 = nn.Upsample(scale_factor=(4), mode='nearest')
+        self.up_1d_1_0 = nn.Upsample(size=16, mode='linear')
+        self.up_1d_1_1 = nn.Upsample(scale_factor=2, mode='linear')
+        self.up_1d_1_2 = nn.Upsample(size=(24), mode='linear', align_corners=True)
+        self.up_1d_1_3 = nn.Upsample(scale_factor=(3), mode='linear', align_corners=True)
+
         self.up_2d_0_0 = nn.Upsample(size=16)
         self.up_2d_0_1 = nn.Upsample(scale_factor=2, mode='nearest')
         self.up_2d_0_2 = nn.Upsample(size=(20,20), mode='nearest')
@@ -39,7 +48,16 @@ class Model(nn.Module):
         self.up_2d_2_4 = nn.Upsample(size=(16,24), mode='bicubic', align_corners=True)
         self.up_2d_2_5 = nn.Upsample(scale_factor=(2,3), mode='bicubic', align_corners=True)
 
-    def forward(self, y):
+    def forward(self, x, y):
+        x = self.up_1d_0_0(x)
+        x = self.up_1d_0_1(x)
+        x = self.up_1d_0_2(x)
+        x = self.up_1d_0_3(x)
+        x = self.up_1d_1_0(x)
+        x = self.up_1d_1_1(x)
+        x = self.up_1d_1_2(x)
+        x = self.up_1d_1_3(x)
+
         y = self.up_2d_0_0(y)
         y = self.up_2d_0_1(y)
         y = self.up_2d_0_2(y)
@@ -59,30 +77,34 @@ class Model(nn.Module):
         y = self.up_2d_2_4(y)
         y = self.up_2d_2_5(y)
 
-        return y
+        return x, y
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
+    x = torch.rand(1, 3, 32)
     y = torch.rand(1, 3, 32, 32)
 
-    a0 = net(y)
+    a = net(x, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, y)
+    mod = torch.jit.trace(net, (x, y))
     mod.save("test_nn_Upsample.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Upsample.pt inputshape=[1,3,32,32]")
+    os.system("../../src/pnnx test_nn_Upsample.pt inputshape=[1,3,32],[1,3,32,32]")
 
     # ncnn inference
     import test_nn_Upsample_ncnn
-    b0 = test_nn_Upsample_ncnn.test_inference()
+    b = test_nn_Upsample_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():
