@@ -76,13 +76,14 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     int h = bottom_blob.h;
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     int outw = reference_blob.w;
     int outh = reference_blob.h;
 
-    if (bottom_blob.dims == 1)
+    if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
