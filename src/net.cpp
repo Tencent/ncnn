@@ -2609,6 +2609,13 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     // *INDENT-ON*
     // clang-format on
 
+    if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
+    {
+        // detach the returned mat from local pool allocator
+        // so we could destroy net instance much earlier
+        feat = feat.clone();
+    }
+
     set_kmp_blocktime(old_blocktime);
     set_flush_denormals(old_flush_denormals);
 

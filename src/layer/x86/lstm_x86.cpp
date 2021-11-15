@@ -24,7 +24,7 @@ namespace ncnn {
 
 LSTM_x86::LSTM_x86()
 {
-#ifdef __AVX__
+#ifdef __AVX2__
     support_weight_fp16_storage = true;
 #endif
     one_blob_only = false;
@@ -33,7 +33,7 @@ LSTM_x86::LSTM_x86()
 
 int LSTM_x86::create_pipeline(const Option& opt)
 {
-#if __AVX__
+#if __AVX2__
     if (opt.use_weight_fp16_storage)
     {
         ncnn::cast_float32_to_float16(weight_xc_data, weight_xc_data_fp16, opt);

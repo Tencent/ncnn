@@ -29,10 +29,10 @@ static int test_convolutiondepthwise(int w, int h, int c, int outch, int kernel,
     pd.set(6, outch / group * c / group * kernel * kernel * group);
     pd.set(7, group);
 
-    int activation_type = RAND() % 6; // 0 1 2 3 4 5
+    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
     ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);  // beta
+    activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+    activation_params[1] = RandomFloat(0, 1);                                               // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 
@@ -141,10 +141,10 @@ static int test_convolutiondepthwise_int8(int w, int h, int c, int outch, int ke
     pd.set(7, group);
     pd.set(8, requant ? 101 : 1); // int8_scale_term
 
-    int activation_type = RAND() % 6; // 0 1 2 3 4 5
+    int activation_type = RAND() % 7; // 0 1 2 3 4 5 6
     ncnn::Mat activation_params(2);
-    activation_params[0] = RandomFloat(-1, 0); // alpha
-    activation_params[1] = RandomFloat(0, 1);  // beta
+    activation_params[0] = (activation_type == 6) ? RandomFloat(0, 1) : RandomFloat(-1, 0); // alpha
+    activation_params[1] = RandomFloat(0, 1);                                               // beta
     pd.set(9, activation_type);
     pd.set(10, activation_params);
 

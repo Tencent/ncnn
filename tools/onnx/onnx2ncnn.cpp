@@ -2010,7 +2010,14 @@ static void fuse_expand_broadcast(onnx::GraphProto* mutable_graph, std::map<std:
 
             blob_names.erase(node->output(0));
 
-            node2->set_input(1, node->input(0));
+            if (node2->input(0) == node->output(0))
+            {
+                node2->set_input(0, node->input(0));
+            }
+            else
+            {
+                node2->set_input(1, node->input(0));
+            }
 
             reduced_node_count += 1;
             i += 1;
@@ -4074,7 +4081,7 @@ int main(int argc, char** argv)
         else if (op == "Concat")
         {
             int axis = get_node_attr_i(node, "axis", 1);
-            fprintf(pp, " 0=%d", axis - 1);
+            fprintf(pp, " 0=%d", axis > 0 ? axis - 1 : axis);
         }
         else if (op == "Constant")
         {

@@ -45,7 +45,11 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 slice = (w - q) / (top_blobs.size() - i);
             }
 
-            int out_elempack = opt.use_packing_layout && slice % 4 == 0 ? 4 : 1;
+            int out_elempack = 1;
+#if __mips_msa
+            if (opt.use_packing_layout)
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -76,7 +80,11 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 slice = (h - q) / (top_blobs.size() - i);
             }
 
-            int out_elempack = opt.use_packing_layout && slice % 4 == 0 ? 4 : 1;
+            int out_elempack = 1;
+#if __mips_msa
+            if (opt.use_packing_layout)
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -197,7 +205,11 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 slice = (channels - q) / (top_blobs.size() - i);
             }
 
-            int out_elempack = opt.use_packing_layout && slice % 4 == 0 ? 4 : 1;
+            int out_elempack = 1;
+#if __mips_msa
+            if (opt.use_packing_layout)
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];

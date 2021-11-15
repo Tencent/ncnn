@@ -1460,7 +1460,7 @@ inline size_t VkMat::total() const
 
 inline int VkMat::elembits() const
 {
-    return elempack ? elemsize * 8 / elempack : 0;
+    return elempack ? static_cast<int>(elemsize) * 8 / elempack : 0;
 }
 
 inline Mat VkMat::shape() const
@@ -1662,7 +1662,7 @@ inline size_t VkImageMat::total() const
 
 inline int VkImageMat::elembits() const
 {
-    return elempack ? elemsize * 8 / elempack : 0;
+    return elempack ? static_cast<int>(elemsize) * 8 / elempack : 0;
 }
 
 inline Mat VkImageMat::shape() const

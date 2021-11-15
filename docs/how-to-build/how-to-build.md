@@ -36,14 +36,16 @@ Generally if you have Intel, AMD or Nvidia GPU from last 10 years, Vulkan can be
 
 On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best expirience.
 
-On Debian, Ubuntu or Raspberry Pi OS, you can install all required dependencies using: ```sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev```
-
+On Debian, Ubuntu or Raspberry Pi OS, you can install all required dependencies using: 
+```shell
+sudo apt install build-essential git cmake libprotobuf-dev protobuf-compiler libvulkan-dev vulkan-utils libopencv-dev
+```
 To use Vulkan backend install Vulkan header files, a vulkan driver loader, GLSL to SPIR-V compiler and vulkaninfo tool. Preferably from your distribution repositories. Alternatively download and install full Vulkan SDK (about 200MB in size; it contains all header files, documentation and prebuilt loader, as well some extra tools and source code of everything) from https://vulkan.lunarg.com/sdk/home
 
 ```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.154.0/linux/vulkansdk-linux-x86_64-1.2.154.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.154.0.tar.gz
-tar -xf vulkansdk-linux-x86_64-1.2.154.0.tar.gz
-export VULKAN_SDK=$(pwd)/1.2.154.0/x86_64
+wget https://sdk.lunarg.com/sdk/download/1.2.189.0/linux/vulkansdk-linux-x86_64-1.2.189.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.189.0.tar.gz
+tar -xf vulkansdk-linux-x86_64-1.2.189.0.tar.gz
+export VULKAN_SDK=$(pwd)/1.2.189.0/x86_64
 ```
 
 To use Vulkan after building ncnn later, you will also need to have Vulkan driver for your GPU. For AMD and Intel GPUs these can be found in Mesa graphics driver, which usually is installed by default on all distros (i.e. `sudo apt install mesa-vulkan-drivers` on Debian/Ubuntu). For Nvidia GPUs the proprietary Nvidia driver must be downloaded and installed (some distros will allow easier installation in some way). After installing Vulkan driver, confirm Vulkan libraries and driver are working, by using `vulkaninfo` or `vulkaninfo | grep deviceType`, it should list GPU device type. If there are more than one GPU installed (including the case of integrated GPU and discrete GPU, commonly found in laptops), you might need to note the order of devices to use later on.
@@ -135,9 +137,16 @@ nmake install
 Note: To speed up compilation process on multi core machines, configuring `cmake` to use `jom` or `ninja` using `-G` flag is recommended.
 
 ***
-
 ### Build for macOS
-First install Xcode or Xcode Command Line Tools according to your needs.
+
+We've published ncnn to [brew](https://formulae.brew.sh/formula/ncnn#default) now, you can just use following method to install ncnn if you have the Xcode Command Line Tools installed.
+
+```shell
+brew update
+brew install ncnn
+```
+
+Or if you want to compile and build ncnn locally, first install Xcode or Xcode Command Line Tools according to your needs.
 
 Then install `protobuf` and `libomp` via homebrew
 
@@ -145,15 +154,17 @@ Then install `protobuf` and `libomp` via homebrew
 brew install protobuf libomp
 ```
 
-Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
+Download and install Vulkan SDK from <https://vulkan.lunarg.com/sdk/home>
+
+
 ```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.162.0/mac/vulkansdk-macos-1.2.162.0.dmg?Human=true -O vulkansdk-macos-1.2.162.0.dmg
-hdiutil attach vulkansdk-macos-1.2.162.0.dmg
-cp -r /Volumes/vulkansdk-macos-1.2.162.0 .
-hdiutil detach /Volumes/vulkansdk-macos-1.2.162.0
+wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
+hdiutil attach vulkansdk-macos-1.2.189.0.dmg
+sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
+hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
 
 # setup env
-export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
+export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
 ```
 
 ```shell
@@ -162,8 +173,8 @@ mkdir -p build
 cd build
 
 cmake -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
-    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
-    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
+    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/include \
+    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
 
 cmake --build . -j 4
@@ -375,13 +386,13 @@ sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VER
 
 Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 ```shell
-wget https://sdk.lunarg.com/sdk/download/1.2.162.0/mac/vulkansdk-macos-1.2.162.0.dmg?Human=true -O vulkansdk-macos-1.2.162.0.dmg
-hdiutil attach vulkansdk-macos-1.2.162.0.dmg
-cp -r /Volumes/vulkansdk-macos-1.2.162.0 .
-hdiutil detach /Volumes/vulkansdk-macos-1.2.162.0
+wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
+hdiutil attach vulkansdk-macos-1.2.189.0.dmg
+sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root `pwd`/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
+hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
 
 # setup env
-export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
+export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
 ```
 
 Build library for iPhoneOS:
@@ -404,8 +415,8 @@ cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DIOS_PLATFORM=OS
     -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
     -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
     -DOpenMP_libomp_LIBRARY="/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
-    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/dylib/iOS/libMoltenVK.dylib \
+    -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/include \
+    -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.189.0/MoltenVK/dylib/iOS/libMoltenVK.dylib \
     -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
 
 cmake --build . -j 4
