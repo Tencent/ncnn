@@ -48,13 +48,14 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     int h = bottom_blob.h;
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
+    int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
     int outw = reference_blob.w;
     int outh = reference_blob.h;
 
-    if (bottom_blob.dims == 1)
+    if (dims == 1)
     {
         top_blob.create(outw, outh, w, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
@@ -81,6 +82,210 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             Mat top_blob_c = top_blob.channel(q);
             const float v = bottom_blob[q];
             top_blob_c.fill(v);
+        }
+
+        return 0;
+    }
+
+    if (dims == 2)
+    {
+        if (outw == w)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        top_blob.create(outw, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+#if __mips_msa
+        if (elempack == 4)
+        {
+            if (resize_type == 1) // nearest
+            {
+                const float ws = outw ? w / (float)outw : 1.f / width_scale;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+                    const float* ptr = bottom_blob.row(y);
+                    float* outptr = top_blob.row(y);
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int in_x = std::min((int)(x * ws), (w - 1));
+
+                        v4f32 _p = (v4f32)__msa_ld_w(ptr + in_x * 4, 0);
+                        __msa_st_w((v4i32)_p, outptr, 0);
+
+                        outptr += 4;
+                    }
+                }
+            }
+
+            if (resize_type == 2) // bilinear
+            {
+                int* buf = new int[outw + outw * 2];
+
+                int* xofs = buf;
+                float* alpha = (float*)(buf + outw);
+
+                linear_coeffs(w, outw, xofs, alpha, align_corner);
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+                    const float* ptr = bottom_blob.row(y);
+                    float* outptr = top_blob.row(y);
+                    const float* alphap = alpha;
+
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int sx = xofs[x] * 4;
+                        const float* Sp = ptr + sx;
+
+                        v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                        v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+
+                        v4f32 _S0 = (v4f32)__msa_ld_w(Sp, 0);
+                        v4f32 _S1 = (v4f32)__msa_ld_w(Sp + 4, 0);
+                        v4f32 _p = __msa_fmul_w(_S0, _a0);
+                        _p = __msa_fmadd_w(_p, _S1, _a1);
+                        __msa_st_w((v4i32)_p, outptr, 0);
+
+                        alphap += 2;
+                        outptr += 4;
+                    }
+                }
+
+                delete[] buf;
+            }
+
+            if (resize_type == 3) // bicubic
+            {
+                int* buf = new int[outw + outw * 4];
+
+                int* xofs = buf;
+                float* alpha = (float*)(buf + outw);
+
+                cubic_coeffs(w, outw, xofs, alpha, align_corner);
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int y = 0; y < h; y++)
+                {
+                    const float* ptr = bottom_blob.row(y);
+                    float* outptr = top_blob.row(y);
+                    const float* alphap = alpha;
+
+                    for (int x = 0; x < outw; x++)
+                    {
+                        int sx = xofs[x] * 4;
+                        const float* Sp = ptr + sx;
+
+                        v4f32 _a0 = __msa_fill_w_f32(alphap[0]);
+                        v4f32 _a1 = __msa_fill_w_f32(alphap[1]);
+                        v4f32 _a2 = __msa_fill_w_f32(alphap[2]);
+                        v4f32 _a3 = __msa_fill_w_f32(alphap[3]);
+
+                        v4f32 _S0 = (v4f32)__msa_ld_w(Sp - 4, 0);
+                        v4f32 _S1 = (v4f32)__msa_ld_w(Sp + 0, 0);
+                        v4f32 _S2 = (v4f32)__msa_ld_w(Sp + 4, 0);
+                        v4f32 _S3 = (v4f32)__msa_ld_w(Sp + 8, 0);
+                        v4f32 _p = __msa_fmul_w(_S0, _a0);
+                        _p = __msa_fmadd_w(_p, _S1, _a1);
+                        _p = __msa_fmadd_w(_p, _S2, _a2);
+                        _p = __msa_fmadd_w(_p, _S3, _a3);
+                        __msa_st_w((v4i32)_p, outptr, 0);
+
+                        alphap += 4;
+                        outptr += 4;
+                    }
+                }
+
+                delete[] buf;
+            }
+
+            return 0;
+        }
+#endif // __mips_msa
+
+        if (resize_type == 1) // nearest
+        {
+            const float ws = outw ? w / (float)outw : 1.f / width_scale;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < h; y++)
+            {
+                const float* ptr = bottom_blob.row(y);
+                float* outptr = top_blob.row(y);
+                for (int x = 0; x < outw; x++)
+                {
+                    int in_x = std::min((int)(x * ws), (w - 1));
+                    *outptr++ = ptr[in_x];
+                }
+            }
+        }
+
+        if (resize_type == 2) // bilinear
+        {
+            int* buf = new int[outw + outw * 2];
+
+            int* xofs = buf;
+            float* alpha = (float*)(buf + outw);
+
+            linear_coeffs(w, outw, xofs, alpha, align_corner);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < h; y++)
+            {
+                const float* ptr = bottom_blob.row(y);
+                float* outptr = top_blob.row(y);
+                const float* alphap = alpha;
+
+                for (int x = 0; x < outw; x++)
+                {
+                    int sx = xofs[x];
+                    const float* Sp = ptr + sx;
+                    float a0 = alphap[0];
+                    float a1 = alphap[1];
+                    *outptr++ = Sp[0] * a0 + Sp[1] * a1;
+                    alphap += 2;
+                }
+            }
+
+            delete[] buf;
+        }
+
+        if (resize_type == 3) // bicubic
+        {
+            int* buf = new int[outw + outw * 4];
+
+            int* xofs = buf;
+            float* alpha = (float*)(buf + outw);
+
+            cubic_coeffs(w, outw, xofs, alpha, align_corner);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int y = 0; y < h; y++)
+            {
+                const float* ptr = bottom_blob.row(y);
+                float* outptr = top_blob.row(y);
+                const float* alphap = alpha;
+
+                for (int x = 0; x < outw; x++)
+                {
+                    int sx = xofs[x];
+                    const float* Sp = ptr + sx;
+                    float a0 = alphap[0];
+                    float a1 = alphap[1];
+                    float a2 = alphap[2];
+                    float a3 = alphap[3];
+                    *outptr++ = Sp[-1] * a0 + Sp[0] * a1 + Sp[1] * a2 + Sp[2] * a3;
+                    alphap += 4;
+                }
+            }
+
+            delete[] buf;
         }
 
         return 0;
