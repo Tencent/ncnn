@@ -442,6 +442,8 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #endif
 
     int T = bottom_blob.h;
+    int num_directions = direction == 2 ? 2 : 1;
+
     Mat hidden;
     Mat cell;
     Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
