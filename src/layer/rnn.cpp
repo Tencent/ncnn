@@ -174,8 +174,6 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
     int T = bottom_blob.h;
     int num_directions = direction == 2 ? 2 : 1;
 
-    Mat& top_blob = top_blobs[0];
-
     Mat hidden;
     Allocator* hidden_allocator = top_blobs.size() == 2 ? opt.blob_allocator : opt.workspace_allocator;
     if (bottom_blobs.size() == 2)
@@ -190,6 +188,7 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         hidden.fill(0.f);
     }
 
+    Mat& top_blob = top_blobs[0];
     top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
@@ -197,8 +196,7 @@ int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        Mat hidden0 = hidden.row_range(0, 1);
-        int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden0, opt);
+        int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
         if (ret != 0)
             return ret;
     }

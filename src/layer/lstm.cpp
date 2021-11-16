@@ -234,8 +234,6 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     int T = bottom_blob.h;
     int num_directions = direction == 2 ? 2 : 1;
 
-    Mat& top_blob = top_blobs[0];
-
     Mat hidden;
     Mat cell;
     Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
@@ -257,6 +255,7 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
         cell.fill(0.f);
     }
 
+    Mat& top_blob = top_blobs[0];
     top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
@@ -264,9 +263,7 @@ int LSTM::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        Mat hidden0 = hidden.row_range(0, 1);
-        Mat cell0 = cell.row_range(0, 1);
-        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden0, cell0, opt);
+        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
