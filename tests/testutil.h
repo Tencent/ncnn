@@ -1179,8 +1179,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
         // fp16 representation
         std::vector<ncnn::Mat> a_fp16;
-        std::vector<ncnn::Mat> weights_fp16;
-        float epsilon_fp16;
         if (opt.use_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             a_fp16.resize(a.size());
@@ -1190,14 +1188,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
                 ncnn::cast_float32_to_bfloat16(a[j], tmp, opt);
                 ncnn::cast_bfloat16_to_float32(tmp, a_fp16[j], opt);
             }
-            weights_fp16.resize(weights.size());
-            for (size_t j = 0; j < weights.size(); j++)
-            {
-                ncnn::Mat tmp;
-                ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
-                ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
-            }
-            epsilon_fp16 = epsilon * 100; // 0.1
         }
         else if ((opt.use_fp16_packed || opt.use_fp16_storage) && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
@@ -1208,6 +1198,27 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
                 ncnn::cast_float32_to_float16(a[j], tmp, opt);
                 ncnn::cast_float16_to_float32(tmp, a_fp16[j], opt);
             }
+        }
+        else
+        {
+            a_fp16 = a;
+        }
+
+        std::vector<ncnn::Mat> weights_fp16;
+        float epsilon_fp16;
+        if (opt.use_bf16_storage)
+        {
+            weights_fp16.resize(weights.size());
+            for (size_t j = 0; j < weights.size(); j++)
+            {
+                ncnn::Mat tmp;
+                ncnn::cast_float32_to_bfloat16(weights[j], tmp, opt);
+                ncnn::cast_bfloat16_to_float32(tmp, weights_fp16[j], opt);
+            }
+            epsilon_fp16 = epsilon * 100; // 0.1
+        }
+        else if (opt.use_fp16_packed || opt.use_fp16_storage)
+        {
             weights_fp16.resize(weights.size());
             for (size_t j = 0; j < weights.size(); j++)
             {
@@ -1219,7 +1230,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         }
         else
         {
-            a_fp16 = a;
             weights_fp16 = weights;
             epsilon_fp16 = epsilon;
         }
@@ -1294,17 +1304,30 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     for (int i = 0; i < 5; i++)
     {
         const ncnn::Option& opt = opts[i];
+
         // fp16 representation
         ncnn::Mat a_fp16;
-        std::vector<ncnn::Mat> weights_fp16;
-        float epsilon_fp16;
         if (opt.use_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
-            {
-                ncnn::Mat tmp;
-                ncnn::cast_float32_to_bfloat16(a, tmp, opt);
-                ncnn::cast_bfloat16_to_float32(tmp, a_fp16, opt);
-            }
+            ncnn::Mat tmp;
+            ncnn::cast_float32_to_bfloat16(a, tmp, opt);
+            ncnn::cast_bfloat16_to_float32(tmp, a_fp16, opt);
+        }
+        else if ((opt.use_fp16_packed || opt.use_fp16_storage) && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        {
+            ncnn::Mat tmp;
+            ncnn::cast_float32_to_float16(a, tmp, opt);
+            ncnn::cast_float16_to_float32(tmp, a_fp16, opt);
+        }
+        else
+        {
+            a_fp16 = a;
+        }
+
+        std::vector<ncnn::Mat> weights_fp16;
+        float epsilon_fp16;
+        if (opt.use_bf16_storage)
+        {
             weights_fp16.resize(weights.size());
             for (size_t j = 0; j < weights.size(); j++)
             {
@@ -1314,13 +1337,8 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             }
             epsilon_fp16 = epsilon * 100; // 0.1
         }
-        else if ((opt.use_fp16_packed || opt.use_fp16_storage) && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
+        else if (opt.use_fp16_packed || opt.use_fp16_storage)
         {
-            {
-                ncnn::Mat tmp;
-                ncnn::cast_float32_to_float16(a, tmp, opt);
-                ncnn::cast_float16_to_float32(tmp, a_fp16, opt);
-            }
             weights_fp16.resize(weights.size());
             for (size_t j = 0; j < weights.size(); j++)
             {
@@ -1332,7 +1350,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         }
         else
         {
-            a_fp16 = a;
             weights_fp16 = weights;
             epsilon_fp16 = epsilon;
         }
