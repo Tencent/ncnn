@@ -42,19 +42,20 @@ static int test_gru(const ncnn::Mat& a, int outch, int direction)
 int test_gru_layer_with_hidden(const ncnn::Mat& a, int outch, int direction)
 {
     int input_size = a.w;
+    int num_directions = direction == 2 ? 2 : 1;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);
-    pd.set(1, outch * input_size * 3);
+    pd.set(1, outch * input_size * 3 * num_directions);
     pd.set(2, direction);
 
     std::vector<ncnn::Mat> weights(3);
-    weights[0] = RandomMat(outch * input_size * 3);
-    weights[1] = RandomMat(outch * 4);
-    weights[2] = RandomMat(outch * outch * 3);
+    weights[0] = RandomMat(outch * input_size * 3 * num_directions);
+    weights[1] = RandomMat(outch * 4 * num_directions);
+    weights[2] = RandomMat(outch * outch * 3 * num_directions);
 
     // initial hidden state
-    ncnn::Mat hidden = RandomMat(outch);
+    ncnn::Mat hidden = RandomMat(outch, num_directions);
 
     std::vector<ncnn::Mat> as(2);
     as[0] = a;
@@ -72,19 +73,20 @@ int test_gru_layer_with_hidden(const ncnn::Mat& a, int outch, int direction)
 int test_gru_layer_with_hidden_input(const ncnn::Mat& a, int outch, int direction)
 {
     int input_size = a.w;
+    int num_directions = direction == 2 ? 2 : 1;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);
-    pd.set(1, outch * input_size * 3);
+    pd.set(1, outch * input_size * 3 * num_directions);
     pd.set(2, direction);
 
     std::vector<ncnn::Mat> weights(3);
-    weights[0] = RandomMat(outch * input_size * 3);
-    weights[1] = RandomMat(outch * 4);
-    weights[2] = RandomMat(outch * outch * 3);
+    weights[0] = RandomMat(outch * input_size * 3 * num_directions);
+    weights[1] = RandomMat(outch * 4 * num_directions);
+    weights[2] = RandomMat(outch * outch * 3 * num_directions);
 
     // initial hidden state
-    ncnn::Mat hidden = RandomMat(outch);
+    ncnn::Mat hidden = RandomMat(outch, num_directions);
 
     std::vector<ncnn::Mat> as(2);
     as[0] = a;
@@ -102,19 +104,17 @@ int test_gru_layer_with_hidden_input(const ncnn::Mat& a, int outch, int directio
 int test_gru_layer_with_hidden_output(const ncnn::Mat& a, int outch, int direction)
 {
     int input_size = a.w;
+    int num_directions = direction == 2 ? 2 : 1;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);
-    pd.set(1, outch * input_size * 3);
+    pd.set(1, outch * input_size * 3 * num_directions);
     pd.set(2, direction);
 
     std::vector<ncnn::Mat> weights(3);
-    weights[0] = RandomMat(outch * input_size * 3);
-    weights[1] = RandomMat(outch * 4);
-    weights[2] = RandomMat(outch * outch * 3);
-
-    // initial hidden state
-    ncnn::Mat hidden = RandomMat(outch);
+    weights[0] = RandomMat(outch * input_size * 3 * num_directions);
+    weights[1] = RandomMat(outch * 4 * num_directions);
+    weights[2] = RandomMat(outch * outch * 3 * num_directions);
 
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
@@ -145,6 +145,14 @@ static int test_gru_0()
 static int test_gru_1()
 {
     return 0
+           || test_gru_layer_with_hidden(RandomMat(4, 4), 1, 2)
+           || test_gru_layer_with_hidden(RandomMat(8, 2), 2, 2)
+           || test_gru_layer_with_hidden(RandomMat(16, 8), 7, 2)
+           || test_gru_layer_with_hidden(RandomMat(17, 8), 8, 2)
+           || test_gru_layer_with_hidden(RandomMat(19, 15), 8, 2)
+           || test_gru_layer_with_hidden(RandomMat(5, 16), 16, 2)
+           || test_gru_layer_with_hidden(RandomMat(3, 16), 8, 2)
+           || test_gru_layer_with_hidden(RandomMat(2, 5), 99, 2)
            || test_gru_layer_with_hidden(RandomMat(4, 4), 1, 1)
            || test_gru_layer_with_hidden(RandomMat(8, 2), 2, 1)
            || test_gru_layer_with_hidden(RandomMat(16, 8), 7, 1)
@@ -162,6 +170,14 @@ static int test_gru_1()
            || test_gru_layer_with_hidden(RandomMat(3, 16), 8, 0)
            || test_gru_layer_with_hidden(RandomMat(2, 5), 17, 0)
 
+           || test_gru_layer_with_hidden_input(RandomMat(4, 4), 1, 2)
+           || test_gru_layer_with_hidden_input(RandomMat(8, 2), 2, 2)
+           || test_gru_layer_with_hidden_input(RandomMat(16, 8), 7, 2)
+           || test_gru_layer_with_hidden_input(RandomMat(17, 8), 8, 2)
+           || test_gru_layer_with_hidden_input(RandomMat(19, 15), 8, 2)
+           || test_gru_layer_with_hidden_input(RandomMat(5, 16), 16, 2)
+           || test_gru_layer_with_hidden_input(RandomMat(3, 16), 8, 2)
+           || test_gru_layer_with_hidden_input(RandomMat(2, 5), 99, 2)
            || test_gru_layer_with_hidden_input(RandomMat(4, 4), 1, 1)
            || test_gru_layer_with_hidden_input(RandomMat(8, 2), 2, 1)
            || test_gru_layer_with_hidden_input(RandomMat(16, 8), 7, 1)
@@ -179,6 +195,14 @@ static int test_gru_1()
            || test_gru_layer_with_hidden_input(RandomMat(3, 16), 8, 0)
            || test_gru_layer_with_hidden_input(RandomMat(2, 5), 17, 0)
 
+           || test_gru_layer_with_hidden_output(RandomMat(4, 4), 1, 2)
+           || test_gru_layer_with_hidden_output(RandomMat(8, 2), 2, 2)
+           || test_gru_layer_with_hidden_output(RandomMat(16, 8), 7, 2)
+           || test_gru_layer_with_hidden_output(RandomMat(17, 8), 8, 2)
+           || test_gru_layer_with_hidden_output(RandomMat(19, 15), 8, 2)
+           || test_gru_layer_with_hidden_output(RandomMat(5, 16), 16, 2)
+           || test_gru_layer_with_hidden_output(RandomMat(3, 16), 8, 2)
+           || test_gru_layer_with_hidden_output(RandomMat(2, 5), 99, 2)
            || test_gru_layer_with_hidden_output(RandomMat(4, 4), 1, 1)
            || test_gru_layer_with_hidden_output(RandomMat(8, 2), 2, 1)
            || test_gru_layer_with_hidden_output(RandomMat(16, 8), 7, 1)
