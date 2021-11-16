@@ -24,29 +24,34 @@ class Model(nn.Module):
         self.rnn_0_1 = nn.RNN(input_size=16, hidden_size=16, num_layers=3, nonlinearity='tanh', bias=False)
         self.rnn_0_2 = nn.RNN(input_size=16, hidden_size=16, num_layers=4, nonlinearity='tanh', bias=True, bidirectional=True)
         self.rnn_0_3 = nn.RNN(input_size=16, hidden_size=16, num_layers=4, nonlinearity='tanh', bias=True, bidirectional=True)
+        self.rnn_0_4 = nn.RNN(input_size=16, hidden_size=16, num_layers=4, nonlinearity='tanh', bias=True, bidirectional=True)
 
         self.rnn_1_0 = nn.RNN(input_size=25, hidden_size=16, batch_first=True)
         self.rnn_1_1 = nn.RNN(input_size=16, hidden_size=16, num_layers=3, nonlinearity='tanh', bias=False, batch_first=True)
         self.rnn_1_2 = nn.RNN(input_size=16, hidden_size=16, num_layers=4, nonlinearity='tanh', bias=True, batch_first=True, bidirectional=True)
         self.rnn_1_3 = nn.RNN(input_size=16, hidden_size=16, num_layers=4, nonlinearity='tanh', bias=True, batch_first=True, bidirectional=True)
+        self.rnn_1_4 = nn.RNN(input_size=16, hidden_size=16, num_layers=4, nonlinearity='tanh', bias=True, batch_first=True, bidirectional=True)
 
     def forward(self, x, y):
         x = x.permute(1, 0, 2)
 
         x0, _ = self.rnn_0_0(x)
         x1, _ = self.rnn_0_1(x0)
-        x2, _ = self.rnn_0_2(x1)
-        x3, _ = self.rnn_0_3(x1)
+        x2, h0 = self.rnn_0_2(x1)
+        x3, h1 = self.rnn_0_3(x1, h0)
+        x4, _ = self.rnn_0_4(x1, h1)
 
         y0, _ = self.rnn_1_0(y)
         y1, _ = self.rnn_1_1(y0)
-        y2, _ = self.rnn_1_2(y1)
-        y3, _ = self.rnn_1_3(y1)
+        y2, h2 = self.rnn_1_2(y1)
+        y3, h3 = self.rnn_1_3(y1, h2)
+        y4, _ = self.rnn_1_3(y1, h3)
 
         x2 = x2.permute(1, 0, 2)
         x3 = x3.permute(1, 0, 2)
+        x4 = x4.permute(1, 0, 2)
 
-        return x2, x3, y2, y3
+        return x2, x3, x4, y2, y3, y4
 
 def test():
     net = Model()

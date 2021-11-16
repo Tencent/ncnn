@@ -35,7 +35,7 @@ void convert_torch_cat(Graph& graph)
         int axis = op->params.at("dim").i;
         if (axis == batch_index)
         {
-            fprintf(stderr, "cat along batch axis is not supported\n");
+            fprintf(stderr, "cat along batch axis %d is not supported\n", batch_index);
             continue;
         }
 

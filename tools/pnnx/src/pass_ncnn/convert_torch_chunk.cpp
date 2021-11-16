@@ -35,7 +35,7 @@ void convert_torch_chunk(Graph& graph)
         int axis = op->params.at("dim").i;
         if (axis == batch_index)
         {
-            fprintf(stderr, "chunk along batch axis is not supported\n");
+            fprintf(stderr, "chunk along batch axis %d is not supported\n", batch_index);
             continue;
         }
 

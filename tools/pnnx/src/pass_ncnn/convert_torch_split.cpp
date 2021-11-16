@@ -42,7 +42,7 @@ void convert_torch_split(Graph& graph)
         int axis = op->params.at("dim").i;
         if (axis == batch_index)
         {
-            fprintf(stderr, "split along batch axis is not supported\n");
+            fprintf(stderr, "split along batch axis %d is not supported\n", batch_index);
             continue;
         }
 

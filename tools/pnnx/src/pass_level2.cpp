@@ -20,6 +20,10 @@
 
 namespace pnnx {
 
+GraphRewriterPass::~GraphRewriterPass()
+{
+}
+
 const char* GraphRewriterPass::name_str() const
 {
     return type_str();

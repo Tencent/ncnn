@@ -22,6 +22,8 @@ namespace pnnx {
 class GraphRewriterPass
 {
 public:
+    virtual ~GraphRewriterPass();
+
     virtual const char* match_pattern_graph() const = 0;
 
     virtual const char* type_str() const = 0;
