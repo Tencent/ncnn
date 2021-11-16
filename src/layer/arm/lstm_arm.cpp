@@ -1238,7 +1238,7 @@ int LSTM_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     if (bottom_blobs.size() == 3)
     {
         Option opt_cast = opt;
-        opt_cast.blob_allocator = hidden_allocator;
+        opt_cast.blob_allocator = hidden_cell_allocator;
         cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
         cast_float16_to_float32(bottom_blobs[2], cell, opt_cast);
     }
@@ -1388,7 +1388,7 @@ int LSTM_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
     if (bottom_blobs.size() == 3)
     {
         Option opt_cast = opt;
-        opt_cast.blob_allocator = hidden_allocator;
+        opt_cast.blob_allocator = hidden_cell_allocator;
         cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
         cast_float16_to_float32(bottom_blobs[2], cell, opt_cast);
     }
@@ -1830,7 +1830,7 @@ int LSTM_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     if (bottom_blobs.size() == 3)
     {
         Option opt_cast = opt;
-        opt_cast.blob_allocator = hidden_allocator;
+        opt_cast.blob_allocator = hidden_cell_allocator;
         cast_bfloat16_to_float32(bottom_blobs[1], hidden, opt_cast);
         cast_bfloat16_to_float32(bottom_blobs[2], cell, opt_cast);
     }
