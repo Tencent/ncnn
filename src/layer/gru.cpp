@@ -29,8 +29,6 @@ int GRU::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     weight_data_size = pd.get(1, 0);
     direction = pd.get(2, 0);
-    if (direction == 2)
-        one_blob_only = true;
     return 0;
 }
 
@@ -243,7 +241,7 @@ int GRU::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blo
         hidden.fill(0.f);
     }
 
-    top_blob.create(num_output, T, 4u, opt.blob_allocator);
+    top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
