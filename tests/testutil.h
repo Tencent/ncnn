@@ -1181,7 +1181,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         std::vector<ncnn::Mat> a_fp16;
         std::vector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
-        if (opt.use_bf16_storage)
+        if (opt.use_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             a_fp16.resize(a.size());
             for (size_t j = 0; j < a.size(); j++)
@@ -1199,7 +1199,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             }
             epsilon_fp16 = epsilon * 100; // 0.1
         }
-        else if (opt.use_fp16_packed || opt.use_fp16_storage)
+        else if ((opt.use_fp16_packed || opt.use_fp16_storage) && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             a_fp16.resize(a.size());
             for (size_t j = 0; j < a.size(); j++)
@@ -1222,11 +1222,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             a_fp16 = a;
             weights_fp16 = weights;
             epsilon_fp16 = epsilon;
-        }
-
-        if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
-        {
-            a_fp16 = a;
         }
 
         if (opt.use_fp16_arithmetic)
@@ -1303,7 +1298,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         ncnn::Mat a_fp16;
         std::vector<ncnn::Mat> weights_fp16;
         float epsilon_fp16;
-        if (opt.use_bf16_storage)
+        if (opt.use_bf16_storage && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             {
                 ncnn::Mat tmp;
@@ -1319,7 +1314,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             }
             epsilon_fp16 = epsilon * 100; // 0.1
         }
-        else if (opt.use_fp16_packed || opt.use_fp16_storage)
+        else if ((opt.use_fp16_packed || opt.use_fp16_storage) && !(flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING))
         {
             {
                 ncnn::Mat tmp;
@@ -1340,11 +1335,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
             a_fp16 = a;
             weights_fp16 = weights;
             epsilon_fp16 = epsilon;
-        }
-
-        if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
-        {
-            a_fp16 = a;
         }
 
         if (opt.use_fp16_arithmetic)
