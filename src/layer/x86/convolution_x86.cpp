@@ -20,7 +20,6 @@
 #include <immintrin.h>
 #endif
 #endif // __SSE2__
-
 #include "x86_activation.h"
 #include "x86_usability.h"
 
@@ -44,7 +43,7 @@ namespace ncnn {
 
 #if __SSE2__
 #include "convolution_1x1_pack4.h"
-
+#include "convolution_3x3_pack1to4.h"
 #if NCNN_INT8
 #include "convolution_pack8to4_int8.h"
 #include "convolution_pack1to4_int8.h"
@@ -458,7 +457,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -547,7 +546,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -599,7 +598,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 4 && out_elempack == 8)
     {
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -671,7 +670,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
@@ -721,7 +720,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 8 && out_elempack == 4)
     {
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -812,7 +811,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -870,8 +869,27 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (elempack == 1 && out_elempack == 4)
     {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            // num_output
+            conv3x3s1_pack1to4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv3x3s2_pack1to4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
+        {
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -920,7 +938,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 4 && out_elempack == 1)
     {
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
@@ -997,7 +1015,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {

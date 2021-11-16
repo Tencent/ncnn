@@ -80,11 +80,11 @@ int Deconvolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
     }
@@ -211,54 +211,27 @@ void Deconvolution::cut_padding(const Mat& top_blob_bordered, Mat& top_blob, con
 {
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        Mat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
-            if (top_blob_bordered_adj.empty())
-                return;
-        }
-
-        copy_cut_border(top_blob_bordered_adj, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
+        copy_cut_border(top_blob_bordered, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
     }
     else if (output_w > 0 && output_h > 0)
     {
-        Mat top_blob_bordered_adj = top_blob_bordered;
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            Option opt_b = opt;
-            opt_b.blob_allocator = opt.workspace_allocator;
-            copy_make_border(top_blob_bordered, top_blob_bordered_adj, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt_b);
-            if (top_blob_bordered_adj.empty())
-                return;
-        }
-
-        int wcut = top_blob_bordered_adj.w - output_w;
-        int hcut = top_blob_bordered_adj.h - output_h;
+        int wcut = top_blob_bordered.w - output_w;
+        int hcut = top_blob_bordered.h - output_h;
 
         if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
         {
             // onnx padding=SAME_UPPER
-            copy_cut_border(top_blob_bordered_adj, top_blob, hcut / 2, hcut - hcut / 2, wcut / 2, wcut - wcut / 2, opt);
+            copy_cut_border(top_blob_bordered, top_blob, hcut / 2, hcut - hcut / 2, wcut / 2, wcut - wcut / 2, opt);
         }
         else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
         {
             // onnx padding=SAME_LOWER
-            copy_cut_border(top_blob_bordered_adj, top_blob, hcut - hcut / 2, hcut / 2, wcut - wcut / 2, wcut / 2, opt);
+            copy_cut_border(top_blob_bordered, top_blob, hcut - hcut / 2, hcut / 2, wcut - wcut / 2, wcut / 2, opt);
         }
     }
     else
     {
-        if (output_pad_right > 0 || output_pad_bottom > 0)
-        {
-            copy_make_border(top_blob_bordered, top_blob, 0, output_pad_bottom, 0, output_pad_right, BORDER_CONSTANT, 0.f, opt);
-        }
-        else
-        {
-            top_blob = top_blob_bordered;
-        }
+        top_blob = top_blob_bordered;
     }
 }
 
