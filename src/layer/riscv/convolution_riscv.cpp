@@ -86,49 +86,7 @@ Convolution_riscv::Convolution_riscv()
 
 int Convolution_riscv::create_pipeline(const Option& opt)
 {
-    if (activation_type == 1)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 2)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // slope
-        activation->load_param(pd);
-    }
-    else if (activation_type == 3)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // min
-        pd.set(1, activation_params[1]); // max
-        activation->load_param(pd);
-    }
-    else if (activation_type == 4)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 5)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-
-    if (activation)
-    {
-        activation->create_pipeline(opt);
-    }
+    activation = create_activation_layer(activation_type, activation_params, opt);
 
 #if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage)
@@ -268,25 +226,7 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (bottom_blob.dims != 3)
     {
-        Mat bottom_blob_unpacked = bottom_blob;
-        if (bottom_blob.elempack != 1)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-        }
-
-        Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
-        if (bottom_blob_unpacked.elembits() == 16)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
-        }
-
-        return Convolution::forward(bottom_blob_unpacked_fp32, top_blob, opt);
+        return Convolution::forward(bottom_blob, top_blob, opt);
     }
 
     int elembits = bottom_blob.elembits();

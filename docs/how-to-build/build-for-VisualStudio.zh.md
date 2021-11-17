@@ -4,7 +4,7 @@
 
 ## 预先准备
 
-Visual Studio 2015 / 2017 / 2019 的 Community Edition 版本， 使用动态的 CRT 运行库
+Visual Studio 2015 / 2017 / 2019 / 2022 Preview 的 Community Edition 版本， 使用动态的 CRT 运行库
 
 CMake,  推荐 >= 3.17 的版本
 
@@ -19,7 +19,7 @@ https://github.com/Tencent/ncnn.git
 ```batch
 mkdir build-vs2019
 cd build-vs2019
-cmake -G "Visual Studio 16 2019" -A x64
+cmake -G "Visual Studio 16 2019" -A x64 ..
 cmake --build . --config Release
 cmake --install . --config Release
 cmake --build . --config Debug
@@ -28,7 +28,7 @@ cmake --install . --config Debug
 
 会安装在 build-vs2019/install 里头，debug 版本的库会带有 `d` 后缀。
 
-#### x64 本机工具命令提示符 版本
+#### x64 本机工具命令提示符 版本 （VS2022无X64）
 ncnn
 protobuf参照后文定义参数
 
@@ -37,7 +37,9 @@ mkdir build-vs2019
 cd build-vs2019
 cmake ..
 cmake --build . 
-cmake --install . 
+cmake --install .  --config Debug
+
+//默认build生成Debug版本；默认install安装Relase版本。 参照命令提示符版本
 ```
 
 
