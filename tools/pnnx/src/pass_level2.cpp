@@ -195,10 +195,10 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
         }
     }
 
-    for (const auto& a : a->attrs)
+    for (const auto& p : a->attrs)
     {
-        const std::string& akey = a.first;
-        const Attribute& aa = a.second;
+        const std::string& akey = p.first;
+        const Attribute& aa = p.second;
 
         // capture all attributes
         captured_attrs[b->name + '.' + akey] = aa;
