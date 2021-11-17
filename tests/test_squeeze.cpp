@@ -111,22 +111,22 @@ static int test_squeeze_0()
     {
         const ncnn::Mat& a = as[i];
         int ret = 0
-            || test_squeeze(a, 0, 0, 0)
-            || test_squeeze(a, 0, 0, 1)
-            || test_squeeze(a, 0, 1, 0)
-            || test_squeeze(a, 0, 1, 1)
-            || test_squeeze(a, 1, 0, 0)
-            || test_squeeze(a, 1, 0, 1)
-            || test_squeeze(a, 1, 1, 0)
-            || test_squeeze(a, 1, 1, 1)
+                  || test_squeeze(a, 0, 0, 0)
+                  || test_squeeze(a, 0, 0, 1)
+                  || test_squeeze(a, 0, 1, 0)
+                  || test_squeeze(a, 0, 1, 1)
+                  || test_squeeze(a, 1, 0, 0)
+                  || test_squeeze(a, 1, 0, 1)
+                  || test_squeeze(a, 1, 1, 0)
+                  || test_squeeze(a, 1, 1, 1)
 
-            || test_squeeze_axes(a, IntArrayMat(0))
-            || test_squeeze_axes(a, IntArrayMat(1))
-            || test_squeeze_axes(a, IntArrayMat(2))
-            || test_squeeze_axes(a, IntArrayMat(0, 1))
-            || test_squeeze_axes(a, IntArrayMat(0, 2))
-            || test_squeeze_axes(a, IntArrayMat(1, 2))
-            || test_squeeze_axes(a, IntArrayMat(0, 1, 2));
+                  || test_squeeze_axes(a, IntArrayMat(0))
+                  || test_squeeze_axes(a, IntArrayMat(1))
+                  || test_squeeze_axes(a, IntArrayMat(2))
+                  || test_squeeze_axes(a, IntArrayMat(0, 1))
+                  || test_squeeze_axes(a, IntArrayMat(0, 2))
+                  || test_squeeze_axes(a, IntArrayMat(1, 2))
+                  || test_squeeze_axes(a, IntArrayMat(0, 1, 2));
 
         if (ret != 0)
             return ret;
