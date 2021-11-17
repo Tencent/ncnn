@@ -44,13 +44,6 @@ pnnx.Output             output      1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& shape = captured_params.at("shape").ai;
-        const int shape_rank = (int)shape.size();
-
-        if (shape_rank > 5)
-        {
-            fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
-            return;
-        }
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
@@ -59,31 +52,44 @@ pnnx.Output             output      1 0 out
             fprintf(stderr, "reshape tensor with batch index %d is not supported yet!\n", batch_index);
         }
 
+        // drop shape batch index
+        std::vector<int> new_shape;
+        for (int i = 0; i < (int)shape.size(); i++)
+        {
+            if (i == batch_index && shape[i] == 1)
+                continue;
+
+            new_shape.push_back(shape[i]);
+        }
+
+        const int shape_rank = (int)new_shape.size();
+
+        if (shape_rank > 5)
+        {
+            fprintf(stderr, "reshape to %d-rank tensor is not supported yet!\n", shape_rank);
+            return;
+        }
+
         if (shape_rank == 1)
         {
-            fprintf(stderr, "reshape across batch dim is not supported yet!\n");
-            op->params["0"] = -1; // should never reach here
+            op->params["0"] = new_shape[0];
         }
         if (shape_rank == 2)
         {
-            op->params["0"] = shape[1];
+            op->params["0"] = new_shape[1];
+            op->params["1"] = new_shape[0];
         }
         if (shape_rank == 3)
         {
-            op->params["0"] = shape[2];
-            op->params["1"] = shape[1];
+            op->params["0"] = new_shape[2];
+            op->params["1"] = new_shape[1];
+            op->params["2"] = new_shape[0];
         }
         if (shape_rank == 4)
         {
-            op->params["0"] = shape[3];
-            op->params["1"] = shape[2];
-            op->params["2"] = shape[1];
-        }
-        if (shape_rank == 5)
-        {
-            op->params["0"] = shape[4] == -1 || shape[3] == -1 ? -1 : shape[4] * shape[3];
-            op->params["1"] = shape[2];
-            op->params["2"] = shape[1];
+            op->params["0"] = new_shape[3] == -1 || new_shape[2] == -1 ? -1 : new_shape[3] * new_shape[2];
+            op->params["1"] = new_shape[1];
+            op->params["2"] = new_shape[0];
         }
     }
 };

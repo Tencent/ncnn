@@ -170,6 +170,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_mean.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_split.cpp
+    pass_level2/torch_squeeze.cpp
     pass_level2/torch_permute.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unsqueeze.cpp
@@ -315,7 +316,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_mean.cpp
     pass_ncnn/torch_permute.cpp
+    pass_ncnn/torch_squeeze.cpp
     pass_ncnn/torch_transpose.cpp
+    pass_ncnn/torch_unsqueeze.cpp
 )
 
 set(pnnx_SRCS

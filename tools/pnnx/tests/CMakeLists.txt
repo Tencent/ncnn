@@ -158,6 +158,7 @@ pnnx_add_test(torch_mean)
 pnnx_add_test(torch_permute)
 pnnx_add_test(torch_sum)
 pnnx_add_test(torch_split)
+pnnx_add_test(torch_squeeze)
 pnnx_add_test(torch_transpose)
 pnnx_add_test(torch_unsqueeze)
 
