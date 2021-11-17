@@ -28,7 +28,9 @@
 
 #include "pass_ncnn/eliminate_noop.h"
 #include "pass_ncnn/fuse_convolution_activation.h"
+#include "pass_ncnn/fuse_convolution1d_activation.h"
 #include "pass_ncnn/fuse_convolutiondepthwise_activation.h"
+#include "pass_ncnn/fuse_convolutiondepthwise1d_activation.h"
 #include "pass_ncnn/fuse_deconvolution_activation.h"
 #include "pass_ncnn/fuse_deconvolutiondepthwise_activation.h"
 #include "pass_ncnn/fuse_innerproduct_activation.h"
@@ -84,7 +86,9 @@ void pass_ncnn(Graph& g)
 
     ncnn::eliminate_noop(g);
     ncnn::fuse_convolution_activation(g);
+    ncnn::fuse_convolution1d_activation(g);
     ncnn::fuse_convolutiondepthwise_activation(g);
+    ncnn::fuse_convolutiondepthwise1d_activation(g);
     ncnn::fuse_deconvolution_activation(g);
     ncnn::fuse_deconvolutiondepthwise_activation(g);
     ncnn::fuse_innerproduct_activation(g);
