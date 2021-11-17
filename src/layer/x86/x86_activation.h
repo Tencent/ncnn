@@ -44,7 +44,6 @@ static NCNN_FORCEINLINE __m128 mish_sse(__m128 inputs)
 
 static NCNN_FORCEINLINE __m128 swish_sse(__m128 inputs)
 {
-    const __m128 one = _mm_set1_ps(1.0f);
     return _mm_mul_ps(inputs, sigmoid_sse(inputs));
 }
 
@@ -146,7 +145,6 @@ static NCNN_FORCEINLINE __m256 mish_avx(__m256 inputs)
 
 static NCNN_FORCEINLINE __m256 swish_avx(__m256 inputs)
 {
-    const __m256 one = _mm256_set1_ps(1.0f);
     return _mm256_mul_ps(inputs, sigmoid_avx(inputs));
 }
 
