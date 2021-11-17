@@ -55,25 +55,25 @@ int ExpandDims::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
         {
             int axis = axes_ptr[i];
             if (axis < 0)
-                axis = dims + 1 + axis; // +1 for N-dim
+                axis = dims + 1 + axis;
 
-            if (dims == 1 && axis == 1)
+            if (dims == 1 && axis == 0)
             {
                 _expand_h = true;
             }
-            if (dims == 1 && axis == 2)
+            if (dims == 1 && axis == 1)
             {
                 _expand_w = true;
             }
-            if (dims == 2 && axis == 1)
+            if (dims == 2 && axis == 0)
             {
                 _expand_c = true;
             }
-            if (dims == 2 && axis == 2)
+            if (dims == 2 && axis == 1)
             {
                 _expand_h = true;
             }
-            if (dims == 2 && axis == 3)
+            if (dims == 2 && axis == 2)
             {
                 _expand_w = true;
             }
