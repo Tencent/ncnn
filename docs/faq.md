@@ -257,10 +257,10 @@
 - ## 多个blob输入，多个blob输出，怎么做？
    多次执行`ex.input()` 和 `ex.extract()`
 ```
-ex.input("data1", in);
-ex.input("data2", in);
-ex.extract("output1", out);
-ex.extract("output2", out);
+ex.input("data1", in_1);
+ex.input("data2", in_2);
+ex.extract("output1", out_1);
+ex.extract("output2", out_2);
 ```
 - ## Extractor extract 多次会重复计算吗？
 
