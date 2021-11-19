@@ -276,7 +276,7 @@ static NCNN_FORCEINLINE __m128i float2int8_avx(const __m256& _v0, const __m256& 
     // _MM_FROUND_TO_NEAREST_INT round to even
     // simulate round to nearest via +/-0.5 with round to zero
     __m256 _p5 = _mm256_set1_ps(0.5f);
-    __m256 _signmask = _mm256_castsi256_ps(_mm256_set1_epi32(1<<31));
+    __m256 _signmask = _mm256_castsi256_ps(_mm256_set1_epi32(1 << 31));
     __m256 _sign0 = _mm256_and_ps(_v0, _signmask);
     __m256 _sign1 = _mm256_and_ps(_v1, _signmask);
     __m256 _v0_p5 = _mm256_or_ps(_p5, _sign0);
