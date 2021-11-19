@@ -246,7 +246,14 @@ static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)
 #if __AVX2__
 static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
 {
-    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+    // _MM_FROUND_TO_NEAREST_INT round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m256 _p5 = _mm256_set1_ps(0.5f);
+    __m256 _signmask = _mm256_castsi256_ps(_mm256_set1_epi32(1 << 31));
+    __m256 _sign = _mm256_and_ps(_v0, _signmask);
+    __m256 _v0_p5 = _mm256_or_ps(_p5, _sign);
+    __m256 _v0_adj = _mm256_add_ps(_v0, _v0_p5);
+    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0_adj, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC));
 
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v0_i);
     _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
@@ -266,8 +273,18 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
 
 static NCNN_FORCEINLINE __m128i float2int8_avx(const __m256& _v0, const __m256& _v1)
 {
-    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
-    __m256i _v1_i = _mm256_cvtps_epi32(_mm256_round_ps(_v1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+    // _MM_FROUND_TO_NEAREST_INT round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m256 _p5 = _mm256_set1_ps(0.5f);
+    __m256 _signmask = _mm256_castsi256_ps(_mm256_set1_epi32(1<<31));
+    __m256 _sign0 = _mm256_and_ps(_v0, _signmask);
+    __m256 _sign1 = _mm256_and_ps(_v1, _signmask);
+    __m256 _v0_p5 = _mm256_or_ps(_p5, _sign0);
+    __m256 _v1_p5 = _mm256_or_ps(_p5, _sign1);
+    __m256 _v0_adj = _mm256_add_ps(_v0, _v0_p5);
+    __m256 _v1_adj = _mm256_add_ps(_v1, _v1_p5);
+    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0_adj, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC));
+    __m256i _v1_i = _mm256_cvtps_epi32(_mm256_round_ps(_v1_adj, _MM_FROUND_TO_ZERO | _MM_FROUND_NO_EXC));
 
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v1_i);
     _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
