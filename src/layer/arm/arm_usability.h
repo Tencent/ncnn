@@ -38,8 +38,8 @@ static inline int8x8_t float2int8(float32x4_t _vlow, float32x4_t _vhigh)
     int32x4_t _signmask = vdupq_n_s32(1 << 31);
     int32x4_t _signlow = vandq_s32(vreinterpretq_s32_f32(_vlow), _signmask);
     int32x4_t _signhigh = vandq_s32(vreinterpretq_s32_f32(_vhigh), _signmask);
-    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_vlow), _signlow));
-    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_vhigh), _signhigh));
+    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow));
+    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh));
     float32x4_t _vlow5 = vaddq_f32(_vlow, _p5low);
     float32x4_t _vhigh5 = vaddq_f32(_vhigh, _p5high);
     int32x4_t _vlow32 = vcvtq_s32_f32(_vlow5);
@@ -62,8 +62,8 @@ static inline int8x8_t float2int8relu(float32x4_t _vlow, float32x4_t _vhigh)
     int32x4_t _signmask = vdupq_n_s32(1 << 31);
     int32x4_t _signlow = vandq_s32(vreinterpretq_s32_f32(_vlow), _signmask);
     int32x4_t _signhigh = vandq_s32(vreinterpretq_s32_f32(_vhigh), _signmask);
-    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_vlow), _signlow));
-    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_vhigh), _signhigh));
+    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow));
+    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh));
     float32x4_t _vlow5 = vaddq_f32(_vlow, _p5low);
     float32x4_t _vhigh5 = vaddq_f32(_vhigh, _p5high);
     int32x4_t _vlow32 = vcvtq_s32_f32(_vlow5);
@@ -90,8 +90,8 @@ static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh
     int32x4_t _signmask = vdupq_n_s32(1 << 31);
     int32x4_t _signlow = vandq_s32(vreinterpretq_s32_f32(_vlow), _signmask);
     int32x4_t _signhigh = vandq_s32(vreinterpretq_s32_f32(_vhigh), _signmask);
-    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_vlow), _signlow));
-    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_vhigh), _signhigh));
+    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow));
+    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh));
     float32x4_t _vlow5 = vaddq_f32(_vlow, _p5low);
     float32x4_t _vhigh5 = vaddq_f32(_vhigh, _p5high);
     int32x4_t _vlow32 = vcvtq_s32_f32(_vlow5);
@@ -99,8 +99,8 @@ static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh
 
     int32x4_t _signlow_leaky = vandq_s32(vreinterpretq_s32_f32(_vlow_leaky), _signmask);
     int32x4_t _signhigh_leaky = vandq_s32(vreinterpretq_s32_f32(_vhigh_leaky), _signmask);
-    float32x4_t _p5low_leaky = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_vlow_leaky), _signlow_leaky));
-    float32x4_t _p5high_leaky = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_vhigh_leaky), _signhigh_leaky));
+    float32x4_t _p5low_leaky = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow_leaky));
+    float32x4_t _p5high_leaky = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh_leaky));
     float32x4_t _vlow5_leaky = vaddq_f32(_vlow_leaky, _p5low_leaky);
     float32x4_t _vhigh5_leaky = vaddq_f32(_vhigh_leaky, _p5high_leaky);
     int32x4_t _vlow32_leaky = vcvtq_s32_f32(_vlow5_leaky);
