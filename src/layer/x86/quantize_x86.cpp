@@ -63,11 +63,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                     __m256 _v = _mm256_loadu_ps(ptr);
                     _v = _mm256_mul_ps(_v, _scale);
-#if __AVX2__
                     *(int64_t*)outptr = float2int8_avx(_v);
-#else
-                    float2int8_loop(_v, outptr);
-#endif
                 }
             }
             else
@@ -81,11 +77,7 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     __m256 _v = _mm256_loadu_ps(ptr);
                     __m256 _scale = _mm256_loadu_ps((const float*)scale_data + i * 8);
                     _v = _mm256_mul_ps(_v, _scale);
-#if __AVX2__
                     *(int64_t*)outptr = float2int8_avx(_v);
-#else
-                    float2int8_loop(_v, outptr);
-#endif
                 }
             }
         }
@@ -110,7 +102,6 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     signed char* outptr = top_blob.row<signed char>(i);
 
                     int j = 0;
-#if __AVX2__
                     for (; j + 1 < w; j += 2)
                     {
                         __m256 _v0 = _mm256_loadu_ps(ptr);
@@ -132,16 +123,6 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         ptr += 8;
                         outptr += 8;
                     }
-#else
-                    for (; j < w; j++)
-                    {
-                        __m256 _v = _mm256_loadu_ps(ptr);
-                        _v = _mm256_mul_ps(_v, _scale);
-                        float2int8_loop(_v, outptr);
-                        ptr += 8;
-                        outptr += 8;
-                    }
-#endif
                 }
             }
             else
@@ -155,7 +136,6 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     __m256 _scale = _mm256_loadu_ps((const float*)scale_data + i * 8);
 
                     int j = 0;
-#if __AVX2__
                     for (; j + 1 < w; j += 2)
                     {
                         __m256 _v0 = _mm256_loadu_ps(ptr);
@@ -177,16 +157,6 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         ptr += 8;
                         outptr += 8;
                     }
-#else
-                    for (; j < w; j++)
-                    {
-                        __m256 _v = _mm256_loadu_ps(ptr);
-                        _v = _mm256_mul_ps(_v, _scale);
-                        float2int8_loop(_v, outptr);
-                        ptr += 8;
-                        outptr += 8;
-                    }
-#endif
                 }
             }
         }
@@ -213,7 +183,6 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     signed char* outptr = top_blob.channel(q);
 
                     int i = 0;
-#if __AVX2__
                     for (; i + 1 < size; i += 2)
                     {
                         __m256 _v0 = _mm256_loadu_ps(ptr);
@@ -235,16 +204,6 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         ptr += 8;
                         outptr += 8;
                     }
-#else
-                    for (; i < size; i++)
-                    {
-                        __m256 _v = _mm256_loadu_ps(ptr);
-                        _v = _mm256_mul_ps(_v, _scale);
-                        float2int8_loop(_v, outptr);
-                        ptr += 8;
-                        outptr += 8;
-                    }
-#endif
                 }
             }
             else
@@ -258,8 +217,6 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                     __m256 _scale = _mm256_loadu_ps((const float*)scale_data + q * 8);
 
                     int i = 0;
-#if __AVX2__
-
                     for (; i + 1 < size; i += 2)
                     {
                         __m256 _v0 = _mm256_loadu_ps(ptr);
@@ -281,16 +238,6 @@ int Quantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         ptr += 8;
                         outptr += 8;
                     }
-#else
-                    for (; i < size; i++)
-                    {
-                        __m256 _v = _mm256_loadu_ps(ptr);
-                        _v = _mm256_mul_ps(_v, _scale);
-                        float2int8_loop(_v, outptr);
-                        ptr += 8;
-                        outptr += 8;
-                    }
-#endif
                 }
             }
         }
