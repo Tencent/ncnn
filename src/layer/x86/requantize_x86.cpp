@@ -16,9 +16,9 @@
 
 #if __SSE2__
 #include <emmintrin.h>
-#if __AVX2__
+#if __AVX__
 #include <immintrin.h>
-#endif // __AVX2__
+#endif // __AVX__
 #endif // __SSE2__
 
 #include "x86_activation.h"
@@ -51,7 +51,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
             if (scale_in_data_size == 1 && scale_out_data_size == 1)
             {
-#if __AVX2__
+#if __AVX__
                 __m256 _scale_in = _mm256_set1_ps(scale_in_data[0]);
                 __m256 _scale_out = _mm256_set1_ps(scale_out_data[0]);
 #else
@@ -67,7 +67,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_mul_ps(_v, _scale_in);
                         _v = activation_avx(_v, activation_type, activation_params);
@@ -88,7 +88,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 }
                 else if (bias_data_size == 1)
                 {
-#if __AVX2__
+#if __AVX__
                     __m256 _bias = _mm256_set1_ps(bias_data[0]);
 #else
                     __m128 _bias = _mm_set1_ps(bias_data[0]);
@@ -100,7 +100,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_comp_fmadd_ps(_v, _scale_in, _bias);
                         _v = activation_avx(_v, activation_type, activation_params);
@@ -127,7 +127,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _bias = _mm256_loadu_ps((const float*)bias_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_comp_fmadd_ps(_v, _scale_in, _bias);
@@ -152,7 +152,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else if (scale_in_data_size == 1 && scale_out_data_size > 1)
             {
-#if __AVX2__
+#if __AVX__
                 __m256 _scale_in = _mm256_set1_ps(scale_in_data[0]);
 #else
                 __m128 _scale_in = _mm_set1_ps(scale_in_data[0]);
@@ -166,7 +166,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_out = _mm256_loadu_ps((const float*)scale_out_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_mul_ps(_v, _scale_in);
@@ -190,7 +190,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 }
                 else if (bias_data_size == 1)
                 {
-#if __AVX2__
+#if __AVX__
                     __m256 _bias = _mm256_set1_ps(bias_data[0]);
 #else
                     __m128 _bias = _mm_set1_ps(bias_data[0]);
@@ -202,7 +202,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_out = _mm256_loadu_ps((const float*)scale_out_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_comp_fmadd_ps(_v, _scale_in, _bias);
@@ -232,7 +232,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_out = _mm256_loadu_ps((const float*)scale_out_data + i * 8);
                         __m256 _bias = _mm256_loadu_ps((const float*)bias_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
@@ -260,7 +260,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             }
             else if (scale_in_data_size > 1 && scale_out_data_size == 1)
             {
-#if __AVX2__
+#if __AVX__
                 __m256 _scale_out = _mm256_set1_ps(scale_out_data[0]);
 #else
                 __m128 _scale_out = _mm_set1_ps(scale_out_data[0]);
@@ -274,7 +274,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_in = _mm256_loadu_ps((const float*)scale_in_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_mul_ps(_v, _scale_in);
@@ -298,7 +298,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 }
                 else if (bias_data_size == 1)
                 {
-#if __AVX2__
+#if __AVX__
                     __m256 _bias = _mm256_set1_ps(bias_data[0]);
 #else
                     __m128 _bias = _mm_set1_ps(bias_data[0]);
@@ -310,7 +310,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_in = _mm256_loadu_ps((const float*)scale_in_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_comp_fmadd_ps(_v, _scale_in, _bias);
@@ -340,7 +340,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_in = _mm256_loadu_ps((const float*)scale_in_data + i * 8);
                         __m256 _bias = _mm256_loadu_ps((const float*)bias_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
@@ -376,7 +376,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_in = _mm256_loadu_ps((const float*)scale_in_data + i * 8);
                         __m256 _scale_out = _mm256_loadu_ps((const float*)scale_out_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
@@ -403,7 +403,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 }
                 else if (bias_data_size == 1)
                 {
-#if __AVX2__
+#if __AVX__
                     __m256 _bias = _mm256_set1_ps(bias_data[0]);
 #else
                     __m128 _bias = _mm_set1_ps(bias_data[0]);
@@ -415,7 +415,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_in = _mm256_loadu_ps((const float*)scale_in_data + i * 8);
                         __m256 _scale_out = _mm256_loadu_ps((const float*)scale_out_data + i * 8);
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
@@ -448,7 +448,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-#if __AVX2__
+#if __AVX__
                         __m256 _scale_in = _mm256_loadu_ps((const float*)scale_in_data + i * 8);
                         __m256 _scale_out = _mm256_loadu_ps((const float*)scale_out_data + i * 8);
                         __m256 _bias = _mm256_loadu_ps((const float*)bias_data + i * 8);
@@ -496,7 +496,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     const int* intptr = bottom_blob.row<const int>(i);
                     signed char* ptr = top_blob.row<signed char>(i);
 
-#if __AVX2__
+#if __AVX__
                     __m256 _scale_in = scale_in_data_size == 1 ? _mm256_set1_ps(scale_in_data[0]) : _mm256_loadu_ps((const float*)scale_in_data + i * 8);
                     __m256 _scale_out = scale_out_data_size == 1 ? _mm256_set1_ps(scale_out_data[0]) : _mm256_loadu_ps((const float*)scale_out_data + i * 8);
 #else
@@ -508,7 +508,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                     for (int j = 0; j < w; j++)
                     {
-#if __AVX2__
+#if __AVX__
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_mul_ps(_v, _scale_in);
                         _v = activation_avx(_v, activation_type, activation_params);
@@ -539,7 +539,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     const int* intptr = bottom_blob.row<const int>(i);
                     signed char* ptr = top_blob.row<signed char>(i);
 
-#if __AVX2__
+#if __AVX__
                     __m256 _scale_in = scale_in_data_size == 1 ? _mm256_set1_ps(scale_in_data[0]) : _mm256_loadu_ps((const float*)scale_in_data + i * 8);
                     __m256 _scale_out = scale_out_data_size == 1 ? _mm256_set1_ps(scale_out_data[0]) : _mm256_loadu_ps((const float*)scale_out_data + i * 8);
                     __m256 _bias = bias_data_size == 1 ? _mm256_set1_ps(bias_data[0]) : _mm256_loadu_ps((const float*)bias_data + i * 8);
@@ -554,7 +554,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                     for (int j = 0; j < w; j++)
                     {
-#if __AVX2__
+#if __AVX__
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_comp_fmadd_ps(_v, _scale_in, _bias);
                         _v = activation_avx(_v, activation_type, activation_params);
@@ -598,7 +598,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     const int* intptr = bottom_blob.channel(q);
                     signed char* ptr = top_blob.channel(q);
 
-#if __AVX2__
+#if __AVX__
                     __m256 _scale_in = scale_in_data_size == 1 ? _mm256_set1_ps(scale_in_data[0]) : _mm256_loadu_ps((const float*)scale_in_data + q * 8);
                     __m256 _scale_out = scale_out_data_size == 1 ? _mm256_set1_ps(scale_out_data[0]) : _mm256_loadu_ps((const float*)scale_out_data + q * 8);
 #else
@@ -610,7 +610,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                     for (int i = 0; i < size; i++)
                     {
-#if __AVX2__
+#if __AVX__
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_mul_ps(_v, _scale_in);
                         _v = activation_avx(_v, activation_type, activation_params);
@@ -641,7 +641,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                     const int* intptr = bottom_blob.channel(q);
                     signed char* ptr = top_blob.channel(q);
 
-#if __AVX2__
+#if __AVX__
                     __m256 _scale_in = scale_in_data_size == 1 ? _mm256_set1_ps(scale_in_data[0]) : _mm256_loadu_ps((const float*)scale_in_data + q * 8);
                     __m256 _scale_out = scale_out_data_size == 1 ? _mm256_set1_ps(scale_out_data[0]) : _mm256_loadu_ps((const float*)scale_out_data + q * 8);
                     __m256 _bias = bias_data_size == 1 ? _mm256_set1_ps(bias_data[0]) : _mm256_loadu_ps((const float*)bias_data + q * 8);
@@ -656,7 +656,7 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 
                     for (int i = 0; i < size; i++)
                     {
-#if __AVX2__
+#if __AVX__
                         __m256 _v = _mm256_cvtepi32_ps(_mm256_loadu_si256((const __m256i*)intptr));
                         _v = _mm256_comp_fmadd_ps(_v, _scale_in, _bias);
                         _v = activation_avx(_v, activation_type, activation_params);
