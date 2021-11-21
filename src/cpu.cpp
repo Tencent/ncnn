@@ -38,6 +38,9 @@
 #endif
 
 #if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__
+#include <dlfcn.h>
+#endif
 #include <stdint.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -91,17 +94,63 @@ namespace ncnn {
 
 #if defined __ANDROID__ || defined __linux__
 
+#define AT_HWCAP  16
+#define AT_HWCAP2 26
+
+#if defined __ANDROID__
+// Probe the system's C library for a 'getauxval' function and call it if
+// it exits, or return 0 for failure. This function is available since API
+// level 20.
+//
+// This code does *NOT* check for '__ANDROID_API__ >= 20' to support the
+// edge case where some NDK developers use headers for a platform that is
+// newer than the one really targetted by their application.
+// This is typically done to use newer native APIs only when running on more
+// recent Android versions, and requires careful symbol management.
+//
+// Note that getauxval() can't really be re-implemented here, because
+// its implementation does not parse /proc/self/auxv. Instead it depends
+// on values  that are passed by the kernel at process-init time to the
+// C runtime initialization layer.
+static unsigned int get_elf_hwcap_from_getauxval()
+{
+    typedef unsigned long getauxval_func_t(unsigned long);
+
+    dlerror();
+    void* libc_handle = dlopen("libc.so", RTLD_NOW);
+    if (!libc_handle)
+    {
+        NCNN_LOGE("dlopen libc.so failed %s", dlerror());
+        return 0;
+    }
+
+    unsigned int result = 0;
+    getauxval_func_t* func = (getauxval_func_t*)dlsym(libc_handle, "getauxval");
+    if (!func)
+    {
+        NCNN_LOGE("dlsym getauxval failed");
+    }
+    else
+    {
+        // Note: getauxval() returns 0 on failure. Doesn't touch errno.
+        result = (unsigned int)(*func)(AT_HWCAP);
+    }
+    dlclose(libc_handle);
+
+    return result;
+}
+#endif // defined __ANDROID__
+
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
 static unsigned int get_elf_hwcap_from_proc_self_auxv()
 {
     FILE* fp = fopen("/proc/self/auxv", "rb");
     if (!fp)
     {
+        NCNN_LOGE("fopen /proc/self/auxv failed");
         return 0;
     }
 
-#define AT_HWCAP  16
-#define AT_HWCAP2 26
 #if __aarch64__ || __riscv_xlen == 64
     struct
     {
@@ -139,7 +188,18 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
     return result;
 }
 
-static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
+static unsigned int get_elf_hwcap()
+{
+#if defined __ANDROID__
+    unsigned int hwcap = get_elf_hwcap_from_getauxval();
+    if (hwcap)
+        return hwcap;
+#endif
+
+    return get_elf_hwcap_from_proc_self_auxv();
+}
+
+static unsigned int g_hwcaps = get_elf_hwcap();
 
 #if __aarch64__
 // from arch/arm64/include/uapi/asm/hwcap.h

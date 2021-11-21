@@ -35,24 +35,18 @@ static NCNN_FORCEINLINE float _mm_reduce_add_ps(__m128 x128)
 
 static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& _v1)
 {
-    float v0[4];
-    float v1[4];
-    _mm_storeu_ps(v0, _v0);
-    _mm_storeu_ps(v1, _v1);
-
-    int v0_i[4];
-    int v1_i[4];
-    v0_i[0] = (int)round(v0[0]);
-    v0_i[1] = (int)round(v0[1]);
-    v0_i[2] = (int)round(v0[2]);
-    v0_i[3] = (int)round(v0[3]);
-    v1_i[0] = (int)round(v1[0]);
-    v1_i[1] = (int)round(v1[1]);
-    v1_i[2] = (int)round(v1[2]);
-    v1_i[3] = (int)round(v1[3]);
-
-    __m128i _v0_i = _mm_loadu_si128((const __m128i*)v0_i);
-    __m128i _v1_i = _mm_loadu_si128((const __m128i*)v1_i);
+    // _MM_ROUND_NEAREST round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m128 _p5 = _mm_set1_ps(0.5f);
+    __m128 _signmask = _mm_castsi128_ps(_mm_set1_epi32(1 << 31));
+    __m128 _sign0 = _mm_and_ps(_v0, _signmask);
+    __m128 _sign1 = _mm_and_ps(_v1, _signmask);
+    __m128 _v0_p5 = _mm_or_ps(_p5, _sign0);
+    __m128 _v1_p5 = _mm_or_ps(_p5, _sign1);
+    __m128 _v0_adj = _mm_add_ps(_v0, _v0_p5);
+    __m128 _v1_adj = _mm_add_ps(_v1, _v1_p5);
+    __m128i _v0_i = _mm_cvttps_epi32(_v0_adj);
+    __m128i _v1_i = _mm_cvttps_epi32(_v1_adj);
 
     __m128i _v01_s16 = _mm_packs_epi32(_v0_i, _v1_i);
 
@@ -69,40 +63,26 @@ static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& 
 
 static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& _v1, const __m128& _v2, const __m128& _v3)
 {
-    float v0[4];
-    float v1[4];
-    float v2[4];
-    float v3[4];
-    _mm_storeu_ps(v0, _v0);
-    _mm_storeu_ps(v1, _v1);
-    _mm_storeu_ps(v2, _v2);
-    _mm_storeu_ps(v3, _v3);
-
-    int v0_i[4];
-    int v1_i[4];
-    int v2_i[4];
-    int v3_i[4];
-    v0_i[0] = (int)round(v0[0]);
-    v0_i[1] = (int)round(v0[1]);
-    v0_i[2] = (int)round(v0[2]);
-    v0_i[3] = (int)round(v0[3]);
-    v1_i[0] = (int)round(v1[0]);
-    v1_i[1] = (int)round(v1[1]);
-    v1_i[2] = (int)round(v1[2]);
-    v1_i[3] = (int)round(v1[3]);
-    v2_i[0] = (int)round(v2[0]);
-    v2_i[1] = (int)round(v2[1]);
-    v2_i[2] = (int)round(v2[2]);
-    v2_i[3] = (int)round(v2[3]);
-    v3_i[0] = (int)round(v3[0]);
-    v3_i[1] = (int)round(v3[1]);
-    v3_i[2] = (int)round(v3[2]);
-    v3_i[3] = (int)round(v3[3]);
-
-    __m128i _v0_i = _mm_loadu_si128((const __m128i*)v0_i);
-    __m128i _v1_i = _mm_loadu_si128((const __m128i*)v1_i);
-    __m128i _v2_i = _mm_loadu_si128((const __m128i*)v2_i);
-    __m128i _v3_i = _mm_loadu_si128((const __m128i*)v3_i);
+    // _MM_ROUND_NEAREST round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m128 _p5 = _mm_set1_ps(0.5f);
+    __m128 _signmask = _mm_castsi128_ps(_mm_set1_epi32(1 << 31));
+    __m128 _sign0 = _mm_and_ps(_v0, _signmask);
+    __m128 _sign1 = _mm_and_ps(_v1, _signmask);
+    __m128 _sign2 = _mm_and_ps(_v2, _signmask);
+    __m128 _sign3 = _mm_and_ps(_v3, _signmask);
+    __m128 _v0_p5 = _mm_or_ps(_p5, _sign0);
+    __m128 _v1_p5 = _mm_or_ps(_p5, _sign1);
+    __m128 _v2_p5 = _mm_or_ps(_p5, _sign2);
+    __m128 _v3_p5 = _mm_or_ps(_p5, _sign3);
+    __m128 _v0_adj = _mm_add_ps(_v0, _v0_p5);
+    __m128 _v1_adj = _mm_add_ps(_v1, _v1_p5);
+    __m128 _v2_adj = _mm_add_ps(_v2, _v2_p5);
+    __m128 _v3_adj = _mm_add_ps(_v3, _v3_p5);
+    __m128i _v0_i = _mm_cvttps_epi32(_v0_adj);
+    __m128i _v1_i = _mm_cvttps_epi32(_v1_adj);
+    __m128i _v2_i = _mm_cvttps_epi32(_v2_adj);
+    __m128i _v3_i = _mm_cvttps_epi32(_v3_adj);
 
     __m128i _v01_s16 = _mm_packs_epi32(_v0_i, _v1_i);
     __m128i _v23_s16 = _mm_packs_epi32(_v2_i, _v3_i);
@@ -243,15 +223,29 @@ static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)
     /* Conversion to float is a no-op on x86-64 */
     return _mm_cvtss_f32(x32);
 }
-#if __AVX2__
+
 static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
 {
-    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+    // _MM_FROUND_TO_NEAREST_INT round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m256 _p5 = _mm256_set1_ps(0.5f);
+    __m256 _signmask = _mm256_castsi256_ps(_mm256_set1_epi32(1 << 31));
+    __m256 _sign = _mm256_and_ps(_v0, _signmask);
+    __m256 _v0_p5 = _mm256_or_ps(_p5, _sign);
+    __m256 _v0_adj = _mm256_add_ps(_v0, _v0_p5);
+    __m256i _v0_i = _mm256_cvttps_epi32(_v0_adj);
 
+#if __AVX2__
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v0_i);
     _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
 
     __m128i _v01_s16low = _mm256_extractf128_si256(_v01_s16, 0);
+#else  // __AVX2__
+    __m128i _v0_i_low = _mm256_extractf128_si256(_v0_i, 0);
+    __m128i _v0_i_high = _mm256_extractf128_si256(_v0_i, 1);
+
+    __m128i _v01_s16low = _mm_packs_epi32(_v0_i_low, _v0_i_high);
+#endif // __AVX2__
 
     _v01_s16low = _mm_min_epi16(_v01_s16low, _mm_set1_epi16(127));
     _v01_s16low = _mm_max_epi16(_v01_s16low, _mm_set1_epi16(-127));
@@ -266,9 +260,20 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
 
 static NCNN_FORCEINLINE __m128i float2int8_avx(const __m256& _v0, const __m256& _v1)
 {
-    __m256i _v0_i = _mm256_cvtps_epi32(_mm256_round_ps(_v0, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
-    __m256i _v1_i = _mm256_cvtps_epi32(_mm256_round_ps(_v1, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC));
+    // _MM_FROUND_TO_NEAREST_INT round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m256 _p5 = _mm256_set1_ps(0.5f);
+    __m256 _signmask = _mm256_castsi256_ps(_mm256_set1_epi32(1 << 31));
+    __m256 _sign0 = _mm256_and_ps(_v0, _signmask);
+    __m256 _sign1 = _mm256_and_ps(_v1, _signmask);
+    __m256 _v0_p5 = _mm256_or_ps(_p5, _sign0);
+    __m256 _v1_p5 = _mm256_or_ps(_p5, _sign1);
+    __m256 _v0_adj = _mm256_add_ps(_v0, _v0_p5);
+    __m256 _v1_adj = _mm256_add_ps(_v1, _v1_p5);
+    __m256i _v0_i = _mm256_cvttps_epi32(_v0_adj);
+    __m256i _v1_i = _mm256_cvttps_epi32(_v1_adj);
 
+#if __AVX2__
     __m256i _v01_s16 = _mm256_packs_epi32(_v0_i, _v1_i);
     _v01_s16 = _mm256_permute4x64_epi64(_v01_s16, 0xd8);
 
@@ -279,18 +284,24 @@ static NCNN_FORCEINLINE __m128i float2int8_avx(const __m256& _v0, const __m256& 
     _v8 = _mm256_permute4x64_epi64(_v8, 0xd8);
 
     return _mm256_extractf128_si256(_v8, 0);
+#else  // __AVX2__
+    __m128i _v0_i_low = _mm256_extractf128_si256(_v0_i, 0);
+    __m128i _v0_i_high = _mm256_extractf128_si256(_v0_i, 1);
+    __m128i _v1_i_low = _mm256_extractf128_si256(_v1_i, 0);
+    __m128i _v1_i_high = _mm256_extractf128_si256(_v1_i, 1);
+
+    __m128i _v01_s16low = _mm_packs_epi32(_v0_i_low, _v0_i_high);
+    __m128i _v01_s16high = _mm_packs_epi32(_v1_i_low, _v1_i_high);
+
+    _v01_s16low = _mm_min_epi16(_v01_s16low, _mm_set1_epi16(127));
+    _v01_s16high = _mm_min_epi16(_v01_s16high, _mm_set1_epi16(127));
+    _v01_s16low = _mm_max_epi16(_v01_s16low, _mm_set1_epi16(-127));
+    _v01_s16high = _mm_max_epi16(_v01_s16high, _mm_set1_epi16(-127));
+
+    __m128i _v8 = _mm_packs_epi16(_v01_s16low, _v01_s16high);
+    return _v8;
+#endif // __AVX2__
 }
-#else
-static NCNN_FORCEINLINE void float2int8_loop(const __m256& _v0, signed char* output)
-{
-    float data_0[8];
-    _mm256_storeu_ps(data_0, _v0);
-    for (int i = 0; i < 8; i++)
-    {
-        output[i] = float2int8(data_0[i]);
-    }
-}
-#endif
 
 static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps4(__m256& _sum,
         const __m256& _w0, const __m256& _w1, const __m256& _w2, const __m256& _w3,

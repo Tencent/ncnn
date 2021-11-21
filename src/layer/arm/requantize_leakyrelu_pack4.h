@@ -149,186 +149,44 @@ static void requantize_leakyrelu_pack4_neon(const Mat& bottom_blob, Mat& top_blo
 #endif // __aarch64__
                 for (; i + 1 < size; i += 2)
                 {
-#if __aarch64__
                     float32x4_t _v00 = vcvtq_f32_s32(vld1q_s32(intptr0));
                     float32x4_t _v01 = vcvtq_f32_s32(vld1q_s32(intptr0 + 4));
                     float32x4_t _v10 = vcvtq_f32_s32(vld1q_s32(intptr1));
                     float32x4_t _v11 = vcvtq_f32_s32(vld1q_s32(intptr1 + 4));
+#if __aarch64__
                     _v00 = vfmaq_f32(_bias0, _v00, _scale0);
                     _v01 = vfmaq_f32(_bias0, _v01, _scale0);
                     _v10 = vfmaq_f32(_bias1, _v10, _scale1);
                     _v11 = vfmaq_f32(_bias1, _v11, _scale1);
+#else  // __aarch64__
+                    _v00 = vmlaq_f32(_bias0, _v00, _scale0);
+                    _v01 = vmlaq_f32(_bias0, _v01, _scale0);
+                    _v10 = vmlaq_f32(_bias1, _v10, _scale1);
+                    _v11 = vmlaq_f32(_bias1, _v11, _scale1);
+#endif // __aarch64__
                     vst1_s8(ptr, float2int8leakyrelu(_v00, _v10, _slope));
                     vst1_s8(ptr + 8, float2int8leakyrelu(_v01, _v11, _slope));
 
                     intptr0 += 8;
                     intptr1 += 8;
                     ptr += 16;
-#else  // __aarch64__
-                    asm volatile(
-                        "pld            [%0, #256]      \n"
-                        "vld1.s32       {d8-d11}, [%0 :128]! \n"
-                        "pld            [%1, #256]      \n"
-                        "vld1.s32       {d12-d15}, [%1 :128]! \n"
-
-                        "vmov           q0, %q8         \n"
-                        "vmov           q1, %q8         \n"
-                        "vmov           q2, %q9         \n"
-                        "vmov           q3, %q9         \n"
-
-                        "vcvt.f32.s32   q4, q4          \n"
-                        "vcvt.f32.s32   q5, q5          \n"
-                        "vcvt.f32.s32   q6, q6          \n"
-                        "vcvt.f32.s32   q7, q7          \n"
-
-                        "veor           q8, q8          \n" // _zero
-
-                        "vmla.f32       q0, q4, %q6     \n"
-                        "vmla.f32       q1, q5, %q6     \n"
-                        "vmla.f32       q2, q6, %q7     \n"
-                        "vmla.f32       q3, q7, %q7     \n"
-                        "vmul.f32       q4, q0, %q10    \n"
-                        "vmul.f32       q5, q1, %q10    \n"
-                        "vmul.f32       q6, q2, %q10    \n"
-                        "vmul.f32       q7, q3, %q10    \n"
-
-                        "vcvtr.s32.f32  s0, s0          \n"
-                        "vcvtr.s32.f32  s1, s1          \n"
-                        "vcvtr.s32.f32  s2, s2          \n"
-                        "vcvtr.s32.f32  s3, s3          \n"
-                        "vcvtr.s32.f32  s4, s4          \n"
-                        "vcvtr.s32.f32  s5, s5          \n"
-                        "vcvtr.s32.f32  s6, s6          \n"
-                        "vcvtr.s32.f32  s7, s7          \n"
-                        "vcvtr.s32.f32  s8, s8          \n"
-                        "vcvtr.s32.f32  s9, s9          \n"
-                        "vcvtr.s32.f32  s10, s10        \n"
-                        "vcvtr.s32.f32  s11, s11        \n"
-                        "vcvtr.s32.f32  s12, s12        \n"
-                        "vcvtr.s32.f32  s13, s13        \n"
-                        "vcvtr.s32.f32  s14, s14        \n"
-                        "vcvtr.s32.f32  s15, s15        \n"
-                        "vcvtr.s32.f32  s16, s16        \n"
-                        "vcvtr.s32.f32  s17, s17        \n"
-                        "vcvtr.s32.f32  s18, s18        \n"
-                        "vcvtr.s32.f32  s19, s19        \n"
-                        "vcvtr.s32.f32  s20, s20        \n"
-                        "vcvtr.s32.f32  s21, s21        \n"
-                        "vcvtr.s32.f32  s22, s22        \n"
-                        "vcvtr.s32.f32  s23, s23        \n"
-                        "vcvtr.s32.f32  s24, s24        \n"
-                        "vcvtr.s32.f32  s25, s25        \n"
-                        "vcvtr.s32.f32  s26, s26        \n"
-                        "vcvtr.s32.f32  s27, s27        \n"
-                        "vcvtr.s32.f32  s28, s28        \n"
-                        "vcvtr.s32.f32  s29, s29        \n"
-                        "vcvtr.s32.f32  s30, s30        \n"
-                        "vcvtr.s32.f32  s31, s31        \n"
-
-                        "vqmovn.s32     d0, q0          \n"
-                        "vqmovn.s32     d2, q1          \n"
-                        "vqmovn.s32     d1, q2          \n"
-                        "vqmovn.s32     d3, q3          \n"
-                        "vqmovn.s32     d8, q4          \n"
-                        "vqmovn.s32     d10, q5         \n"
-                        "vqmovn.s32     d9, q6          \n"
-                        "vqmovn.s32     d11, q7         \n"
-
-                        "vqmovn.s16     d0, q0          \n"
-                        "vqmovn.s16     d1, q2          \n"
-                        "vqmovn.s16     d8, q4          \n"
-                        "vqmovn.s16     d9, q6          \n"
-
-                        "vmax.s8        q0, q0, q4      \n"
-
-                        "vst1.s8        {d0-d1}, [%2 :64]! \n"
-
-                        : "=r"(intptr0),
-                        "=r"(intptr1),
-                        "=r"(ptr)
-                        : "0"(intptr0),
-                        "1"(intptr1),
-                        "2"(ptr),
-                        "w"(_scale0), // %6
-                        "w"(_scale1), // %7
-                        "w"(_bias0),  // %8
-                        "w"(_bias1),  // %9
-                        "w"(_slope)   // %10
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7");
-#endif // __aarch64__
                 }
                 for (; i < size; i++)
                 {
-#if __aarch64__
                     float32x4_t _v0 = vcvtq_f32_s32(vld1q_s32(intptr0));
                     float32x4_t _v1 = vcvtq_f32_s32(vld1q_s32(intptr1));
+#if __aarch64__
+                    _v0 = vfmaq_f32(_bias0, _v0, _scale0);
+                    _v1 = vfmaq_f32(_bias1, _v1, _scale1);
+#else  // __aarch64__
                     _v0 = vmlaq_f32(_bias0, _v0, _scale0);
                     _v1 = vmlaq_f32(_bias1, _v1, _scale1);
+#endif // __aarch64__
                     vst1_s8(ptr, float2int8leakyrelu(_v0, _v1, _slope));
 
                     intptr0 += 4;
                     intptr1 += 4;
                     ptr += 8;
-#else  // __aarch64__
-                    asm volatile(
-                        "pld            [%0, #128]      \n"
-                        "vld1.s32       {d8-d9}, [%0 :128]! \n"
-                        "pld            [%1, #128]      \n"
-                        "vld1.s32       {d10-d11}, [%1 :128]! \n"
-
-                        "vmov           q0, %q8         \n"
-                        "vmov           q1, %q9         \n"
-
-                        "vcvt.f32.s32   q4, q4          \n"
-                        "vcvt.f32.s32   q5, q5          \n"
-
-                        "vmla.f32       q0, q4, %q6     \n"
-                        "vmla.f32       q1, q5, %q7     \n"
-                        "vmul.f32       q2, q0, %q10    \n"
-                        "vmul.f32       q3, q1, %q10    \n"
-
-                        "vcvtr.s32.f32  s0, s0          \n"
-                        "vcvtr.s32.f32  s1, s1          \n"
-                        "vcvtr.s32.f32  s2, s2          \n"
-                        "vcvtr.s32.f32  s3, s3          \n"
-                        "vcvtr.s32.f32  s4, s4          \n"
-                        "vcvtr.s32.f32  s5, s5          \n"
-                        "vcvtr.s32.f32  s6, s6          \n"
-                        "vcvtr.s32.f32  s7, s7          \n"
-                        "vcvtr.s32.f32  s8, s8          \n"
-                        "vcvtr.s32.f32  s9, s9          \n"
-                        "vcvtr.s32.f32  s10, s10        \n"
-                        "vcvtr.s32.f32  s11, s11        \n"
-                        "vcvtr.s32.f32  s12, s12        \n"
-                        "vcvtr.s32.f32  s13, s13        \n"
-                        "vcvtr.s32.f32  s14, s14        \n"
-                        "vcvtr.s32.f32  s15, s15        \n"
-
-                        "vqmovn.s32     d8, q0          \n"
-                        "vqmovn.s32     d9, q1          \n"
-                        "vqmovn.s32     d10, q2         \n"
-                        "vqmovn.s32     d11, q3         \n"
-
-                        "vqmovn.s16     d8, q4          \n"
-                        "vqmovn.s16     d10, q5         \n"
-
-                        "vmax.s8        d8, d8, d10     \n"
-
-                        "vst1.s8        {d8}, [%2 :64]! \n"
-
-                        : "=r"(intptr0),
-                        "=r"(intptr1),
-                        "=r"(ptr)
-                        : "0"(intptr0),
-                        "1"(intptr1),
-                        "2"(ptr),
-                        "w"(_scale0), // %6
-                        "w"(_scale1), // %7
-                        "w"(_bias0),  // %8
-                        "w"(_bias1),  // %9
-                        "w"(_slope)   // %10
-                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5");
-#endif // __aarch64__
                 }
             }
         }
