@@ -1968,7 +1968,9 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         }
 #endif
 
-        top_blob.create(num_output, h * elempack / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+        int outh = h * elempack / out_elempack;
+
+        top_blob.create(num_output, outh, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -1985,11 +1987,11 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
             scale_data[p] = scale_in;
         }
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int j = 0; j < h; j++)
-        {
 #if __ARM_NEON
-            if (elempack == 8)
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < h; j++)
             {
                 float* outptr0 = top_blob.row(j * 2);
                 float* outptr1 = top_blob.row(j * 2 + 1);
@@ -2081,8 +2083,12 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
                     outptr1 += 4;
                 }
             }
+        }
 
-            if (elempack == 1 && out_elempack == 4)
+        if (elempack == 1 && out_elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < outh; j++)
             {
                 float* outptr = top_blob.row(j);
 
@@ -2179,9 +2185,13 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
                     outptr += 4;
                 }
             }
+        }
 #endif // __ARM_NEON
 
-            if (elempack == 1 && out_elempack == 1)
+        if (elempack == 1 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < outh; j++)
             {
                 float* outptr = top_blob.row(j);
 
