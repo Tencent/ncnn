@@ -1954,15 +1954,21 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
     }
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input && bottom_blob_int8.h * bottom_blob_int8.elempack > 1)
     {
         // gemm
-#if 1
-        int h = bottom_blob.h;
-        size_t elemsize = bottom_blob.elemsize;
-        int elempack = bottom_blob.elempack;
+        int h = bottom_blob_int8.h;
+        int elempack = bottom_blob_int8.elempack;
 
-        top_blob.create(num_output, h, (size_t)(4u * elempack), elempack, opt.blob_allocator);
+        int out_elempack = 1;
+#if __ARM_NEON
+        if (opt.use_packing_layout)
+        {
+            out_elempack = h * elempack % 4 == 0 ? 4 : 1;
+        }
+#endif
+
+        top_blob.create(num_output, h * elempack / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -1985,33 +1991,56 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
 #if __ARM_NEON
             if (elempack == 8)
             {
-                float* outptr = top_blob.row(j);
+                float* outptr0 = top_blob.row(j * 2);
+                float* outptr1 = top_blob.row(j * 2 + 1);
 
                 for (int p = 0; p < num_output; p++)
                 {
-                    const signed char* kptr = weight_data_int8.row<const signed char>(p);
+                    const signed char* kptr = (const signed char*)weight_data + num_input * p;
                     const signed char* m = bottom_blob_int8.row<const signed char>(j);
 
                     int32x4_t _sum0 = vdupq_n_s32(0);
                     int32x4_t _sum1 = vdupq_n_s32(0);
 
                     int i = 0;
+                    for (; i + 3 < num_input; i += 4)
+                    {
+                        int8x16_t _val0 = vld1q_s8(m);
+                        int8x16_t _val1 = vld1q_s8(m + 16);
+
+                        int8x8_t _w0 = vdup_n_s8(kptr[0]);
+                        int8x8_t _w1 = vdup_n_s8(kptr[1]);
+                        int8x8_t _w2 = vdup_n_s8(kptr[2]);
+                        int8x8_t _w3 = vdup_n_s8(kptr[3]);
+
+                        int16x8_t _s0 = vmull_s8(vget_low_s8(_val0), _w0);
+                        int16x8_t _s1 = vmull_s8(vget_low_s8(_val1), _w2);
+                        _s0 = vmlal_s8(_s0, vget_high_s8(_val0), _w1);
+                        _s1 = vmlal_s8(_s1, vget_high_s8(_val1), _w3);
+
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s1));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s1));
+
+                        m += 32;
+                        kptr += 4;
+                    }
                     for (; i + 1 < num_input; i += 2)
                     {
-                        int8x8_t _val0 = vdup_n_s8(m[0]);
-                        int8x8_t _val1 = vdup_n_s8(m[1]);
+                        int8x16_t _val0 = vld1q_s8(m);
 
-                        int8x8_t _w0 = vld1_s8(kptr);
-                        int8x8_t _w1 = vld1_s8(kptr + 8);
+                        int8x8_t _w0 = vdup_n_s8(kptr[0]);
+                        int8x8_t _w1 = vdup_n_s8(kptr[1]);
 
-                        int16x8_t _s0 = vmull_s8(_val0, _w0);
-                        _s0 = vmlal_s8(_s0, _val1, _w1);
+                        int16x8_t _s0 = vmull_s8(vget_low_s8(_val0), _w0);
+                        _s0 = vmlal_s8(_s0, vget_high_s8(_val0), _w1);
 
                         _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
                         _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
 
-                        m += 2;
-                        kptr += 16;
+                        m += 16;
+                        kptr += 2;
                     }
                     for (; i < num_input; i++)
                     {
@@ -2046,27 +2075,152 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
                     _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
                     _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
 
-                    vst1q_f32(outptr, _sumfp32_0);
-                    vst1q_f32(outptr + 4, _sumfp32_1);
-                    outptr += 8;
+                    vst1q_f32(outptr0, _sumfp32_0);
+                    vst1q_f32(outptr1, _sumfp32_1);
+                    outptr0 += 4;
+                    outptr1 += 4;
                 }
             }
-#endif // __ARM_NEON
 
-            if (elempack == 1)
+            if (elempack == 1 && out_elempack == 4)
             {
                 float* outptr = top_blob.row(j);
 
                 for (int p = 0; p < num_output; p++)
                 {
-                    const signed char* kptr = weight_data_int8.row<const signed char>(p);
+                    const signed char* kptr = (const signed char*)weight_data + num_input * p;
+                    const signed char* m0 = bottom_blob_int8.row<const signed char>(j * 4);
+                    const signed char* m1 = bottom_blob_int8.row<const signed char>(j * 4 + 1);
+                    const signed char* m2 = bottom_blob_int8.row<const signed char>(j * 4 + 2);
+                    const signed char* m3 = bottom_blob_int8.row<const signed char>(j * 4 + 3);
+
+                    int sum0 = 0;
+                    int sum1 = 0;
+                    int sum2 = 0;
+                    int sum3 = 0;
+
+                    int i = 0;
+
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    int32x4_t _sum1 = vdupq_n_s32(0);
+                    int32x4_t _sum2 = vdupq_n_s32(0);
+                    int32x4_t _sum3 = vdupq_n_s32(0);
+                    for (; i + 7 < num_input; i += 8)
+                    {
+                        int8x8_t _val0 = vld1_s8(m0);
+                        int8x8_t _val1 = vld1_s8(m1);
+                        int8x8_t _val2 = vld1_s8(m2);
+                        int8x8_t _val3 = vld1_s8(m3);
+                        int8x8_t _w = vld1_s8(kptr);
+
+                        int16x8_t _s0 = vmull_s8(_val0, _w);
+                        int16x8_t _s1 = vmull_s8(_val1, _w);
+                        int16x8_t _s2 = vmull_s8(_val2, _w);
+                        int16x8_t _s3 = vmull_s8(_val3, _w);
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_low_s16(_s1));
+                        _sum2 = vaddw_s16(_sum2, vget_low_s16(_s2));
+                        _sum3 = vaddw_s16(_sum3, vget_low_s16(_s3));
+                        _sum0 = vaddw_s16(_sum0, vget_high_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s1));
+                        _sum2 = vaddw_s16(_sum2, vget_high_s16(_s2));
+                        _sum3 = vaddw_s16(_sum3, vget_high_s16(_s3));
+
+                        m0 += 8;
+                        m1 += 8;
+                        m2 += 8;
+                        m3 += 8;
+                        kptr += 8;
+                    }
+#if __aarch64__
+                    sum0 = vaddvq_s32(_sum0);
+                    sum1 = vaddvq_s32(_sum1);
+                    sum2 = vaddvq_s32(_sum2);
+                    sum3 = vaddvq_s32(_sum3);
+#else
+                    int32x2_t _s20 = vadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0));
+                    int32x2_t _s21 = vadd_s32(vget_low_s32(_sum1), vget_high_s32(_sum1));
+                    int32x2_t _s22 = vadd_s32(vget_low_s32(_sum2), vget_high_s32(_sum2));
+                    int32x2_t _s23 = vadd_s32(vget_low_s32(_sum3), vget_high_s32(_sum3));
+                    int32x2_t _s201 = vpadd_s32(_s20, _s21);
+                    int32x2_t _s223 = vpadd_s32(_s22, _s23);
+                    sum0 = vget_lane_s32(_s201, 0);
+                    sum1 = vget_lane_s32(_s201, 1);
+                    sum2 = vget_lane_s32(_s223, 0);
+                    sum3 = vget_lane_s32(_s223, 1);
+#endif
+                    for (; i < num_input; i++)
+                    {
+                        sum0 += *m0++ * kptr[0];
+                        sum1 += *m1++ * kptr[0];
+                        sum2 += *m2++ * kptr[0];
+                        sum3 += *m3++ * kptr[0];
+                        kptr += 1;
+                    }
+
+                    // dequantize and relu
+                    float sumfp32_0 = sum0 * scale_data[p];
+                    float sumfp32_1 = sum1 * scale_data[p];
+                    float sumfp32_2 = sum2 * scale_data[p];
+                    float sumfp32_3 = sum3 * scale_data[p];
+
+                    if (bias_term)
+                    {
+                        sumfp32_0 += bias_data[p];
+                        sumfp32_1 += bias_data[p];
+                        sumfp32_2 += bias_data[p];
+                        sumfp32_3 += bias_data[p];
+                    }
+
+                    outptr[0] = activation_ss(sumfp32_0, activation_type, activation_params);
+                    outptr[1] = activation_ss(sumfp32_1, activation_type, activation_params);
+                    outptr[2] = activation_ss(sumfp32_2, activation_type, activation_params);
+                    outptr[3] = activation_ss(sumfp32_3, activation_type, activation_params);
+                    outptr += 4;
+                }
+            }
+#endif // __ARM_NEON
+
+            if (elempack == 1 && out_elempack == 1)
+            {
+                float* outptr = top_blob.row(j);
+
+                for (int p = 0; p < num_output; p++)
+                {
+                    const signed char* kptr = (const signed char*)weight_data + num_input * p;
                     const signed char* m = bottom_blob_int8.row<const signed char>(j);
 
                     int sum = 0;
 
-                    for (int i = 0; i < num_input; i++)
+                    int i = 0;
+#if __ARM_NEON
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    int32x4_t _sum1 = vdupq_n_s32(0);
+                    for (; i + 7 < num_input; i += 8)
                     {
-                        sum += m[i] * kptr[i];
+                        int8x8_t _val = vld1_s8(m);
+                        int8x8_t _w = vld1_s8(kptr);
+
+                        int16x8_t _s0 = vmull_s8(_val, _w);
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+
+                        m += 8;
+                        kptr += 8;
+                    }
+
+                    _sum0 = vaddq_s32(_sum0, _sum1);
+#if __aarch64__
+                    sum = vaddvq_s32(_sum0);
+#else
+                    int32x2_t _s2 = vadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0));
+                    _s2 = vpadd_s32(_s2, _s2);
+                    sum = vget_lane_s32(_s2, 0);
+#endif
+#endif // __ARM_NEON
+                    for (; i < num_input; i++)
+                    {
+                        sum += *m++ * *kptr++;
                     }
 
                     // dequantize and relu
@@ -2082,14 +2236,6 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         }
 
         return 0;
-#else
-        Mat bottom_blob_unpacked;
-        Option opt_unpack = opt;
-        opt_unpack.blob_allocator = opt.workspace_allocator;
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_unpack);
-
-        return forward_int8(bottom_blob_unpacked, top_blob, opt);
-#endif
     }
 
     Mat bottom_blob_int8_flattened = bottom_blob_int8;
