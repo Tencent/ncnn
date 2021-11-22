@@ -21,7 +21,7 @@ on:
     - 'src/layer/*'
     - 'src/layer/x86/**'
 env:
-  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
 jobs:
   ios-iphone-simulator:
     runs-on: macos-latest
