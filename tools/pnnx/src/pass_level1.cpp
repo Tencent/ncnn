@@ -18,6 +18,10 @@
 
 namespace pnnx {
 
+FuseModulePass::~FuseModulePass()
+{
+}
+
 void FuseModulePass::write(Operator* /*op*/, const std::shared_ptr<torch::jit::Graph>& /*graph*/) const
 {
 }

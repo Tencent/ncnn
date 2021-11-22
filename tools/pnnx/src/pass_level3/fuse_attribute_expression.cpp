@@ -42,8 +42,8 @@ void fuse_attribute_expression(Graph& graph)
             Operator* op3 = 0;
             Operator* op4 = 0;
 
-            float y;
-            float z;
+            float y = 0.f;
+            float z = 0.f;
 
             if (op2->type == "aten::add" || op2->type == "aten::sub")
             {

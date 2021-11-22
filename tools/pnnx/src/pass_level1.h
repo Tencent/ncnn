@@ -24,6 +24,8 @@ namespace pnnx {
 class FuseModulePass
 {
 public:
+    virtual ~FuseModulePass();
+
     virtual const char* match_type_str() const = 0;
 
     virtual const char* type_str() const = 0;
