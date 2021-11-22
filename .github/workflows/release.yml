@@ -5,7 +5,7 @@ on:
       - '*'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
   EMSCRIPTEN_VERSION: 2.0.8
 
 jobs:
@@ -1287,8 +1287,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/x86/bin
-        mkdir ${{ env.PACKAGENAME }}/x64/bin
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
@@ -1455,8 +1453,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/x86/bin
-        mkdir ${{ env.PACKAGENAME }}/x64/bin
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
@@ -1623,8 +1619,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/x86/bin
-        mkdir ${{ env.PACKAGENAME }}/x64/bin
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
