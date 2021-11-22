@@ -616,7 +616,7 @@ void visualize(const char* title, const ncnn::Mat& m)
 
 - ## 如何 batch inference？
 
-- ```
+```
    int max_batch_size = vkdev->info.compute_queue_count;
    
    ncnn::Mat inputs[1000];
@@ -629,7 +629,7 @@ void visualize(const char* title, const ncnn::Mat& m)
        ex.input("data", inputs[i]);
        ex.extract("prob", outputs[i]);
    }
-   ```
+```
 
    
 
