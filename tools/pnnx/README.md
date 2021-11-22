@@ -430,10 +430,10 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Bilinear                |   |
 |nn.CELU                    | :heavy_check_mark: |
 |nn.ChannelShuffle          | :heavy_check_mark: | :heavy_check_mark: |
-|nn.ConstantPad1d           | :heavy_check_mark: |
+|nn.ConstantPad1d           | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad2d           | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad3d           | :heavy_check_mark: |
-|nn.Conv1d                  | :heavy_check_mark: |
+|nn.Conv1d                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Conv2d                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Conv3d                  | :heavy_check_mark: |
 |nn.ConvTranspose1d         | :heavy_check_mark: |
@@ -494,11 +494,11 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.PixelShuffle            | :heavy_check_mark: | :heavy_check_mark: |
 |nn.PixelUnshuffle          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.PReLU                   | :heavy_check_mark: | :heavy_check_mark: |
-|nn.ReflectionPad1d         | :heavy_check_mark: |
+|nn.ReflectionPad1d         | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReflectionPad2d         | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReLU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReLU6                   | :heavy_check_mark: | :heavy_check_mark: |
-|nn.ReplicationPad1d        | :heavy_check_mark: |
+|nn.ReplicationPad1d        | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReplicationPad2d        | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ReplicationPad3d        | :heavy_check_mark: |
 |nn.RNN                     | :heavy_check_mark: | :heavy_check_mark:* |
