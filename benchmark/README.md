@@ -2142,4 +2142,137 @@ cooling_down = 0
            blazeface  min =  102.72  max =  104.18  avg =  103.51
            googlenet  min = 3652.89  max = 3705.40  avg = 3675.43
       googlenet_int8  min = 8067.30  max = 8070.22  avg = 8069.21
-      
+```
+### MacBook Pro (15-inch, 2019) - 2.6GHz six cores Intel Core i7 && Radeon Pro 555X 4GB && Intel UHD Graphics 630 1536MB
+```
+
+➜  benchmark git:(master) ✗ ./benchncnn 10 1 0 -1
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   14.68  max =   17.06  avg =   15.55
+     squeezenet_int8  min =   51.64  max =   57.85  avg =   54.01
+           mobilenet  min =   20.74  max =   25.38  avg =   22.77
+      mobilenet_int8  min =   66.84  max =   91.01  avg =   75.69
+        mobilenet_v2  min =   14.04  max =   20.06  avg =   16.36
+        mobilenet_v3  min =   11.89  max =   16.22  avg =   13.58
+          shufflenet  min =   13.74  max =   17.10  avg =   15.02
+       shufflenet_v2  min =   12.73  max =   14.36  avg =   13.53
+             mnasnet  min =   11.05  max =   17.79  avg =   13.82
+     proxylessnasnet  min =   12.60  max =   27.38  avg =   17.55
+     efficientnet_b0  min =   23.73  max =   26.82  avg =   25.45
+   efficientnetv2_b0  min =   27.03  max =   33.89  avg =   30.78
+        regnety_400m  min =   13.81  max =   21.50  avg =   15.40
+           blazeface  min =    3.72  max =    4.98  avg =    4.43
+           googlenet  min =   65.88  max =   76.62  avg =   69.40
+      googlenet_int8  min =  192.07  max =  227.85  avg =  203.81
+            resnet18  min =   79.45  max =   90.41  avg =   85.32
+       resnet18_int8  min =  201.71  max =  222.31  avg =  207.39
+             alexnet  min =   70.67  max =   80.13  avg =   74.43
+               vgg16  min =  233.74  max =  261.62  avg =  250.99
+          vgg16_int8  min = 1722.78  max = 1997.14  avg = 1772.71
+            resnet50  min =  130.39  max =  135.31  avg =  133.27
+       resnet50_int8  min =  439.69  max =  483.78  avg =  461.33
+      squeezenet_ssd  min =  108.54  max =  122.15  avg =  115.02
+ squeezenet_ssd_int8  min =  175.58  max =  185.09  avg =  181.33
+       mobilenet_ssd  min =   51.89  max =   59.32  avg =   54.30
+  mobilenet_ssd_int8  min =  140.15  max =  192.10  avg =  164.47
+      mobilenet_yolo  min =  117.37  max =  131.89  avg =  126.34
+  mobilenetv2_yolov3  min =   57.57  max =   72.29  avg =   64.92
+         yolov4-tiny  min =  114.45  max =  123.15  avg =  116.91
+           nanodet_m  min =   25.65  max =   33.27  avg =   28.75
+
+➜  benchmark git:(master) ✗ ./benchncnn 10 1 0 0
+[0 AMD Radeon Pro 555X]  queueC=0[1]  queueG=0[1]  queueT=0[1]
+[0 AMD Radeon Pro 555X]  bugsbn1=0  bugbilz=196  bugcopc=0  bugihfa=0
+[0 AMD Radeon Pro 555X]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[0 AMD Radeon Pro 555X]  subgroup=64  basic=0  vote=0  ballot=0  shuffle=0
+[1 Intel(R) UHD Graphics 630]  queueC=0[1]  queueG=0[1]  queueT=0[1]
+[1 Intel(R) UHD Graphics 630]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 Intel(R) UHD Graphics 630]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[1 Intel(R) UHD Graphics 630]  subgroup=32  basic=0  vote=0  ballot=0  shuffle=0
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = 0
+cooling_down = 1
+          squeezenet  min =    6.66  max =    7.30  avg =    6.91
+     squeezenet_int8  min =   49.97  max =   60.92  avg =   53.86
+           mobilenet  min =    6.99  max =    7.48  avg =    7.17
+      mobilenet_int8  min =   70.46  max =   83.20  avg =   79.33
+        mobilenet_v2  min =    9.56  max =   10.87  avg =   10.34
+        mobilenet_v3  min =   11.48  max =   12.20  avg =   11.94
+          shufflenet  min =    4.52  max =    5.25  avg =    4.96
+       shufflenet_v2  min =    7.29  max =    9.65  avg =    7.99
+             mnasnet  min =    9.82  max =   11.88  avg =   10.62
+     proxylessnasnet  min =    7.85  max =    8.41  avg =    8.07
+     efficientnet_b0  min =   17.34  max =   17.85  avg =   17.56
+   efficientnetv2_b0  min =   21.95  max =   24.10  avg =   23.15
+        regnety_400m  min =   13.54  max =   14.83  avg =   14.11
+           blazeface  min =    3.26  max =    6.59  avg =    5.50
+           googlenet  min =   17.62  max =   19.47  avg =   18.27
+      googlenet_int8  min =  198.88  max =  247.97  avg =  223.31
+            resnet18  min =   11.10  max =   12.01  avg =   11.59
+       resnet18_int8  min =  225.56  max =  259.39  avg =  238.97
+             alexnet  min =   17.66  max =   19.19  avg =   18.24
+               vgg16  min =   53.20  max =   54.88  avg =   53.73
+          vgg16_int8  min = 1747.52  max = 2130.08  avg = 1880.42
+            resnet50  min =   27.38  max =   28.84  avg =   28.34
+       resnet50_int8  min =  461.86  max =  579.83  avg =  528.15
+      squeezenet_ssd  min =   19.99  max =   20.98  avg =   20.50
+ squeezenet_ssd_int8  min =  185.20  max =  209.66  avg =  196.81
+       mobilenet_ssd  min =   12.81  max =   14.21  avg =   13.48
+  mobilenet_ssd_int8  min =  139.29  max =  168.38  avg =  148.20
+      mobilenet_yolo  min =   19.50  max =   20.51  avg =   19.97
+  mobilenetv2_yolov3  min =   15.95  max =   19.28  avg =   16.85
+         yolov4-tiny  min =   21.43  max =   23.42  avg =   22.28
+           nanodet_m  min =    7.95  max =    9.23  avg =    8.48
+
+➜  benchmark git:(master) ✗ ./benchncnn 10 1 0 1
+[0 AMD Radeon Pro 555X]  queueC=0[1]  queueG=0[1]  queueT=0[1]
+[0 AMD Radeon Pro 555X]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[0 AMD Radeon Pro 555X]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[0 AMD Radeon Pro 555X]  subgroup=64  basic=0  vote=0  ballot=0  shuffle=0
+[1 Intel(R) UHD Graphics 630]  queueC=0[1]  queueG=0[1]  queueT=0[1]
+[1 Intel(R) UHD Graphics 630]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
+[1 Intel(R) UHD Graphics 630]  fp16-p/s/a=1/1/1  int8-p/s/a=1/1/1
+[1 Intel(R) UHD Graphics 630]  subgroup=32  basic=0  vote=0  ballot=0  shuffle=0
+loop_count = 10
+num_threads = 1
+powersave = 0
+gpu_device = 1
+cooling_down = 1
+          squeezenet  min =   11.06  max =   13.22  avg =   12.09
+     squeezenet_int8  min =   54.87  max =   64.55  avg =   59.84
+           mobilenet  min =   13.65  max =   16.70  avg =   14.81
+      mobilenet_int8  min =   72.36  max =   93.58  avg =   86.40
+        mobilenet_v2  min =   11.88  max =   15.90  avg =   13.47
+        mobilenet_v3  min =   12.68  max =   16.16  avg =   14.56
+          shufflenet  min =   13.87  max =   16.68  avg =   14.93
+       shufflenet_v2  min =   11.73  max =   13.65  avg =   12.87
+             mnasnet  min =   12.71  max =   15.56  avg =   14.22
+     proxylessnasnet  min =   14.03  max =   17.28  avg =   15.37
+     efficientnet_b0  min =   17.50  max =   21.46  avg =   19.30
+   efficientnetv2_b0  min =   35.47  max =   38.58  avg =   36.89
+        regnety_400m  min =   16.00  max =   19.45  avg =   17.48
+           blazeface  min =    6.08  max =    7.18  avg =    6.39
+           googlenet  min =   23.35  max =   29.68  avg =   25.77
+      googlenet_int8  min =  198.49  max =  254.38  avg =  222.77
+            resnet18  min =   21.85  max =   28.10  avg =   24.70
+       resnet18_int8  min =  211.21  max =  279.55  avg =  222.64
+             alexnet  min =   24.45  max =   30.47  avg =   26.87
+               vgg16  min =  115.20  max =  117.76  avg =  116.48
+          vgg16_int8  min = 1715.92  max = 1960.02  avg = 1800.21
+            resnet50  min =   45.65  max =   46.25  avg =   46.05
+       resnet50_int8  min =  448.13  max =  555.53  avg =  485.47
+      squeezenet_ssd  min =   28.43  max =   33.26  avg =   29.85
+ squeezenet_ssd_int8  min =  180.91  max =  202.51  avg =  190.84
+       mobilenet_ssd  min =   21.03  max =   26.93  avg =   23.48
+  mobilenet_ssd_int8  min =  154.41  max =  184.64  avg =  165.04
+      mobilenet_yolo  min =   37.04  max =   38.64  avg =   37.52
+  mobilenetv2_yolov3  min =   24.98  max =   30.03  avg =   27.70
+         yolov4-tiny  min =   39.29  max =   50.25  avg =   44.18
+           nanodet_m  min =   15.97  max =   20.27  avg =   17.93
+```
