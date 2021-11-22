@@ -45,7 +45,7 @@ static void shift(int w, int h, int stride, std::vector<float> anchor_points, st
         y_.push_back(y);
     }
 
-    std::vector<float> shift_x(w * h, 0), shift_y(w * h, 0);
+    std::vector<float> shift_x((size_t)w * h, 0), shift_y((size_t)w * h, 0);
     for (int i = 0; i < h; i++)
     {
         for (int j = 0; j < w; j++)
@@ -61,14 +61,14 @@ static void shift(int w, int h, int stride, std::vector<float> anchor_points, st
         }
     }
 
-    std::vector<float> shifts(w * h * 2, 0);
+    std::vector<float> shifts((size_t)w * h * 2, 0);
     for (int i = 0; i < w * h; i++)
     {
         shifts[i * 2] = shift_x[i];
         shifts[i * 2 + 1] = shift_y[i];
     }
 
-    shifted_anchor_points.resize(2 * w * h * anchor_points.size() / 2, 0);
+    shifted_anchor_points.resize((size_t)2 * w * h * anchor_points.size() / 2, 0);
     for (int i = 0; i < w * h; i++)
     {
         for (int j = 0; j < anchor_points.size() / 2; j++)
@@ -96,7 +96,7 @@ static void generate_anchor_points(int stride, int row, int line, std::vector<fl
         float y = (i - 0.5) * row_step - stride / 2;
         y_.push_back(y);
     }
-    std::vector<float> shift_x(row * line, 0), shift_y(row * line, 0);
+    std::vector<float> shift_x((size_t)row * line, 0), shift_y((size_t)row * line, 0);
     for (int i = 0; i < row; i++)
     {
         for (int j = 0; j < line; j++)
@@ -111,7 +111,7 @@ static void generate_anchor_points(int stride, int row, int line, std::vector<fl
             shift_y[i * line + j] = y_[i];
         }
     }
-    anchor_points.resize(row * line * 2, 0);
+    anchor_points.resize((size_t)row * line * 2, 0);
     for (int i = 0; i < row * line; i++)
     {
         float x = shift_x[i];
