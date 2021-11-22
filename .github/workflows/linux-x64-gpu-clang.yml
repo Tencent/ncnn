@@ -12,6 +12,7 @@ on:
     - 'src/layer/vulkan/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
   pull_request:
     branches: [master]
@@ -25,6 +26,7 @@ on:
     - 'src/layer/vulkan/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
 jobs:
   linux-clang-gpu:

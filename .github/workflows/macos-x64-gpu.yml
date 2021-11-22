@@ -12,6 +12,7 @@ on:
     - 'src/layer/vulkan/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
   pull_request:
     branches: [master]
@@ -25,6 +26,7 @@ on:
     - 'src/layer/vulkan/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
