@@ -5,11 +5,13 @@ on:
     paths:
     - '.github/workflows/pnnx.yml'
     - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
   pull_request:
     branches: [master]
     paths:
     - '.github/workflows/pnnx.yml'
     - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
 jobs:
   ubuntu:
     runs-on: ubuntu-20.04
