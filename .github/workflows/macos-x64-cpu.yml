@@ -25,7 +25,7 @@ on:
     - 'tools/**'
     - 'examples/**'
 env:
-  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
 jobs:
   macos-clang:
     runs-on: macos-latest
