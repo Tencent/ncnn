@@ -122,8 +122,6 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 op->attrs[name] = sub_mod.attr(name).toTensor();
             }
-
-            continue;
         }
         else if (n->kind() == c10::prim::Constant) // || n->kind() == c10::prim::ListConstruct)
         {
@@ -158,33 +156,8 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 op->attrs[name] = n->t(torch::jit::attr::value);
             }
-
-            continue;
         }
-
-        switch (n->kind())
-        {
-        //         case c10::prim::CallFunction:
-        //         {
-        //             fprintf(stderr, "function %s", n->kind().toDisplayString());
-
-        //             AT_ASSERT(cur->input(0)->node()->kind() == c10::prim::Constant);
-        //             auto function_constant = cur->input(0)->node();
-        //             auto fun_type = function_constant->output()->type()->expect<torch::jit::FunctionType>();
-        //             if (!fun_type->function()->isGraphFunction())
-        //             {
-        //                 continue;
-        //             }
-        //             cur->removeInput(0);
-
-        //             fprintf(stderr, "inline funtion %s\n", fun_type->function()->name().c_str());
-
-        //             GRAPH_UPDATE("Inlining function '", fun_type->function()->name(), "' to ", *cur);
-        //             GRAPH_UPDATE("Function body: ", *fun_type->function()->optimized_graph());
-        //             inlineCallTo(cur, fun_type->function(), false);
-        //             break;
-        //         }
-        case c10::prim::CallMethod:
+        else if (n->kind() == c10::prim::CallMethod)
         {
             auto class_type = n->input(0)->type()->cast<torch::jit::ClassType>();
             //             const std::string& name = n->s(torch::jit::attr::name);
@@ -263,23 +236,31 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 break;
             }
-
-            break;
         }
-        default:
+        // else if (n->kind() == c10::prim::CallFunction)
+        // {
+        //     fprintf(stderr, "function %s", n->kind().toDisplayString());
+        //
+        //     AT_ASSERT(cur->input(0)->node()->kind() == c10::prim::Constant);
+        //     auto function_constant = cur->input(0)->node();
+        //     auto fun_type = function_constant->output()->type()->expect<torch::jit::FunctionType>();
+        //     if (!fun_type->function()->isGraphFunction())
+        //     {
+        //         continue;
+        //     }
+        //     cur->removeInput(0);
+        //
+        //     fprintf(stderr, "inline funtion %s\n", fun_type->function()->name().c_str());
+        //
+        //     GRAPH_UPDATE("Inlining function '", fun_type->function()->name(), "' to ", *cur);
+        //     GRAPH_UPDATE("Function body: ", *fun_type->function()->optimized_graph());
+        //     inlineCallTo(cur, fun_type->function(), false);
+        //     break;
+        // }
+        else
         {
             char name[32];
             sprintf(name, "pnnx_%d", pnnx_unknown_index++);
-
-            //             if (n->kind().toDisplayString() == std::string("quantized::cat"))
-            //             {
-            //
-            //             for (auto aa : n->schema().arguments())
-            //             {
-            //                 fprintf(stderr, "%s arg %s\n", n->kind().toDisplayString(), aa.name().c_str());
-            //             }
-            //
-            //             }
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
@@ -298,9 +279,6 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 r->producer = op;
                 op->outputs.push_back(r);
             }
-
-            break;
-        }
         }
     }
 
