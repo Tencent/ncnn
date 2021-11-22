@@ -2,6 +2,9 @@
 
 # 如何加入技术交流QQ群？
 
+- 打开QQ→点击群聊搜索→搜索群号637093648→输入问题答案：卷卷卷卷卷→进入群聊→准备接受图灵测试（bushi）
+- 前往QQ搜索Pocky群：677104663(超多大佬)，问题答案：multi level intermediate representation
+
 # 如何看作者b站直播？
    
 - nihui的bilibili直播间：[水竹院落](https://live.bilibili.com/1264617)
@@ -257,10 +260,10 @@
 - ## 多个blob输入，多个blob输出，怎么做？
    多次执行`ex.input()` 和 `ex.extract()`
 ```
-ex.input("data1", in);
-ex.input("data2", in);
-ex.extract("output1", out);
-ex.extract("output2", out);
+ex.input("data1", in_1);
+ex.input("data2", in_2);
+ex.extract("output1", out_1);
+ex.extract("output2", out_2);
 ```
 - ## Extractor extract 多次会重复计算吗？
 
