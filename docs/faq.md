@@ -6,7 +6,7 @@
 - 前往QQ搜索Pocky群：677104663(超多大佬)，问题答案：multi level intermediate representation
 
 # 如何看作者b站直播？
-   
+
 - nihui的bilibili直播间：[水竹院落](https://live.bilibili.com/1264617)
 
 # 编译
@@ -20,7 +20,7 @@
    下载 [ncnn-xxxxx-full-source.zip](https://github.com/Tencent/ncnn/releases)
 
 - ## 怎么交叉编译？cmake 工具链怎么设置啊？
-   
+  
    参见 https://github.com/Tencent/ncnn/wiki/how-to-build
 
 - ## The submodules were not downloaded! Please update submodules with "git submodule update --init" and try again
@@ -28,7 +28,7 @@
    如上，下载完整源码。或者按提示执行: git submodule update --init
 
 - ## Could NOT find Protobuf (missing: Protobuf_INCLUDE_DIR)
-   
+  
    sudo apt-get install libprotobuf-dev protobuf-compiler
 
 - ## Could NOT find CUDA (missing: CUDA_TOOLKIT_ROOT_DIR CUDA_INCLUDE_DIRS CUDA_CUDART_LIBRARY)
@@ -201,14 +201,14 @@
 - ## pytorch 有的层导不出 onnx 怎么办？
 
  方式一:
- 
+
    ONNX_ATEN_FALLBACK
 完全自定义的op，先改成能导出的（如 concat slice），转到 ncnn 后再修改 param
 
  方式二：
- 
+
  可以使用PNNX来试试，参考以下文章大概说明:
- 
+
    1. [Windows/Linux/macOS 编译 PNNX 步骤](https://zhuanlan.zhihu.com/p/431833958)
 
    2. [5分钟学会！用 PNNX 转换 TorchScript 模型到 ncnn 模型](https://zhuanlan.zhihu.com/p/427512763)
@@ -357,7 +357,7 @@ ncnn::warpaffine_bilinear_c3(pSrc, SrcWidth, SrcHeight, SrcStride, pDst, DstWidt
 ```
 
 - ## 如何获得中间层的blob输出
-   
+  
    ncnn::Mat output;
    
    ex.extract("your_blob_name", output);
@@ -438,7 +438,7 @@ net.register_custom_layer("MAERegressionOutput", Noop_layer_creator);
    for g++:
 
       setenv("OMP_WAIT_POLICY", "passive", 1)
-    
+   
       reference: https://stackoverflow.com/questions/34439956/vc-crash-when-freeing-a-dll-built-with-openmp
 
 # 跑出来的结果对不上
@@ -597,7 +597,7 @@ void visualize(const char* title, const ncnn::Mat& m)
    使用方式二：
     - ./ncnnoptimize ncnn.param ncnn.bin new.param new.bin flag cutstartname cutendname
     <br/>cutstartname：模型截取的起点
-    <br/>cutendname：模型截取的终点
+     <br/>cutendname：模型截取的终点
 
 
 - ## 如何使用量化工具？
@@ -615,6 +615,23 @@ void visualize(const char* title, const ncnn::Mat& m)
    OMP_WAIT_POLICY=passive
 
 - ## 如何 batch inference？
+
+```
+   int max_batch_size = vkdev->info.compute_queue_count;
+   
+   ncnn::Mat inputs[1000];
+   ncnn::Mat outputs[1000];
+   
+   #pragma omp parallel for num_threads(max_batch_size)
+   for (int i=0; i<1000; i++)
+   {
+       ncnn::Extractor ex = net1.create_extractor();
+       ex.input("data", inputs[i]);
+       ex.extract("prob", outputs[i]);
+   }
+```
+
+   
 
 - ## partial graph inference
 
