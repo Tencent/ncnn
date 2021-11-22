@@ -59,7 +59,7 @@ torch.jit.save(mod, "resnet18.pt")
 pnnx resnet18.pt inputshape=[1,3,224,224]
 ```
 
-Normally, you will get five files
+Normally, you will get six files
 
 ```resnet18.pnnx.param``` PNNX graph definition
 
@@ -70,6 +70,8 @@ Normally, you will get five files
 ```resnet18.ncnn.param``` ncnn graph definition
 
 ```resnet18.ncnn.bin``` ncnn model weight
+
+```resnet18_ncnn.py``` pyncnn script for inference
 
 3. Visualize PNNX with Netron
 
@@ -136,7 +138,7 @@ For example, ```nn.Conv2d       conv_0      1 1 0 1 bias=1 dilation=(1,1) groups
 
 weight binaries can be listed or modified with any archive application eg. 7zip
 
-![pnnx.bin](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/pnnx.bin.png)
+![pnnx.bin](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/pnnx.bin.png)
 
 # PNNX operator
 PNNX always preserve operators from what PyTorch python api provides.
@@ -160,7 +162,7 @@ class Model(nn.Module):
 
 |ONNX|TorchScript|PNNX|
 |----|---|---|
-|![MultiheadAttention.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.onnx.png)|![MultiheadAttention.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.pt.png)|![MultiheadAttention.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/MultiheadAttention.pnnx.png)|
+|![MultiheadAttention.onnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/MultiheadAttention.onnx.png)|![MultiheadAttention.pt](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/MultiheadAttention.pt.png)|![MultiheadAttention.pnnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/MultiheadAttention.pnnx.png)|
 
 # PNNX expression operator
 PNNX trys to preserve expression from what PyTorch python code writes.
@@ -176,7 +178,7 @@ def foo(x, y):
 
 |ONNX|TorchScript|PNNX|
 |---|---|---|
-|![math.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.onnx.png)|![math.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pt.png)|![math.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/math.pnnx.png)|
+|![math.onnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/math.onnx.png)|![math.pt](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/math.pt.png)|![math.pnnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/math.pnnx.png)|
 
 # PNNX torch function operator
 PNNX trys to preserve torch functions and Tensor member functions as one operator from what PyTorch python api provides.
@@ -198,7 +200,7 @@ class Model(nn.Module):
 
 |ONNX|TorchScript|PNNX|
 |---|---|---|
-|![function.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.onnx.png)|![function.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pt.png)|![function.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/function.pnnx.png)|
+|![function.onnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/function.onnx.png)|![function.pt](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/function.pt.png)|![function.pnnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/function.pnnx.png)|
 
 
 # PNNX module operator
@@ -241,7 +243,7 @@ class Focus(nn.Module):
 
 |ONNX|TorchScript|PNNX|PNNX with module operator|
 |---|---|---|---|
-|![focus.onnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.onnx.png)|![focus.pt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pt.png)|![focus.pnnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pnnx.png)|![focus.pnnx2](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/focus.pnnx2.png)|
+|![focus.onnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/focus.onnx.png)|![focus.pt](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/focus.pt.png)|![focus.pnnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/focus.pnnx.png)|![focus.pnnx2](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/focus.pnnx2.png)|
 
 
 # PNNX python inference
@@ -342,14 +344,14 @@ def channel_shuffle(x: Tensor, groups: int) -> Tensor:
 
 |without shape propagation|with shape propagation|
 |---|---|
-|![noshapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/noshapeinfer.png)|![shapeinfer](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/shapeinfer.pnnx.png)|
+|![noshapeinfer](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/noshapeinfer.png)|![shapeinfer](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/shapeinfer.pnnx.png)|
 
 
 # PNNX model optimization
 
 |ONNX|TorchScript|PNNX without optimization|PNNX with optimization|
 |---|---|---|---|
-|![optlessonnx](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/optless.onnx.png)|![optlesspt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/optless.pt.png)|![optless](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/optless.pnnx.png)|![opt](https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/opt.pnnx.png)|
+|![optlessonnx](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/optless.onnx.png)|![optlesspt](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/optless.pt.png)|![optless](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/optless.pnnx.png)|![opt](https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/opt.pnnx.png)|
 
 
 # PNNX custom operator
@@ -406,7 +408,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 }
 ```
 
-<img src="https://raw.githubusercontent.com/nihui/ncnn/pnnx/tools/pnnx/assets/customop.pnnx.png" width="400" />
+<img src="https://raw.githubusercontent.com/nihui/ncnn-assets/master/pnnx/customop.pnnx.png" width="400" />
 
 # Supported PyTorch operator status
 
@@ -442,7 +444,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Dropout2d               |   |
 |nn.Dropout3d               |   |
 |nn.ELU                     | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Embedding               |   |
+|nn.Embedding               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.EmbeddingBag            |   |
 |nn.Flatten                 | :heavy_check_mark: |
 |nn.Fold                    |   |
@@ -574,7 +576,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.hardtanh                 | :heavy_check_mark: | :heavy_check_mark: |
 |F.hardtanh_                | :heavy_check_mark: | :heavy_check_mark: |
 |F.instance_norm            | :heavy_check_mark: | :heavy_check_mark: |
-|F.interpolate              | :heavy_check_mark: |
+|F.interpolate              | :heavy_check_mark: | :heavy_check_mark: |
 |F.layer_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.leaky_relu               | :heavy_check_mark: | :heavy_check_mark: |
 |F.leaky_relu_              | :heavy_check_mark: | :heavy_check_mark: |
@@ -618,5 +620,5 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.threshold_               | :heavy_check_mark: |
 |F.unfold                   |  |
 |F.upsample                 | :heavy_check_mark: | :heavy_check_mark: |
-|F.upsample_bilinear        | :heavy_check_mark: |
-|F.upsample_nearest         | :heavy_check_mark: |
+|F.upsample_bilinear        | :heavy_check_mark: | :heavy_check_mark: |
+|F.upsample_nearest         | :heavy_check_mark: | :heavy_check_mark: |
