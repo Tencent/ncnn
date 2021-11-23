@@ -20,9 +20,12 @@ namespace pnnx {
 
 namespace ncnn {
 
-void solve_batch_index_backward(Operand* operand);
-void solve_batch_index_forward(Operand* operand)
+static void solve_batch_index_backward(Operand* operand);
+static void solve_batch_index_forward(Operand* operand)
 {
+    if (operand->params.find("__batch_index") == operand->params.end())
+        return;
+
     int batch_index = operand->params["__batch_index"].i;
 
     for (Operator* op : operand->consumers)
@@ -52,31 +55,6 @@ void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
-        else if (op->type == "nn.RNN" || op->type == "nn.LSTM" || op->type == "nn.GRU")
-        {
-            {
-                Operand* r = op->outputs[0];
-                if (r->params.find("__batch_index") != r->params.end())
-                    continue;
-
-                r->params["__batch_index"] = batch_index;
-
-                solve_batch_index_forward(r);
-                solve_batch_index_backward(r);
-            }
-
-            for (size_t i = 1; i < op->outputs.size(); i++)
-            {
-                Operand* r = op->outputs[i];
-                if (r->params.find("__batch_index") != r->params.end())
-                    continue;
-
-                r->params["__batch_index"] = 1;
-
-                solve_batch_index_forward(r);
-                solve_batch_index_backward(r);
-            }
-        }
         else
         {
             for (Operand* r : op->outputs)
@@ -93,13 +71,16 @@ void solve_batch_index_forward(Operand* operand)
     }
 }
 
-void solve_batch_index_backward(Operand* operand)
+static void solve_batch_index_backward(Operand* operand)
 {
+    if (operand->params.find("__batch_index") == operand->params.end())
+        return;
+
     int batch_index = operand->params["__batch_index"].i;
 
     Operator* op = operand->producer;
 
-    if (op->type == "torch.permute")
+    if (op->type == "torch.permute" || op->type == "Tensor.permute")
     {
         const std::vector<int>& dims = op->params.at("dims").ai;
 
@@ -133,19 +114,183 @@ void solve_batch_index_backward(Operand* operand)
 
 void solve_batch_index(Graph& graph)
 {
-    // assign input and ongoing
-    for (int i = 0; i < (int)graph.ops.size(); i++)
+    static const char* operator_with_batch_index_0[] =
     {
-        Operator* op = graph.ops[i];
+        "F.adaptive_avg_pool1d",
+        "F.adaptive_avg_pool2d",
+        "F.adaptive_avg_pool3d",
+        "F.adaptive_max_pool1d",
+        "F.adaptive_max_pool2d",
+        "F.adaptive_max_pool3d",
+        "F.affine_grid",
+        "F.avg_pool1d",
+        "F.avg_pool2d",
+        "F.avg_pool3d",
+        "F.batch_norm",
+        "F.conv_transpose1d",
+        "F.conv_transpose2d",
+        "F.conv_transpose3d",
+        "F.conv1d",
+        "F.conv2d",
+        "F.conv3d",
+        "F.grid_sample",
+        "F.group_norm",
+        "F.instance_norm",
+        "F.interpolate",
+        "F.linear",
+        "F.local_response_norm",
+        "F.lp_pool1d",
+        "F.lp_pool2d",
+        "F.max_pool1d",
+        "F.max_pool2d",
+        "F.max_pool3d",
+        "F.pixel_shuffle",
+        "F.pixel_unshuffle",
+        "F.prelu",
+        "F.upsample_bilinear",
+        "F.upsample_nearest",
+        "F.upsample",
 
+        "nn.AdaptiveAvgPool1d",
+        "nn.AdaptiveAvgPool2d",
+        "nn.AdaptiveAvgPool3d",
+        "nn.AdaptiveMaxPool1d",
+        "nn.AdaptiveMaxPool2d",
+        "nn.AdaptiveMaxPool3d",
+        "nn.AvgPool1d",
+        "nn.AvgPool2d",
+        "nn.AvgPool3d",
+        "nn.BatchNorm1d",
+        "nn.BatchNorm2d",
+        "nn.BatchNorm3d",
+        "nn.ChannelShuffle",
+        "nn.ConstantPad1d",
+        "nn.ConstantPad2d",
+        "nn.ConstantPad3d",
+        "nn.Conv1d",
+        "nn.Conv2d",
+        "nn.Conv3d",
+        "nn.ConvTranspose1d",
+        "nn.ConvTranspose2d",
+        "nn.ConvTranspose3d",
+        "nn.GroupNorm",
+        "nn.InstanceNorm1d",
+        "nn.InstanceNorm2d",
+        "nn.InstanceNorm3d",
+        "nn.Linear",
+        "nn.LocalResponseNorm",
+        "nn.LPPool1d",
+        "nn.LPPool2d",
+        "nn.MaxPool1d",
+        "nn.MaxPool2d",
+        "nn.MaxPool3d",
+        "nn.PixelShuffle",
+        "nn.PixelUnshuffle",
+        "nn.PReLU",
+        "nn.ReflectionPad1d",
+        "nn.ReflectionPad2d",
+        "nn.ReplicationPad1d",
+        "nn.ReplicationPad2d",
+        "nn.ReplicationPad3d",
+        "nn.Upsample",
+        "nn.UpsamplingBilinear2d",
+        "nn.UpsamplingNearest2d",
+        "nn.ZeroPad2d",
+    };
+
+    // assign known operator
+    for (Operator* op : graph.ops)
+    {
+        const size_t operator_with_batch_index_0_count = sizeof(operator_with_batch_index_0) / sizeof(const char*);
+
+        for (size_t i = 0; i < operator_with_batch_index_0_count; i++)
+        {
+            if (op->type == operator_with_batch_index_0[i])
+            {
+                op->inputs[0]->params["__batch_index"] = 0;
+                op->outputs[0]->params["__batch_index"] = 0;
+                break;
+            }
+        }
+
+        if (op->type == "nn.RNN" || op->type == "nn.LSTM" || op->type == "nn.GRU" || op->type == "nn.MultiheadAttention")
+        {
+            bool batch_first = false;
+            if (op->params.find("batch_first") != op->params.end())
+            {
+                batch_first = op->params["batch_first"].b;
+            }
+
+            op->inputs[0]->params["__batch_index"] = batch_first ? 0 : 1;
+            op->outputs[0]->params["__batch_index"] = batch_first ? 0 : 1;
+
+            for (size_t j = 1; j < op->inputs.size(); j++)
+            {
+                op->inputs[j]->params["__batch_index"] = 1;
+            }
+
+            for (size_t j = 1; j < op->outputs.size(); j++)
+            {
+                op->outputs[j]->params["__batch_index"] = 1;
+            }
+        }
+    }
+
+    // batch index propagate
+    for (Operator* op : graph.ops)
+    {
+        for (Operand* r : op->inputs)
+        {
+            solve_batch_index_backward(r);
+        }
+
+        for (Operand* r : op->outputs)
+        {
+            solve_batch_index_forward(r);
+        }
+    }
+
+    // fallback axis 0 for inputs
+    for (Operator* op : graph.ops)
+    {
         if (op->type != "pnnx.Input")
             continue;
 
         for (Operand* r : op->outputs)
         {
-            r->params["__batch_index"] = 0;
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                fprintf(stderr, "fallback batch axis 0 for input operand %s\n", r->name.c_str());
+                r->params["__batch_index"] = 0;
+                solve_batch_index_forward(r);
+            }
+        }
+    }
 
-            solve_batch_index_forward(r);
+    // fallback axis 0 for outputs
+    for (Operator* op : graph.ops)
+    {
+        if (op->type != "pnnx.Output")
+            continue;
+
+        for (Operand* r : op->inputs)
+        {
+            if (r->params.find("__batch_index") == r->params.end())
+            {
+                fprintf(stderr, "fallback batch axis 0 for output operand %s\n", r->name.c_str());
+                r->params["__batch_index"] = 0;
+                solve_batch_index_backward(r);
+            }
+        }
+    }
+
+    // fallback axis 0 for unknown
+    for (Operand* r : graph.operands)
+    {
+        if (r->params.find("__batch_index") == r->params.end())
+        {
+            fprintf(stderr, "fallback batch axis 0 for operand %s\n", r->name.c_str());
+            r->params["__batch_index"] = 0;
         }
     }
 }
