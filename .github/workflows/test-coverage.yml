@@ -33,7 +33,7 @@ jobs:
       run: sudo apt-get install lcov
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: "1.2.189.0"
         key: vulkansdk-linux-x86_64-1.2.189.0
@@ -46,7 +46,7 @@ jobs:
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: swiftshader-install
         key: swiftshader-linux-install-20211002
@@ -113,7 +113,7 @@ jobs:
 
     - name: cache-lavapipe
       id: cache-lavapipe
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: lavapipe-install
         key: lavapipe-linux-install-20211002
@@ -261,7 +261,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-arm-install-1
@@ -323,7 +323,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-aarch64-install-1
@@ -385,7 +385,7 @@ jobs:
       run: sudo apt-get install lcov
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-aarch64-install-1
@@ -447,7 +447,7 @@ jobs:
       run: sudo apt-get install lcov
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-aarch64-install-1
@@ -509,7 +509,7 @@ jobs:
       run: sudo apt-get install lcov
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-mipsel-install-1
@@ -571,7 +571,7 @@ jobs:
       run: sudo apt-get install lcov
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-mips64el-install-1
@@ -634,7 +634,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-riscv64-install-1
@@ -697,7 +697,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-riscv64-rvv-install-20210610
@@ -734,7 +734,7 @@ jobs:
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: rv64gcv-install
         key: rv64gcv-linux-install-20210504

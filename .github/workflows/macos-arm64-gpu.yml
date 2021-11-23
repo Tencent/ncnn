@@ -35,7 +35,7 @@ jobs:
         submodules: true
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: openmp-install
         key: openmp-macos-install-20201213

@@ -34,7 +34,7 @@ jobs:
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: rv32imc-install
         key: rv32imc-newlib-install-20210425
