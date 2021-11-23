@@ -55,7 +55,7 @@ static void inlineCalls(torch::jit::Block* block, const std::vector<std::string>
 
             n->removeInput(0);
 
-            fprintf(stderr, "inline funtion %s\n", fun_type->function()->name().c_str());
+            fprintf(stderr, "inline function %s\n", fun_type->function()->name().c_str());
 
             pnnx::inlineCallTo(n, fun_type->function());
         }

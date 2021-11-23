@@ -254,7 +254,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
         //     }
         //     cur->removeInput(0);
         //
-        //     fprintf(stderr, "inline funtion %s\n", fun_type->function()->name().c_str());
+        //     fprintf(stderr, "inline function %s\n", fun_type->function()->name().c_str());
         //
         //     GRAPH_UPDATE("Inlining function '", fun_type->function()->name(), "' to ", *cur);
         //     GRAPH_UPDATE("Function body: ", *fun_type->function()->optimized_graph());
