@@ -114,8 +114,7 @@ static void solve_batch_index_backward(Operand* operand)
 
 void solve_batch_index(Graph& graph)
 {
-    static const char* operator_with_batch_index_0[] =
-    {
+    static const char* operator_with_batch_index_0[] = {
         "F.adaptive_avg_pool1d",
         "F.adaptive_avg_pool2d",
         "F.adaptive_avg_pool3d",
