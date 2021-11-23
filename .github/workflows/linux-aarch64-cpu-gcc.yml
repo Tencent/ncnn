@@ -34,7 +34,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-aarch64-install-1
@@ -92,7 +92,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-aarch64-install-1

@@ -34,7 +34,7 @@ jobs:
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: rv64gc-install
         key: rv64gc-newlib-install-20210425
