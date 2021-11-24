@@ -13,7 +13,7 @@ Convolution3D::Convolution3D()
 
 int Convolution3D::load_param(const ParamDict& pd)
 {
-    num_output = pd.get(0,0);
+    num_output = pd.get(0, 0);
     kernel_w = pd.get(1, 0);
     kernel_h = pd.get(2, kernel_w);
     kernel_d = pd.get(3, kernel_w);
@@ -78,7 +78,6 @@ int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     // compute kernel size
     const int maxk = kernel_w * kernel_h * kernel_d;
 
-
     // compute offset to align original input and kernel data
     std::vector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];
@@ -88,10 +87,13 @@ int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
         int p2 = 0;
         int offset0 = dilation_d;
         int offset1 = d * dilation_h - kernel_d * dilation_d;
-        int offset2 = (h*d) * dilation_w - h * kernel_h * dilation_h - kernel_h * dilation_h;
-        for(int i = 0; i < kernel_w; ++i) {
-            for(int j = 0; j < kernel_h; ++j) {
-                for(int k = 0; k < kernel_d; ++k) {
+        int offset2 = (h * d) * dilation_w - h * kernel_h * dilation_h - kernel_h * dilation_h;
+        for (int i = 0; i < kernel_w; ++i)
+        {
+            for (int j = 0; j < kernel_h; ++j)
+            {
+                for (int k = 0; k < kernel_d; ++k)
+                {
                     space_ofs[p1] = p2;
                     p1++;
                     p2 += offset0;
@@ -131,7 +133,7 @@ int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                         const Mat m = bottom_blob_bordered.channel(q);
                         // (w*d): offset when you go across one h
                         // (d): offset when you go across one w
-                        const float* sptr = (float*)m.data + (h*d) * j * stride_w + (d) * i * stride_h + k * stride_d;
+                        const float* sptr = (float*)m.data + (h * d) * j * stride_w + (d)*i * stride_h + k * stride_d;
 
                         for (int l = 0; l < maxk; l++)
                         {
@@ -196,6 +198,4 @@ void Convolution3D::make_padding(const Mat& bottom_blob, Mat& bottom_blob_border
     return;
 }
 
-}
-
-
+} // namespace ncnn

@@ -6,12 +6,12 @@
 #include "layer.h"
 
 namespace ncnn {
-class Convolution3D: public Layer
+class Convolution3D : public Layer
 {
 public:
     Convolution3D();
 
-    virtual int load_param(const ParamDict &pd);
+    virtual int load_param(const ParamDict& pd);
 
     virtual int load_model(const ModelBin& mb);
 
@@ -40,8 +40,7 @@ public:
 
     Mat weight_data;
     Mat bias_data;
-
 };
-}
+} // namespace ncnn
 
 #endif //NCNN_CONVOLUTION3D_H

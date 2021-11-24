@@ -1239,14 +1239,18 @@ inline Mat Mat::shape() const
 
 inline Mat Mat::channel(int _c)
 {
-    if(dims != 4)  return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
-    else return Mat(w, h, d, 1, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    if (dims != 4)
+        return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    else
+        return Mat(w, h, d, 1, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline const Mat Mat::channel(int _c) const
 {
-    if(dims != 4) return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
-    else return Mat(w, h, d, 1, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    if (dims != 4)
+        return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    else
+        return Mat(w, h, d, 1, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline float* Mat::row(int y)
@@ -1258,7 +1262,6 @@ inline const float* Mat::row(int y) const
 {
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
-
 
 template<typename T>
 inline T* Mat::row(int y)
