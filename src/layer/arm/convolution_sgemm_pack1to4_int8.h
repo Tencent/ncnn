@@ -2432,11 +2432,11 @@ static void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon(const M
     // dst = 4a-4b-2-maxk-inch/8a-outch/4b (arm82)
     Mat kernel = _kernel.reshape(maxk, inch, outch);
     if (inch >= 8)
-        kernel_tm.create(32 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch / 4, 1u);
+        kernel_tm.create(32 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch / 4, (size_t)1u);
     if (inch >= 4)
-        kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4, 1u);
+        kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4, (size_t)1u);
     else
-        kernel_tm.create(4 * maxk, inch, outch / 4, 1u);
+        kernel_tm.create(4 * maxk, inch, outch / 4, (size_t)1u);
 
     for (int q = 0; q + 3 < outch; q += 4)
     {
