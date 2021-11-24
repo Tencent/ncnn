@@ -146,6 +146,13 @@ void main()
         sum[0] = sum[0] * tanh(log(exp(sum[0]) + afp(1.f)));
         sum[1] = sum[1] * tanh(log(exp(sum[1]) + afp(1.f)));
     }
+    if (activation_type == 6)
+    {
+        const afp alpha = afp(activation_param_0);
+        const afp beta = afp(activation_param_1);
+        sum[0] = sum[0] * clamp(sum[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        sum[1] = sum[1] * clamp(sum[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
 
 #if NCNN_image_shader
     image3d_st1(top_blob, ivec3(gx * 8 + 0, gy, 0), sum[0].r);

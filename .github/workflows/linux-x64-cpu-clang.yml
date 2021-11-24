@@ -12,6 +12,7 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
   pull_request:
     branches: [master]
@@ -25,13 +26,14 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
 jobs:
   linux-clang:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -102,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2

@@ -12,6 +12,7 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
   pull_request:
     branches: [master]
@@ -25,13 +26,14 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
 jobs:
   linux-gcc:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -81,10 +83,10 @@ jobs:
       run: cd build-noint8 && ctest --output-on-failure -j 2
 
   linux-gcc-cpp03-nostdio-nostring-simplestl:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2

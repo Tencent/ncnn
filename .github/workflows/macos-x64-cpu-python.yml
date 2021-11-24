@@ -21,7 +21,7 @@ on:
     - 'src/layer/x86/**'
     - 'python/**'
 env:
-  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
 jobs:
   macos-clang:
     runs-on: macos-latest
@@ -30,7 +30,7 @@ jobs:
         python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
     steps:
     - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
+      uses: styfle/cancel-workflow-action@0.9.1
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
@@ -48,7 +48,7 @@ jobs:
       run: brew install protobuf opencv3
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: openmp-install
         key: openmp-macos-install-20201213

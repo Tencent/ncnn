@@ -20,7 +20,6 @@
 #include <immintrin.h>
 #endif
 #endif // __SSE2__
-
 #include "x86_activation.h"
 #include "x86_usability.h"
 
@@ -44,7 +43,7 @@ namespace ncnn {
 
 #if __SSE2__
 #include "convolution_1x1_pack4.h"
-
+#include "convolution_3x3_pack1to4.h"
 #if NCNN_INT8
 #include "convolution_pack8to4_int8.h"
 #include "convolution_pack1to4_int8.h"
@@ -81,50 +80,7 @@ Convolution_x86::Convolution_x86()
 
 int Convolution_x86::create_pipeline(const Option& opt)
 {
-    if (activation_type == 1)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 2)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // slope
-        activation->load_param(pd);
-    }
-    else if (activation_type == 3)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // min
-        pd.set(1, activation_params[1]); // max
-
-        activation->load_param(pd);
-    }
-    else if (activation_type == 4)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 5)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-
-    if (activation)
-    {
-        activation->create_pipeline(opt);
-    }
+    activation = create_activation_layer(activation_type, activation_params, opt);
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
@@ -426,11 +382,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 conv1x1s1_sgemm_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-#endif
             if (!opt.use_weight_fp16_storage)
             {
+#endif
+
                 conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+#if __AVX2__
             }
+#endif
 
             if (activation)
             {
@@ -445,12 +404,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 conv1x1s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-#endif
             if (!opt.use_weight_fp16_storage)
 
             {
+#endif
+
                 conv1x1s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+#if __AVX2__
             }
+#endif
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
@@ -480,13 +442,14 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
                 conv2x2s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
             }
-#endif
-
             if (!opt.use_weight_fp16_storage)
             {
-                conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-            }
+#endif
 
+                conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+#if __AVX2__
+            }
+#endif
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
@@ -494,7 +457,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -531,41 +494,32 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                                 __m256 _val7 = _mm256_broadcast_ss((sptr + space_ofs[k] * 8) + 7);
 
                                 __m256 _w0 = _mm256_loadu_ps(kptr);
-                                __m256 _mul0 = _mm256_mul_ps(_val0, _w0);
                                 __m256 _w1 = _mm256_loadu_ps(kptr + 8);
-                                __m256 _mul1 = _mm256_mul_ps(_val1, _w1);
                                 __m256 _w2 = _mm256_loadu_ps(kptr + 16);
-                                __m256 _mul2 = _mm256_mul_ps(_val2, _w2);
                                 __m256 _w3 = _mm256_loadu_ps(kptr + 24);
-                                __m256 _mul3 = _mm256_mul_ps(_val3, _w3);
                                 __m256 _w4 = _mm256_loadu_ps(kptr + 32);
-                                __m256 _mul4 = _mm256_mul_ps(_val4, _w4);
                                 __m256 _w5 = _mm256_loadu_ps(kptr + 40);
-                                __m256 _mul5 = _mm256_mul_ps(_val5, _w5);
                                 __m256 _w6 = _mm256_loadu_ps(kptr + 48);
-                                __m256 _mul6 = _mm256_mul_ps(_val6, _w6);
                                 __m256 _w7 = _mm256_loadu_ps(kptr + 56);
-                                __m256 _mul7 = _mm256_mul_ps(_val7, _w7);
-                                __m256 _sum01 = _mm256_add_ps(_mul0, _mul1);
-                                __m256 _sum23 = _mm256_add_ps(_mul2, _mul3);
-                                __m256 _sum45 = _mm256_add_ps(_mul4, _mul5);
-                                __m256 _sum67 = _mm256_add_ps(_mul6, _mul7);
-                                __m256 _sum_lo = _mm256_add_ps(_sum01, _sum23);
-                                __m256 _sum_hi = _mm256_add_ps(_sum45, _sum67);
-                                __m256 _sum_all = _mm256_add_ps(_sum_lo, _sum_hi);
-                                _sum = _mm256_add_ps(_sum_all, _sum);
+
+                                _mm256_comp_fmadd_ps8(_sum,
+                                                      _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7,
+                                                      _w0, _w1, _w2, _w3, _w4, _w5, _w6, _w7);
 
                                 kptr += 64;
                             }
                         }
-
-                        _sum = activation_avx(_sum, activation_type, activation_params);
 
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -592,7 +546,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -627,13 +581,16 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             }
                         }
 
-                        _sum = activation_avx(_sum, activation_type, activation_params);
-
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -641,7 +598,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 4 && out_elempack == 8)
     {
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -686,13 +643,16 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                             }
                         }
 
-                        _sum = activation_avx(_sum, activation_type, activation_params);
-
                         _mm256_storeu_ps(outptr + j * 8, _sum);
                     }
 
                     outptr += outw * 8;
                 }
+            }
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -710,7 +670,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
@@ -760,7 +720,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 8 && out_elempack == 4)
     {
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -851,7 +811,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -909,8 +869,27 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (elempack == 1 && out_elempack == 4)
     {
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            // num_output
+            conv3x3s1_pack1to4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv3x3s2_pack1to4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else
+        {
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output / out_elempack; p++)
             {
@@ -959,7 +938,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (elempack == 4 && out_elempack == 1)
     {
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
@@ -1036,7 +1015,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            // num_output
+// num_output
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {

@@ -12,6 +12,7 @@ if(PROTOBUF_FOUND)
 
     # add all caffe2ncnn tool to a virtual project group
     set_property(TARGET caffe2ncnn PROPERTY FOLDER "tools/converter")
+    ncnn_install_tool(caffe2ncnn)
 else()
     message(WARNING "Protobuf not found, caffe model convert tool won't be built")
 endif()

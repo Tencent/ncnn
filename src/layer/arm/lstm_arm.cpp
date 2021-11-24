@@ -423,13 +423,7 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
 int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    if (bottom_blobs.size() != 3 || top_blobs.size() != 3)
-    {
-        return forward(bottom_blobs[0], top_blobs[0], opt);
-    }
-
     const Mat& bottom_blob = bottom_blobs[0];
-
     int elembits = bottom_blob.elembits();
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -448,24 +442,80 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #endif
 
     int T = bottom_blob.h;
+    int num_directions = direction == 2 ? 2 : 1;
+
+    Mat hidden;
+    Mat cell;
+    Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 3)
+    {
+        hidden = bottom_blobs[1].clone(hidden_cell_allocator);
+        cell = bottom_blobs[2].clone(hidden_cell_allocator);
+    }
+    else
+    {
+        hidden.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+
+        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (cell.empty())
+            return -100;
+        cell.fill(0.f);
+    }
+
     Mat& top_blob = top_blobs[0];
-    Mat& hidden_state = top_blobs[1];
-    Mat& cell_state = top_blobs[2];
-
-    //Copy previous states
-    hidden_state = bottom_blobs[1].clone(opt.blob_allocator);
-    cell_state = bottom_blobs[2].clone(opt.blob_allocator);
-
-    top_blob.create(num_output, T, 4u, opt.blob_allocator);
+    top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden_state, cell_state, opt);
+        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        Mat cell0 = cell.row_range(0, 1);
+        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, cell0, opt);
+        if (ret0 != 0)
+            return ret0;
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        Mat cell1 = cell.row_range(1, 1);
+        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, cell1, opt);
+        if (ret1 != 0)
+            return ret1;
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const float* pf = top_blob_forward.row(i);
+            const float* pr = top_blob_reverse.row(i);
+            float* ptr = top_blob.row(i);
+
+            memcpy(ptr, pf, num_output * sizeof(float));
+            memcpy(ptr + num_output, pr, num_output * sizeof(float));
+        }
+    }
+
+    if (top_blobs.size() == 3)
+    {
+        top_blobs[1] = hidden;
+        top_blobs[2] = cell;
     }
 
     return 0;
@@ -1182,17 +1232,35 @@ int LSTM_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;
-    Mat& top_blob = top_blobs[0];
+    int num_directions = direction == 2 ? 2 : 1;
 
-    top_blob.create(num_output, T, 2u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    // copy previous states
     Mat hidden;
     Mat cell;
-    cast_float16_to_float32(bottom_blobs[1], hidden, opt);
-    cast_float16_to_float32(bottom_blobs[2], cell, opt);
+    Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 3)
+    {
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = hidden_cell_allocator;
+        cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
+        cast_float16_to_float32(bottom_blobs[2], cell, opt_cast);
+    }
+    else
+    {
+        hidden.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+
+        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (cell.empty())
+            return -100;
+        cell.fill(0.f);
+    }
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
 
     // Uni directional
     if (direction == 0 || direction == 1)
@@ -1202,8 +1270,45 @@ int LSTM_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             return ret;
     }
 
-    cast_float32_to_float16(hidden, top_blobs[1], opt);
-    cast_float32_to_float16(cell, top_blobs[2], opt);
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        Mat cell0 = cell.row_range(0, 1);
+        int ret0 = lstm_fp16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, cell0, opt);
+        if (ret0 != 0)
+            return ret0;
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        Mat cell1 = cell.row_range(1, 1);
+        int ret1 = lstm_fp16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, cell1, opt);
+        if (ret1 != 0)
+            return ret1;
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const __fp16* pf = top_blob_forward.row<const __fp16>(i);
+            const __fp16* pr = top_blob_reverse.row<const __fp16>(i);
+            __fp16* ptr = top_blob.row<__fp16>(i);
+
+            memcpy(ptr, pf, num_output * sizeof(__fp16));
+            memcpy(ptr + num_output, pr, num_output * sizeof(__fp16));
+        }
+    }
+
+    if (top_blobs.size() == 3)
+    {
+        cast_float32_to_float16(hidden, top_blobs[1], opt);
+        cast_float32_to_float16(cell, top_blobs[2], opt);
+    }
 
     return 0;
 }
@@ -1277,17 +1382,35 @@ int LSTM_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;
-    Mat& top_blob = top_blobs[0];
+    int num_directions = direction == 2 ? 2 : 1;
 
-    top_blob.create(num_output, T, 2u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    // copy previous states
     Mat hidden;
     Mat cell;
-    cast_float16_to_float32(bottom_blobs[1], hidden, opt);
-    cast_float16_to_float32(bottom_blobs[2], cell, opt);
+    Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 3)
+    {
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = hidden_cell_allocator;
+        cast_float16_to_float32(bottom_blobs[1], hidden, opt_cast);
+        cast_float16_to_float32(bottom_blobs[2], cell, opt_cast);
+    }
+    else
+    {
+        hidden.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+
+        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (cell.empty())
+            return -100;
+        cell.fill(0.f);
+    }
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
 
     // Uni directional
     if (direction == 0 || direction == 1)
@@ -1297,8 +1420,45 @@ int LSTM_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<M
             return ret;
     }
 
-    cast_float32_to_float16(hidden, top_blobs[1], opt);
-    cast_float32_to_float16(cell, top_blobs[2], opt);
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        Mat cell0 = cell.row_range(0, 1);
+        int ret0 = lstm_fp16sa(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, cell0, opt);
+        if (ret0 != 0)
+            return ret0;
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        Mat cell1 = cell.row_range(1, 1);
+        int ret1 = lstm_fp16sa(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, cell1, opt);
+        if (ret1 != 0)
+            return ret1;
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const __fp16* pf = top_blob_forward.row<const __fp16>(i);
+            const __fp16* pr = top_blob_reverse.row<const __fp16>(i);
+            __fp16* ptr = top_blob.row<__fp16>(i);
+
+            memcpy(ptr, pf, num_output * sizeof(__fp16));
+            memcpy(ptr + num_output, pr, num_output * sizeof(__fp16));
+        }
+    }
+
+    if (top_blobs.size() == 3)
+    {
+        cast_float32_to_float16(hidden, top_blobs[1], opt);
+        cast_float32_to_float16(cell, top_blobs[2], opt);
+    }
 
     return 0;
 }
@@ -1664,17 +1824,35 @@ int LSTM_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 {
     const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;
-    Mat& top_blob = top_blobs[0];
+    int num_directions = direction == 2 ? 2 : 1;
 
-    top_blob.create(num_output, T, 2u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    // copy previous states
     Mat hidden;
     Mat cell;
-    cast_bfloat16_to_float32(bottom_blobs[1], hidden, opt);
-    cast_bfloat16_to_float32(bottom_blobs[2], cell, opt);
+    Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 3)
+    {
+        Option opt_cast = opt;
+        opt_cast.blob_allocator = hidden_cell_allocator;
+        cast_bfloat16_to_float32(bottom_blobs[1], hidden, opt_cast);
+        cast_bfloat16_to_float32(bottom_blobs[2], cell, opt_cast);
+    }
+    else
+    {
+        hidden.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+
+        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (cell.empty())
+            return -100;
+        cell.fill(0.f);
+    }
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(num_output * num_directions, T, 2u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
 
     // Uni directional
     if (direction == 0 || direction == 1)
@@ -1684,8 +1862,45 @@ int LSTM_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             return ret;
     }
 
-    cast_float32_to_bfloat16(hidden, top_blobs[1], opt);
-    cast_float32_to_bfloat16(cell, top_blobs[2], opt);
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 2u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        Mat cell0 = cell.row_range(0, 1);
+        int ret0 = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, cell0, opt);
+        if (ret0 != 0)
+            return ret0;
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        Mat cell1 = cell.row_range(1, 1);
+        int ret1 = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, cell1, opt);
+        if (ret1 != 0)
+            return ret1;
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const unsigned short* pf = top_blob_forward.row<const unsigned short>(i);
+            const unsigned short* pr = top_blob_reverse.row<const unsigned short>(i);
+            unsigned short* ptr = top_blob.row<unsigned short>(i);
+
+            memcpy(ptr, pf, num_output * sizeof(unsigned short));
+            memcpy(ptr + num_output, pr, num_output * sizeof(unsigned short));
+        }
+    }
+
+    if (top_blobs.size() == 3)
+    {
+        cast_float32_to_bfloat16(hidden, top_blobs[1], opt);
+        cast_float32_to_bfloat16(cell, top_blobs[2], opt);
+    }
 
     return 0;
 }

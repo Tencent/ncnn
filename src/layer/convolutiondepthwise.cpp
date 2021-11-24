@@ -16,6 +16,8 @@
 
 #include "layer_type.h"
 
+#include "fused_activation.h"
+
 namespace ncnn {
 
 ConvolutionDepthWise::ConvolutionDepthWise()
@@ -239,42 +241,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         sum += val * w;
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min)
-                            sum = min;
-                        if (sum > max)
-                            sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        const float MISH_THRESHOLD = 20;
-                        float x = sum, y;
-                        if (x > MISH_THRESHOLD)
-                            y = x;
-                        else if (x < -MISH_THRESHOLD)
-                            y = expf(x);
-                        else
-                            y = logf(expf(x) + 1);
-                        sum = static_cast<float>(x * tanh(y));
-                    }
-
-                    outptr[j] = sum;
+                    outptr[j] = activation_ss(sum, activation_type, activation_params);
                 }
 
                 outptr += outw;
@@ -326,42 +293,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             kptr += maxk;
                         }
 
-                        if (activation_type == 1)
-                        {
-                            sum = std::max(sum, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sum = sum > 0.f ? sum : sum * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sum < min)
-                                sum = min;
-                            if (sum > max)
-                                sum = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                        }
-                        else if (activation_type == 5)
-                        {
-                            const float MISH_THRESHOLD = 20;
-                            float x = sum, y;
-                            if (x > MISH_THRESHOLD)
-                                y = x;
-                            else if (x < -MISH_THRESHOLD)
-                                y = expf(x);
-                            else
-                                y = logf(expf(x) + 1);
-                            sum = static_cast<float>(x * tanh(y));
-                        }
-
-                        outptr[j] = sum;
+                        outptr[j] = activation_ss(sum, activation_type, activation_params);
                     }
 
                     outptr += outw;
@@ -543,40 +475,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                     if (bias_term)
                         sumfp32 += bias_data[g];
 
-                    if (activation_type == 1)
-                    {
-                        sumfp32 = std::max(sumfp32, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sumfp32 < min)
-                            sumfp32 = min;
-                        if (sumfp32 > max)
-                            sumfp32 = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        const float MISH_THRESHOLD = 20;
-                        float x = sumfp32, y;
-                        if (x > MISH_THRESHOLD)
-                            y = x;
-                        else if (x < -MISH_THRESHOLD)
-                            y = expf(x);
-                        else
-                            y = logf(expf(x) + 1);
-                        sumfp32 = static_cast<float>(x * tanh(y));
-                    }
+                    sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
 
                     if (use_int8_requantize)
                     {
@@ -649,40 +548,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                         if (bias_term)
                             sumfp32 += bias_data[g * num_output_g + p];
 
-                        if (activation_type == 1)
-                        {
-                            sumfp32 = std::max(sumfp32, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sumfp32 < min)
-                                sumfp32 = min;
-                            if (sumfp32 > max)
-                                sumfp32 = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
-                        }
-                        else if (activation_type == 5)
-                        {
-                            const float MISH_THRESHOLD = 20;
-                            float x = sumfp32, y;
-                            if (x > MISH_THRESHOLD)
-                                y = x;
-                            else if (x < -MISH_THRESHOLD)
-                                y = expf(x);
-                            else
-                                y = logf(expf(x) + 1);
-                            sumfp32 = static_cast<float>(x * tanh(y));
-                        }
+                        sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
 
                         if (use_int8_requantize)
                         {

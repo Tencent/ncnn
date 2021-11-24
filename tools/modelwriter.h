@@ -44,6 +44,7 @@
 #include "layer/dropout.h"
 #include "layer/eltwise.h"
 #include "layer/elu.h"
+#include "layer/embed.h"
 #include "layer/exp.h"
 #include "layer/expanddims.h"
 #include "layer/flatten.h"
@@ -222,8 +223,8 @@ public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
     int fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp);
 
-    int fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp);
-    int fwrite_weight_data(const ncnn::Mat& data, FILE* bp);
+    int fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f);
+    int fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f);
 
     int save(const char* parampath, const char* binpath);
 };
@@ -588,13 +589,13 @@ static void Randomize(ncnn::Mat& m, float a = -1.2f, float b = 1.2f)
     }
 }
 
-int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp)
+int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a, float b)
 {
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
     if (gen_random_weight)
-        Randomize(data_flattened);
+        Randomize(data_flattened, a, b);
 
     if (data_flattened.elemsize == 4)
     {
@@ -640,13 +641,13 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp)
     return 0;
 }
 
-int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
+int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, float b)
 {
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
     if (gen_random_weight)
-        Randomize(data_flattened);
+        Randomize(data_flattened, a, b);
 
     if (data_flattened.elemsize == 4) // fp32
     {
@@ -872,9 +873,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_data_int8_scales, bp);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp);
-                fwrite_weight_data(op->top_blob_int8_scales, bp);
+                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
             }
 #endif // NCNN_INT8
 
@@ -980,9 +981,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_data_int8_scales, bp);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp);
-                fwrite_weight_data(op->top_blob_int8_scales, bp);
+                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
             }
 #endif // NCNN_INT8
 
@@ -1172,6 +1173,19 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%e", alpha)
         }
+        else if (layer->type == "Embed")
+        {
+            ncnn::Embed* op = (ncnn::Embed*)layer;
+            ncnn::Embed* op_default = (ncnn::Embed*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", input_dim)
+            fprintf_param_value(" 2=%d", bias_term)
+            fprintf_param_value(" 3=%d", weight_data_size)
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+        }
         else if (layer->type == "Exp")
         {
             ncnn::Exp* op = (ncnn::Exp*)layer;
@@ -1266,8 +1280,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_data_int8_scales, bp);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp);
+                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
             }
 #endif // NCNN_INT8
 

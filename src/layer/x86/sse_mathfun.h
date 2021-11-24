@@ -121,7 +121,7 @@ typedef union xmm_mm_union
 /* natural logarithm computed for 4 simultaneous float
    return NaN for x <= 0
 */
-static inline v4sf log_ps(v4sf x)
+static NCNN_FORCEINLINE v4sf log_ps(v4sf x)
 {
 #ifdef USE_SSE2
     v4si emm0;
@@ -221,7 +221,7 @@ _PS_CONST(cephes_exp_p3, 4.1665795894E-2f);
 _PS_CONST(cephes_exp_p4, 1.6666665459E-1f);
 _PS_CONST(cephes_exp_p5, 5.0000001201E-1f);
 
-static inline v4sf exp_ps(v4sf x)
+static NCNN_FORCEINLINE v4sf exp_ps(v4sf x)
 {
     v4sf tmp = _mm_setzero_ps(), fx;
 #ifdef USE_SSE2
@@ -339,7 +339,7 @@ _PS_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
    Since it is based on SSE intrinsics, it has to be compiled at -O2 to
    deliver full speed.
 */
-static inline v4sf sin_ps(v4sf x)
+static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
 {   // any x
     v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, sign_bit, y;
 
@@ -457,7 +457,7 @@ static inline v4sf sin_ps(v4sf x)
 }
 
 /* almost the same as sin_ps */
-static inline v4sf cos_ps(v4sf x)
+static NCNN_FORCEINLINE v4sf cos_ps(v4sf x)
 {   // any x
     v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, y;
 #ifdef USE_SSE2
@@ -576,7 +576,7 @@ static inline v4sf cos_ps(v4sf x)
 
 /* since sin_ps and cos_ps are almost identical, sincos_ps could replace both of them..
    it is almost as fast, and gives you a free cosine with your sine */
-static inline void sincos_ps(v4sf x, v4sf* s, v4sf* c)
+static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
 {
     v4sf xmm1, xmm2, xmm3 = _mm_setzero_ps(), sign_bit_sin, y;
 #ifdef USE_SSE2

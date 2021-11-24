@@ -10,7 +10,7 @@ jobs:
 
     - name: cache-clang-format
       id: cache-clang-format
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: clang-format-install
         key: clang-format-install-4
