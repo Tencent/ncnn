@@ -272,7 +272,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse(const Ma
     // src = maxk-inch-outch
     // dst = 8a-4b-maxk-inch/8a-outch/4b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    kernel_tm.create(32 * maxk, inch / 8, outch / 4, 1u);
+    kernel_tm.create(32 * maxk, inch / 8, outch / 4, 1u, nullptr);
 
     for (int q = 0; q + 3 < outch; q += 4)
     {

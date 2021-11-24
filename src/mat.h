@@ -71,12 +71,16 @@ public:
     Mat(int w, int h, size_t elemsize = 4u, Allocator* allocator = 0);
     // dim
     Mat(int w, int h, int c, size_t elemsize = 4u, Allocator* allocator = 0);
+    // cube
+    Mat(int w, int h, int d, int c, size_t elemsize = 4u, Allocator* allocator = 0);
     // packed vec
     Mat(int w, size_t elemsize, int elempack, Allocator* allocator = 0);
     // packed image
     Mat(int w, int h, size_t elemsize, int elempack, Allocator* allocator = 0);
     // packed dim
     Mat(int w, int h, int c, size_t elemsize, int elempack, Allocator* allocator = 0);
+    // packed cube
+    Mat(int w, int h, int d, int c, size_t elemsize, int elempack, Allocator* allocator = 0);
     // copy
     Mat(const Mat& m);
     // external vec
@@ -85,12 +89,16 @@ public:
     Mat(int w, int h, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
     // external dim
     Mat(int w, int h, int c, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
+    // external cube
+    Mat(int w, int h, int d, int c, void* data, size_t elemsize = 4u, Allocator* allocator = 0);
     // external packed vec
     Mat(int w, void* data, size_t elemsize, int elempack, Allocator* allocator = 0);
     // external packed image
     Mat(int w, int h, void* data, size_t elemsize, int elempack, Allocator* allocator = 0);
     // external packed dim
     Mat(int w, int h, int c, void* data, size_t elemsize, int elempack, Allocator* allocator = 0);
+    // external packed cube
+    Mat(int w, int h, int d, int c, void* data, size_t elemsize, int elempack, Allocator* allocator = 0);
     // release
     ~Mat();
     // assign
@@ -135,18 +143,24 @@ public:
     Mat reshape(int w, int h, Allocator* allocator = 0) const;
     // reshape dim
     Mat reshape(int w, int h, int c, Allocator* allocator = 0) const;
+    // reshape cube
+    Mat reshape(int w, int h, int d, int c, Allocator* allocator = 0) const;
     // allocate vec
     void create(int w, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate image
     void create(int w, int h, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate dim
     void create(int w, int h, int c, size_t elemsize = 4u, Allocator* allocator = 0);
+    // allocate cube
+    void create(int w, int h, int d, int c, size_t elemsize = 4u, Allocator* allocator = 0);
     // allocate packed vec
     void create(int w, size_t elemsize, int elempack, Allocator* allocator = 0);
     // allocate packed image
     void create(int w, int h, size_t elemsize, int elempack, Allocator* allocator = 0);
     // allocate packed dim
     void create(int w, int h, int c, size_t elemsize, int elempack, Allocator* allocator = 0);
+    // allocate packed cube
+    void create(int w, int h, int d, int c, size_t elemsize, int elempack, Allocator* allocator = 0);
     // allocate like
     void create_like(const Mat& m, Allocator* allocator = 0);
 #if NCNN_VULKAN
@@ -174,6 +188,12 @@ public:
     const Mat channel(int c) const;
     float* row(int y);
     const float* row(int y) const;
+    float* slice_w(int d);
+    const float* slice_w(int w) const;
+    float* slice_h(int h);
+    const float* slice_h(int h) const;
+    float* slice_d(int d);
+    const float* slice_d(int d) const;
     template<typename T>
     T* row(int y);
     template<typename T>
@@ -311,6 +331,7 @@ public:
 
     int w;
     int h;
+    int d;
     int c;
 
     size_t cstep;
@@ -740,86 +761,110 @@ NCNN_EXPORT void dequantize_from_int32(const Mat& src, Mat& dst, const Mat& scal
 NCNN_EXPORT void requantize_from_int32_to_int8(const Mat& src, Mat& dst, const Mat& scale_in_data, const Mat& scale_out_data, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt = Option());
 
 inline Mat::Mat()
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
 }
 
 inline Mat::Mat(int _w, size_t _elemsize, Allocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _allocator);
 }
 
 inline Mat::Mat(int _w, int _h, size_t _elemsize, Allocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _allocator);
 }
 
 inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
 
+inline Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+{
+    create(_w, _h, _d, _c, _elemsize, _allocator);
+}
+
 inline Mat::Mat(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _elempack, _allocator);
 }
 
 inline Mat::Mat(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _elempack, _allocator);
 }
 
 inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
-    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), c(0), cstep(0)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _elempack, _allocator);
 }
 
+inline Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
+    : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
+{
+    create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
+}
+
 inline Mat::Mat(const Mat& m)
-    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), c(m.c), cstep(m.cstep)
+    : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), d(m.d), c(m.c), cstep(m.cstep)
 {
     addref();
 }
 
 inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), c(1)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
     cstep = w;
 }
 
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), c(1)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
     cstep = (size_t)w * h;
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), c(_c)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
+inline Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
+{
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
+}
+
 inline Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), c(1)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
     cstep = w;
 }
 
 inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), c(1)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
     cstep = (size_t)w * h;
 }
 
 inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
-    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), c(_c)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
+}
+
+inline Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
+    : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
+{
+    cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 }
 
 inline Mat::~Mat()
@@ -1125,6 +1170,7 @@ inline Mat& Mat::operator=(const Mat& m)
     dims = m.dims;
     w = m.w;
     h = m.h;
+    d = m.d;
     c = m.c;
 
     cstep = m.cstep;
@@ -1156,6 +1202,7 @@ inline void Mat::release()
     dims = 0;
     w = 0;
     h = 0;
+    d = 0;
     c = 0;
 
     cstep = 0;
@@ -1192,12 +1239,14 @@ inline Mat Mat::shape() const
 
 inline Mat Mat::channel(int _c)
 {
-    return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    if(dims != 4)  return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    else return Mat(w, h, d, 1, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline const Mat Mat::channel(int _c) const
 {
-    return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    if(dims != 4) return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    else return Mat(w, h, d, 1, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline float* Mat::row(int y)
@@ -1209,6 +1258,7 @@ inline const float* Mat::row(int y) const
 {
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
+
 
 template<typename T>
 inline T* Mat::row(int y)
@@ -1224,12 +1274,12 @@ inline const T* Mat::row(int y) const
 
 inline Mat Mat::channel_range(int _c, int channels)
 {
-    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    return Mat(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline const Mat Mat::channel_range(int _c, int channels) const
 {
-    return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    return Mat(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline Mat Mat::row_range(int y, int rows)
