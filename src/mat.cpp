@@ -45,7 +45,8 @@ Mat Mat::clone(Allocator* _allocator) const
         m.create(w, h, elemsize, elempack, _allocator);
     else if (dims == 3)
         m.create(w, h, c, elemsize, elempack, _allocator);
-    else if (dims == 4) {
+    else if (dims == 4)
+    {
         m.create(w, h, d, c, elemsize, _allocator);
         m.elempack = elempack;
     }
@@ -225,7 +226,6 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
 
     return m;
 }
-
 
 void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 {
