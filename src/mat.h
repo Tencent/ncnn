@@ -188,12 +188,12 @@ public:
     const Mat channel(int c) const;
     float* row(int y);
     const float* row(int y) const;
-//     float* slice_w(int d);
-//     const float* slice_w(int w) const;
-//     float* slice_h(int h);
-//     const float* slice_h(int h) const;
-//     float* slice_d(int d);
-//     const float* slice_d(int d) const;
+    //     float* slice_w(int d);
+    //     const float* slice_w(int w) const;
+    //     float* slice_h(int h);
+    //     const float* slice_h(int h) const;
+    //     float* slice_d(int d);
+    //     const float* slice_d(int d) const;
     template<typename T>
     T* row(int y);
     template<typename T>
