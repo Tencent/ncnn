@@ -46,10 +46,7 @@ Mat Mat::clone(Allocator* _allocator) const
     else if (dims == 3)
         m.create(w, h, c, elemsize, elempack, _allocator);
     else if (dims == 4)
-    {
-        m.create(w, h, d, c, elemsize, _allocator);
-        m.elempack = elempack;
-    }
+        m.create(w, h, d, c, elemsize, elempack, _allocator);
 
     if (total() > 0)
     {
@@ -168,7 +165,7 @@ Mat Mat::reshape(int _w, int _h, int _c, Allocator* _allocator) const
     else if (c != _c)
     {
         // flatten and then align
-        Mat tmp = reshape(_w * _h * d * _c, _allocator);
+        Mat tmp = reshape(_w * _h * _c, _allocator);
         return tmp.reshape(_w, _h, _c, _allocator);
     }
 
@@ -189,6 +186,7 @@ Mat Mat::reshape(int _w, int _h, int _d, int _c, Allocator* _allocator) const
 {
     if (w * h * d * c != _w * _h * _d * _c)
         return Mat();
+
     if (dims < 3)
     {
         if ((size_t)_w * _h * _d != alignSize((size_t)_w * _h * _d * elemsize, 16) / elemsize)

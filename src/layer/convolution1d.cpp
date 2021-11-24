@@ -14,8 +14,6 @@
 
 #include "convolution1d.h"
 
-#include "layer_type.h"
-
 #include "fused_activation.h"
 
 namespace ncnn {

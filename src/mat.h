@@ -188,12 +188,12 @@ public:
     const Mat channel(int c) const;
     float* row(int y);
     const float* row(int y) const;
-    float* slice_w(int d);
-    const float* slice_w(int w) const;
-    float* slice_h(int h);
-    const float* slice_h(int h) const;
-    float* slice_d(int d);
-    const float* slice_d(int d) const;
+//     float* slice_w(int d);
+//     const float* slice_w(int w) const;
+//     float* slice_h(int h);
+//     const float* slice_h(int h) const;
+//     float* slice_d(int d);
+//     const float* slice_d(int d) const;
     template<typename T>
     T* row(int y);
     template<typename T>
@@ -1233,24 +1233,32 @@ inline Mat Mat::shape() const
         return Mat(w, h * elempack, (void*)0);
     if (dims == 3)
         return Mat(w, h, c * elempack, (void*)0);
+    if (dims == 4)
+        return Mat(w, h, d, c * elempack, (void*)0);
 
     return Mat();
 }
 
 inline Mat Mat::channel(int _c)
 {
-    if (dims != 4)
+    if (dims == 3)
         return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
-    else
-        return Mat(w, h, d, 1, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+
+    // if (dims == 4)
+    Mat m(w, h, d, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    m.cstep = w * h;
+    return m;
 }
 
 inline const Mat Mat::channel(int _c) const
 {
-    if (dims != 4)
+    if (dims == 3)
         return Mat(w, h, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
-    else
-        return Mat(w, h, d, 1, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+
+    // if (dims == 4)
+    Mat m(w, h, d, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+    m.cstep = w * h;
+    return m;
 }
 
 inline float* Mat::row(int y)
@@ -1277,11 +1285,19 @@ inline const T* Mat::row(int y) const
 
 inline Mat Mat::channel_range(int _c, int channels)
 {
+    if (dims == 3)
+        return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+
+    // if (dims == 4)
     return Mat(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
 inline const Mat Mat::channel_range(int _c, int channels) const
 {
+    if (dims == 3)
+        return Mat(w, h, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+
+    // if (dims == 4)
     return Mat(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
 }
 
