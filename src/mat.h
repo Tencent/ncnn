@@ -186,14 +186,14 @@ public:
     // data reference
     Mat channel(int c);
     const Mat channel(int c) const;
+    float* depth(int z);
+    const float* depth(int z) const;
     float* row(int y);
     const float* row(int y) const;
-    //     float* slice_w(int d);
-    //     const float* slice_w(int w) const;
-    //     float* slice_h(int h);
-    //     const float* slice_h(int h) const;
-    //     float* slice_d(int d);
-    //     const float* slice_d(int d) const;
+    template<typename T>
+    T* depth(int z);
+    template<typename T>
+    const T* depth(int z) const;
     template<typename T>
     T* row(int y);
     template<typename T>
@@ -202,6 +202,8 @@ public:
     // range reference
     Mat channel_range(int c, int channels);
     const Mat channel_range(int c, int channels) const;
+    Mat depth_range(int z, int depths);
+    const Mat depth_range(int z, int depths) const;
     Mat row_range(int y, int rows);
     const Mat row_range(int y, int rows) const;
     Mat range(int x, int n);
@@ -1246,7 +1248,7 @@ inline Mat Mat::channel(int _c)
 
     // if (dims == 4)
     Mat m(w, h, d, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
-    m.cstep = w * h;
+    m.cstep = (size_t)w * h;
     return m;
 }
 
@@ -1257,8 +1259,18 @@ inline const Mat Mat::channel(int _c) const
 
     // if (dims == 4)
     Mat m(w, h, d, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
-    m.cstep = w * h;
+    m.cstep = (size_t)w * h;
     return m;
+}
+
+inline float* Mat::depth(int z)
+{
+    return (float*)((unsigned char*)data + (size_t)w * h * z * elemsize);
+}
+
+inline const float* Mat::depth(int z) const
+{
+    return (const float*)((unsigned char*)data + (size_t)w * h * z * elemsize);
 }
 
 inline float* Mat::row(int y)
@@ -1269,6 +1281,18 @@ inline float* Mat::row(int y)
 inline const float* Mat::row(int y) const
 {
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
+}
+
+template<typename T>
+inline T* Mat::depth(int z)
+{
+    return (T*)((unsigned char*)data + (size_t)w * h * z * elemsize);
+}
+
+template<typename T>
+inline const T* Mat::depth(int z) const
+{
+    return (const T*)((unsigned char*)data + (size_t)w * h * z * elemsize);
 }
 
 template<typename T>
@@ -1299,6 +1323,20 @@ inline const Mat Mat::channel_range(int _c, int channels) const
 
     // if (dims == 4)
     return Mat(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
+}
+
+inline Mat Mat::depth_range(int z, int depths)
+{
+    Mat m(w, h, depths, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * h;
+    return m;
+}
+
+inline const Mat Mat::depth_range(int z, int depths) const
+{
+    Mat m(w, h, depths, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
+    m.cstep = (size_t)w * h;
+    return m;
 }
 
 inline Mat Mat::row_range(int y, int rows)
