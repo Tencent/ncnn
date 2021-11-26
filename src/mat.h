@@ -186,14 +186,10 @@ public:
     // data reference
     Mat channel(int c);
     const Mat channel(int c) const;
-    float* depth(int z);
-    const float* depth(int z) const;
+    Mat depth(int z);
+    const Mat depth(int z) const;
     float* row(int y);
     const float* row(int y) const;
-    template<typename T>
-    T* depth(int z);
-    template<typename T>
-    const T* depth(int z) const;
     template<typename T>
     T* row(int y);
     template<typename T>
@@ -1263,14 +1259,14 @@ inline const Mat Mat::channel(int _c) const
     return m;
 }
 
-inline float* Mat::depth(int z)
+inline Mat Mat::depth(int z)
 {
-    return (float*)((unsigned char*)data + (size_t)w * h * z * elemsize);
+    return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
 }
 
-inline const float* Mat::depth(int z) const
+inline const Mat Mat::depth(int z) const
 {
-    return (const float*)((unsigned char*)data + (size_t)w * h * z * elemsize);
+    return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
 }
 
 inline float* Mat::row(int y)
@@ -1281,18 +1277,6 @@ inline float* Mat::row(int y)
 inline const float* Mat::row(int y) const
 {
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
-}
-
-template<typename T>
-inline T* Mat::depth(int z)
-{
-    return (T*)((unsigned char*)data + (size_t)w * h * z * elemsize);
-}
-
-template<typename T>
-inline const T* Mat::depth(int z) const
-{
-    return (const T*)((unsigned char*)data + (size_t)w * h * z * elemsize);
 }
 
 template<typename T>

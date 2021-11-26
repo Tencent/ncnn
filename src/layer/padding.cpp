@@ -301,6 +301,7 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -341,10 +342,10 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         return 0;
     }
 
-    int outc = channels + front + behind;
-
     if (dims == 3)
     {
+        int outc = channels + front + behind;
+
         top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -395,6 +396,71 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                     copy_make_border_image<float>(m, borderm, top, left, type, pad_value);
             }
         }
+
+        return 0;
+    }
+
+    if (dims == 4)
+    {
+        fprintf(stderr, "padding naive\n");
+        int outd = d + front + behind;
+
+        top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
+
+            for (int z = 0; z < outd; z++)
+            {
+                Mat borderm = top_blob.channel(q).depth(z);
+
+                // depth padding
+                if (((z < front) || (z >= (d + front))) && type == 0)
+                {
+                    if (elemsize == 1)
+                    {
+                        borderm.fill(static_cast<signed char>(pad_value));
+                    }
+                    if (elemsize == 2)
+                    {
+                        borderm.fill(support_fp16_storage && opt.use_fp16_storage ? float32_to_float16(pad_value) : float32_to_bfloat16(pad_value));
+                    }
+                    if (elemsize == 4)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                }
+                else
+                {
+                    int z_ = z - front;
+
+                    if (type == 1)
+                    {
+                        z_ = z_ <= 0 ? 0 : z_;
+                        z_ = z_ >= d - 1 ? d - 1 : z_;
+                    }
+                    if (type == 2)
+                    {
+                        z_ = abs(z_);
+                        z_ = (d - 1) - abs(z_ - (d - 1));
+                    }
+                    fprintf(stderr, "padding naive %d +%d\n", z_, front);
+
+                    const Mat m = bottom_blob.channel(q).depth(z_);
+                    if (elemsize == 1)
+                        copy_make_border_image<signed char>(m, borderm, top, left, type, static_cast<signed char>(pad_value));
+                    if (elemsize == 2)
+                        copy_make_border_image<unsigned short>(m, borderm, top, left, type, support_fp16_storage && opt.use_fp16_storage ? float32_to_float16(pad_value) : float32_to_bfloat16(pad_value));
+                    if (elemsize == 4)
+                        copy_make_border_image<float>(m, borderm, top, left, type, pad_value);
+                }
+            }
+        }
+
         return 0;
     }
 
@@ -432,6 +498,7 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -472,10 +539,10 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
         return 0;
     }
 
-    int outc = channels + _front + _behind;
-
     if (dims == 3)
     {
+        int outc = channels + _front + _behind;
+
         top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -524,6 +591,67 @@ int Padding::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
                     copy_make_border_image<unsigned short>(m, borderm, top, left, type, support_fp16_storage && opt.use_fp16_storage ? float32_to_float16(pad_value) : float32_to_bfloat16(pad_value));
                 if (elemsize == 4)
                     copy_make_border_image<float>(m, borderm, top, left, type, pad_value);
+            }
+        }
+
+        return 0;
+    }
+
+    if (dims == 4)
+    {
+        int outd = d + _front + _behind;
+
+        top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float pad_value = per_channel_pad_data_size ? per_channel_pad_data[q] : value;
+
+            for (int z = 0; z < outd; z++)
+            {
+                Mat borderm = top_blob.channel(q).depth(z);
+
+                // depth padding
+                if (((z < _front) || (z >= (d + _front))) && type == 0)
+                {
+                    if (elemsize == 1)
+                    {
+                        borderm.fill(static_cast<signed char>(pad_value));
+                    }
+                    if (elemsize == 2)
+                    {
+                        borderm.fill(support_fp16_storage && opt.use_fp16_storage ? float32_to_float16(pad_value) : float32_to_bfloat16(pad_value));
+                    }
+                    if (elemsize == 4)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                }
+                else
+                {
+                    int z_ = z - _front;
+
+                    if (type == 1)
+                    {
+                        z_ = z_ <= 0 ? 0 : z_;
+                        z_ = z_ >= d - 1 ? d - 1 : z_;
+                    }
+                    if (type == 2)
+                    {
+                        z_ = abs(z_);
+                        z_ = (d - 1) - abs(z_ - (d - 1));
+                    }
+                    const Mat m = bottom_blob.channel(q).depth(z_);
+                    if (elemsize == 1)
+                        copy_make_border_image<signed char>(m, borderm, top, left, type, static_cast<signed char>(pad_value));
+                    if (elemsize == 2)
+                        copy_make_border_image<unsigned short>(m, borderm, top, left, type, support_fp16_storage && opt.use_fp16_storage ? float32_to_float16(pad_value) : float32_to_bfloat16(pad_value));
+                    if (elemsize == 4)
+                        copy_make_border_image<float>(m, borderm, top, left, type, pad_value);
+                }
             }
         }
 

@@ -270,6 +270,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ChannelShuffle.cpp
     pass_ncnn/nn_ConstantPad1d.cpp
     pass_ncnn/nn_ConstantPad2d.cpp
+    pass_ncnn/nn_ConstantPad3d.cpp
     pass_ncnn/nn_Conv1d.cpp
     pass_ncnn/nn_Conv2d.cpp
     pass_ncnn/nn_ConvTranspose2d.cpp
