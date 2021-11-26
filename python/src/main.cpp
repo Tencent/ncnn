@@ -1083,6 +1083,21 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"),
     py::arg("type"), py::arg("v"), py::arg("opt") = Option());
 
+    m.def("copy_make_border_3d", &copy_make_border_3d,
+          py::arg("src"), py::arg("dst"),
+          py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"), py::arg("front"), py::arg("behind"),
+          py::arg("type"), py::arg("v"), py::arg("opt") = Option());
+    m.def(
+        "copy_make_border_3d",
+    [](const Mat& src, int top, int bottom, int left, int right, int front, int behind, int type, float v, const Option& opt) {
+        Mat dst;
+        copy_make_border_3d(src, dst, top, bottom, left, right, front, behind, type, v, opt);
+        return dst;
+    },
+    py::arg("src"),
+    py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"), py::arg("front"), py::arg("behind"),
+    py::arg("type"), py::arg("v"), py::arg("opt") = Option());
+
     m.def("copy_cut_border", &copy_cut_border,
           py::arg("src"), py::arg("dst"),
           py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"),

@@ -12,19 +12,19 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "convolution3d.h"
+#include "convolutiondepthwise3d.h"
 
 #include "fused_activation.h"
 
 namespace ncnn {
 
-Convolution3D::Convolution3D()
+ConvolutionDepthWise3D::ConvolutionDepthWise3D()
 {
     one_blob_only = true;
     support_inplace = false;
 }
 
-int Convolution3D::load_param(const ParamDict& pd)
+int ConvolutionDepthWise3D::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);
     kernel_w = pd.get(1, 0);
@@ -45,13 +45,14 @@ int Convolution3D::load_param(const ParamDict& pd)
     pad_value = pd.get(18, 0.f);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
+    group = pd.get(7, 1);
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
     return 0;
 }
 
-int Convolution3D::load_model(const ModelBin& mb)
+int ConvolutionDepthWise3D::load_model(const ModelBin& mb)
 {
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
@@ -67,7 +68,7 @@ int Convolution3D::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int ConvolutionDepthWise3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -122,44 +123,97 @@ int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     if (top_blob.empty())
         return -100;
 
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < num_output; p++)
+    // depth-wise
+    if (channels == group && group == num_output)
     {
-        float* outptr = top_blob.channel(p);
-
-        for (int z = 0; z < outd; z++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < group; g++)
         {
-            for (int i = 0; i < outh; i++)
+            float* outptr = top_blob.channel(g);
+            const float* kptr = (const float*)weight_data + maxk * g;
+            const Mat m = bottom_blob_bordered.channel(g);
+
+            for (int z = 0; z < outd; z++)
             {
-                for (int j = 0; j < outw; j++)
+                for (int i = 0; i < outh; i++)
                 {
-                    float sum = 0.f;
-
-                    if (bias_term)
-                        sum = bias_data[p];
-
-                    const float* kptr = (const float*)weight_data + maxk * channels * p;
-
-                    for (int q = 0; q < channels; q++)
+                    for (int j = 0; j < outw; j++)
                     {
-                        const Mat m = bottom_blob_bordered.channel(q);
+                        float sum = 0.f;
+
+                        if (bias_term)
+                            sum = bias_data[g];
+
                         const float* sptr = m.depth(z * stride_d).row(i * stride_h) + j * stride_w;
 
-                        for (int l = 0; l < maxk; l++)
+                        for (int k = 0; k < maxk; k++)
                         {
-                            float val = sptr[space_ofs[l]];
-
-                            float wt = kptr[l];
-                            sum += val * wt;
+                            float val = sptr[space_ofs[k]];
+                            float w = kptr[k];
+                            sum += val * w;
                         }
 
-                        kptr += maxk;
+                        outptr[j] = activation_ss(sum, activation_type, activation_params);
                     }
 
-                    outptr[j] = activation_ss(sum, activation_type, activation_params);
+                    outptr += outw;
                 }
+            }
+        }
+    }
+    else
+    {
+        // group convolution
+        const int channels_g = channels / group;
+        const int num_output_g = num_output / group;
 
-                outptr += outw;
+#ifdef _WIN32
+        #pragma omp parallel for num_threads(opt.num_threads)
+#else // _WIN32
+        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
+#endif // _WIN32
+        for (int g = 0; g < group; g++)
+        {
+            for (int p = 0; p < num_output_g; p++)
+            {
+                float* outptr = top_blob.channel(g * num_output_g + p);
+                const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
+
+                for (int z = 0; z < outd; z++)
+                {
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            float sum = 0.f;
+
+                            if (bias_term)
+                                sum = bias_data[num_output_g * g + p];
+
+                            const float* kptr = weight_data_ptr + maxk * channels_g * p;
+
+                            for (int q = 0; q < channels_g; q++)
+                            {
+                                const Mat m = bottom_blob_bordered.channel(channels_g * g + q);
+                                const float* sptr = m.depth(z * stride_d).row(i * stride_h) + j * stride_w;
+
+                                for (int l = 0; l < maxk; l++)
+                                {
+                                    float val = sptr[space_ofs[l]];
+
+                                    float wt = kptr[l];
+                                    sum += val * wt;
+                                }
+
+                                kptr += maxk;
+                            }
+
+                            outptr[j] = activation_ss(sum, activation_type, activation_params);
+                        }
+
+                        outptr += outw;
+                    }
+                }
             }
         }
     }
@@ -167,7 +221,7 @@ int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     return 0;
 }
 
-void Convolution3D::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
+void ConvolutionDepthWise3D::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;

@@ -402,7 +402,6 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     if (dims == 4)
     {
-        fprintf(stderr, "padding naive\n");
         int outd = d + front + behind;
 
         top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
@@ -448,8 +447,6 @@ int Padding::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                         z_ = abs(z_);
                         z_ = (d - 1) - abs(z_ - (d - 1));
                     }
-                    fprintf(stderr, "padding naive %d +%d\n", z_, front);
-
                     const Mat m = bottom_blob.channel(q).depth(z_);
                     if (elemsize == 1)
                         copy_make_border_image<signed char>(m, borderm, top, left, type, static_cast<signed char>(pad_value));

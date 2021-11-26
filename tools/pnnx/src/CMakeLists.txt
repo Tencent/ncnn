@@ -273,6 +273,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ConstantPad3d.cpp
     pass_ncnn/nn_Conv1d.cpp
     pass_ncnn/nn_Conv2d.cpp
+    pass_ncnn/nn_Conv3d.cpp
     pass_ncnn/nn_ConvTranspose2d.cpp
     pass_ncnn/nn_Dropout.cpp
     pass_ncnn/nn_ELU.cpp

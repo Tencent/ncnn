@@ -59,8 +59,6 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    fprintf(stderr, "padding x86  %d %d %d %d  %d %d\n", w, h, d, channels, dims, elempack);
-
 #if __SSE2__
 #if __AVX__
     if (elempack == 8)
@@ -153,9 +151,8 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            if (front % 8 == 0 && type == 0)
+            if (type == 0)
             {
-                int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -166,13 +163,13 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         Mat borderm = top_blob.channel(q).depth(z);
 
                         // depth padding
-                        if ((z - front_) < 0 || (z - front_) >= d)
+                        if ((z - front) < 0 || (z - front) >= d)
                         {
                             borderm.fill(pad_value);
                         }
                         else
                         {
-                            const Mat m = bottom_blob.channel(q).depth(z - front_);
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
                             if (type == 0)
                                 padding_constant_pack8_avx(m, borderm, top, bottom, left, right, pad_value);
                             if (type == 1)
@@ -291,9 +288,8 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (top_blob.empty())
                 return -100;
 
-            if (front % 4 == 0 && type == 0)
+            if (type == 0)
             {
-                int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -304,13 +300,13 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         Mat borderm = top_blob.channel(q).depth(z);
 
                         // depth padding
-                        if ((z - front_) < 0 || (z - front_) >= d)
+                        if ((z - front) < 0 || (z - front) >= d)
                         {
                             borderm.fill(pad_value);
                         }
                         else
                         {
-                            const Mat m = bottom_blob.channel(q).depth(z - front_);
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
                             if (type == 0)
                                 padding_constant_pack4_sse(m, borderm, top, bottom, left, right, pad_value);
                             if (type == 1)
@@ -444,9 +440,8 @@ int Padding_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
             if (top_blob.empty())
                 return -100;
 
-            if (front % 8 == 0 && type == 0)
+            if (type == 0)
             {
-                int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -460,13 +455,13 @@ int Padding_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                         Mat borderm = top_blob.channel(q).depth(z);
 
                         // depth padding
-                        if ((z - front_) < 0 || (z - front_) >= d)
+                        if ((z - front) < 0 || (z - front) >= d)
                         {
                             borderm.fill<int64_t>(pad_value);
                         }
                         else
                         {
-                            const Mat m = bottom_blob.channel(q).depth(z - front_);
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
                             if (type == 0)
                                 padding_constant_pack8_int8_sse(m, borderm, top, bottom, left, right, pad_value);
                             if (type == 1)
