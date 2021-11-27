@@ -37,6 +37,7 @@ public:
     int w;
     int h;
     int c;
+    int d;
 };
 
 } // namespace ncnn
