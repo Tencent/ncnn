@@ -35,7 +35,7 @@ static int test_pooling3d(int w, int h, int d, int c, int pooling_type, int kern
     int ret = test_layer<ncnn::Pooling3D>("Pooling3D", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_pooling3d failed w=%d h=%d d=%d c=%c pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d adaptive_pooling=%d out_w=%d\n", w, h, d, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, adaptive_pooling, out_w);
+        fprintf(stderr, "test_pooling3d failed w=%d h=%d d=%d c=%d pooling_type=%d kernel=%d stride=%d pad=%d global_pooling=%d pad_mode=%d avgpool_count_include_pad=%d adaptive_pooling=%d out_w=%d\n", w, h, d, c, pooling_type, kernel, stride, pad, global_pooling, pad_mode, avgpool_count_include_pad, adaptive_pooling, out_w);
     }
 
     return ret;

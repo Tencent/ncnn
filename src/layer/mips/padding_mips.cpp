@@ -49,6 +49,7 @@ int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -134,6 +135,49 @@ int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 return 0;
             }
         }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (type == 0)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    v4f32 pad_value = per_channel_pad_data_size ? (v4f32)__msa_ld_w((const float*)per_channel_pad_data + q * 4, 0) : __msa_fill_w_f32(value);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            if (type == 0)
+                                padding_constant_pack4_msa(m, borderm, top, bottom, left, right, pad_value);
+                            if (type == 1)
+                                padding_replicate_pack4_msa(m, borderm, top, bottom, left, right);
+                            if (type == 2)
+                                padding_reflect_pack4_msa(m, borderm, top, bottom, left, right);
+                        }
+                    }
+                }
+
+                return 0;
+            }
+        }
     }
 #endif // __mips_msa
 
@@ -168,6 +212,7 @@ int Padding_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -251,6 +296,52 @@ int Padding_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                             padding_replicate_pack8_int8_msa(m, borderm, top, bottom, left, right);
                         if (type == 2)
                             padding_reflect_pack8_int8_msa(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (type == 0)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    // TODO perchannel
+                    //                     int64_t pad_value = per_channel_pad_data_size ? vld1_s8(per_channel_pad_data + q * 8) : vdup_n_s8((signed char)value);
+                    int64_t v8 = (int64_t)value;
+                    int64_t pad_value = v8 | (v8 << 8) | (v8 << 16) | (v8 << 24) | (v8 << 32) | (v8 << 40) | (v8 << 48) | (v8 << 56);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            if (type == 0)
+                                padding_constant_pack8_int8_msa(m, borderm, top, bottom, left, right, pad_value);
+                            if (type == 1)
+                                padding_replicate_pack8_int8_msa(m, borderm, top, bottom, left, right);
+                            if (type == 2)
+                                padding_reflect_pack8_int8_msa(m, borderm, top, bottom, left, right);
+                        }
                     }
                 }
 
