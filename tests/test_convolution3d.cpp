@@ -20,7 +20,7 @@ static int test_convolution3d(int w, int h, int d, int c, int outch, int kernel,
     ncnn::Mat a = RandomMat(w, h, d, c);
 
     ncnn::ParamDict pd;
-    pd.set(0, outch);     // num_output
+    pd.set(0, outch);    // num_output
     pd.set(1, kernel);   // kernel_w
     pd.set(2, dilation); // dilation_w
     pd.set(3, stride);   // stride_w
