@@ -104,6 +104,13 @@ static ncnn::Mat RandomMat(int w, int h, int c)
     return m;
 }
 
+static ncnn::Mat RandomMat(int w, int h, int d, int c)
+{
+    ncnn::Mat m(w, h, d, c);
+    Randomize(m);
+    return m;
+}
+
 static ncnn::Mat RandomIntMat(int w)
 {
     ncnn::Mat m(w);
@@ -195,6 +202,7 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
     CHECK_MEMBER(dims)
     CHECK_MEMBER(w)
     CHECK_MEMBER(h)
+    CHECK_MEMBER(d)
     CHECK_MEMBER(c)
     CHECK_MEMBER(elemsize)
     CHECK_MEMBER(elempack)
@@ -205,16 +213,21 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
     {
         const ncnn::Mat ma = a.channel(q);
         const ncnn::Mat mb = b.channel(q);
-        for (int i = 0; i < a.h; i++)
+        for (int z = 0; z < a.d; z++)
         {
-            const float* pa = ma.row(i);
-            const float* pb = mb.row(i);
-            for (int j = 0; j < a.w; j++)
+            const ncnn::Mat da = a.depth(z);
+            const ncnn::Mat db = b.depth(z);
+            for (int i = 0; i < a.h; i++)
             {
-                if (!NearlyEqual(pa[j], pb[j], epsilon))
+                const float* pa = da.row(i);
+                const float* pb = db.row(i);
+                for (int j = 0; j < a.w; j++)
                 {
-                    fprintf(stderr, "value not match  at c:%d h:%d w:%d    expect %f but got %f\n", q, i, j, pa[j], pb[j]);
-                    return -1;
+                    if (!NearlyEqual(pa[j], pb[j], epsilon))
+                    {
+                        fprintf(stderr, "value not match  at c:%d d:%d h:%d w:%d    expect %f but got %f\n", q, z, i, j, pa[j], pb[j]);
+                        return -1;
+                    }
                 }
             }
         }

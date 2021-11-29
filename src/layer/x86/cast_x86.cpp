@@ -83,6 +83,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -127,10 +128,14 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     {
         top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
     }
+    else if (dims == 4)
+    {
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
-    int size = w * h * elempack;
+    int size = w * h * d * elempack;
     if (type_from == 1 && type_to == 2)
     {
         int nn = size >> 3;
