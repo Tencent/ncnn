@@ -210,17 +210,13 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
-    int d_step_i = bottom_blob_bordered.cstep / bottom_blob_bordered.d - bottom_blob_bordered.w * bottom_blob_bordered.h;
-    int gap0 = w - kernel_w;
-    int gap1 = (h - kernel_h) * w + d_step_i;
-
-
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;
         int p2 = 0;
-
-        for (int k = 0; k < kernel_d; k++)
+        int gap0 = w  - kernel_w;
+        int gap1 = h * w - w * kernel_h;
+        for (int z = 0; z < kernel_d; z++)
         {
             for (int i = 0; i < kernel_h; i++)
             {
@@ -234,7 +230,6 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             }
             p2 += gap1;
         }
-
     }
 
 
@@ -371,10 +366,10 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                             for (int l = 0; l < maxk; l++)
                             {
                                 float val = sptr[space_ofs[l]];
-                                sum += val;;
+                                sum += val;
                             }
 
-                            outptr[j] = sum / maxk;;
+                            outptr[j] = sum / maxk;
                         }
 
                         outptr += outw;
