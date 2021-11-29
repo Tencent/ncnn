@@ -30,10 +30,9 @@ void eliminate_maxpool_indices(Graph& graph)
             Operator* op = graph.ops[i];
 
             if (op->type != "F.adaptive_max_pool1d" && op->type != "F.adaptive_max_pool2d" && op->type != "F.adaptive_max_pool3d"
-                && op->type != "F.max_pool1d" && op->type != "F.max_pool2d" && op->type != "F.max_pool3d"
-                && op->type != "nn.AdaptiveMaxPool1d" && op->type != "nn.AdaptiveMaxPool2d" && op->type != "nn.AdaptiveMaxPool3d"
-                && op->type != "nn.MaxPool1d" && op->type != "nn.MaxPool2d" && op->type != "nn.MaxPool3d"
-            )
+                    && op->type != "F.max_pool1d" && op->type != "F.max_pool2d" && op->type != "F.max_pool3d"
+                    && op->type != "nn.AdaptiveMaxPool1d" && op->type != "nn.AdaptiveMaxPool2d" && op->type != "nn.AdaptiveMaxPool3d"
+                    && op->type != "nn.MaxPool1d" && op->type != "nn.MaxPool2d" && op->type != "nn.MaxPool3d")
                 continue;
 
             if (op->outputs.size() != 2)
