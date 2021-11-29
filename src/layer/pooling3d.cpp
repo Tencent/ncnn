@@ -1,5 +1,18 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
 #include "pooling3d.h"
-#include "layer_type.h"
 
 #include <float.h>
 
@@ -15,24 +28,24 @@ int Pooling3D::load_param(const ParamDict& pd)
 {
     pooling_type = pd.get(0, 0);
     kernel_w = pd.get(1, 0);
-    kernel_h = pd.get(2, kernel_w);
-    kernel_d = pd.get(3, kernel_w);
-    stride_w = pd.get(4, 1);
-    stride_h = pd.get(5, stride_w);
-    stride_d = pd.get(6, stride_w);
-    pad_left = pd.get(7, 0);
-    pad_right = pd.get(8, pad_left);
-    pad_top = pd.get(9, pad_left);
-    pad_bottom = pd.get(10, pad_top);
-    pad_front = pd.get(11, pad_top);  //d
-    pad_behind = pd.get(12, pad_top); //d
-    global_pooling = pd.get(13, 0);
-    pad_mode = pd.get(14, 0);
-    avgpool_count_include_pad = pd.get(15, 0);
-    adaptive_pooling = pd.get(16, 0);
-    out_w = pd.get(17, 0);
+    kernel_h = pd.get(11, kernel_w);
+    kernel_d = pd.get(21, kernel_w);
+    stride_w = pd.get(2, 1);
+    stride_h = pd.get(12, stride_w);
+    stride_d = pd.get(22, stride_w);
+    pad_left = pd.get(3, 0);
+    pad_right = pd.get(14, pad_left);
+    pad_top = pd.get(13, pad_left);
+    pad_bottom = pd.get(15, pad_top);
+    pad_front = pd.get(23, pad_top);
+    pad_behind = pd.get(16, pad_front);
+    global_pooling = pd.get(4, 0);
+    pad_mode = pd.get(5, 0);
+    avgpool_count_include_pad = pd.get(6, 0);
+    adaptive_pooling = pd.get(7, 0);
+    out_w = pd.get(8, 0);
     out_h = pd.get(18, out_w);
-    out_d = pd.get(19, out_w);
+    out_d = pd.get(28, out_w);
 
     return 0;
 }
@@ -55,7 +68,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
         if (top_blob.empty())
             return -100;
 
-        int size = w * h;
+        int size = w * h * d;
 
         if (pooling_type == PoolMethod_MAX)
         {
@@ -73,7 +86,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 top_blob[q] = max_value;
             }
         }
-        else if (pooling_type == PoolMethod_AVE) //avepooling
+        else if (pooling_type == PoolMethod_AVE)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -104,23 +117,29 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                Mat inptr = bottom_blob.channel(q);
+                const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int k = 0; k < out_d; k++)
+                for (int z = 0; z < out_d; z++)
                 {
-                    int id0 = floor((float)(k * d) / out_d);
-                    int id1 = ceil((float)((k + 1) * d) / out_d);
+                    // floor div
+                    const int id0 = d * z / out_d;
+                    // ceil div
+                    const int id1 = (d * (z + 1) + out_d - 1) / out_d;
                     for (int i = 0; i < out_h; i++)
                     {
-                        int ih0 = floor((float)(i * h) / out_h);
-                        int ih1 = ceil((float)((i + 1) * h) / out_h);
+                        // floor div
+                        const int ih0 = h * i / out_h;
+                        // ceil div
+                        const int ih1 = (h * (i + 1) + out_h - 1) / out_h;
                         for (int j = 0; j < out_w; j++)
                         {
-                            int iw0 = floor((float)(j * w) / out_w);
-                            int iw1 = ceil((float)((j + 1) * w) / out_w);
+                            // floor div
+                            const int iw0 = w * j / out_w;
+                            // ceil div
+                            const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
 
-                            float max_value = inptr.depth(id0).row(ih0)[iw0];
+                            float max_value = inptr[id0 * w * h + ih0 * w + iw0];
 
                             for (int id = id0; id < id1; id++)
                             {
@@ -128,15 +147,16 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                                 {
                                     for (int iw = iw0; iw < iw1; iw++)
                                     {
-                                        max_value = std::max(max_value, inptr.depth(id).row(ih)[iw]);
+                                        max_value = std::max(max_value, inptr[id * w * h + ih * w + iw]);
                                     }
                                 }
                             }
+
                             outptr[j] = max_value;
                         }
+
                         outptr += out_w;
                     }
-                    outptr += (top_blob.cstep / out_d - out_w * out_h);
                 }
             }
         }
@@ -145,23 +165,29 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                Mat inptr = bottom_blob.channel(q);
+                const float* inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int k = 0; k < out_d; k++)
+                for (int z = 0; z < out_d; z++)
                 {
-                    int id0 = floor((float)(k * d) / out_d);
-                    int id1 = ceil((float)((k + 1) * d) / out_d);
+                    // floor div
+                    const int id0 = d * z / out_d;
+                    // ceil div
+                    const int id1 = (d * (z + 1) + out_d - 1) / out_d;
                     int dk = id1 - id0;
                     for (int i = 0; i < out_h; i++)
                     {
-                        int ih0 = floor((float)(i * h) / out_h);
-                        int ih1 = ceil((float)((i + 1) * h) / out_h);
+                        // floor div
+                        const int ih0 = h * i / out_h;
+                        // ceil div
+                        const int ih1 = (h * (i + 1) + out_h - 1) / out_h;
                         int hk = ih1 - ih0;
                         for (int j = 0; j < out_w; j++)
                         {
-                            int iw0 = floor((float)(j * w) / out_w);
-                            int iw1 = ceil((float)((j + 1) * w) / out_w);
+                            // floor div
+                            const int iw0 = w * j / out_w;
+                            // ceil div
+                            const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
                             int wk = iw1 - iw0;
 
                             float sum = 0;
@@ -171,10 +197,11 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                                 {
                                     for (int iw = iw0; iw < iw1; iw++)
                                     {
-                                        sum += inptr.depth(id).row(ih)[iw];
+                                        sum += inptr[id * w * h + ih * w + iw];
                                     }
                                 }
                             }
+
                             outptr[j] = sum / hk / wk / dk;
                         }
 
@@ -208,16 +235,13 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
-    int d_step_i = bottom_blob_bordered.cstep / bottom_blob_bordered.d - bottom_blob_bordered.w * bottom_blob_bordered.h;
-    int gap0 = w - kernel_w;
-    int gap1 = (h - kernel_h) * w + d_step_i;
-
     int* space_ofs = &_space_ofs[0];
     {
         int p1 = 0;
         int p2 = 0;
-
-        for (int k = 0; k < kernel_d; k++)
+        int gap0 = w - kernel_w;
+        int gap1 = h * w - w * kernel_h;
+        for (int z = 0; z < kernel_d; z++)
         {
             for (int i = 0; i < kernel_h; i++)
             {
@@ -233,20 +257,20 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
         }
     }
 
-    if (pooling_type == 0) //PoolMethod_MAX
+    if (pooling_type == PoolMethod_MAX)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
             const Mat m = bottom_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
-            for (int k = 0; k < outd; k++)
+            for (int z = 0; z < outd; z++)
             {
                 for (int i = 0; i < outh; i++)
                 {
                     for (int j = 0; j < outw; j++)
                     {
-                        const float* sptr = m.depth(k * stride_d).row(i * stride_h) + j * stride_w;
+                        const float* sptr = m.depth(z * stride_d).row(i * stride_h) + j * stride_w;
 
                         float max_value = sptr[0];
 
@@ -264,7 +288,6 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             }
         }
     }
-
     else if (pooling_type == PoolMethod_AVE)
     {
         if (avgpool_count_include_pad == 0)
@@ -286,9 +309,10 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 const Mat m = bottom_blob_bordered.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int k = 0; k < outd; k++)
+                for (int z = 0; z < outd; z++)
                 {
-                    int sz0 = k * stride_d;
+                    int sz0 = z * stride_d;
+
                     for (int i = 0; i < outh; i++)
                     {
                         int sy0 = i * stride_h;
@@ -335,6 +359,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                                     }
                                 }
                             }
+
                             outptr[j] = sum / area;
                         }
 
@@ -351,13 +376,13 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 const Mat m = bottom_blob_bordered.channel(q);
                 float* outptr = top_blob.channel(q);
 
-                for (int k = 0; k < outd; k++)
+                for (int z = 0; z < outd; z++)
                 {
                     for (int i = 0; i < outh; i++)
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            const float* sptr = m.depth(k * stride_d).row(i * stride_h) + j * stride_w;
+                            const float* sptr = m.depth(z * stride_d).row(i * stride_h) + j * stride_w;
 
                             float sum = 0;
 
@@ -365,11 +390,9 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                             {
                                 float val = sptr[space_ofs[l]];
                                 sum += val;
-                                ;
                             }
 
                             outptr[j] = sum / maxk;
-                            ;
                         }
 
                         outptr += outw;
@@ -378,6 +401,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             }
         }
     }
+
     return 0;
 }
 
@@ -450,4 +474,5 @@ void Pooling3D::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, 
         }
     }
 }
+
 } //namespace ncnn

@@ -414,16 +414,16 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 
 | torch.nn        | Is Supported | Export to ncnn |
 |---------------------------|----|---|
-|nn.AdaptiveAvgPool1d       | :heavy_check_mark: |
+|nn.AdaptiveAvgPool1d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveAvgPool2d       | :heavy_check_mark: | :heavy_check_mark: |
-|nn.AdaptiveAvgPool3d       | :heavy_check_mark: |
+|nn.AdaptiveAvgPool3d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveMaxPool1d       | :heavy_check_mark: |
 |nn.AdaptiveMaxPool2d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveMaxPool3d       | :heavy_check_mark: |
 |nn.AlphaDropout            |   |
-|nn.AvgPool1d               | :heavy_check_mark: |
+|nn.AvgPool1d               | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.AvgPool2d               | :heavy_check_mark: | :heavy_check_mark:* |
-|nn.AvgPool3d               | :heavy_check_mark: |
+|nn.AvgPool3d               | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.BatchNorm1d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.BatchNorm2d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.BatchNorm3d             | :heavy_check_mark: |
@@ -432,10 +432,10 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.ChannelShuffle          | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad1d           | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConstantPad2d           | :heavy_check_mark: | :heavy_check_mark: |
-|nn.ConstantPad3d           | :heavy_check_mark: |
+|nn.ConstantPad3d           | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Conv1d                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Conv2d                  | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Conv3d                  | :heavy_check_mark: |
+|nn.Conv3d                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConvTranspose1d         | :heavy_check_mark: |
 |nn.ConvTranspose2d         | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConvTranspose3d         | :heavy_check_mark: |
@@ -482,9 +482,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.LPPool2d                | :heavy_check_mark: |
 |nn.LSTM                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.LSTMCell                |   |
-|nn.MaxPool1d               | :heavy_check_mark: |
+|nn.MaxPool1d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.MaxPool2d               | :heavy_check_mark: | :heavy_check_mark: |
-|nn.MaxPool3d               | :heavy_check_mark: |
+|nn.MaxPool3d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.MaxUnpool1d             |   |
 |nn.MaxUnpool2d             |   |
 |nn.MaxUnpool3d             |   |
