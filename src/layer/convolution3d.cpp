@@ -80,7 +80,7 @@ int Convolution3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
     const int kernel_extend_d = dilation_d * (kernel_d - 1) + 1;
 
     Mat bottom_blob_bordered;
-    Opt opt_pad = opt;
+    Option opt_pad = opt;
     opt_pad.use_packing_layout = false;
     make_padding(bottom_blob, bottom_blob_bordered, opt_pad);
     if (bottom_blob_bordered.empty())
