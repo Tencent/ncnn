@@ -417,9 +417,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.AdaptiveAvgPool1d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveAvgPool2d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveAvgPool3d       | :heavy_check_mark: | :heavy_check_mark: |
-|nn.AdaptiveMaxPool1d       | :heavy_check_mark: |
+|nn.AdaptiveMaxPool1d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveMaxPool2d       | :heavy_check_mark: | :heavy_check_mark: |
-|nn.AdaptiveMaxPool3d       | :heavy_check_mark: |
+|nn.AdaptiveMaxPool3d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AlphaDropout            |   |
 |nn.AvgPool1d               | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.AvgPool2d               | :heavy_check_mark: | :heavy_check_mark:* |

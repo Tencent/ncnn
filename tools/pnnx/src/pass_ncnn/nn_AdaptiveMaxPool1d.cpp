@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class nn_AdaptiveAvgPool1d : public GraphRewriterPass
+class nn_AdaptiveMaxPool1d : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.AdaptiveAvgPool1d    op_0        1 1 input out output_size=1
+nn.AdaptiveMaxPool1d    op_0        1 1 input out output_size=(1) return_indices=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -38,19 +38,19 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "gap";
+        return "gmp1d";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
-        op->params["0"] = 1;
+        op->params["0"] = 0;
         op->params["4"] = 1;
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_AdaptiveAvgPool1d, 19)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_AdaptiveMaxPool1d, 19)
 
-class nn_AdaptiveAvgPool1d_n : public GraphRewriterPass
+class nn_AdaptiveMaxPool1d_n : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -58,7 +58,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.AdaptiveAvgPool1d    op_0        1 1 input out output_size=%output_size
+nn.AdaptiveMaxPool1d    op_0        1 1 input out output_size=%output_size return_indices=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -70,18 +70,18 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "aap";
+        return "amp1d";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["0"] = 1;
+        op->params["0"] = 0;
         op->params["7"] = 1;
         op->params["8"] = captured_params.at("output_size").ai[0];
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_AdaptiveAvgPool1d_n, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_AdaptiveMaxPool1d_n, 20)
 
 } // namespace ncnn
 

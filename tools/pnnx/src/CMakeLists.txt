@@ -265,7 +265,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_AdaptiveAvgPool1d.cpp
     pass_ncnn/nn_AdaptiveAvgPool2d.cpp
     pass_ncnn/nn_AdaptiveAvgPool3d.cpp
+    pass_ncnn/nn_AdaptiveMaxPool1d.cpp
     pass_ncnn/nn_AdaptiveMaxPool2d.cpp
+    pass_ncnn/nn_AdaptiveMaxPool3d.cpp
     pass_ncnn/nn_AvgPool1d.cpp
     pass_ncnn/nn_AvgPool2d.cpp
     pass_ncnn/nn_AvgPool3d.cpp

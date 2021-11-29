@@ -33,8 +33,6 @@ public:
 
     void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
     {
-        graph->dump();
-
         const torch::jit::Node* adaptive_max_pool1d = find_node_by_kind(graph, "aten::adaptive_max_pool1d");
 
         op->params["output_size"] = adaptive_max_pool1d->namedInput("output_size");
