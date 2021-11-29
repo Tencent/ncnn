@@ -3,7 +3,7 @@
 
 #include <float.h>
 
-namespace ncnn{
+namespace ncnn {
 
 Pooling3D::Pooling3D()
 {
@@ -24,7 +24,7 @@ int Pooling3D::load_param(const ParamDict& pd)
     pad_right = pd.get(8, pad_left);
     pad_top = pd.get(9, pad_left);
     pad_bottom = pd.get(10, pad_top);
-    pad_front = pd.get(11, pad_top); //d
+    pad_front = pd.get(11, pad_top);  //d
     pad_behind = pd.get(12, pad_top); //d
     global_pooling = pd.get(13, 0);
     pad_mode = pd.get(14, 0);
@@ -41,13 +41,12 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     // max value in NxN window
     // avg value in NxN window
-  
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
-
 
     //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
     if (global_pooling)
@@ -58,7 +57,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
         int size = w * h;
 
-        if (pooling_type == PoolMethod_MAX) 
+        if (pooling_type == PoolMethod_MAX)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -74,7 +73,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 top_blob[q] = max_value;
             }
         }
-        else if (pooling_type == PoolMethod_AVE)//avepooling
+        else if (pooling_type == PoolMethod_AVE) //avepooling
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -149,7 +148,6 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 Mat inptr = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
 
-
                 for (int k = 0; k < out_d; k++)
                 {
                     int id0 = floor((float)(k * d) / out_d);
@@ -172,12 +170,12 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                                 for (int ih = ih0; ih < ih1; ih++)
                                 {
                                     for (int iw = iw0; iw < iw1; iw++)
-                                    {  
+                                    {
                                         sum += inptr.depth(id).row(ih)[iw];
                                     }
                                 }
                             }
-                            outptr[j] = sum / hk / wk/ dk;
+                            outptr[j] = sum / hk / wk / dk;
                         }
 
                         outptr += out_w;
@@ -205,7 +203,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     top_blob.create(outw, outh, outd, channels, elemsize);
     if (top_blob.empty())
         return -100;
-    
+
     const int maxk = kernel_w * kernel_h * kernel_d;
 
     // kernel offsets
@@ -213,7 +211,6 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     int d_step_i = bottom_blob_bordered.cstep / bottom_blob_bordered.d - bottom_blob_bordered.w * bottom_blob_bordered.h;
     int gap0 = w - kernel_w;
     int gap1 = (h - kernel_h) * w + d_step_i;
-
 
     int* space_ofs = &_space_ofs[0];
     {
@@ -234,16 +231,13 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             }
             p2 += gap1;
         }
-
     }
 
-
-    if (pooling_type == 0)//PoolMethod_MAX
+    if (pooling_type == 0) //PoolMethod_MAX
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-
             const Mat m = bottom_blob_bordered.channel(q);
             float* outptr = top_blob.channel(q);
             for (int k = 0; k < outd; k++)
@@ -288,7 +282,7 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
-            {       
+            {
                 const Mat m = bottom_blob_bordered.channel(q);
                 float* outptr = top_blob.channel(q);
 
@@ -365,16 +359,17 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                         {
                             const float* sptr = m.depth(k * stride_d).row(i * stride_h) + j * stride_w;
 
-
                             float sum = 0;
 
                             for (int l = 0; l < maxk; l++)
                             {
                                 float val = sptr[space_ofs[l]];
-                                sum += val;;
+                                sum += val;
+                                ;
                             }
 
-                            outptr[j] = sum / maxk;;
+                            outptr[j] = sum / maxk;
+                            ;
                         }
 
                         outptr += outw;

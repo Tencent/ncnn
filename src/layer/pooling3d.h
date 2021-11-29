@@ -3,8 +3,7 @@
 
 #include "layer.h"
 
-
-namespace ncnn{
+namespace ncnn {
 class Pooling3D : public Layer
 {
 public:
