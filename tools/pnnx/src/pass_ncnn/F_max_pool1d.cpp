@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class nn_AdaptiveAvgPool1d : public GraphRewriterPass
+class F_max_pool1d : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.AdaptiveAvgPool1d    op_0        1 1 input out output_size=1
+F.max_pool1d            op_0        1 1 input out kernel_size=%kernel_size stride=%stride dilation=(1) padding=%padding ceil_mode=%ceil_mode return_indices=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -38,50 +38,30 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "gap";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
-    {
-        op->params["0"] = 1;
-        op->params["4"] = 1;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_AdaptiveAvgPool1d, 20)
-
-class nn_AdaptiveAvgPool1d_n : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-nn.AdaptiveAvgPool1d    op_0        1 1 input out output_size=%output_size
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "Pooling1D";
-    }
-
-    const char* name_str() const
-    {
-        return "aap";
+        return "maxpool1d";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["0"] = 1;
-        op->params["7"] = 1;
-        op->params["8"] = captured_params.at("output_size").ai[0];
+        std::vector<int> stride;
+        if (captured_params.at("stride").type == 0)
+        {
+            stride = captured_params.at("kernel_size").ai;
+        }
+        else
+        {
+            stride = captured_params.at("stride").ai;
+        }
+
+        op->params["0"] = 0;
+        op->params["1"] = captured_params.at("kernel_size").ai[0];
+        op->params["2"] = stride[0];
+        op->params["3"] = captured_params.at("padding").ai[0];
+        op->params["5"] = captured_params.at("ceil_mode").b ? 0 : 1;
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_AdaptiveAvgPool1d_n, 21)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_max_pool1d, 20)
 
 } // namespace ncnn
 

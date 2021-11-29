@@ -195,6 +195,7 @@ set(pnnx_pass_level4_SRCS
 )
 
 set(pnnx_pass_level5_SRCS
+    pass_level5/eliminate_maxpool_indices.cpp
     pass_level5/eliminate_slice.cpp
     pass_level5/eliminate_view_reshape.cpp
     pass_level5/eval_expression.cpp
@@ -230,8 +231,15 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_deconvolutiondepthwise_activation.cpp
     pass_ncnn/fuse_innerproduct_activation.cpp
 
+    pass_ncnn/F_adaptive_avg_pool1d.cpp
     pass_ncnn/F_adaptive_avg_pool2d.cpp
+    pass_ncnn/F_adaptive_avg_pool3d.cpp
+    pass_ncnn/F_adaptive_max_pool1d.cpp
     pass_ncnn/F_adaptive_max_pool2d.cpp
+    pass_ncnn/F_adaptive_max_pool3d.cpp
+    pass_ncnn/F_avg_pool1d.cpp
+    pass_ncnn/F_avg_pool2d.cpp
+    pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_elu.cpp
@@ -246,6 +254,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_leaky_relu.cpp
     pass_ncnn/F_linear.cpp
     pass_ncnn/F_local_response_norm.cpp
+    pass_ncnn/F_max_pool1d.cpp
+    pass_ncnn/F_max_pool2d.cpp
+    pass_ncnn/F_max_pool3d.cpp
     pass_ncnn/F_mish.cpp
     pass_ncnn/F_normalize.cpp
     pass_ncnn/F_pad.cpp

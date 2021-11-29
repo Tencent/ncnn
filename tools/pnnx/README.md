@@ -533,17 +533,17 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 
 | torch.nn.functional | Is Supported | Export to ncnn |
 |---------------------------|----|----|
-|F.adaptive_avg_pool1d      | :heavy_check_mark: |
+|F.adaptive_avg_pool1d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_avg_pool2d      | :heavy_check_mark: | :heavy_check_mark: |
-|F.adaptive_avg_pool3d      | :heavy_check_mark: |
-|F.adaptive_max_pool1d      | :heavy_check_mark: |
+|F.adaptive_avg_pool3d      | :heavy_check_mark: | :heavy_check_mark: |
+|F.adaptive_max_pool1d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_max_pool2d      | :heavy_check_mark: | :heavy_check_mark: |
-|F.adaptive_max_pool3d      | :heavy_check_mark: |
-|F.affine_grid              | :heavy_check_mark: |
+|F.adaptive_max_pool3d      | :heavy_check_mark: | :heavy_check_mark: |
+|F.affine_grid              | :heavy_check_mark: | :heavy_check_mark: |
 |F.alpha_dropout            |  |
-|F.avg_pool1d               | :heavy_check_mark: |
-|F.avg_pool2d               | :heavy_check_mark: |
-|F.avg_pool3d               | :heavy_check_mark: |
+|F.avg_pool1d               | :heavy_check_mark: | :heavy_check_mark:* |
+|F.avg_pool2d               | :heavy_check_mark: | :heavy_check_mark:* |
+|F.avg_pool3d               | :heavy_check_mark: | :heavy_check_mark:* |
 |F.batch_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.bilinear                 |  |
 |F.celu                     | :heavy_check_mark: |
@@ -586,9 +586,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.log_softmax              | :heavy_check_mark: |
 |F.lp_pool1d                | :heavy_check_mark: |
 |F.lp_pool2d                | :heavy_check_mark: |
-|F.max_pool1d               | :heavy_check_mark: |
-|F.max_pool2d               | :heavy_check_mark: |
-|F.max_pool3d               | :heavy_check_mark: |
+|F.max_pool1d               | :heavy_check_mark: | :heavy_check_mark: |
+|F.max_pool2d               | :heavy_check_mark: | :heavy_check_mark: |
+|F.max_pool3d               | :heavy_check_mark: | :heavy_check_mark: |
 |F.max_unpool1d             |  |
 |F.max_unpool2d             |  |
 |F.max_unpool3d             |  |

@@ -37,6 +37,7 @@
 
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
+#include "pass_level5/eliminate_maxpool_indices.h"
 #include "pass_level5/unroll_rnn_op.h"
 
 namespace pnnx {
@@ -62,6 +63,8 @@ NcnnGraphRewriterPassRegister::~NcnnGraphRewriterPassRegister()
 void pass_ncnn(Graph& g)
 {
     unroll_rnn_op(g);
+
+    eliminate_maxpool_indices(g);
 
     ncnn::expand_expression(g);
 

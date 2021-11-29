@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class nn_AdaptiveAvgPool3d : public GraphRewriterPass
+class F_adaptive_max_pool1d : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,31 +26,31 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=(1,1,1)
+F.adaptive_max_pool1d   op_0        1 1 input out output_size=(1) return_indices=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "Pooling3D";
+        return "Pooling1D";
     }
 
     const char* name_str() const
     {
-        return "gap3d";
+        return "gmp1d";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
-        op->params["0"] = 1;
+        op->params["0"] = 0;
         op->params["4"] = 1;
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_AdaptiveAvgPool3d, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_adaptive_max_pool1d, 20)
 
-class nn_AdaptiveAvgPool3d_n : public GraphRewriterPass
+class F_adaptive_max_pool1d_n : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -58,32 +58,30 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.AdaptiveAvgPool3d    op_0        1 1 input out output_size=%output_size
+F.adaptive_max_pool1d   op_0        1 1 input out output_size=%output_size return_indices=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "Pooling3D";
+        return "Pooling1D";
     }
 
     const char* name_str() const
     {
-        return "aap3d";
+        return "amp1d";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["0"] = 1;
+        op->params["0"] = 0;
         op->params["7"] = 1;
-        op->params["8"] = captured_params.at("output_size").ai[2];
-        op->params["18"] = captured_params.at("output_size").ai[1];
-        op->params["28"] = captured_params.at("output_size").ai[0];
+        op->params["8"] = captured_params.at("output_size").ai[0];
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_AdaptiveAvgPool3d_n, 21)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_adaptive_max_pool1d_n, 21)
 
 } // namespace ncnn
 
