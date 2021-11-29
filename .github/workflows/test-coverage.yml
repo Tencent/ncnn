@@ -116,14 +116,14 @@ jobs:
       uses: actions/cache@v2.1.7
       with:
         path: lavapipe-install
-        key: lavapipe-linux-install-20211129
+        key: lavapipe-linux-install-20211127
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: mesa3d/mesa
         path: mesa
-        ref: 996f147fef844815c886c2ad7606b972c1ad69a5
+        ref: cd39180cfab20734744b379b085cc3b5c2cecd3a
     - name: lavapipe
       if: steps.cache-lavapipe.outputs.cache-hit != 'true'
       run: |
