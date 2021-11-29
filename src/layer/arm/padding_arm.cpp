@@ -539,7 +539,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
                             if (type == 0)
-                                padding_constant_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right, pad_value);
+                                padding_constant_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right, vcombine_u16(pad_value, pad_value));
                             if (type == 1)
                                 padding_replicate_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
                             if (type == 2)

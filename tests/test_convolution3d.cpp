@@ -51,7 +51,7 @@ static int test_convolution3d(int w, int h, int d, int c, int outch, int kernel,
 
 static int test_convolution3d_0()
 {
-    static const int kdsp[16][4] = {
+    static const int kdsp[13][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
         {2, 1, 1, 1},
@@ -65,12 +65,9 @@ static int test_convolution3d_0()
         {5, 1, 1, -234},
         {5, 1, 2, 2},
         {5, 2, 2, 2},
-        {7, 1, 1, 3},
-        {7, 1, 2, 3},
-        {7, 2, 1, -233},
     };
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 13; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];
@@ -78,16 +75,6 @@ static int test_convolution3d_0()
         const int p = kdsp[i][3];
 
         int ret = 0
-                  || test_convolution3d(9, 8, 7, 1, 1, k, d, s, p, 1)
-                  || test_convolution3d(9, 8, 7, 4, 13, k, d, s, p, 0)
-                  || test_convolution3d(9, 8, 7, 13, 4, k, d, s, p, 1)
-                  || test_convolution3d(9, 8, 7, 12, 12, k, d, s, p, 0)
-                  || test_convolution3d(9, 8, 7, 8, 12, k, d, s, p, 1)
-                  || test_convolution3d(9, 8, 7, 8, 13, k, d, s, p, 0)
-                  || test_convolution3d(9, 8, 7, 13, 8, k, d, s, p, 1)
-                  || test_convolution3d(9, 8, 7, 12, 16, k, d, s, p, 0)
-                  || test_convolution3d(9, 8, 7, 15, 15, k, d, s, p, 0)
-                  || test_convolution3d(9, 8, 7, 16, 16, k, d, s, p, 0)
                   || test_convolution3d(18, 13, 11, 1, 1, k, d, s, p, 1)
                   || test_convolution3d(18, 13, 11, 4, 13, k, d, s, p, 0)
                   || test_convolution3d(18, 13, 11, 13, 4, k, d, s, p, 1)
@@ -97,33 +84,13 @@ static int test_convolution3d_0()
                   || test_convolution3d(18, 13, 11, 13, 8, k, d, s, p, 1)
                   || test_convolution3d(18, 13, 11, 12, 16, k, d, s, p, 0)
                   || test_convolution3d(18, 13, 11, 15, 15, k, d, s, p, 0)
-                  || test_convolution3d(18, 13, 11, 16, 16, k, d, s, p, 0)
-                  || test_convolution3d(25, 9, 8, 1, 1, k, d, s, p, 1)
-                  || test_convolution3d(25, 9, 8, 4, 13, k, d, s, p, 0)
-                  || test_convolution3d(25, 9, 8, 13, 4, k, d, s, p, 1)
-                  || test_convolution3d(25, 9, 8, 12, 12, k, d, s, p, 0)
-                  || test_convolution3d(25, 9, 8, 8, 12, k, d, s, p, 1)
-                  || test_convolution3d(25, 9, 8, 8, 13, k, d, s, p, 0)
-                  || test_convolution3d(25, 9, 8, 13, 8, k, d, s, p, 1)
-                  || test_convolution3d(25, 9, 8, 12, 16, k, d, s, p, 0)
-                  || test_convolution3d(25, 9, 8, 15, 15, k, d, s, p, 0)
-                  || test_convolution3d(25, 9, 8, 16, 16, k, d, s, p, 0);
+                  || test_convolution3d(18, 13, 11, 16, 16, k, d, s, p, 0);
 
         if (ret != 0)
             return -1;
     }
 
-    return 0
-           || test_convolution3d(7, 6, 5, 1, 4, 3, 1, 1, 1, 1)
-           || test_convolution3d(14, 7, 5, 1, 4, 3, 1, 2, 1, 1)
-           || test_convolution3d(15, 13, 11, 4, 4, 3, 1, 1, 1, 1)
-           || test_convolution3d(15, 13, 11, 8, 8, 3, 1, 1, 1, 1)
-           || test_convolution3d(11, 11, 11, 8, 16, 3, 1, 1, 1, 1)
-           || test_convolution3d(13, 8, 16, 16, 24, 3, 1, 1, 1, 1)
-           || test_convolution3d(8, 8, 8, 16, 24, 3, 1, 1, 1, 0)
-           || test_convolution3d(4, 6, 8, 16, 24, 3, 1, 1, 1, 1)
-           || test_convolution3d(4, 4, 20, 16, 24, 3, 1, 1, 1, 0)
-           || test_convolution3d(6, 7, 7, 64, 64, 3, 1, 2, 0, 1);
+    return 0;
 }
 
 int main()

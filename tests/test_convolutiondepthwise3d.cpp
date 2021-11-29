@@ -51,7 +51,7 @@ static int test_convolutiondepthwise3d(int w, int h, int d, int c, int outch, in
 
 static int test_convolutiondepthwise3d_0()
 {
-    static const int kdsp[16][4] = {
+    static const int kdsp[13][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
         {2, 1, 1, 1},
@@ -65,12 +65,9 @@ static int test_convolutiondepthwise3d_0()
         {5, 1, 1, -234},
         {5, 1, 2, 2},
         {5, 2, 2, 2},
-        {7, 1, 1, 3},
-        {7, 1, 2, 3},
-        {7, 2, 1, -233},
     };
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 13; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];
@@ -78,45 +75,19 @@ static int test_convolutiondepthwise3d_0()
         const int p = kdsp[i][3];
 
         int ret = 0
-                  || test_convolutiondepthwise3d(15, 9, 7, 1, 1, k, d, s, p, 1, 1)
-                  || test_convolutiondepthwise3d(15, 9, 7, 2, 2, k, d, s, p, 0, 1)
-                  || test_convolutiondepthwise3d(15, 9, 7, 2, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise3d(15, 9, 7, 3, 3, k, d, s, p, 0, 3)
-                  || test_convolutiondepthwise3d(15, 9, 7, 4, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise3d(15, 9, 7, 4, 4, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise3d(15, 9, 7, 7, 7, k, d, s, p, 1, 7)
-                  || test_convolutiondepthwise3d(15, 9, 7, 8, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise3d(15, 9, 7, 8, 8, k, d, s, p, 1, 8)
-                  || test_convolutiondepthwise3d(15, 9, 7, 12, 12, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise3d(15, 9, 7, 15, 15, k, d, s, p, 1, 15)
-                  || test_convolutiondepthwise3d(15, 9, 7, 16, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise3d(15, 9, 7, 16, 16, k, d, s, p, 1, 16)
-                  || test_convolutiondepthwise3d(18, 17, 11, 1, 1, k, d, s, p, 1, 1)
-                  || test_convolutiondepthwise3d(18, 17, 11, 2, 2, k, d, s, p, 0, 1)
-                  || test_convolutiondepthwise3d(18, 17, 11, 2, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise3d(18, 17, 11, 3, 3, k, d, s, p, 0, 3)
-                  || test_convolutiondepthwise3d(18, 17, 11, 4, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise3d(18, 17, 11, 4, 4, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise3d(18, 17, 11, 7, 7, k, d, s, p, 1, 7)
-                  || test_convolutiondepthwise3d(18, 17, 11, 8, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise3d(18, 17, 11, 8, 8, k, d, s, p, 1, 8)
-                  || test_convolutiondepthwise3d(18, 17, 11, 12, 12, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise3d(18, 17, 11, 15, 15, k, d, s, p, 1, 15)
-                  || test_convolutiondepthwise3d(18, 17, 11, 16, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise3d(18, 17, 11, 16, 16, k, d, s, p, 1, 16)
-                  || test_convolutiondepthwise3d(25, 23, 13, 1, 1, k, d, s, p, 1, 1)
-                  || test_convolutiondepthwise3d(25, 23, 13, 2, 2, k, d, s, p, 0, 1)
-                  || test_convolutiondepthwise3d(25, 23, 13, 2, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise3d(25, 23, 13, 3, 3, k, d, s, p, 0, 3)
-                  || test_convolutiondepthwise3d(25, 23, 13, 4, 2, k, d, s, p, 1, 2)
-                  || test_convolutiondepthwise3d(25, 23, 13, 4, 4, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise3d(25, 23, 13, 7, 7, k, d, s, p, 1, 7)
-                  || test_convolutiondepthwise3d(25, 23, 13, 8, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise3d(25, 23, 13, 8, 8, k, d, s, p, 1, 8)
-                  || test_convolutiondepthwise3d(25, 23, 13, 12, 12, k, d, s, p, 0, 4)
-                  || test_convolutiondepthwise3d(25, 23, 13, 15, 15, k, d, s, p, 1, 15)
-                  || test_convolutiondepthwise3d(25, 23, 13, 16, 8, k, d, s, p, 0, 2)
-                  || test_convolutiondepthwise3d(25, 23, 13, 16, 16, k, d, s, p, 1, 16);
+                  || test_convolutiondepthwise3d(18, 13, 11, 1, 1, k, d, s, p, 1, 1)
+                  || test_convolutiondepthwise3d(18, 13, 11, 2, 2, k, d, s, p, 0, 1)
+                  || test_convolutiondepthwise3d(18, 13, 11, 2, 2, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise3d(18, 13, 11, 3, 3, k, d, s, p, 0, 3)
+                  || test_convolutiondepthwise3d(18, 13, 11, 4, 2, k, d, s, p, 1, 2)
+                  || test_convolutiondepthwise3d(18, 13, 11, 4, 4, k, d, s, p, 0, 4)
+                  || test_convolutiondepthwise3d(18, 13, 11, 7, 7, k, d, s, p, 1, 7)
+                  || test_convolutiondepthwise3d(18, 13, 11, 8, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise3d(18, 13, 11, 8, 8, k, d, s, p, 1, 8)
+                  || test_convolutiondepthwise3d(18, 13, 11, 12, 12, k, d, s, p, 0, 4)
+                  || test_convolutiondepthwise3d(18, 13, 11, 15, 15, k, d, s, p, 1, 15)
+                  || test_convolutiondepthwise3d(18, 13, 11, 16, 8, k, d, s, p, 0, 2)
+                  || test_convolutiondepthwise3d(18, 13, 11, 16, 16, k, d, s, p, 1, 16);
 
         if (ret != 0)
             return -1;
