@@ -51,23 +51,17 @@ static int test_convolution3d(int w, int h, int d, int c, int outch, int kernel,
 
 static int test_convolution3d_0()
 {
-    static const int kdsp[13][4] = {
+    static const int kdsp[7][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
         {2, 1, 1, 1},
         {2, 1, 2, -233},
         {3, 1, 1, 1},
         {3, 1, 2, 1},
-        {3, 2, 1, 1},
-        {4, 1, 1, 2},
-        {4, 1, 2, -233},
-        {4, 2, 1, -234},
-        {5, 1, 1, -234},
-        {5, 1, 2, 2},
-        {5, 2, 2, 2},
+        {3, 2, 1, -234},
     };
 
-    for (int i = 0; i < 13; i++)
+    for (int i = 0; i < 7; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];
@@ -75,16 +69,16 @@ static int test_convolution3d_0()
         const int p = kdsp[i][3];
 
         int ret = 0
-                  || test_convolution3d(18, 13, 11, 1, 1, k, d, s, p, 1)
-                  || test_convolution3d(18, 13, 11, 4, 13, k, d, s, p, 0)
-                  || test_convolution3d(18, 13, 11, 13, 4, k, d, s, p, 1)
-                  || test_convolution3d(18, 13, 11, 12, 12, k, d, s, p, 0)
-                  || test_convolution3d(18, 13, 11, 8, 12, k, d, s, p, 1)
-                  || test_convolution3d(18, 13, 11, 8, 13, k, d, s, p, 0)
-                  || test_convolution3d(18, 13, 11, 13, 8, k, d, s, p, 1)
-                  || test_convolution3d(18, 13, 11, 12, 16, k, d, s, p, 0)
-                  || test_convolution3d(18, 13, 11, 15, 15, k, d, s, p, 0)
-                  || test_convolution3d(18, 13, 11, 16, 16, k, d, s, p, 0);
+                  || test_convolution3d(11, 10, 9, 1, 1, k, d, s, p, 1)
+                  || test_convolution3d(11, 10, 9, 4, 13, k, d, s, p, 0)
+                  || test_convolution3d(11, 10, 9, 13, 4, k, d, s, p, 1)
+                  || test_convolution3d(11, 10, 9, 12, 12, k, d, s, p, 0)
+                  || test_convolution3d(11, 10, 9, 8, 12, k, d, s, p, 1)
+                  || test_convolution3d(11, 10, 9, 8, 13, k, d, s, p, 0)
+                  || test_convolution3d(11, 10, 9, 13, 8, k, d, s, p, 1)
+                  || test_convolution3d(11, 10, 9, 12, 16, k, d, s, p, 0)
+                  || test_convolution3d(11, 10, 9, 15, 15, k, d, s, p, 0)
+                  || test_convolution3d(11, 10, 9, 16, 16, k, d, s, p, 0);
 
         if (ret != 0)
             return -1;

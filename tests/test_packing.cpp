@@ -55,7 +55,7 @@ static int test_packing_cpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
 
     if (CompareMat(b, c, 0.001) != 0)
     {
-        fprintf(stderr, "test_packing_cpu_fp32 failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        fprintf(stderr, "test_packing_cpu_fp32 failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
         return -1;
     }
 
@@ -114,7 +114,7 @@ static int test_packing_cpu_fp16(const ncnn::Mat& a, int in_elempack, int out_el
 
     if (CompareMat(b, c32, 0.001) != 0)
     {
-        fprintf(stderr, "test_packing_cpu_fp16 failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        fprintf(stderr, "test_packing_cpu_fp16 failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
         return -1;
     }
 
@@ -173,7 +173,7 @@ static int test_packing_cpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
 
     if (CompareMat(b32, c32, 0.001) != 0)
     {
-        fprintf(stderr, "test_packing_cpu_int8 failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        fprintf(stderr, "test_packing_cpu_int8 failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
         return -1;
     }
 
@@ -271,7 +271,7 @@ static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_
 
     if (CompareMat(b, d, 0.001) != 0)
     {
-        fprintf(stderr, "test_packing_gpu_buffer failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        fprintf(stderr, "test_packing_gpu_buffer failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
         return -1;
     }
 
@@ -358,7 +358,7 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
 
     if (CompareMat(b, d, 0.001) != 0)
     {
-        fprintf(stderr, "test_packing_gpu_image failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        fprintf(stderr, "test_packing_gpu_image failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
         return -1;
     }
 
@@ -445,7 +445,7 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
 
     if (CompareMat(b, d, 0.001) != 0)
     {
-        fprintf(stderr, "test_packing_gpu_buffer2image failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        fprintf(stderr, "test_packing_gpu_buffer2image failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
         return -1;
     }
 
@@ -532,7 +532,7 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
 
     if (CompareMat(b, d, 0.001) != 0)
     {
-        fprintf(stderr, "test_packing_gpu_image2buffer failed a.dims=%d a=(%d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.c, in_elempack, out_elempack);
+        fprintf(stderr, "test_packing_gpu_image2buffer failed a.dims=%d a=(%d %d %d %d) in_elempack=%d out_elempack=%d\n", a.dims, a.w, a.h, a.d, a.c, in_elempack, out_elempack);
         return -1;
     }
 

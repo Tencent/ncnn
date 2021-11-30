@@ -65,7 +65,7 @@ static int test_cast_cpu(const ncnn::Mat& a, int type_from, int type_to)
 
     if (CompareMat(b, c, 0.001) != 0)
     {
-        fprintf(stderr, "test_cast_cpu failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
+        fprintf(stderr, "test_cast_cpu failed a.dims=%d a=(%d %d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.d, a.c, type_from, type_to);
         return -1;
     }
 
@@ -138,7 +138,7 @@ static int test_cast_cpu_packed(const ncnn::Mat& a, int type_from, int type_to)
 
     if (CompareMat(b, c, 0.001) != 0)
     {
-        fprintf(stderr, "test_cast_cpu_packed failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
+        fprintf(stderr, "test_cast_cpu_packed failed a.dims=%d a=(%d %d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.d, a.c, type_from, type_to);
         return -1;
     }
 
@@ -254,7 +254,7 @@ static int test_cast_gpu_fp16p(const ncnn::Mat& a, int type_from, int type_to)
 
     if (CompareMat(b, d, 0.001) != 0)
     {
-        fprintf(stderr, "test_cast_gpu_fp16p failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
+        fprintf(stderr, "test_cast_gpu_fp16p failed a.dims=%d a=(%d %d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.d, a.c, type_from, type_to);
         return -1;
     }
 
@@ -372,7 +372,7 @@ static int test_cast_gpu_fp16p_pack8(const ncnn::Mat& a, int type_from, int type
 
     if (CompareMat(b, d, 0.001) != 0)
     {
-        fprintf(stderr, "test_cast_gpu_fp16p_pack8 failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
+        fprintf(stderr, "test_cast_gpu_fp16p_pack8 failed a.dims=%d a=(%d %d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.d, a.c, type_from, type_to);
         return -1;
     }
 
@@ -487,7 +487,7 @@ static int test_cast_gpu_image_fp16p(const ncnn::Mat& a, int type_from, int type
 
     if (CompareMat(b, d, 0.001) != 0)
     {
-        fprintf(stderr, "test_cast_gpu_image_fp16p failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
+        fprintf(stderr, "test_cast_gpu_image_fp16p failed a.dims=%d a=(%d %d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.d, a.c, type_from, type_to);
         return -1;
     }
 
@@ -605,7 +605,7 @@ static int test_cast_gpu_image_fp16p_pack8(const ncnn::Mat& a, int type_from, in
 
     if (CompareMat(b, d, 0.001) != 0)
     {
-        fprintf(stderr, "test_cast_gpu_image_fp16p_pack8 failed a.dims=%d a=(%d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.c, type_from, type_to);
+        fprintf(stderr, "test_cast_gpu_image_fp16p_pack8 failed a.dims=%d a=(%d %d %d %d) type_from=%d type_to=%d\n", a.dims, a.w, a.h, a.d, a.c, type_from, type_to);
         return -1;
     }
 
