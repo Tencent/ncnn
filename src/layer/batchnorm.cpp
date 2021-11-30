@@ -147,7 +147,6 @@ int BatchNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
     }
-
     return 0;
 }
 

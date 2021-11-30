@@ -54,7 +54,6 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     // max value in NxN window
     // avg value in NxN window
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;
@@ -232,7 +231,6 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     top_blob.create(outw, outh, outd, channels, elemsize);
     if (top_blob.empty())
         return -100;
-
     const int maxk = kernel_w * kernel_h * kernel_d;
 
     // kernel offsets
@@ -361,7 +359,6 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                                     }
                                 }
                             }
-
                             outptr[j] = sum / area;
                         }
 
@@ -403,7 +400,6 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             }
         }
     }
-
     return 0;
 }
 
