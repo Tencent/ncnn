@@ -1539,7 +1539,7 @@ int Packing_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
             top_blob = bottom_blob;
             return 0;
         }
-        if (dims == 3 && channels * elempack % out_elempack != 0)
+        if ((dims == 3 || dims == 4) && channels * elempack % out_elempack != 0)
         {
             top_blob = bottom_blob;
             return 0;
