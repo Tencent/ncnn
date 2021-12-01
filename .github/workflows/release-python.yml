@@ -56,6 +56,7 @@ jobs:
       env:
         CIBW_ARCHS_MACOS: x86_64 universal2 arm64
         CIBW_ARCHS_LINUX: auto aarch64 ppc64le s390x
+        CMAKE_BUILD_PARALLEL_LEVEL: 2
 
     - name: Show files
       run: ls -lh wheelhouse
