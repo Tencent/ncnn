@@ -44,8 +44,10 @@ public:
     }
 };
 // HACK workaround nvidia driver crash on exit
-#define SRAND(seed) GlobalGpuInstance __ncnn_gpu_instance_guard; prng_srand(seed, &g_prng_rand_state)
-#define RAND()      prng_rand(&g_prng_rand_state)
+#define SRAND(seed)                              \
+    GlobalGpuInstance __ncnn_gpu_instance_guard; \
+    prng_srand(seed, &g_prng_rand_state)
+#define RAND() prng_rand(&g_prng_rand_state)
 #else // NCNN_VULKAN
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND()      prng_rand(&g_prng_rand_state)
