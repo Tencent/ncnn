@@ -101,6 +101,8 @@ class CMakeBuild(build_ext):
             if hasattr(self, "parallel") and self.parallel:
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
+            else:
+                build_args += ["-j2"]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
