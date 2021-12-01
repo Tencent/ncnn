@@ -78,7 +78,7 @@ static void conv3x3s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
     }
 }
 
-static void conv3x3s1_winograd23_transform_kernel_int8_sse(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+static void conv3x3s1_winograd23_transform_kernel_int8_sse(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
     kernel_tm.create(4 * 4, inch, outch, 2ul);
 
@@ -90,7 +90,7 @@ static void conv3x3s1_winograd23_transform_kernel_int8_sse(const Mat& kernel, Ma
         {0, 0, 2}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -514,7 +514,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd43_transform_kernel_int8_sse(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+static void conv3x3s1_winograd43_transform_kernel_int8_sse(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
     kernel_tm.create(6 * 6, inch, outch, 2ul);
 
@@ -536,7 +536,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_sse(const Mat& kernel, Ma
         {0, 0, 24}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)

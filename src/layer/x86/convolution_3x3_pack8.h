@@ -717,7 +717,7 @@ static void conv3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat
     }
 }
 
-static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt)
 {
     // winograd63 transform kernel
     Mat kernel_tm;
@@ -734,7 +734,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)

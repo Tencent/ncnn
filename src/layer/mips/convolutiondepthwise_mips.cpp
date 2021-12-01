@@ -62,7 +62,7 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
         if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, 4);
+            convert_packing(weight_data_r2, weight_data_packed, 4, opt);
         }
 #endif // __mips_msa
 

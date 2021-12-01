@@ -30,8 +30,28 @@
 #endif // NCNN_VULKAN
 
 static struct prng_rand_t g_prng_rand_state;
+#if NCNN_VULKAN
+class GlobalGpuInstance
+{
+public:
+    GlobalGpuInstance()
+    {
+        ncnn::create_gpu_instance();
+    }
+    ~GlobalGpuInstance()
+    {
+        ncnn::destroy_gpu_instance();
+    }
+};
+// HACK workaround nvidia driver crash on exit
+#define SRAND(seed)                              \
+    GlobalGpuInstance __ncnn_gpu_instance_guard; \
+    prng_srand(seed, &g_prng_rand_state)
+#define RAND() prng_rand(&g_prng_rand_state)
+#else // NCNN_VULKAN
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
 #define RAND()      prng_rand(&g_prng_rand_state)
+#endif // NCNN_VULKAN
 
 #define TEST_LAYER_DISABLE_AUTO_INPUT_PACKING (1 << 0)
 #define TEST_LAYER_DISABLE_AUTO_INPUT_CASTING (1 << 1)
@@ -225,43 +245,46 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
 
 static int CompareMat(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001)
 {
+    ncnn::Option opt;
+    opt.num_threads = 1;
+
     if (a.elempack != 1)
     {
         ncnn::Mat a1;
-        ncnn::convert_packing(a, a1, 1);
+        ncnn::convert_packing(a, a1, 1, opt);
         return CompareMat(a1, b, epsilon);
     }
 
     if (b.elempack != 1)
     {
         ncnn::Mat b1;
-        ncnn::convert_packing(b, b1, 1);
+        ncnn::convert_packing(b, b1, 1, opt);
         return CompareMat(a, b1, epsilon);
     }
 
     if (a.elemsize == 2u)
     {
         ncnn::Mat a32;
-        cast_float16_to_float32(a, a32);
+        cast_float16_to_float32(a, a32, opt);
         return CompareMat(a32, b, epsilon);
     }
     if (a.elemsize == 1u)
     {
         ncnn::Mat a32;
-        cast_int8_to_float32(a, a32);
+        cast_int8_to_float32(a, a32, opt);
         return CompareMat(a32, b, epsilon);
     }
 
     if (b.elemsize == 2u)
     {
         ncnn::Mat b32;
-        cast_float16_to_float32(b, b32);
+        cast_float16_to_float32(b, b32, opt);
         return CompareMat(a, b32, epsilon);
     }
     if (b.elemsize == 1u)
     {
         ncnn::Mat b32;
-        cast_int8_to_float32(b, b32);
+        cast_int8_to_float32(b, b32, opt);
         return CompareMat(a, b32, epsilon);
     }
 
@@ -1175,6 +1198,11 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
     for (int i = 0; i < 5; i++)
     {
+        opts[i].num_threads = 1;
+    }
+
+    for (int i = 0; i < 5; i++)
+    {
         const ncnn::Option& opt = opts[i];
 
         // fp16 representation
@@ -1300,6 +1328,11 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[4].use_shader_pack8 = true;
     opts[4].use_image_storage = true;
     opts[4].use_weight_fp16_storage = true;
+
+    for (int i = 0; i < 5; i++)
+    {
+        opts[i].num_threads = 1;
+    }
 
     for (int i = 0; i < 5; i++)
     {
