@@ -282,7 +282,7 @@ int Padding_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     int elempack = opt.use_shader_pack8 && per_channel_pad_data_size % 8 == 0 ? 8 : per_channel_pad_data_size % 4 == 0 ? 4 : 1;
 
     Mat per_channel_pad_data_packed;
-    convert_packing(per_channel_pad_data, per_channel_pad_data_packed, elempack);
+    convert_packing(per_channel_pad_data, per_channel_pad_data_packed, elempack, opt);
 
     if (support_image_storage && opt.use_image_storage)
     {

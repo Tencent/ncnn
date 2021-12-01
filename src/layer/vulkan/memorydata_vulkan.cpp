@@ -71,7 +71,7 @@ int MemoryData_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     Mat data_packed;
-    convert_packing(data, data_packed, elempack);
+    convert_packing(data, data_packed, elempack, opt);
 
     if (support_image_storage && opt.use_image_storage)
     {
