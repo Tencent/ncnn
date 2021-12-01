@@ -118,8 +118,6 @@ jobs:
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
-    - name: update
-      run: sudo apt-get update
     - name: build-avx512
       run: |
         mkdir build-avx512 && cd build-avx512
