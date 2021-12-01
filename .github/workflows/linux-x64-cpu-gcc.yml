@@ -118,10 +118,10 @@ jobs:
       with:
         access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
-    - name: build-avx512
+    - name: build
       run: |
-        mkdir build-avx512 && cd build-avx512
+        mkdir build && cd build
         cmake -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j 4
-    - name: test-avx512
-      run: cd build-avx512 && ctest --output-on-failure -j 4
+    - name: test
+      run: cd build && ctest --output-on-failure -j 4
