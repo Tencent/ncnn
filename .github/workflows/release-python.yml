@@ -45,8 +45,42 @@ jobs:
 
     - uses: actions/setup-python@v2
 
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v2.3.0
+      env:
+        CIBW_ARCHS_MACOS: x86_64 universal2 arm64
+        CIBW_ARCHS_LINUX: x86_64 i686
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v2
+      with:
+        path: wheelhouse/*.whl
+
+  build_wheels_qemu:
+    name: Build wheels ${{ matrix.arch }}
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64, ppc64le, s390x]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v2
+
     - name: Set up QEMU
-      if: runner.os == 'Linux'
       uses: docker/setup-qemu-action@v1
       with:
         platforms: all
@@ -54,8 +88,7 @@ jobs:
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.3.0
       env:
-        CIBW_ARCHS_MACOS: x86_64 universal2 arm64
-        CIBW_ARCHS_LINUX: auto aarch64 ppc64le s390x
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
 
     - name: Show files
       run: ls -lh wheelhouse
@@ -72,7 +105,7 @@ jobs:
 
   #upload_all:
     #name: Upload
-    #needs: [build_wheels, build_sdist]
+    #needs: [build_wheels, build_wheels_qemu, build_sdist]
     #runs-on: ubuntu-latest
 
     #steps:
