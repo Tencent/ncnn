@@ -496,6 +496,8 @@ void Mat::create_like(const VkMat& m, Allocator* _allocator)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
     if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
+    if (_dims == 4)
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
 void Mat::create_like(const VkImageMat& im, Allocator* _allocator)
@@ -507,6 +509,8 @@ void Mat::create_like(const VkImageMat& im, Allocator* _allocator)
         create(im.w, im.h, im.elemsize, im.elempack, _allocator);
     if (_dims == 3)
         create(im.w, im.h, im.c, im.elemsize, im.elempack, _allocator);
+    if (_dims == 4)
+        create(im.w, im.h, im.d, im.c, im.elemsize, im.elempack, _allocator);
 }
 #endif // NCNN_VULKAN
 
@@ -525,6 +529,7 @@ void VkMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     dims = 1;
     w = _w;
     h = 1;
+    d = 1;
     c = 1;
 
     cstep = w;
@@ -554,6 +559,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     dims = 2;
     w = _w;
     h = _h;
+    d = 1;
     c = 1;
 
     cstep = w * h;
@@ -583,9 +589,40 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _alloc
     dims = 3;
     w = _w;
     h = _h;
+    d = 1;
     c = _c;
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        data = allocator->fastMalloc(totalsize);
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
+{
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    elempack = 1;
+    allocator = _allocator;
+
+    dims = 4;
+    w = _w;
+    h = _h;
+    d = _d;
+    c = _c;
+
+    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -612,6 +649,7 @@ void VkMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _alloca
     dims = 1;
     w = _w;
     h = 1;
+    d = 1;
     c = 1;
 
     cstep = w;
@@ -641,6 +679,7 @@ void VkMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator*
     dims = 2;
     w = _w;
     h = _h;
+    d = 1;
     c = 1;
 
     cstep = w * h;
@@ -670,9 +709,40 @@ void VkMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAl
     dims = 3;
     w = _w;
     h = _h;
+    d = 1;
     c = _c;
 
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
+
+    if (total() > 0)
+    {
+        size_t totalsize = alignSize(total() * elemsize, 4);
+
+        data = allocator->fastMalloc(totalsize);
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkBufferMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+void VkMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+{
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    elempack = _elempack;
+    allocator = _allocator;
+
+    dims = 4;
+    w = _w;
+    h = _h;
+    d = _d;
+    c = _c;
+
+    cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
 
     if (total() > 0)
     {
@@ -694,6 +764,8 @@ void VkMat::create_like(const Mat& m, VkAllocator* _allocator)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
     if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
+    if (_dims == 4)
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
 void VkMat::create_like(const VkMat& m, VkAllocator* _allocator)
@@ -705,6 +777,8 @@ void VkMat::create_like(const VkMat& m, VkAllocator* _allocator)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
     if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
+    if (_dims == 4)
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
 void VkMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
@@ -716,6 +790,8 @@ void VkMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
         create(im.w, im.h, im.elemsize, im.elempack, _allocator);
     if (_dims == 3)
         create(im.w, im.h, im.c, im.elemsize, im.elempack, _allocator);
+    if (_dims == 4)
+        create(im.w, im.h, im.d, im.c, im.elemsize, im.elempack, _allocator);
 }
 
 void VkImageMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
@@ -732,6 +808,7 @@ void VkImageMat::create(int _w, size_t _elemsize, VkAllocator* _allocator)
     dims = 1;
     w = _w;
     h = 1;
+    d = 1;
     c = 1;
 
     if (total() > 0)
@@ -759,6 +836,7 @@ void VkImageMat::create(int _w, int _h, size_t _elemsize, VkAllocator* _allocato
     dims = 2;
     w = _w;
     h = _h;
+    d = 1;
     c = 1;
 
     if (total() > 0)
@@ -786,11 +864,41 @@ void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _
     dims = 3;
     w = _w;
     h = _h;
+    d = 1;
     c = _c;
 
     if (total() > 0)
     {
         data = allocator->fastMalloc(w, h, c, elemsize, elempack);
+        if (!data)
+            return;
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+void VkImageMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
+{
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == 1 && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    elempack = 1;
+    allocator = _allocator;
+
+    dims = 4;
+    w = _w;
+    h = _h;
+    d = _d;
+    c = _c;
+
+    if (total() > 0)
+    {
+        // underlying image is 3d
+        data = allocator->fastMalloc(w, h * d, c, elemsize, elempack);
         if (!data)
             return;
 
@@ -813,6 +921,7 @@ void VkImageMat::create(int _w, size_t _elemsize, int _elempack, VkAllocator* _a
     dims = 1;
     w = _w;
     h = 1;
+    d = 1;
     c = 1;
 
     if (total() > 0)
@@ -840,6 +949,7 @@ void VkImageMat::create(int _w, int _h, size_t _elemsize, int _elempack, VkAlloc
     dims = 2;
     w = _w;
     h = _h;
+    d = 1;
     c = 1;
 
     if (total() > 0)
@@ -867,11 +977,41 @@ void VkImageMat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack,
     dims = 3;
     w = _w;
     h = _h;
+    d = 1;
     c = _c;
 
     if (total() > 0)
     {
         data = allocator->fastMalloc(w, h, c, elemsize, elempack);
+        if (!data)
+            return;
+
+        refcount = (int*)((unsigned char*)data + offsetof(VkImageMemory, refcount));
+        *refcount = 1;
+    }
+}
+
+void VkImageMat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+{
+    if (dims == 4 && w == _w && h == _h && d == _d && c == _c && elemsize == _elemsize && elempack == _elempack && allocator == _allocator)
+        return;
+
+    release();
+
+    elemsize = _elemsize;
+    elempack = _elempack;
+    allocator = _allocator;
+
+    dims = 4;
+    w = _w;
+    h = _h;
+    d = _d;
+    c = _c;
+
+    if (total() > 0)
+    {
+        // underlying image is 3d
+        data = allocator->fastMalloc(w, h * d, c, elemsize, elempack);
         if (!data)
             return;
 
@@ -889,6 +1029,8 @@ void VkImageMat::create_like(const Mat& m, VkAllocator* _allocator)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
     if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
+    if (_dims == 4)
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
 void VkImageMat::create_like(const VkMat& m, VkAllocator* _allocator)
@@ -900,6 +1042,8 @@ void VkImageMat::create_like(const VkMat& m, VkAllocator* _allocator)
         create(m.w, m.h, m.elemsize, m.elempack, _allocator);
     if (_dims == 3)
         create(m.w, m.h, m.c, m.elemsize, m.elempack, _allocator);
+    if (_dims == 4)
+        create(m.w, m.h, m.d, m.c, m.elemsize, m.elempack, _allocator);
 }
 
 void VkImageMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
@@ -911,6 +1055,8 @@ void VkImageMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
         create(im.w, im.h, im.elemsize, im.elempack, _allocator);
     if (_dims == 3)
         create(im.w, im.h, im.c, im.elemsize, im.elempack, _allocator);
+    if (_dims == 4)
+        create(im.w, im.h, im.d, im.c, im.elemsize, im.elempack, _allocator);
 }
 #endif // NCNN_VULKAN
 

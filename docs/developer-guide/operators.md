@@ -865,8 +865,7 @@ y = wrap_packing(x)
 
 # Padding
 ```
-if pads != -233/-234    y = pad(x, pads)
-else                    y = pad(x0, pads param from x1)
+y = pad(x, pads)
 ```
 
 | param id  | name          | type | default   | description       |

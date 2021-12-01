@@ -132,6 +132,13 @@ static ncnn::Mat RandomIntMat(int w, int h, int c)
     return m;
 }
 
+static ncnn::Mat RandomIntMat(int w, int h, int d, int c)
+{
+    ncnn::Mat m(w, h, d, c);
+    RandomizeInt(m);
+    return m;
+}
+
 static ncnn::Mat RandomS8Mat(int w)
 {
     ncnn::Mat m(w, (size_t)1u);
@@ -149,6 +156,13 @@ static ncnn::Mat RandomS8Mat(int w, int h)
 static ncnn::Mat RandomS8Mat(int w, int h, int c)
 {
     ncnn::Mat m(w, h, c, (size_t)1u);
+    RandomizeS8(m);
+    return m;
+}
+
+static ncnn::Mat RandomS8Mat(int w, int h, int d, int c)
+{
+    ncnn::Mat m(w, h, d, c, (size_t)1u);
     RandomizeS8(m);
     return m;
 }
