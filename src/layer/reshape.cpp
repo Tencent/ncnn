@@ -44,7 +44,7 @@ int Reshape::load_param(const ParamDict& pd)
 }
 
 int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{ 
+{
     size_t elemsize = bottom_blob.elemsize;
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * bottom_blob.d;
 
@@ -187,7 +187,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             if (bottom_blob_permuted.empty())
                 return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < _h; q++)
             {
                 float* outptr = bottom_blob_permuted.channel(q);
@@ -215,7 +215,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             if (bottom_blob_permuted.empty())
                 return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int z = 0; z < _d; z++)
             {
                 float* outptr = bottom_blob_permuted.channel(z);
@@ -223,12 +223,11 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 {
                     for (int i = 0; i < _w; i++)
                     {
-                        for (int j = 0; j < channels; j++)    //z q i j    // j z q i 
+                        for (int j = 0; j < channels; j++) //z q i j    // j z q i
                         {
                             const float* ptr = bottom_blob.channel(j).depth(z).row(q);
                             outptr[q * _w * channels + i * channels + j] = ptr[i];
                         }
-
                     }
                 }
             }
@@ -285,7 +284,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             if (top_blob.empty())
                 return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < outc; q++)
             {
                 float* outptr = top_blob.channel(q);
@@ -309,7 +308,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             if (top_blob.empty())
                 return -100;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < outc; q++)
             {
                 float* outptr = top_blob.channel(q);
@@ -321,9 +320,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                     {
                         for (int j = 0; j < outw; j++)
                         {
-
                             outptr[k * outh * outw + i * outw + j] = ptr[i * outw * outc + j * outc + q];
-
                         }
                     }
                 }

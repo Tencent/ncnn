@@ -300,5 +300,4 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     return 0;
 }
 
-
 } // namespace ncnn

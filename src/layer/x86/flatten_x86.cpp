@@ -343,7 +343,6 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
     }
 
-
     return 0;
 }
 

@@ -473,7 +473,6 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
     }
 
-
     if (ndim == 4)
     {
         int _w = w;
@@ -488,7 +487,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         if (_c == 0)
             _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
         if (_d == 0)
-            _d = dims == 4 ? bottom_blob.d * elempack : bottom_blob.d;            
+            _d = dims == 4 ? bottom_blob.d * elempack : bottom_blob.d;
 
         if (_w == -1)
             _w = total / _c / _h / _d;
