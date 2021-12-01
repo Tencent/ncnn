@@ -25,9 +25,9 @@ jobs:
     - name: Check metadata
       run: twine check dist/*
 
-    - uses: actions/upload-artifact@v2
-      with:
-        path: dist/*.tar.gz
+    #- uses: actions/upload-artifact@v2
+      #with:
+        #path: dist/*.tar.gz
 
 
   build_wheels:
@@ -70,10 +70,10 @@ jobs:
       run: git diff --exit-code
       shell: bash
 
-    - name: Upload wheels
-      uses: actions/upload-artifact@v2
-      with:
-        path: wheelhouse/*.whl
+    #- name: Upload wheels
+      #uses: actions/upload-artifact@v2
+      #with:
+        #path: wheelhouse/*.whl
 
   #upload_all:
     #name: Upload
