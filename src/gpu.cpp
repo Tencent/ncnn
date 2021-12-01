@@ -65,7 +65,7 @@ public:
     VkDebugUtilsMessengerEXT callback;
 #endif
 };
-static __ncnn_vulkan_instance_holder g_instance;
+__ncnn_vulkan_instance_holder g_instance;
 
 static int g_gpu_count = 0;
 static int g_default_gpu_index = -1;
