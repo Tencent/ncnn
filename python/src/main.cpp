@@ -300,8 +300,8 @@ PYBIND11_MODULE(ncnn, m)
             pybind11::pybind11_fail(ss.str());
         }
         std::string format = get_mat_format(m);
-        std::vector<ssize_t> shape;
-        std::vector<ssize_t> strides;
+        std::vector<py::ssize_t> shape;
+        std::vector<py::ssize_t> strides;
         if (m.dims == 1)
         {
             shape.push_back(m.w);

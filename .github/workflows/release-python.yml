@@ -43,10 +43,12 @@ jobs:
       with:
         submodules: true
 
+    - uses: seanmiddleditch/gha-setup-ninja@master
+
     - uses: actions/setup-python@v2
 
     - name: Install cibuildwheel
-      run: python -m pip install cibuildwheel ninja
+      run: python -m pip install cibuildwheel
 
     #- name: Set up QEMU
       #if: runner.os == 'Linux'
