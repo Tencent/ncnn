@@ -46,7 +46,7 @@ jobs:
     - uses: actions/setup-python@v2
 
     - name: Install cibuildwheel
-      run: python -m pip install cibuildwheel
+      run: python -m pip install cibuildwheel ninja
 
     #- name: Set up QEMU
       #if: runner.os == 'Linux'
@@ -57,6 +57,7 @@ jobs:
     - name: Build wheel
       run: python -m cibuildwheel --output-dir wheelhouse
       #env:
+        #CIBW_SKIP: pp* # Disable building PyPy wheels on all platforms
         #CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
         # configure cibuildwheel to build native archs ('auto'), and some
         # emulated ones
