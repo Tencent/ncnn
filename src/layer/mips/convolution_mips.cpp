@@ -111,8 +111,8 @@ int Convolution_mips::create_pipeline(const Option& opt)
     {
         if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
-            conv3x3s1_winograd64_transform_kernel_pack4_msa(weight_data, weight_data_packed, num_input, num_output);
-            conv3x3s1_winograd42_transform_kernel_pack4_msa(weight_data, weight_3x3_winograd42_data_packed, num_input, num_output);
+            conv3x3s1_winograd64_transform_kernel_pack4_msa(weight_data, weight_data_packed, num_input, num_output, opt);
+            conv3x3s1_winograd42_transform_kernel_pack4_msa(weight_data, weight_3x3_winograd42_data_packed, num_input, num_output, opt);
         }
     }
 

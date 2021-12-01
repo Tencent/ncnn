@@ -130,4 +130,4 @@ jobs:
     - name: test
       env:
         LD_LIBRARY_PATH: /data/action/install/lib64
-      run: cd build && ctest --output-on-failure -j 4
+      run: cd build && ctest --output-on-failure -j 2
