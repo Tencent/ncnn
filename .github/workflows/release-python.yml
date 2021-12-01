@@ -1,8 +1,9 @@
 name: release-python
-on:
-  push:
-    tags:
-      - '*'
+on: [push]
+#on:
+  #push:
+    #tags:
+      #- '*'
 
 jobs:
   build_sdist:
@@ -47,19 +48,19 @@ jobs:
     - name: Install cibuildwheel
       run: python -m pip install cibuildwheel
 
-    - name: Set up QEMU
-      if: runner.os == 'Linux'
-      uses: docker/setup-qemu-action@v1
-      with:
-        platforms: all
+    #- name: Set up QEMU
+      #if: runner.os == 'Linux'
+      #uses: docker/setup-qemu-action@v1
+      #with:
+        #platforms: all
 
     - name: Build wheel
       run: python -m cibuildwheel --output-dir wheelhouse
-      env:
-        CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
+      #env:
+        #CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
         # configure cibuildwheel to build native archs ('auto'), and some
         # emulated ones
-        CIBW_ARCHS_LINUX: auto
+        #CIBW_ARCHS_LINUX: auto
 
     - name: Show files
       run: ls -lh wheelhouse
@@ -74,20 +75,20 @@ jobs:
       with:
         path: wheelhouse/*.whl
 
-  upload_all:
-    name: Upload
-    needs: [build_wheels, build_sdist]
-    runs-on: ubuntu-latest
+  #upload_all:
+    #name: Upload
+    #needs: [build_wheels, build_sdist]
+    #runs-on: ubuntu-latest
 
-    steps:
-    - uses: actions/setup-python@v2
+    #steps:
+    #- uses: actions/setup-python@v2
 
-    - uses: actions/download-artifact@v2
-      with:
-        name: artifact
-        path: dist
+    #- uses: actions/download-artifact@v2
+      #with:
+        #name: artifact
+        #path: dist
 
-    - uses: pypa/gh-action-pypi-publish@v1.4.2
-      with:
-        user: __token__
-        password: ${{ secrets.PYPI_API_TOKEN }}
+    #- uses: pypa/gh-action-pypi-publish@v1.4.2
+      #with:
+        #user: __token__
+        #password: ${{ secrets.PYPI_API_TOKEN }}
