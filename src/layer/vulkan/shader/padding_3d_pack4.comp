@@ -42,7 +42,7 @@ layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
+layout (binding = 1, imfmtc4) writeonly uniform unfp image3D top_blob;
 layout (binding = 2) uniform unfp sampler3D per_channel_pad_blob;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfpvec4 bottom_blob_data[]; };
