@@ -105,7 +105,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 Mat weight_data_r2_packed;
-                convert_packing(weight_data_r2, weight_data_r2_packed, 8);
+                convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
 
                 ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_fp16, opt);
             }
@@ -114,7 +114,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 Mat weight_data_r2_packed;
-                convert_packing(weight_data_r2, weight_data_r2_packed, 4);
+                convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
 
                 ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_fp16, opt);
             }
@@ -137,7 +137,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             if (elempack == 4)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
-                convert_packing(weight_data_r2, weight_data_pack4, 4);
+                convert_packing(weight_data_r2, weight_data_pack4, 4, opt);
 
                 ncnn::cast_float32_to_bfloat16(weight_data_pack4, weight_data_pack4_bf16, opt);
             }
@@ -157,7 +157,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_pack4, 4);
+            convert_packing(weight_data_r2, weight_data_pack4, 4, opt);
 
             return 0;
         }

@@ -231,6 +231,8 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
 
 int main()
 {
+    SRAND(7767517);
+
 #ifdef __EMSCRIPTEN__
     EM_ASM(
         FS.mkdir('/working');

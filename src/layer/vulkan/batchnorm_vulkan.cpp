@@ -126,7 +126,7 @@ int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     int elempack = opt.use_shader_pack8 && channels % 8 == 0 ? 8 : channels % 4 == 0 ? 4 : 1;
 
     Mat a_data_packed;
-    convert_packing(a_data, a_data_packed, elempack);
+    convert_packing(a_data, a_data_packed, elempack, opt);
 
     if (opt.use_image_storage)
     {
@@ -138,7 +138,7 @@ int BatchNorm_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     }
 
     Mat b_data_packed;
-    convert_packing(b_data, b_data_packed, elempack);
+    convert_packing(b_data, b_data_packed, elempack, opt);
 
     if (opt.use_image_storage)
     {

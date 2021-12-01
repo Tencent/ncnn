@@ -109,3 +109,25 @@ jobs:
         cmake --build . -j 2
     - name: test-simplestl
       run: cd build-simplestl && ctest --output-on-failure -j 2
+
+  linux-gcc-avx512:
+    runs-on: [self-hosted, linux]
+    steps:
+    - name: cancel-previous-runs
+      uses: styfle/cancel-workflow-action@0.9.1
+      with:
+        access_token: ${{ secrets.GITHUB_TOKEN }}
+    - uses: actions/checkout@v2
+    - name: build
+      env:
+        CC: gcc
+        CXX: g++
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: |
+        mkdir build && cd build
+        cmake -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 4
+    - name: test
+      env:
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: cd build && ctest --output-on-failure -j 2

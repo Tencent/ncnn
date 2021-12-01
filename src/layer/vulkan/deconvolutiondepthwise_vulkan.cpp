@@ -449,7 +449,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
     {
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
         Mat weight_data_r2_packed;
-        convert_packing(weight_data_r2, weight_data_r2_packed, elempack);
+        convert_packing(weight_data_r2, weight_data_r2_packed, elempack, opt);
 
         cmd.record_upload(weight_data_r2_packed, weight_data_gpu, opt);
 
@@ -458,7 +458,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
         if (bias_term)
         {
             Mat bias_data_packed;
-            convert_packing(bias_data, bias_data_packed, out_elempack);
+            convert_packing(bias_data, bias_data_packed, out_elempack, opt);
 
             if (support_image_storage && opt.use_image_storage)
             {
@@ -535,7 +535,7 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
     if (bias_term)
     {
         Mat bias_data_packed;
-        convert_packing(bias_data, bias_data_packed, out_elempack_g);
+        convert_packing(bias_data, bias_data_packed, out_elempack_g, opt);
 
         if (support_image_storage && opt.use_image_storage)
         {
