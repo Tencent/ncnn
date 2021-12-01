@@ -43,7 +43,7 @@ jobs:
       with:
         submodules: true
 
-    - uses: seanmiddleditch/gha-setup-ninja@master
+    #- uses: seanmiddleditch/gha-setup-ninja@master
 
     - uses: actions/setup-python@v2
 
@@ -57,7 +57,8 @@ jobs:
         #platforms: all
 
     - name: Build wheel
-      run: python -m cibuildwheel --output-dir wheelhouse
+      uses: pypa/cibuildwheel@v2.3.0
+      #run: python -m cibuildwheel --output-dir wheelhouse
       #env:
         #CIBW_SKIP: pp* # Disable building PyPy wheels on all platforms
         #CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
