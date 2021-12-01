@@ -48,12 +48,10 @@ public:
 #if ENABLE_VALIDATION_LAYER
         callback = 0;
 #endif
-        __in_ncnn_vulkan_instance_holder_destructor = 0;
     }
 
     ~__ncnn_vulkan_instance_holder()
     {
-        __in_ncnn_vulkan_instance_holder_destructor = 1;
         destroy_gpu_instance();
     }
 
@@ -66,7 +64,6 @@ public:
 #if ENABLE_VALIDATION_LAYER
     VkDebugUtilsMessengerEXT callback;
 #endif
-    int __in_ncnn_vulkan_instance_holder_destructor;
 };
 static __ncnn_vulkan_instance_holder g_instance;
 
@@ -1488,13 +1485,8 @@ void destroy_gpu_instance()
 
     glslang::FinalizeProcess();
 
-    bool has_nvidia_gpu = false;
-
     for (int i = 0; i < NCNN_MAX_GPU_COUNT; i++)
     {
-        if (g_gpu_infos[i] && g_gpu_infos[i]->vendor_id() == 0x10de)
-            has_nvidia_gpu = true;
-
         delete g_default_vkdev[i];
         g_default_vkdev[i] = 0;
 
@@ -1510,15 +1502,7 @@ void destroy_gpu_instance()
     }
 #endif // ENABLE_VALIDATION_LAYER
 
-    if (has_nvidia_gpu && g_instance.__in_ncnn_vulkan_instance_holder_destructor)
-    {
-        // HACK nvidia driver crashes in vkDestroyInstance when called from ncnn vulkan internal holder destructor
-        // skip for exiting process gracefully though resources may leak   --- nihui
-    }
-    else
-    {
-        vkDestroyInstance(g_instance, 0);
-    }
+    vkDestroyInstance(g_instance, 0);
 
     g_instance.instance = 0;
 }
