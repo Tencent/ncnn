@@ -64,4 +64,4 @@ jobs:
     - name: test-simd-omp
       run: |
         cd build-simd-omp
-        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd;--experimental-wasm-threads;--experimental-wasm-bulk-memory" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=node TESTS_EXECUTABLE_LOADER_ARGUMENTS="--experimental-wasm-simd;--experimental-wasm-threads" ctest --output-on-failure -j 2
