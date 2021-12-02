@@ -107,27 +107,7 @@ int BatchNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
     }
 
-    if (dims == 3)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int size = w * h;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-            float a = a_data[q];
-            float b = b_data[q];
-
-            for (int i = 0; i < size; i++)
-            {
-                ptr[i] = b * ptr[i] + a;
-            }
-        }
-    }
-
-    if (dims == 4)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
@@ -147,6 +127,7 @@ int BatchNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
     }
+
     return 0;
 }
 

@@ -20,11 +20,12 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
-        return x, y, z
+        w = F.relu(w)
+        return x, y, z, w
 
 def test():
     net = Model()
@@ -34,16 +35,17 @@ def test():
     x = torch.rand(1, 16)
     y = torch.rand(1, 2, 16)
     z = torch.rand(1, 3, 12, 16)
+    w = torch.rand(1, 5, 7, 9, 11)
 
-    a = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_relu.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_relu.pt inputshape=[1,16],[1,2,16],[1,3,12,16]")
+    os.system("../../src/pnnx test_F_relu.pt inputshape=[1,16],[1,2,16],[1,3,12,16],[1,5,7,9,11]")
 
     # ncnn inference
     import test_F_relu_ncnn
