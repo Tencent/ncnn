@@ -72,6 +72,7 @@ jobs:
       fail-fast: false
       matrix:
         arch: [aarch64, ppc64le, s390x]
+        build: ["*manylinux*", "*musllinux*"]
 
     steps:
     - uses: actions/checkout@v2
@@ -89,6 +90,7 @@ jobs:
       uses: pypa/cibuildwheel@v2.3.0
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
 
     - name: Show files
       run: ls -lh wheelhouse
