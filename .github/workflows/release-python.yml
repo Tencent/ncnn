@@ -65,7 +65,7 @@ jobs:
         path: wheelhouse/*.whl
 
   build_wheels_qemu:
-    name: Build wheels ${{ matrix.arch }}
+    name: Build wheels ${{ matrix.arch }} ${{ matrix.build }}
     runs-on: ubuntu-20.04
 
     strategy:
