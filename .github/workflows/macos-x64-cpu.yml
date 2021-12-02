@@ -56,7 +56,7 @@ jobs:
         mkdir -p build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
         mkdir $GITHUB_WORKSPACE/openmp-install
         cp -r install/* $GITHUB_WORKSPACE/openmp-install
@@ -72,9 +72,9 @@ jobs:
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . -j 2
+        cmake --build . -j 3
     - name: test
-      run: cd build && ctest --output-on-failure -j 2
+      run: cd build && ctest --output-on-failure -j 3
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
@@ -83,4 +83,4 @@ jobs:
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
-        cmake --build . -j 2
+        cmake --build . -j 3
