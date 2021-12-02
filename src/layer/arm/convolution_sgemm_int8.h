@@ -3287,20 +3287,20 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
     if (outch >= 4)
     {
         if (inch >= 8)
-            kernel_tm.create(32 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch / 4 + outch % 4, 1u);
+            kernel_tm.create(32 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch / 4 + outch % 4, (size_t)1u);
         else if (inch >= 4)
-            kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4 + outch % 4, 1u);
+            kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4 + outch % 4, (size_t)1u);
         else
-            kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4, 1u);
+            kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4, (size_t)1u);
     }
     else
     {
         if (inch >= 8)
-            kernel_tm.create(8 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch, 1u);
+            kernel_tm.create(8 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch, (size_t)1u);
         else if (inch >= 4)
-            kernel_tm.create(4 * maxk, inch / 4 + inch % 4, outch, 1u);
+            kernel_tm.create(4 * maxk, inch / 4 + inch % 4, outch, (size_t)1u);
         else
-            kernel_tm.create(1 * maxk, inch, outch, 1u);
+            kernel_tm.create(1 * maxk, inch, outch, (size_t)1u);
     }
 
     int q = 0;

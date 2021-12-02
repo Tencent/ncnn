@@ -716,7 +716,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(const Ma
     // src = maxk-inch-outch
     // dst = 8b-8a-maxk-inch/8a-outch/8b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    kernel_tm.create(64 * maxk, inch / 8, outch / 8, 2u);
+    kernel_tm.create(64 * maxk, inch / 8, outch / 8, (size_t)2u);
 
     for (int q = 0; q + 7 < outch; q += 8)
     {

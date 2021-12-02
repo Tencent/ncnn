@@ -401,7 +401,7 @@ void VkCompute::record_upload(const Mat& src, VkMat& dst, const Option& opt)
     int elemcount = 0;
     if (dims == 1) elemcount = src_fp16.elempack * src_fp16.w;
     if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
-    if (dims == 3) elemcount = src_fp16.elempack * src_fp16.c;
+    if (dims == 3 || dims == 4) elemcount = src_fp16.elempack * src_fp16.c;
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
@@ -457,7 +457,7 @@ void VkCompute::record_upload(const Mat& src, VkImageMat& dst, const Option& opt
     int elemcount = 0;
     if (dims == 1) elemcount = src_fp16.elempack * src_fp16.w;
     if (dims == 2) elemcount = src_fp16.elempack * src_fp16.h;
-    if (dims == 3) elemcount = src_fp16.elempack * src_fp16.c;
+    if (dims == 3 || dims == 4) elemcount = src_fp16.elempack * src_fp16.c;
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
@@ -498,7 +498,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
     int elemcount = 0;
     if (dims == 1) elemcount = src.elempack * src.w;
     if (dims == 2) elemcount = src.elempack * src.h;
-    if (dims == 3) elemcount = src.elempack * src.c;
+    if (dims == 3 || dims == 4) elemcount = src.elempack * src.c;
 
     int dst_elempack = 1;
     if (opt.use_packing_layout)
@@ -592,6 +592,8 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
                 dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
             if (dims == 3)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 4)
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
 
             d->download_post_mats.push_back(dst);
 
@@ -623,7 +625,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
     int elemcount = 0;
     if (dims == 1) elemcount = src.elempack * src.w;
     if (dims == 2) elemcount = src.elempack * src.h;
-    if (dims == 3) elemcount = src.elempack * src.c;
+    if (dims == 3 || dims == 4) elemcount = src.elempack * src.c;
 
     int dst_elempack = 1;
     if (opt.use_packing_layout)
@@ -737,6 +739,8 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
                 dst.create(dst_fp16.w, dst_fp16.h, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
             if (dims == 3)
                 dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
+            if (dims == 4)
+                dst.create(dst_fp16.w, dst_fp16.h, dst_fp16.d, dst_fp16.c, (size_t)(dst_fp16.elempack * 4u), dst_fp16.elempack, opt.blob_allocator);
 
             d->download_post_mats.push_back(dst);
 
@@ -768,7 +772,7 @@ void VkCompute::record_buffer_to_image(const VkMat& src, VkImageMat& dst, const 
     int elemcount = 0;
     if (dims == 1) elemcount = src.elempack * src.w;
     if (dims == 2) elemcount = src.elempack * src.h;
-    if (dims == 3) elemcount = src.elempack * src.c;
+    if (dims == 3 || dims == 4) elemcount = src.elempack * src.c;
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
@@ -805,7 +809,7 @@ void VkCompute::record_image_to_buffer(const VkImageMat& src, VkMat& dst, const 
     int elemcount = 0;
     if (dims == 1) elemcount = src.elempack * src.w;
     if (dims == 2) elemcount = src.elempack * src.h;
-    if (dims == 3) elemcount = src.elempack * src.c;
+    if (dims == 3 || dims == 4) elemcount = src.elempack * src.c;
 
     int dst_elempack = 1;
     if (opt.use_shader_pack8)
@@ -1501,14 +1505,14 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkIm
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkMat& dispatcher)
 {
-    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
+    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.d, dispatcher.c, (void*)0);
 
     record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
 }
 
 void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMat>& buffer_bindings, const std::vector<VkImageMat>& image_bindings, const std::vector<vk_constant_type>& constants, const VkImageMat& dispatcher)
 {
-    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.c, (void*)0);
+    Mat dispatcher_mat(dispatcher.w, dispatcher.h, dispatcher.d, dispatcher.c, (void*)0);
 
     record_pipeline(pipeline, buffer_bindings, image_bindings, constants, dispatcher_mat);
 }
@@ -1808,7 +1812,7 @@ void VkCompute::record_pipeline(const Pipeline* pipeline, const std::vector<VkMa
     // record dispatch
     {
         uint32_t group_count_x = (dispatcher.w + pipeline->local_size_x() - 1) / pipeline->local_size_x();
-        uint32_t group_count_y = (dispatcher.h + pipeline->local_size_y() - 1) / pipeline->local_size_y();
+        uint32_t group_count_y = (dispatcher.h * (dispatcher.d ? dispatcher.d : 1) + pipeline->local_size_y() - 1) / pipeline->local_size_y();
         uint32_t group_count_z = (dispatcher.c + pipeline->local_size_z() - 1) / pipeline->local_size_z();
 
         if (vkdev->info.support_VK_KHR_push_descriptor())

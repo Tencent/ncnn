@@ -15,7 +15,7 @@
 static void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_neon(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt)
 {
     // winograd42 transform kernel
-    Mat kernel_tm(6 * 6, inch, outch, 2u);
+    Mat kernel_tm(6 * 6, inch, outch, (size_t)2u);
 
     const short ktm[6][3] = {
         {6, 0, 0},

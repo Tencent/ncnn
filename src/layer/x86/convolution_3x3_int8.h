@@ -80,7 +80,7 @@ static void conv3x3s1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat&
 
 static void conv3x3s1_winograd23_transform_kernel_int8_sse(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
-    kernel_tm.create(4 * 4, inch, outch, 2ul);
+    kernel_tm.create(4 * 4, inch, outch, (size_t)2u);
 
     // G
     const short ktm[4][3] = {
@@ -516,7 +516,7 @@ static void conv3x3s1_winograd23_int8_sse(const Mat& bottom_blob, Mat& top_blob,
 
 static void conv3x3s1_winograd43_transform_kernel_int8_sse(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
-    kernel_tm.create(6 * 6, inch, outch, 2ul);
+    kernel_tm.create(6 * 6, inch, outch, (size_t)2u);
 
     // G
     // const float ktm[6][3] = {
