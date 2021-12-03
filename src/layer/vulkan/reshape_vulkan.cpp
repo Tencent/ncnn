@@ -393,7 +393,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
 
-        if (dims == 1 && bottom_blob.w == outw && elempack == out_elempack)
+        if (dims == 1 && bottom_blob.w * elempack == outw && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -413,7 +413,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 
-        if (dims == 2 && bottom_blob.h == outh && elempack == out_elempack)
+        if (dims == 2 && bottom_blob.h * elempack == outh && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -437,7 +437,7 @@ int Reshape_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
 
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 
-        if (dims == 3 && bottom_blob.c == outc && elempack == out_elempack)
+        if (dims == 3 && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.w = outw;
@@ -716,7 +716,7 @@ int Reshape_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
         out_elempack = opt.use_shader_pack8 && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
 
-        if (dims == 1 && bottom_blob.w == outw && elempack == out_elempack)
+        if (dims == 1 && bottom_blob.w * elempack == outw && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -736,7 +736,7 @@ int Reshape_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
         out_elempack = opt.use_shader_pack8 && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 
-        if (dims == 2 && bottom_blob.w == outw && bottom_blob.h == outh && elempack == out_elempack)
+        if (dims == 2 && bottom_blob.w == outw && bottom_blob.h * elempack == outh && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -760,7 +760,7 @@ int Reshape_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
 
         out_elempack = opt.use_shader_pack8 && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 
-        if (dims == 3 && bottom_blob.w == outw && bottom_blob.h == outh && bottom_blob.c == outc && elempack == out_elempack)
+        if (dims == 3 && bottom_blob.w == outw && bottom_blob.h == outh && bottom_blob.c * elempack == outc && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
