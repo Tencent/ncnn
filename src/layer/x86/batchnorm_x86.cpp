@@ -192,7 +192,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
 #endif // __SSE2__
 
-    if (dims != 3 || dims != 4)
+    if (dims != 3 && dims != 4)
         return BatchNorm::forward_inplace(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
