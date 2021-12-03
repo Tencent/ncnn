@@ -172,8 +172,8 @@ void main()
         //22 = d c h w
         //23 = c d h w
 
-        int yh = gy % psc(outh) - p.top;
-        int yd = gy / psc(outh) - p.front;
+        int yh = gy % psc(outh);
+        int yd = gy / psc(outh);
 
         if (order_type == 0)
         {
