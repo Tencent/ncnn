@@ -20,7 +20,7 @@ namespace ncnn {
 
 Permute_vulkan::Permute_vulkan()
 {
-    support_vulkan = true;
+    //support_vulkan = true;
     support_image_storage = true;
 
     pipeline_permute = 0;

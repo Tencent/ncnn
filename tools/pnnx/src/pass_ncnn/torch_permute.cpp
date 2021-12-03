@@ -83,6 +83,7 @@ pnnx.Output             output      1 0 out
         if (input_rank == 2)
         {
             // noop
+            op->type = "Noop";
         }
         if (input_rank == 3)
         {
@@ -110,18 +111,52 @@ pnnx.Output             output      1 0 out
         {
             if (new_dims == std::vector<int>{0, 1, 2, 3})
                 op->type = "Noop";
-            else if (new_dims == std::vector<int>{0, 2, 3, 1})
+            else if (new_dims == std::vector<int>{0, 1, 3, 2})
                 op->params["0"] = 1;
-            else if (new_dims == std::vector<int>{1, 0, 2, 3})
+            else if (new_dims == std::vector<int>{0, 2, 1, 3})
                 op->params["0"] = 2;
-            else if (new_dims == std::vector<int>{1, 2, 3, 0})
+            else if (new_dims == std::vector<int>{0, 2, 3, 1})
                 op->params["0"] = 3;
-            else if (new_dims == std::vector<int>{2, 3, 0, 1})
+            else if (new_dims == std::vector<int>{0, 3, 1, 2})
                 op->params["0"] = 4;
-            else if (new_dims == std::vector<int>{2, 3, 1, 0})
+            else if (new_dims == std::vector<int>{0, 3, 2, 1})
                 op->params["0"] = 5;
-            else
-                fprintf(stderr, "unsupported permute dims!\n");
+            else if (new_dims == std::vector<int>{1, 0, 2, 3})
+                op->params["0"] = 6;
+            else if (new_dims == std::vector<int>{1, 0, 3, 2})
+                op->params["0"] = 7;
+            else if (new_dims == std::vector<int>{1, 2, 0, 3})
+                op->params["0"] = 8;
+            else if (new_dims == std::vector<int>{1, 2, 3, 0})
+                op->params["0"] = 9;
+            else if (new_dims == std::vector<int>{1, 3, 0, 2})
+                op->params["0"] = 10;
+            else if (new_dims == std::vector<int>{1, 3, 2, 0})
+                op->params["0"] = 11;
+            else if (new_dims == std::vector<int>{2, 0, 1, 3})
+                op->params["0"] = 12;
+            else if (new_dims == std::vector<int>{2, 0, 3, 1})
+                op->params["0"] = 13;
+            else if (new_dims == std::vector<int>{2, 1, 0, 3})
+                op->params["0"] = 14;
+            else if (new_dims == std::vector<int>{2, 1, 3, 0})
+                op->params["0"] = 15;
+            else if (new_dims == std::vector<int>{2, 3, 0, 1})
+                op->params["0"] = 16;
+            else if (new_dims == std::vector<int>{2, 3, 1, 0})
+                op->params["0"] = 17;
+            else if (new_dims == std::vector<int>{3, 0, 1, 2})
+                op->params["0"] = 18;
+            else if (new_dims == std::vector<int>{3, 0, 2, 1})
+                op->params["0"] = 19;
+            else if (new_dims == std::vector<int>{3, 1, 0, 2})
+                op->params["0"] = 20;
+            else if (new_dims == std::vector<int>{3, 1, 2, 0})
+                op->params["0"] = 21;
+            else if (new_dims == std::vector<int>{3, 2, 0, 1})
+                op->params["0"] = 22;
+            else if (new_dims == std::vector<int>{3, 2, 1, 0})
+                op->params["0"] = 23;
         }
     }
 };

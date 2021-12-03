@@ -26,8 +26,8 @@ int Reshape::load_param(const ParamDict& pd)
 {
     w = pd.get(0, -233);
     h = pd.get(1, -233);
+    d = pd.get(11, -233);
     c = pd.get(2, -233);
-    d = pd.get(4, -233);
     permute = pd.get(3, 0);
 
     ndim = 4;
@@ -46,7 +46,7 @@ int Reshape::load_param(const ParamDict& pd)
 int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     size_t elemsize = bottom_blob.elemsize;
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * bottom_blob.d;
+    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
 
     int dims = bottom_blob.dims;
 
@@ -54,8 +54,8 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     int outw = w;
     int outh = h;
-    int outc = c;
     int outd = d;
+    int outc = c;
 
     if (ndim == 1)
     {
@@ -125,13 +125,13 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             outd = bottom_blob.d;
 
         if (outw == -1)
-            outw = total / outc / outh / outd;
+            outw = total / outc / outd / outh;
         if (outh == -1)
-            outh = total / outc / outw / outd;
-        if (outc == -1)
-            outc = total / outh / outw / outd;
+            outh = total / outc / outd / outw;
         if (outd == -1)
-            outd = total / outh / outw / outc;
+            outd = total / outc / outh / outw;
+        if (outc == -1)
+            outc = total / outd / outh / outw;
 
         if (dims == 4 && bottom_blob.c == outc)
         {
@@ -178,7 +178,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         }
         if (dims == 3)
         {
-            // cwh -> whc
+            // chw -> hwc
             int _w = bottom_blob.w;
             int _h = bottom_blob.h;
             int channels = bottom_blob.c;
@@ -205,7 +205,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
         if (dims == 4)
         {
-            // cwhd -> whdc
+            // cdhw -> dhwc
             int _w = bottom_blob.w;
             int _h = bottom_blob.h;
             int _d = bottom_blob.d;
@@ -219,11 +219,12 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             for (int z = 0; z < _d; z++)
             {
                 float* outptr = bottom_blob_permuted.channel(z);
+
                 for (int q = 0; q < _h; q++)
                 {
                     for (int i = 0; i < _w; i++)
                     {
-                        for (int j = 0; j < channels; j++) //z q i j    // j z q i
+                        for (int j = 0; j < channels; j++)
                         {
                             const float* ptr = bottom_blob.channel(j).depth(z).row(q);
                             outptr[q * _w * channels + i * channels + j] = ptr[i];
@@ -242,7 +243,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return 0;
         }
 
-        // permute on nhwc/nhc
+        // permute on ndhwc/nhwc/nhc
         Mat top_blob_permuted;
         if (ndim == 2)
         {
@@ -279,7 +280,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
         }
         if (ndim == 3)
         {
-            // chw -> hwc
+            // hwc -> chw
             top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -300,10 +301,9 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 }
             }
         }
-
         if (ndim == 4)
         {
-            // cwhd -> whdc
+            // dhwc -> cdhw
             top_blob.create(outw, outh, outd, outc, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -316,6 +316,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 for (int k = 0; k < outd; k++)
                 {
                     const float* ptr = top_blob_permuted.channel(k);
+
                     for (int i = 0; i < outh; i++)
                     {
                         for (int j = 0; j < outw; j++)
@@ -326,6 +327,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 }
             }
         }
+
         return 0;
     }
 

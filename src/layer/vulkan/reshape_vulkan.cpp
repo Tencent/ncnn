@@ -21,7 +21,7 @@ namespace ncnn {
 
 Reshape_vulkan::Reshape_vulkan()
 {
-    support_vulkan = true;
+    //support_vulkan = true;
     support_image_storage = true;
 
     permute_hwc = 0;

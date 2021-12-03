@@ -37,6 +37,7 @@ public:
     int h;
     int d;
     int c;
+
     // flag permute chw->hwc or hw->wh before and after reshape
     int permute;
 
