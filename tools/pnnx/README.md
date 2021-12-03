@@ -426,7 +426,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.AvgPool3d               | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.BatchNorm1d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.BatchNorm2d             | :heavy_check_mark: | :heavy_check_mark: |
-|nn.BatchNorm3d             | :heavy_check_mark: |
+|nn.BatchNorm3d             | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Bilinear                |   |
 |nn.CELU                    | :heavy_check_mark: |
 |nn.ChannelShuffle          | :heavy_check_mark: | :heavy_check_mark: |
