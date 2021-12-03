@@ -87,8 +87,9 @@ pnnx.Output             output      1 0 out
         }
         if (shape_rank == 4)
         {
-            op->params["0"] = new_shape[3] == -1 || new_shape[2] == -1 ? -1 : new_shape[3] * new_shape[2];
-            op->params["1"] = new_shape[1];
+            op->params["0"] = new_shape[3];
+            op->params["1"] = new_shape[2];
+            op->params["11"] = new_shape[1];
             op->params["2"] = new_shape[0];
         }
     }

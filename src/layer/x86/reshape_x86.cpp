@@ -298,7 +298,7 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             if (_d == 0)
                 _d = bottom_blob.d;
             if (_c == 0)
-                _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+                _c = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
 
             if (_w == -1)
                 _w = total / _c / _d / _h;
