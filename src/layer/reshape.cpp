@@ -172,7 +172,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             {
                 for (int j = 0; j < _h; j++)
                 {
-                    outptr[i * _h + j] = ptr[j * _w + i];
+                    *outptr++ = ptr[j * _w + i];
                 }
             }
         }
@@ -196,8 +196,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 {
                     for (int j = 0; j < channels; j++)
                     {
-                        const float* ptr = bottom_blob.channel(j).row(q);
-                        outptr[i * channels + j] = ptr[i];
+                        *outptr++ = bottom_blob.channel(j).row(q)[i];
                     }
                 }
             }
@@ -226,8 +225,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                     {
                         for (int j = 0; j < channels; j++)
                         {
-                            const float* ptr = bottom_blob.channel(j).depth(z).row(q);
-                            outptr[q * _w * channels + i * channels + j] = ptr[i];
+                            *outptr++ = bottom_blob.channel(j).depth(z).row(q)[i];
                         }
                     }
                 }
@@ -274,7 +272,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             {
                 for (int j = 0; j < outw; j++)
                 {
-                    outptr[i * outw + j] = ptr[j * outh + i];
+                    *outptr++ = ptr[j * outh + i];
                 }
             }
         }
@@ -296,7 +294,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                     for (int j = 0; j < outw; j++)
                     {
-                        outptr[i * outw + j] = ptr[j * outc + q];
+                        *outptr++ = ptr[j * outc + q];
                     }
                 }
             }
@@ -321,7 +319,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            outptr[k * outh * outw + i * outw + j] = ptr[i * outw * outc + j * outc + q];
+                            *outptr++ = ptr[i * outw * outc + j * outc + q];
                         }
                     }
                 }

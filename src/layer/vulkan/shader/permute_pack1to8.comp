@@ -208,7 +208,7 @@ void main()
             xx4 = x4;
             y4 = ivec4(yd * psc(h) + yh);
             yy4 = y4;
-            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = gz * 8 + ivec4(0, 1, 2, 3);
             zz4 = z4 + 4;
         }
         if (order_type == 1)
@@ -217,7 +217,7 @@ void main()
             xx4 = x4;
             y4 = ivec4(yd * psc(h) + gx);
             yy4 = y4;
-            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = gz * 8 + ivec4(0, 1, 2, 3);
             zz4 = z4 + 4;
         }
         if (order_type == 2)
@@ -226,7 +226,7 @@ void main()
             xx4 = x4;
             y4 = ivec4(yh * psc(h) + yd);
             yy4 = y4;
-            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = gz * 8 + ivec4(0, 1, 2, 3);
             zz4 = z4 + 4;
         }
         if (order_type == 3)
@@ -235,7 +235,7 @@ void main()
             xx4 = x4;
             y4 = ivec4(gx * psc(h) + yd);
             yy4 = y4;
-            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = gz * 8 + ivec4(0, 1, 2, 3);
             zz4 = z4 + 4;
         }
         if (order_type == 4)
@@ -244,7 +244,7 @@ void main()
             xx4 = x4;
             y4 = ivec4(yh * psc(h) + gx);
             yy4 = y4;
-            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = gz * 8 + ivec4(0, 1, 2, 3);
             zz4 = z4 + 4;
         }
         if (order_type == 5)
@@ -253,14 +253,14 @@ void main()
             xx4 = x4;
             y4 = ivec4(gx * psc(h) + yh);
             yy4 = y4;
-            z4 = gz * 4 + ivec4(0, 1, 2, 3);
+            z4 = gz * 8 + ivec4(0, 1, 2, 3);
             zz4 = z4 + 4;
         }
         if (order_type == 6)
         {
             x4 = ivec4(gx);
             xx4 = x4;
-            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + yh;
+            y4 = (gz * 8 + ivec4(0, 1, 2, 3)) * psc(h) + yh;
             yy4 = y4 + 4 * psc(h);
             z4 = ivec4(yd);
             zz4 = z4;
@@ -269,7 +269,7 @@ void main()
         {
             x4 = ivec4(yh);
             xx4 = x4;
-            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + gx;
+            y4 = (gz * 8 + ivec4(0, 1, 2, 3)) * psc(h) + gx;
             yy4 = y4 + 4 * psc(h);
             z4 = ivec4(yd);
             zz4 = z4;
@@ -278,7 +278,7 @@ void main()
         {
             x4 = ivec4(gx);
             xx4 = x4;
-            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + yd;
+            y4 = (gz * 8 + ivec4(0, 1, 2, 3)) * psc(h) + yd;
             yy4 = y4 + 4 * psc(h);
             z4 = ivec4(yh);
             zz4 = z4;
@@ -287,7 +287,7 @@ void main()
         {
             x4 = ivec4(yh);
             xx4 = x4;
-            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + yd;
+            y4 = (gz * 8 + ivec4(0, 1, 2, 3)) * psc(h) + yd;
             yy4 = y4 + 4 * psc(h);
             z4 = ivec4(gx);
             zz4 = z4;
@@ -296,7 +296,7 @@ void main()
         {
             x4 = ivec4(yd);
             xx4 = x4;
-            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + gx;
+            y4 = (gz * 8 + ivec4(0, 1, 2, 3)) * psc(h) + gx;
             yy4 = y4 + 4 * psc(h);
             z4 = ivec4(yh);
             zz4 = z4;
@@ -305,7 +305,7 @@ void main()
         {
             x4 = ivec4(yd);
             xx4 = x4;
-            y4 = (gz * 4 + ivec4(0, 1, 2, 3)) * psc(h) + yh;
+            y4 = (gz * 8 + ivec4(0, 1, 2, 3)) * psc(h) + yh;
             yy4 = y4 + 4 * psc(h);
             z4 = ivec4(gx);
             zz4 = z4;
@@ -314,7 +314,7 @@ void main()
         {
             x4 = ivec4(gx);
             xx4 = x4;
-            y4 = yh * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = yh * psc(h) + gz * 8 + ivec4(0, 1, 2, 3);
             yy4 = y4 + 4;
             z4 = ivec4(yd);
             zz4 = z4;
@@ -323,7 +323,7 @@ void main()
         {
             x4 = ivec4(yh);
             xx4 = x4;
-            y4 = gx * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = gx * psc(h) + gz * 8 + ivec4(0, 1, 2, 3);
             yy4 = y4 + 4;
             z4 = ivec4(yd);
             zz4 = z4;
@@ -332,7 +332,7 @@ void main()
         {
             x4 = ivec4(gx);
             xx4 = x4;
-            y4 = yd * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = yd * psc(h) + gz * 8 + ivec4(0, 1, 2, 3);
             yy4 = y4 + 4;
             z4 = ivec4(yh);
             zz4 = z4;
@@ -341,7 +341,7 @@ void main()
         {
             x4 = ivec4(yh);
             xx4 = x4;
-            y4 = yd * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = yd * psc(h) + gz * 8 + ivec4(0, 1, 2, 3);
             yy4 = y4 + 4;
             z4 = ivec4(gx);
             zz4 = z4;
@@ -350,7 +350,7 @@ void main()
         {
             x4 = ivec4(yd);
             xx4 = x4;
-            y4 = gx * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = gx * psc(h) + gz * 8 + ivec4(0, 1, 2, 3);
             yy4 = y4 + 4;
             z4 = ivec4(yh);
             zz4 = z4;
@@ -359,14 +359,14 @@ void main()
         {
             x4 = ivec4(yd);
             xx4 = x4;
-            y4 = yh * psc(h) + gz * 4 + ivec4(0, 1, 2, 3);
+            y4 = yh * psc(h) + gz * 8 + ivec4(0, 1, 2, 3);
             yy4 = y4 + 4;
             z4 = ivec4(gx);
             zz4 = z4;
         }
         if (order_type == 18)
         {
-            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            x4 = gz * 8 + ivec4(0, 1, 2, 3);
             xx4 = x4 + 4;
             y4 = ivec4(yh * psc(h) + gx);
             yy4 = y4;
@@ -375,7 +375,7 @@ void main()
         }
         if (order_type == 19)
         {
-            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            x4 = gz * 8 + ivec4(0, 1, 2, 3);
             xx4 = x4 + 4;
             y4 = ivec4(gx * psc(h) + yh);
             yy4 = y4;
@@ -384,7 +384,7 @@ void main()
         }
         if (order_type == 20)
         {
-            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            x4 = gz * 8 + ivec4(0, 1, 2, 3);
             xx4 = x4 + 4;
             y4 = ivec4(yd * psc(h) + gx);
             yy4 = y4;
@@ -393,7 +393,7 @@ void main()
         }
         if (order_type == 21)
         {
-            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            x4 = gz * 8 + ivec4(0, 1, 2, 3);
             xx4 = x4 + 4;
             y4 = ivec4(yd * psc(h) + yh);
             yy4 = y4;
@@ -402,7 +402,7 @@ void main()
         }
         if (order_type == 22)
         {
-            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            x4 = gz * 8 + ivec4(0, 1, 2, 3);
             xx4 = x4 + 4;
             y4 = ivec4(gx * psc(h) + yd);
             yy4 = y4;
@@ -411,7 +411,7 @@ void main()
         }
         if (order_type == 23)
         {
-            x4 = gz * 4 + ivec4(0, 1, 2, 3);
+            x4 = gz * 8 + ivec4(0, 1, 2, 3);
             xx4 = x4 + 4;
             y4 = ivec4(yh * psc(h) + yd);
             yy4 = y4;
@@ -431,7 +431,7 @@ void main()
     v[1].b = image3d_ld1(bottom_blob_3d, ivec3(xx4.b, yy4.b, zz4.b));
     v[1].a = image3d_ld1(bottom_blob_3d, ivec3(xx4.a, yy4.a, zz4.a));
 
-    image3d_st8(top_blob_3d, ivec3(gx, gy, 0), v);
+    image3d_st8(top_blob_3d, ivec3(gx, gy, gz), v);
 #else
     ivec4 v_offset = z4 * psc(cstep) + y4 * psc(w) + x4;
     ivec4 vv_offset = zz4 * psc(cstep) + yy4 * psc(w) + xx4;
