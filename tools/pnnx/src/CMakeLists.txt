@@ -284,6 +284,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_AvgPool3d.cpp
     pass_ncnn/nn_BatchNorm1d.cpp
     pass_ncnn/nn_BatchNorm2d.cpp
+    pass_ncnn/nn_BatchNorm3d.cpp
     pass_ncnn/nn_ChannelShuffle.cpp
     pass_ncnn/nn_ConstantPad1d.cpp
     pass_ncnn/nn_ConstantPad2d.cpp
