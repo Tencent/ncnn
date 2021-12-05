@@ -20,7 +20,7 @@ namespace ncnn {
 
 Permute_vulkan::Permute_vulkan()
 {
-    //support_vulkan = true;
+    support_vulkan = true;
     support_image_storage = true;
 
     pipeline_permute = 0;
@@ -504,15 +504,15 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
         {
             outw = d;
             outh = c;
-            outd = h;
-            outc = w;
+            outd = w;
+            outc = h;
         }
         else if (order_type == 17)
         {
             outw = c;
             outh = d;
-            outd = h;
-            outc = w;
+            outd = w;
+            outc = h;
         }
         else if (order_type == 18)
         {
@@ -549,7 +549,7 @@ int Permute_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute
             outd = h;
             outc = w;
         }
-        else if (order_type == 23)
+        else // if (order_type == 23)
         {
             outw = c;
             outh = d;
@@ -884,15 +884,15 @@ int Permute_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
         {
             outw = d;
             outh = c;
-            outd = h;
-            outc = w;
+            outd = w;
+            outc = h;
         }
         else if (order_type == 17)
         {
             outw = c;
             outh = d;
-            outd = h;
-            outc = w;
+            outd = w;
+            outc = h;
         }
         else if (order_type == 18)
         {
@@ -929,7 +929,7 @@ int Permute_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob,
             outd = h;
             outc = w;
         }
-        else if (order_type == 23)
+        else // if (order_type == 23)
         {
             outw = c;
             outh = d;

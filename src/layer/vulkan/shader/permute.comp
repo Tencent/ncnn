@@ -172,13 +172,13 @@ void main()
         //22 = d c h w
         //23 = c d h w
 
-        int yh = gy % psc(outh);
         int yd = gy / psc(outh);
+        int yh = gy % psc(outh);
 
         if (order_type == 0)
         {
             x = gx;
-            y = gy;
+            y = yd * psc(h) + yh;
             z = gz;
         }
         if (order_type == 1)
@@ -195,14 +195,14 @@ void main()
         }
         if (order_type == 3)
         {
-            x = yd;
-            y = yh * psc(h) + gx;
+            x = yh;
+            y = gx * psc(h) + yd;
             z = gz;
         }
         if (order_type == 4)
         {
-            x = yh;
-            y = gx * psc(h) + yd;
+            x = yd;
+            y = yh * psc(h) + gx;
             z = gz;
         }
         if (order_type == 5)
@@ -226,38 +226,38 @@ void main()
         if (order_type == 8)
         {
             x = gx;
-            y = yh * psc(h) + gz;
-            z = yd;
-        }
-        if (order_type == 9)
-        {
-            x = gz;
-            y = yh * psc(h) + gx;
-            z = yd;
-        }
-        if (order_type == 10)
-        {
-            x = yh;
-            y = gx * psc(h) + gz;
-            z = yd;
-        }
-        if (order_type == 11)
-        {
-            x = gz;
-            y = gx * psc(h) + yh;
-            z = yd;
-        }
-        if (order_type == 12)
-        {
-            x = gx;
             y = gz * psc(h) + yd;
             z = yh;
         }
-        if (order_type == 13)
+        if (order_type == 9)
+        {
+            x = yh;
+            y = gz * psc(h) + yd;
+            z = gx;
+        }
+        if (order_type == 10)
         {
             x = yd;
             y = gz * psc(h) + gx;
             z = yh;
+        }
+        if (order_type == 11)
+        {
+            x = yd;
+            y = gz * psc(h) + yh;
+            z = gx;
+        }
+        if (order_type == 12)
+        {
+            x = gx;
+            y = yh * psc(h) + gz;
+            z = yd;
+        }
+        if (order_type == 13)
+        {
+            x = yh;
+            y = gx * psc(h) + gz;
+            z = yd;
         }
         if (order_type == 14)
         {
@@ -267,9 +267,9 @@ void main()
         }
         if (order_type == 15)
         {
-            x = gz;
-            y = yd * psc(h) + gx;
-            z = yh;
+            x = yh;
+            y = yd * psc(h) + gz;
+            z = gx;
         }
         if (order_type == 16)
         {
@@ -279,27 +279,27 @@ void main()
         }
         if (order_type == 17)
         {
-            x = gz;
-            y = gx * psc(h) + yd;
-            z = yh;
+            x = yd;
+            y = yh * psc(h) + gz;
+            z = gx;
         }
         if (order_type == 18)
         {
-            x = yh;
-            y = gz * psc(h) + yd;
-            z = gx;
+            x = gz;
+            y = yh * psc(h) + gx;
+            z = yd;
         }
         if (order_type == 19)
         {
-            x = yd;
-            y = gz * psc(h) + yh;
-            z = gx;
+            x = gz;
+            y = gx * psc(h) + yh;
+            z = yd;
         }
         if (order_type == 20)
         {
-            x = yh;
-            y = yd * psc(h) + gz;
-            z = gx;
+            x = gz;
+            y = yd * psc(h) + gx;
+            z = yh;
         }
         if (order_type == 21)
         {
@@ -309,9 +309,9 @@ void main()
         }
         if (order_type == 22)
         {
-            x = yd;
-            y = yh * psc(h) + gz;
-            z = gx;
+            x = gz;
+            y = gx * psc(h) + yd;
+            z = yh;
         }
         if (order_type == 23)
         {
