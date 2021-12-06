@@ -57,6 +57,7 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -65,9 +66,9 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 #if __mips_msa
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _coffset;
-        int _outw, _outh, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        int _woffset, _hoffset, _doffset, _coffset;
+        int _outw, _outh, _outd, _outc;
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
 
         if (dims == 1)
         {
@@ -148,6 +149,48 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                     Mat borderm = top_blob.channel(q);
 
                     crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_coffset % 4 == 0 && out_elempack == 4)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels)
+                {
+                    top_blob = bottom_blob;
+                    return 0;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                    }
                 }
 
                 return 0;
@@ -175,6 +218,7 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -187,15 +231,15 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 #if __mips_msa
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _coffset;
-        int _outw, _outh, _outc;
+        int _woffset, _hoffset, _doffset, _coffset;
+        int _outw, _outh, _outd, _outc;
         if (woffset == -233)
         {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
         }
         else
         {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
         }
 
         if (dims == 1)
@@ -277,6 +321,48 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                     Mat borderm = top_blob.channel(q);
 
                     crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_coffset % 4 == 0 && out_elempack == 4)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels)
+                {
+                    top_blob = bottom_blob;
+                    return 0;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        crop_pack4_msa(m, borderm, _hoffset, _woffset);
+                    }
                 }
 
                 return 0;
