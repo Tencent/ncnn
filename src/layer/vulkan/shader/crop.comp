@@ -102,10 +102,29 @@ void main()
         buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
 #endif
     }
-    else // if (psc(dims) == 3)
+    else if (psc(dims) == 3)
     {
         int x = gx + p.woffset;
         int y = gy + p.hoffset;
+        int z = gz + p.coffset;
+
+#if NCNN_image_shader
+        image3d_cp1(top_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(x, y, z));
+#else
+        const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+
+        int v_offset = z * psc(cstep) + y * psc(w) + x;
+
+        buffer_cp1(top_blob_data, gi, bottom_blob_data, v_offset);
+#endif
+    }
+    else // if (psc(dims) == 4)
+    {
+        int yd = gy / psc(outh);
+        int yh = gy % psc(outh);
+
+        int x = gx + p.woffset;
+        int y = (yd + p.doffset) * psc(h) + (yh + p.hoffset);
         int z = gz + p.coffset;
 
 #if NCNN_image_shader

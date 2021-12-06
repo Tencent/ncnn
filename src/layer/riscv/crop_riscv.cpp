@@ -122,18 +122,18 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             int out_elempack = _outw % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw / out_elempack == w)
+            if (_outw / out_elempack == w && out_elempack == packn)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_woffset % packn == 0 && out_elempack == packn)
             {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elembits == 16)
                     crop_packn_bf16_fp16s_rvv(bottom_blob, top_blob, 0, _woffset / elempack, packn);
                 else
@@ -148,18 +148,18 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             int out_elempack = _outh % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw == w && _outh / out_elempack == h)
+            if (_outw == w && _outh / out_elempack == h && out_elempack == packn)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_hoffset % packn == 0 && out_elempack == packn)
             {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elembits == 16)
                     crop_packn_bf16_fp16s_rvv(bottom_blob, top_blob, _hoffset / elempack, _woffset, packn);
                 else
@@ -174,6 +174,12 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             int out_elempack = _outc % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == packn)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % packn == 0 && out_elempack == packn)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -183,12 +189,6 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -216,6 +216,12 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
             int out_elempack = _outc % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == packn)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % packn == 0 && out_elempack == packn)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -225,12 +231,6 @@ int Crop_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -312,18 +312,18 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             int out_elempack = _outw % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw / out_elempack == w)
+            if (_outw / out_elempack == w && out_elempack == packn)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_woffset % packn == 0 && out_elempack == packn)
             {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elembits == 16)
                     crop_packn_bf16_fp16s_rvv(bottom_blob, top_blob, 0, _woffset / elempack, packn);
                 else
@@ -338,18 +338,18 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             int out_elempack = _outh % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw == w && _outh / out_elempack == h)
+            if (_outw == w && _outh / out_elempack == h && out_elempack == packn)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_hoffset % packn == 0 && out_elempack == packn)
             {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elembits == 16)
                     crop_packn_bf16_fp16s_rvv(bottom_blob, top_blob, _hoffset / elempack, _woffset, packn);
                 else
@@ -364,6 +364,12 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             int out_elempack = _outc % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == packn)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % packn == 0 && out_elempack == packn)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -373,12 +379,6 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -406,6 +406,12 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             int out_elempack = _outc % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == packn)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % packn == 0 && out_elempack == packn)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -415,12 +421,6 @@ int Crop_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);

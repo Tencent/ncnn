@@ -75,18 +75,18 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw / out_elempack == w)
+            if (_outw / out_elempack == w && out_elempack == 4)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_woffset % 4 == 0 && out_elempack == 4)
             {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
@@ -98,18 +98,18 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw == w && _outh / out_elempack == h)
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 4)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_hoffset % 4 == 0 && out_elempack == 4)
             {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
@@ -121,6 +121,12 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 4)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % 4 == 0 && out_elempack == 4)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -130,12 +136,6 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -160,6 +160,12 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 4)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % 4 == 0 && out_elempack == 4)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -169,12 +175,6 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -247,18 +247,18 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw / out_elempack == w)
+            if (_outw / out_elempack == w && out_elempack == 4)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_woffset % 4 == 0 && out_elempack == 4)
             {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 crop_pack4_msa(bottom_blob, top_blob, 0, _woffset / elempack);
 
                 return 0;
@@ -270,18 +270,18 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw == w && _outh / out_elempack == h)
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 4)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_hoffset % 4 == 0 && out_elempack == 4)
             {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 crop_pack4_msa(bottom_blob, top_blob, _hoffset / elempack, _woffset);
 
                 return 0;
@@ -293,6 +293,12 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 4)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % 4 == 0 && out_elempack == 4)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -302,12 +308,6 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -332,6 +332,12 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 4)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % 4 == 0 && out_elempack == 4)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -341,12 +347,6 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);

@@ -21,7 +21,7 @@ namespace ncnn {
 
 Crop_vulkan::Crop_vulkan()
 {
-    //support_vulkan = true;
+    support_vulkan = true;
     support_image_storage = true;
 
     pipeline_crop = 0;
