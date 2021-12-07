@@ -1046,11 +1046,11 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                 for (int j = 0; j < outw; j++)
                 {
-                    __fp16 sum = 0.f;
+                    float sum = 0.f;
 
                     if (bias_term)
                     {
-                        sum = ((const __fp16*)bias_data_fp16)[p];
+                        sum = bias_data[p];
                     }
 
                     const __fp16* kptr = weight_data_fp16.channel(p);
@@ -1061,8 +1061,8 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                         for (int k = 0; k < kernel_w; k++)
                         {
-                            __fp16 val = sptr[0];
-                            __fp16 w = kptr[0];
+                            float val = (float)sptr[0];
+                            float w = (float)kptr[0];
                             sum += val * w;
 
                             sptr += dilation_w;
@@ -1072,7 +1072,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     sum = activation_ss(sum, activation_type, activation_params);
 
-                    outptr[j] = sum;
+                    outptr[j] = (__fp16)sum;
                 }
             }
         }
