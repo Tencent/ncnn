@@ -173,7 +173,7 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w * 4;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -231,7 +231,7 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -274,7 +274,7 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w * 4;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++) // 29.23
                         {
@@ -448,7 +448,7 @@ int Convolution1D_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * 4;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -499,7 +499,7 @@ int Convolution1D_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -542,7 +542,7 @@ int Convolution1D_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * 4;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -586,7 +586,7 @@ int Convolution1D_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -662,7 +662,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * 8;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * 8;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -721,7 +721,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -764,7 +764,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * 4;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -815,7 +815,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * 8;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * 8;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -860,7 +860,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * 8;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * 8;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -919,7 +919,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * 4;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -970,7 +970,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -1013,7 +1013,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * 4;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -1057,7 +1057,7 @@ int Convolution1D_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -1183,7 +1183,7 @@ int Convolution1D_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int q = 0; q < h; q++)
                     {
-                        const unsigned short* sptr = bottom_blob.row<const unsigned short>(q) + j * stride_w * 4;
+                        const unsigned short* sptr = bottom_blob_bordered.row<const unsigned short>(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -1241,7 +1241,7 @@ int Convolution1D_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int q = 0; q < h; q++)
                     {
-                        const unsigned short* sptr = bottom_blob.row<const unsigned short>(q) + j * stride_w;
+                        const unsigned short* sptr = bottom_blob_bordered.row<const unsigned short>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -1284,7 +1284,7 @@ int Convolution1D_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int q = 0; q < h; q++)
                     {
-                        const unsigned short* sptr = bottom_blob.row<const unsigned short>(q) + j * stride_w * 4;
+                        const unsigned short* sptr = bottom_blob_bordered.row<const unsigned short>(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -1334,7 +1334,7 @@ int Convolution1D_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int q = 0; q < h; q++)
                     {
-                        const unsigned short* sptr = bottom_blob.row<unsigned short>(q) + j * stride_w;
+                        const unsigned short* sptr = bottom_blob_bordered.row<unsigned short>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {

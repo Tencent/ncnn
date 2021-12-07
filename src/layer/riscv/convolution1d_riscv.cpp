@@ -177,7 +177,7 @@ int Convolution1D_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Op
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w * packn;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * packn;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -224,7 +224,7 @@ int Convolution1D_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Op
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -269,7 +269,7 @@ int Convolution1D_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Op
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w * packn;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * packn;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -443,7 +443,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * packn;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * packn;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -490,7 +490,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -535,7 +535,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * packn;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * packn;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -589,7 +589,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<__fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<__fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -664,7 +664,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * packn;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * packn;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -711,7 +711,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -756,7 +756,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<const __fp16>(q) + j * stride_w * packn;
+                        const __fp16* sptr = bottom_blob_bordered.row<const __fp16>(q) + j * stride_w * packn;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -800,7 +800,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
 
                     for (int q = 0; q < h; q++)
                     {
-                        const __fp16* sptr = bottom_blob.row<__fp16>(q) + j * stride_w;
+                        const __fp16* sptr = bottom_blob_bordered.row<__fp16>(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {

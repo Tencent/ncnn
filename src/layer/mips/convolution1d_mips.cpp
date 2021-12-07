@@ -140,7 +140,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w * 4;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -194,7 +194,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -239,7 +239,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
                     for (int q = 0; q < h; q++)
                     {
-                        const float* sptr = bottom_blob.row(q) + j * stride_w * 4;
+                        const float* sptr = bottom_blob_bordered.row(q) + j * stride_w * 4;
 
                         for (int k = 0; k < kernel_w; k++)
                         {
