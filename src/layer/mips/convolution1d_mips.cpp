@@ -142,7 +142,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     {
                         const float* sptr = bottom_blob.row(q) + j * stride_w * 4;
 
-                        for (int k = 0; k < maxk; k++)
+                        for (int k = 0; k < kernel_w; k++)
                         {
                             v4f32 _val0 = __msa_fill_w_f32(sptr[0]);
                             v4f32 _val1 = __msa_fill_w_f32(sptr[1]);
@@ -241,7 +241,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                     {
                         const float* sptr = bottom_blob.row(q) + j * stride_w * 4;
 
-                        for (int k = 0; k < maxk; k++)
+                        for (int k = 0; k < kernel_w; k++)
                         {
                             v4f32 _val = (v4f32)__msa_ld_w(sptr, 0);
                             v4f32 _w = (v4f32)__msa_ld_w(kptr, 0);
