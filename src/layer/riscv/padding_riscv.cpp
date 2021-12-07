@@ -116,13 +116,16 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             int out_elempack = outw % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % packn == 0 && out_elempack == packn)
+            if (left % packn == 0 && out_elempack == packn && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                vfloat32m1_t pad_value = vfmv_v_f_f32m1(value, vl);
+                padding_constant_packn_float32_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
+
+                return 0;
             }
         }
 
@@ -134,13 +137,16 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             int out_elempack = outh % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % packn == 0 && out_elempack == packn)
+            if (top % packn == 0 && out_elempack == packn && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                vfloat32m1_t pad_value = vfmv_v_f_f32m1(value, vl);
+                padding_constant_packn_float32_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -153,12 +159,12 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             int out_elempack = outc % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
@@ -193,12 +199,12 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             int outh = h + top + bottom;
             int outd = d + front + behind;
 
-            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (type == 0)
             {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -216,12 +222,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                         else
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
-                            if (type == 0)
-                                padding_constant_packn_float32_rvv(m, borderm, top, bottom, left, right, pad_value);
-                            if (type == 1)
-                                padding_replicate_packn_float32_rvv(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_packn_float32_rvv(m, borderm, top, bottom, left, right);
+                            padding_constant_packn_float32_rvv(m, borderm, top, bottom, left, right, pad_value);
                         }
                     }
                 }
@@ -285,13 +286,36 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
             int out_elempack = outw % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % packn == 0 && out_elempack == packn)
+            if (left % packn == 0 && out_elempack == packn && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                // clang-format off
+                // *INDENT-OFF*
+                vuint16m1_t pad_value;
+#if __riscv_zfh
+                if (opt.use_fp16_storage)
+                {
+                    pad_value = vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
+                }
+                else
+#endif
+#if NCNN_BF16
+                if (opt.use_bf16_storage)
+                {
+                    pad_value = vmv_v_x_u16m1(value_bf16, vl);
+                }
+                else
+#endif
+                {
+                }
+                // *INDENT-ON*
+                // clang-format on
+                padding_constant_packn_uint16_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
+
+                return 0;
             }
         }
 
@@ -303,13 +327,36 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
             int out_elempack = outh % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % packn == 0 && out_elempack == packn)
+            if (top % packn == 0 && out_elempack == packn && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                // clang-format off
+                // *INDENT-OFF*
+                vuint16m1_t pad_value;
+#if __riscv_zfh
+                if (opt.use_fp16_storage)
+                {
+                    pad_value = vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
+                }
+                else
+#endif
+#if NCNN_BF16
+                if (opt.use_bf16_storage)
+                {
+                    pad_value = vmv_v_x_u16m1(value_bf16, vl);
+                }
+                else
+#endif
+                {
+                }
+                // *INDENT-ON*
+                // clang-format on
+                padding_constant_packn_uint16_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -322,12 +369,12 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
             int out_elempack = outc % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
@@ -383,12 +430,12 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
             int outh = h + top + bottom;
             int outd = d + front + behind;
 
-            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (type == 0)
             {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -426,12 +473,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                         else
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
-                            if (type == 0)
-                                padding_constant_packn_uint16_rvv(m, borderm, top, bottom, left, right, pad_value);
-                            if (type == 1)
-                                padding_replicate_packn_uint16_rvv(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_packn_uint16_rvv(m, borderm, top, bottom, left, right);
+                            padding_constant_packn_uint16_rvv(m, borderm, top, bottom, left, right, pad_value);
                         }
                     }
                 }
@@ -494,13 +536,16 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
             int out_elempack = outw % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % packn == 0 && out_elempack == packn)
+            if (left % packn == 0 && out_elempack == packn && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+                padding_constant_packn_int8_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
+
+                return 0;
             }
         }
 
@@ -512,13 +557,16 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
             int out_elempack = outh % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % packn == 0 && out_elempack == packn)
+            if (top % packn == 0 && out_elempack == packn && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+                padding_constant_packn_int8_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -531,12 +579,12 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
             int out_elempack = outc % packn == 0 ? packn : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
@@ -574,12 +622,12 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
             int outh = h + top + bottom;
             int outd = d + front + behind;
 
-            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (type == 0)
             {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -599,12 +647,7 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
                         else
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
-                            if (type == 0)
-                                padding_constant_packn_int8_rvv(m, borderm, top, bottom, left, right, pad_value);
-                            if (type == 1)
-                                padding_replicate_packn_int8_rvv(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_packn_int8_rvv(m, borderm, top, bottom, left, right);
+                            padding_constant_packn_int8_rvv(m, borderm, top, bottom, left, right, pad_value);
                         }
                     }
                 }

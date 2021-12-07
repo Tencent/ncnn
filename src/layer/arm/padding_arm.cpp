@@ -110,13 +110,16 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int out_elempack = outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % 4 == 0 && out_elempack == 4)
+            if (left % 4 == 0 && out_elempack == 4 && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                float32x4_t pad_value = vdupq_n_f32(value);
+                padding_constant_pack4_neon(bottom_blob, top_blob, 0, 0, left / 4, right / 4, pad_value);
+
+                return 0;
             }
         }
 
@@ -128,13 +131,16 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int out_elempack = outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % 4 == 0 && out_elempack == 4)
+            if (top % 4 == 0 && out_elempack == 4 && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                float32x4_t pad_value = vdupq_n_f32(value);
+                padding_constant_pack4_neon(bottom_blob, top_blob, top / 4, bottom / 4, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -147,12 +153,12 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int out_elempack = outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
@@ -187,12 +193,12 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int outh = h + top + bottom;
             int outd = d + front + behind;
 
-            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (type == 0)
             {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -210,12 +216,7 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         else
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
-                            if (type == 0)
-                                padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
-                            if (type == 1)
-                                padding_replicate_pack4_neon(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_pack4_neon(m, borderm, top, bottom, left, right);
+                            padding_constant_pack4_neon(m, borderm, top, bottom, left, right, pad_value);
                         }
                     }
                 }
@@ -259,13 +260,16 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int out_elempack = outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % 8 == 0 && out_elempack == 8)
+            if (left % 8 == 0 && out_elempack == 8 && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                float16x8_t pad_value = vdupq_n_f16((__fp16)value);
+                padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
+
+                return 0;
             }
         }
 
@@ -277,13 +281,16 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int out_elempack = outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % 8 == 0 && out_elempack == 8)
+            if (top % 8 == 0 && out_elempack == 8 && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                float16x8_t pad_value = vdupq_n_f16((__fp16)value);
+                padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -296,12 +303,12 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int out_elempack = outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % 8 == 0 && out_elempack == 8 && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
@@ -337,12 +344,12 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outh = h + top + bottom;
             int outd = d + front + behind;
 
-            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (type == 0)
             {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -360,12 +367,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         else
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
-                            if (type == 0)
-                                padding_constant_pack8_fp16s_neon(m, borderm, top, bottom, left, right, pad_value);
-                            if (type == 1)
-                                padding_replicate_pack8_fp16s_neon(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_pack8_fp16s_neon(m, borderm, top, bottom, left, right);
+                            padding_constant_pack8_fp16s_neon(m, borderm, top, bottom, left, right, pad_value);
                         }
                     }
                 }
@@ -389,13 +391,36 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % 4 == 0 && out_elempack == 4)
+            if (left % 4 == 0 && out_elempack == 4 && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                // clang-format off
+                // *INDENT-OFF*
+                uint16x4_t pad_value;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+                if (opt.use_fp16_storage)
+                {
+                    pad_value = vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                }
+                else
+#endif
+#if NCNN_BF16
+                if (opt.use_bf16_storage)
+                {
+                    pad_value = vdup_n_u16(value_bf16);
+                }
+                else
+#endif
+                {
+                }
+                // *INDENT-ON*
+                // clang-format on
+                padding_constant_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, 0, left / 4, right / 4, vcombine_u16(pad_value, pad_value));
+
+                return 0;
             }
         }
 
@@ -411,13 +436,36 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % 4 == 0 && out_elempack == 4)
+            if (top % 4 == 0 && out_elempack == 4 && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                // clang-format off
+                // *INDENT-OFF*
+                uint16x4_t pad_value;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+                if (opt.use_fp16_storage)
+                {
+                    pad_value = vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                }
+                else
+#endif
+#if NCNN_BF16
+                if (opt.use_bf16_storage)
+                {
+                    pad_value = vdup_n_u16(value_bf16);
+                }
+                else
+#endif
+                {
+                }
+                // *INDENT-ON*
+                // clang-format on
+                padding_constant_pack4_bf16_fp16s_neon(bottom_blob, top_blob, top / 4, bottom / 4, left, right, vcombine_u16(pad_value, pad_value));
+
+                return 0;
             }
         }
 
@@ -434,12 +482,12 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (front % 4 == 0 && out_elempack == 4 && !(outc != channels * elempack && type != 0))
             {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 int front_ = front / elempack;
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < outc / out_elempack; q++)
@@ -495,12 +543,12 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outh = h + top + bottom;
             int outd = d + front + behind;
 
-            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (type == 0)
             {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -538,12 +586,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         else
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
-                            if (type == 0)
-                                padding_constant_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right, vcombine_u16(pad_value, pad_value));
-                            if (type == 1)
-                                padding_replicate_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right);
+                            padding_constant_pack4_bf16_fp16s_neon(m, borderm, top, bottom, left, right, vcombine_u16(pad_value, pad_value));
                         }
                     }
                 }
@@ -586,13 +629,16 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
             int out_elempack = outw % 8 == 0 ? 8 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (left % 8 == 0 && out_elempack == 8)
+            if (left % 8 == 0 && out_elempack == 8 && type == 0)
             {
-                // TODO
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int8x8_t pad_value = vdup_n_s8((signed char)value);
+                padding_constant_pack8_int8_neon(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
+
+                return 0;
             }
         }
 
@@ -604,13 +650,16 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
             int out_elempack = outh % 8 == 0 ? 8 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (top % 8 == 0 && out_elempack == 8)
+            if (top % 8 == 0 && out_elempack == 8 && type == 0)
             {
-                // TODO
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int8x8_t pad_value = vdup_n_s8((signed char)value);
+                padding_constant_pack8_int8_neon(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
+
+                return 0;
             }
         }
 
@@ -691,12 +740,7 @@ int Padding_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
                         else
                         {
                             const Mat m = bottom_blob.channel(q).depth(z - front);
-                            if (type == 0)
-                                padding_constant_pack8_int8_neon(m, borderm, top, bottom, left, right, pad_value);
-                            if (type == 1)
-                                padding_replicate_pack8_int8_neon(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_pack8_int8_neon(m, borderm, top, bottom, left, right);
+                            padding_constant_pack8_int8_neon(m, borderm, top, bottom, left, right, pad_value);
                         }
                     }
                 }
