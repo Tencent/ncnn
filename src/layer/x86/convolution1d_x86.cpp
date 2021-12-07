@@ -187,8 +187,8 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                             __m256 _w7 = _mm256_loadu_ps(kptr + 56);
 
                             _mm256_comp_fmadd_ps8(_sum,
-                                                    _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7,
-                                                    _w0, _w1, _w2, _w3, _w4, _w5, _w6, _w7);
+                                                  _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7,
+                                                  _w0, _w1, _w2, _w3, _w4, _w5, _w6, _w7);
 
                             sptr += dilation_w * 8;
                             kptr += 64;
