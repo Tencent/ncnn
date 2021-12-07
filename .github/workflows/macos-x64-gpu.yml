@@ -28,16 +28,15 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+concurrency:
+  group: macos-x64-gpu-${{ github.ref }}
+  cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
 jobs:
   macos-clang-gpu:
     runs-on: macos-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true

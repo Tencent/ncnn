@@ -28,14 +28,13 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+concurrency:
+  group: linux-x64-cpu-clang-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-clang:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: update
       run: sudo apt-get update
@@ -103,10 +102,6 @@ jobs:
   linux-clang-simplestl:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: build-simplestl
       env:

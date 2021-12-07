@@ -12,6 +12,9 @@ on:
     - '.github/workflows/pnnx.yml'
     - 'tools/pnnx/**'
     - '!tools/pnnx/README.md'
+concurrency:
+  group: pnnx-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   ubuntu:
     runs-on: ubuntu-20.04
@@ -30,11 +33,6 @@ jobs:
             torchvision-version: 0.11.1
 
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
-
     - name: setup pytorch-${{ matrix.torch-version }}
       run: |
         pip install torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html

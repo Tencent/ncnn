@@ -28,14 +28,13 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+concurrency:
+  group: linux-x64-gpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-gcc-gpu:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true
@@ -103,10 +102,6 @@ jobs:
   linux-gcc-gpu-t4:
     runs-on: [self-hosted, linux]
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true

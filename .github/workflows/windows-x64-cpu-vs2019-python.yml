@@ -20,17 +20,16 @@ on:
     - 'src/layer/*'
     - 'src/layer/x86/**'
     - 'python/**'
+concurrency:
+  group: windows-x64-cpu-vs2019-python-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   windows-vs2019-python:
     runs-on: windows-latest
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9]
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true

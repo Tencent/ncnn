@@ -20,6 +20,9 @@ on:
     - 'src/layer/*'
     - 'src/layer/x86/**'
     - 'python/**'
+concurrency:
+  group: macos-x64-cpu-python-${{ github.ref }}
+  cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
 jobs:
@@ -27,12 +30,8 @@ jobs:
     runs-on: macos-latest
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
+        python-version: [3.6, 3.7, 3.8, 3.9]
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true
