@@ -20,14 +20,13 @@ on:
     - 'src/layer/*'
     - 'src/layer/x86/**'
     - 'tests/**'
+concurrency:
+  group: web-assembly-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   webassembly:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: emsdk
       run: |

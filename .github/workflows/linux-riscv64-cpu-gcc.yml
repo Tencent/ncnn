@@ -24,14 +24,13 @@ on:
     - 'src/layer/*'
     - 'src/layer/riscv/**'
     - 'tests/**'
+concurrency:
+  group: linux-riscv64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-gcc-riscv64:
     runs-on: ubuntu-20.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-qemu
@@ -75,10 +74,6 @@ jobs:
   linux-gcc-riscv64-rvv:
     runs-on: ubuntu-20.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-qemu

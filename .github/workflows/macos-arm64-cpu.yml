@@ -18,16 +18,15 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
+concurrency:
+  group: macos-arm64-cpu-${{ github.ref }}
+  cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
 jobs:
   macos-clang:
     runs-on: macos-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: cache-openmp
       id: cache-openmp

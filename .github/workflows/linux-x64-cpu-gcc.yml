@@ -28,14 +28,13 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
+concurrency:
+  group: linux-x64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-gcc:
     runs-on: ubuntu-18.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: update
       run: sudo apt-get update
@@ -85,10 +84,6 @@ jobs:
   linux-gcc-cpp03-nostdio-nostring-simplestl:
     runs-on: ubuntu-18.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: build-nostdio
       run: |
@@ -113,10 +108,6 @@ jobs:
   linux-gcc-avx512:
     runs-on: [self-hosted, linux]
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: build
       env:
