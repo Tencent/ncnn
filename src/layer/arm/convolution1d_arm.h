@@ -12,27 +12,48 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_CONVOLUTION1D_X86_H
-#define LAYER_CONVOLUTION1D_X86_H
+#ifndef LAYER_CONVOLUTION1D_ARM_H
+#define LAYER_CONVOLUTION1D_ARM_H
 
 #include "convolution1d.h"
 
 namespace ncnn {
 
-class Convolution1D_x86 : virtual public Convolution1D
+class Convolution1D_arm : virtual public Convolution1D
 {
 public:
-    Convolution1D_x86();
+    Convolution1D_arm();
 
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+protected:
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    int create_pipeline_fp16s(const Option& opt);
+    int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+    int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+#if NCNN_BF16
+    int create_pipeline_bf16s(const Option& opt);
+    int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+
 public:
+    // pack4
     Mat weight_data_packed;
+
+    // fp16
+    Mat weight_data_fp16;
+    Mat bias_data_fp16;
+
+#if NCNN_BF16
+    // bf16
+    Mat weight_data_bf16;
+#endif
 };
 
 } // namespace ncnn
 
-#endif // LAYER_CONVOLUTION1D_X86_H
+#endif // LAYER_CONVOLUTION1D_ARM_H

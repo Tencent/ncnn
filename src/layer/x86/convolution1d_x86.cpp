@@ -23,8 +23,6 @@
 #include "x86_activation.h"
 #include "x86_usability.h"
 
-#include "layer_type.h"
-
 namespace ncnn {
 
 Convolution1D_x86::Convolution1D_x86()
@@ -32,14 +30,10 @@ Convolution1D_x86::Convolution1D_x86()
 #if __SSE2__
     support_packing = true;
 #endif // __SSE2__
-
-    activation = 0;
 }
 
 int Convolution1D_x86::create_pipeline(const Option& opt)
 {
-    activation = create_activation_layer(activation_type, activation_params, opt);
-
     int num_input = weight_data_size / kernel_w / num_output;
 
     int elempack = 1;
@@ -94,15 +88,8 @@ int Convolution1D_x86::create_pipeline(const Option& opt)
     return 0;
 }
 
-int Convolution1D_x86::destroy_pipeline(const Option& opt)
+int Convolution1D_x86::destroy_pipeline(const Option& /*opt*/)
 {
-    if (activation)
-    {
-        activation->destroy_pipeline(opt);
-        delete activation;
-        activation = 0;
-    }
-
     return 0;
 }
 
@@ -123,7 +110,6 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
 
-    int outw = (w - kernel_extent_w) / stride_w + 1;
     int out_elempack = 1;
 #if __SSE2__
     if (opt.use_packing_layout)
@@ -137,7 +123,10 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #endif // __SSE2__
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    top_blob.create(outw, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = num_output / out_elempack;
+
+    top_blob.create(outw, outh, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
@@ -147,7 +136,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
@@ -195,14 +184,11 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         }
                     }
 
+                    _sum = activation_avx(_sum, activation_type, activation_params);
+
                     _mm256_storeu_ps(outptr, _sum);
                     outptr += 8;
                 }
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -211,7 +197,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
@@ -241,14 +227,11 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         }
                     }
 
+                    _sum = activation_avx(_sum, activation_type, activation_params);
+
                     _mm256_storeu_ps(outptr, _sum);
                     outptr += 8;
                 }
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -257,7 +240,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
@@ -297,14 +280,11 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         }
                     }
 
+                    _sum = activation_avx(_sum, activation_type, activation_params);
+
                     _mm256_storeu_ps(outptr, _sum);
                     outptr += 8;
                 }
-            }
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
             }
         }
     }
@@ -313,7 +293,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
@@ -358,7 +338,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
@@ -424,7 +404,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
@@ -477,7 +457,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output / out_elempack; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
@@ -520,7 +500,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
@@ -564,7 +544,7 @@ int Convolution1D_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         {
             #pragma omp parallel for num_threads(opt.num_threads)
-            for (int p = 0; p < num_output; p++)
+            for (int p = 0; p < outh; p++)
             {
                 float* outptr = top_blob.row(p);
 
