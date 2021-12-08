@@ -57,6 +57,12 @@ ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 
 int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 {
+    if (dynamic_weight)
+    {
+        support_packing = false;
+        return 0;
+    }
+
     activation = create_activation_layer(activation_type, activation_params, opt);
 
 #if NCNN_INT8

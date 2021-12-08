@@ -36,6 +36,7 @@ public:
 
 protected:
     void make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const;
+    void make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, int kernel_w, int kernel_h, const Option& opt) const;
 
 #if NCNN_INT8
     int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
