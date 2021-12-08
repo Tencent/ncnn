@@ -131,18 +131,14 @@ int Convolution::create_pipeline(const Option& opt)
 
 static int convolution(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int stride_w, int stride_h, int dilation_w, int dilation_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    const int num_output = top_blob.c;
-    const int bias_term = bias_data.empty() ? 0 : 1;
-
     const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
+    const int inch = bottom_blob.c;
 
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int outch = top_blob.c;
 
-    const int outw = (w - kernel_extent_w) / stride_w + 1;
-    const int outh = (h - kernel_extent_h) / stride_h + 1;
+    const int bias_term = bias_data.empty() ? 0 : 1;
 
     const int maxk = kernel_w * kernel_h;
 
@@ -166,7 +162,7 @@ static int convolution(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_
     }
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < num_output; p++)
+    for (int p = 0; p < outch; p++)
     {
         float* outptr = top_blob.channel(p);
 
@@ -179,9 +175,9 @@ static int convolution(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_
                 if (bias_term)
                     sum = bias_data[p];
 
-                const float* kptr = (const float*)weight_data + maxk * channels * p;
+                const float* kptr = (const float*)weight_data + maxk * inch * p;
 
-                for (int q = 0; q < channels; q++)
+                for (int q = 0; q < inch; q++)
                 {
                     const Mat m = bottom_blob.channel(q);
                     const float* sptr = m.row(i * stride_h) + j * stride_w;

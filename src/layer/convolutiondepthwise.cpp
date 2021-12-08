@@ -160,18 +160,14 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
 static int convolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int stride_w, int stride_h, int dilation_w, int dilation_h, int group, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    const int num_output = top_blob.c;
-    const int bias_term = bias_data.empty() ? 0 : 1;
-
     const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
-    const int channels = bottom_blob.c;
+    const int inch = bottom_blob.c;
 
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int outch = top_blob.c;
 
-    const int outw = (w - kernel_extent_w) / stride_w + 1;
-    const int outh = (h - kernel_extent_h) / stride_h + 1;
+    const int bias_term = bias_data.empty() ? 0 : 1;
 
     const int maxk = kernel_w * kernel_h;
 
@@ -195,7 +191,7 @@ static int convolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat
     }
 
     // depth-wise
-    if (channels == group && group == num_output)
+    if (inch == group && group == outch)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
@@ -232,8 +228,8 @@ static int convolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat
     else
     {
         // group convolution
-        const int channels_g = channels / group;
-        const int num_output_g = num_output / group;
+        const int inch_g = inch / group;
+        const int outch_g = outch / group;
 
 #ifdef _WIN32
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -242,10 +238,10 @@ static int convolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat
 #endif // _WIN32
         for (int g = 0; g < group; g++)
         {
-            for (int p = 0; p < num_output_g; p++)
+            for (int p = 0; p < outch_g; p++)
             {
-                float* outptr = top_blob.channel(g * num_output_g + p);
-                const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
+                float* outptr = top_blob.channel(g * outch_g + p);
+                const float* weight_data_ptr = (const float*)weight_data + maxk * inch_g * outch_g * g;
 
                 for (int i = 0; i < outh; i++)
                 {
@@ -254,14 +250,13 @@ static int convolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat
                         float sum = 0.f;
 
                         if (bias_term)
-                            sum = bias_data[num_output_g * g + p];
+                            sum = bias_data[outch_g * g + p];
 
-                        const float* kptr = weight_data_ptr + maxk * channels_g * p;
+                        const float* kptr = weight_data_ptr + maxk * inch_g * p;
 
-                        // channels_g
-                        for (int q = 0; q < channels_g; q++)
+                        for (int q = 0; q < inch_g; q++)
                         {
-                            const Mat m = bottom_blob.channel(channels_g * g + q);
+                            const Mat m = bottom_blob.channel(inch_g * g + q);
                             const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                             for (int k = 0; k < maxk; k++)
