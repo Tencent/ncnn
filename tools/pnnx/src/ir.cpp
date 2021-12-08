@@ -1963,7 +1963,7 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
 
-        for (int input_index = 0; ; input_index++)
+        for (int input_index = 0;; input_index++)
         {
             std::string input_name = std::string("in") + std::to_string(input_index);
             const Operand* r = get_operand(input_name);
@@ -1990,7 +1990,7 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
         fprintf(pyfp, "\n");
         fprintf(pyfp, "         with net.create_extractor() as ex:\n");
 
-        for (int input_index = 0; ; input_index++)
+        for (int input_index = 0;; input_index++)
         {
             std::string input_name = std::string("in") + std::to_string(input_index);
             const Operand* r = get_operand(input_name);
@@ -2010,7 +2010,7 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
 
         fprintf(pyfp, "\n");
 
-        for (int output_index = 0; ; output_index++)
+        for (int output_index = 0;; output_index++)
         {
             std::string output_name = std::string("out") + std::to_string(output_index);
             const Operand* r = get_operand(output_name);
