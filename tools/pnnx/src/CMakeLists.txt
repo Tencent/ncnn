@@ -186,6 +186,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp
+    pass_level3/rename_F_convmode.cpp
 )
 
 set(pnnx_pass_level4_SRCS

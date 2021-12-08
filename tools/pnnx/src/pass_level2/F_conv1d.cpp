@@ -50,7 +50,7 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv1d, 10)
 
-class F_conv1d_1 : public GraphRewriterPass
+class F_convmode : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -71,10 +71,10 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "F.conv1d";
+        return "F.convmode";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv1d_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_convmode, 10)
 
 } // namespace pnnx

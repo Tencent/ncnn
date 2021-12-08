@@ -47,6 +47,13 @@ int Convolution::load_param(const ParamDict& pd)
     activation_params = pd.get(10, Mat());
     impl_type = pd.get(17, 0);
 
+    dynamic_weight = pd.get(19, 0);
+
+    if (dynamic_weight)
+    {
+        one_blob_only = false;
+    }
+
     if (int8_scale_term)
     {
 #if NCNN_INT8
@@ -62,6 +69,9 @@ int Convolution::load_param(const ParamDict& pd)
 
 int Convolution::load_model(const ModelBin& mb)
 {
+    if (dynamic_weight)
+        return 0;
+
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
@@ -251,6 +261,98 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                         float val = sptr[space_ofs[k]]; // 20.72
                         float wt = kptr[k];
                         sum += val * wt; // 41.45
+                    }
+
+                    kptr += maxk;
+                }
+
+                outptr[j] = activation_ss(sum, activation_type, activation_params);
+            }
+
+            outptr += outw;
+        }
+    }
+
+    return 0;
+}
+
+int Convolution::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    const Mat& _bias_data = bias_term ? bottom_blobs[2] : bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    const int maxk = kernel_w * kernel_h;
+
+    // kernel offsets
+    std::vector<int> _space_ofs(maxk);
+    int* space_ofs = &_space_ofs[0];
+    {
+        int p1 = 0;
+        int p2 = 0;
+        int gap = w * dilation_h - kernel_w * dilation_w;
+        for (int i = 0; i < kernel_h; i++)
+        {
+            for (int j = 0; j < kernel_w; j++)
+            {
+                space_ofs[p1] = p2;
+                p1++;
+                p2 += dilation_w;
+            }
+            p2 += gap;
+        }
+    }
+
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < num_output; p++)
+    {
+        float* outptr = top_blob.channel(p);
+
+        for (int i = 0; i < outh; i++)
+        {
+            for (int j = 0; j < outw; j++)
+            {
+                float sum = 0.f;
+
+                if (bias_term)
+                    sum = _bias_data[p];
+
+                const float* kptr = (const float*)_weight_data.channel(p);
+
+                for (int q = 0; q < channels; q++)
+                {
+                    const Mat m = bottom_blob_bordered.channel(q);
+                    const float* sptr = m.row(i * stride_h) + j * stride_w;
+
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        float val = sptr[space_ofs[k]];
+                        float wt = kptr[k];
+                        sum += val * wt;
                     }
 
                     kptr += maxk;

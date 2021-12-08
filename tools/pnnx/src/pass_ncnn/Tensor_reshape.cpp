@@ -47,7 +47,7 @@ pnnx.Output             output      1 0 out
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
-        if (batch_index != 0)
+        if (batch_index != 0 && batch_index != 233)
         {
             fprintf(stderr, "reshape tensor with batch index %d is not supported yet!\n", batch_index);
         }

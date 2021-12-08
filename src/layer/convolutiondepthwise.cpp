@@ -47,6 +47,13 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
+    dynamic_weight = pd.get(19, 0);
+
+    if (dynamic_weight)
+    {
+        one_blob_only = false;
+    }
+
     if (num_output % group != 0)
     {
         // reject invalid group
@@ -68,6 +75,9 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
 
 int ConvolutionDepthWise::load_model(const ModelBin& mb)
 {
+    if (dynamic_weight)
+        return 0;
+
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
@@ -278,6 +288,156 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const float* kptr = weight_data_ptr + maxk * channels_g * p;
 
                         // channels_g
+                        for (int q = 0; q < channels_g; q++)
+                        {
+                            const Mat m = bottom_blob_bordered.channel(channels_g * g + q);
+                            const float* sptr = m.row(i * stride_h) + j * stride_w;
+
+                            for (int k = 0; k < maxk; k++)
+                            {
+                                float val = sptr[space_ofs[k]];
+                                float w = kptr[k];
+                                sum += val * w;
+                            }
+
+                            kptr += maxk;
+                        }
+
+                        outptr[j] = activation_ss(sum, activation_type, activation_params);
+                    }
+
+                    outptr += outw;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int ConvolutionDepthWise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    const Mat& _bias_data = bias_term ? bottom_blobs[2] : bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int channels = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+
+    if (channels % group != 0 || num_output % group != 0)
+    {
+        // reject invalid group
+        return -100;
+    }
+
+    //     NCNN_LOGE("ConvolutionDepthWise input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    w = bottom_blob_bordered.w;
+    h = bottom_blob_bordered.h;
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    const int maxk = kernel_w * kernel_h;
+
+    // kernel offsets
+    std::vector<int> _space_ofs(maxk);
+    int* space_ofs = &_space_ofs[0];
+    {
+        int p1 = 0;
+        int p2 = 0;
+        int gap = w * dilation_h - kernel_w * dilation_w;
+        for (int i = 0; i < kernel_h; i++)
+        {
+            for (int j = 0; j < kernel_w; j++)
+            {
+                space_ofs[p1] = p2;
+                p1++;
+                p2 += dilation_w;
+            }
+            p2 += gap;
+        }
+    }
+
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // depth-wise
+    if (channels == group && group == num_output)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int g = 0; g < group; g++)
+        {
+            float* outptr = top_blob.channel(g);
+            const float* kptr = (const float*)_weight_data.channel(g);
+            const Mat m = bottom_blob_bordered.channel(g);
+
+            for (int i = 0; i < outh; i++)
+            {
+                for (int j = 0; j < outw; j++)
+                {
+                    float sum = 0.f;
+
+                    if (bias_term)
+                        sum = _bias_data[g];
+
+                    const float* sptr = m.row(i * stride_h) + j * stride_w;
+
+                    for (int k = 0; k < maxk; k++)
+                    {
+                        float val = sptr[space_ofs[k]];
+                        float w = kptr[k];
+                        sum += val * w;
+                    }
+
+                    outptr[j] = activation_ss(sum, activation_type, activation_params);
+                }
+
+                outptr += outw;
+            }
+        }
+    }
+    else
+    {
+        // group convolution
+        const int channels_g = channels / group;
+        const int num_output_g = num_output / group;
+
+#ifdef _WIN32
+        #pragma omp parallel for num_threads(opt.num_threads)
+#else // _WIN32
+        #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
+#endif // _WIN32
+        for (int g = 0; g < group; g++)
+        {
+            for (int p = 0; p < num_output_g; p++)
+            {
+                float* outptr = top_blob.channel(g * num_output_g + p);
+                const float* weight_data_ptr = (const float*)_weight_data + maxk * channels_g * num_output_g * g;
+
+                for (int i = 0; i < outh; i++)
+                {
+                    for (int j = 0; j < outw; j++)
+                    {
+                        float sum = 0.f;
+
+                        if (bias_term)
+                            sum = _bias_data[num_output_g * g + p];
+
+                        const float* kptr = weight_data_ptr + maxk * channels_g * p;
+
                         for (int q = 0; q < channels_g; q++)
                         {
                             const Mat m = bottom_blob_bordered.channel(channels_g * g + q);
