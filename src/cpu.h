@@ -54,11 +54,12 @@ NCNN_EXPORT int cpu_support_arm_asimdhp();
 // asimddp = aarch64 asimd dot product
 NCNN_EXPORT int cpu_support_arm_asimddp();
 
-// avx2 = x86_64 avx2 + fma + f16c
-NCNN_EXPORT int cpu_support_x86_avx2();
-
 // avx = x86_64 avx
 NCNN_EXPORT int cpu_support_x86_avx();
+// avx2 = x86_64 avx2 + fma + f16c
+NCNN_EXPORT int cpu_support_x86_avx2();
+// avx512 = x86_64 avx512f + fma + f16c
+NCNN_EXPORT int cpu_support_x86_avx512();
 
 // msa = mips mas
 NCNN_EXPORT int cpu_support_mips_msa();
