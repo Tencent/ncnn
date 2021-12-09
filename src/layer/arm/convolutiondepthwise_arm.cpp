@@ -14,6 +14,7 @@
 
 #include "convolutiondepthwise_arm.h"
 
+#include "cpu.h"
 #include "layer_type.h"
 
 #if __ARM_NEON
