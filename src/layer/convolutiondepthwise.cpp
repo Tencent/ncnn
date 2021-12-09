@@ -364,7 +364,7 @@ int ConvolutionDepthWise::forward(const std::vector<Mat>& bottom_blobs, std::vec
     if (top_blob.empty())
         return -100;
 
-    int ret = convolutiondepthwise(bottom_blob_bordered, top_blob, weight_data_flattened, bias_data_flattened, kernel_w, kernel_h, stride_w, stride_h, dilation_w, dilation_h, group, activation_type, activation_params, opt);
+    int ret = convolutiondepthwise(bottom_blob_bordered, top_blob, weight_data_flattened, bias_data_flattened, _kernel_w, _kernel_h, stride_w, stride_h, dilation_w, dilation_h, group, activation_type, activation_params, opt);
     if (ret != 0)
         return ret;
 
