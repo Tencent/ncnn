@@ -1,5 +1,12 @@
 project(pnnx)
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.12)
+
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)
+endif()
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(PNNXPyTorch)
 
 # c++14 is required for using torch headers
 set(CMAKE_CXX_STANDARD 14)
@@ -12,13 +19,15 @@ option(PNNX_COVERAGE "build for coverage" OFF)
 
 #set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
 #set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/pytorch-v1.10.0/build/install" CACHE STRING "")
-set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/libtorch" CACHE STRING "")
+#set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/libtorch" CACHE STRING "")
 set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
 
-set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
+#set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
+PNNXProbeForPyTorchInstall()
 find_package(Torch REQUIRED)
+
 find_package(TorchVision QUIET)
 
 message(STATUS "Torch_VERSION = ${Torch_VERSION}")
