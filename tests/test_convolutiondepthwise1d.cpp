@@ -209,5 +209,5 @@ int main()
 {
     SRAND(7767517);
 
-    return test_convolutiondepthwise1d_0();
+    return test_convolutiondepthwise1d_0() || test_convolutiondepthwise1d_1();
 }
