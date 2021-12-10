@@ -20,42 +20,39 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
-        x = x.reshape(2, 24)
-        x = x.reshape(48)
-        y = y.reshape(11, 5, 9)
-        y = y.reshape(99, 5)
-        z = z.reshape(4, 3, 6, 10)
-        z = z.reshape(15, 6, 8)
-        return x, y, z
+    def forward(self, x, w0, w1, b1):
+        x = F.conv2d(x, w0, None, stride=(2,2), padding=(1,1))
+        if torch.__version__ < '1.9':
+            x = F.conv2d(x, w1, b1, stride=(1,1), padding=(1,1), dilation=(2,1), groups=2)
+        else:
+            x = F.conv2d(x, w1, b1, stride=(1,1), padding='same', dilation=(2,1), groups=2)
+        return x
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 16)
-    y = torch.rand(5, 9, 11)
-    z = torch.rand(8, 5, 9, 2)
+    x = torch.rand(1, 12, 52, 64)
+    w0 = torch.rand(16, 12, 3, 3)
+    w1 = torch.rand(16, 8, 5, 5)
+    b1 = torch.rand(16)
 
-    a = net(x, y, z)
+    a = net(x, w0, w1, b1)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_Tensor_view.pt")
+    mod = torch.jit.trace(net, (x, w0, w1, b1))
+    mod.save("test_F_conv2d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_view.pt inputshape=[3,16],[5,9,11],[8,5,9,2]")
+    os.system("../../src/pnnx test_F_conv2d.pt inputshape=[1,12,52,64],[16,12,3,3],[16,8,5,5],[16]")
 
     # ncnn inference
-    import test_Tensor_view_ncnn
-    b = test_Tensor_view_ncnn.test_inference()
+    import test_F_conv2d_ncnn
+    b = test_F_conv2d_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

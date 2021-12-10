@@ -33,9 +33,9 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12)
-    y = torch.rand(1, 12, 64)
-    z = torch.rand(1, 12, 24, 64)
+    x = torch.rand(12)
+    y = torch.rand(12, 64)
+    z = torch.rand(12, 24, 64)
 
     a = net(x, y, z)
 
@@ -45,7 +45,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Sigmoid.pt inputshape=[1,12],[1,12,64],[1,12,24,64]")
+    os.system("../../src/pnnx test_nn_Sigmoid.pt inputshape=[12],[12,64],[12,24,64]")
 
     # ncnn inference
     import test_nn_Sigmoid_ncnn

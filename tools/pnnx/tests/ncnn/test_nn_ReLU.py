@@ -34,10 +34,10 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12)
-    y = torch.rand(1, 12, 64)
-    z = torch.rand(1, 12, 24, 64)
-    w = torch.rand(1, 12, 24, 32, 64)
+    x = torch.rand(12)
+    y = torch.rand(12, 64)
+    z = torch.rand(12, 24, 64)
+    w = torch.rand(12, 24, 32, 64)
 
     a = net(x, y, z, w)
 
@@ -47,7 +47,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_ReLU.pt inputshape=[1,12],[1,12,64],[1,12,24,64],[1,12,24,32,64]")
+    os.system("../../src/pnnx test_nn_ReLU.pt inputshape=[12],[12,64],[12,24,64],[12,24,32,64]")
 
     # ncnn inference
     import test_nn_ReLU_ncnn

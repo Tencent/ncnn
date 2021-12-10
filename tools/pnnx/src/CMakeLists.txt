@@ -186,6 +186,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp
+    pass_level3/rename_F_convmode.cpp
 )
 
 set(pnnx_pass_level4_SRCS
@@ -241,6 +242,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_conv1d.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_gelu.cpp

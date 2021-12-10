@@ -51,31 +51,4 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d, 10)
 
-class F_conv2d_1 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-9 8
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 weight
-pnnx.Input              input_2     0 1 bias
-pnnx.Input              input_3     0 1 stride
-pnnx.Input              input_4     0 1 padding
-pnnx.Input              input_5     0 1 dilation
-pnnx.Input              input_6     0 1 groups
-aten::_convolution_mode  op_0       7 1 input weight bias stride padding dilation groups out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.conv2d";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv2d_1, 10)
-
 } // namespace pnnx

@@ -21,9 +21,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = torch.transpose(x, 1, 2)
-        y = torch.transpose(y, 2, 3)
-        z = torch.transpose(z, 1, 3)
+        x = torch.transpose(x, 0, 1)
+        y = torch.transpose(y, 1, 2)
+        z = torch.transpose(z, 0, 2)
         return x, y, z
 
 def test():
@@ -31,9 +31,9 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 3, 16)
-    y = torch.rand(1, 5, 9, 11)
-    z = torch.rand(1, 8, 5, 9, 10)
+    x = torch.rand(3, 16)
+    y = torch.rand(5, 9, 11)
+    z = torch.rand(8, 5, 9, 10)
 
     a = net(x, y, z)
 
@@ -43,7 +43,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_transpose.pt inputshape=[1,3,16],[1,5,9,11],[1,8,5,9,10]")
+    os.system("../../src/pnnx test_torch_transpose.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
 
     # ncnn inference
     import test_torch_transpose_ncnn

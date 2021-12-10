@@ -12,30 +12,38 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_CONVOLUTION1D_MIPS_H
-#define LAYER_CONVOLUTION1D_MIPS_H
+#include "rename_F_convmode.h"
+#include <algorithm>
 
-#include "convolution1d.h"
+namespace pnnx {
 
-namespace ncnn {
-
-class Convolution1D_mips : virtual public Convolution1D
+void rename_F_convmode(Graph& graph)
 {
-public:
-    Convolution1D_mips();
+    for (size_t i = 0; i < graph.ops.size(); i++)
+    {
+        Operator* op = graph.ops[i];
 
-    virtual int create_pipeline(const Option& opt);
-    virtual int destroy_pipeline(const Option& opt);
+        if (op->type != "F.convmode")
+            continue;
 
-    virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+        Operator* stride = op->inputs[3]->producer;
+        if (stride->type != "prim::ListConstruct")
+            continue;
 
-    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+        int n = stride->inputs.size();
+        if (n == 1)
+        {
+            op->type = "F.conv1d";
+        }
+        if (n == 2)
+        {
+            op->type = "F.conv2d";
+        }
+        if (n == 3)
+        {
+            op->type = "F.conv3d";
+        }
+    }
+}
 
-public:
-    // packn
-    Mat weight_data_packed;
-};
-
-} // namespace ncnn
-
-#endif // LAYER_CONVOLUTION1D_MIPS_H
+} // namespace pnnx

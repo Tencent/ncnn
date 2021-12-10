@@ -20,99 +20,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-static void solve_batch_index_backward(Operand* operand);
-static void solve_batch_index_forward(Operand* operand)
-{
-    if (operand->params.find("__batch_index") == operand->params.end())
-        return;
-
-    int batch_index = operand->params["__batch_index"].i;
-
-    for (Operator* op : operand->consumers)
-    {
-        if (op->type == "torch.permute" || op->type == "Tensor.permute")
-        {
-            const std::vector<int>& dims = op->params.at("dims").ai;
-
-            int batch_index_permuted = -1;
-            for (int i = 0; i < (int)dims.size(); i++)
-            {
-                if (dims[i] == batch_index)
-                {
-                    batch_index_permuted = i;
-                    break;
-                }
-            }
-
-            for (Operand* r : op->outputs)
-            {
-                if (r->params.find("__batch_index") != r->params.end())
-                    continue;
-
-                r->params["__batch_index"] = batch_index_permuted;
-
-                solve_batch_index_forward(r);
-                solve_batch_index_backward(r);
-            }
-        }
-        else
-        {
-            for (Operand* r : op->outputs)
-            {
-                if (r->params.find("__batch_index") != r->params.end())
-                    continue;
-
-                r->params["__batch_index"] = batch_index;
-
-                solve_batch_index_forward(r);
-                solve_batch_index_backward(r);
-            }
-        }
-    }
-}
-
-static void solve_batch_index_backward(Operand* operand)
-{
-    if (operand->params.find("__batch_index") == operand->params.end())
-        return;
-
-    int batch_index = operand->params["__batch_index"].i;
-
-    Operator* op = operand->producer;
-
-    if (op->type == "torch.permute" || op->type == "Tensor.permute")
-    {
-        const std::vector<int>& dims = op->params.at("dims").ai;
-
-        int batch_index_permuted = dims[batch_index];
-
-        for (Operand* r : op->inputs)
-        {
-            if (r->params.find("__batch_index") != r->params.end())
-                continue;
-
-            r->params["__batch_index"] = batch_index_permuted;
-
-            solve_batch_index_backward(r);
-            solve_batch_index_forward(r);
-        }
-    }
-    else
-    {
-        for (Operand* r : op->inputs)
-        {
-            if (r->params.find("__batch_index") != r->params.end())
-                continue;
-
-            r->params["__batch_index"] = batch_index;
-
-            solve_batch_index_backward(r);
-            solve_batch_index_forward(r);
-        }
-    }
-}
-
-void solve_batch_index(Graph& graph)
+static bool is_known_operator_with_batch_index_0(const Operator* op)
 {
     static const char* operator_with_batch_index_0[] = {
         "F.adaptive_avg_pool1d",
@@ -176,7 +84,6 @@ void solve_batch_index(Graph& graph)
         "nn.InstanceNorm1d",
         "nn.InstanceNorm2d",
         "nn.InstanceNorm3d",
-        "nn.Linear",
         "nn.LocalResponseNorm",
         "nn.LPPool1d",
         "nn.LPPool2d",
@@ -197,22 +104,136 @@ void solve_batch_index(Graph& graph)
         "nn.ZeroPad2d",
     };
 
+    const size_t operator_with_batch_index_0_count = sizeof(operator_with_batch_index_0) / sizeof(const char*);
+    for (size_t i = 0; i < operator_with_batch_index_0_count; i++)
+    {
+        if (op->type == operator_with_batch_index_0[i])
+            return true;
+    }
+
+    return false;
+}
+
+static bool is_known_operator_with_batch_first_param(const Operator* op)
+{
+    return op->type == "nn.RNN" || op->type == "nn.LSTM" || op->type == "nn.GRU" || op->type == "nn.MultiheadAttention";
+}
+
+static void solve_batch_index_backward(Operand* operand);
+static void solve_batch_index_forward(Operand* operand)
+{
+    if (operand->params.find("__batch_index") == operand->params.end())
+        return;
+
+    int batch_index = operand->params["__batch_index"].i;
+
+    for (Operator* op : operand->consumers)
+    {
+        if (is_known_operator_with_batch_index_0(op))
+            continue;
+
+        if (is_known_operator_with_batch_first_param(op))
+            continue;
+
+        if (op->type == "torch.permute" || op->type == "Tensor.permute")
+        {
+            const std::vector<int>& dims = op->params.at("dims").ai;
+
+            int batch_index_permuted = -1;
+            for (int i = 0; i < (int)dims.size(); i++)
+            {
+                if (dims[i] == batch_index)
+                {
+                    batch_index_permuted = i;
+                    break;
+                }
+            }
+
+            for (Operand* r : op->outputs)
+            {
+                if (r->params.find("__batch_index") != r->params.end())
+                    continue;
+
+                r->params["__batch_index"] = batch_index_permuted;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+        else
+        {
+            for (Operand* r : op->outputs)
+            {
+                if (r->params.find("__batch_index") != r->params.end())
+                    continue;
+
+                r->params["__batch_index"] = batch_index;
+
+                solve_batch_index_forward(r);
+                solve_batch_index_backward(r);
+            }
+        }
+    }
+}
+
+static void solve_batch_index_backward(Operand* operand)
+{
+    if (operand->params.find("__batch_index") == operand->params.end())
+        return;
+
+    int batch_index = operand->params["__batch_index"].i;
+
+    Operator* op = operand->producer;
+    if (is_known_operator_with_batch_index_0(op))
+        return;
+
+    if (is_known_operator_with_batch_first_param(op))
+        return;
+
+    if (op->type == "torch.permute" || op->type == "Tensor.permute")
+    {
+        const std::vector<int>& dims = op->params.at("dims").ai;
+
+        int batch_index_permuted = dims[batch_index];
+
+        for (Operand* r : op->inputs)
+        {
+            if (r->params.find("__batch_index") != r->params.end())
+                continue;
+
+            r->params["__batch_index"] = batch_index_permuted;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+    else
+    {
+        for (Operand* r : op->inputs)
+        {
+            if (r->params.find("__batch_index") != r->params.end())
+                continue;
+
+            r->params["__batch_index"] = batch_index;
+
+            solve_batch_index_backward(r);
+            solve_batch_index_forward(r);
+        }
+    }
+}
+
+void solve_batch_index(Graph& graph)
+{
     // assign known operator
     for (Operator* op : graph.ops)
     {
-        const size_t operator_with_batch_index_0_count = sizeof(operator_with_batch_index_0) / sizeof(const char*);
-
-        for (size_t i = 0; i < operator_with_batch_index_0_count; i++)
+        if (is_known_operator_with_batch_index_0(op))
         {
-            if (op->type == operator_with_batch_index_0[i])
-            {
-                op->inputs[0]->params["__batch_index"] = 0;
-                op->outputs[0]->params["__batch_index"] = 0;
-                break;
-            }
+            op->inputs[0]->params["__batch_index"] = 0;
+            op->outputs[0]->params["__batch_index"] = 0;
         }
 
-        if (op->type == "nn.RNN" || op->type == "nn.LSTM" || op->type == "nn.GRU" || op->type == "nn.MultiheadAttention")
+        if (is_known_operator_with_batch_first_param(op))
         {
             bool batch_first = false;
             if (op->params.find("batch_first") != op->params.end())
@@ -249,47 +270,13 @@ void solve_batch_index(Graph& graph)
         }
     }
 
-    // fallback axis 0 for inputs
-    for (Operator* op : graph.ops)
-    {
-        if (op->type != "pnnx.Input")
-            continue;
-
-        for (Operand* r : op->outputs)
-        {
-            if (r->params.find("__batch_index") == r->params.end())
-            {
-                fprintf(stderr, "fallback batch axis 0 for input operand %s\n", r->name.c_str());
-                r->params["__batch_index"] = 0;
-                solve_batch_index_forward(r);
-            }
-        }
-    }
-
-    // fallback axis 0 for outputs
-    for (Operator* op : graph.ops)
-    {
-        if (op->type != "pnnx.Output")
-            continue;
-
-        for (Operand* r : op->inputs)
-        {
-            if (r->params.find("__batch_index") == r->params.end())
-            {
-                fprintf(stderr, "fallback batch axis 0 for output operand %s\n", r->name.c_str());
-                r->params["__batch_index"] = 0;
-                solve_batch_index_backward(r);
-            }
-        }
-    }
-
-    // fallback axis 0 for unknown
+    // fallback axis 233 for unknown
     for (Operand* r : graph.operands)
     {
         if (r->params.find("__batch_index") == r->params.end())
         {
-            fprintf(stderr, "fallback batch axis 0 for operand %s\n", r->name.c_str());
-            r->params["__batch_index"] = 0;
+            fprintf(stderr, "fallback batch axis 233 for operand %s\n", r->name.c_str());
+            r->params["__batch_index"] = 233;
         }
     }
 }

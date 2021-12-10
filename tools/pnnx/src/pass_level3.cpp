@@ -21,6 +21,7 @@
 #include "pass_level3/fuse_chunk_split_unpack.h"
 #include "pass_level3/fuse_expression.h"
 #include "pass_level3/fuse_rnn_unpack.h"
+#include "pass_level3/rename_F_convmode.h"
 
 // #include "pass_level4/canonicalize.h"
 // #include "pass_level4/fuse_custom_op.h"
@@ -41,6 +42,8 @@ void pass_level3(Graph& g)
     fuse_attribute_expression(g);
 
     eliminate_tuple_pair(g);
+
+    rename_F_convmode(g);
 
     fuse_expression(g);
 

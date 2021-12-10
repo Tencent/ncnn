@@ -22,21 +22,19 @@ class Model(nn.Module):
 
     def forward(self, x, y, z):
         if torch.__version__ < '1.9':
-            x = x.permute(1, 0, 2)
-            x = x.permute(0, 2, 1)
-            x = x.permute(2, 0, 1)
-            y = y.permute(2, 3, 1, 0)
-            y = y.permute(3, 1, 0, 2)
-            z = z.permute(1, 3, 0, 4, 2)
-            z = z.permute(2, 0, 4, 3, 1)
+            x = x.permute(1, 0)
+            x = x.permute(0, 1)
+            y = y.permute(2, 1, 0)
+            y = y.permute(1, 0, 2)
+            z = z.permute(1, 3, 0, 2)
+            z = z.permute(2, 0, 3, 1)
         else:
-            x = torch.permute(x, (1, 0, 2))
-            x = torch.permute(x, (0, 2, 1))
-            x = torch.permute(x, (2, 0, 1))
-            y = torch.permute(y, (2, 3, 1, 0))
-            y = torch.permute(y, (3, 1, 0, 2))
-            z = torch.permute(z, (1, 3, 0, 4, 2))
-            z = torch.permute(z, (2, 0, 4, 3, 1))
+            x = torch.permute(x, (1, 0))
+            x = torch.permute(x, (0, 1))
+            y = torch.permute(y, (2, 1, 0))
+            y = torch.permute(y, (1, 0, 2))
+            z = torch.permute(z, (1, 3, 0, 2))
+            z = torch.permute(z, (2, 0, 3, 1))
         return x, y, z
 
 def test():
@@ -44,9 +42,9 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 3, 16)
-    y = torch.rand(1, 5, 9, 11)
-    z = torch.rand(1, 8, 5, 9, 10)
+    x = torch.rand(3, 16)
+    y = torch.rand(5, 9, 11)
+    z = torch.rand(8, 5, 9, 10)
 
     a = net(x, y, z)
 
@@ -56,7 +54,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_torch_permute.pt inputshape=[1,3,16],[1,5,9,11],[1,8,5,9,10]")
+    os.system("../../src/pnnx test_torch_permute.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
 
     # ncnn inference
     import test_torch_permute_ncnn

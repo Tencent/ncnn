@@ -207,9 +207,9 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
 
 #ifdef _WIN32
         #pragma omp parallel for num_threads(opt.num_threads)
-#else // _WIN32
+#else
         #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-#endif // _WIN32
+#endif
         for (int g = 0; g < group; g++)
         {
             for (int p = 0; p < num_output_g; p++)

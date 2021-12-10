@@ -21,6 +21,9 @@
 #include "arm_activation.h"
 #include "arm_usability.h"
 
+#include "cpu.h"
+#include "layer_type.h"
+
 namespace ncnn {
 
 Convolution1D_arm::Convolution1D_arm()
@@ -39,6 +42,9 @@ Convolution1D_arm::Convolution1D_arm()
 
 int Convolution1D_arm::create_pipeline(const Option& opt)
 {
+    if (dynamic_weight)
+        return 0;
+
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage)
     {
@@ -344,6 +350,107 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
     }
+
+    return 0;
+}
+
+int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int _kernel_w = _weight_data.w;
+    const int _num_output = _weight_data.c * _weight_data.elempack;
+
+    Mat weight_data_flattened;
+    flatten(_weight_data, weight_data_flattened, opt);
+    if (weight_data_flattened.empty())
+        return -100;
+
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && weight_data_flattened.elembits() == 16)
+    {
+        Mat weight_data_flattened_fp32;
+        cast_float16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
+        weight_data_flattened = weight_data_flattened_fp32;
+    }
+#endif // NCNN_ARM82
+#if NCNN_BF16
+    if (opt.use_bf16_storage && weight_data_flattened.elembits() == 16)
+    {
+        Mat weight_data_flattened_fp32;
+        cast_bfloat16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
+        weight_data_flattened = weight_data_flattened_fp32;
+    }
+#endif // NCNN_BF16
+
+    // weight_data_flattened as pack1
+    weight_data_flattened.w *= weight_data_flattened.elempack;
+    weight_data_flattened.elemsize /= weight_data_flattened.elempack;
+    weight_data_flattened.elempack = 1;
+
+    Mat bias_data_flattened;
+    if (bias_term)
+    {
+        const Mat& _bias_data = bottom_blobs[2];
+        flatten(_bias_data, bias_data_flattened, opt);
+        if (bias_data_flattened.empty())
+            return -100;
+
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && bias_data_flattened.elembits() == 16)
+        {
+            Mat bias_data_flattened_fp32;
+            cast_float16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
+            bias_data_flattened = bias_data_flattened_fp32;
+        }
+#endif // NCNN_ARM82
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bias_data_flattened.elembits() == 16)
+        {
+            Mat bias_data_flattened_fp32;
+            cast_bfloat16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
+            bias_data_flattened = bias_data_flattened_fp32;
+        }
+#endif // NCNN_BF16
+
+        // bias_data_flattened as pack1
+        bias_data_flattened.w *= bias_data_flattened.elempack;
+        bias_data_flattened.elemsize /= bias_data_flattened.elempack;
+        bias_data_flattened.elempack = 1;
+    }
+
+    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::Convolution1D);
+
+    ncnn::ParamDict pd;
+    pd.set(0, _num_output);
+    pd.set(1, _kernel_w);
+    pd.set(2, dilation_w);
+    pd.set(3, stride_w);
+    pd.set(4, pad_left);
+    pd.set(15, pad_right);
+    pd.set(18, pad_value);
+    pd.set(5, bias_term);
+    pd.set(6, weight_data_flattened.w);
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    op->load_param(pd);
+
+    ncnn::Mat weights[2];
+    weights[0] = weight_data_flattened;
+    weights[1] = bias_data_flattened;
+
+    op->load_model(ncnn::ModelBinFromMatArray(weights));
+
+    op->create_pipeline(opt);
+
+    op->forward(bottom_blob, top_blob, opt);
+
+    op->destroy_pipeline(opt);
+
+    delete op;
 
     return 0;
 }
