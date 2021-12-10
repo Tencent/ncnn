@@ -547,8 +547,8 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.batch_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.bilinear                 |  |
 |F.celu                     | :heavy_check_mark: |
-|F.conv1d                   | :heavy_check_mark: |
-|F.conv2d                   | :heavy_check_mark: | :heavy_check_mark:* |
+|F.conv1d                   | :heavy_check_mark: | :heavy_check_mark: |
+|F.conv2d                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.conv3d                   | :heavy_check_mark: |
 |F.conv_transpose1d         | :heavy_check_mark: |
 |F.conv_transpose2d         | :heavy_check_mark: |

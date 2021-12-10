@@ -204,9 +204,6 @@ static int convolution(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_
 
 int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    // convolv with NxN kernel
-    // value = value + bias
-
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
@@ -261,8 +258,6 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             return 0;
         }
     }
-
-    //     NCNN_LOGE("Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
 
     Mat bottom_blob_bordered;
     make_padding(bottom_blob, bottom_blob_bordered, opt);

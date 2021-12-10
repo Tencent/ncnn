@@ -166,8 +166,6 @@ static int test_convolutiondepthwise_dynamic(int w, int h, int c, int outch, int
 
 static int test_convolutiondepthwise_2()
 {
-    return test_convolutiondepthwise_dynamic(32, 26, 16, 16, 5, 1, 1, 1, 1, 2);
-
     static const int kdsp[7][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
