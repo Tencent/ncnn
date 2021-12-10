@@ -21,12 +21,12 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = x.reshape(1, 2, 24)
-        x = x.reshape(1, 48)
-        y = y.reshape(1, 11, 5, 9)
-        y = y.reshape(1, 99, 5)
-        z = z.reshape(1, 4, 3, 6, 10)
-        z = z.reshape(1, 15, 6, 8)
+        x = x.reshape(2, 24)
+        x = x.reshape(48)
+        y = y.reshape(11, 5, 9)
+        y = y.reshape(99, 5)
+        z = z.reshape(4, 3, 6, 10)
+        z = z.reshape(15, 6, 8)
         return x, y, z
 
 def test():
@@ -34,9 +34,9 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 3, 16)
-    y = torch.rand(1, 5, 9, 11)
-    z = torch.rand(1, 8, 5, 9, 2)
+    x = torch.rand(3, 16)
+    y = torch.rand(5, 9, 11)
+    z = torch.rand(8, 5, 9, 2)
 
     a = net(x, y, z)
 
@@ -46,7 +46,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_reshape.pt inputshape=[1,3,16],[1,5,9,11],[1,8,5,9,2]")
+    os.system("../../src/pnnx test_Tensor_reshape.pt inputshape=[3,16],[5,9,11],[8,5,9,2]")
 
     # ncnn inference
     import test_Tensor_reshape_ncnn

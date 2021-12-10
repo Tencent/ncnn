@@ -43,8 +43,27 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
+        int input_rank = op->inputs[0]->shape.size();
+
+        if (batch_index >= 0 && batch_index < input_rank)
+            input_rank -= 1;
+
         int axis = captured_params.at("dim").i;
-        op->params["0"] = axis > 0 ? axis - 1 : axis;
+        if (axis == batch_index)
+        {
+            fprintf(stderr, "softmax along batch axis %d is not supported\n", batch_index);
+            return;
+        }
+
+        if (axis < 0)
+            axis = input_rank + axis;
+
+        if (axis > batch_index)
+            axis -= 1;
+
+        op->params["0"] = axis;
         op->params["1"] = 1;
     }
 };

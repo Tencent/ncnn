@@ -84,7 +84,6 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "nn.InstanceNorm1d",
         "nn.InstanceNorm2d",
         "nn.InstanceNorm3d",
-        "nn.Linear",
         "nn.LocalResponseNorm",
         "nn.LPPool1d",
         "nn.LPPool2d",

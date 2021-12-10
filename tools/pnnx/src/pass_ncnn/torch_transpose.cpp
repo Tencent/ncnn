@@ -57,7 +57,10 @@ pnnx.Output             output      1 0 out
 
         int input_rank = op->inputs[0]->shape.size();
 
-        if (input_rank > 5)
+        if (batch_index >= 0 && batch_index < input_rank)
+            input_rank -= 1;
+
+        if (input_rank > 4)
         {
             fprintf(stderr, "permute %d-rank tensor is not supported yet!\n", input_rank);
             return;
@@ -70,20 +73,15 @@ pnnx.Output             output      1 0 out
 
         if (input_rank == 1)
         {
-            fprintf(stderr, "permute across one-rank tensor is not supported yet!\n");
-            // should never reach here
-        }
-        if (input_rank == 2)
-        {
             // noop
             op->type = "Noop";
         }
-        if (input_rank == 3)
+        if (input_rank == 2)
         {
             if (dim0 == 0 && dim1 == 1) op->params["0"] = 1;
             if (dim0 == 1 && dim1 == 0) op->params["0"] = 1;
         }
-        if (input_rank == 4)
+        if (input_rank == 3)
         {
             if (dim0 == 0 && dim1 == 1) op->params["0"] = 2;
             if (dim0 == 1 && dim1 == 0) op->params["0"] = 2;
@@ -92,7 +90,7 @@ pnnx.Output             output      1 0 out
             if (dim0 == 1 && dim1 == 2) op->params["0"] = 1;
             if (dim0 == 2 && dim1 == 1) op->params["0"] = 1;
         }
-        if (input_rank == 5)
+        if (input_rank == 4)
         {
             if (dim0 == 0 && dim1 == 1) op->params["0"] = 6;
             if (dim0 == 1 && dim1 == 0) op->params["0"] = 6;

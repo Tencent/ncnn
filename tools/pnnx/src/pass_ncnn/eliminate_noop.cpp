@@ -39,6 +39,8 @@ void eliminate_noop(Graph& graph)
 
             Operand* op_out = op->outputs[0];
 
+            op->inputs[0]->params = op_out->params;
+
             for (auto& x : op_out->consumers)
             {
                 for (size_t j = 0; j < x->inputs.size(); j++)
