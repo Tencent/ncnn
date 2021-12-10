@@ -231,7 +231,7 @@ static int convolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat
         const int inch_g = inch / group;
         const int outch_g = outch / group;
 
-#if NCNN_SIMPLEOMP || defined(_WIN32)
+#ifdef _WIN32
         #pragma omp parallel for num_threads(opt.num_threads)
 #else
         #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
@@ -242,6 +242,12 @@ static int convolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat
             {
                 float* outptr = top_blob.channel(g * outch_g + p);
                 const float* weight_data_ptr = (const float*)weight_data + maxk * inch_g * outch_g * g;
+
+#if NCNN_SIMPLEOMP
+                // shadowed variable for less openmp task args
+                const int outw = top_blob.w;
+                const int outh = top_blob.h;
+#endif
 
                 for (int i = 0; i < outh; i++)
                 {

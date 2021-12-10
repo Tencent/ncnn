@@ -205,7 +205,7 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
         const int channels_g = channels / group;
         const int num_output_g = num_output / group;
 
-#if NCNN_SIMPLEOMP || defined(_WIN32)
+#ifdef _WIN32
         #pragma omp parallel for num_threads(opt.num_threads)
 #else
         #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
