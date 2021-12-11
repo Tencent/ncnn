@@ -102,6 +102,7 @@ public:
         }
         else
         {
+            op->params["padding_mode"] = "zeros";
             op->params["padding"] = convolution->namedInput("padding");
         }
         op->params["dilation"] = convolution->namedInput("dilation");
