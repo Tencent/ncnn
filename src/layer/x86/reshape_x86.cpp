@@ -56,21 +56,19 @@ int Reshape_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #if __AVX__
             if (dims == 1) out_elempack = top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
             if (dims == 2) out_elempack = top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-<<<<<<< HEAD
-            if (dims == 3) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+            < < < < < < < HEAD if (dims == 3) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
             if (dims == 4) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
 #else
             if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
             if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
             if (dims == 3) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
             if (dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
-=======
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+            == == == = if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
 #else
-            if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
-            if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
->>>>>>> ncnnnew
+        if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
+        if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
+        if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+        >>>>>>> ncnnnew
 #endif
         }
 #endif // __SSE2__

@@ -54,11 +54,12 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
     // max value in NxN window
     // avg value in NxN window
-<<<<<<< HEAD
-=======
+    <<<<<<<HEAD
+    == == ==
+        =
 
->>>>>>> ncnnnew
-    int w = bottom_blob.w;
+            > > > > > > > ncnnnew int w
+            = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
@@ -235,11 +236,12 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     top_blob.create(outw, outh, outd, channels, elemsize);
     if (top_blob.empty())
         return -100;
-<<<<<<< HEAD
-=======
+    <<<<<<<HEAD
+    == == ==
+        =
 
->>>>>>> ncnnnew
-    const int maxk = kernel_w * kernel_h * kernel_d;
+            > > > > > > > ncnnnew const int maxk
+            = kernel_w * kernel_h * kernel_d;
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
@@ -367,11 +369,13 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                                     }
                                 }
                             }
-<<<<<<< HEAD
-=======
+                            <<<<<<<HEAD
+                            == == ==
+                                =
 
->>>>>>> ncnnnew
-                            outptr[j] = sum / area;
+                                    > > > > > > > ncnnnew
+                                    outptr[j]
+                                    = sum / area;
                         }
 
                         outptr += outw;
@@ -412,11 +416,11 @@ int Pooling3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             }
         }
     }
-<<<<<<< HEAD
-=======
+    <<<<<<<HEAD
+    == == ==
+        =
 
->>>>>>> ncnnnew
-    return 0;
+            > > > > > > > ncnnnew return 0;
 }
 
 void Pooling3D::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const

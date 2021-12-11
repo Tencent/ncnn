@@ -32,11 +32,11 @@ int Input::load_param(const ParamDict& pd)
     h = pd.get(1, 0);
     d = pd.get(11, 0);
     c = pd.get(2, 0);
-<<<<<<< HEAD
-    d = pd.get(3, 0);
-=======
->>>>>>> ncnnnew
-    return 0;
+    < < < < < < < HEAD
+    d
+        = pd.get(3, 0);
+    == == == =
+        >>>>>>> ncnnnew return 0;
 }
 
 int Input::forward_inplace(Mat& /*bottom_top_blob*/, const Option& /*opt*/) const

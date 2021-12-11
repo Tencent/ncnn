@@ -199,118 +199,114 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             int outh = h + top + bottom;
             int outd = d + front + behind;
 
-<<<<<<< HEAD
+            < < < < < < < HEAD
             top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
             if (type == 0)
             {
-=======
-            if (type == 0)
-            {
-                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-                if (top_blob.empty())
-                    return -100;
-
->>>>>>> ncnnnew
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                == == == = if (type == 0)
                 {
-                    vfloat32m1_t pad_value = per_channel_pad_data_size ? vle32_v_f32m1((const float*)per_channel_pad_data + q * packn, vl) : vfmv_v_f_f32m1(value, vl);
+                    top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
 
-                    for (int z = 0; z < outd; z++)
+                    >>>>>>> ncnnnew
+                    #pragma omp parallel for num_threads(opt.num_threads) for (int q = 0; q < channels; q++)
                     {
-                        Mat borderm = top_blob.channel(q).depth(z);
+                        vfloat32m1_t pad_value = per_channel_pad_data_size ? vle32_v_f32m1((const float*)per_channel_pad_data + q * packn, vl) : vfmv_v_f_f32m1(value, vl);
 
-                        // depth padding
-                        if ((z - front) < 0 || (z - front) >= d)
+                        for (int z = 0; z < outd; z++)
                         {
-                            borderm.fill(pad_value);
-                        }
-                        else
-                        {
-                            const Mat m = bottom_blob.channel(q).depth(z - front);
-<<<<<<< HEAD
-                            if (type == 0)
-                                padding_constant_packn_float32_rvv(m, borderm, top, bottom, left, right, pad_value);
-                            if (type == 1)
-                                padding_replicate_packn_float32_rvv(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_packn_float32_rvv(m, borderm, top, bottom, left, right);
-=======
-                            padding_constant_packn_float32_rvv(m, borderm, top, bottom, left, right, pad_value);
->>>>>>> ncnnnew
+                            Mat borderm = top_blob.channel(q).depth(z);
+
+                            // depth padding
+                            if ((z - front) < 0 || (z - front) >= d)
+                            {
+                                borderm.fill(pad_value);
+                            }
+                            else
+                            {
+                                const Mat m = bottom_blob.channel(q).depth(z - front);
+                                < < < < < < < HEAD if (type == 0)
+                                    padding_constant_packn_float32_rvv(m, borderm, top, bottom, left, right, pad_value);
+                                if (type == 1)
+                                    padding_replicate_packn_float32_rvv(m, borderm, top, bottom, left, right);
+                                if (type == 2)
+                                    padding_reflect_packn_float32_rvv(m, borderm, top, bottom, left, right);
+                                == == == = padding_constant_packn_float32_rvv(m, borderm, top, bottom, left, right, pad_value);
+                                >>>>>>> ncnnnew
+                            }
                         }
                     }
-                }
 
-                return 0;
+                    return 0;
+                }
             }
         }
-    }
 #endif // __riscv_vector
 
-    Mat bottom_blob_unpacked = bottom_blob;
-    if (elempack != 1)
-    {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-    }
-
-    Mat top_blob_unpacked;
-    int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
-
-    if (ret != 0)
-        return ret;
-
-    int out_elempack = 1;
-#if __riscv_vector
-    if (opt.use_packing_layout)
-    {
-        out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
-    }
-#endif
-
-    convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
-
-    return 0;
-}
-
-int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-#if __riscv_vector
-    const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
-#endif
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-#if __riscv_vector
-    if (elempack == packn)
-    {
-        if (dims == 1)
+        Mat bottom_blob_unpacked = bottom_blob;
+        if (elempack != 1)
         {
-            int outw = w * elempack + left + right;
+            Option opt_pack1 = opt;
+            opt_pack1.blob_allocator = opt.workspace_allocator;
 
-            int out_elempack = outw % packn == 0 ? packn : 1;
-            size_t out_elemsize = elemsize / elempack * out_elempack;
+            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+        }
 
-            if (left % packn == 0 && out_elempack == packn && type == 0)
+        Mat top_blob_unpacked;
+        int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
+
+        if (ret != 0)
+            return ret;
+
+        int out_elempack = 1;
+#if __riscv_vector
+        if (opt.use_packing_layout)
+        {
+            out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
+        }
+#endif
+
+        convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+
+        return 0;
+    }
+
+    int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+    {
+#if __riscv_vector
+        const int packn = csrr_vlenb() / 2;
+        const word_type vl = vsetvl_e16m1(packn);
+#endif
+
+        int w = bottom_blob.w;
+        int h = bottom_blob.h;
+        int d = bottom_blob.d;
+        int channels = bottom_blob.c;
+        int dims = bottom_blob.dims;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+
+#if __riscv_vector
+        if (elempack == packn)
+        {
+            if (dims == 1)
             {
-                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-                if (top_blob.empty())
-                    return -100;
+                int outw = w * elempack + left + right;
 
-                // clang-format off
+                int out_elempack = outw % packn == 0 ? packn : 1;
+                size_t out_elemsize = elemsize / elempack * out_elempack;
+
+                if (left % packn == 0 && out_elempack == packn && type == 0)
+                {
+                    top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+
+                    // clang-format off
                 // *INDENT-OFF*
                 vuint16m1_t pad_value;
 #if __riscv_zfh
@@ -330,28 +326,28 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                 }
                 // *INDENT-ON*
-                // clang-format on
-                padding_constant_packn_uint16_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
+                    // clang-format on
+                    padding_constant_packn_uint16_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
 
-                return 0;
+                    return 0;
+                }
             }
-        }
 
-        if (dims == 2)
-        {
-            int outw = w + left + right;
-            int outh = h * elempack + top + bottom;
-
-            int out_elempack = outh % packn == 0 ? packn : 1;
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (top % packn == 0 && out_elempack == packn && type == 0)
+            if (dims == 2)
             {
-                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-                if (top_blob.empty())
-                    return -100;
+                int outw = w + left + right;
+                int outh = h * elempack + top + bottom;
 
-                // clang-format off
+                int out_elempack = outh % packn == 0 ? packn : 1;
+                size_t out_elemsize = elemsize / elempack * out_elempack;
+
+                if (top % packn == 0 && out_elempack == packn && type == 0)
+                {
+                    top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+
+                    // clang-format off
                 // *INDENT-OFF*
                 vuint16m1_t pad_value;
 #if __riscv_zfh
@@ -371,102 +367,35 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                 }
                 // *INDENT-ON*
-                // clang-format on
-                padding_constant_packn_uint16_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
-
-                return 0;
-            }
-        }
-
-        if (dims == 3)
-        {
-            int outw = w + left + right;
-            int outh = h + top + bottom;
-            int outc = channels * elempack + front + behind;
-
-            int out_elempack = outc % packn == 0 ? packn : 1;
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
-            {
-                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-                if (top_blob.empty())
-                    return -100;
-
-                int front_ = front / elempack;
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < outc / out_elempack; q++)
-                {
-                    Mat borderm = top_blob.channel(q);
-
-                    // clang-format off
-                    // *INDENT-OFF*
-                    vuint16m1_t pad_value;
-#if __riscv_zfh
-                    if (opt.use_fp16_storage)
-                    {
-                        pad_value = per_channel_pad_data_size ? vreinterpret_v_f16m1_u16m1(vle16_v_f16m1((const __fp16*)per_channel_pad_data_fp16 + q * packn, vl)) : vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
-                    }
-                    else
-#endif
-#if NCNN_BF16
-                    if (opt.use_bf16_storage)
-                    {
-                        pad_value = per_channel_pad_data_size ? vle16_v_u16m1((const unsigned short*)per_channel_pad_data_bf16 + q * packn, vl) : vmv_v_x_u16m1(value_bf16, vl);
-                    }
-                    else
-#endif
-                    {
-                    }
-                    // *INDENT-ON*
                     // clang-format on
+                    padding_constant_packn_uint16_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
 
-                    //Channel padding
-                    if ((q - front_) < 0 || (q - front_) >= channels)
-                    {
-                        borderm.fill(pad_value);
-                    }
-                    else
-                    {
-                        const Mat m = bottom_blob.channel(q - front_);
-                        if (type == 0)
-                            padding_constant_packn_uint16_rvv(m, borderm, top, bottom, left, right, pad_value);
-                        if (type == 1)
-                            padding_replicate_packn_uint16_rvv(m, borderm, top, bottom, left, right);
-                        if (type == 2)
-                            padding_reflect_packn_uint16_rvv(m, borderm, top, bottom, left, right);
-                    }
+                    return 0;
                 }
-
-                return 0;
             }
-        }
 
-        if (dims == 4)
-        {
-            int outw = w + left + right;
-            int outh = h + top + bottom;
-            int outd = d + front + behind;
-
-<<<<<<< HEAD
-            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (type == 0)
+            if (dims == 3)
             {
-=======
-            if (type == 0)
-            {
-                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-                if (top_blob.empty())
-                    return -100;
+                int outw = w + left + right;
+                int outh = h + top + bottom;
+                int outc = channels * elempack + front + behind;
 
->>>>>>> ncnnnew
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                int out_elempack = outc % packn == 0 ? packn : 1;
+                size_t out_elemsize = elemsize / elempack * out_elempack;
+
+                if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
                 {
-                    // clang-format off
+                    top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+
+                    int front_ = front / elempack;
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int q = 0; q < outc / out_elempack; q++)
+                    {
+                        Mat borderm = top_blob.channel(q);
+
+                        // clang-format off
                     // *INDENT-OFF*
                     vuint16m1_t pad_value;
 #if __riscv_zfh
@@ -486,257 +415,316 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                     {
                     }
                     // *INDENT-ON*
-                    // clang-format on
+                        // clang-format on
 
-                    for (int z = 0; z < outd; z++)
-                    {
-                        Mat borderm = top_blob.channel(q).depth(z);
-
-                        // depth padding
-                        if ((z - front) < 0 || (z - front) >= d)
+                        //Channel padding
+                        if ((q - front_) < 0 || (q - front_) >= channels)
                         {
                             borderm.fill(pad_value);
                         }
                         else
                         {
-                            const Mat m = bottom_blob.channel(q).depth(z - front);
-<<<<<<< HEAD
+                            const Mat m = bottom_blob.channel(q - front_);
                             if (type == 0)
                                 padding_constant_packn_uint16_rvv(m, borderm, top, bottom, left, right, pad_value);
                             if (type == 1)
                                 padding_replicate_packn_uint16_rvv(m, borderm, top, bottom, left, right);
                             if (type == 2)
                                 padding_reflect_packn_uint16_rvv(m, borderm, top, bottom, left, right);
-=======
-                            padding_constant_packn_uint16_rvv(m, borderm, top, bottom, left, right, pad_value);
->>>>>>> ncnnnew
                         }
                     }
+
+                    return 0;
                 }
-
-                return 0;
             }
-        }
-    }
-#endif // __riscv_vector
 
-    Mat bottom_blob_unpacked = bottom_blob;
-    if (elempack != 1)
-    {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
-
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-    }
-
-    Mat top_blob_unpacked;
-    int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
-    if (ret != 0)
-        return ret;
-
-    int out_elempack = 1;
-#if __riscv_vector
-    if (opt.use_packing_layout)
-    {
-        out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
-    }
-#endif
-
-    convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
-
-    return 0;
-}
-
-int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
-{
-#if __riscv_vector
-    const int packn = csrr_vlenb() / 1;
-    const word_type vl = vsetvl_e8m1(packn);
-#endif
-
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int d = bottom_blob.d;
-    int channels = bottom_blob.c;
-    int dims = bottom_blob.dims;
-    size_t elemsize = bottom_blob.elemsize;
-    int elempack = bottom_blob.elempack;
-
-#if __riscv_vector
-    if (elempack == packn)
-    {
-        if (dims == 1)
-        {
-            int outw = w * elempack + left + right;
-
-            int out_elempack = outw % packn == 0 ? packn : 1;
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (left % packn == 0 && out_elempack == packn && type == 0)
+            if (dims == 4)
             {
-                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-                if (top_blob.empty())
-                    return -100;
+                int outw = w + left + right;
+                int outh = h + top + bottom;
+                int outd = d + front + behind;
 
-                vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
-                padding_constant_packn_int8_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
-
-                return 0;
-            }
-        }
-
-        if (dims == 2)
-        {
-            int outw = w + left + right;
-            int outh = h * elempack + top + bottom;
-
-            int out_elempack = outh % packn == 0 ? packn : 1;
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (top % packn == 0 && out_elempack == packn && type == 0)
-            {
-                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-                if (top_blob.empty())
-                    return -100;
-
-                vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
-                padding_constant_packn_int8_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
-
-                return 0;
-            }
-        }
-
-        if (dims == 3)
-        {
-            int outw = w + left + right;
-            int outh = h + top + bottom;
-            int outc = channels * elempack + front + behind;
-
-            int out_elempack = outc % packn == 0 ? packn : 1;
-            size_t out_elemsize = elemsize / elempack * out_elempack;
-
-            if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
-            {
-                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-                if (top_blob.empty())
-                    return -100;
-
-                int front_ = front / elempack;
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < outc / out_elempack; q++)
-                {
-                    Mat borderm = top_blob.channel(q);
-
-                    // TODO perchannel
-                    // vint8m1_t pad_value = per_channel_pad_data_size ? vle8_v_i8m1(per_channel_pad_data + q * packn) : vmv_v_x_i8m1((signed char)value);
-                    vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
-
-                    //Channel padding
-                    if ((q - front_) < 0 || (q - front_) >= channels)
-                    {
-                        borderm.fill(pad_value);
-                    }
-                    else
-                    {
-                        const Mat m = bottom_blob.channel(q - front_);
-                        if (type == 0)
-                            padding_constant_packn_int8_rvv(m, borderm, top, bottom, left, right, pad_value);
-                        if (type == 1)
-                            padding_replicate_packn_int8_rvv(m, borderm, top, bottom, left, right);
-                        if (type == 2)
-                            padding_reflect_packn_int8_rvv(m, borderm, top, bottom, left, right);
-                    }
-                }
-
-                return 0;
-            }
-        }
-
-        if (dims == 4)
-        {
-            int outw = w + left + right;
-            int outh = h + top + bottom;
-            int outd = d + front + behind;
-
-<<<<<<< HEAD
-            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
-            if (type == 0)
-            {
-=======
-            if (type == 0)
-            {
+                < < < < < < < HEAD
                 top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
                 if (top_blob.empty())
                     return -100;
 
->>>>>>> ncnnnew
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
+                if (type == 0)
                 {
-                    // TODO perchannel
-                    // vint8m1_t pad_value = per_channel_pad_data_size ? vle8_v_i8m1(per_channel_pad_data + q * packn) : vmv_v_x_i8m1((signed char)value);
-                    vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
-
-                    for (int z = 0; z < outd; z++)
+                    == == == = if (type == 0)
                     {
-                        Mat borderm = top_blob.channel(q).depth(z);
+                        top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                        if (top_blob.empty())
+                            return -100;
 
-                        // depth padding
-                        if ((z - front) < 0 || (z - front) >= d)
+                        >>>>>>> ncnnnew
+                        #pragma omp parallel for num_threads(opt.num_threads) for (int q = 0; q < channels; q++)
                         {
-                            borderm.fill(pad_value);
+                            // clang-format off
+                    // *INDENT-OFF*
+                    vuint16m1_t pad_value;
+#if __riscv_zfh
+                    if (opt.use_fp16_storage)
+                    {
+                        pad_value = per_channel_pad_data_size ? vreinterpret_v_f16m1_u16m1(vle16_v_f16m1((const __fp16*)per_channel_pad_data_fp16 + q * packn, vl)) : vreinterpret_v_f16m1_u16m1(vfmv_v_f_f16m1((__fp16)value, vl));
+                    }
+                    else
+#endif
+#if NCNN_BF16
+                    if (opt.use_bf16_storage)
+                    {
+                        pad_value = per_channel_pad_data_size ? vle16_v_u16m1((const unsigned short*)per_channel_pad_data_bf16 + q * packn, vl) : vmv_v_x_u16m1(value_bf16, vl);
+                    }
+                    else
+#endif
+                    {
+                    }
+                    // *INDENT-ON*
+                            // clang-format on
+
+                            for (int z = 0; z < outd; z++)
+                            {
+                                Mat borderm = top_blob.channel(q).depth(z);
+
+                                // depth padding
+                                if ((z - front) < 0 || (z - front) >= d)
+                                {
+                                    borderm.fill(pad_value);
+                                }
+                                else
+                                {
+                                    const Mat m = bottom_blob.channel(q).depth(z - front);
+                                    < < < < < < < HEAD if (type == 0)
+                                        padding_constant_packn_uint16_rvv(m, borderm, top, bottom, left, right, pad_value);
+                                    if (type == 1)
+                                        padding_replicate_packn_uint16_rvv(m, borderm, top, bottom, left, right);
+                                    if (type == 2)
+                                        padding_reflect_packn_uint16_rvv(m, borderm, top, bottom, left, right);
+                                    == == == = padding_constant_packn_uint16_rvv(m, borderm, top, bottom, left, right, pad_value);
+                                    >>>>>>> ncnnnew
+                                }
+                            }
                         }
-                        else
-                        {
-                            const Mat m = bottom_blob.channel(q).depth(z - front);
-<<<<<<< HEAD
-                            if (type == 0)
-                                padding_constant_packn_int8_rvv(m, borderm, top, bottom, left, right, pad_value);
-                            if (type == 1)
-                                padding_replicate_packn_int8_rvv(m, borderm, top, bottom, left, right);
-                            if (type == 2)
-                                padding_reflect_packn_int8_rvv(m, borderm, top, bottom, left, right);
-=======
-                            padding_constant_packn_int8_rvv(m, borderm, top, bottom, left, right, pad_value);
->>>>>>> ncnnnew
-                        }
+
+                        return 0;
+                    }
+                }
+            }
+#endif // __riscv_vector
+
+            Mat bottom_blob_unpacked = bottom_blob;
+            if (elempack != 1)
+            {
+                Option opt_pack1 = opt;
+                opt_pack1.blob_allocator = opt.workspace_allocator;
+
+                convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+            }
+
+            Mat top_blob_unpacked;
+            int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
+            if (ret != 0)
+                return ret;
+
+            int out_elempack = 1;
+#if __riscv_vector
+            if (opt.use_packing_layout)
+            {
+                out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
+            }
+#endif
+
+            convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+
+            return 0;
+        }
+
+        int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+        {
+#if __riscv_vector
+            const int packn = csrr_vlenb() / 1;
+            const word_type vl = vsetvl_e8m1(packn);
+#endif
+
+            int w = bottom_blob.w;
+            int h = bottom_blob.h;
+            int d = bottom_blob.d;
+            int channels = bottom_blob.c;
+            int dims = bottom_blob.dims;
+            size_t elemsize = bottom_blob.elemsize;
+            int elempack = bottom_blob.elempack;
+
+#if __riscv_vector
+            if (elempack == packn)
+            {
+                if (dims == 1)
+                {
+                    int outw = w * elempack + left + right;
+
+                    int out_elempack = outw % packn == 0 ? packn : 1;
+                    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+                    if (left % packn == 0 && out_elempack == packn && type == 0)
+                    {
+                        top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                        if (top_blob.empty())
+                            return -100;
+
+                        vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+                        padding_constant_packn_int8_rvv(bottom_blob, top_blob, 0, 0, left / packn, right / packn, pad_value);
+
+                        return 0;
                     }
                 }
 
-                return 0;
-            }
-        }
-    }
+                if (dims == 2)
+                {
+                    int outw = w + left + right;
+                    int outh = h * elempack + top + bottom;
+
+                    int out_elempack = outh % packn == 0 ? packn : 1;
+                    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+                    if (top % packn == 0 && out_elempack == packn && type == 0)
+                    {
+                        top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                        if (top_blob.empty())
+                            return -100;
+
+                        vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+                        padding_constant_packn_int8_rvv(bottom_blob, top_blob, top / packn, bottom / packn, left, right, pad_value);
+
+                        return 0;
+                    }
+                }
+
+                if (dims == 3)
+                {
+                    int outw = w + left + right;
+                    int outh = h + top + bottom;
+                    int outc = channels * elempack + front + behind;
+
+                    int out_elempack = outc % packn == 0 ? packn : 1;
+                    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+                    if (front % packn == 0 && out_elempack == packn && !(outc != channels * elempack && type != 0))
+                    {
+                        top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                        if (top_blob.empty())
+                            return -100;
+
+                        int front_ = front / elempack;
+                        #pragma omp parallel for num_threads(opt.num_threads)
+                        for (int q = 0; q < outc / out_elempack; q++)
+                        {
+                            Mat borderm = top_blob.channel(q);
+
+                            // TODO perchannel
+                            // vint8m1_t pad_value = per_channel_pad_data_size ? vle8_v_i8m1(per_channel_pad_data + q * packn) : vmv_v_x_i8m1((signed char)value);
+                            vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+
+                            //Channel padding
+                            if ((q - front_) < 0 || (q - front_) >= channels)
+                            {
+                                borderm.fill(pad_value);
+                            }
+                            else
+                            {
+                                const Mat m = bottom_blob.channel(q - front_);
+                                if (type == 0)
+                                    padding_constant_packn_int8_rvv(m, borderm, top, bottom, left, right, pad_value);
+                                if (type == 1)
+                                    padding_replicate_packn_int8_rvv(m, borderm, top, bottom, left, right);
+                                if (type == 2)
+                                    padding_reflect_packn_int8_rvv(m, borderm, top, bottom, left, right);
+                            }
+                        }
+
+                        return 0;
+                    }
+                }
+
+                if (dims == 4)
+                {
+                    int outw = w + left + right;
+                    int outh = h + top + bottom;
+                    int outd = d + front + behind;
+
+                    < < < < < < < HEAD
+                    top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                    if (top_blob.empty())
+                        return -100;
+
+                    if (type == 0)
+                    {
+                        == == == = if (type == 0)
+                        {
+                            top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                            if (top_blob.empty())
+                                return -100;
+
+                            >>>>>>> ncnnnew
+                            #pragma omp parallel for num_threads(opt.num_threads) for (int q = 0; q < channels; q++)
+                            {
+                                // TODO perchannel
+                                // vint8m1_t pad_value = per_channel_pad_data_size ? vle8_v_i8m1(per_channel_pad_data + q * packn) : vmv_v_x_i8m1((signed char)value);
+                                vint8m1_t pad_value = vmv_v_x_i8m1((signed char)value, vl);
+
+                                for (int z = 0; z < outd; z++)
+                                {
+                                    Mat borderm = top_blob.channel(q).depth(z);
+
+                                    // depth padding
+                                    if ((z - front) < 0 || (z - front) >= d)
+                                    {
+                                        borderm.fill(pad_value);
+                                    }
+                                    else
+                                    {
+                                        const Mat m = bottom_blob.channel(q).depth(z - front);
+                                        < < < < < < < HEAD if (type == 0)
+                                            padding_constant_packn_int8_rvv(m, borderm, top, bottom, left, right, pad_value);
+                                        if (type == 1)
+                                            padding_replicate_packn_int8_rvv(m, borderm, top, bottom, left, right);
+                                        if (type == 2)
+                                            padding_reflect_packn_int8_rvv(m, borderm, top, bottom, left, right);
+                                        == == == = padding_constant_packn_int8_rvv(m, borderm, top, bottom, left, right, pad_value);
+                                        >>>>>>> ncnnnew
+                                    }
+                                }
+                            }
+
+                            return 0;
+                        }
+                    }
+                }
 #endif // __riscv_vector
 
-    Mat bottom_blob_unpacked = bottom_blob;
-    if (elempack != 1)
-    {
-        Option opt_pack1 = opt;
-        opt_pack1.blob_allocator = opt.workspace_allocator;
+                Mat bottom_blob_unpacked = bottom_blob;
+                if (elempack != 1)
+                {
+                    Option opt_pack1 = opt;
+                    opt_pack1.blob_allocator = opt.workspace_allocator;
 
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-    }
+                    convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
+                }
 
-    Mat top_blob_unpacked;
-    int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
-    if (ret != 0)
-        return ret;
+                Mat top_blob_unpacked;
+                int ret = Padding::forward(bottom_blob_unpacked, top_blob_unpacked, opt);
+                if (ret != 0)
+                    return ret;
 
-    int out_elempack = 1;
+                int out_elempack = 1;
 #if __riscv_vector
-    if (opt.use_packing_layout)
-    {
-        out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
-    }
+                if (opt.use_packing_layout)
+                {
+                    out_elempack = top_blob_unpacked.c % packn == 0 ? packn : 1;
+                }
 #endif
 
-    convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
+                convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
-    return 0;
-}
+                return 0;
+            }
 
-} // namespace ncnn
+        } // namespace ncnn

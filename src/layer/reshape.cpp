@@ -47,13 +47,12 @@ int Reshape::load_param(const ParamDict& pd)
 int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     size_t elemsize = bottom_blob.elemsize;
-<<<<<<< HEAD
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * bottom_blob.d;
-=======
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
->>>>>>> ncnnnew
+    < < < < < < < HEAD int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * bottom_blob.d;
+    == == == = int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+    >>>>>>> ncnnnew
 
-    int dims = bottom_blob.dims;
+    int dims
+        = bottom_blob.dims;
 
     // resolve out shape
 
@@ -131,23 +130,23 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             outd = bottom_blob.d;
 
         if (outw == -1)
-<<<<<<< HEAD
-            outw = total / outc / outh / outd;
+            < < < < < < < HEAD
+            outw
+                = total / outc / outh / outd;
         if (outh == -1)
             outh = total / outc / outw / outd;
         if (outc == -1)
             outc = total / outh / outw / outd;
         if (outd == -1)
             outd = total / outh / outw / outc;
-=======
-            outw = total / outc / outd / outh;
+        == == == = outw = total / outc / outd / outh;
         if (outh == -1)
             outh = total / outc / outd / outw;
         if (outd == -1)
             outd = total / outc / outh / outw;
         if (outc == -1)
             outc = total / outd / outh / outw;
->>>>>>> ncnnnew
+        >>>>>>> ncnnnew
 
         if (dims == 4 && bottom_blob.c == outc)
         {

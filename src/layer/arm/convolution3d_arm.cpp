@@ -87,7 +87,6 @@ int Convolution3D_arm::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 1)
     {
         convolution3D_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output, kernel_w, kernel_h, kernel_d);
-        
     }
 #endif
     // pack1
@@ -108,7 +107,6 @@ int Convolution3D_arm::create_pipeline(const Option& opt)
                 break;
             }
         }
-
     }
 
     return 0;
@@ -159,7 +157,7 @@ int Convolution3D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     top_blob.create(outw, outh, outd, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-        
+
     const int num_input = channels * elempack;
 #if __ARM_NEON
     if (elempack == 4 && out_elempack == 4)
@@ -169,7 +167,6 @@ int Convolution3D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                             || ((dilation_w >= 2 || dilation_h >= 2 || dilation_d >= 2) && num_input >= 16 && num_output >= 16);
         if (opt.use_sgemm_convolution && prefer_sgemm)
         {
-
             convolution3D_vi2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data_pack4, bias_data, kernel_w, kernel_h, kernel_d, dilation_w, dilation_h, dilation_d, stride_w, stride_h, stride_d, opt);
 
             if (activation)
@@ -185,7 +182,7 @@ int Convolution3D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (elempack == 1 && out_elempack == 4)
     {
-        convolution3D_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, kernel_w, kernel_h, kernel_d, dilation_w, dilation_h, dilation_d, stride_w, stride_h, stride_d, activation_type, activation_params, opt);  
+        convolution3D_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, kernel_w, kernel_h, kernel_d, dilation_w, dilation_h, dilation_d, stride_w, stride_h, stride_d, activation_type, activation_params, opt);
     }
 
     if (elempack == 4 && out_elempack == 1)

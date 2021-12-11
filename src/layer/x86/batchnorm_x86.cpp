@@ -247,12 +247,9 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
 #endif // __SSE2__
 
-<<<<<<< HEAD
-    if (dims != 3 || dims != 4)
-=======
-    if (dims != 3 && dims != 4)
->>>>>>> ncnnnew
-        return BatchNorm::forward_inplace(bottom_top_blob, opt);
+    <<<<<<<HEAD if (dims != 3 || dims != 4)
+        == == ==
+            = if (dims != 3 && dims != 4)> > > > > > > ncnnnew return BatchNorm::forward_inplace(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
