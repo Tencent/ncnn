@@ -45,10 +45,11 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -139,7 +140,7 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 #endif // __mips_msa
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
 #if __mips_msa
         if (elempack == 4) // out_elempack == 4
@@ -235,10 +236,11 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -309,7 +311,7 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 #endif // __mips_msa
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
 #if __mips_msa
         if (elempack == 8) // out_elempack == 8

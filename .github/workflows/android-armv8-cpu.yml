@@ -18,14 +18,13 @@ on:
     - 'src/*'
     - 'src/layer/*'
     - 'src/layer/arm/**'
+concurrency:
+  group: android-armv8-cpu-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   android-aarch64:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: build
       run: |

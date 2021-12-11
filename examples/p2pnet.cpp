@@ -203,15 +203,16 @@ static int detect_crowd(const cv::Mat& bgr, std::vector<CrowdPoint>& crowd_point
 
 static void draw_result(const cv::Mat& bgr, const std::vector<CrowdPoint>& crowd_points)
 {
+    cv::Mat image = bgr.clone();
     const float threshold = 0.5f;
     for (int i = 0; i < crowd_points.size(); i++)
     {
         if (crowd_points[i].prob > threshold)
         {
-            cv::circle(bgr, crowd_points[i].pt, 4, cv::Scalar(0, 0, 255), -1, 8, 0);
+            cv::circle(image, crowd_points[i].pt, 4, cv::Scalar(0, 0, 255), -1, 8, 0);
         }
     }
-    cv::imshow("image", bgr);
+    cv::imshow("image", image);
     cv::waitKey();
 }
 int main(int argc, char** argv)

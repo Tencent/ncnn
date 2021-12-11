@@ -177,6 +177,7 @@ public:
             {
                 uint32_t download_post_mat_fp16_offset;
                 uint32_t download_post_mat_offset;
+                int num_threads;
             } post_cast_float16_to_float32;
         };
     };
@@ -601,6 +602,7 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             r.command_buffer = 0;
             r.post_cast_float16_to_float32.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
             r.post_cast_float16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
+            r.post_cast_float16_to_float32.num_threads = opt.num_threads;
             d->delayed_records.push_back(r);
         }
         else
@@ -747,6 +749,7 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
             r.command_buffer = 0;
             r.post_cast_float16_to_float32.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
             r.post_cast_float16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
+            r.post_cast_float16_to_float32.num_threads = opt.num_threads;
             d->delayed_records.push_back(r);
         }
         else
@@ -2459,6 +2462,7 @@ int VkCompute::submit_and_wait()
             Mat& dst = d->download_post_mats[r.post_cast_float16_to_float32.download_post_mat_offset];
 
             Option opt;
+            opt.num_threads = r.post_cast_float16_to_float32.num_threads;
             opt.blob_allocator = dst.allocator;
             ncnn::cast_float16_to_float32(src, dst, opt);
             break;
@@ -2997,7 +3001,7 @@ void VkTransfer::record_upload(const Mat& src, VkMat& dst, const Option& opt, bo
         if (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0))
         {
             Mat src_fp16;
-            cast_float32_to_float16(src, src_fp16);
+            cast_float32_to_float16(src, src_fp16, opt);
 
             record_upload(src_fp16, dst, opt, flatten);
 
@@ -3176,7 +3180,7 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
         if (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0))
         {
             Mat src_fp16;
-            cast_float32_to_float16(src, src_fp16);
+            cast_float32_to_float16(src, src_fp16, opt);
 
             record_upload(src_fp16, dst, opt);
 

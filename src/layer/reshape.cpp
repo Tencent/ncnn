@@ -26,6 +26,7 @@ int Reshape::load_param(const ParamDict& pd)
 {
     w = pd.get(0, -233);
     h = pd.get(1, -233);
+    d = pd.get(11, -233);
     c = pd.get(2, -233);
     d = pd.get(4, -233);
     permute = pd.get(3, 0);
@@ -46,7 +47,11 @@ int Reshape::load_param(const ParamDict& pd)
 int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     size_t elemsize = bottom_blob.elemsize;
+<<<<<<< HEAD
     int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * bottom_blob.d;
+=======
+    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c;
+>>>>>>> ncnnnew
 
     int dims = bottom_blob.dims;
 
@@ -54,6 +59,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
     int outw = w;
     int outh = h;
+    int outd = d;
     int outc = c;
     int outd = d;
 
@@ -125,6 +131,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             outd = bottom_blob.d;
 
         if (outw == -1)
+<<<<<<< HEAD
             outw = total / outc / outh / outd;
         if (outh == -1)
             outh = total / outc / outw / outd;
@@ -132,6 +139,15 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             outc = total / outh / outw / outd;
         if (outd == -1)
             outd = total / outh / outw / outc;
+=======
+            outw = total / outc / outd / outh;
+        if (outh == -1)
+            outh = total / outc / outd / outw;
+        if (outd == -1)
+            outd = total / outc / outh / outw;
+        if (outc == -1)
+            outc = total / outd / outh / outw;
+>>>>>>> ncnnnew
 
         if (dims == 4 && bottom_blob.c == outc)
         {
@@ -172,7 +188,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             {
                 for (int j = 0; j < _h; j++)
                 {
-                    outptr[i * _h + j] = ptr[j * _w + i];
+                    *outptr++ = ptr[j * _w + i];
                 }
             }
         }
@@ -196,8 +212,37 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
                 {
                     for (int j = 0; j < channels; j++)
                     {
-                        const float* ptr = bottom_blob.channel(j).row(q);
-                        outptr[i * channels + j] = ptr[i];
+                        *outptr++ = bottom_blob.channel(j).row(q)[i];
+                    }
+                }
+            }
+        }
+
+        if (dims == 4)
+        {
+            // cdhw -> dhwc
+            int _w = bottom_blob.w;
+            int _h = bottom_blob.h;
+            int _d = bottom_blob.d;
+            int channels = bottom_blob.c;
+
+            bottom_blob_permuted.create(channels, _w, _h, _d, elemsize, opt.workspace_allocator);
+            if (bottom_blob_permuted.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int z = 0; z < _d; z++)
+            {
+                float* outptr = bottom_blob_permuted.channel(z);
+
+                for (int q = 0; q < _h; q++)
+                {
+                    for (int i = 0; i < _w; i++)
+                    {
+                        for (int j = 0; j < channels; j++)
+                        {
+                            *outptr++ = bottom_blob.channel(j).depth(z).row(q)[i];
+                        }
                     }
                 }
             }
@@ -242,7 +287,7 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             return 0;
         }
 
-        // permute on nhwc/nhc
+        // permute on ndhwc/nhwc/nhc
         Mat top_blob_permuted;
         if (ndim == 2)
         {
@@ -273,13 +318,13 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
             {
                 for (int j = 0; j < outw; j++)
                 {
-                    outptr[i * outw + j] = ptr[j * outh + i];
+                    *outptr++ = ptr[j * outh + i];
                 }
             }
         }
         if (ndim == 3)
         {
-            // chw -> hwc
+            // hwc -> chw
             top_blob.create(outw, outh, outc, elemsize, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
@@ -295,7 +340,33 @@ int Reshape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                     for (int j = 0; j < outw; j++)
                     {
-                        outptr[i * outw + j] = ptr[j * outc + q];
+                        *outptr++ = ptr[j * outc + q];
+                    }
+                }
+            }
+        }
+        if (ndim == 4)
+        {
+            // dhwc -> cdhw
+            top_blob.create(outw, outh, outd, outc, elemsize, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < outc; q++)
+            {
+                float* outptr = top_blob.channel(q);
+
+                for (int k = 0; k < outd; k++)
+                {
+                    const float* ptr = top_blob_permuted.channel(k);
+
+                    for (int i = 0; i < outh; i++)
+                    {
+                        for (int j = 0; j < outw; j++)
+                        {
+                            *outptr++ = ptr[i * outw * outc + j * outc + q];
+                        }
                     }
                 }
             }

@@ -21,8 +21,8 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x):
-        x = F.normalize(x)
-        x = F.normalize(x, eps=1e-3)
+        x = F.normalize(x, dim=0)
+        x = F.normalize(x, dim=0, eps=1e-3)
 
         # TODO
         #y = F.normalize(y, p=1, dim=1)
@@ -35,7 +35,7 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 12, 24, 64)
+    x = torch.rand(12, 24, 64)
 
     a = net(x)
 
@@ -45,7 +45,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_normalize.pt inputshape=[1,12,24,64]")
+    os.system("../../src/pnnx test_F_normalize.pt inputshape=[12,24,64]")
 
     # ncnn inference
     import test_F_normalize_ncnn

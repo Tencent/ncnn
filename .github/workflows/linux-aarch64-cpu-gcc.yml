@@ -22,14 +22,13 @@ on:
     - 'src/layer/*'
     - 'src/layer/arm/**'
     - 'tests/**'
+concurrency:
+  group: linux-aarch64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-gcc:
     runs-on: ubuntu-20.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-qemu
@@ -84,10 +83,6 @@ jobs:
   linux-gcc-arm82:
     runs-on: ubuntu-20.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-qemu

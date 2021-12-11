@@ -37,8 +37,8 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 64)
-    y = torch.rand(1, 12, 64)
+    x = torch.rand(64)
+    y = torch.rand(12, 64)
 
     a0, a1 = net(x, y)
 
@@ -48,7 +48,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[1,64],[1,12,64]")
+    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[64],[12,64]")
 
     # ncnn inference
     import test_nn_Linear_ncnn

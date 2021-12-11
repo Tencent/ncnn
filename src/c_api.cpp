@@ -182,32 +182,42 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 /* mat api */
 ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, c, (size_t)4u, (Allocator*)allocator));
+}
+
+ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, data, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, data, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, data, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, data, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, data, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, c, data, (size_t)4u, (Allocator*)allocator));
+}
+
+ncnn_mat_t ncnn_mat_create_external_4d(int w, int h, int d, int c, void* data, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, data, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elempack, ncnn_allocator_t allocator)
@@ -225,6 +235,11 @@ ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int ele
     return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack, (Allocator*)allocator));
 }
 
+ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, (Allocator*)allocator));
+}
+
 ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
     return (ncnn_mat_t)(new Mat(w, data, elemsize, elempack, (Allocator*)allocator));
@@ -238,6 +253,11 @@ ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t ele
 ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
     return (ncnn_mat_t)(new Mat(w, h, c, data, elemsize, elempack, (Allocator*)allocator));
+}
+
+ncnn_mat_t ncnn_mat_create_external_4d_elem(int w, int h, int d, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, data, elemsize, elempack, (Allocator*)allocator));
 }
 
 void ncnn_mat_destroy(ncnn_mat_t mat)
@@ -270,6 +290,11 @@ ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c, ncnn_a
     return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, c, (Allocator*)allocator)));
 }
 
+ncnn_mat_t ncnn_mat_reshape_4d(const ncnn_mat_t mat, int w, int h, int d, int c, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, d, c, (Allocator*)allocator)));
+}
+
 int ncnn_mat_get_dims(const ncnn_mat_t mat)
 {
     return ((const Mat*)mat)->dims;
@@ -283,6 +308,11 @@ int ncnn_mat_get_w(const ncnn_mat_t mat)
 int ncnn_mat_get_h(const ncnn_mat_t mat)
 {
     return ((const Mat*)mat)->h;
+}
+
+int ncnn_mat_get_d(const ncnn_mat_t mat)
+{
+    return ((const Mat*)mat)->d;
 }
 
 int ncnn_mat_get_c(const ncnn_mat_t mat)

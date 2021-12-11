@@ -186,6 +186,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp
+    pass_level3/rename_F_convmode.cpp
 )
 
 set(pnnx_pass_level4_SRCS
@@ -241,6 +242,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_conv1d.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_gelu.cpp
@@ -284,6 +286,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_AvgPool3d.cpp
     pass_ncnn/nn_BatchNorm1d.cpp
     pass_ncnn/nn_BatchNorm2d.cpp
+    pass_ncnn/nn_BatchNorm3d.cpp
     pass_ncnn/nn_ChannelShuffle.cpp
     pass_ncnn/nn_ConstantPad1d.cpp
     pass_ncnn/nn_ConstantPad2d.cpp
@@ -397,3 +400,8 @@ set_target_properties(pnnx PROPERTIES INSTALL_RPATH "$ORIGIN/")
 set_target_properties(pnnx PROPERTIES MACOSX_RPATH TRUE)
 
 install(TARGETS pnnx RUNTIME DESTINATION bin)
+
+if (WIN32)
+    file(GLOB TORCH_DLL "${TORCH_INSTALL_PREFIX}/lib/*.dll")
+    install(FILES ${TORCH_DLL} DESTINATION bin)
+endif()

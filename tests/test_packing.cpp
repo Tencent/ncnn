@@ -41,7 +41,7 @@ static int test_packing_cpu_fp32(const ncnn::Mat& a, int in_elempack, int out_el
     op->create_pipeline(opt);
 
     ncnn::Mat ap;
-    ncnn::convert_packing(a, ap, in_elempack);
+    ncnn::convert_packing(a, ap, in_elempack, opt);
 
     ncnn::Mat b;
     ((ncnn::Packing*)op)->ncnn::Packing::forward(ap, b, opt);
@@ -94,10 +94,10 @@ static int test_packing_cpu_fp16(const ncnn::Mat& a, int in_elempack, int out_el
     op->create_pipeline(opt);
 
     ncnn::Mat a16;
-    ncnn::cast_float32_to_float16(a, a16);
+    ncnn::cast_float32_to_float16(a, a16, opt);
 
     ncnn::Mat ap;
-    ncnn::convert_packing(a16, ap, in_elempack);
+    ncnn::convert_packing(a16, ap, in_elempack, opt);
 
     ncnn::Mat b;
     ((ncnn::Packing*)op)->ncnn::Packing::forward(ap, b, opt);
@@ -110,7 +110,7 @@ static int test_packing_cpu_fp16(const ncnn::Mat& a, int in_elempack, int out_el
     delete op;
 
     ncnn::Mat c32;
-    ncnn::cast_float16_to_float32(c, c32);
+    ncnn::cast_float16_to_float32(c, c32, opt);
 
     if (CompareMat(b, c32, 0.001) != 0)
     {
@@ -153,7 +153,7 @@ static int test_packing_cpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
     if (a.dims == 4) a8 = RandomS8Mat(a.w, a.h, a.d, a.c);
 
     ncnn::Mat ap;
-    ncnn::convert_packing(a8, ap, in_elempack);
+    ncnn::convert_packing(a8, ap, in_elempack, opt);
 
     ncnn::Mat b;
     ((ncnn::Packing*)op)->ncnn::Packing::forward(ap, b, opt);
@@ -166,10 +166,10 @@ static int test_packing_cpu_int8(const ncnn::Mat& a, int in_elempack, int out_el
     delete op;
 
     ncnn::Mat b32;
-    ncnn::cast_int8_to_float32(b, b32);
+    ncnn::cast_int8_to_float32(b, b32, opt);
 
     ncnn::Mat c32;
-    ncnn::cast_int8_to_float32(c, c32);
+    ncnn::cast_int8_to_float32(c, c32, opt);
 
     if (CompareMat(b32, c32, 0.001) != 0)
     {
@@ -240,7 +240,7 @@ static int test_packing_gpu_buffer(const ncnn::Mat& a, int in_elempack, int out_
     op->create_pipeline(opt);
 
     ncnn::Mat ap;
-    ncnn::convert_packing(a, ap, in_elempack);
+    ncnn::convert_packing(a, ap, in_elempack, opt);
 
     ncnn::Mat b;
     ((ncnn::Packing*)op)->ncnn::Packing::forward(ap, b, opt);
@@ -327,7 +327,7 @@ static int test_packing_gpu_image(const ncnn::Mat& a, int in_elempack, int out_e
     op->create_pipeline(opt);
 
     ncnn::Mat ap;
-    ncnn::convert_packing(a, ap, in_elempack);
+    ncnn::convert_packing(a, ap, in_elempack, opt);
 
     ncnn::Mat b;
     ((ncnn::Packing*)op)->ncnn::Packing::forward(ap, b, opt);
@@ -414,7 +414,7 @@ static int test_packing_gpu_buffer2image(const ncnn::Mat& a, int in_elempack, in
     op->create_pipeline(opt);
 
     ncnn::Mat ap;
-    ncnn::convert_packing(a, ap, in_elempack);
+    ncnn::convert_packing(a, ap, in_elempack, opt);
 
     ncnn::Mat b;
     ((ncnn::Packing*)op)->ncnn::Packing::forward(ap, b, opt);
@@ -501,7 +501,7 @@ static int test_packing_gpu_image2buffer(const ncnn::Mat& a, int in_elempack, in
     op->create_pipeline(opt);
 
     ncnn::Mat ap;
-    ncnn::convert_packing(a, ap, in_elempack);
+    ncnn::convert_packing(a, ap, in_elempack, opt);
 
     ncnn::Mat b;
     ((ncnn::Packing*)op)->ncnn::Packing::forward(ap, b, opt);

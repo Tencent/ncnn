@@ -47,6 +47,13 @@ int Convolution::load_param(const ParamDict& pd)
     activation_params = pd.get(10, Mat());
     impl_type = pd.get(17, 0);
 
+    dynamic_weight = pd.get(19, 0);
+
+    if (dynamic_weight)
+    {
+        one_blob_only = false;
+    }
+
     if (int8_scale_term)
     {
 #if NCNN_INT8
@@ -62,6 +69,9 @@ int Convolution::load_param(const ParamDict& pd)
 
 int Convolution::load_model(const ModelBin& mb)
 {
+    if (dynamic_weight)
+        return 0;
+
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
@@ -91,6 +101,9 @@ int Convolution::load_model(const ModelBin& mb)
 
 int Convolution::create_pipeline(const Option& opt)
 {
+    if (dynamic_weight)
+        return 0;
+
 #if NCNN_INT8
     // runtime quantize the weight data
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)4u && int8_scale_term)
@@ -116,11 +129,81 @@ int Convolution::create_pipeline(const Option& opt)
     return 0;
 }
 
+static int convolution(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int stride_w, int stride_h, int dilation_w, int dilation_h, int activation_type, const Mat& activation_params, const Option& opt)
+{
+    const int w = bottom_blob.w;
+    const int inch = bottom_blob.c;
+
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int outch = top_blob.c;
+
+    const int bias_term = bias_data.empty() ? 0 : 1;
+
+    const int maxk = kernel_w * kernel_h;
+
+    // kernel offsets
+    std::vector<int> _space_ofs(maxk);
+    int* space_ofs = &_space_ofs[0];
+    {
+        int p1 = 0;
+        int p2 = 0;
+        int gap = w * dilation_h - kernel_w * dilation_w;
+        for (int i = 0; i < kernel_h; i++)
+        {
+            for (int j = 0; j < kernel_w; j++)
+            {
+                space_ofs[p1] = p2;
+                p1++;
+                p2 += dilation_w;
+            }
+            p2 += gap;
+        }
+    }
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < outch; p++)
+    {
+        float* outptr = top_blob.channel(p);
+
+        for (int i = 0; i < outh; i++)
+        {
+            for (int j = 0; j < outw; j++)
+            {
+                float sum = 0.f;
+
+                if (bias_term)
+                    sum = bias_data[p];
+
+                const float* kptr = (const float*)weight_data + maxk * inch * p;
+
+                for (int q = 0; q < inch; q++)
+                {
+                    const Mat m = bottom_blob.channel(q);
+                    const float* sptr = m.row(i * stride_h) + j * stride_w;
+
+                    for (int k = 0; k < maxk; k++) // 29.23
+                    {
+                        float val = sptr[space_ofs[k]]; // 20.72
+                        float wt = kptr[k];
+                        sum += val * wt; // 41.45
+                    }
+
+                    kptr += maxk;
+                }
+
+                outptr[j] = activation_ss(sum, activation_type, activation_params);
+            }
+
+            outptr += outw;
+        }
+    }
+
+    return 0;
+}
+
 int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    // convolv with NxN kernel
-    // value = value + bias
-
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
@@ -176,103 +259,94 @@ int Convolution::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
     }
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-
-    //     NCNN_LOGE("Convolution input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
     Mat bottom_blob_bordered;
     make_padding(bottom_blob, bottom_blob_bordered, opt);
     if (bottom_blob_bordered.empty())
         return -100;
 
-    w = bottom_blob_bordered.w;
-    h = bottom_blob_bordered.h;
+    const int w = bottom_blob_bordered.w;
+    const int h = bottom_blob_bordered.h;
+    const size_t elemsize = bottom_blob_bordered.elemsize;
 
-    int outw = (w - kernel_extent_w) / stride_w + 1;
-    int outh = (h - kernel_extent_h) / stride_h + 1;
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    const int maxk = kernel_w * kernel_h;
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
 
-    // kernel offsets
-    std::vector<int> _space_ofs(maxk);
-    int* space_ofs = &_space_ofs[0];
-    {
-        int p1 = 0;
-        int p2 = 0;
-        int gap = w * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
-        {
-            for (int j = 0; j < kernel_w; j++)
-            {
-                space_ofs[p1] = p2;
-                p1++;
-                p2 += dilation_w;
-            }
-            p2 += gap;
-        }
-    }
-
-    // float32
     top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
-    // num_output
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < num_output; p++)
+    int ret = convolution(bottom_blob_bordered, top_blob, weight_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, dilation_w, dilation_h, activation_type, activation_params, opt);
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+
+int Convolution::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int _kernel_w = _weight_data.w;
+    const int _kernel_h = _weight_data.h;
+    const int _num_output = _weight_data.c;
+
+    Mat weight_data_flattened;
+    flatten(_weight_data, weight_data_flattened, opt);
+    if (weight_data_flattened.empty())
+        return -100;
+
+    Mat bias_data_flattened;
+    if (bias_term)
     {
-        float* outptr = top_blob.channel(p);
-
-        for (int i = 0; i < outh; i++)
-        {
-            for (int j = 0; j < outw; j++)
-            {
-                float sum = 0.f;
-
-                if (bias_term)
-                    sum = bias_data[p];
-
-                const float* kptr = (const float*)weight_data + maxk * channels * p;
-
-                // channels
-                for (int q = 0; q < channels; q++)
-                {
-                    const Mat m = bottom_blob_bordered.channel(q);
-                    const float* sptr = m.row(i * stride_h) + j * stride_w;
-
-                    for (int k = 0; k < maxk; k++) // 29.23
-                    {
-                        float val = sptr[space_ofs[k]]; // 20.72
-                        float wt = kptr[k];
-                        sum += val * wt; // 41.45
-                    }
-
-                    kptr += maxk;
-                }
-
-                outptr[j] = activation_ss(sum, activation_type, activation_params);
-            }
-
-            outptr += outw;
-        }
+        const Mat& _bias_data = bottom_blobs[2];
+        flatten(_bias_data, bias_data_flattened, opt);
+        if (bias_data_flattened.empty())
+            return -100;
     }
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, _kernel_w, _kernel_h, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    const int w = bottom_blob_bordered.w;
+    const int h = bottom_blob_bordered.h;
+    const size_t elemsize = bottom_blob_bordered.elemsize;
+
+    const int kernel_extent_w = dilation_w * (_kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (_kernel_h - 1) + 1;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    top_blob.create(outw, outh, _num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    int ret = convolution(bottom_blob_bordered, top_blob, weight_data_flattened, bias_data_flattened, _kernel_w, _kernel_h, stride_w, stride_h, dilation_w, dilation_h, activation_type, activation_params, opt);
+    if (ret != 0)
+        return ret;
 
     return 0;
 }
 
 void Convolution::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
 {
+    make_padding(bottom_blob, bottom_blob_bordered, kernel_w, kernel_h, opt);
+}
+
+void Convolution::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, int _kernel_w, int _kernel_h, const Option& opt) const
+{
     int w = bottom_blob.w;
     int h = bottom_blob.h;
 
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int kernel_extent_w = dilation_w * (_kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (_kernel_h - 1) + 1;
 
     bottom_blob_bordered = bottom_blob;
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)

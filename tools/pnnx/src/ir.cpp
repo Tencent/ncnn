@@ -1963,13 +1963,13 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
 
-        for (const Operator* op : ops)
+        for (int input_index = 0;; input_index++)
         {
-            if (op->type != "Input")
-                continue;
+            std::string input_name = std::string("in") + std::to_string(input_index);
+            const Operand* r = get_operand(input_name);
+            if (!r)
+                break;
 
-            const Operand* r = op->outputs[0];
-            std::string input_name = r->name;
             fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
 
             for (size_t i = 0; i < r->shape.size(); i++)
@@ -1987,25 +1987,48 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
         fprintf(pyfp, "    with ncnn.Net() as net:\n");
         fprintf(pyfp, "         net.load_param(\"%s\")\n", parampath.c_str());
         fprintf(pyfp, "         net.load_model(\"%s\")\n", binpath.c_str());
-        fprintf(pyfp, "         outcount = len(net.output_names())\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "         with net.create_extractor() as ex:\n");
 
-        for (const Operator* op : ops)
+        for (int input_index = 0;; input_index++)
         {
-            if (op->type != "Input")
-                continue;
+            std::string input_name = std::string("in") + std::to_string(input_index);
+            const Operand* r = get_operand(input_name);
+            if (!r)
+                break;
 
-            const Operand* r = op->outputs[0];
-            std::string input_name = r->name;
-            fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.squeeze(0).numpy()).clone())\n", input_name.c_str(), input_name.c_str());
+            const int batch_index = r->params.at("__batch_index").i;
+            if (batch_index != 233)
+            {
+                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.squeeze(%d).numpy()).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
+            }
+            else
+            {
+                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy()).clone())\n", input_name.c_str(), input_name.c_str());
+            }
         }
 
         fprintf(pyfp, "\n");
 
-        fprintf(pyfp, "            for i in range(outcount):\n");
-        fprintf(pyfp, "                _, outi = ex.extract(\"out\" + str(i))\n");
-        fprintf(pyfp, "                out.append(torch.from_numpy(np.array(outi)).unsqueeze(0))\n");
+        for (int output_index = 0;; output_index++)
+        {
+            std::string output_name = std::string("out") + std::to_string(output_index);
+            const Operand* r = get_operand(output_name);
+            if (!r)
+                break;
+
+            fprintf(pyfp, "            _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
+
+            const int batch_index = r->params.at("__batch_index").i;
+            if (batch_index != 233)
+            {
+                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)).unsqueeze(%d))\n", output_name.c_str(), batch_index);
+            }
+            else
+            {
+                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)))\n", output_name.c_str());
+            }
+        }
 
         fprintf(pyfp, "\n");
 

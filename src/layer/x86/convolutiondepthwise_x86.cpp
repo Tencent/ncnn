@@ -57,6 +57,9 @@ ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 
 int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 {
+    if (dynamic_weight)
+        return 0;
+
     activation = create_activation_layer(activation_type, activation_params, opt);
 
 #if NCNN_INT8
@@ -94,7 +97,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 Mat weight_data_tmp;
-                convert_packing(weight_data_r2, weight_data_tmp, 8);
+                convert_packing(weight_data_r2, weight_data_tmp, 8, opt);
                 ncnn::cast_float32_to_float16(weight_data_tmp, weight_data_packed, opt);
                 return 0;
             }
@@ -102,13 +105,13 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 Mat weight_data_tmp;
-                convert_packing(weight_data_r2, weight_data_tmp, 8);
+                convert_packing(weight_data_r2, weight_data_tmp, 8, opt);
                 ncnn::cast_float32_to_float16(weight_data_tmp, weight_data_packed, opt);
                 return 0;
             }
 #endif
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, 8);
+            convert_packing(weight_data_r2, weight_data_packed, 8, opt);
 
             return 0;
         }
@@ -118,7 +121,7 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, 4);
+            convert_packing(weight_data_r2, weight_data_packed, 4, opt);
 
             return 0;
         }
@@ -304,8 +307,6 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-
-    // fprintf(stderr, "Depthwise kernel %d x %d elempack=%d group=%d channels = %d stride = %d x %d  \n",kernel_w,kernel_h,elempack,group,channels,stride_w,stride_h );
 
     // depth-wise
     if (channels * elempack == group && group == num_output)
@@ -620,6 +621,81 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     {
         top_blob = top_blob_unpacked;
     }
+
+    return 0;
+}
+
+int ConvolutionDepthWise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int _kernel_w = _weight_data.w;
+    const int _kernel_h = _weight_data.h;
+    const int _num_output = _weight_data.c * _weight_data.elempack;
+
+    Mat weight_data_flattened;
+    flatten(_weight_data, weight_data_flattened, opt);
+    if (weight_data_flattened.empty())
+        return -100;
+
+    // weight_data_flattened as pack1
+    weight_data_flattened.w *= weight_data_flattened.elempack;
+    weight_data_flattened.elemsize /= weight_data_flattened.elempack;
+    weight_data_flattened.elempack = 1;
+
+    Mat bias_data_flattened;
+    if (bias_term)
+    {
+        const Mat& _bias_data = bottom_blobs[2];
+        flatten(_bias_data, bias_data_flattened, opt);
+        if (bias_data_flattened.empty())
+            return -100;
+
+        // bias_data_flattened as pack1
+        bias_data_flattened.w *= bias_data_flattened.elempack;
+        bias_data_flattened.elemsize /= bias_data_flattened.elempack;
+        bias_data_flattened.elempack = 1;
+    }
+
+    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::ConvolutionDepthWise);
+
+    ncnn::ParamDict pd;
+    pd.set(0, _num_output);
+    pd.set(1, _kernel_w);
+    pd.set(11, _kernel_h);
+    pd.set(2, dilation_w);
+    pd.set(12, dilation_h);
+    pd.set(3, stride_w);
+    pd.set(13, stride_h);
+    pd.set(4, pad_left);
+    pd.set(15, pad_right);
+    pd.set(14, pad_top);
+    pd.set(16, pad_bottom);
+    pd.set(18, pad_value);
+    pd.set(5, bias_term);
+    pd.set(6, weight_data_flattened.w);
+    pd.set(7, group);
+    pd.set(8, int8_scale_term);
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    op->load_param(pd);
+
+    ncnn::Mat weights[2];
+    weights[0] = weight_data_flattened;
+    weights[1] = bias_data_flattened;
+
+    op->load_model(ncnn::ModelBinFromMatArray(weights));
+
+    op->create_pipeline(opt);
+
+    op->forward(bottom_blob, top_blob, opt);
+
+    op->destroy_pipeline(opt);
+
+    delete op;
 
     return 0;
 }
