@@ -55,7 +55,7 @@ jobs:
       run: |
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DTorch_INSTALL_DIR="$HOME/.local/lib/python3.8/site-packages/torch" -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 2
 
     - name: test

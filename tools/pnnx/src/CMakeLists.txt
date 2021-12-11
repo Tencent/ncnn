@@ -400,3 +400,8 @@ set_target_properties(pnnx PROPERTIES INSTALL_RPATH "$ORIGIN/")
 set_target_properties(pnnx PROPERTIES MACOSX_RPATH TRUE)
 
 install(TARGETS pnnx RUNTIME DESTINATION bin)
+
+if (WIN32)
+    file(GLOB TORCH_DLL "${TORCH_INSTALL_PREFIX}/lib/*.dll")
+    install(FILES ${TORCH_DLL} DESTINATION bin)
+endif()
