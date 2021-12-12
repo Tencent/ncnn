@@ -14,7 +14,7 @@
 
 static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
-#if NCNN_ARM82DOT && !__ARM_FEATURE_DOTPROD
+#if NCNN_ARM82DOT && __ARM_NEON && __aarch64__ && !__ARM_FEATURE_DOTPROD
     if (ncnn::cpu_support_arm_asimddp())
     {
         void im2col_sgemm_pack1to4_int8_neon_arm82dot(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
@@ -2433,7 +2433,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
 static void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
-#if NCNN_ARM82DOT && !__ARM_FEATURE_DOTPROD
+#if NCNN_ARM82DOT && __ARM_NEON && __aarch64__ && !__ARM_FEATURE_DOTPROD
     if (ncnn::cpu_support_arm_asimddp())
     {
         extern void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon_arm82dot(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
