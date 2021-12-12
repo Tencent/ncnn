@@ -156,80 +156,71 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
 
-  linux-gcc-sse2:
+  linux-gcc-x64:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: lcov
       run: sudo apt-get install lcov
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-    - name: test
-      run: cd build && ctest --output-on-failure -j 2
+    - name: build-sse2
+      run: |
+        mkdir build-sse2 && cd build-sse2
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-sse2
+      run: cd build-sse2 && ctest --output-on-failure -j 2
     - name: lcov-collect
       run: |
-        cd build
+        cd build-sse2
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/build-sse2/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov
+    - name: codecov-sse2
       uses: codecov/codecov-action@v2.1.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        file: build-sse2/lcov.info
 
-  linux-gcc-avx2-omp:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-    - name: test
-      run: cd build && ctest --output-on-failure -j 2
+    - name: build-avx
+      run: |
+        mkdir build-avx && cd build-avx
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx
+      run: cd build-avx && ctest --output-on-failure -j 2
     - name: lcov-collect
       run: |
-        cd build
+        cd build-avx
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/build-avx/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov
+    - name: codecov-avx
       uses: codecov/codecov-action@v2.1.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        file: build-avx/lcov.info
 
-  linux-gcc-avx-omp:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-    - name: test
-      run: cd build && ctest --output-on-failure -j 2
+    - name: build-avx2
+      run: |
+        mkdir build-avx2 && cd build-avx2
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx2
+      run: cd build-avx2 && ctest --output-on-failure -j 2
     - name: lcov-collect
       run: |
-        cd build
+        cd build-avx2
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/build-avx2/*' -o lcov.info
         lcov --list lcov.info
-    - name: codecov
+    - name: codecov-avx2
       uses: codecov/codecov-action@v2.1.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        file: build-avx2/lcov.info
 
   linux-gcc-arm:
     runs-on: ubuntu-20.04
@@ -381,87 +372,74 @@ jobs:
         sudo apt-get update
         sudo apt-get install g++-aarch64-linux-gnu
 
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-
+    - name: build-arm82
+      run: |
+        mkdir build-arm82 && cd build-arm82
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build
+        cd build-arm82
         TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
-
     - name: lcov-collect
       run: |
-        cd build
+        cd build-arm82
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm82/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
       uses: codecov/codecov-action@v2.1.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        file: build-arm82/lcov.info
 
-  linux-gcc-arm82-omp:
-    runs-on: ubuntu-20.04
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: lcov
-      run: sudo apt-get install lcov
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v2.1.7
-      with:
-        path: qemu-install
-        key: qemu-aarch64-install-1
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
+    - name: build-arm82-omp
       run: |
-        cd qemu
-        ./configure --prefix=install --target-list=aarch64-linux-user --disable-system
-        make -j2
-        make install
-        cp -r aarch64-linux-user/install $GITHUB_WORKSPACE/qemu-install
-
-    - name: aarch64-gnu-toolchain
-      run: |
-        sudo apt-get update
-        sudo apt-get install g++-aarch64-linux-gnu
-
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
-    - name: build
-      run: cmake --build build -j 2
-
+        mkdir build-arm82-omp && cd build-arm82-omp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
-        cd build
+        cd build-arm82-omp
         TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
-
     - name: lcov-collect
       run: |
-        cd build
+        cd build-arm82-omp
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
-        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm82-omp/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
       uses: codecov/codecov-action@v2.1.0
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+        file: build-arm82-omp/lcov.info
+
+    - name: build-arm82dot-omp
+      run: |
+        mkdir build-arm82dot-omp && cd build-arm82dot-omp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build-arm82dot-omp
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build-arm82dot-omp
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm82dot-omp/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v2.1.0
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build-arm82dot-omp/lcov.info
 
   linux-gcc-mipsisa32r6el:
     runs-on: ubuntu-20.04

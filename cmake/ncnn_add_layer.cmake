@@ -67,6 +67,16 @@ macro(ncnn_add_arch_opt_layer class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_CF
 
 endmacro()
 
+macro(ncnn_add_arch_opt_source class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_CFLAGS)
+    set(NCNN_${NCNN_TARGET_ARCH_OPT}_HEADER ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}.h)
+    set(NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}.cpp)
+
+    if(WITH_LAYER_${name} AND EXISTS ${NCNN_${NCNN_TARGET_ARCH_OPT}_HEADER} AND EXISTS ${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE})
+        set_source_files_properties(${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE} PROPERTIES COMPILE_FLAGS ${NCNN_TARGET_ARCH_OPT_CFLAGS})
+        list(APPEND ncnn_SRCS ${NCNN_${NCNN_TARGET_ARCH_OPT}_HEADER} ${NCNN_${NCNN_TARGET_ARCH_OPT}_SOURCE})
+    endif()
+endmacro()
+
 macro(ncnn_add_layer class)
     string(TOLOWER ${class} name)
 
@@ -173,7 +183,7 @@ macro(ncnn_add_layer class)
 
     if(NCNN_RUNTIME_CPU AND NCNN_ARM82DOT AND ((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)")))
         if(NCNN_COMPILER_SUPPORT_ARM82_FP16_DOTPROD)
-            ncnn_add_arch_opt_layer(${class} arm82dot "-march=armv8.2-a+fp16+dotprod")
+            ncnn_add_arch_opt_source(${class} arm82dot "-march=armv8.2-a+fp16+dotprod")
         endif()
     endif()
 

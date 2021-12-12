@@ -1986,8 +1986,8 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
         {
             convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(weight_data, weight_data_int8, num_input, num_output, kernel_w, kernel_h);
         }
-#if __ARM_FEATURE_DOTPROD
-        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 256 && num_output >= 256)
+#if NCNN_ARM82DOT
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (!ncnn::cpu_support_arm_asimddp() || (ncnn::cpu_support_arm_asimddp() && num_input >= 256 && num_output >= 256)))
 #else
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
 #endif
@@ -2106,7 +2106,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     if (top_blob.empty())
         return -100;
 
-#if __ARM_FEATURE_DOTPROD
+#if NCNN_ARM82DOT
     const int num_input = channels * elempack;
 #endif
 
@@ -2126,8 +2126,8 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         {
             conv1x1s2_pack8to4_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_int8, opt);
         }
-#if __ARM_FEATURE_DOTPROD
-        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 256 && num_output >= 256)
+#if NCNN_ARM82DOT
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (!ncnn::cpu_support_arm_asimddp() || (ncnn::cpu_support_arm_asimddp() && num_input >= 256 && num_output >= 256)))
 #else
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
 #endif
