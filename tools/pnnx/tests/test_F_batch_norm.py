@@ -20,15 +20,31 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+        self.m3 = torch.rand(16)
+        self.v3 = torch.rand(16)
+        self.w3 = nn.Parameter(torch.rand(16))
+        self.b3 = nn.Parameter(torch.rand(16))
+        self.m4 = torch.rand(2)
+        self.v4 = torch.rand(2)
+        self.w4 = nn.Parameter(torch.rand(2))
+        self.b4 = nn.Parameter(torch.rand(2))
+        self.m5 = torch.rand(3)
+        self.v5 = torch.rand(3)
+        self.w5 = nn.Parameter(torch.rand(3))
+        self.b5 = nn.Parameter(torch.rand(3))
+
     def forward(self, x, y, z, m0, v0, w0, b0, m1, v1, w1, b1, m2, v2, w2, b2):
         x = F.batch_norm(x, m0, v0, w0, b0)
         x = F.batch_norm(x, m0, v0, None, None)
+        x = F.batch_norm(x, self.m3, self.v3, self.w3, self.b3)
 
         y = F.batch_norm(y, m1, v1, w1, b1, eps=1e-3)
         y = F.batch_norm(y, m1, v1, None, None)
+        y = F.batch_norm(y, self.m4, self.v4, self.w4, self.b4)
 
         z = F.batch_norm(z, m2, v2, w2, b2)
         z = F.batch_norm(z, m2, v2, None, None, eps=1e-2)
+        z = F.batch_norm(z, self.m5, self.v5, self.w5, self.b5)
         return x, y, z
 
 def test():
