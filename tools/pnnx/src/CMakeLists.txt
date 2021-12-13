@@ -109,9 +109,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_conv1d.cpp
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp
-    pass_level2/F_conv_transpose1d.cpp
-    pass_level2/F_conv_transpose2d.cpp
-    pass_level2/F_conv_transpose3d.cpp
+    pass_level2/F_conv_transpose123d.cpp
     pass_level2/F_elu.cpp
     pass_level2/F_gelu.cpp
     pass_level2/F_grid_sample.cpp
@@ -186,6 +184,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp
+    pass_level3/rename_F_conv_transposend.cpp
     pass_level3/rename_F_convmode.cpp
 )
 
@@ -242,8 +241,10 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_conv_transpose2d.cpp
     pass_ncnn/F_conv1d.cpp
     pass_ncnn/F_conv2d.cpp
+    pass_ncnn/F_conv3d.cpp
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_gelu.cpp
     pass_ncnn/F_group_norm.cpp

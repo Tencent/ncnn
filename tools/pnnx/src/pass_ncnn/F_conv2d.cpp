@@ -52,8 +52,8 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["0"] = weight.shape[0];
-        op->params["1"] = weight.shape[2];
-        op->params["11"] = weight.shape[3];
+        op->params["1"] = weight.shape[3];
+        op->params["11"] = weight.shape[2];
         op->params["2"] = captured_params.at("dilation").ai[1];
         op->params["12"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[1];
@@ -119,8 +119,8 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["0"] = weight.shape[0];
-        op->params["1"] = weight.shape[2];
-        op->params["11"] = weight.shape[3];
+        op->params["1"] = weight.shape[3];
+        op->params["11"] = weight.shape[2];
         op->params["2"] = captured_params.at("dilation").ai[1];
         op->params["12"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[1];
@@ -183,8 +183,8 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["0"] = weight.shape[0];
-        op->params["1"] = weight.shape[2];
-        op->params["11"] = weight.shape[3];
+        op->params["1"] = weight.shape[3];
+        op->params["11"] = weight.shape[2];
         op->params["2"] = captured_params.at("dilation").ai[1];
         op->params["12"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[1];
@@ -251,8 +251,8 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["0"] = weight.shape[0];
-        op->params["1"] = weight.shape[2];
-        op->params["11"] = weight.shape[3];
+        op->params["1"] = weight.shape[3];
+        op->params["11"] = weight.shape[2];
         op->params["2"] = captured_params.at("dilation").ai[1];
         op->params["12"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[1];
@@ -315,8 +315,8 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["0"] = weight_shape[0];
-        op->params["1"] = weight_shape[2];
-        op->params["11"] = weight_shape[3];
+        op->params["1"] = weight_shape[3];
+        op->params["11"] = weight_shape[2];
         op->params["2"] = captured_params.at("dilation").ai[1];
         op->params["12"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[1];
@@ -375,8 +375,8 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["0"] = weight_shape[0];
-        op->params["1"] = weight_shape[2];
-        op->params["11"] = weight_shape[3];
+        op->params["1"] = weight_shape[3];
+        op->params["11"] = weight_shape[2];
         op->params["2"] = captured_params.at("dilation").ai[1];
         op->params["12"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[1];
@@ -434,8 +434,8 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["0"] = weight_shape[0];
-        op->params["1"] = weight_shape[2];
-        op->params["11"] = weight_shape[3];
+        op->params["1"] = weight_shape[3];
+        op->params["11"] = weight_shape[2];
         op->params["2"] = captured_params.at("dilation").ai[1];
         op->params["12"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[1];
@@ -495,8 +495,8 @@ pnnx.Output             output      1 0 out
         }
 
         op->params["0"] = weight_shape[0];
-        op->params["1"] = weight_shape[2];
-        op->params["11"] = weight_shape[3];
+        op->params["1"] = weight_shape[3];
+        op->params["11"] = weight_shape[2];
         op->params["2"] = captured_params.at("dilation").ai[1];
         op->params["12"] = captured_params.at("dilation").ai[0];
         op->params["3"] = captured_params.at("stride").ai[1];

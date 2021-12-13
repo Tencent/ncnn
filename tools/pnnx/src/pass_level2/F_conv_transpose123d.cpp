@@ -16,7 +16,7 @@
 
 namespace pnnx {
 
-class F_conv_transpose2d : public GraphRewriterPass
+class F_conv_transposend : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -43,10 +43,10 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "F.conv_transpose2d";
+        return "F.conv_transposend";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transpose2d, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_conv_transposend, 10)
 
 } // namespace pnnx
