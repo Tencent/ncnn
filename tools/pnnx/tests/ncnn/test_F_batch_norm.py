@@ -33,18 +33,12 @@ class Model(nn.Module):
         self.w5 = nn.Parameter(torch.rand(3))
         self.b5 = nn.Parameter(torch.rand(3))
 
-    def forward(self, x, y, z, m0, v0, w0, b0, m1, v1, w1, b1, m2, v2, w2, b2):
-        x = F.batch_norm(x, m0, v0, w0, b0)
-        x = F.batch_norm(x, m0, v0, None, None)
+    def forward(self, x, y, z):
         x = F.batch_norm(x, self.m3, self.v3, self.w3, self.b3)
 
-        y = F.batch_norm(y, m1, v1, w1, b1, eps=1e-3)
-        y = F.batch_norm(y, m1, v1, None, None)
-        y = F.batch_norm(y, self.m4, self.v4, self.w4, self.b4)
+        y = F.batch_norm(y, self.m4, self.v4, self.w4, self.b4, eps=1e-3)
 
-        z = F.batch_norm(z, m2, v2, w2, b2)
-        z = F.batch_norm(z, m2, v2, None, None, eps=1e-2)
-        z = F.batch_norm(z, self.m5, self.v5, self.w5, self.b5)
+        z = F.batch_norm(z, self.m5, self.v5, self.w5, self.b5, eps=1e-2)
         return x, y, z
 
 def test():
@@ -53,36 +47,27 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 16)
-    y = torch.rand(12, 2, 16)
+    y = torch.rand(1, 2, 16)
     z = torch.rand(1, 3, 12, 16)
-    m0 = torch.rand(16)
-    v0 = torch.rand(16)
-    w0 = torch.rand(16)
-    b0 = torch.rand(16)
-    m1 = torch.rand(2)
-    v1 = torch.rand(2)
-    w1 = torch.rand(2)
-    b1 = torch.rand(2)
-    m2 = torch.rand(3)
-    v2 = torch.rand(3)
-    w2 = torch.rand(3)
-    b2 = torch.rand(3)
 
-    a0, a1, a2 = net(x, y, z, m0, v0, w0, b0, m1, v1, w1, b1, m2, v2, w2, b2)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, m0, v0, w0, b0, m1, v1, w1, b1, m2, v2, w2, b2))
+    mod = torch.jit.trace(net, (x, y, z))
     mod.save("test_F_batch_norm.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_batch_norm.pt inputshape=[1,16],[12,2,16],[1,3,12,16],[16],[16],[16],[16],[2],[2],[2],[2],[3],[3],[3],[3]")
+    os.system("../../src/pnnx test_F_batch_norm.pt inputshape=[1,16],[1,2,16],[1,3,12,16]")
 
-    # pnnx inference
-    import test_F_batch_norm_pnnx
-    b0, b1, b2 = test_F_batch_norm_pnnx.test_inference()
+    # ncnn inference
+    import test_F_batch_norm_ncnn
+    b = test_F_batch_norm_ncnn.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():
