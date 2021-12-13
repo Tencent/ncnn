@@ -1254,6 +1254,26 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             }
         }
 
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Attribute")
+                continue;
+
+            const std::string& key = op->attrs.begin()->first;
+            const Attribute& attr = op->attrs.begin()->second;
+
+            fprintf(pyfp, "        self.%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+
+            for (size_t i = 0; i < attr.shape.size(); i++)
+            {
+                fprintf(pyfp, "%d", attr.shape[i]);
+                if (i + 1 != attr.shape.size())
+                    fprintf(pyfp, ",");
+            }
+
+            fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+        }
+
         fprintf(pyfp, "        archive.close()\n");
     }
 
@@ -1312,6 +1332,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 std::string expanded_expr = expand_expression(op);
                 fprintf(pyfp, " = %s\n", expanded_expr.c_str());
+            }
+            else if (op->type == "pnnx.Attribute")
+            {
+                const std::string& key = op->attrs.begin()->first;
+                fprintf(pyfp, "v_%s = self.%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), key.c_str());
             }
             else if (op->type == "Tensor.slice")
             {
