@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void convolution3D_transform_kernel_pack4to1_neon(const Mat& weight_data, Mat& weight_data_pack4to1, int num_input, int num_output, int kernel_w, int kernel_h,  int kernel_d)
+static void convolution3D_transform_kernel_pack4to1_neon(const Mat& weight_data, Mat& weight_data_pack4to1, int num_input, int num_output, int kernel_w, int kernel_h, int kernel_d)
 {
     const int maxk = kernel_w * kernel_h * kernel_d;
 
@@ -61,7 +61,6 @@ static void convolution3D_pack4to1_neon(const Mat& bottom_blob, Mat& top_blob, c
     int outch = top_blob.c;
 
     const int maxk = kernel_w * kernel_h * kernel_d;
-
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);

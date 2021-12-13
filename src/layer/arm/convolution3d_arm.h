@@ -39,8 +39,6 @@ public:
     Mat weight_data_pack1to4;
     Mat weight_data_pack4to1;
     Mat weight_sgemm_data_pack4;
-
-
 };
 
 } // namespace ncnn

@@ -1763,10 +1763,9 @@ static void convolution3D_vi2col_sgemm_transform_kernel_neon(const Mat& _kernel,
 #else
     kernel_tm = kernel;
 #endif // __ARM_NEON
-
 }
 
-static void convolution3D_vi2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, int kernel_w, int kernel_h, int kernel_d, int dilation_w, int dilation_h, int dilation_d, int stride_w, int stride_h, int stride_d, const Option& opt) 
+static void convolution3D_vi2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, int kernel_w, int kernel_h, int kernel_d, int dilation_w, int dilation_h, int dilation_d, int stride_w, int stride_h, int stride_d, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -1784,14 +1783,14 @@ static void convolution3D_vi2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blo
     Mat bottom_vi2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);
     {
         const int gap = w * stride_h - outw * stride_w;
-        const int gap1 = w * h * (stride_d - 1) + (h - outh * stride_h) * w; 
+        const int gap1 = w * h * (stride_d - 1) + (h - outh * stride_h) * w;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < inch; p++)
         {
             const Mat img = bottom_blob.channel(p);
             float* ptr = bottom_vi2col.channel(p);
-            
+
             for (int w = 0; w < kernel_d; w++)
             {
                 for (int u = 0; u < kernel_h; u++)

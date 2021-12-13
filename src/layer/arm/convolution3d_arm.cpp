@@ -85,7 +85,6 @@ int Convolution3D_arm::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 1)
     {
         convolution3D_transform_kernel_pack4to1_neon(weight_data, weight_data_pack4to1, num_input, num_output, kernel_w, kernel_h, kernel_d);
-        
     }
 #endif
     // pack1
@@ -106,7 +105,6 @@ int Convolution3D_arm::create_pipeline(const Option& opt)
                 break;
             }
         }
-
     }
 
     return 0;
@@ -157,7 +155,7 @@ int Convolution3D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     top_blob.create(outw, outh, outd, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
-        
+
     const int num_input = channels * elempack;
 
 #if __ARM_NEON
@@ -183,7 +181,7 @@ int Convolution3D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (elempack == 1 && out_elempack == 4)
     {
-        convolution3D_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, kernel_w, kernel_h, kernel_d, dilation_w, dilation_h, dilation_d, stride_w, stride_h, stride_d, activation_type, activation_params, opt);  
+        convolution3D_pack1to4_neon(bottom_blob_bordered, top_blob, weight_data_pack1to4, bias_data, kernel_w, kernel_h, kernel_d, dilation_w, dilation_h, dilation_d, stride_w, stride_h, stride_d, activation_type, activation_params, opt);
     }
 
     if (elempack == 4 && out_elempack == 1)
@@ -301,7 +299,6 @@ int Convolution3D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
     if (weight_data_flattened.empty())
         return -100;
 
-
     // weight_data_flattened as pack1
     weight_data_flattened.w *= weight_data_flattened.elempack;
     weight_data_flattened.elemsize /= weight_data_flattened.elempack;
@@ -354,7 +351,6 @@ int Convolution3D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
     pd.set(6, weight_data_flattened.w);
     pd.set(9, activation_type);
     pd.set(10, activation_params);
-
 
     op->load_param(pd);
 

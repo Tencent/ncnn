@@ -96,7 +96,6 @@ static void convolution3D_pack4_neon(const Mat& bottom_blob, Mat& top_blob, cons
 
     const int maxk = kernel_w * kernel_h * kernel_d;
 
-
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
     int* space_ofs = &_space_ofs[0];

@@ -1631,7 +1631,7 @@ static void convolution3D_vi2col_sgemm_pack4_neon(const Mat& bottom_blob, Mat& t
     Mat bottom_vi2col(size, maxk, inch, 16u, 4, opt.workspace_allocator);
     {
         const int gap = (w * stride_h - outw * stride_w) * 4;
-        const int gap1 = (w * h * (stride_d-1)+ (h - outh * stride_h) * w) * 4;  
+        const int gap1 = (w * h * (stride_d - 1) + (h - outh * stride_h) * w) * 4;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < inch; p++)
