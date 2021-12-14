@@ -559,7 +559,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.dropout3d                |  |
 |F.elu                      | :heavy_check_mark: | :heavy_check_mark: |
 |F.elu_                     | :heavy_check_mark: | :heavy_check_mark: |
-|F.embedding                |  |
+|F.embedding                | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding_bag            |  |
 |F.feature_alpha_dropout    |  |
 |F.fold                     |  |

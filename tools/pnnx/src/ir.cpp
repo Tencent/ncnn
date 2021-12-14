@@ -1729,19 +1729,24 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
-
-            for (size_t i = 0; i < r->shape.size(); i++)
-            {
-                fprintf(pyfp, "%d, ", r->shape[i]);
-            }
-            fprintf(pyfp, "dtype=%s", type_to_dtype_string(r->type));
-            fprintf(pyfp, ")\n");
 
             input_names.push_back(input_name);
         }
@@ -1789,19 +1794,24 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
-
-            for (size_t i = 0; i < r->shape.size(); i++)
-            {
-                fprintf(pyfp, "%d, ", r->shape[i]);
-            }
-            fprintf(pyfp, "dtype=%s", type_to_dtype_string(r->type));
-            fprintf(pyfp, ")\n");
 
             input_names.push_back(input_name);
         }
@@ -2058,19 +2068,24 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
 
             if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "    %s = torch.randint(", input_name.c_str());
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
             else
             {
                 fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
             }
-
-            for (size_t i = 0; i < r->shape.size(); i++)
-            {
-                fprintf(pyfp, "%d, ", r->shape[i]);
-            }
-            fprintf(pyfp, "dtype=%s", type_to_dtype_string(r->type));
-            fprintf(pyfp, ")\n");
         }
 
         fprintf(pyfp, "    out = []\n");

@@ -16,27 +16,29 @@
 
 namespace pnnx {
 
-class F_affine_grid : public GraphRewriterPass
+class F_embedding : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-5 4
-pnnx.Input              input_0     0 1 theta
-pnnx.Input              input_1     0 1 size
-prim::Constant          op_0        0 1 align_corners value=%align_corners
-aten::affine_grid_generator op_1    3 1 theta size align_corners out
+7 6
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 weight
+prim::Constant          op_0        0 1 padding_idx value=*
+prim::Constant          op_1        0 1 scale_grad_by_freq value=%scale_grad_by_freq
+prim::Constant          op_2        0 1 sparse value=%sparse
+aten::embedding         op_3        5 1 weight input padding_idx scale_grad_by_freq sparse out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "F.affine_grid";
+        return "F.embedding";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_affine_grid, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_embedding, 10)
 
 } // namespace pnnx
