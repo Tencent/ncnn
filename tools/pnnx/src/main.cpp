@@ -40,75 +40,16 @@ static std::string get_basename(const std::string& path)
     return path.substr(0, path.find_last_of('.'));
 }
 
-static std::vector<std::string> parse_comma_string_array_list(char* s)
+static void parse_string_list(char* s, std::vector<std::string>& list)
 {
-    std::vector<std::string> as;
+    list.clear();
 
     char* pch = strtok(s, ",");
     while (pch != NULL)
     {
-        as.push_back(std::string(pch));
+        list.push_back(std::string(pch));
 
         pch = strtok(NULL, ",");
-    }
-
-    return as;
-}
-
-static std::vector<std::vector<int64_t> > parse_comma_int_array_list(char* s)
-{
-    std::vector<std::vector<int64_t> > aai;
-
-    char* pch = strtok(s, "[]");
-    while (pch != NULL)
-    {
-        // parse a,b,c
-        int v;
-        int nconsumed = 0;
-        int nscan = sscanf(pch, "%d%n", &v, &nconsumed);
-        if (nscan == 1)
-        {
-            // ok we get array
-            pch += nconsumed;
-
-            std::vector<int64_t> ai;
-            ai.push_back(v);
-
-            nscan = sscanf(pch, ",%d%n", &v, &nconsumed);
-            while (nscan == 1)
-            {
-                pch += nconsumed;
-
-                ai.push_back(v);
-
-                nscan = sscanf(pch, ",%d%n", &v, &nconsumed);
-            }
-
-            // array end
-            aai.push_back(ai);
-        }
-
-        pch = strtok(NULL, "[]");
-    }
-
-    return aai;
-}
-
-static void print_int64_array_list(const std::vector<std::vector<int64_t> >& list)
-{
-    for (size_t i = 0; i < list.size(); i++)
-    {
-        const std::vector<int64_t>& array = list[i];
-        fprintf(stderr, "[");
-        for (size_t j = 0; j < array.size(); j++)
-        {
-            fprintf(stderr, "%ld", array[j]);
-            if (j != array.size() - 1)
-                fprintf(stderr, ",");
-        }
-        fprintf(stderr, "]");
-        if (i != list.size() - 1)
-            fprintf(stderr, ",");
     }
 }
 
@@ -120,6 +61,91 @@ static void print_string_list(const std::vector<std::string>& list)
         if (i + 1 != list.size())
             fprintf(stderr, ",");
     }
+}
+
+static void parse_shape_list(char* s, std::vector<std::vector<int64_t> >& shapes, std::vector<std::string>& types)
+{
+    shapes.clear();
+    types.clear();
+
+    char* pch = strtok(s, "[]");
+    while (pch != NULL)
+    {
+        // assign user data type
+        if (!types.empty() && (pch[0] == 'f' || pch[0] == 'i' || pch[0] == 'u'))
+        {
+            char type[32];
+            int nscan = sscanf(pch, "%31[^,]", type);
+            if (nscan == 1)
+            {
+                types[types.size() - 1] = std::string(type);
+            }
+        }
+
+        // parse a,b,c
+        int v;
+        int nconsumed = 0;
+        int nscan = sscanf(pch, "%d%n", &v, &nconsumed);
+        if (nscan == 1)
+        {
+            // ok we get shape
+            pch += nconsumed;
+
+            std::vector<int64_t> s;
+            s.push_back(v);
+
+            nscan = sscanf(pch, ",%d%n", &v, &nconsumed);
+            while (nscan == 1)
+            {
+                pch += nconsumed;
+
+                s.push_back(v);
+
+                nscan = sscanf(pch, ",%d%n", &v, &nconsumed);
+            }
+
+            // shape end
+            shapes.push_back(s);
+            types.push_back("f32");
+        }
+
+        pch = strtok(NULL, "[]");
+    }
+}
+
+static void print_shape_list(const std::vector<std::vector<int64_t> >& shapes, const std::vector<std::string>& types)
+{
+    for (size_t i = 0; i < shapes.size(); i++)
+    {
+        const std::vector<int64_t>& s = shapes[i];
+        const std::string& t = types[i];
+        fprintf(stderr, "[");
+        for (size_t j = 0; j < s.size(); j++)
+        {
+            fprintf(stderr, "%ld", s[j]);
+            if (j != s.size() - 1)
+                fprintf(stderr, ",");
+        }
+        fprintf(stderr, "]");
+        fprintf(stderr, "%s", t.c_str());
+        if (i != shapes.size() - 1)
+            fprintf(stderr, ",");
+    }
+}
+
+static c10::ScalarType input_type_to_c10_ScalarType(const std::string& t)
+{
+    if (t == "f32") return torch::kFloat32;
+    if (t == "f16") return torch::kFloat16;
+    if (t == "f64") return torch::kFloat64;
+    if (t == "i32") return torch::kInt32;
+    if (t == "i16") return torch::kInt16;
+    if (t == "i64") return torch::kInt64;
+    if (t == "i8") return torch::kInt8;
+    if (t == "u8") return torch::kUInt8;
+
+    fprintf(stderr, "unsupported type %s fallback to f32\n", t.c_str());
+    return torch::kFloat32;
 }
 
 static void show_usage()
@@ -142,7 +168,7 @@ static void show_usage()
 #endif
     fprintf(stderr, "  moduleop=models.common.Focus,models.yolo.Detect,...\n");
     fprintf(stderr, "Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]\n");
-    fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
+    fprintf(stderr, "              pnnx yolov5s.pt inputshape=[1,3,640,640]f32 inputshape2=[1,3,320,320]f32 device=gpu moduleop=models.common.Focus,models.yolo.Detect\n");
 }
 
 int main(int argc, char** argv)
@@ -175,7 +201,9 @@ int main(int argc, char** argv)
     int optlevel = 2;
     std::string device = "cpu";
     std::vector<std::vector<int64_t> > input_shapes;
+    std::vector<std::string> input_types;
     std::vector<std::vector<int64_t> > input_shapes2;
+    std::vector<std::string> input_types2;
     std::vector<std::string> customop_modules;
     std::vector<std::string> module_operators;
 
@@ -213,13 +241,13 @@ int main(int argc, char** argv)
         if (strcmp(key, "device") == 0)
             device = value;
         if (strcmp(key, "inputshape") == 0)
-            input_shapes = parse_comma_int_array_list(value);
+            parse_shape_list(value, input_shapes, input_types);
         if (strcmp(key, "inputshape2") == 0)
-            input_shapes2 = parse_comma_int_array_list(value);
+            parse_shape_list(value, input_shapes2, input_types2);
         if (strcmp(key, "customop") == 0)
-            customop_modules = parse_comma_string_array_list(value);
+            parse_string_list(value, customop_modules);
         if (strcmp(key, "moduleop") == 0)
-            module_operators = parse_comma_string_array_list(value);
+            parse_string_list(value, module_operators);
     }
 
     // print options
@@ -233,10 +261,10 @@ int main(int argc, char** argv)
         fprintf(stderr, "optlevel = %d\n", optlevel);
         fprintf(stderr, "device = %s\n", device.c_str());
         fprintf(stderr, "inputshape = ");
-        print_int64_array_list(input_shapes);
+        print_shape_list(input_shapes, input_types);
         fprintf(stderr, "\n");
         fprintf(stderr, "inputshape2 = ");
-        print_int64_array_list(input_shapes2);
+        print_shape_list(input_shapes2, input_types2);
         fprintf(stderr, "\n");
         fprintf(stderr, "customop = ");
         print_string_list(customop_modules);
@@ -268,9 +296,12 @@ int main(int argc, char** argv)
     }
 
     std::vector<at::Tensor> input_tensors;
-    for (auto shape : input_shapes)
+    for (size_t i = 0; i < input_shapes.size(); i++)
     {
-        at::Tensor t = torch::ones(shape);
+        const std::vector<int64_t>& shape = input_shapes[i];
+        const std::string& type = input_types[i];
+
+        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
         if (device == "gpu")
             t = t.cuda();
 
@@ -278,9 +309,12 @@ int main(int argc, char** argv)
     }
 
     std::vector<at::Tensor> input_tensors2;
-    for (auto shape : input_shapes2)
+    for (size_t i = 0; i < input_shapes2.size(); i++)
     {
-        at::Tensor t = torch::ones(shape);
+        const std::vector<int64_t>& shape = input_shapes2[i];
+        const std::string& type = input_types2[i];
+
+        at::Tensor t = torch::ones(shape, input_type_to_c10_ScalarType(type));
         if (device == "gpu")
             t = t.cuda();
 
