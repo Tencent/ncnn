@@ -1465,47 +1465,16 @@ static void convolution_im2col_sgemm_transform_kernel_pack4_neon(const Mat& _ker
 
         float* g00 = kernel_tm.channel(q / 8);
 
-        for (int p = 0; p + 3 < inch; p += 4)
+        for (int p = 0; p < inch; p++)
         {
             const float* k00 = k0.row(p);
-            const float* k01 = k0.row(p + 1);
-            const float* k02 = k0.row(p + 2);
-            const float* k03 = k0.row(p + 3);
-
             const float* k10 = k1.row(p);
-            const float* k11 = k1.row(p + 1);
-            const float* k12 = k1.row(p + 2);
-            const float* k13 = k1.row(p + 3);
-
             const float* k20 = k2.row(p);
-            const float* k21 = k2.row(p + 1);
-            const float* k22 = k2.row(p + 2);
-            const float* k23 = k2.row(p + 3);
-
             const float* k30 = k3.row(p);
-            const float* k31 = k3.row(p + 1);
-            const float* k32 = k3.row(p + 2);
-            const float* k33 = k3.row(p + 3);
-
             const float* k40 = k4.row(p);
-            const float* k41 = k4.row(p + 1);
-            const float* k42 = k4.row(p + 2);
-            const float* k43 = k4.row(p + 3);
-
             const float* k50 = k5.row(p);
-            const float* k51 = k5.row(p + 1);
-            const float* k52 = k5.row(p + 2);
-            const float* k53 = k5.row(p + 3);
-
             const float* k60 = k6.row(p);
-            const float* k61 = k6.row(p + 1);
-            const float* k62 = k6.row(p + 2);
-            const float* k63 = k6.row(p + 3);
-
             const float* k70 = k7.row(p);
-            const float* k71 = k7.row(p + 1);
-            const float* k72 = k7.row(p + 2);
-            const float* k73 = k7.row(p + 3);
 
             for (int k = 0; k < maxk; k++)
             {
@@ -1518,34 +1487,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack4_neon(const Mat& _ker
                 g00[6] = k60[k];
                 g00[7] = k70[k];
 
-                g00[8] = k01[k];
-                g00[9] = k11[k];
-                g00[10] = k21[k];
-                g00[11] = k31[k];
-                g00[12] = k41[k];
-                g00[13] = k51[k];
-                g00[14] = k61[k];
-                g00[15] = k71[k];
-
-                g00[16] = k02[k];
-                g00[17] = k12[k];
-                g00[18] = k22[k];
-                g00[19] = k32[k];
-                g00[20] = k42[k];
-                g00[21] = k52[k];
-                g00[22] = k62[k];
-                g00[23] = k72[k];
-
-                g00[24] = k03[k];
-                g00[25] = k13[k];
-                g00[26] = k23[k];
-                g00[27] = k33[k];
-                g00[28] = k43[k];
-                g00[29] = k53[k];
-                g00[30] = k63[k];
-                g00[31] = k73[k];
-
-                g00 += 32;
+                g00 += 8;
             }
         }
     }
@@ -1563,27 +1505,12 @@ static void convolution_im2col_sgemm_transform_kernel_pack4_neon(const Mat& _ker
         float* g00 = kernel_tm.channel(q / 4);
 #endif
 
-        for (int p = 0; p + 3 < inch; p += 4)
+        for (int p = 0; p < inch; p++)
         {
             const float* k00 = k0.row(p);
-            const float* k01 = k0.row(p + 1);
-            const float* k02 = k0.row(p + 2);
-            const float* k03 = k0.row(p + 3);
-
             const float* k10 = k1.row(p);
-            const float* k11 = k1.row(p + 1);
-            const float* k12 = k1.row(p + 2);
-            const float* k13 = k1.row(p + 3);
-
             const float* k20 = k2.row(p);
-            const float* k21 = k2.row(p + 1);
-            const float* k22 = k2.row(p + 2);
-            const float* k23 = k2.row(p + 3);
-
             const float* k30 = k3.row(p);
-            const float* k31 = k3.row(p + 1);
-            const float* k32 = k3.row(p + 2);
-            const float* k33 = k3.row(p + 3);
 
             for (int k = 0; k < maxk; k++)
             {
@@ -1592,22 +1519,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack4_neon(const Mat& _ker
                 g00[2] = k20[k];
                 g00[3] = k30[k];
 
-                g00[4] = k01[k];
-                g00[5] = k11[k];
-                g00[6] = k21[k];
-                g00[7] = k31[k];
-
-                g00[8] = k02[k];
-                g00[9] = k12[k];
-                g00[10] = k22[k];
-                g00[11] = k32[k];
-
-                g00[12] = k03[k];
-                g00[13] = k13[k];
-                g00[14] = k23[k];
-                g00[15] = k33[k];
-
-                g00 += 16;
+                g00 += 4;
             }
         }
     }
