@@ -420,7 +420,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.AdaptiveMaxPool1d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveMaxPool2d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveMaxPool3d       | :heavy_check_mark: | :heavy_check_mark: |
-|nn.AlphaDropout            |   |
+|nn.AlphaDropout            | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AvgPool1d               | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.AvgPool2d               | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.AvgPool3d               | :heavy_check_mark: | :heavy_check_mark:* |
@@ -440,9 +440,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.ConvTranspose2d         | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConvTranspose3d         | :heavy_check_mark: |
 |nn.CosineSimilarity        |   |
-|nn.Dropout                 |   | :heavy_check_mark:* |
-|nn.Dropout2d               |   |
-|nn.Dropout3d               |   |
+|nn.Dropout                 | :heavy_check_mark: | :heavy_check_mark: |
+|nn.Dropout2d               | :heavy_check_mark: | :heavy_check_mark: |
+|nn.Dropout3d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ELU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Embedding               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.EmbeddingBag            |   |
@@ -540,7 +540,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.adaptive_max_pool2d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_max_pool3d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.affine_grid              | :heavy_check_mark: | :heavy_check_mark: |
-|F.alpha_dropout            |  |
+|F.alpha_dropout            | :heavy_check_mark: | :heavy_check_mark: |
 |F.avg_pool1d               | :heavy_check_mark: | :heavy_check_mark:* |
 |F.avg_pool2d               | :heavy_check_mark: | :heavy_check_mark:* |
 |F.avg_pool3d               | :heavy_check_mark: | :heavy_check_mark:* |
@@ -554,14 +554,14 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.conv_transpose2d         | :heavy_check_mark: | :heavy_check_mark: |
 |F.conv_transpose3d         | :heavy_check_mark: |
 |F.cosine_similarity        |  |
-|F.dropout                  |  |
-|F.dropout2d                |  |
-|F.dropout3d                |  |
+|F.dropout                  | :heavy_check_mark: | :heavy_check_mark: |
+|F.dropout2d                | :heavy_check_mark: | :heavy_check_mark: |
+|F.dropout3d                | :heavy_check_mark: | :heavy_check_mark: |
 |F.elu                      | :heavy_check_mark: | :heavy_check_mark: |
 |F.elu_                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding                | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding_bag            |  |
-|F.feature_alpha_dropout    |  |
+|F.feature_alpha_dropout    | :heavy_check_mark: | :heavy_check_mark: |
 |F.fold                     |  |
 |F.fractional_max_pool2d    |  |
 |F.fractional_max_pool3d    |  |

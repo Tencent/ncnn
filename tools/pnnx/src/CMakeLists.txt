@@ -14,6 +14,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_AdaptiveMaxPool1d.cpp
     pass_level1/nn_AdaptiveMaxPool2d.cpp
     pass_level1/nn_AdaptiveMaxPool3d.cpp
+    pass_level1/nn_AlphaDropout.cpp
     pass_level1/nn_AvgPool1d.cpp
     pass_level1/nn_AvgPool2d.cpp
     pass_level1/nn_AvgPool3d.cpp
@@ -32,6 +33,8 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_ConvTranspose2d.cpp
     pass_level1/nn_ConvTranspose3d.cpp
     pass_level1/nn_Dropout.cpp
+    pass_level1/nn_Dropout2d.cpp
+    pass_level1/nn_Dropout3d.cpp
     pass_level1/nn_ELU.cpp
     pass_level1/nn_Embedding.cpp
     pass_level1/nn_GELU.cpp
@@ -100,6 +103,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_adaptive_max_pool1d.cpp
     pass_level2/F_adaptive_max_pool2d.cpp
     pass_level2/F_adaptive_max_pool3d.cpp
+    pass_level2/F_alpha_dropout.cpp
     pass_level2/F_affine_grid.cpp
     pass_level2/F_avg_pool1d.cpp
     pass_level2/F_avg_pool2d.cpp
@@ -110,8 +114,11 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_conv2d.cpp
     pass_level2/F_conv3d.cpp
     pass_level2/F_conv_transpose123d.cpp
+    pass_level2/F_dropout.cpp
+    pass_level2/F_dropout23d.cpp
     pass_level2/F_elu.cpp
     pass_level2/F_embedding.cpp
+    pass_level2/F_feature_alpha_dropout.cpp
     pass_level2/F_gelu.cpp
     pass_level2/F_grid_sample.cpp
     pass_level2/F_group_norm.cpp
@@ -187,6 +194,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_rnn_unpack.cpp
     pass_level3/rename_F_conv_transposend.cpp
     pass_level3/rename_F_convmode.cpp
+    pass_level3/rename_F_dropoutnd.cpp
 )
 
 set(pnnx_pass_level4_SRCS
@@ -238,6 +246,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_adaptive_max_pool1d.cpp
     pass_ncnn/F_adaptive_max_pool2d.cpp
     pass_ncnn/F_adaptive_max_pool3d.cpp
+    pass_ncnn/F_alpha_dropout.cpp
     pass_ncnn/F_avg_pool1d.cpp
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
@@ -246,8 +255,12 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_conv1d.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_conv3d.cpp
+    pass_ncnn/F_dropout.cpp
+    pass_ncnn/F_dropout2d.cpp
+    pass_ncnn/F_dropout3d.cpp
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_embedding.cpp
+    pass_ncnn/F_feature_alpha_dropout.cpp
     pass_ncnn/F_gelu.cpp
     pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
@@ -284,6 +297,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_AdaptiveMaxPool1d.cpp
     pass_ncnn/nn_AdaptiveMaxPool2d.cpp
     pass_ncnn/nn_AdaptiveMaxPool3d.cpp
+    pass_ncnn/nn_AlphaDropout.cpp
     pass_ncnn/nn_AvgPool1d.cpp
     pass_ncnn/nn_AvgPool2d.cpp
     pass_ncnn/nn_AvgPool3d.cpp
@@ -299,6 +313,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Conv3d.cpp
     pass_ncnn/nn_ConvTranspose2d.cpp
     pass_ncnn/nn_Dropout.cpp
+    pass_ncnn/nn_Dropout2d.cpp
+    pass_ncnn/nn_Dropout3d.cpp
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_Embedding.cpp
     pass_ncnn/nn_GELU.cpp
