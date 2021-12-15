@@ -52,7 +52,9 @@ static ncnn::Mat generate_ncnn_logo(int pixel_type_to, int w, int h)
     ncnn::Mat logo = ncnn::Mat::from_pixels(p_ncnn_logo_data, ncnn::Mat::PIXEL_GRAY | (pixel_type_to << ncnn::Mat::PIXEL_CONVERT_SHIFT), 16, 16);
 
     ncnn::Mat m;
-    ncnn::resize_nearest(logo, m, w, h);
+    ncnn::Option opt;
+    opt.num_threads = 1;
+    ncnn::resize_nearest(logo, m, w, h, opt);
     return m;
 }
 
@@ -231,6 +233,8 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
 
 int main()
 {
+    SRAND(7767517);
+
 #ifdef __EMSCRIPTEN__
     EM_ASM(
         FS.mkdir('/working');
@@ -277,6 +281,11 @@ int main()
     opts[3].workspace_allocator = &g_workspace_pool_allocator;
 
     int load_model_types[4] = {0, 1, 2, 3};
+
+    for (int i = 0; i < 4; i++)
+    {
+        opts[i].num_threads = 1;
+    }
 
     for (int i = 0; i < 4; i++)
     {

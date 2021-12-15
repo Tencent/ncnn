@@ -29,7 +29,9 @@ Flatten_arm::Flatten_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif // NCNN_BF16
 }
 
 int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -44,8 +46,10 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
+#endif
 
     int dims = bottom_blob.dims;
 
@@ -57,10 +61,11 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -135,7 +140,7 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         if (elempack == 4) // out_elempack == 4
         {
@@ -218,10 +223,11 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -356,7 +362,7 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (elempack == 8) // out_elempack == 8
@@ -499,10 +505,11 @@ int Flatten_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -569,7 +576,7 @@ int Flatten_arm::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         if (elempack == 8) // out_elempack == 8
         {

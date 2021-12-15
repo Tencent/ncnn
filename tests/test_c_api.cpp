@@ -314,11 +314,11 @@ static int test_c_api_2()
         ncnn_mat_destroy(c2);
     }
 
-    ncnn_option_destroy(opt);
-
     ncnn_mat_destroy(a);
     ncnn_mat_destroy(b);
     ncnn_mat_destroy(c);
+
+    ncnn_option_destroy(opt);
 
     ncnn_datareader_destroy(emptydr);
 

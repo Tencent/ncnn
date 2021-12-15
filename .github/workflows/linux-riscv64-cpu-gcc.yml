@@ -24,19 +24,18 @@ on:
     - 'src/layer/*'
     - 'src/layer/riscv/**'
     - 'tests/**'
+concurrency:
+  group: linux-riscv64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-gcc-riscv64:
     runs-on: ubuntu-20.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-riscv64-install-1
@@ -75,15 +74,11 @@ jobs:
   linux-gcc-riscv64-rvv:
     runs-on: ubuntu-20.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: qemu-install
         key: qemu-riscv64-rvv-install-20210610
@@ -120,7 +115,7 @@ jobs:
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: rv64gcv-install
         key: rv64gcv-linux-install-20210504

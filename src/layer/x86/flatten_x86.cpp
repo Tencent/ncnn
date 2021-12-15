@@ -46,10 +46,11 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -202,7 +203,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #endif // __SSE2__
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
 #if __SSE2__
 #if __AVX__
@@ -357,10 +358,11 @@ int Flatten_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -427,7 +429,7 @@ int Flatten_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         if (elempack == 8) // out_elempack == 8
         {

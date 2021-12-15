@@ -20,6 +20,7 @@
 #include <immintrin.h>
 #endif // __AVX__
 #endif // __SSE2__
+#include "x86_usability.h"
 
 namespace ncnn {
 
@@ -53,7 +54,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 __m256 _b = _mm256_loadu_ps((const float*)b_data + i * 8);
 
                 __m256 _p = _mm256_loadu_ps(ptr);
-                _p = _mm256_fmadd_ps(_p, _b, _a);
+                _p = _mm256_comp_fmadd_ps(_p, _b, _a);
                 _mm256_storeu_ps(ptr, _p);
             }
         }
@@ -74,7 +75,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 for (int j = 0; j < w; j++)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr);
-                    _p = _mm256_fmadd_ps(_p, _b, _a);
+                    _p = _mm256_comp_fmadd_ps(_p, _b, _a);
                     _mm256_storeu_ps(ptr, _p);
 
                     ptr += 8;
@@ -82,12 +83,13 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int c = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
@@ -100,7 +102,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 for (int i = 0; i < size; i++)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr);
-                    _p = _mm256_fmadd_ps(_p, _b, _a);
+                    _p = _mm256_comp_fmadd_ps(_p, _b, _a);
                     _mm256_storeu_ps(ptr, _p);
 
                     ptr += 8;
@@ -158,12 +160,13 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int c = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
@@ -189,13 +192,14 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
 #endif // __SSE2__
 
-    if (dims != 3)
+    if (dims != 3 && dims != 4)
         return BatchNorm::forward_inplace(bottom_top_blob, opt);
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     // int c = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -213,7 +217,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
-            _p = _mm256_fmadd_ps(_p, _b256, _a256);
+            _p = _mm256_comp_fmadd_ps(_p, _b256, _a256);
             _mm256_storeu_ps(ptr, _p);
             ptr += 8;
         }

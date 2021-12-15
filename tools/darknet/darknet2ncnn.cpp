@@ -59,7 +59,7 @@ typedef struct Section
     int original_layer_count;
 
     std::unordered_map<std::string, std::string> options;
-    int w = 416, h = 416, c = 3, inputs = 256;
+    int w = 416, h = 416, c = 3, inputs = 256, letter_box = 0;
     int out_w, out_h, out_c;
     int batch_normalize = 0, filters = 1, size = 1, groups = 1, stride = 1, padding = -1, pad = 0, dilation = 1;
     std::string activation;
@@ -109,6 +109,7 @@ typedef struct Section_Field
 #define FIELD_OFFSET(c) ((size_t) & (((Section*)0)->c))
 
 int yolo_layer_count = 0;
+bool letter_box_enabled = false;
 
 std::vector<std::string> split(const std::string& s, char delimiter)
 {
@@ -141,6 +142,7 @@ void update_field(Section* section, std::string key, std::string value)
         {"height", INT, FIELD_OFFSET(h)},
         {"channels", INT, FIELD_OFFSET(c)},
         {"inputs", INT, FIELD_OFFSET(inputs)},
+        {"letter_box", INT, FIELD_OFFSET(letter_box)},
         //convolutional, upsample, maxpool
         {"batch_normalize", INT, FIELD_OFFSET(batch_normalize)},
         {"filters", INT, FIELD_OFFSET(filters)},
@@ -352,6 +354,12 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
 
         if (s->name == "net")
         {
+            if (s->letter_box)
+            {
+                fprintf(stderr, "WARNING: letter_box enabled.\n");
+                letter_box_enabled = true;
+            }
+
             s->out_h = s->h;
             s->out_w = s->w;
             s->out_c = s->c;
@@ -370,13 +378,15 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
         }
         else if (s->name == "convolutional")
         {
+            if (s->pad)
+                s->padding = s->size / 2;
             if (s->padding == -1)
                 s->padding = 0;
             s->h = p->out_h;
             s->w = p->out_w;
             s->c = p->out_c;
-            s->out_h = s->h / s->stride;
-            s->out_w = s->w / s->stride;
+            s->out_h = (s->h + 2 * s->padding - s->size) / s->stride + 1;
+            s->out_w = (s->w + 2 * s->padding - s->size) / s->stride + 1;
             s->out_c = s->filters;
 
 #if OUTPUT_LAYER_MAP
@@ -391,11 +401,11 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
                 s->layer_type = "Convolution";
             else
                 s->layer_type = "ConvolutionDepthWise";
-            s->param.push_back(format("0=%d", s->filters));                        //num_output
-            s->param.push_back(format("1=%d", s->size));                           //kernel_w
-            s->param.push_back(format("2=%d", s->dilation));                       //dilation_w
-            s->param.push_back(format("3=%d", s->stride));                         //stride_w
-            s->param.push_back(format("4=%d", s->pad ? s->size / 2 : s->padding)); //pad_left
+            s->param.push_back(format("0=%d", s->filters));  //num_output
+            s->param.push_back(format("1=%d", s->size));     //kernel_w
+            s->param.push_back(format("2=%d", s->dilation)); //dilation_w
+            s->param.push_back(format("3=%d", s->stride));   //stride_w
+            s->param.push_back(format("4=%d", s->padding));  //pad_left
 
             if (s->batch_normalize)
             {
@@ -478,7 +488,8 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
         else if (s->name == "maxpool")
         {
             if (s->padding == -1)
-                s->padding = s->stride * int((s->size - 1) / 2);
+                s->padding = s->size - 1;
+            int pad = s->padding / 2;
             s->h = p->out_h;
             s->w = p->out_w;
             s->c = p->out_c;
@@ -492,14 +503,14 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
 #endif
 
             s->layer_type = "Pooling";
-            s->param.push_back("0=0");                       //pooling_type=PoolMethod_MAX
-            s->param.push_back(format("1=%d", s->size));     //kernel_w
-            s->param.push_back(format("2=%d", s->stride));   //stride_w
-            s->param.push_back("5=1");                       //pad_mode=SAME_UPPER
-            s->param.push_back(format("3=%d", s->padding));  //pad_left
-            s->param.push_back(format("13=%d", s->padding)); //pad_top
-            s->param.push_back(format("14=%d", s->padding)); //pad_right
-            s->param.push_back(format("15=%d", s->padding)); //pad_bottom
+            s->param.push_back("0=0");                             //pooling_type=PoolMethod_MAX
+            s->param.push_back(format("1=%d", s->size));           //kernel_w
+            s->param.push_back(format("2=%d", s->stride));         //stride_w
+            s->param.push_back("5=1");                             //pad_mode=SAME_UPPER
+            s->param.push_back(format("3=%d", pad));               //pad_left
+            s->param.push_back(format("13=%d", pad));              //pad_top
+            s->param.push_back(format("14=%d", s->padding - pad)); //pad_right
+            s->param.push_back(format("15=%d", s->padding - pad)); //pad_bottom
         }
         else if (s->name == "avgpool")
         {
@@ -539,6 +550,29 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
             s->real_output_blobs.push_back(r->layer_name);
 
             it = dnet.insert(it + 1, r);
+        }
+        else if (s->name == "sam")
+        {
+            auto q = get_original_section(dnet, s->original_layer_count, s->from);
+            if (p->out_w != q->out_w || p->out_h != q->out_h || p->out_c != q->out_c)
+                error("sam layer dimension not match");
+
+            s->h = q->out_h;
+            s->w = q->out_w;
+            s->c = q->out_c;
+            s->out_h = s->h;
+            s->out_w = s->w;
+            s->out_c = q->out_c;
+
+#if OUTPUT_LAYER_MAP
+            printf("scale Layer: %d\n", q->original_layer_count - 1);
+#endif
+
+            s->layer_type = "BinaryOp";
+            s->input_blobs.clear();
+            s->input_blobs.push_back(q->real_output_blobs[0]);
+            s->input_blobs.push_back(p->real_output_blobs[0]);
+            s->param.push_back("0=2"); //op_type=Operation_MUL
         }
         else if (s->name == "scale_channels")
         {
@@ -606,6 +640,9 @@ void parse_cfg(std::deque<Section*>& dnet, int merge_output)
             }
             else
             {
+#if OUTPUT_LAYER_MAP
+                printf("%30c-> %4d x%4d x%4d", ' ', s->out_w, s->out_h, s->out_c);
+#endif
                 s->layer_type = "Concat";
             }
 #if OUTPUT_LAYER_MAP
@@ -919,7 +956,9 @@ int main(int argc, char** argv)
     printf("NOTE: The input of darknet uses: mean_vals=0 and norm_vals=1/255.f.\n");
     if (!merge_output)
         printf("NOTE: There are %d unmerged yolo output layer. Make sure all outputs are processed with nms.\n", yolo_layer_count);
-    printf("NOTE: Remeber to use ncnnoptimize for better performance.\n");
+    if (letter_box_enabled)
+        printf("NOTE: Make sure your pre-processing and post-processing support letter_box.\n");
+    printf("NOTE: Remember to use ncnnoptimize for better performance.\n");
 
     return 0;
 }

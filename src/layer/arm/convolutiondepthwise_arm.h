@@ -29,13 +29,17 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 protected:
     int create_group_ops(const Option& opt);
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif
+#if NCNN_BF16
     int forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 #if NCNN_INT8
     int create_pipeline_int8_arm(const Option& opt);
     int forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
@@ -52,9 +56,11 @@ public:
     Mat weight_data_fp16;
     Mat bias_data_fp16;
 
+#if NCNN_BF16
     // bf16
     Mat weight_data_bf16;
     Mat weight_data_pack4_bf16;
+#endif
 
 #if NCNN_INT8
     // int8

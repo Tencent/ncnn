@@ -43,6 +43,13 @@ ConvolutionDepthWise_vulkan::ConvolutionDepthWise_vulkan()
 
 int ConvolutionDepthWise_vulkan::create_pipeline(const Option& _opt)
 {
+    if (dynamic_weight)
+    {
+        support_vulkan = false;
+        support_image_storage = false;
+        return 0;
+    }
+
     Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
@@ -413,7 +420,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
     {
         Mat weight_data_packed;
         Mat weight_data_r2 = weight_data.reshape(maxk, group);
-        convert_packing(weight_data_r2, weight_data_packed, elempack);
+        convert_packing(weight_data_r2, weight_data_packed, elempack, opt);
 
         cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
 
@@ -422,7 +429,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
         if (bias_term)
         {
             Mat bias_data_packed;
-            convert_packing(bias_data, bias_data_packed, out_elempack);
+            convert_packing(bias_data, bias_data_packed, out_elempack, opt);
 
             if (support_image_storage && opt.use_image_storage)
             {
@@ -499,7 +506,7 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
     if (bias_term)
     {
         Mat bias_data_packed;
-        convert_packing(bias_data, bias_data_packed, out_elempack_g);
+        convert_packing(bias_data, bias_data_packed, out_elempack_g, opt);
 
         if (support_image_storage && opt.use_image_storage)
         {

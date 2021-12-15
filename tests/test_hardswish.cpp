@@ -19,7 +19,7 @@ static int test_hardswish(const ncnn::Mat& a, float alpha, float beta)
 {
     ncnn::ParamDict pd;
     pd.set(0, alpha);
-    pd.set(0, beta);
+    pd.set(1, beta);
 
     std::vector<ncnn::Mat> weights(0);
 

@@ -198,33 +198,7 @@ int Layer::forward_inplace(VkImageMat& /*bottom_top_blob*/, VkCompute& /*cmd*/, 
 }
 #endif // NCNN_VULKAN
 
-static const layer_registry_entry layer_registry[] = {
 #include "layer_registry.h"
-};
-
-#if NCNN_RUNTIME_CPU && NCNN_AVX2
-static const layer_registry_entry layer_registry_avx2[] = {
-#include "layer_registry_avx2.h"
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX2
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
-static const layer_registry_entry layer_registry_arm82[] = {
-#include "layer_registry_arm82.h"
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
-
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-static const layer_registry_entry layer_registry_arm82dot[] = {
-#include "layer_registry_arm82dot.h"
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-
-#if NCNN_RUNTIME_CPU && NCNN_RVV
-static const layer_registry_entry layer_registry_rvv[] = {
-#include "layer_registry_rvv.h"
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_RVV
 
 static const int layer_registry_entry_count = sizeof(layer_registry) / sizeof(layer_registry_entry);
 
@@ -264,21 +238,35 @@ Layer* create_layer(int index)
         layer_creator = layer_registry_avx2[index].creator;
     }
     else
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX2
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-    if (ncnn::cpu_support_arm_asimdhp() && ncnn::cpu_support_arm_asimddp())
+#endif// NCNN_RUNTIME_CPU && NCNN_AVX2
+#if NCNN_RUNTIME_CPU && NCNN_AVX
+    if (ncnn::cpu_support_x86_avx())
     {
-        layer_creator = layer_registry_arm82dot[index].creator;
+        layer_creator = layer_registry_avx[index].creator;
     }
     else
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
+#endif // NCNN_RUNTIME_CPU && NCNN_AVX
+#if NCNN_RUNTIME_CPU && NCNN_ARM82
     if (ncnn::cpu_support_arm_asimdhp())
     {
         layer_creator = layer_registry_arm82[index].creator;
     }
     else
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82 && !__APPLE__
+#endif // NCNN_RUNTIME_CPU && NCNN_ARM82
+#if NCNN_RUNTIME_CPU && NCNN_MMI
+    if (ncnn::cpu_support_mips_msa() && ncnn::cpu_support_loongson_mmi())
+    {
+        layer_creator = layer_registry_mmi[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_MMI
+#if NCNN_RUNTIME_CPU && NCNN_MSA
+    if (ncnn::cpu_support_mips_msa())
+    {
+        layer_creator = layer_registry_msa[index].creator;
+    }
+    else
+#endif // NCNN_RUNTIME_CPU && NCNN_MSA
 #if NCNN_RUNTIME_CPU && NCNN_RVV
     if (ncnn::cpu_support_riscv_v())
     {

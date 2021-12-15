@@ -24,7 +24,7 @@ namespace ncnn {
 
 LSTM_x86::LSTM_x86()
 {
-#ifdef __AVX__
+#ifdef __AVX2__
     support_weight_fp16_storage = true;
 #endif
     one_blob_only = false;
@@ -33,7 +33,7 @@ LSTM_x86::LSTM_x86()
 
 int LSTM_x86::create_pipeline(const Option& opt)
 {
-#if __AVX__
+#if __AVX2__
     if (opt.use_weight_fp16_storage)
     {
         ncnn::cast_float32_to_float16(weight_xc_data, weight_xc_data_fp16, opt);
@@ -46,6 +46,7 @@ int LSTM_x86::create_pipeline(const Option& opt)
     return 0;
 }
 #ifdef __AVX__
+#ifdef __AVX2__
 
 static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
@@ -118,14 +119,14 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             for (; nn_num_size > 0; nn_num_size--)
             {
                 __m256 xi = _mm256_loadu_ps(x);
-                _sumI_0 = _mm256_fmadd_ps(loadfp16(weight_xc_I_0), xi, _sumI_0);
-                _sumF_0 = _mm256_fmadd_ps(loadfp16(weight_xc_F_0), xi, _sumF_0);
-                _sumO_0 = _mm256_fmadd_ps(loadfp16(weight_xc_O_0), xi, _sumO_0);
-                _sumG_0 = _mm256_fmadd_ps(loadfp16(weight_xc_G_0), xi, _sumG_0);
-                _sumI_1 = _mm256_fmadd_ps(loadfp16(weight_xc_I_1), xi, _sumI_1);
-                _sumF_1 = _mm256_fmadd_ps(loadfp16(weight_xc_F_1), xi, _sumF_1);
-                _sumO_1 = _mm256_fmadd_ps(loadfp16(weight_xc_O_1), xi, _sumO_1);
-                _sumG_1 = _mm256_fmadd_ps(loadfp16(weight_xc_G_1), xi, _sumG_1);
+                _sumI_0 = _mm256_comp_fmadd_ps(loadfp16(weight_xc_I_0), xi, _sumI_0);
+                _sumF_0 = _mm256_comp_fmadd_ps(loadfp16(weight_xc_F_0), xi, _sumF_0);
+                _sumO_0 = _mm256_comp_fmadd_ps(loadfp16(weight_xc_O_0), xi, _sumO_0);
+                _sumG_0 = _mm256_comp_fmadd_ps(loadfp16(weight_xc_G_0), xi, _sumG_0);
+                _sumI_1 = _mm256_comp_fmadd_ps(loadfp16(weight_xc_I_1), xi, _sumI_1);
+                _sumF_1 = _mm256_comp_fmadd_ps(loadfp16(weight_xc_F_1), xi, _sumF_1);
+                _sumO_1 = _mm256_comp_fmadd_ps(loadfp16(weight_xc_O_1), xi, _sumO_1);
+                _sumG_1 = _mm256_comp_fmadd_ps(loadfp16(weight_xc_G_1), xi, _sumG_1);
                 x += 8;
                 weight_xc_I_0 += 8;
                 weight_xc_F_0 += 8;
@@ -142,14 +143,14 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             {
                 __m256 h_cont = _mm256_loadu_ps(hidden_ptr_r);
 
-                _sumI_0 = _mm256_fmadd_ps(loadfp16(weight_hc_I_0), h_cont, _sumI_0);
-                _sumF_0 = _mm256_fmadd_ps(loadfp16(weight_hc_F_0), h_cont, _sumF_0);
-                _sumO_0 = _mm256_fmadd_ps(loadfp16(weight_hc_O_0), h_cont, _sumO_0);
-                _sumG_0 = _mm256_fmadd_ps(loadfp16(weight_hc_G_0), h_cont, _sumG_0);
-                _sumI_1 = _mm256_fmadd_ps(loadfp16(weight_hc_I_1), h_cont, _sumI_1);
-                _sumF_1 = _mm256_fmadd_ps(loadfp16(weight_hc_F_1), h_cont, _sumF_1);
-                _sumO_1 = _mm256_fmadd_ps(loadfp16(weight_hc_O_1), h_cont, _sumO_1);
-                _sumG_1 = _mm256_fmadd_ps(loadfp16(weight_hc_G_1), h_cont, _sumG_1);
+                _sumI_0 = _mm256_comp_fmadd_ps(loadfp16(weight_hc_I_0), h_cont, _sumI_0);
+                _sumF_0 = _mm256_comp_fmadd_ps(loadfp16(weight_hc_F_0), h_cont, _sumF_0);
+                _sumO_0 = _mm256_comp_fmadd_ps(loadfp16(weight_hc_O_0), h_cont, _sumO_0);
+                _sumG_0 = _mm256_comp_fmadd_ps(loadfp16(weight_hc_G_0), h_cont, _sumG_0);
+                _sumI_1 = _mm256_comp_fmadd_ps(loadfp16(weight_hc_I_1), h_cont, _sumI_1);
+                _sumF_1 = _mm256_comp_fmadd_ps(loadfp16(weight_hc_F_1), h_cont, _sumF_1);
+                _sumO_1 = _mm256_comp_fmadd_ps(loadfp16(weight_hc_O_1), h_cont, _sumO_1);
+                _sumG_1 = _mm256_comp_fmadd_ps(loadfp16(weight_hc_G_1), h_cont, _sumG_1);
                 hidden_ptr_r += 8;
                 weight_hc_I_0 += 8;
                 weight_hc_F_0 += 8;
@@ -188,14 +189,14 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                     weight_xc_G_1++;
                 }
                 __m256 xi = _mm256_loadu_ps(_xi_f);
-                _sumI_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[0]), xi, _sumI_0);
-                _sumF_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[1]), xi, _sumF_0);
-                _sumO_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[2]), xi, _sumO_0);
-                _sumG_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[3]), xi, _sumG_0);
-                _sumI_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[4]), xi, _sumI_1);
-                _sumF_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[5]), xi, _sumF_1);
-                _sumO_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[6]), xi, _sumO_1);
-                _sumG_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[7]), xi, _sumG_1);
+                _sumI_0 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[0]), xi, _sumI_0);
+                _sumF_0 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[1]), xi, _sumF_0);
+                _sumO_0 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[2]), xi, _sumO_0);
+                _sumG_0 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[3]), xi, _sumG_0);
+                _sumI_1 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[4]), xi, _sumI_1);
+                _sumF_1 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[5]), xi, _sumF_1);
+                _sumO_1 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[6]), xi, _sumO_1);
+                _sumG_1 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[7]), xi, _sumG_1);
             }
             if (remain_num_output != 0)
             {
@@ -225,14 +226,14 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                     weight_hc_G_1++;
                 }
                 __m256 h_cont = _mm256_loadu_ps(_hcont_f);
-                _sumI_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[0]), h_cont, _sumI_0);
-                _sumF_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[1]), h_cont, _sumF_0);
-                _sumO_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[2]), h_cont, _sumO_0);
-                _sumG_0 = _mm256_fmadd_ps(loadfp16(fp16_weights[3]), h_cont, _sumG_0);
-                _sumI_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[4]), h_cont, _sumI_1);
-                _sumF_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[5]), h_cont, _sumF_1);
-                _sumO_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[6]), h_cont, _sumO_1);
-                _sumG_1 = _mm256_fmadd_ps(loadfp16(fp16_weights[7]), h_cont, _sumG_1);
+                _sumI_0 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[0]), h_cont, _sumI_0);
+                _sumF_0 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[1]), h_cont, _sumF_0);
+                _sumO_0 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[2]), h_cont, _sumO_0);
+                _sumG_0 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[3]), h_cont, _sumG_0);
+                _sumI_1 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[4]), h_cont, _sumI_1);
+                _sumF_1 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[5]), h_cont, _sumF_1);
+                _sumO_1 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[6]), h_cont, _sumO_1);
+                _sumG_1 = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[7]), h_cont, _sumG_1);
             }
             float sums[8];
             _mm256_storeu_ps(sums, HorizontalSums(_sumI_0, _sumF_0, _sumO_0, _sumG_0, _sumI_1, _sumF_1, _sumO_1, _sumG_1));
@@ -291,10 +292,10 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             for (; nn_num_size > 0; nn_num_size--)
             {
                 __m256 xi = _mm256_loadu_ps(x);
-                _sumI = _mm256_fmadd_ps(loadfp16(weight_xc_I), xi, _sumI);
-                _sumF = _mm256_fmadd_ps(loadfp16(weight_xc_F), xi, _sumF);
-                _sumO = _mm256_fmadd_ps(loadfp16(weight_xc_O), xi, _sumO);
-                _sumG = _mm256_fmadd_ps(loadfp16(weight_xc_G), xi, _sumG);
+                _sumI = _mm256_comp_fmadd_ps(loadfp16(weight_xc_I), xi, _sumI);
+                _sumF = _mm256_comp_fmadd_ps(loadfp16(weight_xc_F), xi, _sumF);
+                _sumO = _mm256_comp_fmadd_ps(loadfp16(weight_xc_O), xi, _sumO);
+                _sumG = _mm256_comp_fmadd_ps(loadfp16(weight_xc_G), xi, _sumG);
                 x += 8;
                 weight_xc_I += 8;
                 weight_xc_F += 8;
@@ -307,10 +308,10 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             {
                 __m256 h_cont = _mm256_loadu_ps(hidden_ptr_r);
 
-                _sumI = _mm256_fmadd_ps(loadfp16(weight_hc_I), h_cont, _sumI);
-                _sumF = _mm256_fmadd_ps(loadfp16(weight_hc_F), h_cont, _sumF);
-                _sumO = _mm256_fmadd_ps(loadfp16(weight_hc_O), h_cont, _sumO);
-                _sumG = _mm256_fmadd_ps(loadfp16(weight_hc_G), h_cont, _sumG);
+                _sumI = _mm256_comp_fmadd_ps(loadfp16(weight_hc_I), h_cont, _sumI);
+                _sumF = _mm256_comp_fmadd_ps(loadfp16(weight_hc_F), h_cont, _sumF);
+                _sumO = _mm256_comp_fmadd_ps(loadfp16(weight_hc_O), h_cont, _sumO);
+                _sumG = _mm256_comp_fmadd_ps(loadfp16(weight_hc_G), h_cont, _sumG);
                 hidden_ptr_r += 8;
                 weight_hc_I += 8;
                 weight_hc_F += 8;
@@ -337,10 +338,10 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                     weight_xc_G++;
                 }
                 __m256 xi = _mm256_loadu_ps(_xi_f);
-                _sumI = _mm256_fmadd_ps(loadfp16(fp16_weights[0]), xi, _sumI);
-                _sumF = _mm256_fmadd_ps(loadfp16(fp16_weights[1]), xi, _sumF);
-                _sumO = _mm256_fmadd_ps(loadfp16(fp16_weights[2]), xi, _sumO);
-                _sumG = _mm256_fmadd_ps(loadfp16(fp16_weights[3]), xi, _sumG);
+                _sumI = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[0]), xi, _sumI);
+                _sumF = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[1]), xi, _sumF);
+                _sumO = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[2]), xi, _sumO);
+                _sumG = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[3]), xi, _sumG);
             }
             if (remain_num_output != 0)
             {
@@ -362,10 +363,10 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
                     weight_hc_G++;
                 }
                 __m256 h_cont = _mm256_loadu_ps(_hcont_f);
-                _sumI = _mm256_fmadd_ps(loadfp16(fp16_weights[0]), h_cont, _sumI);
-                _sumF = _mm256_fmadd_ps(loadfp16(fp16_weights[1]), h_cont, _sumF);
-                _sumO = _mm256_fmadd_ps(loadfp16(fp16_weights[2]), h_cont, _sumO);
-                _sumG = _mm256_fmadd_ps(loadfp16(fp16_weights[3]), h_cont, _sumG);
+                _sumI = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[0]), h_cont, _sumI);
+                _sumF = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[1]), h_cont, _sumF);
+                _sumO = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[2]), h_cont, _sumO);
+                _sumG = _mm256_comp_fmadd_ps(loadfp16(fp16_weights[3]), h_cont, _sumG);
             }
 
             float sums[4];
@@ -445,7 +446,7 @@ static int lstm_fp16(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
     return 0;
 }
-
+#endif
 static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
     int size = bottom_blob.w;
@@ -519,14 +520,14 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             for (; nn_num_size > 0; nn_num_size--)
             {
                 __m256 xi = _mm256_loadu_ps(x);
-                _sumI_0 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_I_0), xi, _sumI_0);
-                _sumF_0 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_F_0), xi, _sumF_0);
-                _sumO_0 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_O_0), xi, _sumO_0);
-                _sumG_0 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_G_0), xi, _sumG_0);
-                _sumI_1 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_I_1), xi, _sumI_1);
-                _sumF_1 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_F_1), xi, _sumF_1);
-                _sumO_1 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_O_1), xi, _sumO_1);
-                _sumG_1 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_G_1), xi, _sumG_1);
+                _sumI_0 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_I_0), xi, _sumI_0);
+                _sumF_0 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_F_0), xi, _sumF_0);
+                _sumO_0 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_O_0), xi, _sumO_0);
+                _sumG_0 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_G_0), xi, _sumG_0);
+                _sumI_1 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_I_1), xi, _sumI_1);
+                _sumF_1 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_F_1), xi, _sumF_1);
+                _sumO_1 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_O_1), xi, _sumO_1);
+                _sumG_1 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_G_1), xi, _sumG_1);
                 x += 8;
                 weight_xc_I_0 += 8;
                 weight_xc_F_0 += 8;
@@ -543,14 +544,14 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             {
                 __m256 h_cont = _mm256_loadu_ps(hidden_ptr_r);
 
-                _sumI_0 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_I_0), h_cont, _sumI_0);
-                _sumF_0 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_F_0), h_cont, _sumF_0);
-                _sumO_0 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_O_0), h_cont, _sumO_0);
-                _sumG_0 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_G_0), h_cont, _sumG_0);
-                _sumI_1 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_I_1), h_cont, _sumI_1);
-                _sumF_1 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_F_1), h_cont, _sumF_1);
-                _sumO_1 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_O_1), h_cont, _sumO_1);
-                _sumG_1 = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_G_1), h_cont, _sumG_1);
+                _sumI_0 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_I_0), h_cont, _sumI_0);
+                _sumF_0 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_F_0), h_cont, _sumF_0);
+                _sumO_0 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_O_0), h_cont, _sumO_0);
+                _sumG_0 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_G_0), h_cont, _sumG_0);
+                _sumI_1 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_I_1), h_cont, _sumI_1);
+                _sumF_1 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_F_1), h_cont, _sumF_1);
+                _sumO_1 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_O_1), h_cont, _sumO_1);
+                _sumG_1 = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_G_1), h_cont, _sumG_1);
                 hidden_ptr_r += 8;
                 weight_hc_I_0 += 8;
                 weight_hc_F_0 += 8;
@@ -662,10 +663,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             for (; nn_num_size > 0; nn_num_size--)
             {
                 __m256 xi = _mm256_loadu_ps(x);
-                _sumI = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_I), xi, _sumI);
-                _sumF = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_F), xi, _sumF);
-                _sumO = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_O), xi, _sumO);
-                _sumG = _mm256_fmadd_ps(_mm256_loadu_ps(weight_xc_G), xi, _sumG);
+                _sumI = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_I), xi, _sumI);
+                _sumF = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_F), xi, _sumF);
+                _sumO = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_O), xi, _sumO);
+                _sumG = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_xc_G), xi, _sumG);
                 x += 8;
                 weight_xc_I += 8;
                 weight_xc_F += 8;
@@ -678,10 +679,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             {
                 __m256 h_cont = _mm256_loadu_ps(hidden_ptr_r);
 
-                _sumI = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_I), h_cont, _sumI);
-                _sumF = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_F), h_cont, _sumF);
-                _sumO = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_O), h_cont, _sumO);
-                _sumG = _mm256_fmadd_ps(_mm256_loadu_ps(weight_hc_G), h_cont, _sumG);
+                _sumI = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_I), h_cont, _sumI);
+                _sumF = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_F), h_cont, _sumF);
+                _sumO = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_O), h_cont, _sumO);
+                _sumG = _mm256_comp_fmadd_ps(_mm256_loadu_ps(weight_hc_G), h_cont, _sumG);
                 hidden_ptr_r += 8;
                 weight_hc_I += 8;
                 weight_hc_F += 8;
@@ -819,6 +820,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
+#if __AVX2__
         if (opt.use_weight_fp16_storage)
         {
             // Uni directional
@@ -828,11 +830,14 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         }
         else
         {
+#endif
             // Uni directional
             int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
             if (ret != 0)
                 return ret;
+#if __AVX2__
         }
+#endif
     }
 
     if (direction == 2)
@@ -844,7 +849,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         Mat top_blob_reverse(num_output, T, 4u, opt.workspace_allocator);
         if (top_blob_reverse.empty())
             return -100;
-
+#if __AVX2__
         if (opt.use_weight_fp16_storage)
         {
             // Uni directional
@@ -854,14 +859,18 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         }
         else
         {
+#endif
+
             // Uni directional
             int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
             if (ret0 != 0)
                 return ret0;
+#if __AVX2__
         }
-
+#endif
         hidden.fill(0.0f);
         cell.fill(0.0f);
+#if __AVX2__
         if (opt.use_weight_fp16_storage)
         {
             // Uni directional
@@ -871,11 +880,14 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         }
         else
         {
+#endif
             // Uni directional
             int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden, cell, opt);
             if (ret1 != 0)
                 return ret1;
+#if __AVX2__
         }
+#endif
 
         // concat w
         for (int i = 0; i < T; i++)
@@ -898,39 +910,123 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if __AVX__
-    if (bottom_blobs.size() != 3 || top_blobs.size() != 3)
-    {
-        return forward(bottom_blobs[0], top_blobs[0], opt);
-    }
     const Mat& bottom_blob = bottom_blobs[0];
-
     int T = bottom_blob.h;
-    Mat& top_blob = top_blobs[0];
-    Mat& hidden_state = top_blobs[1];
-    Mat& cell_state = top_blobs[2];
+    int num_directions = direction == 2 ? 2 : 1;
 
-    //Copy previous states
-    hidden_state = bottom_blobs[1].clone(opt.blob_allocator);
-    cell_state = bottom_blobs[2].clone(opt.blob_allocator);
-
-    top_blob.create(num_output, T, 4u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
-    if (opt.use_weight_fp16_storage)
+    Mat hidden;
+    Mat cell;
+    Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 3)
     {
-        // Uni directional
-        int ret = lstm_fp16(bottom_blob, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden_state, cell_state, opt);
-        if (ret != 0)
-            return ret;
+        hidden = bottom_blobs[1].clone(hidden_cell_allocator);
+        cell = bottom_blobs[2].clone(hidden_cell_allocator);
     }
     else
     {
-        // Uni directional
-        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden_state, cell_state, opt);
-        if (ret != 0)
-            return ret;
+        hidden.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+
+        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (cell.empty())
+            return -100;
+        cell.fill(0.f);
     }
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // Uni directional
+    if (direction == 0 || direction == 1)
+    {
+#if __AVX2__
+        if (opt.use_weight_fp16_storage)
+        {
+            int ret = lstm_fp16(bottom_blob, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden, cell, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+#endif
+            int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
+            if (ret != 0)
+                return ret;
+#if __AVX2__
+        }
+#endif
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        Mat cell0 = cell.row_range(0, 1);
+#if __AVX2__
+        if (opt.use_weight_fp16_storage)
+        {
+            int ret = lstm_fp16(bottom_blob, top_blob_forward, 0, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden0, cell0, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+#endif
+            int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden0, cell0, opt);
+            if (ret0 != 0)
+                return ret0;
+#if __AVX2__
+        }
+#endif
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        Mat cell1 = cell.row_range(1, 1);
+#if __AVX2__
+        if (opt.use_weight_fp16_storage)
+        {
+            int ret = lstm_fp16(bottom_blob, top_blob_reverse, 1, weight_xc_data_fp16.channel(1), bias_c_data.channel(1), weight_hc_data_fp16.channel(1), hidden1, cell1, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+#endif
+            int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden1, cell1, opt);
+            if (ret1 != 0)
+                return ret1;
+#if __AVX2__
+        }
+#endif
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const float* pf = top_blob_forward.row(i);
+            const float* pr = top_blob_reverse.row(i);
+            float* ptr = top_blob.row(i);
+
+            memcpy(ptr, pf, num_output * sizeof(float));
+            memcpy(ptr + num_output, pr, num_output * sizeof(float));
+        }
+    }
+
+    if (top_blobs.size() == 3)
+    {
+        top_blobs[1] = hidden;
+        top_blobs[2] = cell;
+    }
+
     return 0;
 #else
     return LSTM::forward(bottom_blobs, top_blobs, opt);

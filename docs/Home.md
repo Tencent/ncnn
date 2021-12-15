@@ -120,7 +120,7 @@ memory usage is the RSS item in top utility output
 |inference time(8 thread)|152ms|38ms|
 |memory usage|138.16M|21.56M|
 |library binary size|6.9M|<500K|
-|compability|armeabi-v7a-hard with neon or arm64-v8a|armeabi-v7a with neon or arm64-v8a|
+|compatibility|armeabi-v7a-hard with neon or arm64-v8a|armeabi-v7a with neon or arm64-v8a|
 |thirdparty dependency|boost gflags glog lmdb openblas opencv protobuf|none|
 
 ### FAQ
@@ -149,6 +149,6 @@ Q pc 上的速度很慢
 A pc都是x86架构的，基本没做什么优化，主要用来核对结果，毕竟up主精力是有限的（
 
 
-Q 为何没有 logo
+Q logo
 
-A up主是mc玩家，所以开始是找了萌萌的苦力怕当看板娘的，但是这样子会侵权对吧，只好空出来了...
+A up主是mc玩家，所以灵魂手绘像素猫，还可以找到ncnn...

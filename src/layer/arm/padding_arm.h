@@ -34,9 +34,11 @@ protected:
     int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
+#if NCNN_BF16
     // bf16
     unsigned short value_bf16;
     Mat per_channel_pad_data_bf16;
+#endif
 
     // fp16
     Mat per_channel_pad_data_fp16;

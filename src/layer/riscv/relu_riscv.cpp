@@ -47,8 +47,9 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -113,8 +114,9 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)

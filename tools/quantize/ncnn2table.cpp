@@ -1095,7 +1095,7 @@ int QuantNet::quantize_EQ()
                         pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
                     }
 
-                    ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                    ncnn::Mat in = read_and_resize_image(shapes[jj], listspaths[jj][ii], pixel_convert_type);
 
                     in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 
@@ -1204,7 +1204,7 @@ int QuantNet::quantize_EQ()
                         pixel_convert_type = pixel_convert_type | (type_to_pixel << ncnn::Mat::PIXEL_CONVERT_SHIFT);
                     }
 
-                    ncnn::Mat in = read_and_resize_image(shapes[j], listspaths[j][i], pixel_convert_type);
+                    ncnn::Mat in = read_and_resize_image(shapes[jj], listspaths[jj][ii], pixel_convert_type);
 
                     in.substract_mean_normalize(mean_vals.data(), norm_vals.data());
 

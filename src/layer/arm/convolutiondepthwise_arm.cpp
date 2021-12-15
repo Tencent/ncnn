@@ -14,6 +14,7 @@
 
 #include "convolutiondepthwise_arm.h"
 
+#include "cpu.h"
 #include "layer_type.h"
 
 #if __ARM_NEON
@@ -34,9 +35,12 @@ namespace ncnn {
 
 #if __ARM_NEON
 #include "convolutiondepthwise_3x3_pack4.h"
-#include "convolutiondepthwise_3x3_pack4_bf16s.h"
 #include "convolutiondepthwise_5x5_pack4.h"
+
+#if NCNN_BF16
+#include "convolutiondepthwise_3x3_pack4_bf16s.h"
 #include "convolutiondepthwise_5x5_pack4_bf16s.h"
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 #include "convolutiondepthwise_3x3_pack8_int8.h"
@@ -58,56 +62,19 @@ ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 
     activation = 0;
 }
 
 int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 {
-    if (activation_type == 1)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
+    if (dynamic_weight)
+        return 0;
 
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 2)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // slope
-        activation->load_param(pd);
-    }
-    else if (activation_type == 3)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // min
-        pd.set(1, activation_params[1]); // max
-        activation->load_param(pd);
-    }
-    else if (activation_type == 4)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 5)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-
-    if (activation)
-    {
-        activation->create_pipeline(opt);
-    }
+    activation = create_activation_layer(activation_type, activation_params, opt);
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
@@ -142,7 +109,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 Mat weight_data_r2_packed;
-                convert_packing(weight_data_r2, weight_data_r2_packed, 8);
+                convert_packing(weight_data_r2, weight_data_r2_packed, 8, opt);
 
                 ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_fp16, opt);
             }
@@ -151,7 +118,7 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
                 Mat weight_data_r2_packed;
-                convert_packing(weight_data_r2, weight_data_r2_packed, 4);
+                convert_packing(weight_data_r2, weight_data_r2_packed, 4, opt);
 
                 ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_fp16, opt);
             }
@@ -167,13 +134,14 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
         if (opt.use_bf16_storage)
         {
 #if __ARM_NEON
             if (elempack == 4)
             {
                 Mat weight_data_r2 = weight_data.reshape(maxk, group);
-                convert_packing(weight_data_r2, weight_data_pack4, 4);
+                convert_packing(weight_data_r2, weight_data_pack4, 4, opt);
 
                 ncnn::cast_float32_to_bfloat16(weight_data_pack4, weight_data_pack4_bf16, opt);
             }
@@ -186,13 +154,14 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
             return 0;
         }
+#endif // NCNN_BF16
 
 #if __ARM_NEON
         // pack4
         if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_pack4, 4);
+            convert_packing(weight_data_r2, weight_data_pack4, 4, opt);
 
             return 0;
         }
@@ -362,8 +331,10 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -607,6 +578,115 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     {
         top_blob = top_blob_unpacked;
     }
+
+    return 0;
+}
+
+int ConvolutionDepthWise_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int _kernel_w = _weight_data.w;
+    const int _kernel_h = _weight_data.h;
+    const int _num_output = _weight_data.c * _weight_data.elempack;
+
+    Mat weight_data_flattened;
+    flatten(_weight_data, weight_data_flattened, opt);
+    if (weight_data_flattened.empty())
+        return -100;
+
+#if NCNN_ARM82
+    if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && weight_data_flattened.elembits() == 16)
+    {
+        Mat weight_data_flattened_fp32;
+        cast_float16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
+        weight_data_flattened = weight_data_flattened_fp32;
+    }
+#endif // NCNN_ARM82
+#if NCNN_BF16
+    if (opt.use_bf16_storage && weight_data_flattened.elembits() == 16)
+    {
+        Mat weight_data_flattened_fp32;
+        cast_bfloat16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
+        weight_data_flattened = weight_data_flattened_fp32;
+    }
+#endif // NCNN_BF16
+
+    // weight_data_flattened as pack1
+    weight_data_flattened.w *= weight_data_flattened.elempack;
+    weight_data_flattened.elemsize /= weight_data_flattened.elempack;
+    weight_data_flattened.elempack = 1;
+
+    Mat bias_data_flattened;
+    if (bias_term)
+    {
+        const Mat& _bias_data = bottom_blobs[2];
+        flatten(_bias_data, bias_data_flattened, opt);
+        if (bias_data_flattened.empty())
+            return -100;
+
+#if NCNN_ARM82
+        if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && bias_data_flattened.elembits() == 16)
+        {
+            Mat bias_data_flattened_fp32;
+            cast_float16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
+            bias_data_flattened = bias_data_flattened_fp32;
+        }
+#endif // NCNN_ARM82
+#if NCNN_BF16
+        if (opt.use_bf16_storage && bias_data_flattened.elembits() == 16)
+        {
+            Mat bias_data_flattened_fp32;
+            cast_bfloat16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
+            bias_data_flattened = bias_data_flattened_fp32;
+        }
+#endif // NCNN_BF16
+
+        // bias_data_flattened as pack1
+        bias_data_flattened.w *= bias_data_flattened.elempack;
+        bias_data_flattened.elemsize /= bias_data_flattened.elempack;
+        bias_data_flattened.elempack = 1;
+    }
+
+    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::ConvolutionDepthWise);
+
+    ncnn::ParamDict pd;
+    pd.set(0, _num_output);
+    pd.set(1, _kernel_w);
+    pd.set(11, _kernel_h);
+    pd.set(2, dilation_w);
+    pd.set(12, dilation_h);
+    pd.set(3, stride_w);
+    pd.set(13, stride_h);
+    pd.set(4, pad_left);
+    pd.set(15, pad_right);
+    pd.set(14, pad_top);
+    pd.set(16, pad_bottom);
+    pd.set(18, pad_value);
+    pd.set(5, bias_term);
+    pd.set(6, weight_data_flattened.w);
+    pd.set(7, group);
+    pd.set(8, int8_scale_term);
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    op->load_param(pd);
+
+    ncnn::Mat weights[2];
+    weights[0] = weight_data_flattened;
+    weights[1] = bias_data_flattened;
+
+    op->load_model(ncnn::ModelBinFromMatArray(weights));
+
+    op->create_pipeline(opt);
+
+    op->forward(bottom_blob, top_blob, opt);
+
+    op->destroy_pipeline(opt);
+
+    delete op;
 
     return 0;
 }
@@ -1158,6 +1238,7 @@ int ConvolutionDepthWise_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_bl
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
@@ -1456,6 +1537,7 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
 
     return 0;
 }
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)

@@ -29,7 +29,9 @@ InstanceNorm_arm::InstanceNorm_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int InstanceNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -41,8 +43,10 @@ int InstanceNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
@@ -473,6 +477,7 @@ int InstanceNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& 
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
@@ -646,5 +651,6 @@ int InstanceNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& 
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

@@ -29,7 +29,9 @@ Crop_arm::Crop_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 #if __ARM_NEON
@@ -132,6 +134,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -140,27 +143,27 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #if __ARM_NEON
     if (elempack == 8)
     {
-        int _woffset, _hoffset, _coffset;
-        int _outw, _outh, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        int _woffset, _hoffset, _doffset, _coffset;
+        int _outw, _outh, _outd, _outc;
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
 
         if (dims == 1)
         {
             int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw / out_elempack == w)
+            if (_outw / out_elempack == w && out_elempack == 8)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_woffset % 8 == 0 && out_elempack == 8)
             {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elemsize == 16u)
                     crop_pack8_bf16_fp16s_neon(bottom_blob, top_blob, 0, _woffset / elempack);
                 else
@@ -175,18 +178,18 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw == w && _outh / out_elempack == h)
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 8)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_hoffset % 8 == 0 && out_elempack == 8)
             {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elemsize == 16u)
                     crop_pack8_bf16_fp16s_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
                 else
@@ -201,6 +204,12 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % 8 == 0 && out_elempack == 8)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -210,12 +219,6 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -237,13 +240,58 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                 return 0;
             }
         }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        if (elemsize == 16u)
+                            crop_pack8_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack8_neon(m, borderm, _hoffset, _woffset);
+                    }
+                }
+
+                return 0;
+            }
+        }
     }
 
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _coffset;
-        int _outw, _outh, _outc;
-        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+        int _woffset, _hoffset, _doffset, _coffset;
+        int _outw, _outh, _outd, _outc;
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
 
         if (dims == 1)
         {
@@ -254,18 +302,18 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw / out_elempack == w)
+            if (_outw / out_elempack == w && out_elempack == 4)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_woffset % 4 == 0 && out_elempack == 4)
             {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elemsize == 8u)
                     crop_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, _woffset / elempack);
                 else
@@ -284,18 +332,18 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw == w && _outh / out_elempack == h)
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 4)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_hoffset % 4 == 0 && out_elempack == 4)
             {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elemsize == 8u)
                     crop_pack4_bf16_fp16s_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
                 else
@@ -314,6 +362,12 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 4)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % 4 == 0 && out_elempack == 4)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -323,12 +377,6 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -345,6 +393,55 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                         crop_pack4_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
                     else
                         crop_pack4_neon(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            int out_elempack = opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = _outc % 4 == 0 ? 4 : 1;
+#endif
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 4)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 4 == 0 && out_elempack == 4)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        if (elemsize == 8u)
+                            crop_pack4_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_neon(m, borderm, _hoffset, _woffset);
+                    }
                 }
 
                 return 0;
@@ -372,6 +469,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -384,15 +482,15 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #if __ARM_NEON
     if (elempack == 8)
     {
-        int _woffset, _hoffset, _coffset;
-        int _outw, _outh, _outc;
+        int _woffset, _hoffset, _doffset, _coffset;
+        int _outw, _outh, _outd, _outc;
         if (woffset == -233)
         {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
         }
         else
         {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
         }
 
         if (dims == 1)
@@ -400,18 +498,18 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             int out_elempack = _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw / out_elempack == w)
+            if (_outw / out_elempack == w && out_elempack == 8)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_woffset % 8 == 0 && out_elempack == 8)
             {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elemsize == 16u)
                     crop_pack8_bf16_fp16s_neon(bottom_blob, top_blob, 0, _woffset / elempack);
                 else
@@ -426,18 +524,18 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             int out_elempack = _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw == w && _outh / out_elempack == h)
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 8)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_hoffset % 8 == 0 && out_elempack == 8)
             {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elemsize == 16u)
                     crop_pack8_bf16_fp16s_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
                 else
@@ -452,6 +550,12 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % 8 == 0 && out_elempack == 8)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -461,12 +565,6 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -488,19 +586,64 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                 return 0;
             }
         }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 8)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 8 == 0 && out_elempack == 8)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        if (elemsize == 16u)
+                            crop_pack8_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack8_neon(m, borderm, _hoffset, _woffset);
+                    }
+                }
+
+                return 0;
+            }
+        }
     }
 
     if (elempack == 4)
     {
-        int _woffset, _hoffset, _coffset;
-        int _outw, _outh, _outc;
+        int _woffset, _hoffset, _doffset, _coffset;
+        int _outw, _outh, _outd, _outc;
         if (woffset == -233)
         {
-            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
         }
         else
         {
-            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _coffset, _outw, _outh, _outc);
+            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
         }
 
         if (dims == 1)
@@ -512,18 +655,18 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw / out_elempack == w)
+            if (_outw / out_elempack == w && out_elempack == 4)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_woffset % 4 == 0 && out_elempack == 4)
             {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elemsize == 8u)
                     crop_pack4_bf16_fp16s_neon(bottom_blob, top_blob, 0, _woffset / elempack);
                 else
@@ -542,18 +685,18 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
-            if (_outw == w && _outh / out_elempack == h)
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 4)
             {
                 top_blob = bottom_blob;
                 return 0;
             }
 
-            top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
-            if (top_blob.empty())
-                return -100;
-
             if (_hoffset % 4 == 0 && out_elempack == 4)
             {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
                 if (elemsize == 8u)
                     crop_pack4_bf16_fp16s_neon(bottom_blob, top_blob, _hoffset / elempack, _woffset);
                 else
@@ -572,6 +715,12 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 #endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 4)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
             if (_coffset % 4 == 0 && out_elempack == 4)
             {
                 const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
@@ -581,12 +730,6 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                     top_blob = bottom_blob_sliced.clone();
                     if (top_blob.empty())
                         return -100;
-                }
-
-                if (_outw == w && _outh == h && _outc / out_elempack == channels)
-                {
-                    top_blob = bottom_blob;
-                    return 0;
                 }
 
                 top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -603,6 +746,55 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
                         crop_pack4_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
                     else
                         crop_pack4_neon(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+            int out_elempack = opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+#else
+            int out_elempack = _outc % 4 == 0 ? 4 : 1;
+#endif
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 4)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 4 == 0 && out_elempack == 4)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        if (elemsize == 8u)
+                            crop_pack4_bf16_fp16s_neon(m, borderm, _hoffset, _woffset);
+                        else
+                            crop_pack4_neon(m, borderm, _hoffset, _woffset);
+                    }
                 }
 
                 return 0;

@@ -12,6 +12,7 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
   pull_request:
     branches: [master]
@@ -25,15 +26,15 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
+concurrency:
+  group: linux-x64-cpu-clang-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-clang:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: update
       run: sudo apt-get update
@@ -45,7 +46,7 @@ jobs:
         CXX: clang++
       run: |
         mkdir build-sse2 && cd build-sse2
-        cmake -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-sse2
       run: cd build-sse2 && ctest --output-on-failure -j 2
@@ -67,6 +68,26 @@ jobs:
         cmake --build . -j 2
     - name: test-avx2
       run: cd build-avx2 && ctest --output-on-failure -j 2
+    - name: build-avx
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-avx && cd build-avx
+        cmake -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx
+      run: cd build-avx && ctest --output-on-failure -j 2
+    - name: build-avx1-2
+      env:
+        CC: clang
+        CXX: clang++
+      run: |
+        mkdir build-avx1-2 && cd build-avx1-2
+        cmake -DNCNN_AVX2=ON -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx1-2
+      run: cd build-avx1-2 && ctest --output-on-failure -j 2
     - name: build-noint8
       env:
         CC: clang
@@ -81,10 +102,6 @@ jobs:
   linux-clang-simplestl:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: build-simplestl
       env:

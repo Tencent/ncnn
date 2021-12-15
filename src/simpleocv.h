@@ -124,6 +124,12 @@ struct Point_
     {
     }
 
+    template<typename _Tp2>
+    operator Point_<_Tp2>() const
+    {
+        return Point_<_Tp2>(saturate_cast<_Tp2>(x), saturate_cast<_Tp2>(y));
+    }
+
     _Tp x;
     _Tp y;
 };
@@ -141,6 +147,12 @@ struct Size_
     Size_(_Tp _w, _Tp _h)
         : width(_w), height(_h)
     {
+    }
+
+    template<typename _Tp2>
+    operator Size_<_Tp2>() const
+    {
+        return Size_<_Tp2>(saturate_cast<_Tp2>(width), saturate_cast<_Tp2>(height));
     }
 
     _Tp width;
@@ -164,6 +176,12 @@ struct Rect_
     Rect_(Point_<_Tp> _p, Size_<_Tp> _size)
         : x(_p.x), y(_p.y), width(_size.width), height(_size.height)
     {
+    }
+
+    template<typename _Tp2>
+    operator Rect_<_Tp2>() const
+    {
+        return Rect_<_Tp2>(saturate_cast<_Tp2>(x), saturate_cast<_Tp2>(y), saturate_cast<_Tp2>(width), saturate_cast<_Tp2>(height));
     }
 
     _Tp x;
@@ -436,6 +454,10 @@ enum ImwriteFlags
 };
 
 NCNN_EXPORT bool imwrite(const std::string& path, const Mat& m, const std::vector<int>& params = std::vector<int>());
+
+NCNN_EXPORT void imshow(const std::string& name, const Mat& m);
+
+NCNN_EXPORT int waitKey(int delay = 0);
 
 #if NCNN_PIXEL
 NCNN_EXPORT void resize(const Mat& src, Mat& dst, const Size& size, float sw = 0.f, float sh = 0.f, int flags = 0);

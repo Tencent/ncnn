@@ -12,6 +12,7 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
   pull_request:
     branches: [master]
@@ -25,15 +26,15 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
     - 'tools/**'
+    - '!tools/pnnx/**'
     - 'examples/**'
+concurrency:
+  group: linux-x64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-gcc:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: update
       run: sudo apt-get update
@@ -42,7 +43,7 @@ jobs:
     - name: build-sse2
       run: |
         mkdir build-sse2 && cd build-sse2
-        cmake -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-sse2
       run: cd build-sse2 && ctest --output-on-failure -j 2
@@ -58,6 +59,20 @@ jobs:
         cmake --build . -j 2
     - name: test-avx2
       run: cd build-avx2 && ctest --output-on-failure -j 2
+    - name: build-avx
+      run: |
+        mkdir build-avx && cd build-avx
+        cmake -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx
+      run: cd build-avx && ctest --output-on-failure -j 2
+    - name: build-avx1-2
+      run: |
+        mkdir build-avx1-2 && cd build-avx1-2
+        cmake -DNCNN_AVX2=ON -DNCNN_AVX=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx1-2
+      run: cd build-avx1-2 && ctest --output-on-failure -j 2
     - name: build-noint8
       run: |
         mkdir build-noint8 && cd build-noint8
@@ -67,12 +82,8 @@ jobs:
       run: cd build-noint8 && ctest --output-on-failure -j 2
 
   linux-gcc-cpp03-nostdio-nostring-simplestl:
-    runs-on: ubuntu-16.04
+    runs-on: ubuntu-18.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.0
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: build-nostdio
       run: |
@@ -93,3 +104,21 @@ jobs:
         cmake --build . -j 2
     - name: test-simplestl
       run: cd build-simplestl && ctest --output-on-failure -j 2
+
+  linux-gcc-avx512:
+    runs-on: [self-hosted, linux]
+    steps:
+    - uses: actions/checkout@v2
+    - name: build
+      env:
+        CC: gcc
+        CXX: g++
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: |
+        mkdir build && cd build
+        cmake -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 4
+    - name: test
+      env:
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: cd build && ctest --output-on-failure -j 2

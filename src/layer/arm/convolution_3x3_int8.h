@@ -16,9 +16,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat>& kernel_tm2, int inch, int outch)
+static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat>& kernel_tm2, int inch, int outch, const Option& opt)
 {
-    Mat kernel_tm(4 * 4, inch, outch, 2ul);
+    Mat kernel_tm(4 * 4, inch, outch, (size_t)2u);
 
     // G
     const short ktm[4][3] = {
@@ -28,7 +28,7 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
         {0, 0, 2}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -65,7 +65,7 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
 
     for (int r = 0; r < 4; r++)
     {
-        Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, 2u);
+        Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)2u);
 
         int p = 0;
         for (; p + 7 < outch; p += 8)
@@ -1059,9 +1059,9 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat>& kernel_tm2, int inch, int outch)
+static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat>& kernel_tm2, int inch, int outch, const Option& opt)
 {
-    Mat kernel_tm(6 * 6, inch, outch, 2ul);
+    Mat kernel_tm(6 * 6, inch, outch, (size_t)2u);
 
     // G
     // const float ktm[6][3] = {
@@ -1081,7 +1081,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
         {0, 0, 6}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -1118,7 +1118,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
 
     for (int r = 0; r < 9; r++)
     {
-        Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, 2u);
+        Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)2u);
 
         int p = 0;
         for (; p + 7 < outch; p += 8)

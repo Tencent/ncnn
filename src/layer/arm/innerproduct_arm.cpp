@@ -34,7 +34,9 @@ InnerProduct_arm::InnerProduct_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 
     flatten = 0;
     activation = 0;
@@ -42,8 +44,6 @@ InnerProduct_arm::InnerProduct_arm()
 
 int InnerProduct_arm::create_pipeline(const Option& opt)
 {
-#if __ARM_NEON
-    if (opt.use_packing_layout || opt.use_int8_inference)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -53,7 +53,6 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-#endif // __ARM_NEON
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
@@ -69,10 +68,12 @@ int InnerProduct_arm::create_pipeline(const Option& opt)
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage)
     {
         return create_pipeline_bf16s(opt);
     }
+#endif
 
     return 0;
 }
@@ -117,8 +118,10 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     const int num_input = weight_data_size / num_output;
 
@@ -1535,6 +1538,7 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
@@ -1895,62 +1899,22 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
     return 0;
 }
+#endif // NCNN_BF16
 
 #if NCNN_INT8
 int InnerProduct_arm::create_pipeline_int8_arm(const Option& opt)
 {
-    if (activation_type == 1)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 2)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // slope
-        activation->load_param(pd);
-    }
-    else if (activation_type == 3)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // min
-        pd.set(1, activation_params[1]); // max
-        activation->load_param(pd);
-    }
-    else if (activation_type == 4)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 5)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-
-    if (activation)
-    {
-        activation->create_pipeline(opt);
-    }
+    activation = create_activation_layer(activation_type, activation_params, opt);
 
     const int num_input = weight_data_size / num_output;
 
     int out_elempack = 1;
-
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
+#endif
 
     // src = inch-outch
     // dst = pb-inch-outch/pb
@@ -1980,17 +1944,6 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
 {
     const int num_input = weight_data_size / num_output;
 
-    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
-    {
-        // gemm
-        Mat bottom_blob_unpacked;
-        Option opt_unpack = opt;
-        opt_unpack.blob_allocator = opt.workspace_allocator;
-        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_unpack);
-
-        return forward_int8(bottom_blob_unpacked, top_blob, opt);
-    }
-
     int elembits = bottom_blob.elembits();
 
     Mat bottom_blob_int8 = bottom_blob;
@@ -1999,6 +1952,300 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
         Option opt_q = opt;
         opt_q.blob_allocator = opt.workspace_allocator;
         quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+    }
+
+    if (bottom_blob_int8.dims == 2 && bottom_blob_int8.w == num_input && bottom_blob_int8.h * bottom_blob_int8.elempack > 1)
+    {
+        // gemm
+        int h = bottom_blob_int8.h;
+        int elempack = bottom_blob_int8.elempack;
+
+        int out_elempack = 1;
+#if __ARM_NEON
+        if (opt.use_packing_layout)
+        {
+            out_elempack = h * elempack % 4 == 0 ? 4 : 1;
+        }
+#endif
+
+        int outh = h * elempack / out_elempack;
+
+        top_blob.create(num_output, outh, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        Mat scale_data(num_output);
+        for (int p = 0; p < num_output; p++)
+        {
+            // dequantize
+            float scale_in;
+            if (weight_data_int8_scales[p] == 0)
+                scale_in = 0;
+            else
+                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+            scale_data[p] = scale_in;
+        }
+
+#if __ARM_NEON
+        if (elempack == 8)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < h; j++)
+            {
+                float* outptr0 = top_blob.row(j * 2);
+                float* outptr1 = top_blob.row(j * 2 + 1);
+
+                for (int p = 0; p < num_output; p++)
+                {
+                    const signed char* kptr = (const signed char*)weight_data + num_input * p;
+                    const signed char* m = bottom_blob_int8.row<const signed char>(j);
+
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    int32x4_t _sum1 = vdupq_n_s32(0);
+
+                    int i = 0;
+                    for (; i + 3 < num_input; i += 4)
+                    {
+                        int8x16_t _val0 = vld1q_s8(m);
+                        int8x16_t _val1 = vld1q_s8(m + 16);
+
+                        int8x8_t _w0 = vdup_n_s8(kptr[0]);
+                        int8x8_t _w1 = vdup_n_s8(kptr[1]);
+                        int8x8_t _w2 = vdup_n_s8(kptr[2]);
+                        int8x8_t _w3 = vdup_n_s8(kptr[3]);
+
+                        int16x8_t _s0 = vmull_s8(vget_low_s8(_val0), _w0);
+                        int16x8_t _s1 = vmull_s8(vget_low_s8(_val1), _w2);
+                        _s0 = vmlal_s8(_s0, vget_high_s8(_val0), _w1);
+                        _s1 = vmlal_s8(_s1, vget_high_s8(_val1), _w3);
+
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s1));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s1));
+
+                        m += 32;
+                        kptr += 4;
+                    }
+                    for (; i + 1 < num_input; i += 2)
+                    {
+                        int8x16_t _val0 = vld1q_s8(m);
+
+                        int8x8_t _w0 = vdup_n_s8(kptr[0]);
+                        int8x8_t _w1 = vdup_n_s8(kptr[1]);
+
+                        int16x8_t _s0 = vmull_s8(vget_low_s8(_val0), _w0);
+                        _s0 = vmlal_s8(_s0, vget_high_s8(_val0), _w1);
+
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+
+                        m += 16;
+                        kptr += 2;
+                    }
+                    for (; i < num_input; i++)
+                    {
+                        int8x8_t _val = vld1_s8(m);
+                        int8x8_t _w = vdup_n_s8(kptr[0]);
+
+                        int16x8_t _s0 = vmull_s8(_val, _w);
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+
+                        m += 8;
+                        kptr += 1;
+                    }
+
+                    // dequantize and relu
+                    float32x4_t _scale_in = vdupq_n_f32(scale_data[p]);
+
+                    float32x4_t _sumfp32_0 = vcvtq_f32_s32(_sum0);
+                    float32x4_t _sumfp32_1 = vcvtq_f32_s32(_sum1);
+                    if (bias_term)
+                    {
+                        float32x4_t _bias = vdupq_n_f32(bias_data[p]);
+                        _sumfp32_0 = vmlaq_f32(_bias, _sumfp32_0, _scale_in);
+                        _sumfp32_1 = vmlaq_f32(_bias, _sumfp32_1, _scale_in);
+                    }
+                    else
+                    {
+                        _sumfp32_0 = vmulq_f32(_sumfp32_0, _scale_in);
+                        _sumfp32_1 = vmulq_f32(_sumfp32_1, _scale_in);
+                    }
+
+                    _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
+                    _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
+
+                    vst1q_f32(outptr0, _sumfp32_0);
+                    vst1q_f32(outptr1, _sumfp32_1);
+                    outptr0 += 4;
+                    outptr1 += 4;
+                }
+            }
+        }
+
+        if (elempack == 1 && out_elempack == 4)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < outh; j++)
+            {
+                float* outptr = top_blob.row(j);
+
+                for (int p = 0; p < num_output; p++)
+                {
+                    const signed char* kptr = (const signed char*)weight_data + num_input * p;
+                    const signed char* m0 = bottom_blob_int8.row<const signed char>(j * 4);
+                    const signed char* m1 = bottom_blob_int8.row<const signed char>(j * 4 + 1);
+                    const signed char* m2 = bottom_blob_int8.row<const signed char>(j * 4 + 2);
+                    const signed char* m3 = bottom_blob_int8.row<const signed char>(j * 4 + 3);
+
+                    int sum0 = 0;
+                    int sum1 = 0;
+                    int sum2 = 0;
+                    int sum3 = 0;
+
+                    int i = 0;
+
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    int32x4_t _sum1 = vdupq_n_s32(0);
+                    int32x4_t _sum2 = vdupq_n_s32(0);
+                    int32x4_t _sum3 = vdupq_n_s32(0);
+                    for (; i + 7 < num_input; i += 8)
+                    {
+                        int8x8_t _val0 = vld1_s8(m0);
+                        int8x8_t _val1 = vld1_s8(m1);
+                        int8x8_t _val2 = vld1_s8(m2);
+                        int8x8_t _val3 = vld1_s8(m3);
+                        int8x8_t _w = vld1_s8(kptr);
+
+                        int16x8_t _s0 = vmull_s8(_val0, _w);
+                        int16x8_t _s1 = vmull_s8(_val1, _w);
+                        int16x8_t _s2 = vmull_s8(_val2, _w);
+                        int16x8_t _s3 = vmull_s8(_val3, _w);
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_low_s16(_s1));
+                        _sum2 = vaddw_s16(_sum2, vget_low_s16(_s2));
+                        _sum3 = vaddw_s16(_sum3, vget_low_s16(_s3));
+                        _sum0 = vaddw_s16(_sum0, vget_high_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s1));
+                        _sum2 = vaddw_s16(_sum2, vget_high_s16(_s2));
+                        _sum3 = vaddw_s16(_sum3, vget_high_s16(_s3));
+
+                        m0 += 8;
+                        m1 += 8;
+                        m2 += 8;
+                        m3 += 8;
+                        kptr += 8;
+                    }
+#if __aarch64__
+                    sum0 = vaddvq_s32(_sum0);
+                    sum1 = vaddvq_s32(_sum1);
+                    sum2 = vaddvq_s32(_sum2);
+                    sum3 = vaddvq_s32(_sum3);
+#else
+                    int32x2_t _s20 = vadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0));
+                    int32x2_t _s21 = vadd_s32(vget_low_s32(_sum1), vget_high_s32(_sum1));
+                    int32x2_t _s22 = vadd_s32(vget_low_s32(_sum2), vget_high_s32(_sum2));
+                    int32x2_t _s23 = vadd_s32(vget_low_s32(_sum3), vget_high_s32(_sum3));
+                    int32x2_t _s201 = vpadd_s32(_s20, _s21);
+                    int32x2_t _s223 = vpadd_s32(_s22, _s23);
+                    sum0 = vget_lane_s32(_s201, 0);
+                    sum1 = vget_lane_s32(_s201, 1);
+                    sum2 = vget_lane_s32(_s223, 0);
+                    sum3 = vget_lane_s32(_s223, 1);
+#endif
+                    for (; i < num_input; i++)
+                    {
+                        sum0 += *m0++ * kptr[0];
+                        sum1 += *m1++ * kptr[0];
+                        sum2 += *m2++ * kptr[0];
+                        sum3 += *m3++ * kptr[0];
+                        kptr += 1;
+                    }
+
+                    // dequantize and relu
+                    float sumfp32_0 = sum0 * scale_data[p];
+                    float sumfp32_1 = sum1 * scale_data[p];
+                    float sumfp32_2 = sum2 * scale_data[p];
+                    float sumfp32_3 = sum3 * scale_data[p];
+
+                    if (bias_term)
+                    {
+                        sumfp32_0 += bias_data[p];
+                        sumfp32_1 += bias_data[p];
+                        sumfp32_2 += bias_data[p];
+                        sumfp32_3 += bias_data[p];
+                    }
+
+                    outptr[0] = activation_ss(sumfp32_0, activation_type, activation_params);
+                    outptr[1] = activation_ss(sumfp32_1, activation_type, activation_params);
+                    outptr[2] = activation_ss(sumfp32_2, activation_type, activation_params);
+                    outptr[3] = activation_ss(sumfp32_3, activation_type, activation_params);
+                    outptr += 4;
+                }
+            }
+        }
+#endif // __ARM_NEON
+
+        if (elempack == 1 && out_elempack == 1)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int j = 0; j < outh; j++)
+            {
+                float* outptr = top_blob.row(j);
+
+                for (int p = 0; p < num_output; p++)
+                {
+                    const signed char* kptr = (const signed char*)weight_data + num_input * p;
+                    const signed char* m = bottom_blob_int8.row<const signed char>(j);
+
+                    int sum = 0;
+
+                    int i = 0;
+#if __ARM_NEON
+                    int32x4_t _sum0 = vdupq_n_s32(0);
+                    int32x4_t _sum1 = vdupq_n_s32(0);
+                    for (; i + 7 < num_input; i += 8)
+                    {
+                        int8x8_t _val = vld1_s8(m);
+                        int8x8_t _w = vld1_s8(kptr);
+
+                        int16x8_t _s0 = vmull_s8(_val, _w);
+                        _sum0 = vaddw_s16(_sum0, vget_low_s16(_s0));
+                        _sum1 = vaddw_s16(_sum1, vget_high_s16(_s0));
+
+                        m += 8;
+                        kptr += 8;
+                    }
+
+                    _sum0 = vaddq_s32(_sum0, _sum1);
+#if __aarch64__
+                    sum = vaddvq_s32(_sum0);
+#else
+                    int32x2_t _s2 = vadd_s32(vget_low_s32(_sum0), vget_high_s32(_sum0));
+                    _s2 = vpadd_s32(_s2, _s2);
+                    sum = vget_lane_s32(_s2, 0);
+#endif
+#endif // __ARM_NEON
+                    for (; i < num_input; i++)
+                    {
+                        sum += *m++ * *kptr++;
+                    }
+
+                    // dequantize and relu
+                    float sumfp32 = sum * scale_data[p];
+
+                    if (bias_term)
+                        sumfp32 += bias_data[p];
+
+                    outptr[0] = activation_ss(sumfp32, activation_type, activation_params);
+                    outptr += 1;
+                }
+            }
+        }
+
+        return 0;
     }
 
     Mat bottom_blob_int8_flattened = bottom_blob_int8;
@@ -2012,10 +2259,12 @@ int InnerProduct_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, co
     //     int elempack = bottom_blob_int8_flattened.elempack;
 
     int out_elempack = 1;
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 8 == 0 ? 8 : 1;
     }
+#endif
 
     top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
     if (top_blob.empty())

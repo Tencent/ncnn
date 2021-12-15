@@ -5,7 +5,7 @@ on:
       - '*'
 
 env:
-  DEVELOPER_DIR: /Applications/Xcode_12.2.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
   EMSCRIPTEN_VERSION: 2.0.8
 
 jobs:
@@ -38,92 +38,6 @@ jobs:
       with:
         name: ${{ env.PACKAGENAME }}
         path: /tmp/${{ env.PACKAGENAME }}.zip
-
-  ubuntu-1604:
-    needs: [setup]
-    runs-on: ubuntu-16.04
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
-    - name: apt
-      run: |
-        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
-        cmake --build . --target install
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/bin
-        cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/onnx/onnx2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/darknet/darknet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
-        strip -g ${{ env.PACKAGENAME }}/bin/*
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v2
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
-
-  ubuntu-1604-shared:
-    needs: [setup]
-    runs-on: ubuntu-16.04
-    env:
-      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604-shared
-    steps:
-    - uses: actions/checkout@v2
-      with:
-        submodules: true
-    - name: apt
-      run: |
-        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
-    - name: build
-      run: |
-        mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
-        cmake --build . -j 2
-        cmake --build . --target install
-    - name: package
-      run: |
-        rm -rf ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}
-        cp -r -P build/install/* ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/bin
-        cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/onnx/onnx2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/darknet/darknet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
-        strip -g ${{ env.PACKAGENAME }}/bin/*
-        rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
-    - name: upload-zip
-      uses: actions/upload-artifact@v2
-      with:
-        name: ${{ env.PACKAGENAME }}
-        path: ${{ env.PACKAGENAME }}.zip
 
   ubuntu-1804:
     needs: [setup]
@@ -302,7 +216,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: openmp-install
         key: openmp-macos-release-11.0.0
@@ -324,7 +238,7 @@ jobs:
         mkdir build-x86_64 && cd build-x86_64
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -333,7 +247,7 @@ jobs:
         mkdir build-arm64 && cd build-arm64
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -373,7 +287,7 @@ jobs:
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-arm64
       run: |
@@ -383,7 +297,7 @@ jobs:
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: package-openmp
       run: |
@@ -435,47 +349,38 @@ jobs:
       run: |
         sudo cp openmp-macos/include/* $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include
         sudo cp openmp-macos/lib/libomp.a $DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "vulkansdk-macos-1.2.162.0"
-        key: vulkansdk-macos-1.2.162.0
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.2.162.0/mac/vulkansdk-macos-1.2.162.0.dmg?Human=true -O vulkansdk-macos-1.2.162.0.dmg
-        hdiutil attach vulkansdk-macos-1.2.162.0.dmg
-        cp -r /Volumes/vulkansdk-macos-1.2.162.0 .
-        rm -rf vulkansdk-macos-1.2.162.0/Applications
-        find vulkansdk-macos-1.2.162.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
-        hdiutil detach /Volumes/vulkansdk-macos-1.2.162.0
+        wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
+        hdiutil attach vulkansdk-macos-1.2.189.0.dmg
+        sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
+        hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
     - name: build-x86_64
       run: |
-        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
+        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
         mkdir build-x86_64 && cd build-x86_64
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
-            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
+            -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/include \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-arm64
       run: |
-        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.162.0/macOS
+        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
         mkdir build-arm64 && cd build-arm64
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DCMAKE_CROSSCOMPILING=ON -DCMAKE_SYSTEM_PROCESSOR=arm64 \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/include \
-            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.162.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
+            -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/include \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: package-openmp
       run: |
@@ -528,7 +433,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: openmp-install
         key: openmp-ios-release-11.0.0
@@ -552,7 +457,7 @@ jobs:
             -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-simulator
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -563,7 +468,7 @@ jobs:
             -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -606,7 +511,7 @@ jobs:
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-simulator
       run: |
@@ -617,7 +522,7 @@ jobs:
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: package-openmp
       run: |
@@ -671,45 +576,39 @@ jobs:
         sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
         sudo cp openmp-ios/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "vulkansdk-macos-1.2.135.0"
-        key: vulkansdk-macos-1.2.135.0
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/mac/vulkansdk-macos-1.2.135.0.tar.gz?Human=true -O vulkansdk-macos-1.2.135.0.tar.gz
-        tar -xf vulkansdk-macos-1.2.135.0.tar.gz
-        rm -rf vulkansdk-macos-1.2.135.0/Applications
-        find vulkansdk-macos-1.2.135.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+        wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
+        hdiutil attach vulkansdk-macos-1.2.189.0.dmg
+        sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
+        hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
     - name: build
       run: |
-        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
+        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/include \
-            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
+            -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/include \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-simulator
       run: |
+        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
         mkdir build-simulator && cd build-simulator
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=SIMULATOR64 -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/include \
-            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
+            -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/include \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: package-openmp
       run: |
@@ -762,7 +661,7 @@ jobs:
     steps:
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: openmp-install
         key: openmp-ios-bitcode-release-11.0.0
@@ -786,7 +685,7 @@ jobs:
             -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-simulator
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -797,7 +696,7 @@ jobs:
             -DIOS_PLATFORM=SIMULATOR -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="i386;x86_64" \
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
@@ -840,7 +739,7 @@ jobs:
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-simulator
       run: |
@@ -851,7 +750,7 @@ jobs:
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: package-openmp
       run: |
@@ -905,45 +804,39 @@ jobs:
         sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
         sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "vulkansdk-macos-1.2.135.0"
-        key: vulkansdk-macos-1.2.135.0
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.2.135.0/mac/vulkansdk-macos-1.2.135.0.tar.gz?Human=true -O vulkansdk-macos-1.2.135.0.tar.gz
-        tar -xf vulkansdk-macos-1.2.135.0.tar.gz
-        rm -rf vulkansdk-macos-1.2.135.0/Applications
-        find vulkansdk-macos-1.2.135.0 -type f | grep -v -E 'vulkan|glslang|MoltenVK' | xargs rm
+        wget https://sdk.lunarg.com/sdk/download/1.2.189.0/mac/vulkansdk-macos-1.2.189.0.dmg?Human=true -O vulkansdk-macos-1.2.189.0.dmg
+        hdiutil attach vulkansdk-macos-1.2.189.0.dmg
+        sudo /Volumes/vulkansdk-macos-1.2.189.0/InstallVulkan.app/Contents/MacOS/InstallVulkan --root $GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0 --accept-licenses --default-answer --confirm-command install
+        hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
     - name: build
       run: |
-        export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.135.0/macOS
+        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=OS64 -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
-            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/include \
-            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
+            -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/include \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: build-simulator
       run: |
+        export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
         mkdir build-simulator && cd build-simulator
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DIOS_PLATFORM=SIMULATOR64 -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="x86_64" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
-            -DVulkan_INCLUDE_DIR=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/include \
-            -DVulkan_LIBRARY=`pwd`/../vulkansdk-macos-1.2.135.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
+            -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/include \
+            -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 3
         cmake --build . --target install
     - name: package-openmp
       run: |
@@ -1124,22 +1017,22 @@ jobs:
         submodules: true
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
-        path: "1.2.148.1"
-        key: vulkansdk-linux-x86_64-1.2.148.1
+        path: "1.2.189.0"
+        key: vulkansdk-linux-x86_64-1.2.189.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.2.148.1/linux/vulkansdk-linux-x86_64-1.2.148.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.148.1.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.2.148.1.tar.gz
-        rm -rf 1.2.148.1/source 1.2.148.1/samples
-        find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+        wget https://sdk.lunarg.com/sdk/download/1.2.189.0/linux/vulkansdk-linux-x86_64-1.2.189.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.189.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.189.0.tar.gz
+        rm -rf 1.2.189.0/source 1.2.189.0/samples
+        find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: ndk-fix-debug
       run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
     - name: build-armv7
       run: |
-        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-armv7 && cd build-armv7
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 \
@@ -1148,7 +1041,7 @@ jobs:
         cmake --build . --target install
     - name: build-aarch64
       run: |
-        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-aarch64 && cd build-aarch64
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 \
@@ -1157,7 +1050,7 @@ jobs:
         cmake --build . --target install
     - name: build-x86
       run: |
-        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86 && cd build-x86
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 \
@@ -1166,7 +1059,7 @@ jobs:
         cmake --build . --target install
     - name: build-x86_64
       run: |
-        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86_64 && cd build-x86_64
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 \
@@ -1204,22 +1097,22 @@ jobs:
         submodules: true
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
-        path: "1.2.148.1"
-        key: vulkansdk-linux-x86_64-1.2.148.1
+        path: "1.2.189.0"
+        key: vulkansdk-linux-x86_64-1.2.189.0
     - name: vulkansdk
       if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        wget https://sdk.lunarg.com/sdk/download/1.2.148.1/linux/vulkansdk-linux-x86_64-1.2.148.1.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.148.1.tar.gz
-        tar -xf vulkansdk-linux-x86_64-1.2.148.1.tar.gz
-        rm -rf 1.2.148.1/source 1.2.148.1/samples
-        find 1.2.148.1 -type f | grep -v -E 'vulkan|glslang' | xargs rm
+        wget https://sdk.lunarg.com/sdk/download/1.2.189.0/linux/vulkansdk-linux-x86_64-1.2.189.0.tar.gz?Human=true -O vulkansdk-linux-x86_64-1.2.189.0.tar.gz
+        tar -xf vulkansdk-linux-x86_64-1.2.189.0.tar.gz
+        rm -rf 1.2.189.0/source 1.2.189.0/samples
+        find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: ndk-fix-debug
       run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
     - name: build-armv7
       run: |
-        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-armv7 && cd build-armv7
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 \
@@ -1228,7 +1121,7 @@ jobs:
         cmake --build . --target install
     - name: build-aarch64
       run: |
-        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-aarch64 && cd build-aarch64
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 \
@@ -1237,7 +1130,7 @@ jobs:
         cmake --build . --target install
     - name: build-x86
       run: |
-        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86 && cd build-x86
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 \
@@ -1246,7 +1139,7 @@ jobs:
         cmake --build . --target install
     - name: build-x86_64
       run: |
-        export PATH=`pwd`/1.2.148.1/x86_64/bin:$PATH
+        export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86_64 && cd build-x86_64
         cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 \
@@ -1291,7 +1184,7 @@ jobs:
         source emsdk/emsdk_env.sh
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF \
+            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF  -DNCNN_AV2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -1300,7 +1193,7 @@ jobs:
         source emsdk/emsdk_env.sh
         mkdir build-simd && cd build-simd
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF \
+            -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AV2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -1309,7 +1202,7 @@ jobs:
         source emsdk/emsdk_env.sh
         mkdir build-threads && cd build-threads
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF \
+            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AV2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -1318,7 +1211,7 @@ jobs:
         source emsdk/emsdk_env.sh
         mkdir build-simd-threads && cd build-simd-threads
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF \
+            -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AV2=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
         cmake --build . --target install
@@ -1349,7 +1242,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: "protobuf-install"
         key: protobuf-vs2015-x86-x64-install
@@ -1368,28 +1261,23 @@ jobs:
         cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "VulkanSDK"
-        key: VulkanSDK-1.1.114.0-Installer
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
-        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
-        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.189.0/windows/VulkanSDK-1.2.189.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
+        $installer = Start-Process -FilePath VulkanSDK.exe -Wait -PassThru -ArgumentList @("/S");
+        $installer.WaitForExit();
     - name: build-x86
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x86; cd build-x86
         cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x64; cd build-x64
         cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
@@ -1399,8 +1287,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/x86/bin
-        mkdir ${{ env.PACKAGENAME }}/x64/bin
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
@@ -1439,7 +1325,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: "protobuf-install"
         key: protobuf-vs2015-x86-x64-install
@@ -1458,28 +1344,23 @@ jobs:
         cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "VulkanSDK"
-        key: VulkanSDK-1.1.114.0-Installer
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
-        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
-        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.189.0/windows/VulkanSDK-1.2.189.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
+        $installer = Start-Process -FilePath VulkanSDK.exe -Wait -PassThru -ArgumentList @("/S");
+        $installer.WaitForExit();
     - name: build-x86
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x86; cd build-x86
         cmake -T v140,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x64; cd build-x64
         cmake -T v140,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
@@ -1527,7 +1408,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x86-x64-install
@@ -1546,28 +1427,23 @@ jobs:
         cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "VulkanSDK"
-        key: VulkanSDK-1.1.114.0-Installer
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
-        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
-        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.189.0/windows/VulkanSDK-1.2.189.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
+        $installer = Start-Process -FilePath VulkanSDK.exe -Wait -PassThru -ArgumentList @("/S");
+        $installer.WaitForExit();
     - name: build-x86
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x86; cd build-x86
         cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x64; cd build-x64
         cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
@@ -1577,8 +1453,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/x86/bin
-        mkdir ${{ env.PACKAGENAME }}/x64/bin
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
@@ -1617,7 +1491,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x86-x64-install
@@ -1636,28 +1510,23 @@ jobs:
         cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "VulkanSDK"
-        key: VulkanSDK-1.1.114.0-Installer
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
-        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
-        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.189.0/windows/VulkanSDK-1.2.189.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
+        $installer = Start-Process -FilePath VulkanSDK.exe -Wait -PassThru -ArgumentList @("/S");
+        $installer.WaitForExit();
     - name: build-x86
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x86; cd build-x86
         cmake -T v141,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x64; cd build-x64
         cmake -T v141,host=x64 -A x64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
@@ -1705,7 +1574,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: "protobuf-install"
         key: protobuf-vs2019-x86-x64-install
@@ -1724,28 +1593,23 @@ jobs:
         cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "VulkanSDK"
-        key: VulkanSDK-1.1.114.0-Installer
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
-        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
-        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.189.0/windows/VulkanSDK-1.2.189.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
+        $installer = Start-Process -FilePath VulkanSDK.exe -Wait -PassThru -ArgumentList @("/S");
+        $installer.WaitForExit();
     - name: build-x86
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x86; cd build-x86
         cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x64; cd build-x64
         cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
@@ -1755,8 +1619,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
-        mkdir ${{ env.PACKAGENAME }}/x86/bin
-        mkdir ${{ env.PACKAGENAME }}/x64/bin
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
@@ -1795,7 +1657,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: "protobuf-install"
         key: protobuf-vs2019-x86-x64-install
@@ -1814,28 +1676,23 @@ jobs:
         cmake -DCMAKE_INSTALL_PREFIX="$env:GITHUB_WORKSPACE\protobuf-install\x64" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
-    - name: cache-vulkansdk
-      id: cache-vulkansdk
-      uses: actions/cache@v2.1.6
-      with:
-        path: "VulkanSDK"
-        key: VulkanSDK-1.1.114.0-Installer
     - name: vulkansdk
-      if: steps.cache-vulkansdk.outputs.cache-hit != 'true'
       run: |
-        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.1.114.0/windows/VulkanSDK-1.1.114.0-Installer.exe?Human=true -OutFile VulkanSDK-1.1.114.0-Installer.exe
-        7z x -aoa ./VulkanSDK-1.1.114.0-Installer.exe -oVulkanSDK
-        Remove-Item .\VulkanSDK\Demos, .\VulkanSDK\glslang, .\VulkanSDK\Samples, .\VulkanSDK\shaderc, .\VulkanSDK\spirv-tools, .\VulkanSDK\Third-Party, .\VulkanSDK\Tools, .\VulkanSDK\Tools32 -Recurse
+        Invoke-WebRequest -Uri https://sdk.lunarg.com/sdk/download/1.2.189.0/windows/VulkanSDK-1.2.189.0-Installer.exe?Human=true -OutFile VulkanSDK.exe
+        $installer = Start-Process -FilePath VulkanSDK.exe -Wait -PassThru -ArgumentList @("/S");
+        $installer.WaitForExit();
     - name: build-x86
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x86; cd build-x86
         cmake -T v142,host=x64 -A Win32 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x86\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x86\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x86\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
     - name: build-x64
       run: |
-        $env:VULKAN_SDK="$(pwd)/VulkanSDK"
+        $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
+        $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-x64; cd build-x64
         cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
@@ -1873,7 +1730,7 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   release:
-    needs: [setup, full-source, ubuntu-1604, ubuntu-1604-shared, ubuntu-1804, ubuntu-1804-shared, ubuntu-2004, ubuntu-2004-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared]
+    needs: [setup, full-source, ubuntu-1804, ubuntu-1804-shared, ubuntu-2004, ubuntu-2004-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared]
     runs-on: ubuntu-latest
     steps:
     - name: download
@@ -1897,28 +1754,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-full-source
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
-        asset_name: ${{ env.PACKAGENAME }}.zip
-        asset_content_type: application/zip
-
-    - name: upload-ncnn-ubuntu-1604
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
-        asset_name: ${{ env.PACKAGENAME }}.zip
-        asset_content_type: application/zip
-
-    - name: upload-ncnn-ubuntu-1604-shared
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1604-shared
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip

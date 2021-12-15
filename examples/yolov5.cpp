@@ -15,12 +15,23 @@
 #include "layer.h"
 #include "net.h"
 
+#if defined(USE_NCNN_SIMPLEOCV)
+#include "simpleocv.h"
+#else
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
+#endif
+#include <float.h>
 #include <stdio.h>
 #include <vector>
 
+#define YOLOV5_V60 1 //YOLOv5 v6.0
+
+#if YOLOV5_V60
+#define MAX_STRIDE 64
+#else
+#define MAX_STRIDE 32
 class YoloV5Focus : public ncnn::Layer
 {
 public:
@@ -68,6 +79,7 @@ public:
 };
 
 DEFINE_LAYER_CREATOR(YoloV5Focus)
+#endif //YOLOV5_V60
 
 struct Object
 {
@@ -262,12 +274,17 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     yolov5.opt.use_vulkan_compute = true;
     // yolov5.opt.use_bf16_storage = true;
 
-    yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
-
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
+#if YOLOV5_V60
+    yolov5.load_param("yolov5s_6.0.param");
+    yolov5.load_model("yolov5s_6.0.bin");
+#else
+    yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
+
     yolov5.load_param("yolov5s.param");
     yolov5.load_model("yolov5s.bin");
+#endif
 
     const int target_size = 640;
     const float prob_threshold = 0.25f;
@@ -276,7 +293,7 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     int img_w = bgr.cols;
     int img_h = bgr.rows;
 
-    // letterbox pad to multiple of 32
+    // letterbox pad to multiple of MAX_STRIDE
     int w = img_w;
     int h = img_h;
     float scale = 1.f;
@@ -297,8 +314,8 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // pad to target_size rectangle
     // yolov5/utils/datasets.py letterbox
-    int wpad = (w + 31) / 32 * 32 - w;
-    int hpad = (h + 31) / 32 * 32 - h;
+    int wpad = (w + MAX_STRIDE - 1) / MAX_STRIDE * MAX_STRIDE - w;
+    int hpad = (h + MAX_STRIDE - 1) / MAX_STRIDE * MAX_STRIDE - h;
     ncnn::Mat in_pad;
     ncnn::copy_make_border(in, in_pad, hpad / 2, hpad - hpad / 2, wpad / 2, wpad - wpad / 2, ncnn::BORDER_CONSTANT, 114.f);
 
@@ -335,7 +352,11 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 16
     {
         ncnn::Mat out;
+#if YOLOV5_V60
+        ex.extract("376", out);
+#else
         ex.extract("781", out);
+#endif
 
         ncnn::Mat anchors(6);
         anchors[0] = 30.f;
@@ -354,8 +375,11 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // stride 32
     {
         ncnn::Mat out;
+#if YOLOV5_V60
+        ex.extract("401", out);
+#else
         ex.extract("801", out);
-
+#endif
         ncnn::Mat anchors(6);
         anchors[0] = 116.f;
         anchors[1] = 90.f;

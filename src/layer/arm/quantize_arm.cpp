@@ -34,7 +34,9 @@ Quantize_arm::Quantize_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -51,8 +53,10 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     int dims = bottom_blob.dims;
     int elempack = bottom_blob.elempack;
@@ -262,7 +266,6 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         int i = 0;
                         for (; i + 1 < size; i += 2)
                         {
-#if __aarch64__
                             float32x4_t _v0 = vld1q_f32(ptr0);
                             float32x4_t _v1 = vld1q_f32(ptr0 + 4);
                             float32x4_t _v2 = vld1q_f32(ptr1);
@@ -277,61 +280,9 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             ptr0 += 8;
                             ptr1 += 8;
                             outptr += 16;
-#else  // __aarch64__
-                            asm volatile(
-                                "pld            [%0, #256]      \n"
-                                "vld1.f32       {d8-d11}, [%0 :128]! \n"
-                                "pld            [%1, #256]      \n"
-                                "vld1.f32       {d12-d15}, [%1 :128]! \n"
-
-                                "vmov.s8        q8, #0x81       \n" // _vm127
-
-                                "vmul.f32       q0, q4, %q6     \n"
-                                "vmul.f32       q1, q5, %q6     \n"
-                                "vmul.f32       q2, q6, %q6     \n"
-                                "vmul.f32       q3, q7, %q6     \n"
-
-                                "vcvtr.s32.f32  s0, s0          \n"
-                                "vcvtr.s32.f32  s1, s1          \n"
-                                "vcvtr.s32.f32  s2, s2          \n"
-                                "vcvtr.s32.f32  s3, s3          \n"
-                                "vcvtr.s32.f32  s4, s4          \n"
-                                "vcvtr.s32.f32  s5, s5          \n"
-                                "vcvtr.s32.f32  s6, s6          \n"
-                                "vcvtr.s32.f32  s7, s7          \n"
-                                "vcvtr.s32.f32  s8, s8          \n"
-                                "vcvtr.s32.f32  s9, s9          \n"
-                                "vcvtr.s32.f32  s10, s10        \n"
-                                "vcvtr.s32.f32  s11, s11        \n"
-                                "vcvtr.s32.f32  s12, s12        \n"
-                                "vcvtr.s32.f32  s13, s13        \n"
-                                "vcvtr.s32.f32  s14, s14        \n"
-                                "vcvtr.s32.f32  s15, s15        \n"
-
-                                "vqmovn.s32     d8, q0          \n"
-                                "vqmovn.s32     d10, q1         \n"
-                                "vqmovn.s32     d9, q2          \n"
-                                "vqmovn.s32     d11, q3         \n"
-                                "vqmovn.s16     d8, q4          \n"
-                                "vqmovn.s16     d9, q5          \n"
-
-                                "vmax.s8        q4, q4, q8      \n"
-
-                                "vst1.s8        {d8-d9}, [%2 :64]! \n"
-
-                                : "=r"(ptr0),
-                                "=r"(ptr1),
-                                "=r"(outptr)
-                                : "0"(ptr0),
-                                "1"(ptr1),
-                                "2"(outptr),
-                                "w"(_scale) // %6
-                                : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
-#endif // __aarch64__
                         }
                         for (; i < size; i++)
                         {
-#if __aarch64__
                             float32x4_t _vlow = vld1q_f32(ptr0);
                             float32x4_t _vhigh = vld1q_f32(ptr1);
                             _vlow = vmulq_f32(_vlow, _scale);
@@ -342,44 +293,6 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             ptr0 += 4;
                             ptr1 += 4;
                             outptr += 8;
-#else  // __aarch64__
-                            asm volatile(
-                                "pld            [%0, #128]      \n"
-                                "vld1.f32       {d4-d5}, [%0 :128]! \n"
-                                "pld            [%1, #128]      \n"
-                                "vld1.f32       {d6-d7}, [%1 :128]! \n"
-
-                                "vmov.s8        d8, #0x81       \n" // _vm127
-
-                                "vmul.f32       q0, q2, %q6     \n"
-                                "vmul.f32       q1, q3, %q6     \n"
-
-                                "vcvtr.s32.f32  s0, s0          \n"
-                                "vcvtr.s32.f32  s1, s1          \n"
-                                "vcvtr.s32.f32  s2, s2          \n"
-                                "vcvtr.s32.f32  s3, s3          \n"
-                                "vcvtr.s32.f32  s4, s4          \n"
-                                "vcvtr.s32.f32  s5, s5          \n"
-                                "vcvtr.s32.f32  s6, s6          \n"
-                                "vcvtr.s32.f32  s7, s7          \n"
-
-                                "vqmovn.s32     d4, q0          \n"
-                                "vqmovn.s32     d5, q1          \n"
-                                "vqmovn.s16     d4, q2          \n"
-
-                                "vmax.s8        d4, d4, d8      \n"
-
-                                "vst1.s8        {d4}, [%2 :64]! \n"
-
-                                : "=r"(ptr0),
-                                "=r"(ptr1),
-                                "=r"(outptr)
-                                : "0"(ptr0),
-                                "1"(ptr1),
-                                "2"(outptr),
-                                "w"(_scale) // %6
-                                : "memory", "q0", "q1", "q2", "q3", "q4");
-#endif // __aarch64__
                         }
                     }
                 }
@@ -398,7 +311,6 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                         int i = 0;
                         for (; i < size; i++)
                         {
-#if __aarch64__
                             float32x4_t _vlow = vld1q_f32(ptr0);
                             float32x4_t _vhigh = vld1q_f32(ptr1);
                             _vlow = vmulq_f32(_vlow, _scale0);
@@ -409,45 +321,6 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                             ptr0 += 4;
                             ptr1 += 4;
                             outptr += 8;
-#else  // __aarch64__
-                            asm volatile(
-                                "pld            [%0, #128]      \n"
-                                "vld1.f32       {d4-d5}, [%0 :128]! \n"
-                                "pld            [%1, #128]      \n"
-                                "vld1.f32       {d6-d7}, [%1 :128]! \n"
-
-                                "vmov.s8        d8, #0x81       \n" // _vm127
-
-                                "vmul.f32       q0, q2, %q6     \n"
-                                "vmul.f32       q1, q3, %q7     \n"
-
-                                "vcvtr.s32.f32  s0, s0          \n"
-                                "vcvtr.s32.f32  s1, s1          \n"
-                                "vcvtr.s32.f32  s2, s2          \n"
-                                "vcvtr.s32.f32  s3, s3          \n"
-                                "vcvtr.s32.f32  s4, s4          \n"
-                                "vcvtr.s32.f32  s5, s5          \n"
-                                "vcvtr.s32.f32  s6, s6          \n"
-                                "vcvtr.s32.f32  s7, s7          \n"
-
-                                "vqmovn.s32     d4, q0          \n"
-                                "vqmovn.s32     d5, q1          \n"
-                                "vqmovn.s16     d4, q2          \n"
-
-                                "vmax.s8        d4, d4, d8      \n"
-
-                                "vst1.s8        {d4}, [%2 :64]! \n"
-
-                                : "=r"(ptr0),
-                                "=r"(ptr1),
-                                "=r"(outptr)
-                                : "0"(ptr0),
-                                "1"(ptr1),
-                                "2"(outptr),
-                                "w"(_scale0), // %6
-                                "w"(_scale1)  // %7
-                                : "memory", "q0", "q1", "q2", "q3", "q4");
-#endif // __aarch64__
                         }
                     }
                 }
@@ -599,7 +472,6 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             float32x4_t _scale = vdupq_n_f32(scale);
             for (; i + 15 < size; i += 16)
             {
-#if __aarch64__
                 float32x4_t _v0 = vld1q_f32(ptr);
                 float32x4_t _v1 = vld1q_f32(ptr + 4);
                 float32x4_t _v2 = vld1q_f32(ptr + 8);
@@ -613,57 +485,9 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 ptr += 16;
                 outptr += 16;
-#else  // __aarch64__
-                asm volatile(
-                    "pld            [%0, #512]      \n"
-                    "vldm           %0!, {d8-d15}   \n"
-
-                    "vmov.s8        q8, #0x81       \n" // _vm127
-
-                    "vmul.f32       q0, q4, %q4     \n"
-                    "vmul.f32       q1, q5, %q4     \n"
-                    "vmul.f32       q2, q6, %q4     \n"
-                    "vmul.f32       q3, q7, %q4     \n"
-
-                    "vcvtr.s32.f32  s0, s0          \n"
-                    "vcvtr.s32.f32  s1, s1          \n"
-                    "vcvtr.s32.f32  s2, s2          \n"
-                    "vcvtr.s32.f32  s3, s3          \n"
-                    "vcvtr.s32.f32  s4, s4          \n"
-                    "vcvtr.s32.f32  s5, s5          \n"
-                    "vcvtr.s32.f32  s6, s6          \n"
-                    "vcvtr.s32.f32  s7, s7          \n"
-                    "vcvtr.s32.f32  s8, s8          \n"
-                    "vcvtr.s32.f32  s9, s9          \n"
-                    "vcvtr.s32.f32  s10, s10        \n"
-                    "vcvtr.s32.f32  s11, s11        \n"
-                    "vcvtr.s32.f32  s12, s12        \n"
-                    "vcvtr.s32.f32  s13, s13        \n"
-                    "vcvtr.s32.f32  s14, s14        \n"
-                    "vcvtr.s32.f32  s15, s15        \n"
-
-                    "vqmovn.s32     d8, q0          \n"
-                    "vqmovn.s32     d9, q1          \n"
-                    "vqmovn.s32     d10, q2         \n"
-                    "vqmovn.s32     d11, q3         \n"
-                    "vqmovn.s16     d8, q4          \n"
-                    "vqmovn.s16     d9, q5          \n"
-
-                    "vmax.s8        q4, q4, q8      \n"
-
-                    "vst1.s8        {d8-d9}, [%1 :64]! \n"
-
-                    : "=r"(ptr),
-                    "=r"(outptr)
-                    : "0"(ptr),
-                    "1"(outptr),
-                    "w"(_scale) // %4
-                    : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8");
-#endif // __aarch64__
             }
             for (; i + 7 < size; i += 8)
             {
-#if __aarch64__
                 float32x4_t _v0 = vld1q_f32(ptr);
                 float32x4_t _v1 = vld1q_f32(ptr + 4);
                 _v0 = vmulq_f32(_v0, _scale);
@@ -673,40 +497,6 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
                 ptr += 8;
                 outptr += 8;
-#else  // __aarch64__
-                asm volatile(
-                    "pld            [%0, #256]      \n"
-                    "vld1.f32       {d4-d7}, [%0 :128]! \n"
-
-                    "vmov.s8        d8, #0x81       \n" // _vm127
-
-                    "vmul.f32       q0, q2, %q4     \n"
-                    "vmul.f32       q1, q3, %q4     \n"
-
-                    "vcvtr.s32.f32  s0, s0          \n"
-                    "vcvtr.s32.f32  s1, s1          \n"
-                    "vcvtr.s32.f32  s2, s2          \n"
-                    "vcvtr.s32.f32  s3, s3          \n"
-                    "vcvtr.s32.f32  s4, s4          \n"
-                    "vcvtr.s32.f32  s5, s5          \n"
-                    "vcvtr.s32.f32  s6, s6          \n"
-                    "vcvtr.s32.f32  s7, s7          \n"
-
-                    "vqmovn.s32     d4, q0          \n"
-                    "vqmovn.s32     d5, q1          \n"
-                    "vqmovn.s16     d4, q2          \n"
-
-                    "vmax.s8        d4, d4, d8      \n"
-
-                    "vst1.s8        {d4}, [%1 :64]! \n"
-
-                    : "=r"(ptr),
-                    "=r"(outptr)
-                    : "0"(ptr),
-                    "1"(outptr),
-                    "w"(_scale) // %4
-                    : "memory", "q0", "q1", "q2", "q3", "q4");
-#endif // __aarch64__
             }
 #endif // __ARM_NEON
             for (; i < size; i++)
@@ -1552,6 +1342,7 @@ int Quantize_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Op
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int dims = bottom_blob.dims;
@@ -1953,5 +1744,6 @@ int Quantize_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

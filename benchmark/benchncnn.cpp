@@ -312,6 +312,8 @@ int main(int argc, char** argv)
 
     benchmark("yolov4-tiny", ncnn::Mat(416, 416, 3), opt);
 
+    benchmark("nanodet_m", ncnn::Mat(320, 320, 3), opt);
+
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;

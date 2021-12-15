@@ -38,6 +38,9 @@
 #endif
 
 #if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__
+#include <dlfcn.h>
+#endif
 #include <stdint.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -57,19 +60,31 @@
 #ifndef CPUFAMILY_ARM_HURRICANE
 #define CPUFAMILY_ARM_HURRICANE 0x67ceee93
 #endif
+// A11
 #ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
 #define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
 #endif
+// A12
 #ifndef CPUFAMILY_ARM_VORTEX_TEMPEST
 #define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
 #endif
+// A13
 #ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
 #define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
 #endif
+// A14
 #ifndef CPUFAMILY_ARM_FIRESTORM_ICESTORM
 #define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3
 #endif
+// A15
+#ifndef CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+#define CPUFAMILY_ARM_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
+// M1
+#ifndef CPUFAMILY_AARCH64_FIRESTORM_ICESTORM
+#define CPUFAMILY_AARCH64_FIRESTORM_ICESTORM 0x1b588bb3
+#endif
+#endif // __APPLE__
 
 #if defined(__SSE3__)
 #include <immintrin.h>
@@ -79,17 +94,63 @@ namespace ncnn {
 
 #if defined __ANDROID__ || defined __linux__
 
+#define AT_HWCAP  16
+#define AT_HWCAP2 26
+
+#if defined __ANDROID__
+// Probe the system's C library for a 'getauxval' function and call it if
+// it exits, or return 0 for failure. This function is available since API
+// level 20.
+//
+// This code does *NOT* check for '__ANDROID_API__ >= 20' to support the
+// edge case where some NDK developers use headers for a platform that is
+// newer than the one really targetted by their application.
+// This is typically done to use newer native APIs only when running on more
+// recent Android versions, and requires careful symbol management.
+//
+// Note that getauxval() can't really be re-implemented here, because
+// its implementation does not parse /proc/self/auxv. Instead it depends
+// on values  that are passed by the kernel at process-init time to the
+// C runtime initialization layer.
+static unsigned int get_elf_hwcap_from_getauxval()
+{
+    typedef unsigned long getauxval_func_t(unsigned long);
+
+    dlerror();
+    void* libc_handle = dlopen("libc.so", RTLD_NOW);
+    if (!libc_handle)
+    {
+        NCNN_LOGE("dlopen libc.so failed %s", dlerror());
+        return 0;
+    }
+
+    unsigned int result = 0;
+    getauxval_func_t* func = (getauxval_func_t*)dlsym(libc_handle, "getauxval");
+    if (!func)
+    {
+        NCNN_LOGE("dlsym getauxval failed");
+    }
+    else
+    {
+        // Note: getauxval() returns 0 on failure. Doesn't touch errno.
+        result = (unsigned int)(*func)(AT_HWCAP);
+    }
+    dlclose(libc_handle);
+
+    return result;
+}
+#endif // defined __ANDROID__
+
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
 static unsigned int get_elf_hwcap_from_proc_self_auxv()
 {
     FILE* fp = fopen("/proc/self/auxv", "rb");
     if (!fp)
     {
+        NCNN_LOGE("fopen /proc/self/auxv failed");
         return 0;
     }
 
-#define AT_HWCAP  16
-#define AT_HWCAP2 26
 #if __aarch64__ || __riscv_xlen == 64
     struct
     {
@@ -127,7 +188,18 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
     return result;
 }
 
-static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
+static unsigned int get_elf_hwcap()
+{
+#if defined __ANDROID__
+    unsigned int hwcap = get_elf_hwcap_from_getauxval();
+    if (hwcap)
+        return hwcap;
+#endif
+
+    return get_elf_hwcap_from_proc_self_auxv();
+}
+
+static unsigned int g_hwcaps = get_elf_hwcap();
 
 #if __aarch64__
 // from arch/arm64/include/uapi/asm/hwcap.h
@@ -138,6 +210,12 @@ static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_NEON  (1 << 12)
 #define HWCAP_VFPv4 (1 << 16)
+#endif
+
+#if __mips__
+// from arch/mips/include/uapi/asm/hwcap.h
+#define HWCAP_MIPS_MSA     (1 << 1)
+#define HWCAP_LOONGSON_MMI (1 << 11)
 #endif
 
 #if __riscv
@@ -329,7 +407,7 @@ int cpu_support_arm_asimdhp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
 #else
     return 0;
 #endif
@@ -348,7 +426,7 @@ int cpu_support_arm_asimddp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
+    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
 #else
     return 0;
 #endif
@@ -359,6 +437,9 @@ int cpu_support_arm_asimddp()
 
 int cpu_support_x86_avx2()
 {
+#if !NCNN_AVX2
+    return 0;
+#endif
 #if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
 #if defined(_MSC_VER)
     // TODO move to init function
@@ -391,6 +472,74 @@ int cpu_support_x86_avx2()
 #else
     // TODO: other x86 compilers checking avx2 here
     NCNN_LOGE("AVX2 detection method is unknown for current compiler");
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_x86_avx()
+{
+#if !NCNN_AVX
+    return 0;
+#endif
+#if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
+#if defined(_MSC_VER)
+    // TODO move to init function
+    int cpu_info[4];
+    __cpuid(cpu_info, 0);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    __cpuid(cpu_info, 1);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((_xgetbv(0) & 6) != 6)
+        return 0;
+    return 1;
+#elif defined(__clang__)
+#if __clang_major__ >= 6
+    __builtin_cpu_init();
+#endif
+    return __builtin_cpu_supports("avx");
+#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
+    __builtin_cpu_init();
+    return __builtin_cpu_supports("avx");
+#else
+    // TODO: other x86 compilers checking avx here
+    NCNN_LOGE("AVX detection method is unknown for current compiler");
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_mips_msa()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __mips__
+    return g_hwcaps & HWCAP_MIPS_MSA;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_loongson_mmi()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __mips__
+    return g_hwcaps & HWCAP_LOONGSON_MMI;
+#else
     return 0;
 #endif
 #else
@@ -586,14 +735,10 @@ static int get_max_freq_khz(int cpuid)
 static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 {
     // set affinity for thread
-#if defined(__GLIBC__) || defined(__OHOS__)
-    pid_t pid = syscall(SYS_gettid);
-#else
-#if defined(PI3) || (defined(__MUSL__) && __MUSL_MINOR__ <= 14)
-    pid_t pid = getpid();
-#else
+#if defined(__BIONIC__)
     pid_t pid = gettid();
-#endif
+#else
+    pid_t pid = syscall(SYS_gettid);
 #endif
 
     int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
@@ -722,7 +867,7 @@ static int setup_thread_affinity_masks()
         g_thread_affinity_mask_little.enable(4);
         g_thread_affinity_mask_little.enable(5);
     }
-    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM)
+    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD)
     {
         // 2 + 4 or 4 + 4
         if (get_cpu_count() == 6)

@@ -21,6 +21,8 @@
 #endif // __AVX__
 #endif // __SSE2__
 
+#include "x86_usability.h"
+
 namespace ncnn {
 
 HardSwish_x86::HardSwish_x86()
@@ -53,7 +55,7 @@ int HardSwish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
                 __m256 _ans = _mm256_set1_ps(beta);
-                _ans = _mm256_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
+                _ans = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
                 _ans = _mm256_max_ps(_ans, _zero);
                 _ans = _mm256_min_ps(_ans, _one);
                 _ans = _mm256_mul_ps(_ans, _p);
@@ -107,7 +109,7 @@ int HardSwish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         {
             __m256 _p = _mm256_loadu_ps(ptr);
             __m256 _ans = _mm256_set1_ps(beta);
-            _ans = _mm256_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
+            _ans = _mm256_comp_fmadd_ps(_p, _mm256_set1_ps(alpha), _ans);
             _ans = _mm256_max_ps(_ans, _zero);
             _ans = _mm256_min_ps(_ans, _one);
             _ans = _mm256_mul_ps(_ans, _p);

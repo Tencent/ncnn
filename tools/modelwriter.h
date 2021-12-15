@@ -35,6 +35,7 @@
 #include "layer/clip.h"
 #include "layer/concat.h"
 #include "layer/convolution.h"
+#include "layer/convolution1d.h"
 #include "layer/convolutiondepthwise.h"
 #include "layer/crop.h"
 #include "layer/deconvolution.h"
@@ -43,6 +44,7 @@
 #include "layer/dropout.h"
 #include "layer/eltwise.h"
 #include "layer/elu.h"
+#include "layer/embed.h"
 #include "layer/exp.h"
 #include "layer/expanddims.h"
 #include "layer/flatten.h"
@@ -65,6 +67,7 @@
 #include "layer/permute.h"
 #include "layer/pixelshuffle.h"
 #include "layer/pooling.h"
+#include "layer/pooling1d.h"
 #include "layer/power.h"
 #include "layer/prelu.h"
 #include "layer/priorbox.h"
@@ -220,8 +223,8 @@ public:
     int fprintf_param_int_array(int id, const ncnn::Mat& m, FILE* pp);
     int fprintf_param_float_array(int id, const ncnn::Mat& m, FILE* pp);
 
-    int fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp);
-    int fwrite_weight_data(const ncnn::Mat& data, FILE* bp);
+    int fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f);
+    int fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a = -1.2f, float b = 1.2f);
 
     int save(const char* parampath, const char* binpath);
 };
@@ -586,13 +589,13 @@ static void Randomize(ncnn::Mat& m, float a = -1.2f, float b = 1.2f)
     }
 }
 
-int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp)
+int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a, float b)
 {
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
     if (gen_random_weight)
-        Randomize(data_flattened);
+        Randomize(data_flattened, a, b);
 
     if (data_flattened.elemsize == 4)
     {
@@ -638,13 +641,13 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp)
     return 0;
 }
 
-int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp)
+int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, float b)
 {
     int p0 = ftell(bp);
 
     ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
     if (gen_random_weight)
-        Randomize(data_flattened);
+        Randomize(data_flattened, a, b);
 
     if (data_flattened.elemsize == 4) // fp32
     {
@@ -870,9 +873,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_data_int8_scales, bp);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp);
-                fwrite_weight_data(op->top_blob_int8_scales, bp);
+                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
             }
 #endif // NCNN_INT8
 
@@ -884,6 +887,39 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int outc = blobs[layer->tops[0]].shape.c;
 
                 mac += (uint64_t)op->kernel_h * op->kernel_w * outw * outh * outc * inc;
+            }
+        }
+        else if (layer->type == "Convolution1D")
+        {
+            ncnn::Convolution1D* op = (ncnn::Convolution1D*)layer;
+            ncnn::Convolution1D* op_default = (ncnn::Convolution1D*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", kernel_w)
+            fprintf_param_value(" 2=%d", dilation_w)
+            fprintf_param_value(" 3=%d", stride_w)
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            fprintf_param_value(" 18=%e", pad_value)
+            fprintf_param_value(" 5=%d", bias_term)
+            fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 9=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int outw = blobs[layer->tops[0]].shape.w;
+                int outh = blobs[layer->tops[0]].shape.h;
+
+                mac += (uint64_t)op->kernel_w * outw * outh * inh;
             }
         }
         else if (layer->type == "ConvolutionDepthWise")
@@ -945,9 +981,9 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_data_int8_scales, bp);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp);
-                fwrite_weight_data(op->top_blob_int8_scales, bp);
+                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->top_blob_int8_scales, bp, 0.001, 1);
             }
 #endif // NCNN_INT8
 
@@ -1137,6 +1173,19 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
             fprintf_param_value(" 0=%e", alpha)
         }
+        else if (layer->type == "Embed")
+        {
+            ncnn::Embed* op = (ncnn::Embed*)layer;
+            ncnn::Embed* op_default = (ncnn::Embed*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", input_dim)
+            fprintf_param_value(" 2=%d", bias_term)
+            fprintf_param_value(" 3=%d", weight_data_size)
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+        }
         else if (layer->type == "Exp")
         {
             ncnn::Exp* op = (ncnn::Exp*)layer;
@@ -1231,8 +1280,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             // write int8_scale data
             if (op->int8_scale_term)
             {
-                fwrite_weight_data(op->weight_data_int8_scales, bp);
-                fwrite_weight_data(op->bottom_blob_int8_scales, bp);
+                fwrite_weight_data(op->weight_data_int8_scales, bp, 90, 100);
+                fwrite_weight_data(op->bottom_blob_int8_scales, bp, 0.001, 1);
             }
 #endif // NCNN_INT8
 
@@ -1410,6 +1459,24 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (op->out_h != op->out_w) fprintf(pp, " 18=%d", op->out_h);
             }
+        }
+        else if (layer->type == "Pooling1D")
+        {
+            ncnn::Pooling1D* op = (ncnn::Pooling1D*)layer;
+            ncnn::Pooling1D* op_default = (ncnn::Pooling1D*)layer_default;
+
+            fprintf_param_value(" 0=%d", pooling_type)
+            fprintf_param_value(" 1=%d", kernel_w)
+            fprintf_param_value(" 2=%d", stride_w)
+            fprintf_param_value(" 3=%d", pad_left)
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 14=%d", op->pad_right);
+            }
+            fprintf_param_value(" 4=%d", global_pooling)
+            fprintf_param_value(" 5=%d", pad_mode)
+            fprintf_param_value(" 6=%d", avgpool_count_include_pad)
+            fprintf_param_value(" 7=%d", adaptive_pooling)
+            fprintf_param_value(" 8=%d", out_w)
         }
         else if (layer->type == "Power")
         {

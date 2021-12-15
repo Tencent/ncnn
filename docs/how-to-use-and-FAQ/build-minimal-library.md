@@ -39,6 +39,15 @@ cmake -DNCNN_STRING=OFF ..
 
     Read more [here](https://github.com/Tencent/ncnn/blob/master/docs/how-to-use-and-FAQ/use-ncnn-with-alexnet.md#input-and-output).
 
+### disable NCNN_BF16
+
+```
+cmake -DNCNN_BF16=OFF ..
+```
+
+* Cannot use bf16 storage type in inference.
+
+
 ### disable NCNN_INT8
 
 ```
@@ -71,7 +80,7 @@ cmake -DNCNN_PIXEL_ROTATE=OFF -DNCNN_PIXEL_AFFINE=OFF ..
 cmake -DNCNN_PIXEL=OFF ..
 ```
 
-* Cannot use functions transfering from image to pixels like `Mat::from_pixels / from_pixels_resize / to_pixels / to_pixels_resize`, and need create a Mat and fill in data by hand.
+* Cannot use functions transferring from image to pixels like `Mat::from_pixels / from_pixels_resize / to_pixels / to_pixels_resize`, and need create a Mat and fill in data by hand.
 
 ### disable openmp
 

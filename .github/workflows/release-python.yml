@@ -30,12 +30,12 @@ jobs:
 
 
   build_wheels:
-    name: Wheels on ${{ matrix.os }}
+    name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-20.04, windows-2019, macos-10.15]
 
     steps:
     - uses: actions/checkout@v2
@@ -44,22 +44,57 @@ jobs:
 
     - uses: actions/setup-python@v2
 
-    - name: Install cibuildwheel
-      run: python -m pip install cibuildwheel
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v2.3.1
+      env:
+        CIBW_ARCHS_MACOS: x86_64 universal2 arm64
+        CIBW_ARCHS_LINUX: x86_64 i686
+
+    - name: Show files
+      run: ls -lh wheelhouse
+      shell: bash
+
+    - name: Verify clean directory
+      run: git diff --exit-code
+      shell: bash
+
+    - name: Upload wheels
+      uses: actions/upload-artifact@v2
+      with:
+        path: wheelhouse/*.whl
+
+  build_wheels_qemu:
+    name: Build wheels ${{ matrix.arch }} ${{ matrix.build }}
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [aarch64, ppc64le, s390x]
+        build: ["cp36-*", "cp37-*", "cp38-*", "cp39-*", "cp310-*"]
+        include:
+          - arch: aarch64
+            build: "pp37-*"
+          - arch: aarch64
+            build: "pp38-*"
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v2
 
     - name: Set up QEMU
-      if: runner.os == 'Linux'
       uses: docker/setup-qemu-action@v1
       with:
         platforms: all
 
-    - name: Build wheel
-      run: python -m cibuildwheel --output-dir wheelhouse
+    - name: Build wheels
+      uses: pypa/cibuildwheel@v2.3.1
       env:
-        CIBW_SKIP: "cp27-* pp27-*"  # skip Python 2.7 wheels
-        # configure cibuildwheel to build native archs ('auto'), and some
-        # emulated ones
-        CIBW_ARCHS_LINUX: auto
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
 
     - name: Show files
       run: ls -lh wheelhouse
@@ -76,7 +111,7 @@ jobs:
 
   upload_all:
     name: Upload
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels, build_wheels_qemu, build_sdist]
     runs-on: ubuntu-latest
 
     steps:

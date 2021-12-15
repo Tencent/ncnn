@@ -118,12 +118,16 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                 for (int i = 0; i < out_h; i++)
                 {
-                    int ih0 = floor((float)(i * h) / out_h);
-                    int ih1 = ceil((float)((i + 1) * h) / out_h);
+                    // floor div
+                    const int ih0 = h * i / out_h;
+                    // ceil div
+                    const int ih1 = (h * (i + 1) + out_h - 1) / out_h;
                     for (int j = 0; j < out_w; j++)
                     {
-                        int iw0 = floor((float)(j * w) / out_w);
-                        int iw1 = ceil((float)((j + 1) * w) / out_w);
+                        // floor div
+                        const int iw0 = w * j / out_w;
+                        // ceil div
+                        const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
 
                         float max = inptr[ih0 * w + iw0];
                         for (int ih = ih0; ih < ih1; ih++)
@@ -150,14 +154,18 @@ int Pooling::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 
                 for (int i = 0; i < out_h; i++)
                 {
-                    int ih0 = floor((float)(i * h) / out_h);
-                    int ih1 = ceil((float)((i + 1) * h) / out_h);
-                    int hk = ih1 - ih0;
+                    // floor div
+                    const int ih0 = h * i / out_h;
+                    // ceil div
+                    const int ih1 = (h * (i + 1) + out_h - 1) / out_h;
+                    const int hk = ih1 - ih0;
                     for (int j = 0; j < out_w; j++)
                     {
-                        int iw0 = floor((float)(j * w) / out_w);
-                        int iw1 = ceil((float)((j + 1) * w) / out_w);
-                        int wk = iw1 - iw0;
+                        // floor div
+                        const int iw0 = w * j / out_w;
+                        // ceil div
+                        const int iw1 = (w * (j + 1) + out_w - 1) / out_w;
+                        const int wk = iw1 - iw0;
 
                         float sum = 0;
                         for (int ih = ih0; ih < ih1; ih++)

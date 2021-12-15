@@ -37,7 +37,7 @@ Loading weights...
 Converting model...
 83 layers, 91 blobs generated.
 NOTE: The input of darknet uses: mean_vals=0 and norm_vals=1/255.f.
-NOTE: Remeber to use ncnnoptimize for better performance.
+NOTE: Remember to use ncnnoptimize for better performance.
 ```
 
 ### 2. Optimize graphic

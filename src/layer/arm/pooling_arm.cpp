@@ -39,7 +39,9 @@ Pooling_arm::Pooling_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int Pooling_arm::create_pipeline(const Option& /*opt*/)
@@ -51,7 +53,6 @@ int Pooling_arm::create_pipeline(const Option& /*opt*/)
         support_bf16_storage = false;
         support_fp16_storage = false;
         support_int8_storage = false;
-        support_image_storage = false;
         support_tensor_storage = false;
 
         support_weight_fp16_storage = false;
@@ -78,8 +79,10 @@ int Pooling_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     }
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
+#endif
 
     // max value in NxN window
     // avg value in NxN window
@@ -1235,6 +1238,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // max value in NxN window
@@ -1644,5 +1648,6 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     return 0;
 }
+#endif // NCNN_BF16
 
 } // namespace ncnn

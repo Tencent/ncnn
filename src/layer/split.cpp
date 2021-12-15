@@ -23,7 +23,7 @@ Split::Split()
     support_inplace = false;
     support_vulkan = true;
     support_packing = true;
-    support_fp16_storage = cpu_support_arm_asimdhp();
+    support_fp16_storage = cpu_support_arm_asimdhp() || cpu_support_riscv_zfh();
     support_bf16_storage = true;
     support_image_storage = true;
 }

@@ -29,7 +29,9 @@ ReLU_arm::ReLU_arm()
 #endif
 #endif // __ARM_NEON
 
+#if NCNN_BF16
     support_bf16_storage = true;
+#endif
 }
 
 int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -44,13 +46,16 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
+#if NCNN_BF16
     if (opt.use_bf16_storage && elembits == 16)
         return forward_inplace_bf16s(bottom_top_blob, opt);
+#endif
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
@@ -345,8 +350,9 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 8)
@@ -578,12 +584,14 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
+#if NCNN_BF16
 int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
@@ -881,13 +889,15 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
     return 0;
 }
+#endif // NCNN_BF16
 
 int ReLU_arm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
