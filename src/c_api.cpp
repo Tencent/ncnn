@@ -13,6 +13,10 @@
  * specific language governing permissions and limitations under the License.
  */
 
+#include "platform.h"
+
+#if NCNN_C_API
+
 #include "c_api.h"
 
 #include <stdlib.h>
@@ -1351,3 +1355,5 @@ int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+#endif /* NCNN_C_API */

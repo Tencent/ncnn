@@ -16,8 +16,11 @@
 #ifndef NCNN_C_API_H
 #define NCNN_C_API_H
 
-#include <stddef.h>
 #include "platform.h"
+
+#if NCNN_C_API
+
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -310,5 +313,7 @@ NCNN_EXPORT int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncn
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+#endif /* NCNN_C_API */
 
 #endif /* NCNN_C_API_H */
