@@ -59,9 +59,7 @@ public:
     Layer* convolution_dilation1;
 
     // pack4
-    Mat weight_data_pack4;
-    Mat weight_data_pack1to4;
-    Mat weight_data_pack4to1;
+    Mat weight_data_packed;
 
     Mat weight_3x3_winograd42_data_pack4;
     Mat weight_sgemm_data_pack4;
