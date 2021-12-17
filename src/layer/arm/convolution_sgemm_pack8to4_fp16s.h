@@ -14,7 +14,6 @@
 
 static void im2col_sgemm_pack8to4_fp16sa_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-    fprintf(stderr, "im2col_sgemm_pack8to4_fp16sa_neon\n");
     // Mat bottom_im2col(size, maxk, inch, 16u, 8, opt.workspace_allocator);
 
     const int size = bottom_im2col.w;
@@ -669,8 +668,6 @@ static void im2col_sgemm_pack8to4_fp16sa_neon(const Mat& bottom_im2col, Mat& top
             outptr0 += 4;
         }
     }
-
-    fprintf(stderr, "im2col_sgemm_pack8to4_fp16sa_neon done\n");
 }
 
 static void convolution_im2col_sgemm_transform_kernel_pack8to4_fp16sa_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
@@ -710,7 +707,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_fp16sa_neon(const
     }
     for (; q + 3 < outch; q += 4)
     {
-        Mat g0 = kernel_tm.channel(q / 4);
+        Mat g0 = kernel_tm.channel(q / 8 + (q % 8) / 4);
 
         for (int p = 0; p + 7 < inch; p += 8)
         {
