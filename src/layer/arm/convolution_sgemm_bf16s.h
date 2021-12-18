@@ -28,7 +28,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
     Mat tmp;
     if (size >= 8)
         tmp.create(8 * maxk, inch, size / 8 + (size % 8) / 4 + size % 4, 2u, 1, opt.workspace_allocator);
-    if (size >= 4)
+    else if (size >= 4)
         tmp.create(4 * maxk, inch, size / 4 + size % 4, 2u, 1, opt.workspace_allocator);
     else
         tmp.create(maxk, inch, size, 2u, 1, opt.workspace_allocator);

@@ -150,7 +150,6 @@ static void im2col_sgemm_pack1to4_neon(const Mat& bottom_im2col, Mat& top_blob, 
                 float32x4_t _w0 = vld1q_f32(kptr0);
                 float32x4_t _w1 = vld1q_f32(kptr0 + 4);
 
-#if __aarch64__
                 _sum00 = vmlaq_laneq_f32(_sum00, _w0, _val0, 0);
                 _sum01 = vmlaq_laneq_f32(_sum01, _w0, _val0, 1);
                 _sum02 = vmlaq_laneq_f32(_sum02, _w0, _val0, 2);
@@ -167,24 +166,6 @@ static void im2col_sgemm_pack1to4_neon(const Mat& bottom_im2col, Mat& top_blob, 
                 _sum15 = vmlaq_laneq_f32(_sum15, _w1, _val1, 1);
                 _sum16 = vmlaq_laneq_f32(_sum16, _w1, _val1, 2);
                 _sum17 = vmlaq_laneq_f32(_sum17, _w1, _val1, 3);
-#else
-                _sum00 = vmlaq_lane_f32(_sum00, _w0, vget_low_f32(_val0), 0);
-                _sum01 = vmlaq_lane_f32(_sum01, _w0, vget_low_f32(_val0), 1);
-                _sum02 = vmlaq_lane_f32(_sum02, _w0, vget_high_f32(_val0), 0);
-                _sum03 = vmlaq_lane_f32(_sum03, _w0, vget_high_f32(_val0), 1);
-                _sum04 = vmlaq_lane_f32(_sum04, _w0, vget_low_f32(_val1), 0);
-                _sum05 = vmlaq_lane_f32(_sum05, _w0, vget_low_f32(_val1), 1);
-                _sum06 = vmlaq_lane_f32(_sum06, _w0, vget_high_f32(_val1), 0);
-                _sum07 = vmlaq_lane_f32(_sum07, _w0, vget_high_f32(_val1), 1);
-                _sum10 = vmlaq_lane_f32(_sum10, _w1, vget_low_f32(_val0), 0);
-                _sum11 = vmlaq_lane_f32(_sum11, _w1, vget_low_f32(_val0), 1);
-                _sum12 = vmlaq_lane_f32(_sum12, _w1, vget_high_f32(_val0), 0);
-                _sum13 = vmlaq_lane_f32(_sum13, _w1, vget_high_f32(_val0), 1);
-                _sum14 = vmlaq_lane_f32(_sum14, _w1, vget_low_f32(_val1), 0);
-                _sum15 = vmlaq_lane_f32(_sum15, _w1, vget_low_f32(_val1), 1);
-                _sum16 = vmlaq_lane_f32(_sum16, _w1, vget_high_f32(_val1), 0);
-                _sum17 = vmlaq_lane_f32(_sum17, _w1, vget_high_f32(_val1), 1);
-#endif
 
                 tmpptr += 8;
                 kptr0 += 8;
@@ -231,7 +212,6 @@ static void im2col_sgemm_pack1to4_neon(const Mat& bottom_im2col, Mat& top_blob, 
                 float32x4_t _w0 = vld1q_f32(kptr0);
                 float32x4_t _w1 = vld1q_f32(kptr0 + 4);
 
-#if __aarch64__
                 _sum00 = vmlaq_laneq_f32(_sum00, _w0, _val, 0);
                 _sum01 = vmlaq_laneq_f32(_sum01, _w0, _val, 1);
                 _sum02 = vmlaq_laneq_f32(_sum02, _w0, _val, 2);
@@ -240,16 +220,6 @@ static void im2col_sgemm_pack1to4_neon(const Mat& bottom_im2col, Mat& top_blob, 
                 _sum11 = vmlaq_laneq_f32(_sum11, _w1, _val, 1);
                 _sum12 = vmlaq_laneq_f32(_sum12, _w1, _val, 2);
                 _sum13 = vmlaq_laneq_f32(_sum13, _w1, _val, 3);
-#else
-                _sum00 = vmlaq_lane_f32(_sum00, _w0, vget_low_f32(_val), 0);
-                _sum01 = vmlaq_lane_f32(_sum01, _w0, vget_low_f32(_val), 1);
-                _sum02 = vmlaq_lane_f32(_sum02, _w0, vget_high_f32(_val), 0);
-                _sum03 = vmlaq_lane_f32(_sum03, _w0, vget_high_f32(_val), 1);
-                _sum10 = vmlaq_lane_f32(_sum10, _w1, vget_low_f32(_val), 0);
-                _sum11 = vmlaq_lane_f32(_sum11, _w1, vget_low_f32(_val), 1);
-                _sum12 = vmlaq_lane_f32(_sum12, _w1, vget_high_f32(_val), 0);
-                _sum13 = vmlaq_lane_f32(_sum13, _w1, vget_high_f32(_val), 1);
-#endif
 
                 tmpptr += 4;
                 kptr0 += 8;
@@ -434,9 +404,9 @@ static void convolution_im2col_sgemm_transform_kernel_pack1to4_neon(const Mat& _
     // dst = 4b-4a-maxk-inch/4a-outch/4b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __aarch64__
-    kernel_tm.create(32 * maxk, inch / 4 + inch % 4, outch / 8 + (outch % 8) / 4);
+    kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4);
 #else
-    kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4);
+    kernel_tm.create(4 * maxk, inch, outch / 4);
 #endif
 
     int q = 0;
