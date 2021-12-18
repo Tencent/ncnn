@@ -1369,6 +1369,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
 
     for (int i = 0; i < 5; i++)
     {
+        fprintf(stderr, "opt %d\n", i);
         const ncnn::Option& opt = opts[i];
 
         // fp16 representation

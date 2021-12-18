@@ -40,6 +40,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     if (bias)
         weights[1] = RandomMat(outch);
 
+    fprintf(stderr, "test_convolution w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a);
     if (ret != 0)
     {
