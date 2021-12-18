@@ -177,6 +177,8 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
             const unsigned short* tmpptr = tmp.channel(i / 8);
             const unsigned short* kptr = kernel.channel(p / 8);
 
+            int nn = inch * maxk; // inch always > 0
+
             asm volatile(
                 "ld1    {v0.4s, v1.4s}, [%20]   \n"
                 "dup    v16.4s, v0.s[0]         \n"
@@ -416,7 +418,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "8"(tmpptr),
                 "9"(kptr),
                 "r"(biasptr), // %20
-                "r"(inch)     // %21
+                "r"(nn)       // %21
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
 
@@ -424,6 +426,8 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
         {
             const unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
             const unsigned short* kptr = kernel.channel(p / 8);
+
+            int nn = inch * maxk; // inch always > 0
 
             asm volatile(
                 "ld1    {v0.4s, v1.4s}, [%20]   \n"
@@ -582,7 +586,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "8"(tmpptr),
                 "9"(kptr),
                 "r"(biasptr), // %20
-                "r"(inch)     // %21
+                "r"(nn)       // %21
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
         }
 
@@ -590,6 +594,8 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
         {
             const unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
             const unsigned short* kptr = kernel.channel(p / 8);
+
+            int nn = inch * maxk; // inch always > 0
 
             asm volatile(
                 "ld1    {v24.4s, v25.4s}, [%20] \n"
@@ -716,7 +722,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "8"(tmpptr),
                 "9"(kptr),
                 "r"(biasptr), // %20
-                "r"(inch)     // %21
+                "r"(nn)       // %21
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
         }
     }
@@ -747,6 +753,8 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
 #else
             const unsigned short* kptr = kernel.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
+
+            int nn = inch * maxk; // inch always > 0
 
 #if __ARM_NEON
 #if __aarch64__
@@ -899,7 +907,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "4"(tmpptr),
                 "5"(kptr),
                 "r"(biasptr), // %12
-                "r"(inch)     // %13
+                "r"(nn)       // %13
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
 #else  // __aarch64__
             asm volatile(
@@ -1051,7 +1059,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "4"(tmpptr),
                 "5"(kptr),
                 "r"(biasptr), // %12
-                "r"(inch)     // %13
+                "r"(nn)       // %13
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else
@@ -1091,7 +1099,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
             float sum3_6 = biasptr[3];
             float sum3_7 = biasptr[3];
 
-            for (int q = 0; q < inch; q++)
+            for (int q = 0; q < nn; q++)
             {
                 sum0_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
                 sum0_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[0]);
@@ -1184,6 +1192,8 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
 #else
             const unsigned short* kptr = kernel.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
+
+            int nn = inch * maxk; // inch always > 0
 
 #if __ARM_NEON
 #if __aarch64__
@@ -1294,7 +1304,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "4"(tmpptr),
                 "5"(kptr),
                 "r"(biasptr), // %12
-                "r"(inch)     // %13
+                "r"(nn)       // %13
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
 #else  // __aarch64__
             asm volatile(
@@ -1404,7 +1414,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "4"(tmpptr),
                 "5"(kptr),
                 "r"(biasptr), // %12
-                "r"(inch)     // %13
+                "r"(nn)       // %13
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
 #else
@@ -1428,7 +1438,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
             float sum3_2 = biasptr[3];
             float sum3_3 = biasptr[3];
 
-            for (int q = 0; q < inch; q++)
+            for (int q = 0; q < nn; q++)
             {
                 sum0_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
                 sum0_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[0]);
@@ -1489,6 +1499,8 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
 #else
             const unsigned short* kptr = kernel.channel(p / 4);
 #endif // __ARM_NEON && __aarch64__
+
+            int nn = inch * maxk; // inch always > 0
 
 #if __ARM_NEON
 #if __aarch64__
@@ -1581,7 +1593,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "4"(tmpptr),
                 "5"(kptr),
                 "r"(biasptr), // %12
-                "r"(inch)     // %13
+                "r"(nn)       // %13
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v8", "v9", "v10", "v11", "v12");
 #else  // __aarch64__
             asm volatile(
@@ -1673,7 +1685,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "4"(tmpptr),
                 "5"(kptr),
                 "r"(biasptr), // %12
-                "r"(inch)     // %13
+                "r"(nn)       // %13
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11", "q12");
 #endif // __aarch64__
 #else
@@ -1682,7 +1694,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
             float sum2 = biasptr[2];
             float sum3 = biasptr[3];
 
-            for (int q = 0; q < inch; q++)
+            for (int q = 0; q < nn; q++)
             {
                 sum0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
                 sum1 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[1]);
@@ -1727,6 +1739,8 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
 #else
             const unsigned short* kptr = kernel.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
+
+            int nn = inch * maxk; // inch always > 0
 
 #if __ARM_NEON
 #if __aarch64__
@@ -1819,7 +1833,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "1"(tmpptr),
                 "2"(kptr),
                 "r"(bias0), // %6
-                "r"(inch)   // %7
+                "r"(nn)     // %7
                 : "cc", "memory", "x4", "v0", "v4", "v5", "v6", "v7", "v8", "v9", "v12", "v13", "v14", "v15");
 #else  // __aarch64__
             asm volatile(
@@ -1911,7 +1925,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "1"(tmpptr),
                 "2"(kptr),
                 "r"(bias0), // %6
-                "r"(inch)   // %7
+                "r"(nn)     // %7
                 : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else
@@ -1924,7 +1938,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
             float sum6 = bias0;
             float sum7 = bias0;
 
-            for (int q = 0; q < inch; q++)
+            for (int q = 0; q < nn; q++)
             {
                 sum0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
                 sum1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[0]);
@@ -1960,6 +1974,8 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
 #else
             const unsigned short* kptr = kernel.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
+
+            int nn = inch * maxk; // inch always > 0
 
 #if __ARM_NEON
 #if __aarch64__
@@ -2033,7 +2049,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "1"(tmpptr),
                 "2"(kptr),
                 "r"(bias0), // %6
-                "r"(inch)   // %7
+                "r"(nn)     // %7
                 : "cc", "memory", "x4", "v0", "v4", "v5", "v6", "v7", "v8");
 #else  // __aarch64__
             asm volatile(
@@ -2106,7 +2122,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "1"(tmpptr),
                 "2"(kptr),
                 "r"(bias0), // %6
-                "r"(inch)   // %7
+                "r"(nn)     // %7
                 : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8");
 #endif // __aarch64__
 #else
@@ -2115,7 +2131,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
             float sum2 = bias0;
             float sum3 = bias0;
 
-            for (int q = 0; q < inch; q++)
+            for (int q = 0; q < nn; q++)
             {
                 sum0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
                 sum1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[0]);
@@ -2144,12 +2160,14 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
             const unsigned short* kptr = kernel.channel(p / 4 + p % 4);
 #endif // __ARM_NEON && __aarch64__
 
+            int nn = inch * maxk; // inch always > 0
+
             int q = 0;
 
 #if __ARM_NEON
             float32x4_t _sum0 = vdupq_n_f32(0.f);
 
-            for (; q + 3 < inch; q += 4)
+            for (; q + 3 < nn; q += 4)
             {
                 float32x4_t _p0 = vcvt_f32_bf16(vld1_u16(tmpptr));
                 tmpptr += 4;
@@ -2174,7 +2192,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
             float sum0 = bias0;
 #endif // __ARM_NEON
 
-            for (; q < inch; q++)
+            for (; q < nn; q++)
             {
                 sum0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
                 tmpptr++;
@@ -2197,41 +2215,19 @@ static void convolution_im2col_sgemm_transform_kernel_bf16s_neon(const Mat& _ker
     // dst = 8b-8a-maxk-inch/8a-outch/8b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __ARM_NEON && __aarch64__
-    kernel_tm.create(32 * maxk, inch / 4 + inch % 4, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)2u);
+    kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)2u);
 #else
-    kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4 + outch % 4, (size_t)2u);
+    kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4, (size_t)2u);
 #endif
 
     int q = 0;
 #if __ARM_NEON && __aarch64__
     for (; q + 7 < outch; q += 8)
     {
-        Mat g0 = kernel_tm.channel(q / 8);
+        unsigned short* g00 = kernel_tm.channel(q / 8);
 
-        int p = 0;
-        for (; p + 3 < inch; p += 4)
+        for (int p = 0; p < inch; p++)
         {
-            unsigned short* g00 = g0.row<unsigned short>(p / 4);
-
-            for (int k = 0; k < maxk; k++)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    for (int j = 0; j < 8; j++)
-                    {
-                        const float* k00 = kernel.channel(q + j).row(p + i);
-
-                        g00[0] = float32_to_bfloat16(k00[k]);
-
-                        g00++;
-                    }
-                }
-            }
-        }
-        for (; p < inch; p++)
-        {
-            unsigned short* g00 = g0.row<unsigned short>(p / 4 + p % 4);
-
             for (int k = 0; k < maxk; k++)
             {
                 for (int j = 0; j < 8; j++)
@@ -2249,35 +2245,13 @@ static void convolution_im2col_sgemm_transform_kernel_bf16s_neon(const Mat& _ker
     for (; q + 3 < outch; q += 4)
     {
 #if __ARM_NEON && __aarch64__
-        Mat g0 = kernel_tm.channel(q / 8 + (q % 8) / 4);
+        unsigned short* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4);
 #else
-        Mat g0 = kernel_tm.channel(q / 4);
+        unsigned short* g00 = kernel_tm.channel(q / 4);
 #endif
 
-        int p = 0;
-        for (; p + 3 < inch; p += 4)
+        for (int p = 0; p < inch; p++)
         {
-            unsigned short* g00 = g0.row<unsigned short>(p / 4);
-
-            for (int k = 0; k < maxk; k++)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    for (int j = 0; j < 4; j++)
-                    {
-                        const float* k00 = kernel.channel(q + j).row(p + i);
-
-                        g00[0] = float32_to_bfloat16(k00[k]);
-
-                        g00++;
-                    }
-                }
-            }
-        }
-        for (; p < inch; p++)
-        {
-            unsigned short* g00 = g0.row<unsigned short>(p / 4 + p % 4);
-
             for (int k = 0; k < maxk; k++)
             {
                 for (int j = 0; j < 4; j++)
@@ -2294,32 +2268,13 @@ static void convolution_im2col_sgemm_transform_kernel_bf16s_neon(const Mat& _ker
     for (; q < outch; q++)
     {
 #if __ARM_NEON && __aarch64__
-        Mat g0 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
+        unsigned short* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
 #else
-        Mat g0 = kernel_tm.channel(q / 4 + q % 4);
+        unsigned short* g00 = kernel_tm.channel(q / 4 + q % 4);
 #endif
 
-        int p = 0;
-        for (; p + 3 < inch; p += 4)
+        for (int p = 0; p < inch; p++)
         {
-            unsigned short* g00 = g0.row<unsigned short>(p / 4);
-
-            for (int k = 0; k < maxk; k++)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    const float* k00 = kernel.channel(q).row(p + i);
-
-                    g00[0] = float32_to_bfloat16(k00[k]);
-
-                    g00++;
-                }
-            }
-        }
-        for (; p < inch; p++)
-        {
-            unsigned short* g00 = g0.row<unsigned short>(p / 4 + p % 4);
-
             for (int k = 0; k < maxk; k++)
             {
                 const float* k00 = kernel.channel(q).row(p);

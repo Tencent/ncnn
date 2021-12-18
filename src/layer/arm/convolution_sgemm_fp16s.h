@@ -435,37 +435,15 @@ static void convolution_im2col_sgemm_transform_kernel_fp16sa_neon(const Mat& _ke
     // src = maxk-inch-outch
     // dst = 8b-8a-maxk-inch/8a-outch/8b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    kernel_tm.create(64 * maxk, inch / 8 + inch % 8, outch / 8 + outch % 8, (size_t)2u);
+    kernel_tm.create(8 * maxk, inch, outch / 8 + outch % 8, (size_t)2u);
 
     int q = 0;
     for (; q + 7 < outch; q += 8)
     {
-        Mat g0 = kernel_tm.channel(q / 8);
+        __fp16* g00 = kernel_tm.channel(q / 8);
 
-        int p = 0;
-        for (; p + 7 < inch; p += 8)
+        for (int p = 0; p < inch; p++)
         {
-            __fp16* g00 = g0.row<__fp16>(p / 8);
-
-            for (int k = 0; k < maxk; k++)
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    for (int j = 0; j < 8; j++)
-                    {
-                        const float* k00 = kernel.channel(q + j).row(p + i);
-
-                        g00[0] = (__fp16)k00[k];
-
-                        g00++;
-                    }
-                }
-            }
-        }
-        for (; p < inch; p++)
-        {
-            __fp16* g00 = g0.row<__fp16>(p / 8 + p % 8);
-
             for (int k = 0; k < maxk; k++)
             {
                 for (int j = 0; j < 8; j++)
@@ -481,29 +459,10 @@ static void convolution_im2col_sgemm_transform_kernel_fp16sa_neon(const Mat& _ke
     }
     for (; q < outch; q++)
     {
-        Mat g0 = kernel_tm.channel(q / 8 + q % 8);
+        __fp16* g00 = kernel_tm.channel(q / 8 + q % 8);
 
-        int p = 0;
-        for (; p + 7 < inch; p += 8)
+        for (int p = 0; p < inch; p++)
         {
-            __fp16* g00 = g0.row<__fp16>(p / 8);
-
-            for (int k = 0; k < maxk; k++)
-            {
-                for (int i = 0; i < 8; i++)
-                {
-                    const float* k00 = kernel.channel(q).row(p + i);
-
-                    g00[0] = (__fp16)k00[k];
-
-                    g00++;
-                }
-            }
-        }
-        for (; p < inch; p++)
-        {
-            __fp16* g00 = g0.row<__fp16>(p / 8 + p % 8);
-
             for (int k = 0; k < maxk; k++)
             {
                 const float* k00 = kernel.channel(q).row(p);
