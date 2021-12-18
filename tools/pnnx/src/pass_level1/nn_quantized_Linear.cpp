@@ -103,7 +103,7 @@ public:
     {
         //         mod.dump(true, false, false);
 
-                graph->dump();
+        graph->dump();
 
         const torch::jit::Node* quantized_linear = find_node_by_kind(graph, "quantized::linear_relu");
 
