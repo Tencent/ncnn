@@ -184,6 +184,11 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 }
 
 /* mat api */
+ncnn_mat_t ncnn_mat_create()
+{
+    return (ncnn_mat_t)(new Mat());
+}
+
 ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator)
 {
     return (ncnn_mat_t)(new Mat(w, (size_t)4u, (Allocator*)allocator));

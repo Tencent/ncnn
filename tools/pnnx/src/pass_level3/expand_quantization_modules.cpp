@@ -28,13 +28,22 @@ void expand_quantization_modules(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "nn.intrinsic.quantized.ConvReLU2d")
+            if (op->type == "nn.intrinsic.quantized.ConvReLU2d")
+            {
+                op->type = "nn.quantized.Conv2d";
+            }
+            else if (op->type == "nn.intrinsic.quantized.LinearReLU")
+            {
+                op->type = "nn.quantized.Linear";
+            }
+            else
+            {
                 continue;
+            }
+
+            // expand to nn.quantized.Conv2d / nn.quantized.Linear + nn.ReLU
 
             matched = true;
-
-            // expand to nn.quantized.Conv2d + nn.ReLU
-            op->type = "nn.quantized.Conv2d";
 
             // insert new operator before all output consumers
             const Operator* cur = 0;

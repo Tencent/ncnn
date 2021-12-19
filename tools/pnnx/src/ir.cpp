@@ -266,6 +266,41 @@ Attribute::Attribute(const at::Tensor& t)
     type = get_at_tensor_type(t.scalar_type());
 
     const int ndim = (int)t.dim();
+
+    if (ndim == 0)
+    {
+        shape = {1};
+
+        data.resize(type_to_elemsize(type));
+
+        if (t.scalar_type() == c10::ScalarType::Long)
+        {
+            int64_t i = t.item<int64_t>();
+            memcpy((void*)data.data(), (const void*)&i, data.size());
+        }
+        else if (t.scalar_type() == c10::ScalarType::Int)
+        {
+            int i = t.item<int>();
+            memcpy((void*)data.data(), (const void*)&i, data.size());
+        }
+        else if (t.scalar_type() == c10::ScalarType::Double)
+        {
+            double f = t.item<double>();
+            memcpy((void*)data.data(), (const void*)&f, data.size());
+        }
+        else if (t.scalar_type() == c10::ScalarType::Float)
+        {
+            float f = t.item<float>();
+            memcpy((void*)data.data(), (const void*)&f, data.size());
+        }
+        else
+        {
+            fprintf(stderr, "unknown Attribute tensor scalar type %d\n", type);
+        }
+
+        return;
+    }
+
     shape.resize(ndim);
     for (int i = 0; i < ndim; i++)
         shape[i] = t.size(i);
