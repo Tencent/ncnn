@@ -556,10 +556,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             // we need more proper conditions
             bool prefer_sgemm = (size >= 44 * 44 && num_input >= 48 && num_output >= 48)
-                           || (size >= 28 * 28 && size < 44 * 44 && num_input >= 56 && num_output >= 56)
-                           || (size >= 19 * 19 && size < 28 * 28 && num_input >= 64 && num_output >= 64)
-                           || (size >= 17 * 17 && size < 19 * 19 && num_input >= 96 && num_output >= 96)
-                           || (size >= 5 * 5 && size < 17 * 17 && num_input >= 24 && num_output >= 24);
+                                || (size >= 28 * 28 && size < 44 * 44 && num_input >= 56 && num_output >= 56)
+                                || (size >= 19 * 19 && size < 28 * 28 && num_input >= 64 && num_output >= 64)
+                                || (size >= 17 * 17 && size < 19 * 19 && num_input >= 96 && num_output >= 96)
+                                || (size >= 5 * 5 && size < 17 * 17 && num_input >= 24 && num_output >= 24);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 conv3x3s2_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
@@ -578,14 +578,14 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             // we need more proper conditions
             bool prefer_sgemm = (size >= 16 * 16 && size <= 17 * 17 && num_input >= 200 && num_output >= 200)
-                           || (size >= 15 * 15 && size < 16 * 16 && num_input >= 128 && num_output >= 128)
-                           || (size >= 13 * 13 && size < 15 * 15 && num_input >= 160 && num_output >= 160)
-                           || (size >= 12 * 12 && size < 13 * 13 && num_input >= 184 && num_output >= 184)
-                           || (size >= 11 * 11 && size < 12 * 12 && num_input >= 88 && num_output >= 88)
-                           || (size >= 10 * 10 && size < 11 * 11 && num_input >= 128 && num_output >= 128)
-                           || (size >= 9 * 9 && size < 10 * 10 && num_input >= 120 && num_output >= 120)
-                           || (size >= 8 * 8 && size < 9 * 9 && num_input >= 192 && num_output >= 192)
-                           || (size >= 6 * 6 && size < 8 * 8 && num_input >= 48 && num_output >= 48);
+                                || (size >= 15 * 15 && size < 16 * 16 && num_input >= 128 && num_output >= 128)
+                                || (size >= 13 * 13 && size < 15 * 15 && num_input >= 160 && num_output >= 160)
+                                || (size >= 12 * 12 && size < 13 * 13 && num_input >= 184 && num_output >= 184)
+                                || (size >= 11 * 11 && size < 12 * 12 && num_input >= 88 && num_output >= 88)
+                                || (size >= 10 * 10 && size < 11 * 11 && num_input >= 128 && num_output >= 128)
+                                || (size >= 9 * 9 && size < 10 * 10 && num_input >= 120 && num_output >= 120)
+                                || (size >= 8 * 8 && size < 9 * 9 && num_input >= 192 && num_output >= 192)
+                                || (size >= 6 * 6 && size < 8 * 8 && num_input >= 48 && num_output >= 48);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
@@ -604,8 +604,8 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             // we need more proper conditions
             bool prefer_sgemm = (size >= 28 * 28 && num_input >= 144 && num_output >= 144)
-                           || (size >= 12 * 12 && size < 28 * 28 && num_input >= 128 && num_output >= 128)
-                           || (size >= 7 * 7 && size < 12 * 12 && num_input >= 72 && num_output >= 72);
+                                || (size >= 12 * 12 && size < 28 * 28 && num_input >= 128 && num_output >= 128)
+                                || (size >= 7 * 7 && size < 12 * 12 && num_input >= 72 && num_output >= 72);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
@@ -1490,14 +1490,14 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         {
             // we need more proper conditions
             bool prefer_sgemm = (size >= 44 * 44 && num_input >= 192 && num_output >= 192)
-                           || (size >= 28 * 28 && size < 44 * 44 && num_input >= 144 && num_output >= 144)
-                           || (size >= 19 * 19 && size < 28 * 28 && num_input >= 160 && num_output >= 160)
-                           || (size >= 17 * 17 && size < 19 * 19 && num_input >= 192 && num_output >= 192)
-                           || (size >= 15 * 15 && size < 17 * 17 && num_input >= 112 && num_output >= 112)
-                           || (size >= 13 * 13 && size < 15 * 15 && num_input >= 48 && num_output >= 48)
-                           || (size >= 11 * 11 && size < 13 * 13 && num_input >= 56 && num_output >= 56)
-                           || (size >= 9 * 9 && size < 11 * 11 && num_input >= 80 && num_output >= 80)
-                           || (size >= 5 * 5 && size < 9 * 9 && num_input >= 64 && num_output >= 64);
+                                || (size >= 28 * 28 && size < 44 * 44 && num_input >= 144 && num_output >= 144)
+                                || (size >= 19 * 19 && size < 28 * 28 && num_input >= 160 && num_output >= 160)
+                                || (size >= 17 * 17 && size < 19 * 19 && num_input >= 192 && num_output >= 192)
+                                || (size >= 15 * 15 && size < 17 * 17 && num_input >= 112 && num_output >= 112)
+                                || (size >= 13 * 13 && size < 15 * 15 && num_input >= 48 && num_output >= 48)
+                                || (size >= 11 * 11 && size < 13 * 13 && num_input >= 56 && num_output >= 56)
+                                || (size >= 9 * 9 && size < 11 * 11 && num_input >= 80 && num_output >= 80)
+                                || (size >= 5 * 5 && size < 9 * 9 && num_input >= 64 && num_output >= 64);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
@@ -1516,9 +1516,9 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         {
             // we need more proper conditions
             bool prefer_sgemm = (size >= 12 * 12 && size <= 15 * 15 && num_input >= 256 && num_output >= 256)
-                           || (size >= 10 * 10 && size < 12 * 12 && num_input >= 152 && num_output >= 152)
-                           || (size >= 8 * 8 && size < 10 * 10 && num_input >= 232 && num_output >= 232)
-                           || (size >= 6 * 6 && size < 8 * 8 && num_input >= 56 && num_output >= 56);
+                                || (size >= 10 * 10 && size < 12 * 12 && num_input >= 152 && num_output >= 152)
+                                || (size >= 8 * 8 && size < 10 * 10 && num_input >= 232 && num_output >= 232)
+                                || (size >= 6 * 6 && size < 8 * 8 && num_input >= 56 && num_output >= 56);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
@@ -1537,8 +1537,8 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
         {
             // we need more proper conditions
             bool prefer_sgemm = (size >= 48 * 48 && num_input >= 160 && num_output >= 160)
-                           || (size >= 11 * 11 && size < 48 * 48 && num_input >= 96 && num_output >= 96)
-                           || (size >= 7 * 7 && size < 11 * 11 && num_input >= 64 && num_output >= 64);
+                                || (size >= 11 * 11 && size < 48 * 48 && num_input >= 96 && num_output >= 96)
+                                || (size >= 7 * 7 && size < 11 * 11 && num_input >= 64 && num_output >= 64);
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
