@@ -1,0 +1,64 @@
+name: pnnx
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+concurrency:
+  group: pnnx-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ubuntu:
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - torch-version: 1.8.1
+            torchvision-version: 0.9.1
+
+          - torch-version: 1.9.1
+            torchvision-version: 0.10.1
+
+          - torch-version: 1.10.0
+            torchvision-version: 0.11.1
+
+    steps:
+    - name: setup pytorch-${{ matrix.torch-version }}
+      run: |
+        pip install torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+
+    - name: build-ncnn
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest setuptools wheel twine
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+        cd ..
+        pip install .
+
+    - name: build-pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 2
+
+    - name: test
+      run: |
+        cd tools/pnnx
+        cd build && ctest --output-on-failure

@@ -47,7 +47,7 @@ int Swish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (int i = 0; i < size; i++)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
-                _mm256_storeu_ps(ptr, _mm256_mul_ps(_p, sigmoid_avx(_p)));
+                _mm256_storeu_ps(ptr, swish_avx(_p));
                 ptr += 8;
             }
         }
@@ -66,7 +66,7 @@ int Swish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (int i = 0; i < size; i++)
             {
                 __m128 _p = _mm_loadu_ps(ptr);
-                _mm_storeu_ps(ptr, _mm_mul_ps(_p, sigmoid_sse(_p)));
+                _mm_storeu_ps(ptr, swish_sse(_p));
                 ptr += 4;
             }
         }
@@ -86,14 +86,14 @@ int Swish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
-            _mm256_storeu_ps(ptr, _mm256_mul_ps(_p, sigmoid_avx(_p)));
+            _mm256_storeu_ps(ptr, swish_avx(_p));
             ptr += 8;
         }
 #endif // __AVX__
         for (; i + 3 < size; i += 4)
         {
             __m128 _p = _mm_loadu_ps(ptr);
-            _mm_storeu_ps(ptr, _mm_mul_ps(_p, sigmoid_sse(_p)));
+            _mm_storeu_ps(ptr, swish_sse(_p));
             ptr += 4;
         }
 #endif // __SSE2__

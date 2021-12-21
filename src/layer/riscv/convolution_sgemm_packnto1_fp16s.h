@@ -597,7 +597,7 @@ static void convolution_im2col_sgemm_transform_kernel_packnto1_fp16sa_rvv(const 
     // src = maxk-inch-outch
     // dst = pb-pa-maxk-inch/pa-outch/pb
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    kernel_tm.create(packn * packn * maxk, inch / packn, outch / packn + outch % packn, 2u);
+    kernel_tm.create(packn * packn * maxk, inch / packn, outch / packn + outch % packn, (size_t)2u);
 
     int q = 0;
     for (; q + (packn - 1) < outch; q += packn)

@@ -24,7 +24,7 @@ static int test_flatten(const ncnn::Mat& a)
     int ret = test_layer<ncnn::Flatten>("Flatten", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_flatten failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_flatten failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
@@ -33,6 +33,12 @@ static int test_flatten(const ncnn::Mat& a)
 static int test_flatten_0()
 {
     return 0
+           || test_flatten(RandomMat(2, 3, 4, 4))
+           || test_flatten(RandomMat(3, 5, 7, 8))
+           || test_flatten(RandomMat(1, 1, 1, 16))
+           || test_flatten(RandomMat(9, 10, 2, 16))
+           || test_flatten(RandomMat(1, 7, 1, 1))
+           || test_flatten(RandomMat(6, 6, 6, 15))
            || test_flatten(RandomMat(2, 4, 4))
            || test_flatten(RandomMat(3, 5, 8))
            || test_flatten(RandomMat(1, 1, 16))
@@ -57,7 +63,7 @@ static int test_flatten_int8(const ncnn::Mat& a)
     int ret = test_layer<ncnn::Flatten>("Flatten", pd, weights, a, 0.001, 0, flag);
     if (ret != 0)
     {
-        fprintf(stderr, "test_flatten_int8 failed a.dims=%d a=(%d %d %d)\n", a.dims, a.w, a.h, a.c);
+        fprintf(stderr, "test_flatten_int8 failed a.dims=%d a=(%d %d %d %d)\n", a.dims, a.w, a.h, a.d, a.c);
     }
 
     return ret;
@@ -66,6 +72,12 @@ static int test_flatten_int8(const ncnn::Mat& a)
 static int test_flatten_1()
 {
     return 0
+           || test_flatten_int8(RandomS8Mat(2, 3, 4, 4))
+           || test_flatten_int8(RandomS8Mat(3, 5, 7, 8))
+           || test_flatten_int8(RandomS8Mat(1, 1, 1, 16))
+           || test_flatten_int8(RandomS8Mat(9, 10, 2, 16))
+           || test_flatten_int8(RandomS8Mat(1, 7, 1, 1))
+           || test_flatten_int8(RandomS8Mat(6, 6, 6, 15))
            || test_flatten_int8(RandomS8Mat(2, 4, 16))
            || test_flatten_int8(RandomS8Mat(3, 5, 32))
            || test_flatten_int8(RandomS8Mat(1, 1, 64))

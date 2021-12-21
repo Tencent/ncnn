@@ -887,7 +887,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if __AVX__
     if (out_elempack == 8)
     {
-        // num_output
+// num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
@@ -988,7 +988,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     if (out_elempack == 4)
     {
-        // num_output
+// num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
@@ -1314,7 +1314,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         int remain_num_output_start = 0;
 #endif // __SSE2__
 
-        // num_output
+// num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = remain_num_output_start; p < num_output; p++)
         {
@@ -1643,7 +1643,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
         _mm_storeu_ps(output_ptr + p, _mm256_castps256_ps128(_sums_a));
     }
 
-// num_output
+    // num_output
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_num_output_start; p < num_output; p++)
     {
@@ -1701,49 +1701,7 @@ int InnerProduct_x86::forward_fp16(const Mat& bottom_blob, Mat& top_blob, const 
 #if NCNN_INT8
 int InnerProduct_x86::create_pipeline_int8_x86(const Option& opt)
 {
-    if (activation_type == 1)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 2)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::ReLU);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // slope
-        activation->load_param(pd);
-    }
-    else if (activation_type == 3)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Clip);
-
-        ncnn::ParamDict pd;
-        pd.set(0, activation_params[0]); // min
-        pd.set(1, activation_params[1]); // max
-        activation->load_param(pd);
-    }
-    else if (activation_type == 4)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Sigmoid);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-    else if (activation_type == 5)
-    {
-        activation = ncnn::create_layer(ncnn::LayerType::Mish);
-
-        ncnn::ParamDict pd;
-        activation->load_param(pd);
-    }
-
-    if (activation)
-    {
-        activation->create_pipeline(opt);
-    }
+    activation = create_activation_layer(activation_type, activation_params, opt);
 
     const int num_input = weight_data_size / num_output;
 
@@ -1835,7 +1793,7 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
 #if __SSE2__
     if (out_elempack == 8)
     {
-        // num_output
+// num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
@@ -1875,7 +1833,7 @@ int InnerProduct_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, co
 
     if (out_elempack == 1)
     {
-        // num_output
+// num_output
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {

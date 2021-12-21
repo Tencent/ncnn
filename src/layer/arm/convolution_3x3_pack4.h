@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
 {
     // winograd63 transform kernel
     Mat kernel_tm;
@@ -29,7 +29,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -2048,7 +2048,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd42_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch)
+static void conv3x3s1_winograd42_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
 {
     // winograd43 transform kernel
     Mat kernel_tm(6 * 6, inch, outch);
@@ -2062,7 +2062,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack4_neon(const Mat& kernel, 
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)

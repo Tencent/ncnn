@@ -55,6 +55,13 @@ Convolution_vulkan::Convolution_vulkan()
 
 int Convolution_vulkan::create_pipeline(const Option& _opt)
 {
+    if (dynamic_weight)
+    {
+        support_vulkan = false;
+        support_image_storage = false;
+        return 0;
+    }
+
     Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
     const Mat& out_shape = top_shapes.empty() ? Mat() : top_shapes[0];
@@ -746,7 +753,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 {0.0f, 0.0f, 1.0f}
             };
 
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 for (int q = 0; q < num_input; q++)
@@ -876,7 +883,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 {0.0f, 0.0f, 1.0f}
             };
 
-            #pragma omp parallel for
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int p = 0; p < num_output; p++)
             {
                 for (int q = 0; q < num_input; q++)
@@ -959,7 +966,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (bias_term)
     {
         Mat bias_data_packed;
-        convert_packing(bias_data, bias_data_packed, out_elempack);
+        convert_packing(bias_data, bias_data_packed, out_elempack, opt);
 
         if (support_image_storage && opt.use_image_storage)
         {

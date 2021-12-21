@@ -910,42 +910,123 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if __AVX__
-    if (bottom_blobs.size() != 3 || top_blobs.size() != 3)
-    {
-        return forward(bottom_blobs[0], top_blobs[0], opt);
-    }
     const Mat& bottom_blob = bottom_blobs[0];
-
     int T = bottom_blob.h;
-    Mat& top_blob = top_blobs[0];
-    Mat& hidden_state = top_blobs[1];
-    Mat& cell_state = top_blobs[2];
+    int num_directions = direction == 2 ? 2 : 1;
 
-    //Copy previous states
-    hidden_state = bottom_blobs[1].clone(opt.blob_allocator);
-    cell_state = bottom_blobs[2].clone(opt.blob_allocator);
-
-    top_blob.create(num_output, T, 4u, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-#if __AVX2__
-    if (opt.use_weight_fp16_storage)
+    Mat hidden;
+    Mat cell;
+    Allocator* hidden_cell_allocator = top_blobs.size() == 3 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 3)
     {
-        // Uni directional
-        int ret = lstm_fp16(bottom_blob, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden_state, cell_state, opt);
-        if (ret != 0)
-            return ret;
+        hidden = bottom_blobs[1].clone(hidden_cell_allocator);
+        cell = bottom_blobs[2].clone(hidden_cell_allocator);
     }
     else
     {
-#endif
-        // Uni directional
-        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden_state, cell_state, opt);
-        if (ret != 0)
-            return ret;
-#if __AVX2__
+        hidden.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+
+        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        if (cell.empty())
+            return -100;
+        cell.fill(0.f);
     }
+
+    Mat& top_blob = top_blobs[0];
+    top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    // Uni directional
+    if (direction == 0 || direction == 1)
+    {
+#if __AVX2__
+        if (opt.use_weight_fp16_storage)
+        {
+            int ret = lstm_fp16(bottom_blob, top_blob, direction, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden, cell, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
 #endif
+            int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, cell, opt);
+            if (ret != 0)
+                return ret;
+#if __AVX2__
+        }
+#endif
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        Mat cell0 = cell.row_range(0, 1);
+#if __AVX2__
+        if (opt.use_weight_fp16_storage)
+        {
+            int ret = lstm_fp16(bottom_blob, top_blob_forward, 0, weight_xc_data_fp16.channel(0), bias_c_data.channel(0), weight_hc_data_fp16.channel(0), hidden0, cell0, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+#endif
+            int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden0, cell0, opt);
+            if (ret0 != 0)
+                return ret0;
+#if __AVX2__
+        }
+#endif
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        Mat cell1 = cell.row_range(1, 1);
+#if __AVX2__
+        if (opt.use_weight_fp16_storage)
+        {
+            int ret = lstm_fp16(bottom_blob, top_blob_reverse, 1, weight_xc_data_fp16.channel(1), bias_c_data.channel(1), weight_hc_data_fp16.channel(1), hidden1, cell1, opt);
+            if (ret != 0)
+                return ret;
+        }
+        else
+        {
+#endif
+            int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden1, cell1, opt);
+            if (ret1 != 0)
+                return ret1;
+#if __AVX2__
+        }
+#endif
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const float* pf = top_blob_forward.row(i);
+            const float* pr = top_blob_reverse.row(i);
+            float* ptr = top_blob.row(i);
+
+            memcpy(ptr, pf, num_output * sizeof(float));
+            memcpy(ptr + num_output, pr, num_output * sizeof(float));
+        }
+    }
+
+    if (top_blobs.size() == 3)
+    {
+        top_blobs[1] = hidden;
+        top_blobs[2] = cell;
+    }
+
     return 0;
 #else
     return LSTM::forward(bottom_blobs, top_blobs, opt);

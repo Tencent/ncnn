@@ -44,6 +44,7 @@
 #include "layer/dropout.h"
 #include "layer/eltwise.h"
 #include "layer/elu.h"
+#include "layer/embed.h"
 #include "layer/exp.h"
 #include "layer/expanddims.h"
 #include "layer/flatten.h"
@@ -1171,6 +1172,19 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             ncnn::ELU* op_default = (ncnn::ELU*)layer_default;
 
             fprintf_param_value(" 0=%e", alpha)
+        }
+        else if (layer->type == "Embed")
+        {
+            ncnn::Embed* op = (ncnn::Embed*)layer;
+            ncnn::Embed* op_default = (ncnn::Embed*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", input_dim)
+            fprintf_param_value(" 2=%d", bias_term)
+            fprintf_param_value(" 3=%d", weight_data_size)
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
         }
         else if (layer->type == "Exp")
         {

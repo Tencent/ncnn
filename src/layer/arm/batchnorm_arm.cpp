@@ -101,12 +101,13 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int c = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
@@ -180,12 +181,13 @@ int BatchNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int c = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
@@ -311,12 +313,13 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int c = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
@@ -387,12 +390,13 @@ int BatchNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int c = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
@@ -475,12 +479,13 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int c = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
@@ -548,12 +553,13 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int c = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
@@ -624,12 +630,13 @@ int BatchNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int c = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
@@ -715,12 +722,13 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
             }
         }
 
-        if (dims == 3)
+        if (dims == 3 || dims == 4)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
             int c = bottom_top_blob.c;
-            int size = w * h;
+            int size = w * h * d;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
@@ -794,12 +802,13 @@ int BatchNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
+        int d = bottom_top_blob.d;
         int c = bottom_top_blob.c;
-        int size = w * h;
+        int size = w * h * d;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)

@@ -88,7 +88,7 @@ int DeconvolutionDepthWise_riscv::create_pipeline(const Option& opt)
         if (elempack == packn)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, packn);
+            convert_packing(weight_data_r2, weight_data_packed, packn, opt);
         }
 #endif // __riscv_vector
 
@@ -142,6 +142,8 @@ int DeconvolutionDepthWise_riscv::create_group_ops(const Option& opt)
         pd.set(13, stride_h);
         pd.set(4, 0);  // pad_w
         pd.set(14, 0); // pad_h
+        pd.set(18, output_pad_right);
+        pd.set(19, output_pad_bottom);
         pd.set(5, bias_term);
         pd.set(6, maxk * channels_g * num_output_g); // weight_data_size
         pd.set(9, activation_type);
@@ -217,8 +219,8 @@ int DeconvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob,
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = 1;
 #if __riscv_vector
     if (opt.use_packing_layout)
@@ -229,7 +231,7 @@ int DeconvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob,
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }
@@ -476,7 +478,7 @@ int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
             Mat weight_data_r2_packed;
-            convert_packing(weight_data_r2, weight_data_r2_packed, packn);
+            convert_packing(weight_data_r2, weight_data_r2_packed, packn, opt);
 
             ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_fp16, opt);
         }
@@ -511,13 +513,13 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }
@@ -732,13 +734,13 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = (opt.use_packing_layout && num_output % packn == 0) ? packn : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }

@@ -15,37 +15,7 @@
 #ifndef MIPS_ACTIVATION_H
 #define MIPS_ACTIVATION_H
 
-static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
-{
-    if (activation_type == 1)
-    {
-        v = std::max(v, 0.f);
-    }
-    else if (activation_type == 2)
-    {
-        float slope = activation_params[0];
-        v = v > 0.f ? v : v * slope;
-    }
-    else if (activation_type == 3)
-    {
-        float min = activation_params[0];
-        float max = activation_params[1];
-        if (v < min)
-            v = min;
-        if (v > max)
-            v = max;
-    }
-    else if (activation_type == 4)
-    {
-        v = 1.f / (1.f + exp(-v));
-    }
-    else if (activation_type == 5)
-    {
-        v = v * tanh(log(exp(v) + 1.f));
-    }
-
-    return v;
-}
+#include "fused_activation.h"
 
 #if __mips_msa
 #include <msa.h>
@@ -80,6 +50,17 @@ static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat
     else if (activation_type == 5)
     {
         _v = __msa_fmul_w(_v, tanh_ps(log_ps(__msa_fadd_w(exp_ps(_v), (v4f32)__msa_fill_w_f32(1.f)))));
+    }
+    else if (activation_type == 6)
+    {
+        v4f32 _alpha = (v4f32)__msa_fill_w_f32(activation_params[0]);
+        v4f32 _beta = (v4f32)__msa_fill_w_f32(activation_params[1]);
+        v4f32 _zero = (v4f32)__msa_fill_w(0);
+        v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
+        v4f32 _outp = __msa_fmadd_w(_beta, _v, _alpha);
+        _outp = __msa_fmax_w(_outp, _zero);
+        _outp = __msa_fmin_w(_outp, _one);
+        _v = __msa_fmul_w(_outp, _v);
     }
 
     return _v;

@@ -71,10 +71,11 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -136,7 +137,7 @@ int Flatten_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 #endif // __riscv_vector
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
@@ -213,10 +214,11 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -278,7 +280,7 @@ int Flatten_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 #endif // __riscv_vector
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
@@ -355,10 +357,11 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -420,7 +423,7 @@ int Flatten_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
 #endif // __riscv_vector
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
 #if __riscv_vector
         if (elempack == packn) // out_elempack == packn
