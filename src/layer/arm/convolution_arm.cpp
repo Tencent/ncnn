@@ -275,9 +275,9 @@ int Convolution_arm::create_pipeline(const Option& opt)
         }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input >= 12 || num_output >= 12))
+                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && (num_input >= 16 || num_output >= 16))
+                                || ((dilation_w >= 2 || dilation_h >= 2) && (num_input >= 16 || num_output >= 16));
 
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
@@ -315,9 +315,9 @@ int Convolution_arm::create_pipeline(const Option& opt)
         }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input >= 12 || num_output >= 12))
+                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && (num_input >= 16 || num_output >= 16))
+                                || ((dilation_w >= 2 || dilation_h >= 2) && (num_input >= 16 || num_output >= 16));
 
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
@@ -347,9 +347,9 @@ int Convolution_arm::create_pipeline(const Option& opt)
         }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input >= 12 || num_output >= 12))
+                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && (num_input >= 16 || num_output >= 16))
+                                || ((dilation_w >= 2 || dilation_h >= 2) && (num_input >= 16 || num_output >= 16));
 
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
@@ -415,9 +415,9 @@ int Convolution_arm::create_pipeline(const Option& opt)
         }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input >= 12 || num_output >= 12))
+                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && (num_input >= 16 || num_output >= 16))
+                                || ((dilation_w >= 2 || dilation_h >= 2) && (num_input >= 16 || num_output >= 16));
 
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
@@ -626,9 +626,10 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input >= 12 || num_output >= 12))
+                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && (num_input >= 16 || num_output >= 16))
+                                || ((dilation_w >= 2 || dilation_h >= 2) && (num_input >= 16 || num_output >= 16));
+
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
                 convolution_im2col_sgemm_pack4_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
@@ -694,9 +695,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input >= 12 || num_output >= 12))
+                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && (num_input >= 16 || num_output >= 16))
+                                || ((dilation_w >= 2 || dilation_h >= 2) && (num_input >= 16 || num_output >= 16));
 
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
@@ -748,9 +749,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input >= 12 || num_output >= 12))
+                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && (num_input >= 16 || num_output >= 16))
+                                || ((dilation_w >= 2 || dilation_h >= 2) && (num_input >= 16 || num_output >= 16));
 
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
@@ -879,9 +880,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 12 && num_output >= 12)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 16 && num_output >= 16)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 16 && num_output >= 16);
+            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && (num_input >= 12 || num_output >= 12))
+                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && (num_input >= 16 || num_output >= 16))
+                                || ((dilation_w >= 2 || dilation_h >= 2) && (num_input >= 16 || num_output >= 16));
 
             if (opt.use_sgemm_convolution && prefer_sgemm)
             {
@@ -1177,20 +1178,13 @@ int Convolution_arm::create_pipeline_fp16s(const Option& opt)
 
             convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 64 && num_output >= 64)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 32 && num_output >= 32)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 32 && num_output >= 32);
-
-            if (opt.use_sgemm_convolution && prefer_sgemm)
-            {
-                convolution_im2col_sgemm_transform_kernel_pack8_fp16sa_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
-            }
-            else
-            {
-                convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
-            }
+            convolution_transform_kernel_packed_fp16s_neon(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
     }
 
@@ -1580,25 +1574,18 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
                 activation->forward_inplace(top_blob, opt);
             }
         }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
         else
         {
-            bool prefer_sgemm = (dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 64 && num_output >= 64)
-                                || (dilation_w == 1 && dilation_h == 1 && (stride_w >= 2 || stride_h >= 2) && num_input >= 32 && num_output >= 32)
-                                || ((dilation_w >= 2 || dilation_h >= 2) && num_input >= 32 && num_output >= 32);
-
-            if (opt.use_sgemm_convolution && prefer_sgemm)
-            {
-                convolution_im2col_sgemm_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-
-                if (activation)
-                {
-                    activation->forward_inplace(top_blob, opt);
-                }
-            }
-            else
-            {
-                convolution_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
-            }
+            convolution_pack8_fp16sa_neon(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
