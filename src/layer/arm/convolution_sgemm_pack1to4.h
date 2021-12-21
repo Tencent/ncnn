@@ -278,7 +278,11 @@ static void im2col_sgemm_pack1to4_neon(const Mat& bottom_im2col, Mat& top_blob, 
         for (; i + 7 < size; i += 8)
         {
             const float* tmpptr = tmp.channel(i / 8);
+#if __aarch64__
+            const float* kptr0 = kernel.channel(p / 2 + p % 2);
+#else
             const float* kptr0 = kernel.channel(p);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
@@ -334,7 +338,11 @@ static void im2col_sgemm_pack1to4_neon(const Mat& bottom_im2col, Mat& top_blob, 
         for (; i + 3 < size; i += 4)
         {
             const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+#if __aarch64__
+            const float* kptr0 = kernel.channel(p / 2 + p % 2);
+#else
             const float* kptr0 = kernel.channel(p);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
@@ -373,7 +381,11 @@ static void im2col_sgemm_pack1to4_neon(const Mat& bottom_im2col, Mat& top_blob, 
         for (; i < size; i++)
         {
             const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+#if __aarch64__
+            const float* kptr0 = kernel.channel(p / 2 + p % 2);
+#else
             const float* kptr0 = kernel.channel(p);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
