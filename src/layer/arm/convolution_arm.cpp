@@ -367,9 +367,9 @@ int Convolution_arm::create_pipeline(const Option& opt)
     if (elempack == 1 && out_elempack == 1)
     {
         // TODO assume more proper condition
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 64 && num_output >= 64)
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if (opt.use_sgemm_convolution)
+            if (opt.use_sgemm_convolution && num_input >= 64 && num_output >= 64)
             {
                 convolution_im2col_sgemm_transform_kernel_neon(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
             }
@@ -772,9 +772,9 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     if (elempack == 1 && out_elempack == 1)
     {
-        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 64 && num_output >= 64)
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            if (opt.use_sgemm_convolution)
+            if (opt.use_sgemm_convolution && num_input >= 64 && num_output >= 64)
             {
                 conv1x1s1_sgemm_neon(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
             }
