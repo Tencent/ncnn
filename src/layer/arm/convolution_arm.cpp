@@ -2497,14 +2497,17 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
 
+    bool use_int8_requantize = int8_scale_term > 100;
     int out_elempack = 1;
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
+        if (use_int8_requantize)
+            out_elempack = num_output % 8 == 0 ? 8 : 1;
+        else
+            out_elempack = num_output % 4 == 0 ? 4 : 1;
     }
 #endif // __ARM_NEON
-    bool use_int8_requantize = int8_scale_term > 100;
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (opt.use_fp16_storage)
@@ -2525,13 +2528,21 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     const int num_input = channels * elempack;
 #endif
 
+    int out_elempack_int32 = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __ARM_NEON
+
     Mat top_blob_int32;
-    top_blob_int32.create(outw, outh, num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
+    top_blob_int32.create(outw, outh, num_output / out_elempack_int32, (size_t)(4u * out_elempack_int32), out_elempack_int32, opt.workspace_allocator);
     if (top_blob_int32.empty())
         return -100;
 
 #if __ARM_NEON
-    if (elempack == 8 && out_elempack == 4)
+    if (elempack == 8 && out_elempack_int32 == 4)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -2586,7 +2597,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-    if (elempack == 1 && out_elempack == 4)
+    if (elempack == 1 && out_elempack_int32 == 4)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -2645,7 +2656,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-    if (elempack == 8 && out_elempack == 1)
+    if (elempack == 8 && out_elempack_int32 == 1)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
@@ -2697,7 +2708,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
     }
 #endif // __ARM_NEON
 
-    if (elempack == 1 && out_elempack == 1)
+    if (elempack == 1 && out_elempack_int32 == 1)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
