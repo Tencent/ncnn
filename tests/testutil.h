@@ -1383,8 +1383,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[4].use_shader_pack8 = true;
     opts[4].use_image_storage = true;
     opts[4].use_weight_fp16_storage = true;
-    opts[4].use_sgemm_convolution = false;
-    opts[4].use_winograd_convolution = false;
 
     opts[5].use_packing_layout = true;
     opts[5].use_fp16_packed = false;
