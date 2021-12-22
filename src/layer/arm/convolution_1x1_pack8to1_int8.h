@@ -25,7 +25,7 @@ static void conv1x1s1_sgemm_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_
     im2col_sgemm_pack8to1_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
-static void conv1x1s2_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv1x1s2_sgemm_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;

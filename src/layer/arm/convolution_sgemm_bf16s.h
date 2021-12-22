@@ -12,9 +12,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
-    // Mat bottom_im2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);
+    // Mat bottom_im2col(size, maxk, inch, 2u, 1, opt.workspace_allocator);
 
     const int size = bottom_im2col.w;
     const int maxk = bottom_im2col.h;
@@ -26,13 +26,12 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
     // permute
     Mat tmp;
-#if __ARM_NEON
     if (size >= 8)
-        tmp.create(8 * maxk, inch, size / 8 + (size % 8) / 4 + size % 4, 4u, 1, opt.workspace_allocator);
+        tmp.create(8 * maxk, inch, size / 8 + (size % 8) / 4 + size % 4, 2u, 1, opt.workspace_allocator);
     else if (size >= 4)
-        tmp.create(4 * maxk, inch, size / 4 + size % 4, 4u, 1, opt.workspace_allocator);
+        tmp.create(4 * maxk, inch, size / 4 + size % 4, 2u, 1, opt.workspace_allocator);
     else
-        tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
+        tmp.create(maxk, inch, size, 2u, 1, opt.workspace_allocator);
     {
         int nn_size = size >> 3;
         int remain_size_start = 0;
@@ -42,23 +41,47 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
         {
             int i = remain_size_start + ii * 8;
 
-            float* tmpptr = tmp.channel(i / 8);
+            unsigned short* tmpptr = tmp.channel(i / 8);
 
             for (int q = 0; q < inch; q++)
             {
-                const float* img0 = (const float*)bottom_im2col.channel(q) + i;
+                const unsigned short* img0 = (const unsigned short*)bottom_im2col.channel(q) + i;
 
                 for (int k = 0; k < maxk; k++)
                 {
-                    vst1q_f32(tmpptr, vld1q_f32(img0));
-                    vst1q_f32(tmpptr + 4, vld1q_f32(img0 + 4));
-                    img0 += size;
+#if __ARM_NEON
+#if __aarch64__
+                    vst1q_u16(tmpptr, vld1q_u16(img0));
                     tmpptr += 8;
+#else
+                    asm volatile(
+                        "pld        [%0, #128]          \n"
+                        "vld1.u16   {d0-d1}, [%0 :64]   \n"
+                        "vst1.u16   {d0-d1}, [%1 :64]!  \n"
+                        : "=r"(img0),  // %0
+                        "=r"(tmpptr) // %1
+                        : "0"(img0),
+                        "1"(tmpptr)
+                        : "memory", "q0");
+#endif // __aarch64__
+#else
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img0[1];
+                    tmpptr[2] = img0[2];
+                    tmpptr[3] = img0[3];
+                    tmpptr[4] = img0[4];
+                    tmpptr[5] = img0[5];
+                    tmpptr[6] = img0[6];
+                    tmpptr[7] = img0[7];
+
+                    tmpptr += 8;
+#endif // __ARM_NEON
+                    img0 += size;
                 }
             }
         }
 
-        remain_size_start += nn_size << 3;
+        remain_size_start = nn_size << 3;
         nn_size = (size - remain_size_start) >> 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -66,17 +89,38 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
         {
             int i = remain_size_start + ii * 4;
 
-            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
 
             for (int q = 0; q < inch; q++)
             {
-                const float* img0 = (const float*)bottom_im2col.channel(q) + i;
+                const unsigned short* img0 = (const unsigned short*)bottom_im2col.channel(q) + i;
 
                 for (int k = 0; k < maxk; k++)
                 {
-                    vst1q_f32(tmpptr, vld1q_f32(img0));
-                    img0 += size;
+#if __ARM_NEON
+#if __aarch64__
+                    vst1_u16(tmpptr, vld1_u16(img0));
                     tmpptr += 4;
+#else
+                    asm volatile(
+                        "pld        [%0, #64]       \n"
+                        "vld1.u16   {d0}, [%0 :64]  \n"
+                        "vst1.u16   {d0}, [%1 :64]! \n"
+                        : "=r"(img0),  // %0
+                        "=r"(tmpptr) // %1
+                        : "0"(img0),
+                        "1"(tmpptr)
+                        : "memory", "d0");
+#endif // __aarch64__
+#else
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img0[1];
+                    tmpptr[2] = img0[2];
+                    tmpptr[3] = img0[3];
+
+                    tmpptr += 4;
+#endif // __ARM_NEON
+                    img0 += size;
                 }
             }
         }
@@ -86,49 +130,26 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
-            float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+            unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
 
             for (int q = 0; q < inch; q++)
             {
-                const float* img0 = (const float*)bottom_im2col.channel(q) + i;
+                const unsigned short* img0 = (const unsigned short*)bottom_im2col.channel(q) + i;
 
                 for (int k = 0; k < maxk; k++)
                 {
                     tmpptr[0] = img0[0];
-                    img0 += size;
                     tmpptr += 1;
+                    img0 += size;
                 }
             }
         }
     }
-#else // __ARM_NEON
-    tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            float* tmpptr = tmp.channel(i);
 
-            for (int q = 0; q < inch; q++)
-            {
-                const float* img0 = (const float*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-                    img0 += size;
-                    tmpptr += 1;
-                }
-            }
-        }
-    }
-#endif // __ARM_NEON
-
-#if __ARM_NEON
     int nn_outch = 0;
     int remain_outch_start = 0;
 
-#if __aarch64__
+#if __ARM_NEON && __aarch64__
     nn_outch = outch >> 3;
     remain_outch_start = nn_outch << 3;
 
@@ -137,23 +158,24 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
     {
         int p = pp * 8;
 
-        float* outptr0 = top_blob.channel(p);
-        float* outptr1 = top_blob.channel(p + 1);
-        float* outptr2 = top_blob.channel(p + 2);
-        float* outptr3 = top_blob.channel(p + 3);
-        float* outptr4 = top_blob.channel(p + 4);
-        float* outptr5 = top_blob.channel(p + 5);
-        float* outptr6 = top_blob.channel(p + 6);
-        float* outptr7 = top_blob.channel(p + 7);
+        unsigned short* outptr0 = top_blob.channel(p);
+        unsigned short* outptr1 = top_blob.channel(p + 1);
+        unsigned short* outptr2 = top_blob.channel(p + 2);
+        unsigned short* outptr3 = top_blob.channel(p + 3);
+        unsigned short* outptr4 = top_blob.channel(p + 4);
+        unsigned short* outptr5 = top_blob.channel(p + 5);
+        unsigned short* outptr6 = top_blob.channel(p + 6);
+        unsigned short* outptr7 = top_blob.channel(p + 7);
 
         const float zeros[8] = {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f};
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
+
         for (; i + 7 < size; i += 8)
         {
-            const float* tmpptr = tmp.channel(i / 8);
-            const float* kptr = kernel.channel(p / 8);
+            const unsigned short* tmpptr = tmp.channel(i / 8);
+            const unsigned short* kptr = kernel.channel(p / 8);
 
             int nn = inch * maxk; // inch always > 0
 
@@ -183,11 +205,21 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "prfm   pldl1keep, [%8, #512]   \n"
-                "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%8], #64   \n"
+                "prfm   pldl1keep, [%8, #256]   \n"
+                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%8], #32   \n"
 
-                "prfm   pldl1keep, [%9, #512]   \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%9], #64     \n"
+                "shll   v8.4s, v8.4h, #16       \n"
+                "shll   v9.4s, v9.4h, #16       \n"
+                "shll   v10.4s, v10.4h, #16     \n"
+                "shll   v11.4s, v11.4h, #16     \n"
+
+                "prfm   pldl1keep, [%9, #256]   \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%9], #32     \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
+                "shll   v2.4s, v2.4h, #16       \n"
+                "shll   v3.4s, v3.4h, #16       \n"
 
                 "fmla   v16.4s, v8.4s, v0.s[0]  \n"
                 "fmla   v18.4s, v8.4s, v0.s[1]  \n"
@@ -209,8 +241,13 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "fmla   v29.4s, v9.4s, v1.s[2]  \n"
                 "fmla   v31.4s, v9.4s, v1.s[3]  \n"
 
-                "prfm   pldl1keep, [%8, #512]   \n"
-                "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%8], #64 \n"
+                "prfm   pldl1keep, [%8, #256]   \n"
+                "ld1    {v12.4h, v13.4h, v14.4h, v15.4h}, [%8], #32 \n"
+
+                "shll   v12.4s, v12.4h, #16     \n"
+                "shll   v13.4s, v13.4h, #16     \n"
+                "shll   v14.4s, v14.4h, #16     \n"
+                "shll   v15.4s, v15.4h, #16     \n"
 
                 "fmla   v16.4s, v10.4s, v2.s[0] \n"
                 "fmla   v18.4s, v10.4s, v2.s[1] \n"
@@ -232,8 +269,13 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "fmla   v29.4s, v11.4s, v3.s[2] \n"
                 "fmla   v31.4s, v11.4s, v3.s[3] \n"
 
-                "prfm   pldl1keep, [%9, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64     \n"
+                "prfm   pldl1keep, [%9, #256]   \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%9], #32     \n"
+
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+                "shll   v6.4s, v6.4h, #16       \n"
+                "shll   v7.4s, v7.4h, #16       \n"
 
                 "fmla   v16.4s, v12.4s, v4.s[0] \n"
                 "fmla   v18.4s, v12.4s, v4.s[1] \n"
@@ -288,11 +330,17 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "prfm   pldl1keep, [%8, #256]   \n"
-                "ld1    {v8.4s, v9.4s}, [%8], #32   \n"
+                "prfm   pldl1keep, [%8, #128]   \n"
+                "ld1    {v8.4h, v9.4h}, [%8], #16   \n"
 
-                "prfm   pldl1keep, [%9, #256]   \n"
-                "ld1    {v0.4s, v1.4s}, [%9], #32   \n"
+                "shll   v8.4s, v8.4h, #16       \n"
+                "shll   v9.4s, v9.4h, #16       \n"
+
+                "prfm   pldl1keep, [%9, #128]   \n"
+                "ld1    {v0.4h, v1.4h}, [%9], #16   \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
 
                 "fmla   v16.4s, v8.4s, v0.s[0]  \n"
                 "fmla   v18.4s, v8.4s, v0.s[1]  \n"
@@ -320,14 +368,34 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "st1    {v16.4s, v17.4s}, [%0], #32 \n"
-                "st1    {v18.4s, v19.4s}, [%1], #32 \n"
-                "st1    {v20.4s, v21.4s}, [%2], #32 \n"
-                "st1    {v22.4s, v23.4s}, [%3], #32 \n"
-                "st1    {v24.4s, v25.4s}, [%4], #32 \n"
-                "st1    {v26.4s, v27.4s}, [%5], #32 \n"
-                "st1    {v28.4s, v29.4s}, [%6], #32 \n"
-                "st1    {v30.4s, v31.4s}, [%7], #32 \n"
+                "shrn   v16.4h, v16.4s, #16         \n"
+                "shrn   v17.4h, v17.4s, #16         \n"
+                "shrn   v18.4h, v18.4s, #16         \n"
+                "shrn   v19.4h, v19.4s, #16         \n"
+
+                "shrn   v20.4h, v20.4s, #16         \n"
+                "shrn   v21.4h, v21.4s, #16         \n"
+                "shrn   v22.4h, v22.4s, #16         \n"
+                "shrn   v23.4h, v23.4s, #16         \n"
+
+                "shrn   v24.4h, v24.4s, #16         \n"
+                "shrn   v25.4h, v25.4s, #16         \n"
+                "shrn   v26.4h, v26.4s, #16         \n"
+                "shrn   v27.4h, v27.4s, #16         \n"
+
+                "shrn   v28.4h, v28.4s, #16         \n"
+                "shrn   v29.4h, v29.4s, #16         \n"
+                "shrn   v30.4h, v30.4s, #16         \n"
+                "shrn   v31.4h, v31.4s, #16         \n"
+
+                "st1    {v16.4h, v17.4h}, [%0], #16 \n"
+                "st1    {v18.4h, v19.4h}, [%1], #16 \n"
+                "st1    {v20.4h, v21.4h}, [%2], #16 \n"
+                "st1    {v22.4h, v23.4h}, [%3], #16 \n"
+                "st1    {v24.4h, v25.4h}, [%4], #16 \n"
+                "st1    {v26.4h, v27.4h}, [%5], #16 \n"
+                "st1    {v28.4h, v29.4h}, [%6], #16 \n"
+                "st1    {v30.4h, v31.4h}, [%7], #16 \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -353,10 +421,11 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "r"(nn)       // %21
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
         }
+
         for (; i + 3 < size; i += 4)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
-            const float* kptr = kernel.channel(p / 8);
+            const unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+            const unsigned short* kptr = kernel.channel(p / 8);
 
             int nn = inch * maxk; // inch always > 0
 
@@ -378,11 +447,21 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "prfm   pldl1keep, [%8, #512]   \n"
-                "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%8], #64   \n"
+                "prfm   pldl1keep, [%8, #256]   \n"
+                "ld1    {v8.4h, v9.4h, v10.4h, v11.4h}, [%8], #32   \n"
 
-                "prfm   pldl1keep, [%9, #512]   \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%9], #64     \n"
+                "shll   v8.4s, v8.4h, #16       \n"
+                "shll   v9.4s, v9.4h, #16       \n"
+                "shll   v10.4s, v10.4h, #16     \n"
+                "shll   v11.4s, v11.4h, #16     \n"
+
+                "prfm   pldl1keep, [%9, #256]   \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%9], #32     \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
+                "shll   v2.4s, v2.4h, #16       \n"
+                "shll   v3.4s, v3.4h, #16       \n"
 
                 "fmla   v16.4s, v8.4s, v0.s[0]  \n"
                 "fmla   v17.4s, v8.4s, v0.s[1]  \n"
@@ -393,8 +472,13 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "fmla   v22.4s, v8.4s, v1.s[2]  \n"
                 "fmla   v23.4s, v8.4s, v1.s[3]  \n"
 
-                "prfm   pldl1keep, [%9, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64     \n"
+                "prfm   pldl1keep, [%9, #256]   \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%9], #32     \n"
+
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+                "shll   v6.4s, v6.4h, #16       \n"
+                "shll   v7.4s, v7.4h, #16       \n"
 
                 "fmla   v16.4s, v9.4s, v2.s[0]  \n"
                 "fmla   v17.4s, v9.4s, v2.s[1]  \n"
@@ -436,11 +520,16 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "prfm   pldl1keep, [%8, #128]   \n"
-                "ld1    {v8.4s}, [%8], #16      \n"
+                "prfm   pldl1keep, [%8, #64]    \n"
+                "ld1    {v8.4h}, [%8], #8       \n"
 
-                "prfm   pldl1keep, [%9, #256]   \n"
-                "ld1    {v0.4s, v1.4s}, [%9], #32   \n"
+                "shll   v8.4s, v8.4h, #16       \n"
+
+                "prfm   pldl1keep, [%9, #128]   \n"
+                "ld1    {v0.4h, v1.4h}, [%9], #16   \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
 
                 "fmla   v16.4s, v8.4s, v0.s[0]  \n"
                 "fmla   v17.4s, v8.4s, v0.s[1]  \n"
@@ -458,14 +547,23 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "st1    {v16.4s}, [%0], #16     \n"
-                "st1    {v17.4s}, [%1], #16     \n"
-                "st1    {v18.4s}, [%2], #16     \n"
-                "st1    {v19.4s}, [%3], #16     \n"
-                "st1    {v20.4s}, [%4], #16     \n"
-                "st1    {v21.4s}, [%5], #16     \n"
-                "st1    {v22.4s}, [%6], #16     \n"
-                "st1    {v23.4s}, [%7], #16     \n"
+                "shrn   v16.4h, v16.4s, #16         \n"
+                "shrn   v17.4h, v17.4s, #16         \n"
+                "shrn   v18.4h, v18.4s, #16         \n"
+                "shrn   v19.4h, v19.4s, #16         \n"
+                "shrn   v20.4h, v20.4s, #16         \n"
+                "shrn   v21.4h, v21.4s, #16         \n"
+                "shrn   v22.4h, v22.4s, #16         \n"
+                "shrn   v23.4h, v23.4s, #16         \n"
+
+                "st1    {v16.4h}, [%0], #8      \n"
+                "st1    {v17.4h}, [%1], #8      \n"
+                "st1    {v18.4h}, [%2], #8      \n"
+                "st1    {v19.4h}, [%3], #8      \n"
+                "st1    {v20.4h}, [%4], #8      \n"
+                "st1    {v21.4h}, [%5], #8      \n"
+                "st1    {v22.4h}, [%6], #8      \n"
+                "st1    {v23.4h}, [%7], #8      \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -491,10 +589,11 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "r"(nn)       // %21
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
         }
+
         for (; i < size; i++)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
-            const float* kptr = kernel.channel(p / 8);
+            const unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+            const unsigned short* kptr = kernel.channel(p / 8);
 
             int nn = inch * maxk; // inch always > 0
 
@@ -517,19 +616,31 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "prfm   pldl1keep, [%8, #128]   \n"
-                "ld1    {v8.4s}, [%8], #16      \n"
+                "prfm   pldl1keep, [%8, #64]    \n"
+                "ld1    {v8.4h}, [%8], #8       \n"
 
-                "prfm   pldl1keep, [%9, #512]   \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%9], #64     \n"
+                "shll   v8.4s, v8.4h, #16       \n"
+
+                "prfm   pldl1keep, [%9, #256]   \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%9], #32     \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
+                "shll   v2.4s, v2.4h, #16       \n"
+                "shll   v3.4s, v3.4h, #16       \n"
 
                 "fmla   v16.4s, v0.4s, v8.s[0]  \n"
                 "fmla   v17.4s, v1.4s, v8.s[0]  \n"
                 "fmla   v18.4s, v2.4s, v8.s[1]  \n"
                 "fmla   v19.4s, v3.4s, v8.s[1]  \n"
 
-                "prfm   pldl1keep, [%9, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%9], #64     \n"
+                "prfm   pldl1keep, [%9, #256]   \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%9], #32     \n"
+
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+                "shll   v6.4s, v6.4h, #16       \n"
+                "shll   v7.4s, v7.4h, #16       \n"
 
                 "subs   w4, w4, #1              \n"
 
@@ -558,11 +669,16 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "prfm   pldl1keep, [%8, #32]    \n"
-                "ld1r   {v8.4s}, [%8], #4       \n"
+                "prfm   pldl1keep, [%8, #16]    \n"
+                "ld1r   {v8.4h}, [%8], #2       \n"
 
-                "prfm   pldl1keep, [%9, #256]   \n"
-                "ld1    {v0.4s, v1.4s}, [%9], #32   \n"
+                "shll   v8.4s, v8.4h, #16       \n"
+
+                "prfm   pldl1keep, [%9, #128]   \n"
+                "ld1    {v0.4h, v1.4h}, [%9], #16   \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
 
                 "subs   w4, w4, #1              \n"
 
@@ -573,14 +689,17 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "st1    {v24.s}[0],[%0], #4     \n"
-                "st1    {v24.s}[1],[%1], #4     \n"
-                "st1    {v24.s}[2],[%2], #4     \n"
-                "st1    {v24.s}[3],[%3], #4     \n"
-                "st1    {v25.s}[0],[%4], #4     \n"
-                "st1    {v25.s}[1],[%5], #4     \n"
-                "st1    {v25.s}[2],[%6], #4     \n"
-                "st1    {v25.s}[3],[%7], #4     \n"
+                "shrn   v24.4h, v24.4s, #16         \n"
+                "shrn   v25.4h, v25.4s, #16         \n"
+
+                "st1    {v24.h}[0],[%0], #2     \n"
+                "st1    {v24.h}[1],[%1], #2     \n"
+                "st1    {v24.h}[2],[%2], #2     \n"
+                "st1    {v24.h}[3],[%3], #2     \n"
+                "st1    {v25.h}[0],[%4], #2     \n"
+                "st1    {v25.h}[1],[%5], #2     \n"
+                "st1    {v25.h}[2],[%6], #2     \n"
+                "st1    {v25.h}[3],[%7], #2     \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -607,7 +726,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25");
         }
     }
-#endif // __aarch64__
+#endif // __ARM_NEON && __aarch64__
 
     nn_outch = (outch - remain_outch_start) >> 2;
 
@@ -616,26 +735,28 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
     {
         int p = remain_outch_start + pp * 4;
 
-        float* outptr0 = top_blob.channel(p);
-        float* outptr1 = top_blob.channel(p + 1);
-        float* outptr2 = top_blob.channel(p + 2);
-        float* outptr3 = top_blob.channel(p + 3);
+        unsigned short* outptr0 = top_blob.channel(p);
+        unsigned short* outptr1 = top_blob.channel(p + 1);
+        unsigned short* outptr2 = top_blob.channel(p + 2);
+        unsigned short* outptr3 = top_blob.channel(p + 3);
 
         const float zeros[4] = {0.f, 0.f, 0.f, 0.f};
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
+
         for (; i + 7 < size; i += 8)
         {
-            const float* tmpptr = tmp.channel(i / 8);
-#if __aarch64__
-            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4);
+            const unsigned short* tmpptr = tmp.channel(i / 8);
+#if __ARM_NEON && __aarch64__
+            const unsigned short* kptr = kernel.channel(p / 8 + (p % 8) / 4);
 #else
-            const float* kptr = kernel.channel(p / 4);
-#endif
+            const unsigned short* kptr = kernel.channel(p / 4);
+#endif // __ARM_NEON && __aarch64__
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_NEON
 #if __aarch64__
             asm volatile(
                 "ld1    {v0.4s}, [%12]          \n"
@@ -655,11 +776,21 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "prfm   pldl1keep, [%4, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%4], #64     \n"
+                "prfm   pldl1keep, [%4, #256]   \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%4], #32     \n"
 
-                "prfm   pldl1keep, [%5, #512]   \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%5], #64     \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+                "shll   v6.4s, v6.4h, #16       \n"
+                "shll   v7.4s, v7.4h, #16       \n"
+
+                "prfm   pldl1keep, [%5, #256]   \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%5], #32     \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
+                "shll   v2.4s, v2.4h, #16       \n"
+                "shll   v3.4s, v3.4h, #16       \n"
 
                 "fmla   v8.4s, v4.4s, v0.s[0]   \n"
                 "fmla   v10.4s, v4.4s, v0.s[1]  \n"
@@ -671,8 +802,13 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "fmla   v13.4s, v5.4s, v0.s[2]  \n"
                 "fmla   v15.4s, v5.4s, v0.s[3]  \n"
 
-                "prfm   pldl1keep, [%4, #512]   \n"
-                "ld1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%4], #64 \n"
+                "prfm   pldl1keep, [%4, #256]   \n"
+                "ld1    {v16.4h, v17.4h, v18.4h, v19.4h}, [%4], #32 \n"
+
+                "shll   v16.4s, v16.4h, #16     \n"
+                "shll   v17.4s, v17.4h, #16     \n"
+                "shll   v18.4s, v18.4h, #16     \n"
+                "shll   v19.4s, v19.4h, #16     \n"
 
                 "fmla   v8.4s, v6.4s, v1.s[0]   \n"
                 "fmla   v10.4s, v6.4s, v1.s[1]  \n"
@@ -717,11 +853,16 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "prfm   pldl1keep, [%4, #256]   \n"
-                "ld1    {v4.4s, v5.4s}, [%4], #32   \n"
+                "prfm   pldl1keep, [%4, #128]   \n"
+                "ld1    {v4.4h, v5.4h}, [%4], #16   \n"
 
-                "prfm   pldl1keep, [%5, #128]   \n"
-                "ld1    {v0.4s}, [%5], #16      \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+
+                "prfm   pldl1keep, [%5, #64]    \n"
+                "ld1    {v0.4h}, [%5], #8       \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
 
                 "fmla   v8.4s, v4.4s, v0.s[0]   \n"
                 "fmla   v10.4s, v4.4s, v0.s[1]  \n"
@@ -739,10 +880,19 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "st1    {v8.4s, v9.4s}, [%0], #32   \n"
-                "st1    {v10.4s, v11.4s}, [%1], #32 \n"
-                "st1    {v12.4s, v13.4s}, [%2], #32 \n"
-                "st1    {v14.4s, v15.4s}, [%3], #32 \n"
+                "shrn   v8.4h, v8.4s, #16           \n"
+                "shrn   v9.4h, v9.4s, #16           \n"
+                "shrn   v10.4h, v10.4s, #16         \n"
+                "shrn   v11.4h, v11.4s, #16         \n"
+                "shrn   v12.4h, v12.4s, #16         \n"
+                "shrn   v13.4h, v13.4s, #16         \n"
+                "shrn   v14.4h, v14.4s, #16         \n"
+                "shrn   v15.4h, v15.4s, #16         \n"
+
+                "st1    {v8.4h, v9.4h}, [%0], #16   \n"
+                "st1    {v10.4h, v11.4h}, [%1], #16 \n"
+                "st1    {v12.4h, v13.4h}, [%2], #16 \n"
+                "st1    {v14.4h, v15.4h}, [%3], #16 \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -778,15 +928,21 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "pld        [%4, #512]          \n"
-                "vldm       %4!, {d8-d15}       \n"
-                //                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-                //                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                "pld        [%4, #256]          \n"
+                "vld1.u16   {d12-d15}, [%4 :64]! \n"
 
-                "pld        [%5, #512]          \n"
-                "vldm       %5!, {d0-d7}       \n"
-                //                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
-                //                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                "vshll.u16  q4, d12, #16    \n"
+                "vshll.u16  q5, d13, #16    \n"
+                "vshll.u16  q6, d14, #16    \n"
+                "vshll.u16  q7, d15, #16    \n"
+
+                "pld        [%5, #256]          \n"
+                "vld1.u16   {d4-d7}, [%5 :64]!  \n"
+
+                "vshll.u16  q0, d4, #16     \n"
+                "vshll.u16  q1, d5, #16     \n"
+                "vshll.u16  q2, d6, #16     \n"
+                "vshll.u16  q3, d7, #16     \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q10, q4, d0[1]      \n"
@@ -808,10 +964,13 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vmla.f32   q13, q7, d3[0]      \n"
                 "vmla.f32   q15, q7, d3[1]      \n"
 
-                "pld        [%4, #512]          \n"
-                "vldm       %4!, {d8-d15}       \n"
-                //                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-                //                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                "pld        [%4, #256]          \n"
+                "vld1.u16   {d12-d15}, [%4 :64]! \n"
+
+                "vshll.u16  q4, d12, #16    \n"
+                "vshll.u16  q5, d13, #16    \n"
+                "vshll.u16  q6, d14, #16    \n"
+                "vshll.u16  q7, d15, #16    \n"
 
                 "vmla.f32   q8, q4, d4[0]       \n"
                 "vmla.f32   q10, q4, d4[1]      \n"
@@ -846,11 +1005,16 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "pld        [%4, #256]          \n"
-                "vld1.f32   {d8-d11}, [%4 :128]!    \n"
+                "pld        [%4, #128]          \n"
+                "vld1.u16   {d10-d11}, [%4 :64]! \n"
 
-                "pld        [%5, #128]          \n"
-                "vld1.f32   {d0-d1}, [%5 :128]!     \n"
+                "vshll.u16  q4, d10, #16        \n"
+                "vshll.u16  q5, d11, #16        \n"
+
+                "pld        [%5, #64]           \n"
+                "vld1.u16   {d1}, [%5 :64]!     \n"
+
+                "vshll.u16  q0, d1, #16         \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q10, q4, d0[1]      \n"
@@ -868,10 +1032,19 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "vst1.f32   {d16-d19}, [%0 :128]!   \n"
-                "vst1.f32   {d20-d23}, [%1 :128]!   \n"
-                "vst1.f32   {d24-d27}, [%2 :128]!   \n"
-                "vst1.f32   {d28-d31}, [%3 :128]!   \n"
+                "vshrn.u32  d16, q8, #16        \n"
+                "vshrn.u32  d17, q9, #16        \n"
+                "vshrn.u32  d20, q10, #16       \n"
+                "vshrn.u32  d21, q11, #16       \n"
+                "vshrn.u32  d24, q12, #16       \n"
+                "vshrn.u32  d25, q13, #16       \n"
+                "vshrn.u32  d28, q14, #16       \n"
+                "vshrn.u32  d29, q15, #16       \n"
+
+                "vst1.u16   {d16-d17}, [%0 :64]!   \n"
+                "vst1.u16   {d20-d21}, [%1 :64]!   \n"
+                "vst1.u16   {d24-d25}, [%2 :64]!   \n"
+                "vst1.u16   {d28-d29}, [%3 :64]!   \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -889,18 +1062,140 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "r"(nn)       // %13
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
+#else
+            float sum0_0 = biasptr[0];
+            float sum0_1 = biasptr[0];
+            float sum0_2 = biasptr[0];
+            float sum0_3 = biasptr[0];
+            float sum0_4 = biasptr[0];
+            float sum0_5 = biasptr[0];
+            float sum0_6 = biasptr[0];
+            float sum0_7 = biasptr[0];
+
+            float sum1_0 = biasptr[1];
+            float sum1_1 = biasptr[1];
+            float sum1_2 = biasptr[1];
+            float sum1_3 = biasptr[1];
+            float sum1_4 = biasptr[1];
+            float sum1_5 = biasptr[1];
+            float sum1_6 = biasptr[1];
+            float sum1_7 = biasptr[1];
+
+            float sum2_0 = biasptr[2];
+            float sum2_1 = biasptr[2];
+            float sum2_2 = biasptr[2];
+            float sum2_3 = biasptr[2];
+            float sum2_4 = biasptr[2];
+            float sum2_5 = biasptr[2];
+            float sum2_6 = biasptr[2];
+            float sum2_7 = biasptr[2];
+
+            float sum3_0 = biasptr[3];
+            float sum3_1 = biasptr[3];
+            float sum3_2 = biasptr[3];
+            float sum3_3 = biasptr[3];
+            float sum3_4 = biasptr[3];
+            float sum3_5 = biasptr[3];
+            float sum3_6 = biasptr[3];
+            float sum3_7 = biasptr[3];
+
+            for (int q = 0; q < nn; q++)
+            {
+                sum0_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
+                sum0_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[0]);
+                sum0_2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[0]);
+                sum0_3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[0]);
+                sum0_4 += bfloat16_to_float32(tmpptr[4]) * bfloat16_to_float32(kptr[0]);
+                sum0_5 += bfloat16_to_float32(tmpptr[5]) * bfloat16_to_float32(kptr[0]);
+                sum0_6 += bfloat16_to_float32(tmpptr[6]) * bfloat16_to_float32(kptr[0]);
+                sum0_7 += bfloat16_to_float32(tmpptr[7]) * bfloat16_to_float32(kptr[0]);
+
+                sum1_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[1]);
+                sum1_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[1]);
+                sum1_2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[1]);
+                sum1_3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[1]);
+                sum1_4 += bfloat16_to_float32(tmpptr[4]) * bfloat16_to_float32(kptr[1]);
+                sum1_5 += bfloat16_to_float32(tmpptr[5]) * bfloat16_to_float32(kptr[1]);
+                sum1_6 += bfloat16_to_float32(tmpptr[6]) * bfloat16_to_float32(kptr[1]);
+                sum1_7 += bfloat16_to_float32(tmpptr[7]) * bfloat16_to_float32(kptr[1]);
+
+                sum2_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[2]);
+                sum2_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[2]);
+                sum2_2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[2]);
+                sum2_3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[2]);
+                sum2_4 += bfloat16_to_float32(tmpptr[4]) * bfloat16_to_float32(kptr[2]);
+                sum2_5 += bfloat16_to_float32(tmpptr[5]) * bfloat16_to_float32(kptr[2]);
+                sum2_6 += bfloat16_to_float32(tmpptr[6]) * bfloat16_to_float32(kptr[2]);
+                sum2_7 += bfloat16_to_float32(tmpptr[7]) * bfloat16_to_float32(kptr[2]);
+
+                sum3_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[3]);
+                sum3_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[3]);
+                sum3_2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[3]);
+                sum3_3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[3]);
+                sum3_4 += bfloat16_to_float32(tmpptr[4]) * bfloat16_to_float32(kptr[3]);
+                sum3_5 += bfloat16_to_float32(tmpptr[5]) * bfloat16_to_float32(kptr[3]);
+                sum3_6 += bfloat16_to_float32(tmpptr[6]) * bfloat16_to_float32(kptr[3]);
+                sum3_7 += bfloat16_to_float32(tmpptr[7]) * bfloat16_to_float32(kptr[3]);
+
+                tmpptr += 8;
+                kptr += 4;
+            }
+
+            outptr0[0] = float32_to_bfloat16(sum0_0);
+            outptr0[1] = float32_to_bfloat16(sum0_1);
+            outptr0[2] = float32_to_bfloat16(sum0_2);
+            outptr0[3] = float32_to_bfloat16(sum0_3);
+            outptr0[4] = float32_to_bfloat16(sum0_4);
+            outptr0[5] = float32_to_bfloat16(sum0_5);
+            outptr0[6] = float32_to_bfloat16(sum0_6);
+            outptr0[7] = float32_to_bfloat16(sum0_7);
+
+            outptr1[0] = float32_to_bfloat16(sum1_0);
+            outptr1[1] = float32_to_bfloat16(sum1_1);
+            outptr1[2] = float32_to_bfloat16(sum1_2);
+            outptr1[3] = float32_to_bfloat16(sum1_3);
+            outptr1[4] = float32_to_bfloat16(sum1_4);
+            outptr1[5] = float32_to_bfloat16(sum1_5);
+            outptr1[6] = float32_to_bfloat16(sum1_6);
+            outptr1[7] = float32_to_bfloat16(sum1_7);
+
+            outptr2[0] = float32_to_bfloat16(sum2_0);
+            outptr2[1] = float32_to_bfloat16(sum2_1);
+            outptr2[2] = float32_to_bfloat16(sum2_2);
+            outptr2[3] = float32_to_bfloat16(sum2_3);
+            outptr2[4] = float32_to_bfloat16(sum2_4);
+            outptr2[5] = float32_to_bfloat16(sum2_5);
+            outptr2[6] = float32_to_bfloat16(sum2_6);
+            outptr2[7] = float32_to_bfloat16(sum2_7);
+
+            outptr3[0] = float32_to_bfloat16(sum3_0);
+            outptr3[1] = float32_to_bfloat16(sum3_1);
+            outptr3[2] = float32_to_bfloat16(sum3_2);
+            outptr3[3] = float32_to_bfloat16(sum3_3);
+            outptr3[4] = float32_to_bfloat16(sum3_4);
+            outptr3[5] = float32_to_bfloat16(sum3_5);
+            outptr3[6] = float32_to_bfloat16(sum3_6);
+            outptr3[7] = float32_to_bfloat16(sum3_7);
+
+            outptr0 += 8;
+            outptr1 += 8;
+            outptr2 += 8;
+            outptr3 += 8;
+#endif // __ARM_NEON
         }
+
         for (; i + 3 < size; i += 4)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
-#if __aarch64__
-            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4);
+            const unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+#if __ARM_NEON && __aarch64__
+            const unsigned short* kptr = kernel.channel(p / 8 + (p % 8) / 4);
 #else
-            const float* kptr = kernel.channel(p / 4);
-#endif
+            const unsigned short* kptr = kernel.channel(p / 4);
+#endif // __ARM_NEON && __aarch64__
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_NEON
 #if __aarch64__
             asm volatile(
                 "ld1    {v0.4s}, [%12]          \n"
@@ -916,11 +1211,21 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "prfm   pldl1keep, [%4, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%4], #64     \n"
+                "prfm   pldl1keep, [%4, #256]   \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%4], #32     \n"
 
-                "prfm   pldl1keep, [%5, #512]   \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%5], #64     \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+                "shll   v6.4s, v6.4h, #16       \n"
+                "shll   v7.4s, v7.4h, #16       \n"
+
+                "prfm   pldl1keep, [%5, #256]   \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%5], #32     \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
+                "shll   v2.4s, v2.4h, #16       \n"
+                "shll   v3.4s, v3.4h, #16       \n"
 
                 "fmla   v8.4s, v4.4s, v0.s[0]   \n"
                 "fmla   v9.4s, v4.4s, v0.s[1]   \n"
@@ -955,11 +1260,15 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "prfm   pldl1keep, [%4, #128]   \n"
-                "ld1    {v4.4s}, [%4], #16      \n"
+                "prfm   pldl1keep, [%4, #64]    \n"
+                "ld1    {v4.4h}, [%4], #8       \n"
 
-                "prfm   pldl1keep, [%5, #128]   \n"
-                "ld1    {v0.4s}, [%5], #16      \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+
+                "prfm   pldl1keep, [%5, #64]    \n"
+                "ld1    {v0.4h}, [%5], #8       \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
 
                 "subs   w4, w4, #1              \n"
 
@@ -972,10 +1281,15 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "st1    {v8.4s}, [%0], #16      \n"
-                "st1    {v9.4s}, [%1], #16      \n"
-                "st1    {v10.4s}, [%2], #16     \n"
-                "st1    {v11.4s}, [%3], #16     \n"
+                "shrn   v8.4h, v8.4s, #16           \n"
+                "shrn   v9.4h, v9.4s, #16           \n"
+                "shrn   v10.4h, v10.4s, #16         \n"
+                "shrn   v11.4h, v11.4s, #16         \n"
+
+                "st1    {v8.4h}, [%0], #8       \n"
+                "st1    {v9.4h}, [%1], #8       \n"
+                "st1    {v10.4h}, [%2], #8      \n"
+                "st1    {v11.4h}, [%3], #8      \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -1007,15 +1321,21 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "pld        [%4, #512]          \n"
-                "vldm       %4!, {d8-d15}       \n"
-                //                 "vld1.f32   {d8-d11}, [%4 :128]!    \n"
-                //                 "vld1.f32   {d12-d15}, [%4 :128]!   \n"
+                "pld        [%4, #256]          \n"
+                "vld1.u16   {d12-d15}, [%4 :64]! \n"
 
-                "pld        [%5, #512]          \n"
-                "vldm       %5!, {d0-d7}       \n"
-                //                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
-                //                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                "vshll.u16  q4, d12, #16    \n"
+                "vshll.u16  q5, d13, #16    \n"
+                "vshll.u16  q6, d14, #16    \n"
+                "vshll.u16  q7, d15, #16    \n"
+
+                "pld        [%5, #256]          \n"
+                "vld1.u16   {d4-d7}, [%5 :64]!  \n"
+
+                "vshll.u16  q0, d4, #16     \n"
+                "vshll.u16  q1, d5, #16     \n"
+                "vshll.u16  q2, d6, #16     \n"
+                "vshll.u16  q3, d7, #16     \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q9, q4, d0[1]       \n"
@@ -1050,11 +1370,15 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "pld        [%4, #128]          \n"
-                "vld1.f32   {d8-d9}, [%4 :128]! \n"
+                "pld        [%4, #64]           \n"
+                "vld1.u16   {d9}, [%4 :64]!     \n"
 
-                "pld        [%5, #128]          \n"
-                "vld1.f32   {d0-d1}, [%5 :128]! \n"
+                "vshll.u16  q4, d9, #16         \n"
+
+                "pld        [%5, #64]           \n"
+                "vld1.u16   {d1}, [%5 :64]!     \n"
+
+                "vshll.u16  q0, d1, #16         \n"
 
                 "subs       r4, r4, #1          \n"
 
@@ -1067,10 +1391,15 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "vst1.f32   {d16-d17}, [%0 :128]!   \n"
-                "vst1.f32   {d18-d19}, [%1 :128]!   \n"
-                "vst1.f32   {d20-d21}, [%2 :128]!   \n"
-                "vst1.f32   {d22-d23}, [%3 :128]!   \n"
+                "vshrn.u32  d16, q8, #16        \n"
+                "vshrn.u32  d18, q9, #16        \n"
+                "vshrn.u32  d20, q10, #16       \n"
+                "vshrn.u32  d22, q11, #16       \n"
+
+                "vst1.u16   {d16}, [%0 :64]!    \n"
+                "vst1.u16   {d18}, [%1 :64]!    \n"
+                "vst1.u16   {d20}, [%2 :64]!    \n"
+                "vst1.u16   {d22}, [%3 :64]!    \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -1088,18 +1417,92 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "r"(nn)       // %13
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif // __aarch64__
+#else
+            float sum0_0 = biasptr[0];
+            float sum0_1 = biasptr[0];
+            float sum0_2 = biasptr[0];
+            float sum0_3 = biasptr[0];
+
+            float sum1_0 = biasptr[1];
+            float sum1_1 = biasptr[1];
+            float sum1_2 = biasptr[1];
+            float sum1_3 = biasptr[1];
+
+            float sum2_0 = biasptr[2];
+            float sum2_1 = biasptr[2];
+            float sum2_2 = biasptr[2];
+            float sum2_3 = biasptr[2];
+
+            float sum3_0 = biasptr[3];
+            float sum3_1 = biasptr[3];
+            float sum3_2 = biasptr[3];
+            float sum3_3 = biasptr[3];
+
+            for (int q = 0; q < nn; q++)
+            {
+                sum0_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
+                sum0_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[0]);
+                sum0_2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[0]);
+                sum0_3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[0]);
+
+                sum1_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[1]);
+                sum1_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[1]);
+                sum1_2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[1]);
+                sum1_3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[1]);
+
+                sum2_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[2]);
+                sum2_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[2]);
+                sum2_2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[2]);
+                sum2_3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[2]);
+
+                sum3_0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[3]);
+                sum3_1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[3]);
+                sum3_2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[3]);
+                sum3_3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[3]);
+
+                tmpptr += 4;
+                kptr += 4;
+            }
+
+            outptr0[0] = float32_to_bfloat16(sum0_0);
+            outptr0[1] = float32_to_bfloat16(sum0_1);
+            outptr0[2] = float32_to_bfloat16(sum0_2);
+            outptr0[3] = float32_to_bfloat16(sum0_3);
+
+            outptr1[0] = float32_to_bfloat16(sum1_0);
+            outptr1[1] = float32_to_bfloat16(sum1_1);
+            outptr1[2] = float32_to_bfloat16(sum1_2);
+            outptr1[3] = float32_to_bfloat16(sum1_3);
+
+            outptr2[0] = float32_to_bfloat16(sum2_0);
+            outptr2[1] = float32_to_bfloat16(sum2_1);
+            outptr2[2] = float32_to_bfloat16(sum2_2);
+            outptr2[3] = float32_to_bfloat16(sum2_3);
+
+            outptr3[0] = float32_to_bfloat16(sum3_0);
+            outptr3[1] = float32_to_bfloat16(sum3_1);
+            outptr3[2] = float32_to_bfloat16(sum3_2);
+            outptr3[3] = float32_to_bfloat16(sum3_3);
+
+            outptr0 += 4;
+            outptr1 += 4;
+            outptr2 += 4;
+            outptr3 += 4;
+#endif // __ARM_NEON
         }
+
         for (; i < size; i++)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
-#if __aarch64__
-            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4);
+            const unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+#if __ARM_NEON && __aarch64__
+            const unsigned short* kptr = kernel.channel(p / 8 + (p % 8) / 4);
 #else
-            const float* kptr = kernel.channel(p / 4);
-#endif
+            const unsigned short* kptr = kernel.channel(p / 4);
+#endif // __ARM_NEON && __aarch64__
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_NEON
 #if __aarch64__
             asm volatile(
                 "ld1    {v12.4s}, [%12]         \n"
@@ -1116,11 +1519,18 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "prfm   pldl1keep, [%4, #128]   \n"
-                "ld1    {v4.4s}, [%4], #16      \n"
+                "prfm   pldl1keep, [%4, #64]    \n"
+                "ld1    {v4.4h}, [%4], #8       \n"
 
-                "prfm   pldl1keep, [%5, #512]   \n"
-                "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%5], #64     \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+
+                "prfm   pldl1keep, [%5, #256]   \n"
+                "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%5], #32     \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
+                "shll   v1.4s, v1.4h, #16       \n"
+                "shll   v2.4s, v2.4h, #16       \n"
+                "shll   v3.4s, v3.4h, #16       \n"
 
                 "subs   w4, w4, #1              \n"
 
@@ -1145,11 +1555,15 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "prfm   pldl1keep, [%4, #32]    \n"
-                "ld1r   {v4.4s}, [%4], #4       \n"
+                "prfm   pldl1keep, [%4, #16]    \n"
+                "ld1r   {v4.4h}, [%4], #2       \n"
 
-                "prfm   pldl1keep, [%5, #128]   \n"
-                "ld1    {v0.4s}, [%5], #16      \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+
+                "prfm   pldl1keep, [%5, #64]    \n"
+                "ld1    {v0.4h}, [%5], #8       \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
 
                 "subs   w4, w4, #1              \n"
 
@@ -1159,10 +1573,12 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "st1    {v12.s}[0], [%0], #4    \n"
-                "st1    {v12.s}[1], [%1], #4    \n"
-                "st1    {v12.s}[2], [%2], #4    \n"
-                "st1    {v12.s}[3], [%3], #4    \n"
+                "shrn   v12.4h, v12.4s, #16     \n"
+
+                "st1    {v12.h}[0], [%0], #2    \n"
+                "st1    {v12.h}[1], [%1], #2    \n"
+                "st1    {v12.h}[2], [%2], #2    \n"
+                "st1    {v12.h}[3], [%3], #2    \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -1195,13 +1611,18 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "pld        [%4, #128]          \n"
-                "vld1.f32   {d8-d9}, [%4 :128]! \n"
+                "pld        [%4, #64]           \n"
+                "vld1.u16   {d9}, [%4 :64]!     \n"
 
-                "pld        [%5, #512]          \n"
-                "vldm       %5!, {d0-d7}       \n"
-                //                 "vld1.f32   {d0-d3}, [%5 :128]! \n"
-                //                 "vld1.f32   {d4-d7}, [%5 :128]! \n"
+                "vshll.u16  q4, d9, #16         \n"
+
+                "pld        [%5, #256]          \n"
+                "vld1.u16   {d4-d7}, [%5 :64]!  \n"
+
+                "vshll.u16  q0, d4, #16         \n"
+                "vshll.u16  q1, d5, #16         \n"
+                "vshll.u16  q2, d6, #16         \n"
+                "vshll.u16  q3, d7, #16         \n"
 
                 "subs       r4, r4, #1          \n"
 
@@ -1226,11 +1647,15 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "pld        [%4, #32]           \n"
-                "vld1.f32   {d8[],d9[]}, [%4]!  \n"
+                "pld        [%4, #16]           \n"
+                "vld1.u16   {d9[]}, [%4]!       \n"
 
-                "pld        [%5, #128]          \n"
-                "vld1.f32   {d0-d1}, [%5 :128]! \n"
+                "vshll.u16  q4, d9, #16         \n"
+
+                "pld        [%5, #64]           \n"
+                "vld1.u16   {d1}, [%5 :64]!     \n"
+
+                "vshll.u16  q0, d1, #16         \n"
 
                 "subs       r4, r4, #1          \n"
 
@@ -1240,10 +1665,12 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "vst1.f32   {d24[0]}, [%0]!     \n"
-                "vst1.f32   {d24[1]}, [%1]!     \n"
-                "vst1.f32   {d25[0]}, [%2]!     \n"
-                "vst1.f32   {d25[1]}, [%3]!     \n"
+                "vshrn.u32  d24, q12, #16       \n"
+
+                "vst1.u16   {d24[0]}, [%0]!     \n"
+                "vst1.u16   {d24[1]}, [%1]!     \n"
+                "vst1.u16   {d24[2]}, [%2]!     \n"
+                "vst1.u16   {d24[3]}, [%3]!     \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(outptr1), // %1
@@ -1261,6 +1688,33 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "r"(nn)       // %13
                 : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q8", "q9", "q10", "q11", "q12");
 #endif // __aarch64__
+#else
+            float sum0 = biasptr[0];
+            float sum1 = biasptr[1];
+            float sum2 = biasptr[2];
+            float sum3 = biasptr[3];
+
+            for (int q = 0; q < nn; q++)
+            {
+                sum0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
+                sum1 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[1]);
+                sum2 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[2]);
+                sum3 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[3]);
+
+                tmpptr++;
+                kptr += 4;
+            }
+
+            outptr0[0] = float32_to_bfloat16(sum0);
+            outptr1[0] = float32_to_bfloat16(sum1);
+            outptr2[0] = float32_to_bfloat16(sum2);
+            outptr3[0] = float32_to_bfloat16(sum3);
+
+            outptr0++;
+            outptr1++;
+            outptr2++;
+            outptr3++;
+#endif // __ARM_NEON
         }
     }
 
@@ -1269,22 +1723,26 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
-        float* outptr0 = top_blob.channel(p);
+        Mat out0 = top_blob.channel(p);
 
         const float bias0 = bias ? bias[p] : 0.f;
 
+        unsigned short* outptr0 = out0;
+
         int i = 0;
+
         for (; i + 7 < size; i += 8)
         {
-            const float* tmpptr = tmp.channel(i / 8);
-#if __aarch64__
-            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
+            const unsigned short* tmpptr = tmp.channel(i / 8);
+#if __ARM_NEON && __aarch64__
+            const unsigned short* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-            const float* kptr = kernel.channel(p / 4 + p % 4);
-#endif
+            const unsigned short* kptr = kernel.channel(p / 4 + p % 4);
+#endif // __ARM_NEON && __aarch64__
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_NEON
 #if __aarch64__
             asm volatile(
                 "dup    v8.4s, %w6              \n"
@@ -1297,17 +1755,29 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "prfm   pldl1keep, [%1, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64     \n"
+                "prfm   pldl1keep, [%1, #256]   \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%1], #32     \n"
 
-                "prfm   pldl1keep, [%2, #128]   \n"
-                "ld1    {v0.4s}, [%2], #16      \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+                "shll   v6.4s, v6.4h, #16       \n"
+                "shll   v7.4s, v7.4h, #16       \n"
+
+                "prfm   pldl1keep, [%2, #64]    \n"
+                "ld1    {v0.4h}, [%2], #8       \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
 
                 "fmla   v8.4s, v4.4s, v0.s[0]   \n"
                 "fmla   v9.4s, v5.4s, v0.s[0]   \n"
 
-                "prfm   pldl1keep, [%1, #512]   \n"
-                "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
+                "prfm   pldl1keep, [%1, #256]   \n"
+                "ld1    {v12.4h, v13.4h, v14.4h, v15.4h}, [%1], #32 \n"
+
+                "shll   v12.4s, v12.4h, #16     \n"
+                "shll   v13.4s, v13.4h, #16     \n"
+                "shll   v14.4s, v14.4h, #16     \n"
+                "shll   v15.4s, v15.4h, #16     \n"
 
                 "fmla   v8.4s, v6.4s, v0.s[1]   \n"
                 "fmla   v9.4s, v7.4s, v0.s[1]   \n"
@@ -1331,11 +1801,16 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "prfm   pldl1keep, [%1, #256]   \n"
-                "ld1    {v4.4s, v5.4s}, [%1], #32   \n"
+                "prfm   pldl1keep, [%1, #128]   \n"
+                "ld1    {v4.4h, v5.4h}, [%1], #16   \n"
 
-                "prfm   pldl1keep, [%2, #32]    \n"
-                "ld1r   {v0.4s}, [%2], #4       \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+
+                "prfm   pldl1keep, [%2, #16]    \n"
+                "ld1r   {v0.4h}, [%2], #2       \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
 
                 "subs   w4, w4, #1              \n"
 
@@ -1346,7 +1821,10 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "st1    {v8.4s, v9.4s}, [%0], #32   \n"
+                "shrn   v8.4h, v8.4s, #16           \n"
+                "shrn   v9.4h, v9.4s, #16           \n"
+
+                "st1    {v8.4h, v9.4h}, [%0], #16   \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(tmpptr),  // %1
@@ -1369,21 +1847,29 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "pld        [%1, #512]          \n"
-                "vldm       %1!, {d8-d15}       \n"
-                //                 "vld1.f32   {d8-d11}, [%1 :128]!    \n"
-                //                 "vld1.f32   {d12-d15}, [%1 :128]!   \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u16   {d12-d15}, [%1 :64]! \n"
 
-                "pld        [%2, #128]          \n"
-                "vld1.f32   {d0-d1}, [%2 :128]! \n"
+                "vshll.u16  q4, d12, #16        \n"
+                "vshll.u16  q5, d13, #16        \n"
+                "vshll.u16  q6, d14, #16        \n"
+                "vshll.u16  q7, d15, #16        \n"
+
+                "pld        [%2, #64]           \n"
+                "vld1.u16   {d1}, [%2 :64]!     \n"
+
+                "vshll.u16  q0, d1, #16         \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q9, q5, d0[0]       \n"
 
-                "pld        [%1, #512]          \n"
-                "vldm       %1!, {d24-d31}      \n"
-                //                 "vld1.f32   {d24-d27}, [%1 :128]!   \n"
-                //                 "vld1.f32   {d28-d31}, [%1 :128]!   \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u16   {d28-d31}, [%1 :64]! \n"
+
+                "vshll.u16  q12, d28, #16       \n"
+                "vshll.u16  q13, d29, #16       \n"
+                "vshll.u16  q14, d30, #16       \n"
+                "vshll.u16  q15, d31, #16       \n"
 
                 "vmla.f32   q8, q6, d0[1]       \n"
                 "vmla.f32   q9, q7, d0[1]       \n"
@@ -1407,11 +1893,16 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "pld        [%1, #256]          \n"
-                "vld1.f32   {d8-d11}, [%1 :128]!    \n"
+                "pld        [%1, #128]          \n"
+                "vld1.u16   {d10-d11}, [%1 :64]! \n"
 
-                "pld        [%2, #32]           \n"
-                "vld1.f32   {d0[],d1[]}, [%2]!  \n"
+                "vshll.u16  q4, d10, #16        \n"
+                "vshll.u16  q5, d11, #16        \n"
+
+                "pld        [%2, #16]           \n"
+                "vld1.u16   {d1[]}, [%2]!       \n"
+
+                "vshll.u16  q0, d1, #16         \n"
 
                 "subs       r4, r4, #1          \n"
 
@@ -1422,7 +1913,10 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "vst1.f32   {d16-d19}, [%0 :128]!   \n"
+                "vshrn.u32  d16, q8, #16        \n"
+                "vshrn.u32  d17, q9, #16        \n"
+
+                "vst1.u16   {d16-d17}, [%0 :64]! \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(tmpptr),  // %1
@@ -1434,18 +1928,56 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "r"(nn)     // %7
                 : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
+#else
+            float sum0 = bias0;
+            float sum1 = bias0;
+            float sum2 = bias0;
+            float sum3 = bias0;
+            float sum4 = bias0;
+            float sum5 = bias0;
+            float sum6 = bias0;
+            float sum7 = bias0;
+
+            for (int q = 0; q < nn; q++)
+            {
+                sum0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
+                sum1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[0]);
+                sum2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[0]);
+                sum3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[0]);
+                sum4 += bfloat16_to_float32(tmpptr[4]) * bfloat16_to_float32(kptr[0]);
+                sum5 += bfloat16_to_float32(tmpptr[5]) * bfloat16_to_float32(kptr[0]);
+                sum6 += bfloat16_to_float32(tmpptr[6]) * bfloat16_to_float32(kptr[0]);
+                sum7 += bfloat16_to_float32(tmpptr[7]) * bfloat16_to_float32(kptr[0]);
+
+                tmpptr += 8;
+                kptr++;
+            }
+
+            outptr0[0] = float32_to_bfloat16(sum0);
+            outptr0[1] = float32_to_bfloat16(sum1);
+            outptr0[2] = float32_to_bfloat16(sum2);
+            outptr0[3] = float32_to_bfloat16(sum3);
+            outptr0[4] = float32_to_bfloat16(sum4);
+            outptr0[5] = float32_to_bfloat16(sum5);
+            outptr0[6] = float32_to_bfloat16(sum6);
+            outptr0[7] = float32_to_bfloat16(sum7);
+
+            outptr0 += 8;
+#endif // __ARM_NEON
         }
+
         for (; i + 3 < size; i += 4)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
-#if __aarch64__
-            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
+            const unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4);
+#if __ARM_NEON && __aarch64__
+            const unsigned short* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-            const float* kptr = kernel.channel(p / 4 + p % 4);
-#endif
+            const unsigned short* kptr = kernel.channel(p / 4 + p % 4);
+#endif // __ARM_NEON && __aarch64__
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_NEON
 #if __aarch64__
             asm volatile(
                 "dup    v8.4s, %w6              \n"
@@ -1457,11 +1989,18 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "prfm   pldl1keep, [%1, #512]   \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64     \n"
+                "prfm   pldl1keep, [%1, #256]   \n"
+                "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%1], #32     \n"
 
-                "prfm   pldl1keep, [%2, #128]   \n"
-                "ld1    {v0.4s}, [%2], #16      \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+                "shll   v5.4s, v5.4h, #16       \n"
+                "shll   v6.4s, v6.4h, #16       \n"
+                "shll   v7.4s, v7.4h, #16       \n"
+
+                "prfm   pldl1keep, [%2, #64]    \n"
+                "ld1    {v0.4h}, [%2], #8       \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
 
                 "subs   w4, w4, #1              \n"
 
@@ -1481,11 +2020,15 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "prfm   pldl1keep, [%1, #128]   \n"
-                "ld1    {v4.4s}, [%1], #16      \n"
+                "prfm   pldl1keep, [%1, #64]    \n"
+                "ld1    {v4.4h}, [%1], #8       \n"
 
-                "prfm   pldl1keep, [%2, #32]    \n"
-                "ld1r   {v0.4s}, [%2], #4       \n"
+                "shll   v4.4s, v4.4h, #16       \n"
+
+                "prfm   pldl1keep, [%2, #16]    \n"
+                "ld1r   {v0.4h}, [%2], #2       \n"
+
+                "shll   v0.4s, v0.4h, #16       \n"
 
                 "subs   w4, w4, #1              \n"
 
@@ -1495,7 +2038,9 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "st1    {v8.4s}, [%0], #16      \n"
+                "shrn   v8.4h, v8.4s, #16           \n"
+
+                "st1    {v8.4h}, [%0], #8       \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(tmpptr),  // %1
@@ -1517,13 +2062,18 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "0:                             \n"
 
-                "pld        [%1, #512]          \n"
-                "vldm       %1!, {d8-d15}       \n"
-                //                 "vld1.f32   {d8-d11}, [%1 :128]!    \n"
-                //                 "vld1.f32   {d12-d15}, [%1 :128]!   \n"
+                "pld        [%1, #256]          \n"
+                "vld1.u16   {d12-d15}, [%1 :64]! \n"
 
-                "pld        [%2, #128]          \n"
-                "vld1.f32   {d0-d1}, [%2]!      \n"
+                "vshll.u16  q4, d12, #16        \n"
+                "vshll.u16  q5, d13, #16        \n"
+                "vshll.u16  q6, d14, #16        \n"
+                "vshll.u16  q7, d15, #16        \n"
+
+                "pld        [%2, #64]           \n"
+                "vld1.u16   {d1}, [%2]!         \n"
+
+                "vshll.u16  q0, d1, #16         \n"
 
                 "subs       r4, r4, #1          \n"
 
@@ -1543,11 +2093,15 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "2:                             \n"
 
-                "pld        [%1, #128]          \n"
-                "vld1.f32   {d8-d9}, [%1 :128]! \n"
+                "pld        [%1, #64]           \n"
+                "vld1.u16   {d9}, [%1 :64]!     \n"
 
-                "pld        [%2, #32]           \n"
-                "vld1.f32   {d0[],d1[]}, [%2]!  \n"
+                "vshll.u16  q4, d9, #16         \n"
+
+                "pld        [%2, #16]           \n"
+                "vld1.u16   {d1[]}, [%2]!       \n"
+
+                "vshll.u16  q0, d1, #16         \n"
 
                 "subs       r4, r4, #1          \n"
 
@@ -1557,7 +2111,9 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
 
                 "3:                             \n"
 
-                "vst1.f32   {d16-d17}, [%0 :128]!   \n"
+                "vshrn.u32  d16, q8, #16        \n"
+
+                "vst1.u16   {d16}, [%0 :64]!    \n"
 
                 : "=r"(outptr0), // %0
                 "=r"(tmpptr),  // %1
@@ -1569,27 +2125,54 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "r"(nn)     // %7
                 : "cc", "memory", "r4", "q0", "q4", "q5", "q6", "q7", "q8");
 #endif // __aarch64__
+#else
+            float sum0 = bias0;
+            float sum1 = bias0;
+            float sum2 = bias0;
+            float sum3 = bias0;
+
+            for (int q = 0; q < nn; q++)
+            {
+                sum0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
+                sum1 += bfloat16_to_float32(tmpptr[1]) * bfloat16_to_float32(kptr[0]);
+                sum2 += bfloat16_to_float32(tmpptr[2]) * bfloat16_to_float32(kptr[0]);
+                sum3 += bfloat16_to_float32(tmpptr[3]) * bfloat16_to_float32(kptr[0]);
+
+                tmpptr += 4;
+                kptr++;
+            }
+
+            outptr0[0] = float32_to_bfloat16(sum0);
+            outptr0[1] = float32_to_bfloat16(sum1);
+            outptr0[2] = float32_to_bfloat16(sum2);
+            outptr0[3] = float32_to_bfloat16(sum3);
+
+            outptr0 += 4;
+#endif // __ARM_NEON
         }
+
         for (; i < size; i++)
         {
-            const float* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
-#if __aarch64__
-            const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
+            const unsigned short* tmpptr = tmp.channel(i / 8 + (i % 8) / 4 + i % 4);
+#if __ARM_NEON && __aarch64__
+            const unsigned short* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-            const float* kptr = kernel.channel(p / 4 + p % 4);
-#endif
+            const unsigned short* kptr = kernel.channel(p / 4 + p % 4);
+#endif // __ARM_NEON && __aarch64__
 
             int nn = inch * maxk; // inch always > 0
 
+            int q = 0;
+
+#if __ARM_NEON
             float32x4_t _sum0 = vdupq_n_f32(0.f);
 
-            int q = 0;
             for (; q + 3 < nn; q += 4)
             {
-                float32x4_t _p0 = vld1q_f32(tmpptr);
+                float32x4_t _p0 = vcvt_f32_bf16(vld1_u16(tmpptr));
                 tmpptr += 4;
 
-                float32x4_t _k0 = vld1q_f32(kptr);
+                float32x4_t _k0 = vcvt_f32_bf16(vld1_u16(kptr));
                 kptr += 4;
 
 #if __aarch64__
@@ -1605,167 +2188,106 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
             float32x2_t _ss = vadd_f32(vget_low_f32(_sum0), vget_high_f32(_sum0));
             float sum0 = bias0 + vget_lane_f32(vpadd_f32(_ss, _ss), 0);
 #endif
+#else
+            float sum0 = bias0;
+#endif // __ARM_NEON
 
             for (; q < nn; q++)
             {
-                sum0 += tmpptr[0] * kptr[0];
+                sum0 += bfloat16_to_float32(tmpptr[0]) * bfloat16_to_float32(kptr[0]);
                 tmpptr++;
                 kptr++;
             }
 
-            outptr0[0] = sum0;
+            outptr0[0] = float32_to_bfloat16(sum0);
 
             outptr0++;
         }
     }
-#else // __ARM_NEON
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
-        float* outptr0 = top_blob.channel(p);
-
-        const float bias0 = bias ? bias[p] : 0.f;
-
-        for (int i = 0; i < size; i++)
-        {
-            const float* tmpptr = tmp.channel(i);
-            const float* kptr = kernel.channel(p);
-
-            int nn = inch * maxk; // inch always > 0
-
-            float sum0 = bias0;
-
-            for (int q = 0; q < nn; q++)
-            {
-                sum0 += tmpptr[0] * kptr[0];
-                tmpptr++;
-                kptr++;
-            }
-
-            outptr0[0] = sum0;
-
-            outptr0++;
-        }
-    }
-#endif // __ARM_NEON
 }
 
-static void convolution_im2col_sgemm_transform_kernel_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
+static void convolution_im2col_sgemm_transform_kernel_bf16s_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
     const int maxk = kernel_w * kernel_h;
 
     // interleave
     // src = maxk-inch-outch
-    // dst = 4b-4a-maxk-inch/4a-outch/4b
+    // dst = 8b-8a-maxk-inch/8a-outch/8b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-#if __ARM_NEON
-#if __aarch64__
-    kernel_tm.create(32 * maxk, inch / 4 + inch % 4, outch / 8 + (outch % 8) / 4 + outch % 4);
+#if __ARM_NEON && __aarch64__
+    kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)2u);
 #else
-    kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4 + outch % 4);
+    kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4, (size_t)2u);
 #endif
 
     int q = 0;
-#if __aarch64__
+#if __ARM_NEON && __aarch64__
     for (; q + 7 < outch; q += 8)
     {
-        const Mat k0 = kernel.channel(q);
-        const Mat k1 = kernel.channel(q + 1);
-        const Mat k2 = kernel.channel(q + 2);
-        const Mat k3 = kernel.channel(q + 3);
-        const Mat k4 = kernel.channel(q + 4);
-        const Mat k5 = kernel.channel(q + 5);
-        const Mat k6 = kernel.channel(q + 6);
-        const Mat k7 = kernel.channel(q + 7);
-
-        float* g00 = kernel_tm.channel(q / 8);
+        unsigned short* g00 = kernel_tm.channel(q / 8);
 
         for (int p = 0; p < inch; p++)
         {
-            const float* k00 = k0.row(p);
-            const float* k10 = k1.row(p);
-            const float* k20 = k2.row(p);
-            const float* k30 = k3.row(p);
-            const float* k40 = k4.row(p);
-            const float* k50 = k5.row(p);
-            const float* k60 = k6.row(p);
-            const float* k70 = k7.row(p);
-
             for (int k = 0; k < maxk; k++)
             {
-                g00[0] = k00[k];
-                g00[1] = k10[k];
-                g00[2] = k20[k];
-                g00[3] = k30[k];
-                g00[4] = k40[k];
-                g00[5] = k50[k];
-                g00[6] = k60[k];
-                g00[7] = k70[k];
+                for (int j = 0; j < 8; j++)
+                {
+                    const float* k00 = kernel.channel(q + j).row(p);
 
-                g00 += 8;
+                    g00[0] = float32_to_bfloat16(k00[k]);
+
+                    g00++;
+                }
             }
         }
     }
-#endif // __aarch64__
+#endif // __ARM_NEON && __aarch64__
     for (; q + 3 < outch; q += 4)
     {
-        const Mat k0 = kernel.channel(q);
-        const Mat k1 = kernel.channel(q + 1);
-        const Mat k2 = kernel.channel(q + 2);
-        const Mat k3 = kernel.channel(q + 3);
-
-#if __aarch64__
-        float* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4);
+#if __ARM_NEON && __aarch64__
+        unsigned short* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4);
 #else
-        float* g00 = kernel_tm.channel(q / 4);
+        unsigned short* g00 = kernel_tm.channel(q / 4);
 #endif
 
         for (int p = 0; p < inch; p++)
         {
-            const float* k00 = k0.row(p);
-            const float* k10 = k1.row(p);
-            const float* k20 = k2.row(p);
-            const float* k30 = k3.row(p);
-
             for (int k = 0; k < maxk; k++)
             {
-                g00[0] = k00[k];
-                g00[1] = k10[k];
-                g00[2] = k20[k];
-                g00[3] = k30[k];
+                for (int j = 0; j < 4; j++)
+                {
+                    const float* k00 = kernel.channel(q + j).row(p);
 
-                g00 += 4;
+                    g00[0] = float32_to_bfloat16(k00[k]);
+
+                    g00++;
+                }
             }
         }
     }
     for (; q < outch; q++)
     {
-        const Mat k0 = kernel.channel(q);
-
-#if __aarch64__
-        float* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
+#if __ARM_NEON && __aarch64__
+        unsigned short* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
 #else
-        float* g00 = kernel_tm.channel(q / 4 + q % 4);
+        unsigned short* g00 = kernel_tm.channel(q / 4 + q % 4);
 #endif
 
         for (int p = 0; p < inch; p++)
         {
-            const float* k00 = k0.row(p);
-
             for (int k = 0; k < maxk; k++)
             {
-                g00[0] = k00[k];
+                const float* k00 = kernel.channel(q).row(p);
 
-                g00 += 1;
+                g00[0] = float32_to_bfloat16(k00[k]);
+
+                g00++;
             }
         }
     }
-#else
-    kernel_tm = kernel;
-#endif // __ARM_NEON
 }
 
-static void convolution_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+static void convolution_im2col_sgemm_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -1777,7 +2299,7 @@ static void convolution_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob,
     const int maxk = kernel_w * kernel_h;
 
     // im2col
-    Mat bottom_im2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);
+    Mat bottom_im2col(size, maxk, inch, 2u, 1, opt.workspace_allocator);
     {
         const int gap = w * stride_h - outw * stride_w;
 
@@ -1785,35 +2307,17 @@ static void convolution_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob,
         for (int p = 0; p < inch; p++)
         {
             const Mat img = bottom_blob.channel(p);
-            float* ptr = bottom_im2col.channel(p);
+            unsigned short* ptr = bottom_im2col.channel(p);
 
             for (int u = 0; u < kernel_h; u++)
             {
                 for (int v = 0; v < kernel_w; v++)
                 {
-                    const float* sptr = img.row<const float>(dilation_h * u) + dilation_w * v;
+                    const unsigned short* sptr = img.row<const unsigned short>(dilation_h * u) + dilation_w * v;
 
                     for (int i = 0; i < outh; i++)
                     {
                         int j = 0;
-                        for (; j + 3 < outw; j += 4)
-                        {
-                            ptr[0] = sptr[0];
-                            ptr[1] = sptr[stride_w];
-                            ptr[2] = sptr[stride_w * 2];
-                            ptr[3] = sptr[stride_w * 3];
-
-                            sptr += stride_w * 4;
-                            ptr += 4;
-                        }
-                        for (; j + 1 < outw; j += 2)
-                        {
-                            ptr[0] = sptr[0];
-                            ptr[1] = sptr[stride_w];
-
-                            sptr += stride_w * 2;
-                            ptr += 2;
-                        }
                         for (; j < outw; j++)
                         {
                             ptr[0] = sptr[0];
@@ -1829,5 +2333,5 @@ static void convolution_im2col_sgemm_neon(const Mat& bottom_blob, Mat& top_blob,
         }
     }
 
-    im2col_sgemm_neon(bottom_im2col, top_blob, kernel, _bias, opt);
+    im2col_sgemm_bf16s_neon(bottom_im2col, top_blob, kernel, _bias, opt);
 }

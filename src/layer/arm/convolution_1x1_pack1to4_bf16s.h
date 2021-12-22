@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv1x1s1_sgemm_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+static void conv1x1s1_sgemm_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -22,10 +22,10 @@ static void conv1x1s1_sgemm_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
     bottom_im2col.w = size;
     bottom_im2col.h = 1;
 
-    im2col_sgemm_pack4_msa(bottom_im2col, top_blob, kernel, _bias, opt);
+    im2col_sgemm_pack1to4_bf16s_neon(bottom_im2col, top_blob, kernel, _bias, opt);
 }
 
-static void conv1x1s2_sgemm_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+static void conv1x1s2_sgemm_pack1to4_bf16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -35,7 +35,7 @@ static void conv1x1s2_sgemm_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
     int outw = top_blob.w;
     int outh = top_blob.h;
 
-    const int tailstep = (w - 2 * outw + w) * 4;
+    const int tailstep = w - 2 * outw + w;
 
     Mat bottom_blob_shrinked;
     bottom_blob_shrinked.create(outw, outh, channels, elemsize, elempack, opt.workspace_allocator);
@@ -43,23 +43,22 @@ static void conv1x1s2_sgemm_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < channels; p++)
     {
-        const float* r0 = bottom_blob.channel(p);
-        float* outptr = bottom_blob_shrinked.channel(p);
+        const unsigned short* r0 = bottom_blob.channel(p);
+        unsigned short* outptr = bottom_blob_shrinked.channel(p);
 
         for (int i = 0; i < outh; i++)
         {
             for (int j = 0; j < outw; j++)
             {
-                v4f32 _val = (v4f32)__msa_ld_w(r0, 0);
-                __msa_st_w((v4i32)_val, outptr, 0);
+                outptr[0] = r0[0];
 
-                r0 += 4 * 2;
-                outptr += 4;
+                r0 += 2;
+                outptr += 1;
             }
 
             r0 += tailstep;
         }
     }
 
-    conv1x1s1_sgemm_pack4_msa(bottom_blob_shrinked, top_blob, kernel, _bias, opt);
+    conv1x1s1_sgemm_pack1to4_bf16s_neon(bottom_blob_shrinked, top_blob, kernel, _bias, opt);
 }
