@@ -23,4 +23,3 @@ void eliminate_tail_reshape_permute(Graph& graph);
 } // namespace ncnn
 
 } // namespace pnnx
-
