@@ -35,6 +35,9 @@ class Model(nn.Module):
             y = torch.permute(y, (1, 0, 2))
             z = torch.permute(z, (1, 3, 0, 2))
             z = torch.permute(z, (2, 0, 3, 1))
+        x = F.relu(x)
+        y = F.relu(y)
+        z = F.relu(z)
         return x, y, z
 
 def test():

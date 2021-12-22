@@ -24,6 +24,9 @@ class Model(nn.Module):
         x = torch.transpose(x, 0, 1)
         y = torch.transpose(y, 1, 2)
         z = torch.transpose(z, 0, 2)
+        x = F.relu(x)
+        y = F.relu(y)
+        z = F.relu(z)
         return x, y, z
 
 def test():

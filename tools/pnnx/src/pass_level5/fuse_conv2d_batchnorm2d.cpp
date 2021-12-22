@@ -29,7 +29,7 @@ public:
         return R"PNNXIR(7767517
 4 3
 pnnx.Input              input       0 1 input
-nn.Conv2d               op_0        1 1 input a in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding=%padding dilation=%dilation groups=%groups bias=%bias @weight @bias
+nn.Conv2d               op_0        1 1 input a in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=%padding_mode padding=%padding dilation=%dilation groups=%groups bias=%bias @weight @bias
 nn.BatchNorm2d          op_1        1 1 a out num_features=%num_features eps=%eps affine=%affine @running_mean @running_var @weight @bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -50,6 +50,7 @@ pnnx.Output             output      1 0 out
         op->params["in_channels"] = captured_params.at("in_channels");
         op->params["out_channels"] = captured_params.at("out_channels");
         op->params["kernel_size"] = captured_params.at("kernel_size");
+        op->params["padding_mode"] = captured_params.at("padding_mode");
         op->params["stride"] = captured_params.at("stride");
         op->params["padding"] = captured_params.at("padding");
         op->params["dilation"] = captured_params.at("dilation");

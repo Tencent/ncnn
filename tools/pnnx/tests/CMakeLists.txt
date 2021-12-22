@@ -161,6 +161,8 @@ pnnx_add_test(Tensor_select)
 pnnx_add_test(Tensor_slice)
 pnnx_add_test(Tensor_view)
 
+pnnx_add_test(torch_argmax)
+pnnx_add_test(torch_argmin)
 pnnx_add_test(torch_cat)
 pnnx_add_test(torch_chunk)
 pnnx_add_test(torch_clamp)
