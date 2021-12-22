@@ -12,38 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_ncnn.h"
+#include "ir.h"
 
 namespace pnnx {
 
-namespace ncnn {
-
-class F_dropout2d : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-F.dropout2d             op_0        1 1 input out p=* training=*
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "Noop";
-    }
-
-    const char* name_str() const
-    {
-        return "dropout2d";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_dropout2d, 20)
-
-} // namespace ncnn
+void eliminate_dropout(Graph& graph);
 
 } // namespace pnnx

@@ -14,6 +14,7 @@
 
 #include "pass_level5.h"
 
+#include "pass_level5/eliminate_dropout.h"
 #include "pass_level5/eliminate_slice.h"
 #include "pass_level5/eliminate_view_reshape.h"
 #include "pass_level5/eval_expression.h"
@@ -48,6 +49,8 @@ void pass_level5(Graph& g)
     fuse_contiguous_view(g);
 
     eliminate_view_reshape(g);
+
+    eliminate_dropout(g);
 
     fuse_channel_shuffle(g);
 
