@@ -65,8 +65,9 @@ void convert_attribute(Graph& graph)
         }
         if (new_shape.size() == 4)
         {
-            op->params["0"] = new_shape[2] * new_shape[3];
-            op->params["1"] = new_shape[1];
+            op->params["0"] = new_shape[3];
+            op->params["1"] = new_shape[2];
+            op->params["11"] = new_shape[1];
             op->params["2"] = new_shape[0];
         }
 
