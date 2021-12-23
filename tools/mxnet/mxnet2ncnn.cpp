@@ -2334,9 +2334,9 @@ int main(int argc, char** argv)
                 fprintf(pp, " -23303=%zd", axis.size());
                 for (size_t j = 0; j < axis.size(); j++)
                 {
-                    if (axis[j] == 0 || axis[j] > 3 || axis[j] < -3)
+                    if (axis[j] == 0 || axis[j] > 4 || axis[j] < -3)
                         fprintf(stderr, "Unsupported reduction axis !\n");
-                    fprintf(pp, ",%d", axis[j]);
+                    fprintf(pp, ",%d", axis[j] > 0 ? axis[j] - 1 : axis[j]);
                 }
             }
             fprintf(pp, " 4=%d", keepdims);

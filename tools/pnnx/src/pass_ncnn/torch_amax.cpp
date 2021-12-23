@@ -18,7 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class torch_mean : public GraphRewriterPass
+class torch_amax : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.mean              op_0        1 1 input out dim=%dim keepdim=%keepdim
+torch.amax              op_0        1 1 input out dim=%dim keepdim=%keepdim
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -38,7 +38,7 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "mean";
+        return "amax";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
@@ -58,14 +58,14 @@ pnnx.Output             output      1 0 out
             new_dims.push_back(new_dim);
         }
 
-        op->params["0"] = 3;
+        op->params["0"] = 4;
         op->params["1"] = 0;
         op->params["3"] = new_dims;
         op->params["4"] = captured_params.at("keepdim").b ? 1 : 0;
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_mean, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_amax, 20)
 
 } // namespace ncnn
 

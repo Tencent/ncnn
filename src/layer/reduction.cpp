@@ -857,8 +857,8 @@ int Reduction::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             int axis = axes_ptr[i];
             // handle negative axis
             if (axis < 0)
-                axis += dims + 1;
-            axes_flag[axis - 1] = 1;
+                axis += dims;
+            axes_flag[axis] = 1;
         }
 
         if (dims == 1)

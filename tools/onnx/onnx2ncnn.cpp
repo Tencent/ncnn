@@ -5372,9 +5372,9 @@ int main(int argc, char** argv)
                 fprintf(pp, " -23303=%zu", axes.size());
                 for (size_t j = 0; j < axes.size(); j++)
                 {
-                    if (axes[j] == 0 || axes[j] > 3 || axes[j] < -3)
+                    if (axes[j] == 0 || axes[j] > 4 || axes[j] < -3)
                         fprintf(stderr, "Unsupported reduction axes !\n");
-                    fprintf(pp, ",%d", axes[j]);
+                    fprintf(pp, ",%d", axes[j] > 0 ? axes[j] - 1 : axes[j]);
                 }
             }
             else
@@ -5772,9 +5772,9 @@ int main(int argc, char** argv)
                 fprintf(pp, " -23303=%zu", axes.size());
                 for (int i = 0; i < (int)axes.size(); i++)
                 {
-                    if (axes[i] == 0 || axes[i] > 3 || axes[i] < -3)
+                    if (axes[i] == 0 || axes[i] > 4 || axes[i] < -3)
                         fprintf(stderr, "Unsupported squeeze axes !\n");
-                    fprintf(pp, ",%d", axes[i]);
+                    fprintf(pp, ",%d", axes[i] > 0 ? axes[i] - 1 : axes[i]);
                 }
             }
         }
@@ -5932,7 +5932,7 @@ int main(int argc, char** argv)
             {
                 if (axes[i] == 0 || axes[i] > 4 || axes[i] < -4)
                     fprintf(stderr, "Unsupported unsqueeze axes !\n");
-                fprintf(pp, ",%d", axes[i]);
+                fprintf(pp, ",%d", axes[i] > 0 ? axes[i] - 1 : axes[i]);
             }
         }
         else
