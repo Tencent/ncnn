@@ -457,7 +457,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             int elemcount = 0;
             if (dims == 1) elemcount = a4[i].elempack * a4[i].w;
             if (dims == 2) elemcount = a4[i].elempack * a4[i].h;
-            if (dims == 3) elemcount = a4[i].elempack * a4[i].c;
+            if (dims == 3 || dims == 4) elemcount = a4[i].elempack * a4[i].c;
 
             int elembits = a4[i].elembits();
 
@@ -882,7 +882,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         int elemcount = 0;
         if (dims == 1) elemcount = a4.elempack * a4.w;
         if (dims == 2) elemcount = a4.elempack * a4.h;
-        if (dims == 3) elemcount = a4.elempack * a4.c;
+        if (dims == 3 || dims == 4) elemcount = a4.elempack * a4.c;
 
         int elembits = a4.elembits();
 
