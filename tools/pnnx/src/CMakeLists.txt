@@ -163,6 +163,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
     pass_level2/Tensor_contiguous.cpp
+    pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_new_empty.cpp
     pass_level2/Tensor_repeat.cpp
     pass_level2/Tensor_reshape.cpp
@@ -186,6 +187,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_permute.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unsqueeze.cpp
+    pass_level2/torch_var.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 )
