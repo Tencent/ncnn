@@ -20,43 +20,40 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z, w):
-        x = F.dropout(x, training=False)
-        y = F.dropout(y, training=False)
-        z = F.dropout(z, p=0.6, training=False)
-        w = F.dropout(w, p=0.1, training=False)
+    def forward(self, x, y, z):
+        x = x.contiguous(memory_format=torch.contiguous_format)
+        y = y.contiguous(memory_format=torch.preserve_format)
+        z = z.contiguous(memory_format=torch.channels_last)
         x = F.relu(x)
         y = F.relu(y)
         z = F.relu(z)
-        w = F.relu(w)
-        return x, y, z, w
+        return x, y, z
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(16)
-    y = torch.rand(2, 16)
-    z = torch.rand(3, 12, 16)
-    w = torch.rand(5, 7, 9, 11)
+    x = torch.rand(3, 16)
+    y = torch.rand(5, 9, 11)
+    z = torch.rand(8, 5, 9, 10)
 
-    a = net(x, y, z, w)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_dropout.pt")
+    mod = torch.jit.trace(net, (x, y, z))
+    mod.save("test_Tensor_contiguous.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_dropout.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
+    os.system("../../src/pnnx test_Tensor_contiguous.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
 
     # ncnn inference
-    import test_F_dropout_ncnn
-    b = test_F_dropout_ncnn.test_inference()
+    import test_Tensor_contiguous_ncnn
+    b = test_Tensor_contiguous_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.equal(a0, b0):
             return False
     return True
 

@@ -24,10 +24,10 @@ class Model(nn.Module):
         self.dropout_1 = nn.Dropout2d(p=0.7)
 
     def forward(self, x, y):
-        x = F.relu(x)
-        y = F.relu(y)
         x = self.dropout_0(x)
         y = self.dropout_1(y)
+        x = F.relu(x)
+        y = F.relu(y)
         return x, y
 
 def test():

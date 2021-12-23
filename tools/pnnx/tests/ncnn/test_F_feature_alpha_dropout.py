@@ -21,10 +21,10 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y):
-        x = F.relu(x)
-        y = F.relu(y)
         x = F.feature_alpha_dropout(x, training=False)
         y = F.feature_alpha_dropout(y, p=0.6, training=False)
+        x = F.relu(x)
+        y = F.relu(y)
         return x, y
 
 def test():

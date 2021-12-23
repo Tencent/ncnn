@@ -21,44 +21,36 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
-        x = F.dropout(x, training=False)
-        y = F.dropout(y, training=False)
-        z = F.dropout(z, p=0.6, training=False)
-        w = F.dropout(w, p=0.1, training=False)
-        x = F.relu(x)
-        y = F.relu(y)
-        z = F.relu(z)
-        w = F.relu(w)
-        return x, y, z, w
+        out0 = torch.cat((x, y), dim=0)
+        out1 = torch.cat((z, w), dim=2)
+        out2 = torch.cat((w, w), dim=1)
+        return out0, out1, out2
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(16)
+    x = torch.rand(3, 16)
     y = torch.rand(2, 16)
-    z = torch.rand(3, 12, 16)
-    w = torch.rand(5, 7, 9, 11)
+    z = torch.rand(5, 9, 11)
+    w = torch.rand(5, 9, 3)
 
-    a = net(x, y, z, w)
+    a0, a1, a2 = net(x, y, z, w)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z, w))
-    mod.save("test_F_dropout.pt")
+    mod.save("test_torch_cat.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_dropout.pt inputshape=[16],[2,16],[3,12,16],[5,7,9,11]")
+    os.system("../../src/pnnx test_torch_cat.pt inputshape=[3,16],[2,16],[5,9,11],[5,9,3]")
 
     # ncnn inference
-    import test_F_dropout_ncnn
-    b = test_F_dropout_ncnn.test_inference()
+    import test_torch_cat_ncnn
+    b0, b1, b2 = test_torch_cat_ncnn.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            return False
-    return True
+    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
 
 if __name__ == "__main__":
     if test():

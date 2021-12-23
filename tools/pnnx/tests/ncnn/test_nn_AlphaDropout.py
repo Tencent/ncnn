@@ -24,14 +24,14 @@ class Model(nn.Module):
         self.dropout_1 = nn.AlphaDropout(p=0.7)
 
     def forward(self, x, y, z, w):
-        x = F.relu(x)
-        y = F.relu(y)
-        z = F.relu(z)
-        w = F.relu(w)
         x = self.dropout_0(x)
         y = self.dropout_0(y)
         z = self.dropout_1(z)
         w = self.dropout_1(w)
+        x = F.relu(x)
+        y = F.relu(y)
+        z = F.relu(z)
+        w = F.relu(w)
         return x, y, z, w
 
 def test():

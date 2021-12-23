@@ -16,48 +16,36 @@
 
 namespace pnnx {
 
-class F_leaky_relu : public GraphRewriterPass
+class torch_clone : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
 4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 negative_slope
-aten::leaky_relu        op_0        2 1 input negative_slope out
+pnnx.Input              input       0 1 input
+prim::Constant          op_0        0 1 memory_format value=%memory_format
+aten::clone             op_1        2 1 input memory_format out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "F.leaky_relu";
+        return "torch.clone";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        if (captured_params.at("memory_format").i == 0)
+            op->params["memory_format"] = "torch.contiguous_format";
+        if (captured_params.at("memory_format").i == 1)
+            op->params["memory_format"] = "torch.preserve_format";
+        if (captured_params.at("memory_format").i == 2)
+            op->params["memory_format"] = "torch.channels_last";
     }
 };
 
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_leaky_relu, 10)
-
-class F_leaky_relu_1 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-4 3
-pnnx.Input              input_0     0 1 input
-pnnx.Input              input_1     0 1 negative_slope
-aten::leaky_relu_       op_0        2 1 input negative_slope out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "F.leaky_relu";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_leaky_relu_1, 10)
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_clone, 20)
 
 } // namespace pnnx

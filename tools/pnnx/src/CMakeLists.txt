@@ -174,9 +174,11 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_cat.cpp
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
+    pass_level2/torch_clone.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_flatten.cpp
     pass_level2/torch_mean.cpp
+    pass_level2/torch_normal.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_split.cpp
@@ -252,7 +254,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_adaptive_max_pool1d.cpp
     pass_ncnn/F_adaptive_max_pool2d.cpp
     pass_ncnn/F_adaptive_max_pool3d.cpp
-    #pass_ncnn/F_alpha_dropout.cpp
     pass_ncnn/F_avg_pool1d.cpp
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
@@ -261,12 +262,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_conv1d.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_conv3d.cpp
-    #pass_ncnn/F_dropout.cpp
-    #pass_ncnn/F_dropout2d.cpp
-    #pass_ncnn/F_dropout3d.cpp
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_embedding.cpp
-    #pass_ncnn/F_feature_alpha_dropout.cpp
     pass_ncnn/F_gelu.cpp
     pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
@@ -303,7 +300,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_AdaptiveMaxPool1d.cpp
     pass_ncnn/nn_AdaptiveMaxPool2d.cpp
     pass_ncnn/nn_AdaptiveMaxPool3d.cpp
-    #pass_ncnn/nn_AlphaDropout.cpp
     pass_ncnn/nn_AvgPool1d.cpp
     pass_ncnn/nn_AvgPool2d.cpp
     pass_ncnn/nn_AvgPool3d.cpp
@@ -318,9 +314,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Conv2d.cpp
     pass_ncnn/nn_Conv3d.cpp
     pass_ncnn/nn_ConvTranspose2d.cpp
-    #pass_ncnn/nn_Dropout.cpp
-    #pass_ncnn/nn_Dropout2d.cpp
-    #pass_ncnn/nn_Dropout3d.cpp
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_Embedding.cpp
     pass_ncnn/nn_GELU.cpp
@@ -364,6 +357,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_slice.cpp
     pass_ncnn/Tensor_view.cpp
     pass_ncnn/torch_clamp.cpp
+    pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_mean.cpp
     pass_ncnn/torch_permute.cpp

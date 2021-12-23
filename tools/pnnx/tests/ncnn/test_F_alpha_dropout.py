@@ -21,14 +21,14 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z, w):
-        x = F.relu(x)
-        y = F.relu(y)
-        z = F.relu(z)
-        w = F.relu(w)
         x = F.alpha_dropout(x, training=False)
         y = F.alpha_dropout(y, training=False)
         z = F.alpha_dropout(z, p=0.6, training=False)
         w = F.alpha_dropout(w, p=0.1, training=False)
+        x = F.relu(x)
+        y = F.relu(y)
+        z = F.relu(z)
+        w = F.relu(w)
         return x, y, z, w
 
 def test():
