@@ -1341,11 +1341,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
             if (is_running_mean_var)
             {
-                fprintf(pyfp, "        self.%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
             }
             else
             {
-                fprintf(pyfp, "        self.%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
             }
 
             for (size_t i = 0; i < attr.shape.size(); i++)
@@ -1420,7 +1420,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             else if (op->type == "pnnx.Attribute")
             {
                 const std::string& key = op->attrs.begin()->first;
-                fprintf(pyfp, "v_%s = self.%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), key.c_str());
+                fprintf(pyfp, "v_%s = self.%s_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
             }
             else if (op->type == "Tensor.slice")
             {
