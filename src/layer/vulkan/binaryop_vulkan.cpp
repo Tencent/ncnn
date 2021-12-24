@@ -486,8 +486,8 @@ int BinaryOp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector
         constants[14].i = top_blob.cstep;
 
         const Pipeline* pipeline = out_elempack == 8 ? pipeline_binaryop_pack8
-                   : out_elempack == 4 ? pipeline_binaryop_pack4
-                   : pipeline_binaryop;
+                                   : out_elempack == 4 ? pipeline_binaryop_pack4
+                                   : pipeline_binaryop;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
@@ -664,8 +664,8 @@ int BinaryOp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::v
         constants[14].i = 0; //top_blob.cstep;
 
         const Pipeline* pipeline = out_elempack == 8 ? pipeline_binaryop_pack8
-                   : out_elempack == 4 ? pipeline_binaryop_pack4
-                   : pipeline_binaryop;
+                                   : out_elempack == 4 ? pipeline_binaryop_pack4
+                                   : pipeline_binaryop;
 
         cmd.record_pipeline(pipeline, bindings, constants, top_blob);
     }
