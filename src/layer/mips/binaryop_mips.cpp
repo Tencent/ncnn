@@ -76,7 +76,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                     v4f32 _outp = op(_p, _p1);
-                    __msa_st_w((v4i32)outptr, _outp, 0);
+                    __msa_st_w((v4i32)_outp, outptr, 0);
                     ptr += 4;
                     ptr1 += 4;
                     outptr += 4;
@@ -109,7 +109,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         {
                             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                             v4f32 _outp = op(_p, _b0);
-                            __msa_st_w((v4i32)outptr, _outp, 0);
+                            __msa_st_w((v4i32)_outp, outptr, 0);
                             ptr += 4;
                             outptr += 4;
                         }
@@ -141,7 +141,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         {
                             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                             v4f32 _outp = op(_p, _b0);
-                            __msa_st_w((v4i32)outptr, _outp, 0);
+                            __msa_st_w((v4i32)_outp, outptr, 0);
                             ptr += 4;
                             outptr += 4;
                         }
@@ -170,7 +170,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     {
                         v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                         v4f32 _outp = op(_p, _b0);
-                        __msa_st_w((v4i32)outptr, _outp, 0);
+                        __msa_st_w((v4i32)_outp, outptr, 0);
                         ptr += 4;
                         outptr += 4;
                     }
@@ -191,7 +191,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 {
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _outp = op(_p, _b0);
-                    __msa_st_w((v4i32)outptr, _outp, 0);
+                    __msa_st_w((v4i32)_outp, outptr, 0);
                     ptr += 4;
                     outptr += 4;
                 }
@@ -225,7 +225,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         {
                             v4f32 _p = (v4f32)__msa_ld_w(ptr1, 0);
                             v4f32 _outp = op(_a0, _p);
-                            __msa_st_w((v4i32)outptr, _outp, 0);
+                            __msa_st_w((v4i32)_outp, outptr, 0);
                             ptr1 += 4;
                             outptr += 4;
                         }
@@ -623,7 +623,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         {
                             v4f32 _p = (v4f32)__msa_ld_w(ptr1, 0);
                             v4f32 _outp = op(_a0, _p);
-                            __msa_st_w((v4i32)outptr, _outp, 0);
+                            __msa_st_w((v4i32)_outp, outptr, 0);
                             ptr1 += 4;
                             outptr += 4;
                         }
@@ -767,7 +767,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     {
                         v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                         v4f32 _outp = op(_a0, _p1);
-                        __msa_st_w((v4i32)outptr, _outp, 0);
+                        __msa_st_w((v4i32)_outp, outptr, 0);
                         ptr1 += 4;
                         outptr += 4;
                     }
@@ -869,7 +869,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 {
                     v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                     v4f32 _outp = op(_a0, _p1);
-                    __msa_st_w((v4i32)outptr, _outp, 0);
+                    __msa_st_w((v4i32)_outp, outptr, 0);
                     ptr1 += 4;
                     outptr += 4;
                 }
