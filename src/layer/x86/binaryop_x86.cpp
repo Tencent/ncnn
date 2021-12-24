@@ -159,7 +159,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
         if (b.dims == 1)
         {
-            if (b.w == 1)
+            if (b.w == 1 && elempack1 == 1)
             {
                 // type 25
                 __m256 _b0 = _mm256_set1_ps(((const float*)b)[0]);
@@ -1184,7 +1184,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
         if (b.dims == 1)
         {
-            if (b.w == 1)
+            if (b.w == 1 && elempack1 == 1)
             {
                 // type 25
                 __m128 _b0 = _mm_set1_ps(((const float*)b)[0]);

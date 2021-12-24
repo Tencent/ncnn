@@ -213,11 +213,11 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                             outptr[x] = op(a0, ptr1[x]);
                         }
 
-                        ptr1 += w;
-                        outptr += w;
+                        ptr1 += w1;
+                        outptr += w1;
                     }
 
-                    ptr += h;
+                    ptr += h1;
                 }
             }
 
@@ -547,8 +547,8 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                             outptr[x] = op(a0, ptr1[x]);
                         }
 
-                        ptr1 += w;
-                        outptr += w;
+                        ptr1 += w1;
+                        outptr += w1;
                     }
                 }
             }
