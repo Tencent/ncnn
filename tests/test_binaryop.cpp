@@ -47,7 +47,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
     ab[0] = a;
     ab[1] = b;
 
-        fprintf(stderr, "test_binaryop a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
+    fprintf(stderr, "test_binaryop a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
     int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, ab);
     if (ret != 0)
     {
