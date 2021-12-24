@@ -73,10 +73,10 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                 for (int i = 0; i < size; i++)
                 {
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(ptr1);
+                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+                    v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                     v4f32 _outp = op(_p, _p1);
-                    __msa_st_w((v4i32)outptr, _outp);
+                    __msa_st_w((v4i32)outptr, _outp, 0);
                     ptr += 4;
                     ptr1 += 4;
                     outptr += 4;
@@ -104,12 +104,12 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 {
                     for (int y = 0; y < h; y++)
                     {
-                        v4f32 _b0 = (v4f32)__msa_ld_w(ptr1);
+                        v4f32 _b0 = (v4f32)__msa_ld_w(ptr1, 0);
                         for (int x = 0; x < w; x++)
                         {
-                            v4f32 _p = (v4f32)__msa_ld_w(ptr);
+                            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                             v4f32 _outp = op(_p, _b0);
-                            __msa_st_w((v4i32)outptr, _outp);
+                            __msa_st_w((v4i32)outptr, _outp, 0);
                             ptr += 4;
                             outptr += 4;
                         }
@@ -134,14 +134,14 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                 for (int z = 0; z < d; z++)
                 {
-                    v4f32 _b0 = (v4f32)__msa_ld_w(ptr1);
+                    v4f32 _b0 = (v4f32)__msa_ld_w(ptr1, 0);
                     for (int y = 0; y < h; y++)
                     {
                         for (int x = 0; x < w; x++)
                         {
-                            v4f32 _p = (v4f32)__msa_ld_w(ptr);
+                            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                             v4f32 _outp = op(_p, _b0);
-                            __msa_st_w((v4i32)outptr, _outp);
+                            __msa_st_w((v4i32)outptr, _outp, 0);
                             ptr += 4;
                             outptr += 4;
                         }
@@ -168,9 +168,9 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                     for (int i = 0; i < size; i++)
                     {
-                        v4f32 _p = (v4f32)__msa_ld_w(ptr);
+                        v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                         v4f32 _outp = op(_p, _b0);
-                        __msa_st_w((v4i32)outptr, _outp);
+                        __msa_st_w((v4i32)outptr, _outp, 0);
                         ptr += 4;
                         outptr += 4;
                     }
@@ -184,14 +184,14 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
-                v4f32 _b0 = (v4f32)__msa_ld_w((const float*)b + q * 4);
+                v4f32 _b0 = (v4f32)__msa_ld_w((const float*)b + q * 4, 0);
                 float* outptr = c.channel(q);
 
                 for (int i = 0; i < size; i++)
                 {
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr);
+                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                     v4f32 _outp = op(_p, _b0);
-                    __msa_st_w((v4i32)outptr, _outp);
+                    __msa_st_w((v4i32)outptr, _outp, 0);
                     ptr += 4;
                     outptr += 4;
                 }
@@ -220,12 +220,12 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 {
                     for (int y = 0; y < h1; y++)
                     {
-                        v4f32 _a0 = (v4f32)__msa_ld_w(ptr);
+                        v4f32 _a0 = (v4f32)__msa_ld_w(ptr, 0);
                         for (int x = 0; x < w1; x++)
                         {
-                            v4f32 _p = (v4f32)__msa_ld_w(ptr1);
+                            v4f32 _p = (v4f32)__msa_ld_w(ptr1, 0);
                             v4f32 _outp = op(_a0, _p);
-                            __msa_st_w((v4i32)outptr, _outp);
+                            __msa_st_w((v4i32)outptr, _outp, 0);
                             ptr1 += 4;
                             outptr += 4;
                         }
@@ -616,14 +616,14 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                 for (int z = 0; z < d1; z++)
                 {
-                    v4f32 _a0 = (v4f32)__msa_ld_w(ptr);
+                    v4f32 _a0 = (v4f32)__msa_ld_w(ptr, 0);
                     for (int y = 0; y < h1; y++)
                     {
                         for (int x = 0; x < w1; x++)
                         {
-                            v4f32 _p = (v4f32)__msa_ld_w(ptr1);
+                            v4f32 _p = (v4f32)__msa_ld_w(ptr1, 0);
                             v4f32 _outp = op(_a0, _p);
-                            __msa_st_w((v4i32)outptr, _outp);
+                            __msa_st_w((v4i32)outptr, _outp, 0);
                             ptr1 += 4;
                             outptr += 4;
                         }
@@ -765,9 +765,9 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                     for (int i = 0; i < size1; i++)
                     {
-                        v4f32 _p1 = (v4f32)__msa_ld_w(ptr1);
+                        v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                         v4f32 _outp = op(_a0, _p1);
-                        __msa_st_w((v4i32)outptr, _outp);
+                        __msa_st_w((v4i32)outptr, _outp, 0);
                         ptr1 += 4;
                         outptr += 4;
                     }
@@ -861,15 +861,15 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels1; q++)
             {
-                v4f32 _a0 = (v4f32)__msa_ld_w((const float*)a + q * 4);
+                v4f32 _a0 = (v4f32)__msa_ld_w((const float*)a + q * 4, 0);
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
 
                 for (int i = 0; i < size1; i++)
                 {
-                    v4f32 _p1 = (v4f32)__msa_ld_w(ptr1);
+                    v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
                     v4f32 _outp = op(_a0, _p1);
-                    __msa_st_w((v4i32)outptr, _outp);
+                    __msa_st_w((v4i32)outptr, _outp, 0);
                     ptr1 += 4;
                     outptr += 4;
                 }
