@@ -46,8 +46,9 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = a.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -322,8 +323,9 @@ static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = a.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)

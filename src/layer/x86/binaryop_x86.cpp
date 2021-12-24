@@ -162,7 +162,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 25
-                __m256 _b0 = _mm256_set1_ps(((const float*)b)[0]);
+                __m256 _b0 = _mm256_set1_ps(b[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -740,7 +740,7 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                __m256 _a0 = _mm256_set1_ps(((const float*)a)[0]);
+                __m256 _a0 = _mm256_set1_ps(a[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
@@ -1187,7 +1187,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 25
-                __m128 _b0 = _mm_set1_ps(((const float*)b)[0]);
+                __m128 _b0 = _mm_set1_ps(b[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -1571,7 +1571,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 16
-                __m128 _b0 = _mm_set1_ps(((const float*)b)[0]);
+                __m128 _b0 = _mm_set1_ps(b[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -1716,7 +1716,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 11
-                __m128 _b0 = _mm_set1_ps(((const float*)b)[0]);
+                __m128 _b0 = _mm_set1_ps(b[0]);
                 const float* ptr = a;
                 float* outptr = c;
                 for (int i = 0; i < size; i++)
@@ -1765,7 +1765,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                __m128 _a0 = _mm_set1_ps(((const float*)a)[0]);
+                __m128 _a0 = _mm_set1_ps(a[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
@@ -1792,7 +1792,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                __m128 _a0 = _mm_set1_ps(((const float*)a)[0]);
+                __m128 _a0 = _mm_set1_ps(a[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
@@ -1819,7 +1819,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                __m128 _a0 = _mm_set1_ps(((const float*)a)[0]);
+                __m128 _a0 = _mm_set1_ps(a[0]);
                 const float* ptr1 = b;
                 float* outptr = c;
                 for (int i = 0; i < size1; i++)
@@ -1841,7 +1841,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                __m128 _a0 = _mm_set1_ps(((const float*)a)[0]);
+                __m128 _a0 = _mm_set1_ps(a[0]);
                 const float* ptr1 = b;
                 float* outptr = c;
                 for (int i = 0; i < w1; i++)
@@ -1949,7 +1949,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 6
-                __m128 _b0 = _mm_set1_ps(((const float*)b)[0]);
+                __m128 _b0 = _mm_set1_ps(b[0]);
                 const float* ptr = a;
                 float* outptr = c;
                 for (int i = 0; i < w; i++)
