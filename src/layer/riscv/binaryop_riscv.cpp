@@ -28,6 +28,7 @@
 #include "rvv_mathfun.h"
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
+
 namespace ncnn {
 
 BinaryOp_riscv::BinaryOp_riscv()
@@ -42,22 +43,23 @@ BinaryOp_riscv::BinaryOp_riscv()
 
 #if __riscv_vector
 template<typename Op>
-static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
-                         const Option& opt)
+static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 {
     Op op;
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
     size_t elemsize = a.elemsize;
     int elempack = a.elempack;
 
     int w1 = b.w;
     int h1 = b.h;
+    int d1 = b.d;
     int channels1 = b.c;
-    int size1 = w1 * h1;
+    int size1 = w1 * h1 * d1;
     size_t elemsize1 = b.elemsize;
     int elempack1 = b.elempack;
 
@@ -76,30 +78,32 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
-                    const float* b0 = b.channel(q);
+                    const float* ptr1 = b.channel(q);
                     float* outptr = c.channel(q);
+
+                    vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
+
+                    vfloat32m8_t _b0x = vundefined_f32m8();
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
 
                     int n = size * elempack;
                     while (n > 0)
                     {
-                        const float* b_vol = b0;
-                        int n1 = size1 * elempack1;
-                        while (n1 > 0)
-                        {
-                            word_type vl = vsetvl_e32m8(std::min(n1, n));
+                        word_type vl = vsetvl_e32m8(n);
+                        vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                        vfloat32m8_t _outp = op(_p, _b0x, vl);
+                        vse32_v_f32m8(outptr, _outp, vl);
 
-                            vfloat32m8_t _b = vle32_v_f32m8(b_vol, vl);
-                            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                            vfloat32m8_t _outp = op(_p, _b, vl);
-                            vse32_v_f32m8(outptr, _outp, vl);
-
-                            ptr += vl;
-                            b_vol += vl;
-                            outptr += vl;
-
-                            n1 -= vl;
-                            n -= vl;
-                        }
+                        ptr += vl;
+                        outptr += vl;
+                        n -= vl;
                     }
                 }
                 return 0;
@@ -127,12 +131,13 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                             word_type vl = vsetvl_e32m8(n);
                             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                             vfloat32m8_t _outp = op(_p, *ptr1, vl);
-
                             vse32_v_f32m8(outptr, _outp, vl);
+
                             n -= vl;
                             ptr += vl;
                             outptr += vl;
                         }
+
                         ptr1 += 1;
                     }
                 }
@@ -150,31 +155,33 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
-                    const float* a0 = a.channel(q);
+                    const float* ptr = a.channel(q);
                     const float* ptr1 = b.channel(q);
                     float* outptr = c.channel(q);
+
+                    vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
+
+                    vfloat32m8_t _a0x = vundefined_f32m8();
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
 
                     int n1 = size1 * elempack1;
                     while (n1 > 0)
                     {
-                        const float* a_vol = a0;
-                        int n = size * elempack;
-                        while (n > 0)
-                        {
-                            word_type vl = vsetvl_e32m8(std::min(n1, n));
+                        word_type vl = vsetvl_e32m8(n1);
+                        vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
+                        vfloat32m8_t _outp = op(_a0x, _p1, vl);
+                        vse32_v_f32m8(outptr, _outp, vl);
 
-                            vfloat32m8_t _a0 = vle32_v_f32m8(a_vol, vl);
-                            vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                            vfloat32m8_t _outp = op(_a0, _p1, vl);
-                            vse32_v_f32m8(outptr, _outp, vl);
-
-                            ptr1 += vl;
-                            a_vol += vl;
-                            outptr += vl;
-
-                            n1 -= vl;
-                            n -= vl;
-                        }
+                        ptr1 += vl;
+                        outptr += vl;
+                        n1 -= vl;
                     }
                 }
 
@@ -210,6 +217,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                             ptr1 += vl;
                             outptr += vl;
                         }
+
                         ptr += 1;
                     }
                 }
@@ -230,24 +238,34 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                     const float* ptr = a.channel(q);
                     const float* ptr1 = b.channel(q);
                     float* outptr = c.channel(q);
+
                     for (int y = 0; y < h; y++)
                     {
-                        for (int x = 0; x < w; x++)
+                        vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
+
+                        vfloat32m8_t _b0x = vundefined_f32m8();
+                        _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
+                        _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
+                        _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
+                        _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
+                        _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
+                        _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
+                        _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
+                        _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+
+                        int n = w * elempack;
+                        while (n > 0)
                         {
-                            const float* ptr1_vol = ptr1 + y * elempack;
-                            int n = elempack;
-                            while (n > 0)
-                            {
-                                word_type vl = vsetvl_e32m8(n);
-                                vfloat32m8_t _p1 = vle32_v_f32m8(ptr1_vol, vl);
-                                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                                vfloat32m8_t _outp = op(_p, _p1, vl);
-                                vse32_v_f32m8(outptr, _outp, vl);
-                                ptr += vl;
-                                outptr += vl;
-                                n -= vl;
-                            }
+                            word_type vl = vsetvl_e32m8(n);
+                            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                            vfloat32m8_t _outp = op(_p, _b0x, vl);
+                            vse32_v_f32m8(outptr, _outp, vl);
+                            ptr += vl;
+                            outptr += vl;
+                            n -= vl;
                         }
+
+                        ptr1 += elempack1;
                     }
                 }
 
@@ -270,23 +288,20 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
 
                     for (int y = 0; y < h; y++)
                     {
-                        for (int x = 0; x < w; x++)
+                        int n = w * elempack;
+                        const float* ptr1_vol = ptr1;
+                        while (n > 0)
                         {
-                            int n = elempack;
-                            const float* ptr1_vol = ptr1 + x * elempack;
-                            while (n > 0)
-                            {
-                                word_type vl = vsetvl_e32m8(n);
-                                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                                vfloat32m8_t _p1 = vle32_v_f32m8(ptr1_vol, vl);
-                                vfloat32m8_t _outp = op(_p, _p1, vl);
+                            word_type vl = vsetvl_e32m8(n);
+                            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                            vfloat32m8_t _p1 = vle32_v_f32m8(ptr1_vol, vl);
+                            vfloat32m8_t _outp = op(_p, _p1, vl);
 
-                                vse32_v_f32m8(outptr, _outp, vl);
-                                outptr += vl;
-                                ptr += vl;
-                                n -= vl;
-                                ptr1_vol += vl;
-                            }
+                            vse32_v_f32m8(outptr, _outp, vl);
+                            outptr += vl;
+                            ptr += vl;
+                            n -= vl;
+                            ptr1_vol += vl;
                         }
                     }
                 }
@@ -310,23 +325,31 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
 
                     for (int y = 0; y < h1; y++)
                     {
-                        for (int x = 0; x < w1; x++)
+                        vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
+
+                        vfloat32m8_t _a0x = vundefined_f32m8();
+                        _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
+                        _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
+                        _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
+                        _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
+                        _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
+                        _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
+                        _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
+                        _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+
+                        int n = w1 * elempack1;
+                        while (n > 0)
                         {
-                            int n = elempack;
-                            const float* ptr_vol = ptr + y * elempack;
-                            while (n > 0)
-                            {
-                                word_type vl = vsetvl_e32m8(n);
-                                vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
-                                vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                                vfloat32m8_t _outp = op(_p, _p1, vl);
-                                vse32_v_f32m8(outptr, _outp, vl);
-                                ptr1 += vl;
-                                outptr += vl;
-                                ptr_vol += vl;
-                                n -= vl;
-                            }
+                            word_type vl = vsetvl_e32m8(n);
+                            vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
+                            vfloat32m8_t _outp = op(_a0x, _p1, vl);
+                            vse32_v_f32m8(outptr, _outp, vl);
+                            ptr1 += vl;
+                            outptr += vl;
+                            n -= vl;
                         }
+
+                        ptr += elempack;
                     }
                 }
 
@@ -349,23 +372,20 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
 
                     for (int y = 0; y < h1; y++)
                     {
-                        for (int x = 0; x < w1; x++)
+                        int n = w1 * elempack1;
+                        const float* ptr_vol = ptr;
+                        while (n > 0)
                         {
-                            int n = elempack;
-                            const float* ptr_vol = ptr + x * elempack;
-                            while (n > 0)
-                            {
-                                word_type vl = vsetvl_e32m8(n);
-                                vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
-                                vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                                vfloat32m8_t _outp = op(_p, _p1, vl);
-                                vse32_v_f32m8(outptr, _outp, vl);
+                            word_type vl = vsetvl_e32m8(n);
+                            vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
+                            vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
+                            vfloat32m8_t _outp = op(_p, _p1, vl);
+                            vse32_v_f32m8(outptr, _outp, vl);
 
-                                ptr1 += vl;
-                                outptr += vl;
-                                ptr_vol += vl;
-                                n -= vl;
-                            }
+                            ptr1 += vl;
+                            outptr += vl;
+                            ptr_vol += vl;
+                            n -= vl;
                         }
                     }
                 }
@@ -420,24 +440,31 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
 
                 for (int y = 0; y < h; y++)
                 {
-                    for (int x = 0; x < w; x++)
-                    {
-                        const float* ptr1_vol = ptr1;
-                        int n = elempack1;
-                        while (n > 0)
-                        {
-                            word_type vl = vsetvl_e32m8(n);
-                            vfloat32m8_t _b0 = vle32_v_f32m8(ptr1_vol, vl);
-                            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                            vfloat32m8_t _outp = op(_p, _b0, vl);
-                            vse32_v_f32m8(outptr, _outp, vl);
+                    vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
 
-                            ptr += vl;
-                            outptr += vl;
-                            ptr1_vol += vl;
-                            n -= vl;
-                        }
+                    vfloat32m8_t _b0x = vundefined_f32m8();
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
+                    _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+
+                    int n = w * elempack1;
+                    while (n > 0)
+                    {
+                        word_type vl = vsetvl_e32m8(n);
+                        vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                        vfloat32m8_t _outp = op(_p, _b0x, vl);
+                        vse32_v_f32m8(outptr, _outp, vl);
+
+                        ptr += vl;
+                        outptr += vl;
+                        n -= vl;
                     }
+
                     ptr1 += elempack1;
                 }
             }
@@ -454,6 +481,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                 for (int q = 0; q < channels; q++)
                 {
                     const float* ptr = a.channel(q);
+                    const float b0 = b[0];
                     float* outptr = c.channel(q);
 
                     int n = size * elempack;
@@ -461,7 +489,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                     {
                         word_type vl = vsetvl_e32m8(n);
                         vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _outp = op(_p, b[0], vl);
+                        vfloat32m8_t _outp = op(_p, b0, vl);
                         vse32_v_f32m8(outptr, _outp, vl);
 
                         ptr += vl;
@@ -480,27 +508,30 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                 const float* ptr = a.channel(q);
                 float* outptr = c.channel(q);
 
-                int n = size * elempack;
+                vfloat32m1_t _b0 = vle32_v_f32m1((const float*)b + q * elempack, vsetvl_e32m1(elempack));
 
+                vfloat32m8_t _b0x = vundefined_f32m8();
+                _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+
+                int n = size * elempack;
                 while (n > 0)
                 {
-                    int n1 = elempack1;
-                    const float* ptr1_vol = (const float*)b + q * elempack1;
-                    while (n1 > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n1);
+                    word_type vl = vsetvl_e32m8(n);
 
-                        vfloat32m8_t _b0 = vle32_v_f32m8(ptr1_vol, vl);
-                        vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _outp = op(_p, _b0, vl);
-                        vse32_v_f32m8(outptr, _outp, vl);
+                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                    vfloat32m8_t _outp = op(_p, _b0x, vl);
+                    vse32_v_f32m8(outptr, _outp, vl);
 
-                        ptr1_vol += vl;
-                        outptr += vl;
-                        ptr += vl;
-                        n1 -= vl;
-                        n -= vl;
-                    }
+                    outptr += vl;
+                    ptr += vl;
+                    n -= vl;
                 }
             }
 
@@ -525,23 +556,30 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
 
                 for (int y = 0; y < h1; y++)
                 {
-                    for (int x = 0; x < w1; x++)
+                    vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
+
+                    vfloat32m8_t _a0x = vundefined_f32m8();
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
+                    _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+
+                    int n = w1 * elempack1;
+                    while (n > 0)
                     {
-                        const float* ptr_vol = ptr;
-                        int n = elempack1;
-                        while (n > 0)
-                        {
-                            word_type vl = vsetvl_e32m8(n);
-                            vfloat32m8_t _a0 = vle32_v_f32m8(ptr_vol, vl);
-                            vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                            vfloat32m8_t _outp = op(_a0, _p1, vl);
-                            vse32_v_f32m8(outptr, _outp, vl);
-                            ptr1 += vl;
-                            outptr += vl;
-                            ptr_vol += vl;
-                            n -= vl;
-                        }
+                        word_type vl = vsetvl_e32m8(n);
+                        vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
+                        vfloat32m8_t _outp = op(_a0x, _p1, vl);
+                        vse32_v_f32m8(outptr, _outp, vl);
+                        ptr1 += vl;
+                        outptr += vl;
+                        n -= vl;
                     }
+
                     ptr += elempack;
                 }
             }
@@ -559,11 +597,11 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
             const float* ptr = a;
             const float* ptr1 = b;
             float* outptr = c;
+
             int n = size * elempack;
             while (n > 0)
             {
                 word_type vl = vsetvl_e32m8(n);
-
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                 vfloat32m8_t _outp = op(_p, _p1, vl);
@@ -588,13 +626,15 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
             {
                 // type 11
                 const float* ptr = a;
+                const float b0 = b[0];
                 float* outptr = c;
+
                 int n = size * elempack;
                 while (n > 0)
                 {
                     word_type vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _outp = op(_p, b[0], vl);
+                    vfloat32m8_t _outp = op(_p, b0, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
 
                     ptr += vl;
@@ -612,23 +652,29 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
 
             for (int y = 0; y < h; y++)
             {
-                for (int x = 0; x < w; x++)
-                {
-                    int n = elempack;
-                    const float* ptr1_vol = ptr1;
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n);
-                        vfloat32m8_t _b0 = vle32_v_f32m8(ptr1_vol, vl);
-                        vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _outp = op(_p, _b0, vl);
-                        vse32_v_f32m8(outptr, _outp, vl);
+                vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
 
-                        ptr += vl;
-                        ptr1_vol += vl;
-                        outptr += vl;
-                        n -= vl;
-                    }
+                vfloat32m8_t _b0x = vundefined_f32m8();
+                _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
+                _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+
+                int n = w * elempack;
+                while (n > 0)
+                {
+                    word_type vl = vsetvl_e32m8(n);
+                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                    vfloat32m8_t _outp = op(_p, _b0x, vl);
+                    vse32_v_f32m8(outptr, _outp, vl);
+
+                    ptr += vl;
+                    outptr += vl;
+                    n -= vl;
                 }
 
                 ptr1 += elempack;
@@ -641,6 +687,37 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
     {
         if (a.w == 1 && elempack == 1)
         {
+            if (b.dims == 4)
+            {
+                // type 20
+                c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const float a0 = a[0];
+                    const float* ptr1 = b.channel(q);
+                    float* outptr = c.channel(q);
+
+                    int n1 = size1 * elempack1;
+                    while (n1 > 0)
+                    {
+                        word_type vl = vsetvl_e32m8(n1);
+                        vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
+                        vfloat32m8_t _outp = op(a0, _p1, vl);
+                        vse32_v_f32m8(outptr, _outp, vl);
+
+                        ptr1 += vl;
+                        outptr += vl;
+                        n1 -= vl;
+                    }
+                }
+
+                return 0;
+            }
+
             if (b.dims == 3)
             {
                 // type 4
@@ -651,6 +728,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
+                    const float a0 = a[0];
                     const float* ptr1 = b.channel(q);
                     float* outptr = c.channel(q);
 
@@ -658,9 +736,8 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                     while (n1 > 0)
                     {
                         word_type vl = vsetvl_e32m8(n1);
-                        vfloat32m8_t _a0 = vfmv_v_f_f32m8(a[0], vl);
                         vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                        vfloat32m8_t _outp = op(_a0, _p1, vl);
+                        vfloat32m8_t _outp = op(a0, _p1, vl);
                         vse32_v_f32m8(outptr, _outp, vl);
 
                         ptr1 += vl;
@@ -679,6 +756,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                 if (c.empty())
                     return -100;
 
+                const float a0 = a[0];
                 const float* ptr1 = b;
                 float* outptr = c;
 
@@ -686,9 +764,8 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
                 while (n1 > 0)
                 {
                     word_type vl = vsetvl_e32m8(n1);
-                    vfloat32m8_t _a0 = vfmv_v_f_f32m8(a[0], vl);
                     vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                    vfloat32m8_t _outp = op(_a0, _p1, vl);
+                    vfloat32m8_t _outp = op(a0, _p1, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
 
                     ptr1 += vl;
@@ -702,21 +779,20 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
             if (b.dims == 1)
             {
                 // type 2
-
                 c.create(w1, elemsize1, elempack1, opt.blob_allocator);
                 if (c.empty())
                     return -100;
 
+                const float a0 = a[0];
                 const float* ptr1 = b;
                 float* outptr = c;
+
                 int n1 = w1 * elempack1;
                 while (n1 > 0)
                 {
                     word_type vl = vsetvl_e32m8(n1);
-
-                    vfloat32m8_t _a0 = vfmv_v_f_f32m8(a[0], vl);
                     vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                    vfloat32m8_t _outp = op(_a0, _p1, vl);
+                    vfloat32m8_t _outp = op(a0, _p1, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
 
                     ptr1 += vl;
@@ -739,23 +815,30 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
             {
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
+
+                vfloat32m1_t _a0 = vle32_v_f32m1((const float*)a + q * elempack, vsetvl_e32m1(elempack));
+
+                vfloat32m8_t _a0x = vundefined_f32m8();
+                _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
                 {
-                    int n = elempack;
-                    const float* ptr_vol = (const float*)a + q * elempack;
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n);
-                        vfloat32m8_t _a0 = vle32_v_f32m8(ptr_vol, vl);
-                        vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                        vfloat32m8_t _outp = op(_a0, _p1, vl);
-                        vse32_v_f32m8(outptr, _outp, vl);
-                        ptr1 += vl;
-                        outptr += vl;
-                        n1 -= vl;
-                        n -= vl;
-                    }
+                    word_type vl = vsetvl_e32m8(n1);
+                    vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
+                    vfloat32m8_t _outp = op(_a0x, _p1, vl);
+                    vse32_v_f32m8(outptr, _outp, vl);
+
+                    ptr1 += vl;
+                    outptr += vl;
+                    n1 -= vl;
                 }
             }
 
@@ -772,29 +855,37 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
             const float* ptr = a;
             const float* ptr1 = b;
             float* outptr = c;
+
             for (int y = 0; y < h1; y++)
             {
-                for (int x = 0; x < w1; x++)
+                vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
+
+                vfloat32m8_t _a0x = vundefined_f32m8();
+                _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
+                _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+
+                int n = w1 * elempack1;
+                while (n > 0)
                 {
-                    const float* ptr_vol = ptr;
-                    int n = elempack;
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n);
+                    word_type vl = vsetvl_e32m8(n);
+                    vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
+                    vfloat32m8_t _outp = op(_a0x, _p1, vl);
+                    vse32_v_f32m8(outptr, _outp, vl);
 
-                        vfloat32m8_t _a0 = vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                        vfloat32m8_t _outp = op(_a0, _p1, vl);
-                        vse32_v_f32m8(outptr, _outp, vl);
-
-                        ptr1 += vl;
-                        outptr += vl;
-                        ptr_vol += vl;
-                        n -= vl;
-                    }
+                    ptr1 += vl;
+                    outptr += vl;
+                    n -= vl;
                 }
+
                 ptr += elempack;
             }
+
             return 0;
         }
 
@@ -808,14 +899,17 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
             {
                 // type 6
                 const float* ptr = a;
+                const float b0 = b[0];
                 float* outptr = c;
+
                 int n = w * elempack;
                 while (n > 0)
                 {
                     word_type vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _outp = op(_p, b[0], vl);
+                    vfloat32m8_t _outp = op(_p, b0, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
+
                     ptr += vl;
                     outptr += vl;
                     n -= vl;
@@ -849,203 +943,15 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c,
     return 0;
 }
 
-struct binary_op_add_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfadd_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y,
-                            const word_type& vl) const
-    {
-        return vfadd_vf_f32m8(x, y, vl);
-    }
-};
-
-struct binary_op_sub_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfsub_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfsub_vf_f32m8(x, y, vl);
-    }
-};
-
-struct binary_op_mul_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfmul_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfmul_vf_f32m8(x, y, vl);
-    }
-};
-
-struct binary_op_div_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfdiv_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfdiv_vf_f32m8(x, y, vl);
-    }
-};
-
-struct binary_op_max_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfmax_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfmax_vf_f32m8(x, y, vl);
-    }
-};
-
-struct binary_op_min_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfmin_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfmin_vf_f32m8(x, y, vl);
-    }
-};
-
-struct binary_op_pow_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return pow_ps(x, y, vl); // rvv_mathfun.h
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return pow_ps(x, vfmv_v_f_f32m8(y, vl), vl);
-    }
-};
-
-struct binary_op_rsub_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfsub_vv_f32m8(y, x, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y,
-                            const word_type& vl) const
-    {
-        return vfrsub_vf_f32m8(x, y, vl);
-    }
-};
-
-struct binary_op_rdiv_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfdiv_vv_f32m8(y, x, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfrdiv_vf_f32m8(x, y, vl);
-    }
-};
-#endif
-
-int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs,
-                            std::vector<Mat>& top_blobs,
-                            const Option& opt) const
-{
-    int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
-#if __riscv_vector && __riscv_zfh
-    if (opt.use_fp16_storage && elembits == 16)
-    {
-        return forward_fp16sa(bottom_blobs, top_blobs, opt);
-    }
-#endif
-    const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& bottom_blob1 = bottom_blobs[1];
-    Mat& top_blob = top_blobs[0];
-
-#if __riscv_vector
-    int elempack = bottom_blob.elempack;
-    int elempack1 = bottom_blob1.elempack;
-    if (elempack != 1 || elempack1 != 1)
-    {
-        if (op_type == Operation_ADD)
-            return binary_op_rvv<binary_op_add_rvv>(bottom_blob, bottom_blob1,
-                                                    top_blob, opt);
-
-        if (op_type == Operation_SUB)
-            return binary_op_rvv<binary_op_sub_rvv>(bottom_blob, bottom_blob1,
-                                                    top_blob, opt);
-
-        if (op_type == Operation_MUL)
-            return binary_op_rvv<binary_op_mul_rvv>(bottom_blob, bottom_blob1,
-                                                    top_blob, opt);
-
-        if (op_type == Operation_DIV)
-            return binary_op_rvv<binary_op_div_rvv>(bottom_blob, bottom_blob1,
-                                                    top_blob, opt);
-
-        if (op_type == Operation_MAX)
-            return binary_op_rvv<binary_op_max_rvv>(bottom_blob, bottom_blob1,
-                                                    top_blob, opt);
-
-        if (op_type == Operation_MIN)
-            return binary_op_rvv<binary_op_min_rvv>(bottom_blob, bottom_blob1,
-                                                    top_blob, opt);
-
-        if (op_type == Operation_POW)
-            return binary_op_rvv<binary_op_pow_rvv>(bottom_blob, bottom_blob1,
-                                                    top_blob, opt);
-
-        if (op_type == Operation_RSUB)
-            return binary_op_rvv<binary_op_rsub_rvv>(bottom_blob, bottom_blob1,
-                    top_blob, opt);
-
-        if (op_type == Operation_RDIV)
-            return binary_op_rvv<binary_op_rdiv_rvv>(bottom_blob, bottom_blob1,
-                    top_blob, opt);
-    }
-#endif
-
-    return BinaryOp::forward(bottom_blobs, top_blobs, opt);
-}
-
-#if __riscv_vector
 template<typename Op>
 static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
 {
     Op op;
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = a.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -1064,12 +970,206 @@ static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
             ptr += vl;
         }
     }
+
     return 0;
 }
+
+struct binary_op_add_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfadd_vv_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y, const word_type& vl) const
+    {
+        return vfadd_vf_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(const float& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfadd_vf_f32m8(y, x, vl);
+    }
+};
+
+struct binary_op_sub_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfsub_vv_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
+    {
+        return vfsub_vf_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfrsub_vf_f32m8(y, x, vl);
+    }
+};
+
+struct binary_op_mul_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfmul_vv_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
+    {
+        return vfmul_vf_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfmul_vf_f32m8(y, x, vl);
+    }
+};
+
+struct binary_op_div_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfdiv_vv_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
+    {
+        return vfdiv_vf_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfrdiv_vf_f32m8(y, x, vl);
+    }
+};
+
+struct binary_op_max_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfmax_vv_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
+    {
+        return vfmax_vf_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfmax_vf_f32m8(y, x, vl);
+    }
+};
+
+struct binary_op_min_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfmin_vv_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
+    {
+        return vfmin_vf_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfmin_vf_f32m8(y, x, vl);
+    }
+};
+
+struct binary_op_pow_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return pow_ps(x, y, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
+    {
+        return pow_ps(x, vfmv_v_f_f32m8(y, vl), vl);
+    }
+    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return pow_ps(vfmv_v_f_f32m8(x, vl), y, vl);
+    }
+};
+
+struct binary_op_rsub_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfsub_vv_f32m8(y, x, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y, const word_type& vl) const
+    {
+        return vfrsub_vf_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(const float& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfsub_vf_f32m8(y, x, vl);
+    }
+};
+
+struct binary_op_rdiv_rvv
+{
+    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfdiv_vv_f32m8(y, x, vl);
+    }
+    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
+    {
+        return vfrdiv_vf_f32m8(x, y, vl);
+    }
+    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
+    {
+        return vfdiv_vf_f32m8(y, x, vl);
+    }
+};
 #endif
 
-int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob,
-                                    const Option& opt) const
+int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    int elembits = std::max(bottom_blobs[0].elembits(), bottom_blobs[1].elembits());
+#if __riscv_vector && __riscv_zfh
+    if (opt.use_fp16_storage && elembits == 16)
+    {
+        return forward_fp16sa(bottom_blobs, top_blobs, opt);
+    }
+#endif
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& bottom_blob1 = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+#if __riscv_vector
+    int elempack = bottom_blob.elempack;
+    int elempack1 = bottom_blob1.elempack;
+    if (elempack != 1 || elempack1 != 1)
+    {
+        if (op_type == Operation_ADD)
+            return binary_op_rvv<binary_op_add_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_SUB)
+            return binary_op_rvv<binary_op_sub_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_MUL)
+            return binary_op_rvv<binary_op_mul_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_DIV)
+            return binary_op_rvv<binary_op_div_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_MAX)
+            return binary_op_rvv<binary_op_max_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_MIN)
+            return binary_op_rvv<binary_op_min_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_POW)
+            return binary_op_rvv<binary_op_pow_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_RSUB)
+            return binary_op_rvv<binary_op_rsub_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+
+        if (op_type == Operation_RDIV)
+            return binary_op_rvv<binary_op_rdiv_rvv>(bottom_blob, bottom_blob1, top_blob, opt);
+    }
+#endif
+
+    return BinaryOp::forward(bottom_blobs, top_blobs, opt);
+}
+
+int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
 #if __riscv_vector
     int elembits = bottom_top_blob.elembits();
@@ -1114,22 +1214,23 @@ int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob,
 // fp16sa
 #if __riscv_vector && __riscv_zfh
 template<typename Op>
-static int binary_op_rvv_fp16sa(const Mat& a, const Mat& b, Mat& c,
-                                const Option& opt)
+static int binary_op_rvv_fp16sa(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 {
     Op op;
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
     size_t elemsize = a.elemsize;
     int elempack = a.elempack;
 
     int w1 = b.w;
     int h1 = b.h;
+    int d1 = b.d;
     int channels1 = b.c;
-    int size1 = w1 * h1;
+    int size1 = w1 * h1 * d1;
     size_t elemsize1 = b.elemsize;
     int elempack1 = b.elempack;
 
@@ -1927,192 +2028,15 @@ static int binary_op_rvv_fp16sa(const Mat& a, const Mat& b, Mat& c,
     return 0;
 }
 
-struct binary_op_add_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfadd_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const float& y,
-                            const word_type& vl) const
-    {
-        return vfadd_vf_f16m8(x, y, vl);
-    }
-};
-
-struct binary_op_sub_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfsub_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfsub_vf_f16m8(x, y, vl);
-    }
-};
-
-struct binary_op_mul_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfmul_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfmul_vf_f16m8(x, y, vl);
-    }
-};
-
-struct binary_op_div_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfdiv_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfdiv_vf_f16m8(x, y, vl);
-    }
-};
-
-struct binary_op_max_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfmax_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfmax_vf_f16m8(x, y, vl);
-    }
-};
-
-struct binary_op_min_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfmin_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfmin_vf_f16m8(x, y, vl);
-    }
-};
-
-struct binary_op_pow_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return pow_ps(x, y, vl); // rvv_mathfun_fp16s.h
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const __fp16& y,
-                            const word_type& vl) const
-    {
-        vfloat16m8_t _op2 = vfmv_v_f_f16m8(y, vl);
-        vfloat16m8_t retval = pow_ps(x, _op2, vl); // rvv_mathfun_fp16s.h
-        return retval;
-    }
-};
-
-struct binary_op_rsub_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfsub_vv_f16m8(y, x, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const float& y,
-                            const word_type& vl) const
-    {
-        return vfrsub_vf_f16m8(x, y, vl);
-    }
-};
-
-struct binary_op_rdiv_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y,
-                            const word_type& vl) const
-    {
-        return vfdiv_vv_f16m8(y, x, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y,
-                            const word_type& vl) const
-    {
-        return vfrdiv_vf_f16m8(x, y, vl);
-    }
-};
-#endif
-
-#if __riscv_vector && __riscv_zfh
-int BinaryOp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
-                                   std::vector<Mat>& top_blobs,
-                                   const Option& opt) const
-{
-    const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& bottom_blob1 = bottom_blobs[1];
-    Mat& top_blob = top_blobs[0];
-
-    if (op_type == Operation_ADD)
-        return binary_op_rvv_fp16sa<binary_op_add_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    if (op_type == Operation_SUB)
-        return binary_op_rvv_fp16sa<binary_op_sub_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    if (op_type == Operation_MUL)
-        return binary_op_rvv_fp16sa<binary_op_mul_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    if (op_type == Operation_DIV)
-        return binary_op_rvv_fp16sa<binary_op_div_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    if (op_type == Operation_MAX)
-        return binary_op_rvv_fp16sa<binary_op_max_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    if (op_type == Operation_MIN)
-        return binary_op_rvv_fp16sa<binary_op_min_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    if (op_type == Operation_POW)
-        return binary_op_rvv_fp16sa<binary_op_pow_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    if (op_type == Operation_RSUB)
-        return binary_op_rvv_fp16sa<binary_op_rsub_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    if (op_type == Operation_RDIV)
-        return binary_op_rvv_fp16sa<binary_op_rdiv_rvv_fp16>(bottom_blob, bottom_blob1,
-                top_blob, opt);
-
-    return 0;
-}
-
-#if __riscv_vector && __riscv_zfh
 template<typename Op>
 static int binary_op_scalar_rvv_fp16sa(Mat& a, float b, const Option& opt)
 {
     Op op;
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
     int elempack = a.elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -2131,50 +2055,221 @@ static int binary_op_scalar_rvv_fp16sa(Mat& a, float b, const Option& opt)
             ptr += vl;
         }
     }
+
     return 0;
 }
-#endif
-int BinaryOp_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob,
-        const Option& opt) const
+
+struct binary_op_add_rvv_fp16
 {
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfadd_vv_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const float& y, const word_type& vl) const
+    {
+        return vfadd_vf_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(const float& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfadd_vf_f16m8(y, x, vl);
+    }
+};
+
+struct binary_op_sub_rvv_fp16
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfsub_vv_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
+    {
+        return vfsub_vf_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfrsub_vf_f16m8(y, x, vl);
+    }
+};
+
+struct binary_op_mul_rvv_fp16
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfmul_vv_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
+    {
+        return vfmul_vf_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfmul_vf_f16m8(y, x, vl);
+    }
+};
+
+struct binary_op_div_rvv_fp16
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfdiv_vv_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
+    {
+        return vfdiv_vf_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfrdiv_vf_f16m8(y, x, vl);
+    }
+};
+
+struct binary_op_max_rvv_fp16
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfmax_vv_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
+    {
+        return vfmax_vf_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfmax_vf_f16m8(y, x, vl);
+    }
+};
+
+struct binary_op_min_rvv_fp16
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfmin_vv_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
+    {
+        return vfmin_vf_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfmin_vf_f16m8(y, x, vl);
+    }
+};
+
+struct binary_op_pow_rvv_fp16
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return pow_ps(x, y, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const __fp16& y, const word_type& vl) const
+    {
+        return pow_ps(x, vfmv_v_f_f16m8(y, vl), vl);
+    }
+    vfloat16m8_t operator()(const __fp16& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return pow_ps(vfmv_v_f_f16m8(x, vl), y, vl);
+    }
+};
+
+struct binary_op_rsub_rvv_fp16
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfsub_vv_f16m8(y, x, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const float& y, const word_type& vl) const
+    {
+        return vfrsub_vf_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(const float& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfsub_vf_f16m8(y, x, vl);
+    }
+};
+
+struct binary_op_rdiv_rvv_fp16
+{
+    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfdiv_vv_f16m8(y, x, vl);
+    }
+    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
+    {
+        return vfrdiv_vf_f16m8(x, y, vl);
+    }
+    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
+    {
+        return vfdiv_vf_f16m8(y, x, vl);
+    }
+};
+
+int BinaryOp_riscv::forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& bottom_blob1 = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
     if (op_type == Operation_ADD)
-        return binary_op_scalar_rvv_fp16sa<binary_op_add_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_add_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_SUB)
-        return binary_op_scalar_rvv_fp16sa<binary_op_sub_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_sub_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_MUL)
-        return binary_op_scalar_rvv_fp16sa<binary_op_mul_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_mul_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_DIV)
-        return binary_op_scalar_rvv_fp16sa<binary_op_div_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_div_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_MAX)
-        return binary_op_scalar_rvv_fp16sa<binary_op_max_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_max_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_MIN)
-        return binary_op_scalar_rvv_fp16sa<binary_op_min_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_min_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_POW)
-        return binary_op_scalar_rvv_fp16sa<binary_op_pow_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_pow_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_RSUB)
-        return binary_op_scalar_rvv_fp16sa<binary_op_rsub_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_rsub_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
 
     if (op_type == Operation_RDIV)
-        return binary_op_scalar_rvv_fp16sa<binary_op_rdiv_rvv_fp16>(bottom_top_blob, b,
-                opt);
+        return binary_op_rvv_fp16sa<binary_op_rdiv_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+
     return 0;
 }
 
+int BinaryOp_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
+{
+    if (op_type == Operation_ADD)
+        return binary_op_scalar_rvv_fp16sa<binary_op_add_rvv_fp16>(bottom_top_blob, b, opt);
+
+    if (op_type == Operation_SUB)
+        return binary_op_scalar_rvv_fp16sa<binary_op_sub_rvv_fp16>(bottom_top_blob, b, opt);
+
+    if (op_type == Operation_MUL)
+        return binary_op_scalar_rvv_fp16sa<binary_op_mul_rvv_fp16>(bottom_top_blob, b, opt);
+
+    if (op_type == Operation_DIV)
+        return binary_op_scalar_rvv_fp16sa<binary_op_div_rvv_fp16>(bottom_top_blob, b, opt);
+
+    if (op_type == Operation_MAX)
+        return binary_op_scalar_rvv_fp16sa<binary_op_max_rvv_fp16>(bottom_top_blob, b, opt);
+
+    if (op_type == Operation_MIN)
+        return binary_op_scalar_rvv_fp16sa<binary_op_min_rvv_fp16>(bottom_top_blob, b, opt);
+
+    if (op_type == Operation_POW)
+        return binary_op_scalar_rvv_fp16sa<binary_op_pow_rvv_fp16>(bottom_top_blob, b, opt);
+
+    if (op_type == Operation_RSUB)
+        return binary_op_scalar_rvv_fp16sa<binary_op_rsub_rvv_fp16>(bottom_top_blob, b, opt);
+
+    if (op_type == Operation_RDIV)
+        return binary_op_scalar_rvv_fp16sa<binary_op_rdiv_rvv_fp16>(bottom_top_blob, b, opt);
+
+    return 0;
+}
 #endif
 
 } // namespace ncnn
