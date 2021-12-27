@@ -695,8 +695,6 @@ jobs:
         cd riscv-gcc
         wget https://github.com/riscv-collab/riscv-gcc/commit/227d14bbdbcef65cc3f8ea96e6e3fb905d32368f.patch
         patch -p1 -R -i 227d14bbdbcef65cc3f8ea96e6e3fb905d32368f.patch
-        wget https://github.com/rjiejie/riscv-gcc/commit/f01c24f10a7c21d9f976a4965bf7c3c9369b3b5c.patch
-        patch -p1 -i f01c24f10a7c21d9f976a4965bf7c3c9369b3b5c.patch
     - name: riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
