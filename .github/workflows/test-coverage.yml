@@ -691,9 +691,8 @@ jobs:
         git submodule update --init --recursive --depth 1 riscv-newlib
         git submodule update --init --recursive --depth 1 riscv-gdb
         rm -rf riscv-gcc
-        git clone https://github.com/riscv-collab/riscv-gcc.git --branch=riscv-gcc-10.1-rvv-dev --depth=1
+        git clone -b riscv-gcc-10.1-rvv-dev --single-branch --depth=1 https://github.com/riscv-collab/riscv-gcc.git
         cd riscv-gcc
-        git reset --hard a9e8ccd489dca900c7f1c6706bf4f06e4b98fe87
         wget https://github.com/riscv-collab/riscv-gcc/commit/227d14bbdbcef65cc3f8ea96e6e3fb905d32368f.patch
         patch -p1 -R -i 227d14bbdbcef65cc3f8ea96e6e3fb905d32368f.patch
         wget https://github.com/rjiejie/riscv-gcc/commit/f01c24f10a7c21d9f976a4965bf7c3c9369b3b5c.patch
