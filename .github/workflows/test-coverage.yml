@@ -629,7 +629,7 @@ jobs:
       uses: actions/cache@v2.1.7
       with:
         path: qemu-install
-        key: qemu-riscv64-rvv-install-20210610
+        key: qemu-riscv64-rvv-install-20211227
 
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
@@ -643,7 +643,7 @@ jobs:
       with:
         repository: sifive/qemu
         path: qemu
-        ref: 7a3e8e23b4cf1422ec48e9d4b4009337a05a635d
+        ref: 1f89b5482d9cc49d7b3fb2bd2d23ee9b24f2dd17
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
@@ -666,7 +666,7 @@ jobs:
       uses: actions/cache@v2.1.7
       with:
         path: rv64gcv-install
-        key: rv64gcv-linux-install-20210504
+        key: rv64gcv-linux-install-20211227
 
     - name: install-riscv-build-deps
       if: steps.cache-riscv.outputs.cache-hit != 'true'
@@ -691,6 +691,14 @@ jobs:
         git submodule update --init --recursive --depth 1 riscv-dejagnu
         git submodule update --init --recursive --depth 1 riscv-newlib
         git submodule update --init --recursive --depth 1 riscv-gdb
+        rm -rf riscv-gcc
+        git clone https://github.com/riscv-collab/riscv-gcc.git --branch=riscv-gcc-10.1-rvv-dev --depth=1
+        cd riscv-gcc
+        git checkout a9e8ccd489dca900c7f1c6706bf4f06e4b98fe87
+        wget https://github.com/riscv-collab/riscv-gcc/commit/227d14bbdbcef65cc3f8ea96e6e3fb905d32368f.patch
+        patch -p1 -R -i 227d14bbdbcef65cc3f8ea96e6e3fb905d32368f.patch
+        wget https://github.com/rjiejie/riscv-gcc/commit/f01c24f10a7c21d9f976a4965bf7c3c9369b3b5c.patch
+        patch -p1 -i f01c24f10a7c21d9f976a4965bf7c3c9369b3b5c.patch
     - name: riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
       run: |
