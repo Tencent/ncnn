@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   linux-gcc-loongarch64:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
     - uses: actions/checkout@v2
 
@@ -39,7 +39,12 @@ jobs:
         chmod +x qemu-loongarch64
 
     - name: configure
-      run: export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: |
+        export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+
     - name: build
       run: cmake --build build -j 2
 
