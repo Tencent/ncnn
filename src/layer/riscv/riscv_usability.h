@@ -15,6 +15,12 @@
 #ifndef RISCV_USABILITY_H
 #define RISCV_USABILITY_H
 
+#ifdef RVV_SPEC_0_7
+#include "riscv_v_071_fix.h"
+#else
+#include <riscv_vector.h>
+#endif
+
 #if __riscv_vector
 static inline int csrr_vl()
 {
@@ -48,8 +54,13 @@ static inline int csrr_vlenb()
 
 static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
 {
+    const int packn = csrr_vlenb() / 4;
+    const word_type vl = vsetvl_e32m8(packn * 8);
+
+    // NOTE vloxei8_v_f32m8 gets illegal instruction on d1  --- nihui
+
     // 128bit
-    static const uint8_t index_128bit[32] = {
+    static const uint32_t index_128bit[32] = {
         0, 4, 8, 12,
         0, 4, 8, 12,
         0, 4, 8, 12,
@@ -61,7 +72,7 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
     };
 
     // 256bit
-    static const uint8_t index_256bit[64] = {
+    static const uint32_t index_256bit[64] = {
         0, 4, 8, 12, 16, 20, 24, 28,
         0, 4, 8, 12, 16, 20, 24, 28,
         0, 4, 8, 12, 16, 20, 24, 28,
@@ -72,21 +83,21 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
         0, 4, 8, 12, 16, 20, 24, 28
     };
 
-    const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m8(packn * 8);
-
-    const uint8_t* index = packn == 4 ? index_128bit : index_256bit;
-
-    vuint8m2_t bindex = vle8_v_u8m2(index, vl);
-
-    return vloxei8_v_f32m8(ptr, bindex, vl);
+    const uint32_t* index = packn == 4 ? index_128bit : index_256bit;
+    vuint32m8_t bindex = vle32_v_u32m8(index, vl);
+    return vloxei32_v_f32m8(ptr, bindex, vl);
 }
 
 #if __riscv_zfh
 static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
 {
+    const int packn = csrr_vlenb() / 2;
+    const word_type vl = vsetvl_e16m8(packn * 8);
+
+    // NOTE vloxei8_v_f16m8 gets illegal instruction on d1  --- nihui
+
     // 128bit
-    static const uint8_t index_128bit[64] = {
+    static const uint16_t index_128bit[64] = {
         0, 2, 4, 6, 8, 10, 12, 14,
         0, 2, 4, 6, 8, 10, 12, 14,
         0, 2, 4, 6, 8, 10, 12, 14,
@@ -98,7 +109,7 @@ static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
     };
 
     // 256bit
-    static const uint8_t index_256bit[128] = {
+    static const uint16_t index_256bit[128] = {
         0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
         0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
         0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
@@ -109,14 +120,9 @@ static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
         0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30
     };
 
-    const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m8(packn * 8);
-
-    const uint8_t* index = packn == 8 ? index_128bit : index_256bit;
-
-    vuint8m4_t bindex = vle8_v_u8m4(index, vl);
-
-    return vloxei8_v_f16m8(ptr, bindex, vl);
+    const uint16_t* index = packn == 8 ? index_128bit : index_256bit;
+    vuint16m8_t bindex = vle16_v_u16m8(index, vl);
+    return vloxei16_v_f16m8(ptr, bindex, vl);
 }
 #endif // __riscv_zfh
 #endif // __riscv_vector

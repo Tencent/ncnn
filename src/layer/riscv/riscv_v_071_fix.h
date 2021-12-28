@@ -96,6 +96,15 @@ typedef uint16x4xm1_t vuint16m1x4_t;
 typedef uint16x4xm2_t vuint16m2x4_t;
 typedef uint16x8xm1_t vuint16m1x8_t;
 
+typedef uint8xm1_t vuint8m1_t;
+typedef uint8xm2_t vuint8m2_t;
+typedef uint8xm4_t vuint8m4_t;
+typedef uint8xm8_t vuint8m8_t;
+
+typedef uint8x4xm1_t vuint8m1x4_t;
+typedef uint8x4xm2_t vuint8m2x4_t;
+typedef uint8x8xm1_t vuint8m1x8_t;
+
 #define vsetvl_e32m1(n) vsetvli(n, RVV_E32, RVV_M1)
 #define vsetvl_e32m2(n) vsetvli(n, RVV_E32, RVV_M2)
 #define vsetvl_e32m4(n) vsetvli(n, RVV_E32, RVV_M4)
@@ -131,6 +140,8 @@ typedef uint16x8xm1_t vuint16m1x8_t;
 #define vsse32_v_f32m2 vssev_float32xm2
 #define vsse32_v_f32m4 vssev_float32xm4
 #define vsse32_v_f32m8 vssev_float32xm8
+
+#define vloxei32_v_f32m8(a, i, vl) vlxev_float32xm8(a, reinterpret_cast<int32xm8_t>(i), vl)
 
 #define vlseg2e32_v_f32m1x2 vlseg2ev_float32x2xm1
 #define vsseg2e32_v_f32m1x2 vsseg2ev_float32x2xm1
@@ -616,6 +627,8 @@ static inline vfloat32m1_t vfredmax_vs_f32m8_f32m1(vfloat32m1_t dst, vfloat32m8_
 #define vsse16_v_f16m2 vssev_float16xm2
 #define vsse16_v_f16m4 vssev_float16xm4
 #define vsse16_v_f16m8 vssev_float16xm8
+
+#define vloxei16_v_f16m8(a, i, vl) vlxev_float16xm8(a, reinterpret_cast<int16xm8_t>(i), vl)
 
 #define vlseg2e16_v_f16m1x2 vlseg2ev_float16x2xm1
 #define vsseg2e16_v_f16m1x2 vsseg2ev_float16x2xm1
@@ -1689,6 +1702,32 @@ static inline vuint16m1x8_t vcreate_u16m1x8(vuint16m1_t v0, vuint16m1_t v1, vuin
 #define vreinterpret_v_f16m2_u16m2(x) reinterpret_cast<vuint16m2_t>(x)
 #define vreinterpret_v_f16m4_u16m4(x) reinterpret_cast<vuint16m4_t>(x)
 #define vreinterpret_v_f16m8_u16m8(x) reinterpret_cast<vuint16m8_t>(x)
+
+/******************************** uint8 ********************************/
+#define vle8_v_u8m1 vlev_uint8xm1
+#define vle8_v_u8m2 vlev_uint8xm2
+#define vle8_v_u8m4 vlev_uint8xm4
+#define vle8_v_u8m8 vlev_uint8xm8
+
+#define vse8_v_u8m1 vsev_uint8xm1
+#define vse8_v_u8m2 vsev_uint8xm2
+#define vse8_v_u8m4 vsev_uint8xm4
+#define vse8_v_u8m8 vsev_uint8xm8
+
+#define vlse8_v_u8m1 vlsev_uint8xm1
+#define vlse8_v_u8m2 vlsev_uint8xm2
+#define vlse8_v_u8m4 vlsev_uint8xm4
+#define vlse8_v_u8m8 vlsev_uint8xm8
+
+#define vsse8_v_u8m1 vssev_uint8xm1
+#define vsse8_v_u8m2 vssev_uint8xm2
+#define vsse8_v_u8m4 vssev_uint8xm4
+#define vsse8_v_u8m8 vssev_uint8xm8
+
+#define vmv_v_x_u8m1 vmvvx_unt8xm1
+#define vmv_v_x_u8m2 vmvvx_unt8xm2
+#define vmv_v_x_u8m4 vmvvx_unt8xm4
+#define vmv_v_x_u8m8 vmvvx_unt8xm8
 
 /******************************** mask ********************************/
 #define vmxor_mm_b32 vmxormm_e32xm1
