@@ -15,11 +15,13 @@
 #ifndef RISCV_USABILITY_H
 #define RISCV_USABILITY_H
 
+#if __riscv_vector
 #ifdef RVV_SPEC_0_7
 #include "riscv_v_071_fix.h"
 #else
 #include <riscv_vector.h>
 #endif
+#endif // __riscv_vector
 
 #if __riscv_vector
 static inline int csrr_vl()
