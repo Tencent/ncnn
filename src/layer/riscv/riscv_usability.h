@@ -110,7 +110,7 @@ static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
 
     const uint8_t* index = packn == 8 ? index_128bit : index_256bit;
 
-    vuint8m4_t bindex = vle8_v_u8m4(index, vl * 8);
+    vuint8m4_t bindex = vle8_v_u8m4(index, vl * 2);
 
     return vloxei8_v_f16m8(ptr, bindex, vl);
 }
