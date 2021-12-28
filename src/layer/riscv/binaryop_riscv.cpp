@@ -29,6 +29,8 @@
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
 
+#include "riscv_usability.h"
+
 namespace ncnn {
 
 BinaryOp_riscv::BinaryOp_riscv()
@@ -116,17 +118,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 {
                     for (int y = 0; y < h; y++)
                     {
-                        vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
-
-                        vfloat32m8_t _b0x = vundefined_f32m8();
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+                        vfloat32m8_t _b0x = vle32_v_f32m8_f32m1(ptr1);
 
                         int n = w * elempack;
                         while (n > 0)
@@ -161,17 +153,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
                 for (int z = 0; z < d; z++)
                 {
-                    vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
-
-                    vfloat32m8_t _b0x = vundefined_f32m8();
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+                    vfloat32m8_t _b0x = vle32_v_f32m8_f32m1(ptr1);
 
                     int n = w * h * elempack;
                     while (n > 0)
@@ -229,17 +211,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 const float* ptr = a.channel(q);
                 float* outptr = c.channel(q);
 
-                vfloat32m1_t _b0 = vle32_v_f32m1((const float*)b + q * elempack, vsetvl_e32m1(elempack));
-
-                vfloat32m8_t _b0x = vundefined_f32m8();
-                _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+                vfloat32m8_t _b0x = vle32_v_f32m8_f32m1((const float*)b + q * elempack);
 
                 int n = size * elempack;
                 while (n > 0)
@@ -278,17 +250,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 {
                     for (int y = 0; y < h1; y++)
                     {
-                        vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
-
-                        vfloat32m8_t _a0x = vundefined_f32m8();
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+                        vfloat32m8_t _a0x = vle32_v_f32m8_f32m1(ptr);
 
                         int n = w1 * elempack1;
                         while (n > 0)
@@ -327,17 +289,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     const float* ptr1 = b.channel(q);
                     float* outptr = c.channel(q);
 
-                    vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
-
-                    vfloat32m8_t _b0x = vundefined_f32m8();
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+                    vfloat32m8_t _b0x = vle32_v_f32m8_f32m1(ptr1);
 
                     int n = size * elempack;
                     while (n > 0)
@@ -406,17 +358,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     const float* ptr1 = b.channel(q);
                     float* outptr = c.channel(q);
 
-                    vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
-
-                    vfloat32m8_t _a0x = vundefined_f32m8();
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+                    vfloat32m8_t _a0x = vle32_v_f32m8_f32m1(ptr);
 
                     int n1 = size1 * elempack1;
                     while (n1 > 0)
@@ -488,17 +430,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
                     for (int y = 0; y < h; y++)
                     {
-                        vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
-
-                        vfloat32m8_t _b0x = vundefined_f32m8();
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
-                        _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+                        vfloat32m8_t _b0x = vle32_v_f32m8_f32m1(ptr1);
 
                         int n = w * elempack;
                         while (n > 0)
@@ -573,17 +505,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
                     for (int y = 0; y < h1; y++)
                     {
-                        vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
-
-                        vfloat32m8_t _a0x = vundefined_f32m8();
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
-                        _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+                        vfloat32m8_t _a0x = vle32_v_f32m8_f32m1(ptr);
 
                         int n = w1 * elempack1;
                         while (n > 0)
@@ -689,17 +611,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
                 for (int y = 0; y < h; y++)
                 {
-                    vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
-
-                    vfloat32m8_t _b0x = vundefined_f32m8();
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
-                    _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+                    vfloat32m8_t _b0x = vle32_v_f32m8_f32m1(ptr1);
 
                     int n = w * elempack;
                     while (n > 0)
@@ -757,17 +669,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 const float* ptr = a.channel(q);
                 float* outptr = c.channel(q);
 
-                vfloat32m1_t _b0 = vle32_v_f32m1((const float*)b + q * elempack, vsetvl_e32m1(elempack));
-
-                vfloat32m8_t _b0x = vundefined_f32m8();
-                _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+                vfloat32m8_t _b0x = vle32_v_f32m8_f32m1((const float*)b + q * elempack);
 
                 int n = size * elempack;
                 while (n > 0)
@@ -804,17 +706,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
                 for (int z = 0; z < d1; z++)
                 {
-                    vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
-
-                    vfloat32m8_t _a0x = vundefined_f32m8();
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+                    vfloat32m8_t _a0x = vle32_v_f32m8_f32m1(ptr);
 
                     int n = w1 * h1 * elempack1;
                     while (n > 0)
@@ -852,17 +744,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
                 for (int y = 0; y < h1; y++)
                 {
-                    vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
-
-                    vfloat32m8_t _a0x = vundefined_f32m8();
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
-                    _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+                    vfloat32m8_t _a0x = vle32_v_f32m8_f32m1(ptr);
 
                     int n = w1 * elempack1;
                     while (n > 0)
@@ -949,17 +831,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
             for (int y = 0; y < h; y++)
             {
-                vfloat32m1_t _b0 = vle32_v_f32m1(ptr1, vsetvl_e32m1(elempack1));
-
-                vfloat32m8_t _b0x = vundefined_f32m8();
-                _b0x = vset_v_f32m1_f32m8(_b0x, 0, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 1, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 2, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 3, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 4, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 5, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 6, _b0);
-                _b0x = vset_v_f32m1_f32m8(_b0x, 7, _b0);
+                vfloat32m8_t _b0x = vle32_v_f32m8_f32m1(ptr1);
 
                 int n = w * elempack;
                 while (n > 0)
@@ -1114,17 +986,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
 
-                vfloat32m1_t _a0 = vle32_v_f32m1((const float*)a + q * elempack, vsetvl_e32m1(elempack));
-
-                vfloat32m8_t _a0x = vundefined_f32m8();
-                _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+                vfloat32m8_t _a0x = vle32_v_f32m8_f32m1((const float*)a + q * elempack);
 
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
@@ -1156,17 +1018,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 const float* ptr1 = b.channel(q);
                 float* outptr = c.channel(q);
 
-                vfloat32m1_t _a0 = vle32_v_f32m1((const float*)a + q * elempack, vsetvl_e32m1(elempack));
-
-                vfloat32m8_t _a0x = vundefined_f32m8();
-                _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+                vfloat32m8_t _a0x = vle32_v_f32m8_f32m1((const float*)a + q * elempack);
 
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
@@ -1198,17 +1050,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 
             for (int y = 0; y < h1; y++)
             {
-                vfloat32m1_t _a0 = vle32_v_f32m1(ptr, vsetvl_e32m1(elempack));
-
-                vfloat32m8_t _a0x = vundefined_f32m8();
-                _a0x = vset_v_f32m1_f32m8(_a0x, 0, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 1, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 2, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 3, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 4, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 5, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 6, _a0);
-                _a0x = vset_v_f32m1_f32m8(_a0x, 7, _a0);
+                vfloat32m8_t _a0x = vle32_v_f32m8_f32m1(ptr);
 
                 int n = w1 * elempack1;
                 while (n > 0)
@@ -1628,17 +1470,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 {
                     for (int y = 0; y < h; y++)
                     {
-                        vfloat16m1_t _b0 = vle16_v_f16m1(ptr1, vsetvl_e16m1(elempack1));
-
-                        vfloat16m8_t _b0x = vundefined_f16m8();
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 0, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 1, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 2, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 3, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 4, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 5, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 6, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 7, _b0);
+                        vfloat16m8_t _b0x = vle16_v_f16m8_f16m1(ptr1);
 
                         int n = w * elempack;
                         while (n > 0)
@@ -1673,17 +1505,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
 
                 for (int z = 0; z < d; z++)
                 {
-                    vfloat16m1_t _b0 = vle16_v_f16m1(ptr1, vsetvl_e16m1(elempack1));
-
-                    vfloat16m8_t _b0x = vundefined_f16m8();
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 0, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 1, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 2, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 3, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 4, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 5, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 6, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 7, _b0);
+                    vfloat16m8_t _b0x = vle16_v_f16m8_f16m1(ptr1);
 
                     int n = w * h * elempack;
                     while (n > 0)
@@ -1741,17 +1563,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 const __fp16* ptr = a.channel(q);
                 __fp16* outptr = c.channel(q);
 
-                vfloat16m1_t _b0 = vle16_v_f16m1((const __fp16*)b + q * elempack, vsetvl_e16m1(elempack));
-
-                vfloat16m8_t _b0x = vundefined_f16m8();
-                _b0x = vset_v_f16m1_f16m8(_b0x, 0, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 1, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 2, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 3, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 4, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 5, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 6, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 7, _b0);
+                vfloat16m8_t _b0x = vle16_v_f16m8_f16m1((const __fp16*)b + q * elempack);
 
                 int n = size * elempack;
                 while (n > 0)
@@ -1790,17 +1602,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 {
                     for (int y = 0; y < h1; y++)
                     {
-                        vfloat16m1_t _a0 = vle16_v_f16m1(ptr, vsetvl_e16m1(elempack));
-
-                        vfloat16m8_t _a0x = vundefined_f16m8();
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 0, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 1, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 2, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 3, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 4, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 5, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 6, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 7, _a0);
+                        vfloat16m8_t _a0x = vle16_v_f16m8_f16m1(ptr);
 
                         int n = w1 * elempack1;
                         while (n > 0)
@@ -1839,17 +1641,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                     const __fp16* ptr1 = b.channel(q);
                     __fp16* outptr = c.channel(q);
 
-                    vfloat16m1_t _b0 = vle16_v_f16m1(ptr1, vsetvl_e16m1(elempack1));
-
-                    vfloat16m8_t _b0x = vundefined_f16m8();
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 0, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 1, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 2, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 3, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 4, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 5, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 6, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 7, _b0);
+                    vfloat16m8_t _b0x = vle16_v_f16m8_f16m1(ptr1);
 
                     int n = size * elempack;
                     while (n > 0)
@@ -1917,17 +1709,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                     const __fp16* ptr1 = b.channel(q);
                     __fp16* outptr = c.channel(q);
 
-                    vfloat16m1_t _a0 = vle16_v_f16m1(ptr, vsetvl_e16m1(elempack));
-
-                    vfloat16m8_t _a0x = vundefined_f16m8();
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 0, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 1, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 2, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 3, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 4, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 5, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 6, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 7, _a0);
+                    vfloat16m8_t _a0x = vle16_v_f16m8_f16m1(ptr);
 
                     int n1 = size1 * elempack1;
                     while (n1 > 0)
@@ -1998,17 +1780,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
 
                     for (int y = 0; y < h; y++)
                     {
-                        vfloat16m1_t _b0 = vle16_v_f16m1(ptr1, vsetvl_e16m1(elempack1));
-
-                        vfloat16m8_t _b0x = vundefined_f16m8();
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 0, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 1, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 2, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 3, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 4, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 5, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 6, _b0);
-                        _b0x = vset_v_f16m1_f16m8(_b0x, 7, _b0);
+                        vfloat16m8_t _b0x = vle16_v_f16m8_f16m1(ptr1);
 
                         int n = w * elempack;
                         while (n > 0)
@@ -2086,17 +1858,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
 
                     for (int y = 0; y < h1; y++)
                     {
-                        vfloat16m1_t _a0 = vle16_v_f16m1(ptr, vsetvl_e16m1(elempack));
-
-                        vfloat16m8_t _a0x = vundefined_f16m8();
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 0, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 1, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 2, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 3, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 4, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 5, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 6, _a0);
-                        _a0x = vset_v_f16m1_f16m8(_a0x, 7, _a0);
+                        vfloat16m8_t _a0x = vle16_v_f16m8_f16m1(ptr);
 
                         int n = w1 * elempack1;
                         while (n > 0)
@@ -2205,17 +1967,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
 
                 for (int y = 0; y < h; y++)
                 {
-                    vfloat16m1_t _b0 = vle16_v_f16m1(ptr1, vsetvl_e16m1(elempack1));
-
-                    vfloat16m8_t _b0x = vundefined_f16m8();
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 0, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 1, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 2, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 3, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 4, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 5, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 6, _b0);
-                    _b0x = vset_v_f16m1_f16m8(_b0x, 7, _b0);
+                    vfloat16m8_t _b0x = vle16_v_f16m8_f16m1(ptr1);
 
                     int n = w * elempack;
                     while (n > 0)
@@ -2273,17 +2025,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 const __fp16* ptr = a.channel(q);
                 __fp16* outptr = c.channel(q);
 
-                vfloat16m1_t _b0 = vle16_v_f16m1((const __fp16*)b + q * elempack, vsetvl_e16m1(elempack));
-
-                vfloat16m8_t _b0x = vundefined_f16m8();
-                _b0x = vset_v_f16m1_f16m8(_b0x, 0, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 1, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 2, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 3, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 4, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 5, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 6, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 7, _b0);
+                vfloat16m8_t _b0x = vle16_v_f16m8_f16m1((const __fp16*)b + q * elempack);
 
                 int n = size * elempack;
                 while (n > 0)
@@ -2320,17 +2062,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
 
                 for (int z = 0; z < d1; z++)
                 {
-                    vfloat16m1_t _a0 = vle16_v_f16m1(ptr, vsetvl_e16m1(elempack));
-
-                    vfloat16m8_t _a0x = vundefined_f16m8();
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 0, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 1, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 2, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 3, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 4, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 5, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 6, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 7, _a0);
+                    vfloat16m8_t _a0x = vle16_v_f16m8_f16m1(ptr);
 
                     int n = w1 * h1 * elempack1;
                     while (n > 0)
@@ -2368,17 +2100,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
 
                 for (int y = 0; y < h1; y++)
                 {
-                    vfloat16m1_t _a0 = vle16_v_f16m1(ptr, vsetvl_e16m1(elempack));
-
-                    vfloat16m8_t _a0x = vundefined_f16m8();
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 0, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 1, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 2, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 3, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 4, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 5, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 6, _a0);
-                    _a0x = vset_v_f16m1_f16m8(_a0x, 7, _a0);
+                    vfloat16m8_t _a0x = vle16_v_f16m8_f16m1(ptr);
 
                     int n = w1 * elempack1;
                     while (n > 0)
@@ -2465,17 +2187,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
 
             for (int y = 0; y < h; y++)
             {
-                vfloat16m1_t _b0 = vle16_v_f16m1(ptr1, vsetvl_e16m1(elempack1));
-
-                vfloat16m8_t _b0x = vundefined_f16m8();
-                _b0x = vset_v_f16m1_f16m8(_b0x, 0, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 1, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 2, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 3, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 4, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 5, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 6, _b0);
-                _b0x = vset_v_f16m1_f16m8(_b0x, 7, _b0);
+                vfloat16m8_t _b0x = vle16_v_f16m8_f16m1(ptr1);
 
                 int n = w * elempack;
                 while (n > 0)
@@ -2631,17 +2343,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 const __fp16* ptr1 = b.channel(q);
                 __fp16* outptr = c.channel(q);
 
-                vfloat16m1_t _a0 = vle16_v_f16m1((const __fp16*)a + q * elempack, vsetvl_e16m1(elempack));
-
-                vfloat16m8_t _a0x = vundefined_f16m8();
-                _a0x = vset_v_f16m1_f16m8(_a0x, 0, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 1, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 2, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 3, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 4, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 5, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 6, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 7, _a0);
+                vfloat16m8_t _a0x = vle16_v_f16m8_f16m1((const __fp16*)a + q * elempack);
 
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
@@ -2673,17 +2375,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 const __fp16* ptr1 = b.channel(q);
                 __fp16* outptr = c.channel(q);
 
-                vfloat16m1_t _a0 = vle16_v_f16m1((const __fp16*)a + q * elempack, vsetvl_e16m1(elempack));
-
-                vfloat16m8_t _a0x = vundefined_f16m8();
-                _a0x = vset_v_f16m1_f16m8(_a0x, 0, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 1, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 2, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 3, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 4, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 5, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 6, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 7, _a0);
+                vfloat16m8_t _a0x = vle16_v_f16m8_f16m1((const __fp16*)a + q * elempack);
 
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
@@ -2715,17 +2407,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
 
             for (int y = 0; y < h1; y++)
             {
-                vfloat16m1_t _a0 = vle16_v_f16m1(ptr, vsetvl_e16m1(elempack));
-
-                vfloat16m8_t _a0x = vundefined_f16m8();
-                _a0x = vset_v_f16m1_f16m8(_a0x, 0, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 1, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 2, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 3, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 4, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 5, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 6, _a0);
-                _a0x = vset_v_f16m1_f16m8(_a0x, 7, _a0);
+                vfloat16m8_t _a0x = vle16_v_f16m8_f16m1(ptr);
 
                 int n = w1 * elempack1;
                 while (n > 0)
