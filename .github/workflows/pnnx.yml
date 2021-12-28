@@ -57,6 +57,7 @@ jobs:
         mkdir -p build; cd build
         cmake -DCMAKE_INSTALL_PREFIX=install -DTorch_DIR=$HOME/.local/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 2
+        cmake --build . --target install
         mkdir $GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install
         cp -r -P install/* $GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install
 
