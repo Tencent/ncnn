@@ -1133,6 +1133,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     fprintf(pyfp, "import torch\n");
     fprintf(pyfp, "import torch.nn as nn\n");
     fprintf(pyfp, "import torch.nn.functional as F\n");
+    fprintf(pyfp, "import torchvision\n");
 
     fprintf(pyfp, "\n");
 
@@ -1146,7 +1147,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         for (const Operator* op : ops)
         {
-            if (op->type.substr(0, 3) != "nn.")
+            if (op->type.substr(0, 3) != "nn." && op->type.substr(0, 16) != "torchvision.ops.")
                 continue;
 
             fprintf(pyfp, "        self.%s = %s(", sanitize_identifier(op->name).c_str(), op->type.c_str());
@@ -1257,7 +1258,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
         for (const Operator* op : ops)
         {
-            if (op->type.substr(0, 3) != "nn.")
+            if (op->type.substr(0, 3) != "nn." && op->type.substr(0, 16) != "torchvision.ops.")
                 continue;
 
             if (op->type == "nn.quantized.Conv2d" || op->type == "nn.quantized.Linear")
@@ -1550,7 +1551,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type.substr(0, 3) == "nn.")
+            else if (op->type.substr(0, 3) == "nn." || op->type.substr(0, 16) == "torchvision.ops.")
             {
                 // self.xxx()
                 for (size_t i = 0; i < op->outputs.size(); i++)
