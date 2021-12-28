@@ -44,10 +44,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    #os.system("../src/pnnx test_torchvision_DeformConv2d.pt inputshape=[1,12,64,64] customop=/home/nihui/osd/vision/build/install/lib64/libtorchvision.so")
-    #os.system("../src/pnnx test_torchvision_DeformConv2d.pt inputshape=[1,12,64,64]")
-    #os.system("../src/pnnx test_torchvision_DeformConv2d.pt inputshape=[1,12,64,64] customop=/home/nihui/.local/lib/python3.9/site-packages/torchvision/image.so")
-    #os.system("../src/pnnx test_torchvision_DeformConv2d.pt inputshape=[1,12,64,64] customop=/home/nihui/.local/lib/python3.9/site-packages/torchvision/_C.so")
+    os.system("../src/pnnx test_torchvision_DeformConv2d.pt inputshape=[1,12,64,64]")
 
     # pnnx inference
     import test_torchvision_DeformConv2d_pnnx
