@@ -49,11 +49,11 @@ jobs:
       with:
         repository: pytorch/vision
         path: vision
+        ref: v${{ matrix.torchvision-version }}
     - name: torchvision-${{ matrix.torchvision-version }}
       if: steps.cache-torchvision.outputs.cache-hit != 'true'
       run: |
         cd vision
-        git checkout v${{ matrix.torchvision-version }}
         mkdir -p build; cd build
         cmake -DCMAKE_INSTALL_PREFIX=install -DTorch_DIR=$HOME/.local/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 2
