@@ -37,6 +37,29 @@ jobs:
       run: |
         pip install torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
+    - name: cache-torchvision-${{ matrix.torchvision-version }}
+      id: cache-torchvision-${{ matrix.torchvision-version }}
+      uses: actions/cache@v2.1.7
+      with:
+        path: torchvision-${{ matrix.torchvision-version }}-install
+        key: torchvision-${{ matrix.torchvision-version }}-linux-install-20211228
+    - name: checkout-torchvision-${{ matrix.torchvision-version }}
+      if: steps.cache-torchvision-${{ matrix.torchvision-version }}.outputs.cache-hit != 'true'
+      uses: actions/checkout@v2
+      with:
+        repository: pytorch/vision
+        path: vision
+    - name: torchvision-${{ matrix.torchvision-version }}
+      if: steps.cache-torchvision-${{ matrix.torchvision-version }}.outputs.cache-hit != 'true'
+      run: |
+        cd vision
+        git checkout v${{ matrix.torchvision-version }}
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DTorch_DIR=$HOME/.local/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 2
+        mkdir $GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install
+        cp -r -P install/* $GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install
+
     - uses: actions/checkout@v2
       with:
         submodules: true
@@ -55,7 +78,7 @@ jobs:
       run: |
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install ..
         cmake --build . -j 2
 
     - name: test
