@@ -38,19 +38,19 @@ jobs:
         pip install torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
     - name: cache-torchvision-${{ matrix.torchvision-version }}
-      id: cache-torchvision-${{ matrix.torchvision-version }}
+      id: cache-torchvision
       uses: actions/cache@v2.1.7
       with:
         path: torchvision-${{ matrix.torchvision-version }}-install
         key: torchvision-${{ matrix.torchvision-version }}-linux-install-20211228
     - name: checkout-torchvision-${{ matrix.torchvision-version }}
-      if: steps.cache-torchvision-${{ matrix.torchvision-version }}.outputs.cache-hit != 'true'
+      if: steps.cache-torchvision.outputs.cache-hit != 'true'
       uses: actions/checkout@v2
       with:
         repository: pytorch/vision
         path: vision
     - name: torchvision-${{ matrix.torchvision-version }}
-      if: steps.cache-torchvision-${{ matrix.torchvision-version }}.outputs.cache-hit != 'true'
+      if: steps.cache-torchvision.outputs.cache-hit != 'true'
       run: |
         cd vision
         git checkout v${{ matrix.torchvision-version }}
