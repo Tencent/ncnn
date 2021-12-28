@@ -655,54 +655,10 @@ jobs:
         make install
         cp -r install $GITHUB_WORKSPACE/qemu-install
 
-    - name: cache-riscv
-      id: cache-riscv
-      uses: actions/cache@v2.1.7
-      with:
-        path: rv64gcv-install
-        key: rv64gcv-linux-install-20211227
-
-    - name: install-riscv-build-deps
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
+    - name: riscv-toolchain
       run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
-
-    - name: checkout-riscv-gnu-toolchain
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
-      with:
-        repository: riscv/riscv-gnu-toolchain
-        path: riscv-gnu-toolchain
-        ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
-    - name: checkout-riscv-gnu-toolchain-submodules
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        cd riscv-gnu-toolchain
-        git submodule update --init --recursive --depth 1 riscv-binutils
-        git submodule update --init --recursive --depth 1 riscv-glibc
-        git submodule update --init --recursive --depth 1 riscv-dejagnu
-        git submodule update --init --recursive --depth 1 riscv-newlib
-        git submodule update --init --recursive --depth 1 riscv-gdb
-        rm -rf riscv-gcc
-        git clone -b riscv-gcc-10.1-rvv-dev --single-branch --depth=1 https://github.com/riscv-collab/riscv-gcc.git
-        cd riscv-gcc
-        wget https://github.com/riscv-collab/riscv-gcc/commit/227d14bbdbcef65cc3f8ea96e6e3fb905d32368f.patch
-        patch -p1 -R -i 227d14bbdbcef65cc3f8ea96e6e3fb905d32368f.patch
-    - name: riscv-gnu-toolchain
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        cd riscv-gnu-toolchain
-        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
-        ./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
-        make linux
-
-    - name: riscv-strip-install
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
-        cd $GITHUB_WORKSPACE/rv64gcv-install/sysroot
-        ln -s ./ tls
+        wget https://github.com/nihui/riscv-v-toolchain/releases/download/20211228/rv64gcv-install.zip
+        unzip -q rv64gcv-install.zip
 
     - name: configure
       run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
