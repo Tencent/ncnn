@@ -27,20 +27,23 @@ layout (constant_id = 0) const int op_type = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int adims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int aw = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int ah = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int ac = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int acstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int ad = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int ac = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int acstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int bdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int bw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int bh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int bc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int bcstep = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int bdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int bw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int bh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int bd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int bc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int bcstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 10) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 11) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 12) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 13) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 14) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 12) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 13) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 14) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 15) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 16) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 17) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D a_blob_3d;
@@ -57,18 +60,21 @@ layout (push_constant) uniform parameter
     int adims;
     int aw;
     int ah;
+    int ad;
     int ac;
     int acstep;
 
     int bdims;
     int bw;
     int bh;
+    int bd;
     int bc;
     int bcstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 } p;
@@ -79,7 +85,7 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
+    if (gx >= psc(outw) || gy >= psc(outh) * psc(outd) || gz >= psc(outc))
         return;
 
 #if NCNN_image_shader
@@ -90,8 +96,58 @@ void main()
     int by = gy;
     int bz = gz;
 
-    if (psc(adims) == 3)
+    if (psc(adims) == 4)
     {
+        int yd = gy / psc(outh);
+        int yh = gy % psc(outh);
+
+        if (psc(bdims) == 3)
+        {
+            // type 28
+            bx = yh;
+            by = yd;
+            bz = gz;
+        }
+
+        if (psc(bdims) == 2)
+        {
+            // type 27
+            bx = yd;
+            by = gz;
+            bz = 0;
+        }
+
+        if (psc(bdims) == 1)
+        {
+            if (psc(bw) == 1)
+            {
+                // type 25
+                bx = 0;
+                by = 0;
+                bz = 0;
+            }
+            else
+            {
+                // type 26
+                bx = gz;
+                by = 0;
+                bz = 0;
+            }
+        }
+    }
+    else if (psc(adims) == 3)
+    {
+        if (psc(bdims) == 4)
+        {
+            int yd = gy / psc(outh);
+            int yh = gy % psc(outh);
+
+            // type 23
+            ax = yh;
+            ay = yd;
+            az = gz;
+        }
+
         if (psc(bdims) == 3)
         {
             if (psc(bw) == 1 && psc(bh) == 1)
@@ -173,6 +229,17 @@ void main()
     }
     else if (psc(adims) == 2)
     {
+        if (psc(bdims) == 4)
+        {
+            int yd = gy / psc(outh);
+            int yh = gy % psc(outh);
+
+            // type 22
+            ax = yd;
+            ay = gz;
+            az = 0;
+        }
+
         if (psc(bdims) == 3)
         {
             // type 14
@@ -203,13 +270,21 @@ void main()
     {
         if (psc(aw) == 1)
         {
-            // type 2 3 4
+            // type 2 3 4 20
             ax = 0;
             ay = 0;
             az = 0;
         }
         else
         {
+            if (psc(bdims) == 4)
+            {
+                // type 21
+                ax = gz;
+                ay = 0;
+                az = 0;
+            }
+
             if (psc(bdims) == 3)
             {
                 // type 9
@@ -247,8 +322,53 @@ void main()
     int ai;
     int bi;
 
-    if (psc(adims) == 3)
+    if (psc(adims) == 4)
     {
+        int yd = gy / psc(outh);
+        int yh = gy % psc(outh);
+
+        if (psc(bdims) == 3)
+        {
+            // type 28
+            ai = gi;
+            bi = gz * psc(bcstep) + yd * psc(bw) + yh;
+        }
+
+        if (psc(bdims) == 2)
+        {
+            // type 27
+            ai = gi;
+            bi = gz * psc(bw) + yd;
+        }
+
+        if (psc(bdims) == 1)
+        {
+            if (psc(bw) == 1)
+            {
+                // type 25
+                ai = gi;
+                bi = 0;
+            }
+            else
+            {
+                // type 26
+                ai = gi;
+                bi = gz;
+            }
+        }
+    }
+    else if (psc(adims) == 3)
+    {
+        if (psc(bdims) == 4)
+        {
+            int yd = gy / psc(outh);
+            int yh = gy % psc(outh);
+
+            // type 23
+            ai = gz * psc(acstep) + yd * psc(aw) + yh;
+            bi = gi;
+        }
+
         if (psc(bdims) == 3)
         {
             if (psc(bw) == 1 && psc(bh) == 1)
@@ -333,6 +453,16 @@ void main()
     }
     else if (psc(adims) == 2)
     {
+        if (psc(bdims) == 4)
+        {
+            int yd = gy / psc(outh);
+            int yh = gy % psc(outh);
+
+            // type 22
+            ai = gz * psc(aw) + yd;
+            bi = gi;
+        }
+
         if (psc(bdims) == 3)
         {
             // type 14
@@ -360,12 +490,19 @@ void main()
     {
         if (psc(aw) == 1)
         {
-            // type 2 3 4
+            // type 2 3 4 20
             ai = 0;
             bi = gi;
         }
         else
         {
+            if (psc(bdims) == 4)
+            {
+                // type 21
+                ai = gz;
+                bi = gi;
+            }
+
             if (psc(bdims) == 3)
             {
                 // type 9

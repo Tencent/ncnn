@@ -44,20 +44,203 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
     size_t elemsize = a.elemsize;
     int elempack = a.elempack;
 
     int w1 = b.w;
     int h1 = b.h;
+    int d1 = b.d;
     int channels1 = b.c;
-    int size1 = w1 * h1;
+    int size1 = w1 * h1 * d1;
     size_t elemsize1 = b.elemsize;
     int elempack1 = b.elempack;
 
-    if (a.dims == 3)
+    if (a.dims == 4)
     {
+        if (b.dims == 4)
+        {
+            // type 29
+            c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    __m256 _p1 = _mm256_loadu_ps(ptr1);
+                    __m256 _outp = op(_p, _p1);
+                    _mm256_storeu_ps(outptr, _outp);
+                    ptr += 8;
+                    ptr1 += 8;
+                    outptr += 8;
+                }
+            }
+
+            return 0;
+        }
+
+        c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
+        if (c.empty())
+            return -100;
+
+        if (b.dims == 3)
+        {
+            // type 28
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int z = 0; z < d; z++)
+                {
+                    for (int y = 0; y < h; y++)
+                    {
+                        __m256 _b0 = _mm256_loadu_ps(ptr1);
+                        for (int x = 0; x < w; x++)
+                        {
+                            __m256 _p = _mm256_loadu_ps(ptr);
+                            __m256 _outp = op(_p, _b0);
+                            _mm256_storeu_ps(outptr, _outp);
+                            ptr += 8;
+                            outptr += 8;
+                        }
+
+                        ptr1 += 8;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        if (b.dims == 2)
+        {
+            // type 27
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                const float* ptr1 = b.row(q);
+                float* outptr = c.channel(q);
+
+                for (int z = 0; z < d; z++)
+                {
+                    __m256 _b0 = _mm256_loadu_ps(ptr1);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int x = 0; x < w; x++)
+                        {
+                            __m256 _p = _mm256_loadu_ps(ptr);
+                            __m256 _outp = op(_p, _b0);
+                            _mm256_storeu_ps(outptr, _outp);
+                            ptr += 8;
+                            outptr += 8;
+                        }
+                    }
+
+                    ptr1 += 8;
+                }
+            }
+
+            return 0;
+        }
+
+        if (b.dims == 1)
+        {
+            if (b.w == 1 && elempack1 == 1)
+            {
+                // type 25
+                __m256 _b0 = _mm256_set1_ps(b[0]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        __m256 _p = _mm256_loadu_ps(ptr);
+                        __m256 _outp = op(_p, _b0);
+                        _mm256_storeu_ps(outptr, _outp);
+                        ptr += 8;
+                        outptr += 8;
+                    }
+                }
+
+                return 0;
+            }
+
+            // type 26
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                __m256 _b0 = _mm256_loadu_ps((const float*)b + q * 8);
+                float* outptr = c.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m256 _p = _mm256_loadu_ps(ptr);
+                    __m256 _outp = op(_p, _b0);
+                    _mm256_storeu_ps(outptr, _outp);
+                    ptr += 8;
+                    outptr += 8;
+                }
+            }
+
+            return 0;
+        }
+    }
+    else if (a.dims == 3)
+    {
+        if (b.dims == 4)
+        {
+            // type 23
+            c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels1; q++)
+            {
+                const float* ptr = a.channel(q);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int z = 0; z < d1; z++)
+                {
+                    for (int y = 0; y < h1; y++)
+                    {
+                        __m256 _a0 = _mm256_loadu_ps(ptr);
+                        for (int x = 0; x < w1; x++)
+                        {
+                            __m256 _p = _mm256_loadu_ps(ptr1);
+                            __m256 _outp = op(_a0, _p);
+                            _mm256_storeu_ps(outptr, _outp);
+                            ptr1 += 8;
+                            outptr += 8;
+                        }
+
+                        ptr += 8;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
         if (b.dims == 3)
         {
             if (w1 == 1 && h1 == 1 && channels1 == channels)
@@ -406,6 +589,42 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
     }
     else if (a.dims == 2)
     {
+        if (b.dims == 4)
+        {
+            // type 22
+            c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels1; q++)
+            {
+                const float* ptr = a.row(q);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int z = 0; z < d1; z++)
+                {
+                    __m256 _a0 = _mm256_loadu_ps(ptr);
+                    for (int y = 0; y < h1; y++)
+                    {
+                        for (int x = 0; x < w1; x++)
+                        {
+                            __m256 _p = _mm256_loadu_ps(ptr1);
+                            __m256 _outp = op(_a0, _p);
+                            _mm256_storeu_ps(outptr, _outp);
+                            ptr1 += 8;
+                            outptr += 8;
+                        }
+                    }
+
+                    ptr += 8;
+                }
+            }
+
+            return 0;
+        }
+
         if (b.dims == 3)
         {
             // type 14
@@ -514,6 +733,33 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
     {
         if (a.w == 1 && elempack == 1)
         {
+            if (b.dims == 4)
+            {
+                // type 20
+                c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                __m256 _a0 = _mm256_set1_ps(a[0]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const float* ptr1 = b.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int i = 0; i < size1; i++)
+                    {
+                        __m256 _p1 = _mm256_loadu_ps(ptr1);
+                        __m256 _outp = op(_a0, _p1);
+                        _mm256_storeu_ps(outptr, _outp);
+                        ptr1 += 8;
+                        outptr += 8;
+                    }
+                }
+
+                return 0;
+            }
+
             if (b.dims == 3)
             {
                 // type 4
@@ -584,6 +830,33 @@ static int binary_op_pack8(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                 return 0;
             }
+        }
+
+        if (b.dims == 4)
+        {
+            // type 21
+            c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels1; q++)
+            {
+                __m256 _a0 = _mm256_loadu_ps((const float*)a + q * 8);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int i = 0; i < size1; i++)
+                {
+                    __m256 _p1 = _mm256_loadu_ps(ptr1);
+                    __m256 _outp = op(_a0, _p1);
+                    _mm256_storeu_ps(outptr, _outp);
+                    ptr1 += 8;
+                    outptr += 8;
+                }
+            }
+
+            return 0;
         }
 
         if (b.dims == 3)
@@ -693,8 +966,9 @@ static int binary_op_scalar_inplace_pack8(Mat& a, float b, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     __m256 _b = _mm256_set1_ps(b);
 
@@ -795,20 +1069,203 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
     size_t elemsize = a.elemsize;
     int elempack = a.elempack;
 
     int w1 = b.w;
     int h1 = b.h;
+    int d1 = b.d;
     int channels1 = b.c;
-    int size1 = w1 * h1;
+    int size1 = w1 * h1 * d1;
     size_t elemsize1 = b.elemsize;
     int elempack1 = b.elempack;
 
-    if (a.dims == 3)
+    if (a.dims == 4)
     {
+        if (b.dims == 4)
+        {
+            // type 29
+            c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    __m128 _p1 = _mm_loadu_ps(ptr1);
+                    __m128 _outp = op(_p, _p1);
+                    _mm_storeu_ps(outptr, _outp);
+                    ptr += 4;
+                    ptr1 += 4;
+                    outptr += 4;
+                }
+            }
+
+            return 0;
+        }
+
+        c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
+        if (c.empty())
+            return -100;
+
+        if (b.dims == 3)
+        {
+            // type 28
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int z = 0; z < d; z++)
+                {
+                    for (int y = 0; y < h; y++)
+                    {
+                        __m128 _b0 = _mm_loadu_ps(ptr1);
+                        for (int x = 0; x < w; x++)
+                        {
+                            __m128 _p = _mm_loadu_ps(ptr);
+                            __m128 _outp = op(_p, _b0);
+                            _mm_storeu_ps(outptr, _outp);
+                            ptr += 4;
+                            outptr += 4;
+                        }
+
+                        ptr1 += 4;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
+        if (b.dims == 2)
+        {
+            // type 27
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                const float* ptr1 = b.row(q);
+                float* outptr = c.channel(q);
+
+                for (int z = 0; z < d; z++)
+                {
+                    __m128 _b0 = _mm_loadu_ps(ptr1);
+                    for (int y = 0; y < h; y++)
+                    {
+                        for (int x = 0; x < w; x++)
+                        {
+                            __m128 _p = _mm_loadu_ps(ptr);
+                            __m128 _outp = op(_p, _b0);
+                            _mm_storeu_ps(outptr, _outp);
+                            ptr += 4;
+                            outptr += 4;
+                        }
+                    }
+
+                    ptr1 += 4;
+                }
+            }
+
+            return 0;
+        }
+
+        if (b.dims == 1)
+        {
+            if (b.w == 1 && elempack1 == 1)
+            {
+                // type 25
+                __m128 _b0 = _mm_set1_ps(b[0]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const float* ptr = a.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        __m128 _p = _mm_loadu_ps(ptr);
+                        __m128 _outp = op(_p, _b0);
+                        _mm_storeu_ps(outptr, _outp);
+                        ptr += 4;
+                        outptr += 4;
+                    }
+                }
+
+                return 0;
+            }
+
+            // type 26
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = a.channel(q);
+                __m128 _b0 = _mm_loadu_ps((const float*)b + q * 4);
+                float* outptr = c.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m128 _p = _mm_loadu_ps(ptr);
+                    __m128 _outp = op(_p, _b0);
+                    _mm_storeu_ps(outptr, _outp);
+                    ptr += 4;
+                    outptr += 4;
+                }
+            }
+
+            return 0;
+        }
+    }
+    else if (a.dims == 3)
+    {
+        if (b.dims == 4)
+        {
+            // type 23
+            c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels1; q++)
+            {
+                const float* ptr = a.channel(q);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int z = 0; z < d1; z++)
+                {
+                    for (int y = 0; y < h1; y++)
+                    {
+                        __m128 _a0 = _mm_loadu_ps(ptr);
+                        for (int x = 0; x < w1; x++)
+                        {
+                            __m128 _p = _mm_loadu_ps(ptr1);
+                            __m128 _outp = op(_a0, _p);
+                            _mm_storeu_ps(outptr, _outp);
+                            ptr1 += 4;
+                            outptr += 4;
+                        }
+
+                        ptr += 4;
+                    }
+                }
+            }
+
+            return 0;
+        }
+
         if (b.dims == 3)
         {
             if (w1 == 1 && h1 == 1 && channels1 == channels)
@@ -1114,7 +1571,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 16
-                __m128 _b0 = _mm_set1_ps(((const float*)b)[0]);
+                __m128 _b0 = _mm_set1_ps(b[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -1157,6 +1614,42 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
     }
     else if (a.dims == 2)
     {
+        if (b.dims == 4)
+        {
+            // type 22
+            c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels1; q++)
+            {
+                const float* ptr = a.row(q);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int z = 0; z < d1; z++)
+                {
+                    __m128 _a0 = _mm_loadu_ps(ptr);
+                    for (int y = 0; y < h1; y++)
+                    {
+                        for (int x = 0; x < w1; x++)
+                        {
+                            __m128 _p = _mm_loadu_ps(ptr1);
+                            __m128 _outp = op(_a0, _p);
+                            _mm_storeu_ps(outptr, _outp);
+                            ptr1 += 4;
+                            outptr += 4;
+                        }
+                    }
+
+                    ptr += 4;
+                }
+            }
+
+            return 0;
+        }
+
         if (b.dims == 3)
         {
             // type 14
@@ -1223,7 +1716,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 11
-                __m128 _b0 = _mm_set1_ps(((const float*)b)[0]);
+                __m128 _b0 = _mm_set1_ps(b[0]);
                 const float* ptr = a;
                 float* outptr = c;
                 for (int i = 0; i < size; i++)
@@ -1265,6 +1758,33 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
     {
         if (a.w == 1 && elempack == 1)
         {
+            if (b.dims == 4)
+            {
+                // type 20
+                c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+                if (c.empty())
+                    return -100;
+
+                __m128 _a0 = _mm_set1_ps(a[0]);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels1; q++)
+                {
+                    const float* ptr1 = b.channel(q);
+                    float* outptr = c.channel(q);
+
+                    for (int i = 0; i < size1; i++)
+                    {
+                        __m128 _p1 = _mm_loadu_ps(ptr1);
+                        __m128 _outp = op(_a0, _p1);
+                        _mm_storeu_ps(outptr, _outp);
+                        ptr1 += 4;
+                        outptr += 4;
+                    }
+                }
+
+                return 0;
+            }
+
             if (b.dims == 3)
             {
                 // type 4
@@ -1272,7 +1792,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                __m128 _a0 = _mm_set1_ps(((const float*)a)[0]);
+                __m128 _a0 = _mm_set1_ps(a[0]);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels1; q++)
                 {
@@ -1299,7 +1819,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                __m128 _a0 = _mm_set1_ps(((const float*)a)[0]);
+                __m128 _a0 = _mm_set1_ps(a[0]);
                 const float* ptr1 = b;
                 float* outptr = c;
                 for (int i = 0; i < size1; i++)
@@ -1321,7 +1841,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 if (c.empty())
                     return -100;
 
-                __m128 _a0 = _mm_set1_ps(((const float*)a)[0]);
+                __m128 _a0 = _mm_set1_ps(a[0]);
                 const float* ptr1 = b;
                 float* outptr = c;
                 for (int i = 0; i < w1; i++)
@@ -1335,6 +1855,33 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
                 return 0;
             }
+        }
+
+        if (b.dims == 4)
+        {
+            // type 21
+            c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
+            if (c.empty())
+                return -100;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels1; q++)
+            {
+                __m128 _a0 = _mm_loadu_ps((const float*)a + q * 4);
+                const float* ptr1 = b.channel(q);
+                float* outptr = c.channel(q);
+
+                for (int i = 0; i < size1; i++)
+                {
+                    __m128 _p1 = _mm_loadu_ps(ptr1);
+                    __m128 _outp = op(_a0, _p1);
+                    _mm_storeu_ps(outptr, _outp);
+                    ptr1 += 4;
+                    outptr += 4;
+                }
+            }
+
+            return 0;
         }
 
         if (b.dims == 3)
@@ -1402,7 +1949,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 6
-                __m128 _b0 = _mm_set1_ps(((const float*)b)[0]);
+                __m128 _b0 = _mm_set1_ps(b[0]);
                 const float* ptr = a;
                 float* outptr = c;
                 for (int i = 0; i < w; i++)
@@ -1444,8 +1991,9 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     __m128 _b = _mm_set1_ps((float)b);
 
@@ -1574,10 +2122,10 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             return binary_op_pack8<binary_op_pow_pack8>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_RSUB)
-            return binary_op_pack8<binary_op_rsub_pack8>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack8<binary_op_sub_pack8>(bottom_blob1, bottom_blob, top_blob, opt);
 
         if (op_type == Operation_RDIV)
-            return binary_op_pack8<binary_op_rdiv_pack8>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack8<binary_op_div_pack8>(bottom_blob1, bottom_blob, top_blob, opt);
     }
 #endif // __AVX__
 
@@ -1605,10 +2153,10 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             return binary_op_pack4<binary_op_pow_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_RSUB)
-            return binary_op_pack4<binary_op_rsub_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_sub_pack4>(bottom_blob1, bottom_blob, top_blob, opt);
 
         if (op_type == Operation_RDIV)
-            return binary_op_pack4<binary_op_rdiv_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_div_pack4>(bottom_blob1, bottom_blob, top_blob, opt);
     }
 #endif // __SSE2__
 
