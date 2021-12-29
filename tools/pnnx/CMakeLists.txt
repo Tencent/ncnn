@@ -22,6 +22,8 @@ option(PNNX_COVERAGE "build for coverage" OFF)
 #set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/libtorch" CACHE STRING "")
 #set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
 
+message(STATUS "TorchVision_INSTALL_DIR = ${TorchVision_INSTALL_DIR}")
+
 #set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
