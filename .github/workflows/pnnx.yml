@@ -79,7 +79,7 @@ jobs:
       run: |
         cd tools/pnnx
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install ..
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_DIR=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install/share/cmake/TorchVision ..
         cmake --build . -j 2
 
     - name: test

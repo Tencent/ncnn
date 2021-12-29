@@ -14,6 +14,8 @@
 
 #include "pass_level1.h"
 
+#include "../utils.h"
+
 namespace pnnx {
 
 class DeformConv2d : public FuseModulePass
