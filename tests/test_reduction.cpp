@@ -86,7 +86,7 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims)
 
     std::vector<ncnn::Mat> weights(0);
 
-        fprintf(stderr, "test_reduction a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d reduce_all=1\n", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
+    fprintf(stderr, "test_reduction a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d reduce_all=1\n", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
     int ret = test_layer<ncnn::Reduction>("Reduction", pd, weights, a);
     if (ret != 0)
     {
@@ -114,10 +114,10 @@ static int test_reduction(const ncnn::Mat& _a, float coeff, int keepdims, const 
 
     std::vector<ncnn::Mat> weights(0);
 
-        fprintf(stderr, "test_reduction a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
-        fprintf(stderr, " axes=");
-        print_int_array(axes);
-        fprintf(stderr, "\n");
+    fprintf(stderr, "test_reduction a.dims=%d a=(%d %d %d %d) op_type=%d coeff=%f keepdims=%d", a.dims, a.w, a.h, a.d, a.c, op_type, coeff, keepdims);
+    fprintf(stderr, " axes=");
+    print_int_array(axes);
+    fprintf(stderr, "\n");
     int ret = test_layer<ncnn::Reduction>("Reduction", pd, weights, a);
     if (ret != 0)
     {
