@@ -164,6 +164,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample.cpp
     pass_level2/Tensor_contiguous.cpp
     pass_level2/Tensor_expand.cpp
+    pass_level2/Tensor_expand_as.cpp
     pass_level2/Tensor_new_empty.cpp
     pass_level2/Tensor_repeat.cpp
     pass_level2/Tensor_reshape.cpp
@@ -172,6 +173,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_view.cpp
     pass_level2/torch_amax.cpp
     pass_level2/torch_amin.cpp
+    pass_level2/torch_arange.cpp
     pass_level2/torch_argmax.cpp
     pass_level2/torch_argmin.cpp
     pass_level2/torch_cat.cpp
@@ -181,6 +183,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_flatten.cpp
     pass_level2/torch_logsumexp.cpp
+    pass_level2/torch_matmul.cpp
     pass_level2/torch_mean.cpp
     pass_level2/torch_normal.cpp
     pass_level2/torch_prod.cpp
@@ -192,6 +195,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
+    pass_level2/torch_zeros_like.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 )
