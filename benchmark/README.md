@@ -1048,22 +1048,81 @@ cooling_down = 1
 
 ### Raspberry Pi 3 Model B+ Broadcom BCM2837B0, Cortex-A53 (ARMv8) (1.4GHz x 4)
 ```
-pi@raspberrypi:~ $ ./benchncnn 8 4 0
+pi@raspberrypi:~/ncnn/build/benchmark $ ./benchncnn 8 4 0 -1 1
 loop_count = 8
 num_threads = 4
 powersave = 0
-      squeezenet  min =  108.66  max =  109.24  avg =  108.96
-       mobilenet  min =  151.78  max =  152.92  avg =  152.31
-    mobilenet_v2  min =  193.14  max =  195.56  avg =  194.50
-      shufflenet  min =   91.41  max =   92.19  avg =   91.75
-       googlenet  min =  302.02  max =  304.08  avg =  303.24
-        resnet18  min =  411.93  max =  423.14  avg =  416.54
-         alexnet  min =  275.54  max =  276.50  avg =  276.13
-           vgg16  min = 1845.36  max = 1925.95  avg = 1902.28
-  squeezenet-ssd  min =  313.86  max =  317.35  avg =  315.28
-   mobilenet-ssd  min =  262.91  max =  264.92  avg =  263.85
-  mobilenet-yolo  min =  638.73  max =  641.27  avg =  639.87
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =   93.48  max =   94.42  avg =   93.92
+     squeezenet_int8  min =   75.56  max =   91.37  avg =   78.19
+           mobilenet  min =  111.72  max =  116.75  avg =  113.22
+      mobilenet_int8  min =   66.81  max =   67.65  avg =   67.27
+        mobilenet_v2  min =  118.23  max =  122.53  avg =  120.10
+        mobilenet_v3  min =   90.46  max =   92.37  avg =   91.43
+          shufflenet  min =   63.71  max =   64.23  avg =   63.93
+       shufflenet_v2  min =   55.14  max =   55.45  avg =   55.23
+             mnasnet  min =   96.91  max =  100.11  avg =   98.45
+     proxylessnasnet  min =  105.64  max =  109.58  avg =  107.21
+     efficientnet_b0  min =  152.08  max =  153.21  avg =  152.51
+   efficientnetv2_b0  min =  173.82  max =  174.44  avg =  174.09
+        regnety_400m  min =  128.52  max =  130.30  avg =  129.22
+           blazeface  min =   19.25  max =   20.16  avg =   19.86
+           googlenet  min =  242.42  max =  248.31  avg =  244.42
+      googlenet_int8  min =  189.70  max =  192.26  avg =  190.93
+            resnet18  min =  279.99  max =  282.42  avg =  281.43
+       resnet18_int8  min =  162.68  max =  167.57  avg =  165.72
+             alexnet  min =  219.22  max =  227.34  avg =  222.01
+            resnet50  min =  558.68  max =  567.64  avg =  562.70
+       resnet50_int8  min =  391.51  max =  393.13  avg =  392.29
+      squeezenet_ssd  min =  313.05  max =  316.22  avg =  314.47
+ squeezenet_ssd_int8  min =  201.40  max =  202.80  avg =  201.96
+       mobilenet_ssd  min =  242.57  max =  244.58  avg =  243.38
+  mobilenet_ssd_int8  min =  138.13  max =  139.16  avg =  138.44
+      mobilenet_yolo  min =  515.24  max =  527.39  avg =  519.71
+  mobilenetv2_yolov3  min =  367.45  max =  379.95  avg =  374.68
+         yolov4-tiny  min =  473.25  max =  481.18  avg =  475.87
+           nanodet_m  min =  140.82  max =  142.07  avg =  141.42
+    yolo-fastest-1.1  min =   84.35  max =   84.78  avg =   84.57
+      yolo-fastestv2  min =   69.17  max =   69.71  avg =   69.42
 
+pi@raspberrypi:~/ncnn/build/benchmark $ ./benchncnn 4 1 0 -1 1
+loop_count = 4
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =  152.36  max =  152.52  avg =  152.46
+     squeezenet_int8  min =  138.38  max =  138.69  avg =  138.52
+           mobilenet  min =  233.98  max =  238.35  avg =  235.30
+      mobilenet_int8  min =  185.11  max =  185.42  avg =  185.30
+        mobilenet_v2  min =  173.90  max =  175.93  avg =  175.17
+        mobilenet_v3  min =  151.83  max =  153.28  avg =  152.52
+          shufflenet  min =   91.71  max =   92.43  avg =   92.08
+       shufflenet_v2  min =   97.29  max =   97.59  avg =   97.46
+             mnasnet  min =  167.58  max =  168.03  avg =  167.86
+     proxylessnasnet  min =  213.93  max =  216.89  avg =  215.50
+     efficientnet_b0  min =  332.36  max =  332.48  avg =  332.42
+   efficientnetv2_b0  min =  383.45  max =  384.49  avg =  383.92
+        regnety_400m  min =  211.78  max =  212.81  avg =  212.09
+           blazeface  min =   28.57  max =   29.41  avg =   28.94
+           googlenet  min =  497.79  max =  499.53  avg =  498.56
+      googlenet_int8  min =  429.97  max =  433.06  avg =  431.34
+            resnet18  min =  423.38  max =  424.28  avg =  423.92
+       resnet18_int8  min =  316.29  max =  317.27  avg =  316.74
+             alexnet  min =  472.86  max =  473.48  avg =  473.15
+            resnet50  min = 1100.52  max = 1103.82  avg = 1102.50
+       resnet50_int8  min =  899.54  max =  902.28  avg =  901.05
+      squeezenet_ssd  min =  404.44  max =  408.47  avg =  405.81
+ squeezenet_ssd_int8  min =  324.34  max =  327.91  avg =  325.62
+       mobilenet_ssd  min =  473.55  max =  474.66  avg =  474.11
+  mobilenet_ssd_int8  min =  370.25  max =  371.03  avg =  370.56
+      mobilenet_yolo  min = 1049.83  max = 1053.00  avg = 1051.51
+  mobilenetv2_yolov3  min =  587.69  max =  588.59  avg =  588.22
+         yolov4-tiny  min =  807.98  max =  809.10  avg =  808.64
+           nanodet_m  min =  235.36  max =  236.96  avg =  236.19
+    yolo-fastest-1.1  min =  105.76  max =  107.73  avg =  106.33
+      yolo-fastestv2  min =   89.43  max =   89.72  avg =   89.54
 ```
 
 ### Raspberry Pi 4 Model B Broadcom BCM2711B0, Cortex-A72 (ARMv8) (1.5GHz x 4)
