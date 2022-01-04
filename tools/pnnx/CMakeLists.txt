@@ -20,19 +20,15 @@ option(PNNX_COVERAGE "build for coverage" OFF)
 #set(Torch_INSTALL_DIR "/home/nihui/.local/lib/python3.9/site-packages/torch" CACHE STRING "")
 #set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/pytorch-v1.10.0/build/install" CACHE STRING "")
 #set(Torch_INSTALL_DIR "/home/nihui/osd/pnnx/libtorch" CACHE STRING "")
-#set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
-
-message(STATUS "TorchVision_INSTALL_DIR = ${TorchVision_INSTALL_DIR}")
+set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING "")
 
 #set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
-message(STATUS "TorchVision_DIR = ${TorchVision_DIR}")
-
 PNNXProbeForPyTorchInstall()
 find_package(Torch REQUIRED)
 
-find_package(TorchVision)
+find_package(TorchVision QUIET)
 
 message(STATUS "Torch_VERSION = ${Torch_VERSION}")
 message(STATUS "Torch_VERSION_MAJOR = ${Torch_VERSION_MAJOR}")

@@ -75,7 +75,6 @@ jobs:
 
     - name: build-pnnx
       run: |
-        ls $GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install/share/cmake/TorchVision -l
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install ..
