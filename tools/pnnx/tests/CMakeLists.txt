@@ -198,4 +198,8 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_add_test(nn_Mish)
 endif()
 
+if(TorchVision_FOUND)
+    pnnx_add_test(torchvision_DeformConv2d)
+endif()
+
 add_subdirectory(ncnn)

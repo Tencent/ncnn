@@ -41,6 +41,7 @@ endif()
 
 if(TorchVision_FOUND)
     message(STATUS "Building with TorchVision")
+    add_definitions(-DPNNX_TORCHVISION)
 else()
     message(WARNING "Building without TorchVision")
 endif()

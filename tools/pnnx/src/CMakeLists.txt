@@ -94,6 +94,8 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_quantized_DeQuantize.cpp
     pass_level1/nn_quantized_Linear.cpp
     pass_level1/nn_quantized_Quantize.cpp
+
+    pass_level1/torchvision_DeformConv2d.cpp
 )
 
 set(pnnx_pass_level2_SRCS
