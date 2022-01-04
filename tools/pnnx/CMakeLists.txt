@@ -27,6 +27,8 @@ message(STATUS "TorchVision_INSTALL_DIR = ${TorchVision_INSTALL_DIR}")
 #set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
+message(STATUS "TorchVision_DIR = ${TorchVision_DIR}")
+
 PNNXProbeForPyTorchInstall()
 find_package(Torch REQUIRED)
 
