@@ -30,7 +30,7 @@ set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 PNNXProbeForPyTorchInstall()
 find_package(Torch REQUIRED)
 
-find_package(TorchVision QUIET)
+find_package(TorchVision)
 
 message(STATUS "Torch_VERSION = ${Torch_VERSION}")
 message(STATUS "Torch_VERSION_MAJOR = ${Torch_VERSION_MAJOR}")

@@ -63,11 +63,6 @@ jobs:
       with:
         submodules: true
 
-    - name: update
-      run: sudo apt-get update
-    - name: protobuf
-      run: sudo apt-get install python3-dev
-
     - name: build-ncnn
       run: |
         python -m pip install --upgrade pip
