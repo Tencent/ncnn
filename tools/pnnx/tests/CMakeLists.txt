@@ -200,6 +200,7 @@ endif()
 
 if(TorchVision_FOUND)
     pnnx_add_test(torchvision_DeformConv2d)
+    pnnx_add_test(torchvision_RoIAlign)
 endif()
 
 add_subdirectory(ncnn)
