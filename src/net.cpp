@@ -71,7 +71,7 @@ public:
 
     std::vector<Blob> blobs;
     std::vector<Layer*> layers;
-
+    FunVoidInt layer_index_callback = nullptr;
     std::vector<int> input_blob_indexes;
     std::vector<int> output_blob_indexes;
 #if NCNN_STRING
@@ -195,6 +195,9 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
         bottom_blob.elemsize = blob_mats[bottom_blob_index].elemsize;
     }
 #endif
+    if(layer_index_callback){
+        layer_index_callback(layer_index);
+    }
     int ret = do_forward_layer(layer, blob_mats, opt);
 #if NCNN_BENCHMARK
     double end = get_current_time();
@@ -2117,6 +2120,11 @@ void Net::clear()
 Extractor Net::create_extractor() const
 {
     return Extractor(this, d->blobs.size());
+}
+
+void Net::set_layer_index_callback(FunVoidInt callback)
+{
+    d->layer_index_callback = callback;
 }
 
 const std::vector<int>& Net::input_indexes() const

@@ -20,6 +20,7 @@
 #include "mat.h"
 #include "option.h"
 #include "platform.h"
+#include <functional>
 
 #if NCNN_PLATFORM_API
 #if __ANDROID_API__ >= 9
@@ -28,7 +29,8 @@
 #endif // NCNN_PLATFORM_API
 
 namespace ncnn {
-
+    
+typedef std::function<void(int)> FunVoidInt;
 #if NCNN_VULKAN
 class VkCompute;
 #endif // NCNN_VULKAN
@@ -128,6 +130,9 @@ public:
 
     // construct an Extractor from network
     Extractor create_extractor() const;
+
+    // set layer index callback
+    void set_layer_index_callback(FunVoidInt callback);
 
     // get input/output indexes/names
     const std::vector<int>& input_indexes() const;
