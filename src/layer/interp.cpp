@@ -18,7 +18,7 @@ namespace ncnn {
 
 Interp::Interp()
 {
-    one_blob_only = true;
+    one_blob_only = false;
     support_inplace = false;
 }
 
@@ -460,6 +460,9 @@ int Interp::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
 
 int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+    if(bottom_blobs.size() == 1){
+        return this->forward(bottom_blobs[0], top_blobs[0], opt);
+    }
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& reference_blob = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
@@ -472,6 +475,13 @@ int Interp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     int outw = reference_blob.w;
     int outh = reference_blob.h;
+
+    if (reference_blob.dims == 1 && reference_blob.total() == 4)
+    {
+        float *sizePtr = (float *)reference_blob.data;
+        outh = (int)sizePtr[2];
+        outw = (int)sizePtr[3];
+    }
 
     if (dims == 1)
     {
