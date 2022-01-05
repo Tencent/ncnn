@@ -17,7 +17,7 @@
 #include "pass_level3/eliminate_tuple_pair.h"
 #include "pass_level3/expand_quantization_modules.h"
 #include "pass_level3/fuse_attribute_expression.h"
-#include "pass_level3/fuse_cat_tensors.h"
+#include "pass_level3/fuse_cat_stack_tensors.h"
 #include "pass_level3/fuse_chunk_split_unpack.h"
 #include "pass_level3/fuse_expression.h"
 #include "pass_level3/fuse_rnn_unpack.h"
@@ -33,7 +33,7 @@ namespace pnnx {
 
 void pass_level3(Graph& g)
 {
-    fuse_cat_tensors(g);
+    fuse_cat_stack_tensors(g);
 
     fuse_chunk_split_unpack(g);
 

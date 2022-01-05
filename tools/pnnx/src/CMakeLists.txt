@@ -188,11 +188,13 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_matmul.cpp
     pass_level2/torch_mean.cpp
+    pass_level2/torch_norm.cpp
     pass_level2/torch_normal.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
+    pass_level2/torch_stack.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
     pass_level2/torch_transpose.cpp
@@ -207,7 +209,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/eliminate_tuple_pair.cpp
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_attribute_expression.cpp
-    pass_level3/fuse_cat_tensors.cpp
+    pass_level3/fuse_cat_stack_tensors.cpp
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp
