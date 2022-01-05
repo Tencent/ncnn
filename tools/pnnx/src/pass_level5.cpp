@@ -20,7 +20,9 @@
 #include "pass_level5/eval_expression.h"
 #include "pass_level5/fuse_channel_shuffle.h"
 #include "pass_level5/fuse_constant_expression.h"
+#include "pass_level5/fuse_conv1d_batchnorm1d.h"
 #include "pass_level5/fuse_conv2d_batchnorm2d.h"
+#include "pass_level5/fuse_convtranspose1d_batchnorm1d.h"
 #include "pass_level5/fuse_convtranspose2d_batchnorm2d.h"
 #include "pass_level5/fuse_contiguous_view.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
@@ -40,7 +42,11 @@ void pass_level5(Graph& g)
 
     fuse_slice_indices(g);
 
+    fuse_conv1d_batchnorm1d(g);
+
     fuse_conv2d_batchnorm2d(g);
+
+    fuse_convtranspose1d_batchnorm1d(g);
 
     fuse_convtranspose2d_batchnorm2d(g);
 
