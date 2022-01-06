@@ -1469,10 +1469,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type == "torch.cat")
+            else if (op->type == "torch.cat" || op->type == "torch.stack")
             {
                 // cat
-                fprintf(pyfp, "v_%s = torch.cat(", sanitize_identifier(op->outputs[0]->name).c_str());
+                fprintf(pyfp, "v_%s = %s(", sanitize_identifier(op->outputs[0]->name).c_str(), op->type.c_str());
                 if (op->inputs.size() == 1)
                 {
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
