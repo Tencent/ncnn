@@ -229,10 +229,11 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 18        | pad_value     | float | 0.f       |                   |
+| 19        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -264,6 +265,7 @@ y = activation(x3, act_type, act_params)
 | 10        | activation_params| array | [ ]    |                   |
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | pad_value     | float | 0.f       |                   |
+| 19        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -293,8 +295,8 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 17        | pad_behind    | int   | pad_front |                   |
 | 18        | pad_value     | float | 0.f       |                   |
@@ -333,10 +335,11 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 18        | pad_value     | float | 0.f       |                   |
+| 19        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -369,6 +372,7 @@ y = activation(x3, act_type, act_params)
 | 10        | activation_params| array | [ ]    |                   |
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | pad_value     | float | 0.f       |                   |
+| 19        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -399,8 +403,8 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 17        | pad_behind    | int   | pad_front |                   |
 | 18        | pad_value     | float | 0.f       |                   |
@@ -460,8 +464,8 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 19        | output_pad_bottom| int | output_pad_right |           |
@@ -498,8 +502,8 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 19        | output_pad_bottom| int | output_pad_right |           |
@@ -521,9 +525,13 @@ y = x * scale + bias
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | scale         | float | 1.f       |                   |
-| 1         | bias_term     | int   | 0         |                   |
-| 2         | bias_data_size| int   | 0         |                   |
+| 0         | scale_data_size| int  | 1         |                   |
+| 1         | bias_data_size| int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| scale_data    | float | [scale_data_size]     |
+| bias_data     | float | [bias_data_size]      |
 
 # Dropout
 ```
@@ -722,6 +730,7 @@ y = input
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | w             | int   | 0         |                   |
 | 1         | h             | int   | 0         |                   |
+| 11        | d             | int   | 0         |                   |
 | 2         | c             | int   | 0         |                   |
 
 # InstanceNorm
@@ -862,11 +871,12 @@ y = data
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | w             | int   | 0         |                   |
 | 1         | h             | int   | 0         |                   |
+| 11        | d             | int   | 0         |                   |
 | 2         | c             | int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| data          | float | [w, h, c]             |
+| data          | float | [w, h, d, c]          |
 
 # Mish
 ```
@@ -1009,12 +1019,30 @@ y = reorder(x)
 | 0         | order_type    | int  | 0         |                   |
 
 Order Type:
-- 0 = WH WHC
-- 1 = HW HWC
-- 2 = WCH
-- 3 = CWH
-- 4 = HCW
-- 5 = CHW
+- 0 = WH WHC WHDC
+- 1 = HW HWC HWDC
+- 2 = WCH WDHC
+- 3 = CWH DWHC
+- 4 = HCW HDWC
+- 5 = CHW DHWC
+- 6 = WHCD
+- 7 = HWCD
+- 8 = WCHD
+- 9 = CWHD
+- 10 = HCWD
+- 11 = CHWD
+- 12 = WDCH
+- 13 = DWCH
+- 14 = WCDH
+- 15 = CWDH
+- 16 = DCWH
+- 17 = CDWH
+- 18 = HDCW
+- 19 = DHCW
+- 20 = HCDW
+- 21 = CHDW
+- 22 = DCHW
+- 23 = CDHW
 
 # PixelShuffle
 ```
@@ -1171,7 +1199,7 @@ y = float2int8(x * scale)
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | scale_data_size| int  | 0         |                   |
+| 0         | scale_data_size| int  | 1         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1266,6 +1294,7 @@ else                y = reshape(x)
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | w             | int   | -233      |                   |
 | 1         | h             | int   | -233      |                   |
+| 11        | d             | int   | -233      |                   |
 | 2         | c             | int   | -233      |                   |
 | 3         | permute       | int   | 0         |                   |
 

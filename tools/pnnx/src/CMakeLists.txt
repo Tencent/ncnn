@@ -94,6 +94,9 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_quantized_DeQuantize.cpp
     pass_level1/nn_quantized_Linear.cpp
     pass_level1/nn_quantized_Quantize.cpp
+
+    pass_level1/torchvision_DeformConv2d.cpp
+    pass_level1/torchvision_RoIAlign.cpp
 )
 
 set(pnnx_pass_level2_SRCS
@@ -163,25 +166,42 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
     pass_level2/Tensor_contiguous.cpp
+    pass_level2/Tensor_expand.cpp
+    pass_level2/Tensor_expand_as.cpp
+    pass_level2/Tensor_index.cpp
     pass_level2/Tensor_new_empty.cpp
     pass_level2/Tensor_repeat.cpp
     pass_level2/Tensor_reshape.cpp
     pass_level2/Tensor_select.cpp
     pass_level2/Tensor_slice.cpp
     pass_level2/Tensor_view.cpp
+    pass_level2/torch_amax.cpp
+    pass_level2/torch_amin.cpp
+    pass_level2/torch_arange.cpp
+    pass_level2/torch_argmax.cpp
+    pass_level2/torch_argmin.cpp
     pass_level2/torch_cat.cpp
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
+    pass_level2/torch_clone.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_flatten.cpp
+    pass_level2/torch_logsumexp.cpp
+    pass_level2/torch_matmul.cpp
     pass_level2/torch_mean.cpp
+    pass_level2/torch_norm.cpp
+    pass_level2/torch_normal.cpp
+    pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
-    pass_level2/torch_sum.cpp
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
+    pass_level2/torch_stack.cpp
+    pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unsqueeze.cpp
+    pass_level2/torch_var.cpp
+    pass_level2/torch_zeros_like.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 )
@@ -190,9 +210,10 @@ set(pnnx_pass_level3_SRCS
     pass_level3/eliminate_tuple_pair.cpp
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_attribute_expression.cpp
-    pass_level3/fuse_cat_tensors.cpp
+    pass_level3/fuse_cat_stack_tensors.cpp
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
+    pass_level3/fuse_index_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp
     pass_level3/rename_F_conv_transposend.cpp
     pass_level3/rename_F_convmode.cpp
@@ -206,13 +227,16 @@ set(pnnx_pass_level4_SRCS
 )
 
 set(pnnx_pass_level5_SRCS
+    pass_level5/eliminate_dropout.cpp
     pass_level5/eliminate_maxpool_indices.cpp
     pass_level5/eliminate_slice.cpp
     pass_level5/eliminate_view_reshape.cpp
     pass_level5/eval_expression.cpp
     pass_level5/fuse_channel_shuffle.cpp
     pass_level5/fuse_constant_expression.cpp
+    pass_level5/fuse_conv1d_batchnorm1d.cpp
     pass_level5/fuse_conv2d_batchnorm2d.cpp
+    pass_level5/fuse_convtranspose1d_batchnorm1d.cpp
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
@@ -234,6 +258,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/solve_batch_index.cpp
 
     pass_ncnn/eliminate_noop.cpp
+    pass_ncnn/eliminate_tail_reshape_permute.cpp
     pass_ncnn/fuse_convolution_activation.cpp
     pass_ncnn/fuse_convolution1d_activation.cpp
     pass_ncnn/fuse_convolutiondepthwise_activation.cpp
@@ -248,7 +273,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_adaptive_max_pool1d.cpp
     pass_ncnn/F_adaptive_max_pool2d.cpp
     pass_ncnn/F_adaptive_max_pool3d.cpp
-    pass_ncnn/F_alpha_dropout.cpp
     pass_ncnn/F_avg_pool1d.cpp
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
@@ -257,12 +281,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_conv1d.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_conv3d.cpp
-    pass_ncnn/F_dropout.cpp
-    pass_ncnn/F_dropout2d.cpp
-    pass_ncnn/F_dropout3d.cpp
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_embedding.cpp
-    pass_ncnn/F_feature_alpha_dropout.cpp
     pass_ncnn/F_gelu.cpp
     pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
@@ -299,7 +319,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_AdaptiveMaxPool1d.cpp
     pass_ncnn/nn_AdaptiveMaxPool2d.cpp
     pass_ncnn/nn_AdaptiveMaxPool3d.cpp
-    pass_ncnn/nn_AlphaDropout.cpp
     pass_ncnn/nn_AvgPool1d.cpp
     pass_ncnn/nn_AvgPool2d.cpp
     pass_ncnn/nn_AvgPool3d.cpp
@@ -314,9 +333,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Conv2d.cpp
     pass_ncnn/nn_Conv3d.cpp
     pass_ncnn/nn_ConvTranspose2d.cpp
-    pass_ncnn/nn_Dropout.cpp
-    pass_ncnn/nn_Dropout2d.cpp
-    pass_ncnn/nn_Dropout3d.cpp
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_Embedding.cpp
     pass_ncnn/nn_GELU.cpp
@@ -359,11 +375,17 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_reshape.cpp
     pass_ncnn/Tensor_slice.cpp
     pass_ncnn/Tensor_view.cpp
+    pass_ncnn/torch_amax.cpp
+    pass_ncnn/torch_amin.cpp
     pass_ncnn/torch_clamp.cpp
+    pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_flatten.cpp
+    pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_mean.cpp
     pass_ncnn/torch_permute.cpp
+    pass_ncnn/torch_prod.cpp
     pass_ncnn/torch_squeeze.cpp
+    pass_ncnn/torch_sum.cpp
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
 )

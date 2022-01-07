@@ -25,7 +25,7 @@ static void conv1x1s1_sgemm_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, 
     im2col_sgemm_packnto1_rvv(bottom_im2col, top_blob, kernel, _bias, opt);
 }
 
-static void conv1x1s2_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+static void conv1x1s2_sgemm_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
     const word_type vl = vsetvl_e32m1(packn);

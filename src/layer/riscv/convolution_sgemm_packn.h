@@ -54,7 +54,7 @@ static void im2col_sgemm_packn_rvv(const Mat& bottom_im2col, Mat& top_blob, cons
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = img0[l];
@@ -103,7 +103,7 @@ static void im2col_sgemm_packn_rvv(const Mat& bottom_im2col, Mat& top_blob, cons
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = img0[l];
@@ -144,7 +144,7 @@ static void im2col_sgemm_packn_rvv(const Mat& bottom_im2col, Mat& top_blob, cons
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = img0[l];

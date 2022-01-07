@@ -33,6 +33,30 @@ static NCNN_FORCEINLINE float _mm_reduce_add_ps(__m128 x128)
     return _mm_cvtss_f32(x32);
 }
 
+static NCNN_FORCEINLINE int32_t float2int8_sse(const __m128& _v0)
+{
+    // _MM_ROUND_NEAREST round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m128 _p5 = _mm_set1_ps(0.5f);
+    __m128 _signmask = _mm_castsi128_ps(_mm_set1_epi32(1 << 31));
+    __m128 _sign0 = _mm_and_ps(_v0, _signmask);
+    __m128 _v0_p5 = _mm_or_ps(_p5, _sign0);
+    __m128 _v0_adj = _mm_add_ps(_v0, _v0_p5);
+    __m128i _v0_i = _mm_cvttps_epi32(_v0_adj);
+
+    __m128i _v0_s16 = _mm_packs_epi32(_v0_i, _v0_i);
+
+    _v0_s16 = _mm_min_epi16(_v0_s16, _mm_set1_epi16(127));
+    _v0_s16 = _mm_max_epi16(_v0_s16, _mm_set1_epi16(-127));
+
+    __m128i _v8 = _mm_packs_epi16(_v0_s16, _v0_s16);
+
+    // TODO use _mm_cvtsi128_si64 on 64bit target
+    int32_t v8[4];
+    _mm_storeu_si128((__m128i*)v8, _v8);
+    return v8[0];
+}
+
 static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& _v1)
 {
     // _MM_ROUND_NEAREST round to even

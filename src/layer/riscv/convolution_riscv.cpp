@@ -84,36 +84,9 @@ Convolution_riscv::Convolution_riscv()
     activation = 0;
 }
 
-int Convolution_riscv::create_pipeline(const Option& opt)
+static void convolution_transform_kernel_packed_rvv(const Mat& weight_data, Mat& weight_data_packed, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
 {
-    if (dynamic_weight)
-        return 0;
-
-    activation = create_activation_layer(activation_type, activation_params, opt);
-
-#if __riscv_vector && __riscv_zfh
-    if (opt.use_fp16_storage)
-    {
-        return create_pipeline_fp16s(opt);
-    }
-#endif
-
-#if __riscv_vector
-    const int packn = csrr_vlenb() / 4;
-#endif
-
     const int maxk = kernel_w * kernel_h;
-    const int num_input = weight_data_size / maxk / num_output;
-
-    int elempack = 1;
-    int out_elempack = 1;
-#if __riscv_vector
-    if (opt.use_packing_layout)
-    {
-        elempack = num_input % packn == 0 ? packn : 1;
-        out_elempack = num_output % packn == 0 ? packn : 1;
-    }
-#endif
 
     // src = kw-kh-inch-outch
     // dst = pb-pa-kw-kh-inch/pa-outch/pb
@@ -147,29 +120,78 @@ int Convolution_riscv::create_pipeline(const Option& opt)
             }
         }
     }
+}
+
+int Convolution_riscv::create_pipeline(const Option& opt)
+{
+    if (dynamic_weight)
+        return 0;
+
+    activation = create_activation_layer(activation_type, activation_params, opt);
+
+#if __riscv_vector && __riscv_zfh
+    if (opt.use_fp16_storage)
+    {
+        return create_pipeline_fp16s(opt);
+    }
+#endif
+
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+#endif
+
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    int elempack = 1;
+    int out_elempack = 1;
+#if __riscv_vector
+    if (opt.use_packing_layout)
+    {
+        elempack = num_input % packn == 0 ? packn : 1;
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
+#endif
 
 #if __riscv_vector
     // packn
     if (elempack == packn && out_elempack == packn)
     {
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
             conv3x3s1_winograd64_transform_kernel_packn_rvv(weight_data, weight_data_packed, num_input, num_output, opt);
             conv3x3s1_winograd42_transform_kernel_packn_rvv(weight_data, weight_3x3_winograd42_data_packed, num_input, num_output, opt);
+        }
+        else
+        {
+            convolution_transform_kernel_packed_rvv(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
     }
 
     // pack1ton
     if (elempack == 1 && out_elempack == packn)
     {
+        convolution_transform_kernel_packed_rvv(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
 
     // packnto1
     if (elempack == packn && out_elempack == 1)
     {
-        if (opt.use_sgemm_convolution)
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             convolution_im2col_sgemm_transform_kernel_packnto1_rvv(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            convolution_im2col_sgemm_transform_kernel_packnto1_rvv(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_transform_kernel_packnto1_rvv(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h);
+        }
+        else
+        {
+            convolution_transform_kernel_packed_rvv(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
     }
 #endif // __riscv_vector
@@ -177,7 +199,11 @@ int Convolution_riscv::create_pipeline(const Option& opt)
     // pack1
     if (elempack == 1 && out_elempack == 1)
     {
-        if (opt.use_sgemm_convolution)
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            convolution_im2col_sgemm_transform_kernel_rvv(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_sgemm_convolution)
         {
             convolution_im2col_sgemm_transform_kernel_rvv(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h);
         }
@@ -298,14 +324,14 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            conv1x1s2_packn_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+            conv1x1s2_sgemm_packn_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
 
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
             // we need more proper conditions
             if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
@@ -403,7 +429,7 @@ int Convolution_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            conv1x1s2_packnto1_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+            conv1x1s2_sgemm_packnto1_rvv(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
 
             if (activation)
             {
@@ -611,21 +637,9 @@ int Convolution_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector
 }
 
 #if __riscv_vector && __riscv_zfh
-int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
+static void convolution_transform_kernel_packed_fp16s_rvv(const Mat& weight_data, Mat& weight_data_fp16, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
 {
-    const int packn = csrr_vlenb() / 2;
-
     const int maxk = kernel_w * kernel_h;
-    const int num_input = weight_data_size / maxk / num_output;
-
-    int elempack = 1;
-    int out_elempack = 1;
-
-    if (opt.use_packing_layout)
-    {
-        elempack = num_input % packn == 0 ? packn : 1;
-        out_elempack = num_output % packn == 0 ? packn : 1;
-    }
 
     // src = kw-kh-inch-outch
     // dst = pb-pa-kw-kh-inch/pa-outch/pb
@@ -659,41 +673,86 @@ int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
             }
         }
     }
+}
+
+int Convolution_riscv::create_pipeline_fp16s(const Option& opt)
+{
+    const int packn = csrr_vlenb() / 2;
+
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    int elempack = 1;
+    int out_elempack = 1;
+
+    if (opt.use_packing_layout)
+    {
+        elempack = num_input % packn == 0 ? packn : 1;
+        out_elempack = num_output % packn == 0 ? packn : 1;
+    }
 
     // packn
     if (elempack == packn && out_elempack == packn)
     {
-        if (opt.use_fp16_arithmetic && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        if (opt.use_winograd_convolution && opt.use_fp16_arithmetic && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
             conv3x3s1_winograd64_transform_kernel_packn_fp16sa_rvv(weight_data, weight_data_fp16, num_input, num_output, opt);
             conv3x3s1_winograd42_transform_kernel_packn_fp16sa_rvv(weight_data, weight_3x3_winograd42_data_packed, num_input, num_output, opt);
+        }
+        else
+        {
+            convolution_transform_kernel_packed_fp16s_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
     }
 
     // pack1ton
     if (elempack == 1 && out_elempack == packn)
     {
+        convolution_transform_kernel_packed_fp16s_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
     }
 
     // packnto1
     if (elempack == packn && out_elempack == 1)
     {
-        if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
+        if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             convolution_im2col_sgemm_transform_kernel_packnto1_fp16sa_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            convolution_im2col_sgemm_transform_kernel_packnto1_fp16sa_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_transform_kernel_packnto1_fp16sa_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h);
+        }
+        else
+        {
+            convolution_transform_kernel_packed_fp16s_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
     }
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
     {
-        if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
+        if (opt.use_fp16_arithmetic && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             convolution_im2col_sgemm_transform_kernel_fp16sa_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h);
         }
+        else if (opt.use_fp16_arithmetic && opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_transform_kernel_fp16sa_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h);
+        }
+        else
+        {
+            convolution_transform_kernel_packed_fp16s_rvv(weight_data, weight_data_fp16, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
     }
 
-    ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+    if (opt.use_fp16_arithmetic)
+    {
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+    }
 
     return 0;
 }
@@ -807,14 +866,14 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            conv1x1s2_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+            conv1x1s2_sgemm_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
 
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
             }
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
             // we need more proper conditions
             if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
@@ -912,7 +971,7 @@ int Convolution_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            conv1x1s2_packnto1_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+            conv1x1s2_sgemm_packnto1_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
 
             if (activation)
             {

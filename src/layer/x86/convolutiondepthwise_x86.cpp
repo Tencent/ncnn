@@ -1075,14 +1075,17 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
         return 0;
     }
 
+    bool use_int8_requantize = int8_scale_term > 100;
     int out_elempack = 1;
 #if __SSE2__
     if (opt.use_packing_layout)
     {
-        out_elempack = num_output % 4 == 0 ? 4 : 1;
+        if (use_int8_requantize)
+            out_elempack = num_output % 8 == 0 ? 8 : 1;
+        else
+            out_elempack = num_output % 4 == 0 ? 4 : 1;
     }
 #endif // __SSE2__
-    bool use_int8_requantize = int8_scale_term > 100;
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1099,7 +1102,10 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
     if (opt.use_packing_layout)
     {
         g_elempack = channels_g % 8 == 0 ? 8 : 1;
-        out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
+        if (use_int8_requantize)
+            out_g_elempack = num_output_g % 8 == 0 ? 8 : 1;
+        else
+            out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
     }
 #endif // __SSE2__
 

@@ -35,10 +35,6 @@ jobs:
     - uses: actions/checkout@v2
       with:
         submodules: true
-    - name: update
-      run: sudo apt-get update
-    - name: protobuf
-      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v2.1.7
@@ -94,7 +90,7 @@ jobs:
       run: |
         export VULKAN_SDK=`pwd`/1.2.189.0/x86_64
         mkdir build && cd build
-        cmake -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON ..
+        cmake -DNCNN_VULKAN=ON -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j 2
     - name: install python
       run: cd python && pip install .

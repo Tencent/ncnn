@@ -84,7 +84,7 @@ int ReLU_vulkan::create_pipeline(const Option& opt)
         local_size_xyz.h = std::min(4, shape_packed.h);
         local_size_xyz.c = std::min(4, shape_packed.c);
     }
-    if (shape_packed.dims == 3)
+    if (shape_packed.dims == 4)
     {
         local_size_xyz.w = std::min(4, shape_packed.w);
         local_size_xyz.h = std::min(4, shape_packed.h * shape_packed.d);

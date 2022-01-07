@@ -18,31 +18,7 @@ namespace pnnx {
 
 namespace ncnn {
 
-class nn_Dropout2d : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-nn.Dropout2d            op_0        1 1 input out
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "Noop";
-    }
-
-    const char* name_str() const
-    {
-        return "dropout";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_Dropout2d, 20)
+void eliminate_tail_reshape_permute(Graph& graph);
 
 } // namespace ncnn
 

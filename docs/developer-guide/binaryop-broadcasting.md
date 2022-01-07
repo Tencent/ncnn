@@ -4,7 +4,7 @@ ncnn BinaryOp accepts blobs with different shape
 
 C = BinaryOp(A, B)
 
-shape notation convention is [w], [w,h], [w,h,c]
+shape notation convention is [w], [w,h], [w,h,c], [w,h,d,c]
 
 |type|A|B|C|
 |---|---|---|---|
@@ -27,6 +27,16 @@ shape notation convention is [w], [w,h], [w,h,c]
 |17|[2,3,4]|[4]|[2,3,4]|
 |18|[2,3,4]|[3,4]|[2,3,4]|
 |19|[2,3,4]|[2,3,4]|[2,3,4]|
+|20|[1]|[2,3,4,5]|[2,3,4,5]|
+|21|[5]|[2,3,4,5]|[2,3,4,5]|
+|22|[4,5]|[2,3,4,5]|[2,3,4,5]|
+|23|[3,4,5]|[2,3,4,5]|[2,3,4,5]|
+|24|[2,3,4,5]|scalar|[2,3,4,5]|
+|25|[2,3,4,5]|[1]|[2,3,4,5]|
+|26|[2,3,4,5]|[5]|[2,3,4,5]|
+|27|[2,3,4,5]|[4,5]|[2,3,4,5]|
+|28|[2,3,4,5]|[3,4,5]|[2,3,4,5]|
+|29|[2,3,4,5]|[2,3,4,5]|[2,3,4,5]|
 
 some special broadcasting rule exists for model compatibility
 

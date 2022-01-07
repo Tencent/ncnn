@@ -12,38 +12,30 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_ncnn.h"
+#include "pass_level2.h"
 
 namespace pnnx {
 
-namespace ncnn {
-
-class F_dropout3d : public GraphRewriterPass
+class torch_matmul : public GraphRewriterPass
 {
 public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
-F.dropout3d             op_0        1 1 input out p=* training=*
+4 3
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 other
+aten::matmul            op_0        2 1 input other out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 
     const char* type_str() const
     {
-        return "Noop";
-    }
-
-    const char* name_str() const
-    {
-        return "dropout3d";
+        return "torch.matmul";
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_dropout3d, 20)
-
-} // namespace ncnn
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_matmul, 20)
 
 } // namespace pnnx

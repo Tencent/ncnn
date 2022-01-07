@@ -14,6 +14,8 @@
 
 #include "pass_ncnn.h"
 
+#include <float.h>
+
 namespace pnnx {
 
 namespace ncnn {
@@ -26,7 +28,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.Hardtanh             op_0        1 1 input out min_val=%0 max_val=%1
+nn.Hardtanh             op_0        1 1 input out min_val=%min_val max_val=%max_val
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -39,6 +41,33 @@ pnnx.Output             output      1 0 out
     const char* name_str() const
     {
         return "htanh";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        float min = -FLT_MAX;
+        float max = FLT_MAX;
+
+        if (captured_params.at("min_val").type == 2)
+        {
+            min = captured_params.at("min_val").i;
+        }
+        if (captured_params.at("min_val").type == 3)
+        {
+            min = captured_params.at("min_val").f;
+        }
+
+        if (captured_params.at("max_val").type == 2)
+        {
+            max = captured_params.at("max_val").i;
+        }
+        if (captured_params.at("max_val").type == 3)
+        {
+            max = captured_params.at("max_val").f;
+        }
+
+        op->params["0"] = min;
+        op->params["1"] = max;
     }
 };
 

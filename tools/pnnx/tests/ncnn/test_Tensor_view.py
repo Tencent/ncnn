@@ -27,6 +27,9 @@ class Model(nn.Module):
         y = y.reshape(99, 5)
         z = z.reshape(4, 3, 6, 10)
         z = z.reshape(15, 6, 8)
+        x = F.relu(x)
+        y = F.relu(y)
+        z = F.relu(z)
         return x, y, z
 
 def test():

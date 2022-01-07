@@ -31,7 +31,7 @@ void convert_torch_split(Graph& graph)
         op->name = std::string("split_") + std::to_string(op_index++);
 
         const Parameter& split_size_or_sections = op->params.at("split_size_or_sections");
-        if (split_size_or_sections.type != 1 && split_size_or_sections.type != 5)
+        if (split_size_or_sections.type != 2 && split_size_or_sections.type != 5)
         {
             fprintf(stderr, "malformed split split_size_or_sections type %d\n", split_size_or_sections.type);
             continue;
@@ -55,7 +55,7 @@ void convert_torch_split(Graph& graph)
         if (axis > batch_index)
             axis -= 1;
 
-        if (split_size_or_sections.type == 1)
+        if (split_size_or_sections.type == 2)
         {
             const size_t output_size = op->outputs.size();
             op->params["0"].type = 5;
