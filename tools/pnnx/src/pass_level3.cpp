@@ -20,6 +20,7 @@
 #include "pass_level3/fuse_cat_stack_tensors.h"
 #include "pass_level3/fuse_chunk_split_unpack.h"
 #include "pass_level3/fuse_expression.h"
+#include "pass_level3/fuse_index_expression.h"
 #include "pass_level3/fuse_rnn_unpack.h"
 #include "pass_level3/rename_F_conv_transposend.h"
 #include "pass_level3/rename_F_convmode.h"
@@ -52,6 +53,8 @@ void pass_level3(Graph& g)
     rename_F_dropoutnd(g);
 
     fuse_expression(g);
+
+    fuse_index_expression(g);
 
     //     dead_code_elimination(g);
 
