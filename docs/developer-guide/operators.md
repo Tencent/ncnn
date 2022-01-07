@@ -70,6 +70,7 @@
 * [Swish](#swish)
 * [TanH](#tanh)
 * [Threshold](#threshold)
+* [Tile](#tile)
 * [UnaryOp](#unaryop)
 
 # AbsVal
@@ -1448,6 +1449,19 @@ else                y = 0
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | threshold     | float | 0.f       |                   |
+
+# Tile
+```
+y = repeat tiles along axis for x
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axis          | int   | 0         |                   |
+| 1         | tiles         | int   | 1         |                   |
+| 2         | repeats       | array | [ ]       |                   |
 
 # UnaryOp
 ```
