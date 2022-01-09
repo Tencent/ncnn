@@ -87,6 +87,12 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
             int nn = inch * maxk; // inch always > 0
 
+#if __AVX2__
+            __m256i _sum00_11 = _mm256_setzero_si256();
+            __m256i _sum10_01 = _mm256_setzero_si256();
+            __m256i _sum02_13 = _mm256_setzero_si256();
+            __m256i _sum12_03 = _mm256_setzero_si256();
+#else
             __m128i _sum00 = _mm_setzero_si128();
             __m128i _sum01 = _mm_setzero_si128();
             __m128i _sum02 = _mm_setzero_si128();
@@ -95,10 +101,40 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
             __m128i _sum11 = _mm_setzero_si128();
             __m128i _sum12 = _mm_setzero_si128();
             __m128i _sum13 = _mm_setzero_si128();
+#endif
 
             int j = 0;
             for (; j < nn; j++)
             {
+#if __AVX2__
+                __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
+                __m256i _val01_16 = _mm256_cvtepi8_epi16(_val01);
+
+                __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr0);
+                __m128i _w23 = _mm_loadu_si128((const __m128i*)(kptr0 + 16));
+                __m256i _w01_16 = _mm256_cvtepi8_epi16(_w01);
+                __m256i _w23_16 = _mm256_cvtepi8_epi16(_w23);
+
+                __m256i _val10_16 = _mm256_permute4x64_epi64(_val01_16, 78);
+
+                __m256i _sl00_11 = _mm256_mullo_epi16(_val01_16, _w01_16);
+                __m256i _sh00_11 = _mm256_mulhi_epi16(_val01_16, _w01_16);
+                __m256i _sl10_01 = _mm256_mullo_epi16(_val10_16, _w01_16);
+                __m256i _sh10_01 = _mm256_mulhi_epi16(_val10_16, _w01_16);
+                __m256i _sl02_13 = _mm256_mullo_epi16(_val01_16, _w23_16);
+                __m256i _sh02_13 = _mm256_mulhi_epi16(_val01_16, _w23_16);
+                __m256i _sl12_03 = _mm256_mullo_epi16(_val10_16, _w23_16);
+                __m256i _sh12_03 = _mm256_mulhi_epi16(_val10_16, _w23_16);
+
+                _sum00_11 = _mm256_add_epi32(_sum00_11, _mm256_unpacklo_epi16(_sl00_11, _sh00_11));
+                _sum10_01 = _mm256_add_epi32(_sum10_01, _mm256_unpacklo_epi16(_sl10_01, _sh10_01));
+                _sum02_13 = _mm256_add_epi32(_sum02_13, _mm256_unpacklo_epi16(_sl02_13, _sh02_13));
+                _sum12_03 = _mm256_add_epi32(_sum12_03, _mm256_unpacklo_epi16(_sl12_03, _sh12_03));
+                _sum00_11 = _mm256_add_epi32(_sum00_11, _mm256_unpackhi_epi16(_sl00_11, _sh00_11));
+                _sum10_01 = _mm256_add_epi32(_sum10_01, _mm256_unpackhi_epi16(_sl10_01, _sh10_01));
+                _sum02_13 = _mm256_add_epi32(_sum02_13, _mm256_unpackhi_epi16(_sl02_13, _sh02_13));
+                _sum12_03 = _mm256_add_epi32(_sum12_03, _mm256_unpackhi_epi16(_sl12_03, _sh12_03));
+#else
                 // TODO use _mm_cvtepi8_epi16 on sse4.1
                 __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
                 __m128i _extval01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _val01);
@@ -148,11 +184,35 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum11 = _mm_add_epi32(_sum11, _mm_unpackhi_epi16(_sl11, _sh11));
                 _sum12 = _mm_add_epi32(_sum12, _mm_unpackhi_epi16(_sl12, _sh12));
                 _sum13 = _mm_add_epi32(_sum13, _mm_unpackhi_epi16(_sl13, _sh13));
+#endif
 
                 tmpptr += 16;
                 kptr0 += 32;
             }
 
+#if __AVX2__
+            // transpose 4x8
+            {
+                __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                _tmp0 = _mm256_unpacklo_epi32(_sum00_11, _sum10_01);
+                _tmp1 = _mm256_unpacklo_epi32(_sum02_13, _sum12_03);
+                _tmp2 = _mm256_unpackhi_epi32(_sum00_11, _sum10_01);
+                _tmp3 = _mm256_unpackhi_epi32(_sum02_13, _sum12_03);
+                _sum00_11 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                _sum10_01 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                _sum02_13 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                _sum12_03 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+            }
+
+            _sum00_11 = _mm256_add_epi32(_sum00_11, _sum10_01);
+            _sum02_13 = _mm256_add_epi32(_sum02_13, _sum12_03);
+            _sum00_11 = _mm256_add_epi32(_sum00_11, _sum02_13);
+
+            __m256i _perm_mask = _mm256_set_epi32(6, 3, 4, 1, 7, 2, 5, 0);
+            _sum00_11 = _mm256_permutevar8x32_epi32(_sum00_11, _perm_mask);
+
+            _mm256_storeu_si256((__m256i*)outptr0, _sum00_11);
+#else
             // transpose 4x4
             {
                 __m128i _tmp0, _tmp1, _tmp2, _tmp3;
@@ -187,6 +247,7 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
             _mm_storeu_si128((__m128i*)outptr0, _sum00);
             _mm_storeu_si128((__m128i*)(outptr0 + 4), _sum10);
+#endif
             outptr0 += 8;
         }
         for (; i < size; i++)
