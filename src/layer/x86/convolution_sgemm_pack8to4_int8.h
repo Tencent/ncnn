@@ -24,20 +24,63 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
     // permute
     Mat tmp;
+#if __AVX2__
+    if (size >= 4)
+        tmp.create(4 * maxk, inch, size / 4 + (size % 4) / 2 + size % 2, 8u, 8, opt.workspace_allocator);
+    else if (size >= 2)
+        tmp.create(2 * maxk, inch, size / 2 + size % 2, 8u, 8, opt.workspace_allocator);
+    else
+        tmp.create(maxk, inch, size, 8u, 8, opt.workspace_allocator);
+#else
     if (size >= 2)
         tmp.create(2 * maxk, inch, size / 2 + size % 2, 8u, 8, opt.workspace_allocator);
     else
         tmp.create(maxk, inch, size, 8u, 8, opt.workspace_allocator);
+#endif
     {
+
+#if __AVX2__
+        int remain_size_start = 0;
+        int nn_size = size >> 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            int i = remain_size_start + ii * 4;
+
+            int64_t* tmpptr = tmp.channel(i / 4);
+
+            for (int q = 0; q < inch; q++)
+            {
+                const int64_t* img0 = (const int64_t*)bottom_im2col.channel(q) + i;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    __m256i _v = _mm256_loadu_si256((const __m256i*)img0);
+                    _mm256_storeu_si256((__m256i*)tmpptr, _v);
+                    tmpptr += 4;
+                    img0 += size;
+                }
+            }
+        }
+
+        remain_size_start += nn_size << 2;
+        nn_size = (size - remain_size_start) >> 1;
+#else
         int remain_size_start = 0;
         int nn_size = size >> 1;
+#endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 2;
 
+#if __AVX2__
+            int64_t* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
+#else
             int64_t* tmpptr = tmp.channel(i / 2);
+#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -58,7 +101,11 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
+#if __AVX2__
+            int64_t* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
+#else
             int64_t* tmpptr = tmp.channel(i / 2 + i % 2);
+#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -80,9 +127,129 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         int* outptr0 = top_blob.channel(p);
 
         int i = 0;
+#if __AVX2__
+        for (; i + 3 < size; i += 4)
+        {
+            const signed char* tmpptr = tmp.channel(i / 4);
+            const signed char* kptr0 = kernel.channel(p);
+
+            int nn = inch * maxk; // inch always > 0
+
+            __m256i _sum00_11 = _mm256_setzero_si256();
+            __m256i _sum10_01 = _mm256_setzero_si256();
+            __m256i _sum02_13 = _mm256_setzero_si256();
+            __m256i _sum12_03 = _mm256_setzero_si256();
+
+            __m256i _sum04_15 = _mm256_setzero_si256();
+            __m256i _sum14_05 = _mm256_setzero_si256();
+            __m256i _sum06_17 = _mm256_setzero_si256();
+            __m256i _sum16_07 = _mm256_setzero_si256();
+
+            int j = 0;
+            for (; j < nn; j++)
+            {
+                __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
+                __m256i _val01_16 = _mm256_cvtepi8_epi16(_val01);
+
+                __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr0);
+                __m128i _w23 = _mm_loadu_si128((const __m128i*)(kptr0 + 16));
+                __m256i _w01_16 = _mm256_cvtepi8_epi16(_w01);
+                __m256i _w23_16 = _mm256_cvtepi8_epi16(_w23);
+
+                __m256i _val10_16 = _mm256_permute4x64_epi64(_val01_16, 78);
+
+                __m256i _sl00_11 = _mm256_mullo_epi16(_val01_16, _w01_16);
+                __m256i _sh00_11 = _mm256_mulhi_epi16(_val01_16, _w01_16);
+                __m256i _sl10_01 = _mm256_mullo_epi16(_val10_16, _w01_16);
+                __m256i _sh10_01 = _mm256_mulhi_epi16(_val10_16, _w01_16);
+                __m256i _sl02_13 = _mm256_mullo_epi16(_val01_16, _w23_16);
+                __m256i _sh02_13 = _mm256_mulhi_epi16(_val01_16, _w23_16);
+                __m256i _sl12_03 = _mm256_mullo_epi16(_val10_16, _w23_16);
+                __m256i _sh12_03 = _mm256_mulhi_epi16(_val10_16, _w23_16);
+
+                _sum00_11 = _mm256_add_epi32(_sum00_11, _mm256_unpacklo_epi16(_sl00_11, _sh00_11));
+                _sum10_01 = _mm256_add_epi32(_sum10_01, _mm256_unpacklo_epi16(_sl10_01, _sh10_01));
+                _sum02_13 = _mm256_add_epi32(_sum02_13, _mm256_unpacklo_epi16(_sl02_13, _sh02_13));
+                _sum12_03 = _mm256_add_epi32(_sum12_03, _mm256_unpacklo_epi16(_sl12_03, _sh12_03));
+                _sum00_11 = _mm256_add_epi32(_sum00_11, _mm256_unpackhi_epi16(_sl00_11, _sh00_11));
+                _sum10_01 = _mm256_add_epi32(_sum10_01, _mm256_unpackhi_epi16(_sl10_01, _sh10_01));
+                _sum02_13 = _mm256_add_epi32(_sum02_13, _mm256_unpackhi_epi16(_sl02_13, _sh02_13));
+                _sum12_03 = _mm256_add_epi32(_sum12_03, _mm256_unpackhi_epi16(_sl12_03, _sh12_03));
+
+                __m128i _val23 = _mm_loadu_si128((const __m128i*)(tmpptr + 16));
+                __m256i _val23_16 = _mm256_cvtepi8_epi16(_val23);
+                __m256i _val32_16 = _mm256_permute4x64_epi64(_val23_16, 78);
+
+                __m256i _sl04_15 = _mm256_mullo_epi16(_val23_16, _w01_16);
+                __m256i _sh04_15 = _mm256_mulhi_epi16(_val23_16, _w01_16);
+                __m256i _sl14_05 = _mm256_mullo_epi16(_val32_16, _w01_16);
+                __m256i _sh14_05 = _mm256_mulhi_epi16(_val32_16, _w01_16);
+                __m256i _sl06_17 = _mm256_mullo_epi16(_val23_16, _w23_16);
+                __m256i _sh06_17 = _mm256_mulhi_epi16(_val23_16, _w23_16);
+                __m256i _sl16_07 = _mm256_mullo_epi16(_val32_16, _w23_16);
+                __m256i _sh16_07 = _mm256_mulhi_epi16(_val32_16, _w23_16);
+
+                _sum04_15 = _mm256_add_epi32(_sum04_15, _mm256_unpacklo_epi16(_sl04_15, _sh04_15));
+                _sum14_05 = _mm256_add_epi32(_sum14_05, _mm256_unpacklo_epi16(_sl14_05, _sh14_05));
+                _sum06_17 = _mm256_add_epi32(_sum06_17, _mm256_unpacklo_epi16(_sl06_17, _sh06_17));
+                _sum16_07 = _mm256_add_epi32(_sum16_07, _mm256_unpacklo_epi16(_sl16_07, _sh16_07));
+                _sum04_15 = _mm256_add_epi32(_sum04_15, _mm256_unpackhi_epi16(_sl04_15, _sh04_15));
+                _sum14_05 = _mm256_add_epi32(_sum14_05, _mm256_unpackhi_epi16(_sl14_05, _sh14_05));
+                _sum06_17 = _mm256_add_epi32(_sum06_17, _mm256_unpackhi_epi16(_sl06_17, _sh06_17));
+                _sum16_07 = _mm256_add_epi32(_sum16_07, _mm256_unpackhi_epi16(_sl16_07, _sh16_07));
+
+                tmpptr += 32;
+                kptr0 += 32;
+            }
+
+            // transpose 4x8
+            {
+                __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                _tmp0 = _mm256_unpacklo_epi32(_sum00_11, _sum10_01);
+                _tmp1 = _mm256_unpacklo_epi32(_sum02_13, _sum12_03);
+                _tmp2 = _mm256_unpackhi_epi32(_sum00_11, _sum10_01);
+                _tmp3 = _mm256_unpackhi_epi32(_sum02_13, _sum12_03);
+                _sum00_11 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                _sum10_01 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                _sum02_13 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                _sum12_03 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+            }
+            {
+                __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                _tmp0 = _mm256_unpacklo_epi32(_sum04_15, _sum14_05);
+                _tmp1 = _mm256_unpacklo_epi32(_sum06_17, _sum16_07);
+                _tmp2 = _mm256_unpackhi_epi32(_sum04_15, _sum14_05);
+                _tmp3 = _mm256_unpackhi_epi32(_sum06_17, _sum16_07);
+                _sum04_15 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                _sum14_05 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                _sum06_17 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                _sum16_07 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+            }
+
+            _sum00_11 = _mm256_add_epi32(_sum00_11, _sum10_01);
+            _sum02_13 = _mm256_add_epi32(_sum02_13, _sum12_03);
+            _sum00_11 = _mm256_add_epi32(_sum00_11, _sum02_13);
+
+            _sum04_15 = _mm256_add_epi32(_sum04_15, _sum14_05);
+            _sum06_17 = _mm256_add_epi32(_sum06_17, _sum16_07);
+            _sum04_15 = _mm256_add_epi32(_sum04_15, _sum06_17);
+
+            __m256i _perm_mask = _mm256_set_epi32(6, 3, 4, 1, 7, 2, 5, 0);
+            _sum00_11 = _mm256_permutevar8x32_epi32(_sum00_11, _perm_mask);
+            _sum04_15 = _mm256_permutevar8x32_epi32(_sum04_15, _perm_mask);
+
+            _mm256_storeu_si256((__m256i*)outptr0, _sum00_11);
+            _mm256_storeu_si256((__m256i*)(outptr0 + 8), _sum04_15);
+            outptr0 += 16;
+        }
+#endif
         for (; i + 1 < size; i += 2)
         {
+#if __AVX2__
+            const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
+#else
             const signed char* tmpptr = tmp.channel(i / 2);
+#endif
             const signed char* kptr0 = kernel.channel(p);
 
             int nn = inch * maxk; // inch always > 0
@@ -252,7 +419,11 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         }
         for (; i < size; i++)
         {
+#if __AVX2__
+            const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
+#else
             const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
+#endif
             const signed char* kptr0 = kernel.channel(p);
 
             int nn = inch * maxk; // inch always > 0
