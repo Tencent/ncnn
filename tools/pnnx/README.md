@@ -86,6 +86,7 @@ Usage: pnnx [model.pt] [(key=value)...]
   pnnxpy=model_pnnx.py
   ncnnparam=model.ncnn.param
   ncnnbin=model.ncnn.bin
+  ncnnpy=model_ncnn.py
   optlevel=2
   device=cpu/gpu
   inputshape=[1,3,224,224],...
@@ -96,7 +97,40 @@ Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
               pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect
 ```
 
+Parameters:
+
+`pnnxparam` (default="*.pnnx.param", * is the model name): PNNX graph definition file
+
+`pnnxbin` (default="*.pnnx.bin"): PNNX model weight
+
+`pnnxpy` (default="*_pnnx.py"): PyTorch script for inference, including model construction and weight initialization code
+
+`ncnnparam` (default="*.ncnn.param"): ncnn graph definition
+
+`ncnnbin` (default="*.ncnn.bin"): ncnn model weight
+
+`ncnnpy` (default="*_ncnn.py"): pyncnn script for inference
+
+`optlevel` (default=2): graph optimization level 
+
+| Option | Optimization level              |
+|--------|---------------------------------|
+|   0    | do not apply optimization       |
+|   1    | optimization for inference      |
+|   2    | optimization more for inference |
+
+`device` (default="cpu"): device type for the input in TorchScript model, cpu or gpu
+
+`inputshape` (Optional): shapes of model inputs. It is used to resolve tensor shapes in model graph. for example, `[1,3,224,224]` for the model with only 1 input, `[1,3,224,224],[1,3,224,224]` for the model that have 2 inputs.
+
+`inputshape2` (Optional): shapes of alternative model inputs, the format is identical to `inputshape`. Usually, it is used with `inputshape` to resolve dynamic shape (-1) in model graph.
+
+`customop` (Optional): list of Torch extensions (dynamic library) for custom operators, separated by ",". For example, `/home/nihui/.cache/torch_extensions/fused/fused.so,...`
+
+`moduleop` (Optional): list of modules to keep as one big operator, separated by ",". for example, `models.common.Focus,models.yolo.Detect`
+
 # The pnnx.param format
+
 ### example
 ```
 7767517
