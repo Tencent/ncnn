@@ -38,7 +38,6 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         tmp.create(maxk, inch, size, 8u, 8, opt.workspace_allocator);
 #endif
     {
-
 #if __AVX2__
         int remain_size_start = 0;
         int nn_size = size >> 2;
