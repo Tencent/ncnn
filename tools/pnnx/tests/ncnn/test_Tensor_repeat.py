@@ -54,8 +54,6 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):
-            print(a0)
-            print(b0)
             return False
     return True
 
