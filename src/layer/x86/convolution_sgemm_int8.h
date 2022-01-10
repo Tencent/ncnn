@@ -461,12 +461,9 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 {
 #if __AVX2__
                     __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
-                    _val01 = _mm_cvtepi8_epi16(_val01);
+                    __m256i _val01_16 = _mm256_cvtepi8_epi16(_val01);
 
-                    __m128i _val0 = _mm_shuffle_epi32(_val01, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m128i _val1 = _mm_shuffle_epi32(_val01, _MM_SHUFFLE(3, 2, 3, 2));
-
-                    __m256i _val01_16 = _mm256_set_m128i(_val1, _val0);
+                    _val01_16 = _mm256_permute4x64_epi64(_val01_16, _MM_SHUFFLE(1, 1, 0, 0));
 
                     __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr0);
                     __m256i _w01_16 = _mm256_cvtepi8_epi16(_w01);
