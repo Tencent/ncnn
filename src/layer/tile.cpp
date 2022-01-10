@@ -14,6 +14,8 @@
 
 #include "tile.h"
 
+#include <algorithm>
+
 namespace ncnn {
 
 Tile::Tile()
@@ -38,6 +40,8 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     int repeat_h = 1;
     int repeat_d = 1;
     int repeat_c = 1;
+
+    const int repeats_num = repeats.w;
 
     if (repeats.empty())
     {
@@ -68,7 +72,6 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     {
         // numpy style tile
         const int* repeats_ptr = repeats;
-        int repeats_num = repeats.w;
 
         if (repeats_num == 1)
         {
@@ -103,60 +106,70 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         }
     }
 
-    if (repeat_w == 1 && repeat_h == 1 && repeat_d == 1 && repeat_c == 1)
-    {
-        top_blob = bottom_blob;
-        return 0;
-    }
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
 
+    const int outdims = std::max(dims, repeats_num);
     if (repeat_w != 1 && repeat_h == 1 && repeat_d == 1 && repeat_c == 1)
     {
-        if (dims == 1)
+        if (outdims == 1)
             top_blob.create(w * repeat_w, elemsize, opt.blob_allocator);
-        if (dims == 2)
+        if (outdims == 2)
             top_blob.create(w * repeat_w, h, elemsize, opt.blob_allocator);
-        if (dims == 3)
+        if (outdims == 3)
             top_blob.create(w * repeat_w, h, channels, elemsize, opt.blob_allocator);
-        if (dims == 4)
+        if (outdims == 4)
             top_blob.create(w * repeat_w, h, d, channels, elemsize, opt.blob_allocator);
     }
     else if (repeat_h != 1 && repeat_d == 1 && repeat_c == 1)
     {
-        if (dims == 1)
+        if (outdims == 1)
             top_blob.create(w * repeat_w, repeat_h, elemsize, opt.blob_allocator);
-        if (dims == 2)
+        if (outdims == 2)
             top_blob.create(w * repeat_w, h * repeat_h, elemsize, opt.blob_allocator);
-        if (dims == 3)
+        if (outdims == 3)
             top_blob.create(w * repeat_w, h * repeat_h, channels, elemsize, opt.blob_allocator);
-        if (dims == 4)
+        if (outdims == 4)
             top_blob.create(w * repeat_w, h * repeat_h, d, channels, elemsize, opt.blob_allocator);
     }
     else if (repeat_d == 1 && repeat_c != 1)
     {
-        if (dims == 1)
+        if (outdims == 1)
             top_blob.create(w * repeat_w, repeat_h, repeat_c, elemsize, opt.blob_allocator);
-        if (dims == 2)
+        if (outdims == 2)
             top_blob.create(w * repeat_w, h * repeat_h, repeat_c, elemsize, opt.blob_allocator);
-        if (dims == 3)
+        if (outdims == 3)
             top_blob.create(w * repeat_w, h * repeat_h, channels * repeat_c, elemsize, opt.blob_allocator);
-        if (dims == 4)
+        if (outdims == 4)
             top_blob.create(w * repeat_w, h * repeat_h, d, channels * repeat_c, elemsize, opt.blob_allocator);
     }
-    else // if (repeat_d != 1 && repeat_c != 1)
+    else if (repeat_d != 1 && repeat_c != 1)
     {
-        if (dims == 1)
+        if (outdims == 1)
             top_blob.create(w * repeat_w, repeat_h, repeat_d, repeat_c, elemsize, opt.blob_allocator);
-        if (dims == 2)
+        if (outdims == 2)
             top_blob.create(w * repeat_w, h * repeat_h, repeat_d, repeat_c, elemsize, opt.blob_allocator);
-        if (dims == 3)
+        if (outdims == 3)
             top_blob.create(w * repeat_w, h * repeat_h, repeat_d, channels * repeat_c, elemsize, opt.blob_allocator);
-        if (dims == 4)
+        if (outdims == 4)
+            top_blob.create(w * repeat_w, h * repeat_h, d * repeat_d, channels * repeat_c, elemsize, opt.blob_allocator);
+    }
+    else // all ones
+    {
+        if (repeats_num == 0 || dims == repeats_num)
+        {
+            top_blob = bottom_blob;
+            return 0;
+        }
+
+        if (outdims == 2)
+            top_blob.create(w * repeat_w, h * repeat_h, elemsize, opt.blob_allocator);
+        if (outdims == 3)
+            top_blob.create(w * repeat_w, h * repeat_h, channels * repeat_c, elemsize, opt.blob_allocator);
+        if (outdims == 4)
             top_blob.create(w * repeat_w, h * repeat_h, d * repeat_d, channels * repeat_c, elemsize, opt.blob_allocator);
     }
     if (top_blob.empty())
