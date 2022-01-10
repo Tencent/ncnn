@@ -109,8 +109,6 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         return 0;
     }
 
-    fprintf(stderr, "repeat %d %d %d %d\n", repeat_w, repeat_h, repeat_d, repeat_c);
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int d = bottom_blob.d;
@@ -187,23 +185,27 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         for (int z = 0; z < d; z++)
         {
             const float* ptr = top_blob.channel(q).depth(z);
-            float* outptr = top_blob.channel(q).depth(z).row(1);
+            float* outptr = top_blob.channel(q).depth(z).row(h);
 
+            const int size = w * repeat_w * h;
             for (int p = 1; p < repeat_h; p++)
             {
-                memcpy(outptr, ptr, w * repeat_w * sizeof(float));
-                outptr += w * repeat_w;
+                memcpy(outptr, ptr, size * sizeof(float));
+                outptr += size;
             }
         }
 
         // repeat 1-d
-        const float* ptr = top_blob.channel(q);
-        float* outptr = top_blob.channel(q).depth(1);
-
-        for (int p = 1; p < repeat_d; p++)
         {
-            memcpy(outptr, ptr, w * repeat_w * h * repeat_h * sizeof(float));
-            outptr += w * repeat_w * h * repeat_h;
+            const float* ptr = top_blob.channel(q);
+            float* outptr = top_blob.channel(q).depth(d);
+
+            const int size = w * repeat_w * h * repeat_h * d;
+            for (int p = 1; p < repeat_d; p++)
+            {
+                memcpy(outptr, ptr, size * sizeof(float));
+                outptr += size;
+            }
         }
     }
 
