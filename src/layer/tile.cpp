@@ -14,8 +14,6 @@
 
 #include "tile.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Tile::Tile()
