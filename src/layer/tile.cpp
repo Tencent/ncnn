@@ -124,8 +124,6 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     }
     else if (repeat_h != 1 && repeat_d == 1 && repeat_c == 1)
     {
-        if (outdims == 1)
-            top_blob.create(w * repeat_w, repeat_h, elemsize, opt.blob_allocator);
         if (outdims == 2)
             top_blob.create(w * repeat_w, h * repeat_h, elemsize, opt.blob_allocator);
         if (outdims == 3)
@@ -135,10 +133,6 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     }
     else if (repeat_d == 1 && repeat_c != 1)
     {
-        if (outdims == 1)
-            top_blob.create(w * repeat_w, repeat_h, repeat_c, elemsize, opt.blob_allocator);
-        if (outdims == 2)
-            top_blob.create(w * repeat_w, h * repeat_h, repeat_c, elemsize, opt.blob_allocator);
         if (outdims == 3)
             top_blob.create(w * repeat_w, h * repeat_h, channels * repeat_c, elemsize, opt.blob_allocator);
         if (outdims == 4)
@@ -146,12 +140,6 @@ int Tile::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
     }
     else if (repeat_d != 1 && repeat_c != 1)
     {
-        if (outdims == 1)
-            top_blob.create(w * repeat_w, repeat_h, repeat_d, repeat_c, elemsize, opt.blob_allocator);
-        if (outdims == 2)
-            top_blob.create(w * repeat_w, h * repeat_h, repeat_d, repeat_c, elemsize, opt.blob_allocator);
-        if (outdims == 3)
-            top_blob.create(w * repeat_w, h * repeat_h, repeat_d, channels * repeat_c, elemsize, opt.blob_allocator);
         if (outdims == 4)
             top_blob.create(w * repeat_w, h * repeat_h, d * repeat_d, channels * repeat_c, elemsize, opt.blob_allocator);
     }

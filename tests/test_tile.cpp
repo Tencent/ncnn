@@ -216,6 +216,7 @@ static int test_tile_3()
            || test_tile(c, IntArrayMat(3))
            || test_tile(c, IntArrayMat(4, 3))
            || test_tile(c, IntArrayMat(1))
+           || test_tile(c, IntArrayMat(1, 1))
            || test_tile(c, IntArrayMat(1, 1, 1))
            || test_tile(c, IntArrayMat(1, 3, 2, 2));
 }
