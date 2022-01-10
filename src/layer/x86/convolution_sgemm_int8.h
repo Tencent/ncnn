@@ -448,10 +448,10 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 int j = 0;
                 for (; j + 1 < nn; j += 2)
                 {
-//                     int8x16_t _val = vld1q_s8(tmpptr);
+                    //                     int8x16_t _val = vld1q_s8(tmpptr);
 
-//                     int8x16_t _w01 = vld1q_s8(kptr0);
-//                     int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+                    //                     int8x16_t _w01 = vld1q_s8(kptr0);
+                    //                     int8x16_t _w23 = vld1q_s8(kptr0 + 16);
 
                     // TODO use _mm_cvtepi8_epi16 on sse4.1
                     __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
@@ -505,23 +505,23 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                     _sum3 = _mm_add_epi32(_sum3, _mm_unpacklo_epi16(_sl13, _sh13));
                     _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl13, _sh13));
 
-//                     int16x8_t _wv0 = vmull_s8(vget_low_s8(_val), vget_low_s8(_w01));
-//                     int16x8_t _wv1 = vmull_s8(vget_low_s8(_val), vget_high_s8(_w01));
-//                     int16x8_t _wv2 = vmull_s8(vget_low_s8(_val), vget_low_s8(_w23));
-//                     int16x8_t _wv3 = vmull_s8(vget_low_s8(_val), vget_high_s8(_w23));
-//
-//                     int8x16_t _w45 = vld1q_s8(kptr0 + 32);
-//                     int8x16_t _w67 = vld1q_s8(kptr0 + 48);
-//
-//                     _wv0 = vmlal_s8(_wv0, vget_high_s8(_val), vget_low_s8(_w45));
-//                     _wv1 = vmlal_s8(_wv1, vget_high_s8(_val), vget_high_s8(_w45));
-//                     _wv2 = vmlal_s8(_wv2, vget_high_s8(_val), vget_low_s8(_w67));
-//                     _wv3 = vmlal_s8(_wv3, vget_high_s8(_val), vget_high_s8(_w67));
-//
-//                     _sum0 = vpadalq_s16(_sum0, _wv0);
-//                     _sum1 = vpadalq_s16(_sum1, _wv1);
-//                     _sum2 = vpadalq_s16(_sum2, _wv2);
-//                     _sum3 = vpadalq_s16(_sum3, _wv3);
+                    //                     int16x8_t _wv0 = vmull_s8(vget_low_s8(_val), vget_low_s8(_w01));
+                    //                     int16x8_t _wv1 = vmull_s8(vget_low_s8(_val), vget_high_s8(_w01));
+                    //                     int16x8_t _wv2 = vmull_s8(vget_low_s8(_val), vget_low_s8(_w23));
+                    //                     int16x8_t _wv3 = vmull_s8(vget_low_s8(_val), vget_high_s8(_w23));
+                    //
+                    //                     int8x16_t _w45 = vld1q_s8(kptr0 + 32);
+                    //                     int8x16_t _w67 = vld1q_s8(kptr0 + 48);
+                    //
+                    //                     _wv0 = vmlal_s8(_wv0, vget_high_s8(_val), vget_low_s8(_w45));
+                    //                     _wv1 = vmlal_s8(_wv1, vget_high_s8(_val), vget_high_s8(_w45));
+                    //                     _wv2 = vmlal_s8(_wv2, vget_high_s8(_val), vget_low_s8(_w67));
+                    //                     _wv3 = vmlal_s8(_wv3, vget_high_s8(_val), vget_high_s8(_w67));
+                    //
+                    //                     _sum0 = vpadalq_s16(_sum0, _wv0);
+                    //                     _sum1 = vpadalq_s16(_sum1, _wv1);
+                    //                     _sum2 = vpadalq_s16(_sum2, _wv2);
+                    //                     _sum3 = vpadalq_s16(_sum3, _wv3);
 
                     tmpptr += 16;
                     kptr0 += 64;
