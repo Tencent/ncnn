@@ -20,14 +20,13 @@ on:
     - 'src/layer/*'
     - 'src/layer/x86/**'
     - 'tests/**'
+concurrency:
+  group: windows-x86-cpu-vs2019-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   windows-vs2019:
     runs-on: windows-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
     - name: build
       run: |

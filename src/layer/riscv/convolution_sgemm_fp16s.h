@@ -398,7 +398,7 @@ static void convolution_im2col_sgemm_transform_kernel_fp16sa_rvv(const Mat& _ker
     // dst = 8b-maxk-inch-outch/8b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __riscv_vector
-    kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + outch % 4, 2u);
+    kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)2u);
 
     int q = 0;
     for (; q + 7 < outch; q += 8)

@@ -219,7 +219,9 @@
 
 - ## vkCreateInstance failed -9
 
-   驱动
+   出现此类问题请先更新GPU驱动。Please upgrade your GPU driver if you encounter this crash or error.
+   这里提供了一些品牌的GPU驱动下载网址.We have provided some drivers' download pages here.
+   [Intel](https://downloadcenter.intel.com/product/80939/Graphics-Drivers)，[AMD](https://www.amd.com/en/support)，[Nvidia](https://www.nvidia.com/Download/index.aspx)
 
 - ## ModuleNotFoundError: No module named 'ncnn.ncnn'
 

@@ -939,7 +939,7 @@ int RNN_arm::create_pipeline_fp16s(const Option& opt)
         }
     }
 
-    cast_float32_to_float16(bias_c_data, bias_c_data_packed);
+    cast_float32_to_float16(bias_c_data, bias_c_data_packed, opt);
 
     return 0;
 }
@@ -1453,11 +1453,11 @@ int RNN_arm::create_pipeline_bf16s(const Option& opt)
         }
     }
 #else
-    cast_float32_to_bfloat16(weight_xc_data, weight_xc_data_packed);
-    cast_float32_to_bfloat16(weight_hc_data, weight_hc_data_packed);
+    cast_float32_to_bfloat16(weight_xc_data, weight_xc_data_packed, opt);
+    cast_float32_to_bfloat16(weight_hc_data, weight_hc_data_packed, opt);
 #endif
 
-    cast_float32_to_bfloat16(bias_c_data, bias_c_data_packed);
+    cast_float32_to_bfloat16(bias_c_data, bias_c_data_packed, opt);
 
     return 0;
 }

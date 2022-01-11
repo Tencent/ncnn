@@ -60,6 +60,11 @@ static bool operand_maybe_tensor(Operand* operand)
         return operand_maybe_tensor(op->inputs[0]);
     }
 
+    if (op->type == "aten::ScalarImplicit")
+    {
+        return false;
+    }
+
     if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::pow")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
@@ -191,7 +196,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         fuse_expression(graph, op->inputs[0], expr, inputs);
         expr += ")";
     }
-    else if (op->type == "aten::to" || op->type == "aten::detach")
+    else if (op->type == "aten::to" || op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
     {
         fuse_expression(graph, op->inputs[0], expr, inputs);
     }
@@ -339,7 +344,7 @@ void fuse_expression(Graph& graph)
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::to" || op->type == "aten::detach")
+            if (op->type == "aten::to" || op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
             {
                 need_fuse = true;
             }

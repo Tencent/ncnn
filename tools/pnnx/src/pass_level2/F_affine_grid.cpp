@@ -23,8 +23,8 @@ public:
     {
         return R"PNNXIR(7767517
 5 4
-pnnx.Input              input_1     0 1 theta
-pnnx.Input              input_2     0 1 size
+pnnx.Input              input_0     0 1 theta
+pnnx.Input              input_1     0 1 size
 prim::Constant          op_0        0 1 align_corners value=%align_corners
 aten::affine_grid_generator op_1    3 1 theta size align_corners out
 pnnx.Output             output      1 0 out

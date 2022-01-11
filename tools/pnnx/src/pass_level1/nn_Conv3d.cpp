@@ -14,7 +14,7 @@
 
 #include "pass_level1.h"
 
-#include "../pass_level3/fuse_expression.h"
+// #include "../pass_level3/fuse_expression.h"
 
 #include "../utils.h"
 
@@ -102,6 +102,7 @@ public:
         //         }
         //         else
         {
+            op->params["padding_mode"] = "zeros";
             op->params["padding"] = convolution->namedInput("padding");
         }
         op->params["dilation"] = convolution->namedInput("dilation");

@@ -88,7 +88,7 @@ int DeconvolutionDepthWise_riscv::create_pipeline(const Option& opt)
         if (elempack == packn)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, packn);
+            convert_packing(weight_data_r2, weight_data_packed, packn, opt);
         }
 #endif // __riscv_vector
 
@@ -478,7 +478,7 @@ int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
             Mat weight_data_r2_packed;
-            convert_packing(weight_data_r2, weight_data_r2_packed, packn);
+            convert_packing(weight_data_r2, weight_data_r2_packed, packn, opt);
 
             ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_fp16, opt);
         }

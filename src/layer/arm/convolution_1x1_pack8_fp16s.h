@@ -25,7 +25,7 @@ static void conv1x1s1_sgemm_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_b
     im2col_sgemm_pack8_fp16sa_neon(bottom_im2col, top_blob, kernel, _bias, opt);
 }
 
-static void conv1x1s2_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+static void conv1x1s2_sgemm_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;

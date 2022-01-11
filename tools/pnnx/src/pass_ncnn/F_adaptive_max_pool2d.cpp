@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.adaptive_max_pool2d   op_0        1 1 input out output_size=(1,1)
+F.adaptive_max_pool2d   op_0        1 1 input out output_size=(1,1) return_indices=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -58,7 +58,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-F.adaptive_max_pool2d   op_0        1 1 input out output_size=%output_size
+F.adaptive_max_pool2d   op_0        1 1 input out output_size=%output_size return_indices=False
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }

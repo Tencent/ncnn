@@ -15,6 +15,13 @@
 #ifndef X86_USABILITY_H
 #define X86_USABILITY_H
 
+#if __SSE2__
+#include <emmintrin.h>
+#if __AVX__
+#include <immintrin.h>
+#endif
+#endif // __SSE2__
+
 static NCNN_FORCEINLINE signed char float2int8(float v)
 {
     int int32 = (int)round(v);
@@ -24,13 +31,44 @@ static NCNN_FORCEINLINE signed char float2int8(float v)
 }
 
 #if __SSE2__
-#include <emmintrin.h>
-
 static NCNN_FORCEINLINE float _mm_reduce_add_ps(__m128 x128)
 {
     const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
     const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
+}
+
+static NCNN_FORCEINLINE int _mm_reduce_add_epi32(__m128i x)
+{
+    __m128i hi64 = _mm_unpackhi_epi64(x, x);
+    __m128i sum64 = _mm_add_epi32(hi64, x);
+    __m128i hi32 = _mm_shuffle_epi32(sum64, _MM_SHUFFLE(2, 3, 0, 1));
+    __m128i sum32 = _mm_add_epi32(sum64, hi32);
+    return _mm_cvtsi128_si32(sum32);
+}
+
+static NCNN_FORCEINLINE int32_t float2int8_sse(const __m128& _v0)
+{
+    // _MM_ROUND_NEAREST round to even
+    // simulate round to nearest via +/-0.5 with round to zero
+    __m128 _p5 = _mm_set1_ps(0.5f);
+    __m128 _signmask = _mm_castsi128_ps(_mm_set1_epi32(1 << 31));
+    __m128 _sign0 = _mm_and_ps(_v0, _signmask);
+    __m128 _v0_p5 = _mm_or_ps(_p5, _sign0);
+    __m128 _v0_adj = _mm_add_ps(_v0, _v0_p5);
+    __m128i _v0_i = _mm_cvttps_epi32(_v0_adj);
+
+    __m128i _v0_s16 = _mm_packs_epi32(_v0_i, _v0_i);
+
+    _v0_s16 = _mm_min_epi16(_v0_s16, _mm_set1_epi16(127));
+    _v0_s16 = _mm_max_epi16(_v0_s16, _mm_set1_epi16(-127));
+
+    __m128i _v8 = _mm_packs_epi16(_v0_s16, _v0_s16);
+
+    // TODO use _mm_cvtsi128_si64 on 64bit target
+    int32_t v8[4];
+    _mm_storeu_si128((__m128i*)v8, _v8);
+    return v8[0];
 }
 
 static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& _v1)
@@ -96,7 +134,7 @@ static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& 
 
     return _v8;
 }
-#if __SSE2__
+
 #ifndef __AVX2__
 
 static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
@@ -104,9 +142,8 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, con
     return _mm_add_ps(_mm_mul_ps(_a, _b), _c);
 }
 #endif
-#endif
+
 #if __AVX__
-#include <immintrin.h>
 #ifndef __AVX2__
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
 {
@@ -128,13 +165,14 @@ static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, 
     return _mm256_fmadd_ps(_a, _b, _c);
 }
 #endif
-#if __AVX2__
 
+#if __AVX2__
 static NCNN_FORCEINLINE __m256 loadfp16(const unsigned short* ptr)
 {
     return _mm256_cvtph_ps(_mm_lddqu_si128((__m128i*)(ptr)));
 }
 #endif
+
 static NCNN_FORCEINLINE __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
 {
     return _mm256_comp_fmadd_ps(b, _mm256_set1_ps(c), a);

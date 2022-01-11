@@ -29,7 +29,7 @@ class Model(nn.Module):
         y = y[:1,:y.size(1):,:,:]
         z = z[4:]
         z = z[:2,:,:,:,2:-2:3]
-        z = z[:,:,z.size(3)-3:,:,:]
+        z = z[:,:,:,z.size(3)-3:,:]
         return x, y, z
 
 def test():

@@ -378,7 +378,7 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (bias_term)
     {
         Mat bias_data_packed;
-        convert_packing(bias_data, bias_data_packed, out_elempack);
+        convert_packing(bias_data, bias_data_packed, out_elempack, opt);
 
         if (support_image_storage && opt.use_image_storage)
         {

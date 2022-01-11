@@ -22,6 +22,7 @@
 #cmakedefine01 NCNN_SIMPLESTL
 #cmakedefine01 NCNN_THREADS
 #cmakedefine01 NCNN_BENCHMARK
+#cmakedefine01 NCNN_C_API
 #cmakedefine01 NCNN_PLATFORM_API
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE

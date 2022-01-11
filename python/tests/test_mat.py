@@ -151,6 +151,64 @@ def test_mat_dims3():
     )
 
 
+def test_mat_dims4():
+    mat = ncnn.Mat(1, 2, 3, 4)
+    assert mat.dims == 4 and mat.w == 1 and mat.h == 2 and mat.d == 3 and mat.c == 4
+    mat = ncnn.Mat(4, 5, 6, 7, elemsize=4)
+    assert (
+        mat.dims == 4 and mat.w == 4 and mat.h == 5 and mat.d == 6 and mat.c == 7 and mat.elemsize == 4
+    )
+    mat = ncnn.Mat(7, 8, 9, 10, elemsize=4, elempack=1)
+    assert (
+        mat.dims == 4
+        and mat.w == 7
+        and mat.h == 8
+        and mat.d == 9
+        and mat.c == 10
+        and mat.elemsize == 4
+        and mat.elempack == 1
+    )
+    mat = ncnn.Mat(10, 11, 12, 13, elemsize=4, elempack=1, allocator=None)
+    assert (
+        mat.dims == 4
+        and mat.w == 10
+        and mat.h == 11
+        and mat.d == 12
+        and mat.c == 13
+        and mat.elemsize == 4
+        and mat.elempack == 1
+        and mat.allocator == None
+    )
+
+    mat = ncnn.Mat((1, 2, 3, 4))
+    assert mat.dims == 4 and mat.w == 1 and mat.h == 2 and mat.d == 3 and mat.c == 4
+    mat = ncnn.Mat((4, 5, 6, 7), elemsize=4)
+    assert (
+        mat.dims == 4 and mat.w == 4 and mat.h == 5 and mat.d == 6 and mat.c == 7 and mat.elemsize == 4
+    )
+    mat = ncnn.Mat((7, 8, 9, 10), elemsize=4, elempack=1)
+    assert (
+        mat.dims == 4
+        and mat.w == 7
+        and mat.h == 8
+        and mat.d == 9
+        and mat.c == 10
+        and mat.elemsize == 4
+        and mat.elempack == 1
+    )
+    mat = ncnn.Mat((10, 11, 12, 13), elemsize=4, elempack=1, allocator=None)
+    assert (
+        mat.dims == 4
+        and mat.w == 10
+        and mat.h == 11
+        and mat.d == 12
+        and mat.c == 13
+        and mat.elemsize == 4
+        and mat.elempack == 1
+        and mat.allocator == None
+    )
+
+
 def test_numpy():
     mat = ncnn.Mat(1)
     array = np.array(mat)
@@ -166,6 +224,15 @@ def test_numpy():
         mat.dims == array.ndim
         and mat.w == array.shape[2]
         and mat.h == array.shape[1]
+        and mat.c == array.shape[0]
+    )
+    mat = ncnn.Mat(7, 8, 9, 10)
+    array = np.array(mat)
+    assert (
+        mat.dims == array.ndim
+        and mat.w == array.shape[3]
+        and mat.h == array.shape[2]
+        and mat.d == array.shape[1]
         and mat.c == array.shape[0]
     )
 
@@ -205,6 +272,12 @@ def test_numpy():
     mat = np.random.rand(12, 11, 3).astype(np.float32)
     array = np.array(mat)
     assert (mat == array).all()
+    mat = np.random.randint(0, 256, size=(12, 11, 7, 3)).astype(np.uint8)
+    array = np.array(mat)
+    assert (mat == array).all()
+    mat = np.random.rand(12, 11, 7, 3).astype(np.float32)
+    array = np.array(mat)
+    assert (mat == array).all()
 
 
 def test_fill():
@@ -232,6 +305,16 @@ def test_clone():
         and mat1.c == mat2.c
     )
 
+    mat1 = ncnn.Mat(7, 8, 9, 10)
+    mat2 = mat1.clone()
+    assert (
+        mat1.dims == mat2.dims
+        and mat1.w == mat2.w
+        and mat1.h == mat2.h
+        and mat1.d == mat2.d
+        and mat1.c == mat2.c
+    )
+
     mat1 = ncnn.Mat((1,))
     mat2 = mat1.clone()
     assert mat1.dims == mat2.dims and mat1.w == mat2.w
@@ -246,6 +329,16 @@ def test_clone():
         mat1.dims == mat2.dims
         and mat1.w == mat2.w
         and mat1.h == mat2.h
+        and mat1.c == mat2.c
+    )
+
+    mat1 = ncnn.Mat((7, 8, 9, 10))
+    mat2 = mat1.clone()
+    assert (
+        mat1.dims == mat2.dims
+        and mat1.w == mat2.w
+        and mat1.h == mat2.h
+        and mat1.d == mat2.d
         and mat1.c == mat2.c
     )
 
@@ -270,6 +363,16 @@ def test_clone_from():
         and mat1.c == mat2.c
     )
 
+    mat1 = ncnn.Mat(7, 8, 9, 10)
+    mat2.clone_from(mat1)
+    assert (
+        mat1.dims == mat2.dims
+        and mat1.w == mat2.w
+        and mat1.h == mat2.h
+        and mat1.d == mat2.d
+        and mat1.c == mat2.c
+    )
+
     mat1 = ncnn.Mat((1,))
     mat2.clone_from(mat1)
     assert mat1.dims == mat2.dims and mat1.w == mat2.w
@@ -287,6 +390,16 @@ def test_clone_from():
         and mat1.c == mat2.c
     )
 
+    mat1 = ncnn.Mat((7, 8, 9, 10))
+    mat2.clone_from(mat1)
+    assert (
+        mat1.dims == mat2.dims
+        and mat1.w == mat2.w
+        and mat1.h == mat2.h
+        and mat1.d == mat2.d
+        and mat1.c == mat2.c
+    )
+
 
 def test_reshape():
     mat1 = ncnn.Mat()
@@ -296,12 +409,16 @@ def test_reshape():
     assert mat2.dims == 0
     mat2 = mat1.reshape(1, 1, 1)
     assert mat2.dims == 0
+    mat2 = mat1.reshape(1, 1, 1, 1)
+    assert mat2.dims == 0
 
     mat1 = ncnn.Mat(1)
     mat2 = mat1.reshape(1, 1)
     assert mat2.dims == 2 and mat2.w == 1 and mat2.h == 1
     mat2 = mat1.reshape(1, 1, 1)
     assert mat2.dims == 3 and mat2.w == 1 and mat2.h == 1 and mat2.c == 1
+    mat2 = mat1.reshape(1, 1, 1, 1)
+    assert mat2.dims == 4 and mat2.w == 1 and mat2.h == 1 and mat2.d == 1 and mat2.c == 1
 
     mat1 = ncnn.Mat(1, 2)
     mat2 = mat1.reshape(2)
@@ -310,6 +427,8 @@ def test_reshape():
     assert mat2.dims == 2 and mat2.w == 2 and mat2.h == 1
     mat2 = mat1.reshape(2, 1, 1)
     assert mat2.dims == 3 and mat2.w == 2 and mat2.h == 1 and mat2.c == 1
+    mat2 = mat1.reshape(2, 1, 1, 1)
+    assert mat2.dims == 4 and mat2.w == 2 and mat2.h == 1 and mat2.d == 1 and mat2.c == 1
 
     mat1 = ncnn.Mat(1, 2, 3)
     mat2 = mat1.reshape(6)
@@ -318,12 +437,16 @@ def test_reshape():
     assert mat2.dims == 2 and mat2.w == 2 and mat2.h == 3
     mat2 = mat1.reshape(2, 3, 1)
     assert mat2.dims == 3 and mat2.w == 2 and mat2.h == 3 and mat2.c == 1
+    mat2 = mat1.reshape(2, 1, 3, 1)
+    assert mat2.dims == 4 and mat2.w == 2 and mat2.h == 1 and mat2.d == 3 and mat2.c == 1
 
     mat1 = ncnn.Mat((1,))
     mat2 = mat1.reshape((1, 1))
     assert mat2.dims == 2 and mat2.w == 1 and mat2.h == 1
     mat2 = mat1.reshape((1, 1, 1))
     assert mat2.dims == 3 and mat2.w == 1 and mat2.h == 1 and mat2.c == 1
+    mat2 = mat1.reshape((1, 1, 1, 1))
+    assert mat2.dims == 4 and mat2.w == 1 and mat2.h == 1 and mat2.d == 1 and mat2.c == 1
 
     mat1 = ncnn.Mat((1, 2))
     mat2 = mat1.reshape((2,))
@@ -332,6 +455,8 @@ def test_reshape():
     assert mat2.dims == 2 and mat2.w == 2 and mat2.h == 1
     mat2 = mat1.reshape((2, 1, 1))
     assert mat2.dims == 3 and mat2.w == 2 and mat2.h == 1 and mat2.c == 1
+    mat2 = mat1.reshape((2, 1, 1, 1))
+    assert mat2.dims == 4 and mat2.w == 2 and mat2.h == 1 and mat2.d == 1 and mat2.c == 1
 
     mat1 = ncnn.Mat((1, 2, 3))
     mat2 = mat1.reshape((6,))
@@ -340,9 +465,12 @@ def test_reshape():
     assert mat2.dims == 2 and mat2.w == 2 and mat2.h == 3 and mat2.c == 1
     mat2 = mat1.reshape((2, 3, 1))
     assert mat2.dims == 3 and mat2.w == 2 and mat2.h == 3 and mat2.c == 1
+    mat2 = mat1.reshape((2, 1, 3, 1))
+    assert mat2.dims == 4 and mat2.w == 2 and mat2.h == 1 and mat2.d == 3 and mat2.c == 1
+
     with pytest.raises(RuntimeError) as execinfo:
-        mat1.reshape((1, 1, 1, 1))
-    assert "shape must be 1, 2 or 3 dims, not 4" in str(execinfo.value)
+        mat1.reshape((1, 1, 1, 1, 1))
+    assert "shape must be 1, 2, 3 or 4 dims, not 5" in str(execinfo.value)
 
 
 def test_create():
@@ -353,6 +481,8 @@ def test_create():
     assert mat.dims == 2 and mat.w == 2 and mat.h == 3
     mat.create(4, 5, 6)
     assert mat.dims == 3 and mat.w == 4 and mat.h == 5 and mat.c == 6
+    mat.create(7, 8, 9, 10)
+    assert mat.dims == 4 and mat.w == 7 and mat.h == 8 and mat.d == 9 and mat.c == 10
 
     mat.create((1,))
     assert mat.dims == 1 and mat.w == 1
@@ -360,7 +490,8 @@ def test_create():
     assert mat.dims == 2 and mat.w == 2 and mat.h == 3
     mat.create((4, 5, 6))
     assert mat.dims == 3 and mat.w == 4 and mat.h == 5 and mat.c == 6
-    mat.create((7, 8, 9), elemsize=4)
+    mat.create((7, 8, 9, 10))
+    assert mat.dims == 4 and mat.w == 7 and mat.h == 8 and mat.d == 9 and mat.c == 10
 
 
 def test_create_like():
@@ -378,6 +509,15 @@ def test_create_like():
         mat1.dims == mat2.dims
         and mat1.w == mat2.w
         and mat1.h == mat2.h
+        and mat1.c == mat2.c
+    )
+    mat1 = ncnn.Mat(7, 8, 9, 10)
+    mat2.create_like(mat1)
+    assert (
+        mat1.dims == mat2.dims
+        and mat1.w == mat2.w
+        and mat1.h == mat2.h
+        and mat1.d == mat2.d
         and mat1.c == mat2.c
     )
 
@@ -408,6 +548,8 @@ def test_total():
     assert mat.total() == 2 * 3
     mat = ncnn.Mat(4, 5, 6)
     assert mat.total() == 4 * 5 * 6
+    mat = ncnn.Mat(7, 8, 9, 10)
+    assert mat.total() == 7 * 8 * 9 * 10
 
 
 def test_elembits():
@@ -429,6 +571,22 @@ def test_shape():
     mat = ncnn.Mat(4, 5, 6)
     shape = mat.shape()
     assert shape.dims == 3 and shape.w == 4 and shape.h == 5 and shape.c == 6
+    mat = ncnn.Mat(7, 8, 9, 10)
+    shape = mat.shape()
+    assert shape.dims == 4 and shape.w == 7 and shape.h == 8 and shape.d == 9 and shape.c == 10
+
+
+def test_channel_depth_row():
+    mat = ncnn.Mat(2, 3, 4, 5)
+    mat.fill(6.0)
+    channel = mat.channel(1)
+    assert channel.dims == 3 and channel.w == 2 and channel.h == 3 and channel.c == 4
+
+    depth = channel.depth(1)
+    assert depth.dims == 2 and depth.w == 2 and depth.h == 3
+
+    row = depth.row(1)
+    assert len(row) == 2 and np.abs(row[0] - 6.0) < sys.float_info.min
 
 
 def test_channel_row():
@@ -449,6 +607,17 @@ def test_channel_range():
         and channel_range.w == 1
         and channel_range.h == 2
         and channel_range.c == 2
+    )
+
+
+def test_depth_range():
+    mat = ncnn.Mat(1, 2, 3, 4)
+    depth_range = mat.channel(1).depth_range(1, 2)
+    assert (
+        depth_range.dims == 3
+        and depth_range.w == 1
+        and depth_range.h == 2
+        and depth_range.c == 2
     )
 
 

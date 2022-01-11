@@ -10,7 +10,10 @@
 * [Concat](#concat)
 * [Convolution](#convolution)
 * [Convolution1D](#convolution1d)
+* [Convolution3D](#convolution3d)
 * [ConvolutionDepthWise](#convolutiondepthwise)
+* [ConvolutionDepthWise1D](#convolutiondepthwise1d)
+* [ConvolutionDepthWise3D](#convolutiondepthwise3d)
 * [Crop](#crop)
 * [Deconvolution](#deconvolution)
 * [DeconvolutionDepthWise](#deconvolutiondepthwise)
@@ -46,6 +49,7 @@
 * [PixelShuffle](#pixelshuffle)
 * [Pooling](#pooling)
 * [Pooling1D](#pooling1d)
+* [Pooling3D](#pooling3d)
 * [Power](#power)
 * [PReLU](#prelu)
 * [Quantize](#quantize)
@@ -66,6 +70,7 @@
 * [Swish](#swish)
 * [TanH](#tanh)
 * [Threshold](#threshold)
+* [Tile](#tile)
 * [UnaryOp](#unaryop)
 
 # AbsVal
@@ -225,10 +230,11 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 18        | pad_value     | float | 0.f       |                   |
+| 19        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -260,10 +266,49 @@ y = activation(x3, act_type, act_params)
 | 10        | activation_params| array | [ ]    |                   |
 | 15        | pad_right     | int   | pad_left  |                   |
 | 18        | pad_value     | float | 0.f       |                   |
+| 19        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | weight_data   | float/fp16/int8 | [kernel_w, num_input, num_output] |
+| bias_data     | float | [num_output]          |
+
+# Convolution3D
+```
+x2 = pad(x, pads, pad_value)
+x3 = conv3d(x2, weight, kernel, stride, dilation) + bias
+y = activation(x3, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+| 17        | pad_behind    | int   | pad_front |                   |
+| 18        | pad_value     | float | 0.f       |                   |
+| 21        | kernel_d      | int   | kernel_w  |                   |
+| 22        | dilation_d    | int   | dilation_w |                  |
+| 23        | stride_d      | int   | stride_w  |                   |
+| 24        | pad_front     | int   | pad_left  |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16/int8 | [kernel_w, kernel_h, kernel_d, num_input, num_output] |
 | bias_data     | float | [num_output]          |
 
 # ConvolutionDepthWise
@@ -291,10 +336,11 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 18        | pad_value     | float | 0.f       |                   |
+| 19        | dynamic_weight| int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -303,6 +349,75 @@ y = activation(x3, act_type, act_params)
 | weight_data_int8_scales| float | [group]      |
 | bottom_blob_int8_scales| float | [1]          |
 | top_blob_int8_scales| float | [1]             |
+
+# ConvolutionDepthWise1D
+```
+x2 = pad(x, pads, pad_value)
+x3 = conv1d(x2, weight, kernel, stride, dilation, group) + bias
+y = activation(x3, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 7         | group         | int   | 1         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 18        | pad_value     | float | 0.f       |                   |
+| 19        | dynamic_weight| int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16/int8 | [kernel_w, num_input / group, num_output / group, group] |
+| bias_data     | float | [num_output]          |
+
+# ConvolutionDepthWise3D
+```
+x2 = pad(x, pads, pad_value)
+x3 = conv3d(x2, weight, kernel, stride, dilation, group) + bias
+y = activation(x3, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 7         | group         | int   | 1         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+| 17        | pad_behind    | int   | pad_front |                   |
+| 18        | pad_value     | float | 0.f       |                   |
+| 21        | kernel_d      | int   | kernel_w  |                   |
+| 22        | dilation_d    | int   | dilation_w |                  |
+| 23        | stride_d      | int   | stride_w  |                   |
+| 24        | pad_front     | int   | pad_left  |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16/int8 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
+| bias_data     | float | [num_output]          |
 
 # Crop
 ```
@@ -350,8 +465,8 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 19        | output_pad_bottom| int | output_pad_right |           |
@@ -388,8 +503,8 @@ y = activation(x3, act_type, act_params)
 | 11        | kernel_h      | int   | kernel_w  |                   |
 | 12        | dilation_h    | int   | dilation_w |                  |
 | 13        | stride_h      | int   | stride_w  |                   |
-| 15        | pad_right     | int   | pad_left  |                   |
 | 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
 | 16        | pad_bottom    | int   | pad_top   |                   |
 | 18        | output_pad_right| int | 0         |                   |
 | 19        | output_pad_bottom| int | output_pad_right |           |
@@ -411,9 +526,13 @@ y = x * scale + bias
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | scale         | float | 1.f       |                   |
-| 1         | bias_term     | int   | 0         |                   |
-| 2         | bias_data_size| int   | 0         |                   |
+| 0         | scale_data_size| int  | 1         |                   |
+| 1         | bias_data_size| int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| scale_data    | float | [scale_data_size]     |
+| bias_data     | float | [bias_data_size]      |
 
 # Dropout
 ```
@@ -612,6 +731,7 @@ y = input
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | w             | int   | 0         |                   |
 | 1         | h             | int   | 0         |                   |
+| 11        | d             | int   | 0         |                   |
 | 2         | c             | int   | 0         |                   |
 
 # InstanceNorm
@@ -752,11 +872,12 @@ y = data
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | w             | int   | 0         |                   |
 | 1         | h             | int   | 0         |                   |
+| 11        | d             | int   | 0         |                   |
 | 2         | c             | int   | 0         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| data          | float | [w, h, c]             |
+| data          | float | [w, h, d, c]          |
 
 # Mish
 ```
@@ -865,8 +986,7 @@ y = wrap_packing(x)
 
 # Padding
 ```
-if pads != -233/-234    y = pad(x, pads)
-else                    y = pad(x0, pads param from x1)
+y = pad(x, pads)
 ```
 
 | param id  | name          | type | default   | description       |
@@ -900,12 +1020,30 @@ y = reorder(x)
 | 0         | order_type    | int  | 0         |                   |
 
 Order Type:
-- 0 = WH WHC
-- 1 = HW HWC
-- 2 = WCH
-- 3 = CWH
-- 4 = HCW
-- 5 = CHW
+- 0 = WH WHC WHDC
+- 1 = HW HWC HWDC
+- 2 = WCH WDHC
+- 3 = CWH DWHC
+- 4 = HCW HDWC
+- 5 = CHW DHWC
+- 6 = WHCD
+- 7 = HWCD
+- 8 = WCHD
+- 9 = CWHD
+- 10 = HCWD
+- 11 = CHWD
+- 12 = WDCH
+- 13 = DWCH
+- 14 = WCDH
+- 15 = CWDH
+- 16 = DCWH
+- 17 = CDWH
+- 18 = HDCW
+- 19 = DHCW
+- 20 = HCDW
+- 21 = CHDW
+- 22 = DCHW
+- 23 = CDHW
 
 # PixelShuffle
 ```
@@ -942,7 +1080,7 @@ x3 = pooling(x2, kernel, stride)
 | 13        | pad_top       | int  | pad_left  |                   |
 | 14        | pad_right     | int  | pad_left  |                   |
 | 15        | pad_bottom    | int  | pad_top   |                   |
-| 18        | out_h         | int  | 0         |                   |
+| 18        | out_h         | int  | out_w     |                   |
 
 Pooling type:
 - 0 = MAX
@@ -972,6 +1110,45 @@ x3 = pooling1d(x2, kernel, stride)
 | 7         | adaptive_pooling| int | 0        |                   |
 | 8         | out_w         | int  | 0         |                   |
 | 14        | pad_right     | int  | pad_left  |                   |
+
+Pooling type:
+- 0 = MAX
+- 1 = AVG
+
+Pad mode:
+- 0 = full padding
+- 1 = valid padding
+- 2 = tensorflow padding=SAME or onnx padding=SAME_UPPER
+- 3 = onnx padding=SAME_LOWER
+
+# Pooling3D
+```
+x2 = pad(x, pads)
+x3 = pooling3d(x2, kernel, stride)
+```
+
+| param id  | name          | type | default   | description       |
+| --------- | --------------| ---- | --------- | ----------------- |
+| 0         | pooling_type  | int  | 0         |                   |
+| 1         | kernel_w      | int  | 0         |                   |
+| 2         | stride_w      | int  | 1         |                   |
+| 3         | pad_left      | int  | 0         |                   |
+| 4         | global_pooling| int  | 0         |                   |
+| 5         | pad_mode      | int  | 0         |                   |
+| 6         | avgpool_count_include_pad| int | 0 |                 |
+| 7         | adaptive_pooling| int | 0        |                   |
+| 8         | out_w         | int  | 0         |                   |
+| 11        | kernel_h      | int  | kernel_w  |                   |
+| 12        | stride_h      | int  | stride_w  |                   |
+| 13        | pad_top       | int  | pad_left  |                   |
+| 14        | pad_right     | int  | pad_left  |                   |
+| 15        | pad_bottom    | int  | pad_top   |                   |
+| 16        | pad_behind    | int  | pad_front |                   |
+| 18        | out_h         | int  | out_w     |                   |
+| 21        | kernel_d      | int  | kernel_w  |                   |
+| 22        | stride_d      | int  | stride_w  |                   |
+| 23        | pad_front     | int  | pad_top   |                   |
+| 28        | out_d         | int  | out_w     |                   |
 
 Pooling type:
 - 0 = MAX
@@ -1023,7 +1200,7 @@ y = float2int8(x * scale)
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | scale_data_size| int  | 0         |                   |
+| 0         | scale_data_size| int  | 1         |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
@@ -1118,6 +1295,7 @@ else                y = reshape(x)
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | w             | int   | -233      |                   |
 | 1         | h             | int   | -233      |                   |
+| 11        | d             | int   | -233      |                   |
 | 2         | c             | int   | -233      |                   |
 | 3         | permute       | int   | 0         |                   |
 
@@ -1271,6 +1449,19 @@ else                y = 0
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | threshold     | float | 0.f       |                   |
+
+# Tile
+```
+y = repeat tiles along axis for x
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axis          | int   | 0         |                   |
+| 1         | tiles         | int   | 1         |                   |
+| 2         | repeats       | array | [ ]       |                   |
 
 # UnaryOp
 ```

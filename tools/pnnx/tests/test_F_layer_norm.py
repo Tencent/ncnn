@@ -20,15 +20,25 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+        self.w3 = nn.Parameter(torch.rand(24))
+        self.b3 = nn.Parameter(torch.rand(24))
+        self.w4 = nn.Parameter(torch.rand(12, 16))
+        self.b4 = nn.Parameter(torch.rand(12, 16))
+        self.w5 = nn.Parameter(torch.rand(24))
+        self.b5 = nn.Parameter(torch.rand(24))
+
     def forward(self, x, y, z, w0, b0, w1, b1, w2, b2):
         x = F.layer_norm(x, (24,), w0, b0)
         x = F.layer_norm(x, (12,24), None, None)
+        x = F.layer_norm(x, (24,), self.w3, self.b3)
 
         y = F.layer_norm(y, (16,), None, None, eps=1e-3)
         y = F.layer_norm(y, (12,16), w1, b1)
+        y = F.layer_norm(y, (12,16), self.w4, self.b4)
 
         z = F.layer_norm(z, (24,), w2, b2)
         z = F.layer_norm(z, (12,16,24), None, None, eps=1e-2)
+        z = F.layer_norm(z, (24,), self.w5, self.b5)
         return x, y, z
 
 def test():

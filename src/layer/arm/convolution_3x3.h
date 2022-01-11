@@ -1298,7 +1298,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     }
 }
 
-static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
     kernel_tm.create(8 * 8, inch, outch);
 
@@ -1313,7 +1313,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -1355,7 +1355,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
 
     Mat kernel_tm2(8 * 8 * inch * 4, 1, nn_outch + (outch % 4 + 3) / 4);
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 4;
@@ -1647,7 +1647,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
         }
     }
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         float* ktm2 = (float*)kernel_tm2.channel(nn_outch) + 8 * 8 * inch * (p - remain_outch_start);
@@ -1698,7 +1698,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
     kernel_tm = kernel_tm2;
 }
 
-static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
     kernel_tm.create(8 * 8, inch, outch);
 
@@ -1713,7 +1713,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -3025,7 +3025,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     "2:                                 \n"
 
                     // remain loop
-                    "and    w1, %w18, #3                \n" // w1 = remain = tiles & 3;
+                    "and    w1, %w18, #3                \n" // w1 = remain = tiles & 3
                     "cmp    w1, #0                      \n"
                     "beq    4f                          \n"
 
@@ -3326,7 +3326,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     "2:                                 \n"
 
                     // remain loop
-                    "and    w1, %w14, #3                \n" // w1 = remain = tiles & 3;
+                    "and    w1, %w14, #3                \n" // w1 = remain = tiles & 3
                     "cmp    w1, #0                      \n"
                     "beq    4f                          \n"
 
@@ -3591,7 +3591,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     "2:                                 \n"
 
                     // remain loop
-                    "and        r1, %14, #3             \n" // r1 = remain = tiles & 3;
+                    "and        r1, %14, #3             \n" // r1 = remain = tiles & 3
                     "cmp        r1, #0                  \n"
                     "beq        4f                      \n"
 
@@ -5734,7 +5734,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w20, #3            \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w20, #3            \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -5877,7 +5877,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w20, #3            \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w20, #3            \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -6126,7 +6126,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w12, #3            \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w12, #3            \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -6247,7 +6247,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                         \n"
 
                         // remain loop
-                        "and        r4, %12, #3     \n" // r4 = remain = tiles & 3;
+                        "and        r4, %12, #3     \n" // r4 = remain = tiles & 3
                         "cmp        r4, #0          \n"
                         "beq        3f              \n"
 
@@ -6468,7 +6468,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w12, #3            \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w12, #3            \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -6560,7 +6560,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                         \n"
 
                         // remain loop
-                        "and        r4, %12, #3     \n" // r4 = remain = tiles & 3;
+                        "and        r4, %12, #3     \n" // r4 = remain = tiles & 3
                         "cmp        r4, #0          \n"
                         "beq        3f              \n"
 
@@ -6822,7 +6822,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w6, #3             \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w6, #3             \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -6894,7 +6894,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and        r4, %6, #3          \n" // r4 = remain = tiles & 3;
+                        "and        r4, %6, #3          \n" // r4 = remain = tiles & 3
                         "cmp        r4, #0              \n"
                         "beq        3f                  \n"
 
@@ -6997,7 +6997,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w6, #3             \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w6, #3             \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -7057,7 +7057,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and        r4, %6, #3          \n" // r4 = remain = tiles & 3;
+                        "and        r4, %6, #3          \n" // r4 = remain = tiles & 3
                         "cmp        r4, #0              \n"
                         "beq        3f                  \n"
 

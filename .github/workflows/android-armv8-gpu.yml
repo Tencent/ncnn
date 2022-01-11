@@ -20,14 +20,13 @@ on:
     - 'src/layer/*'
     - 'src/layer/arm/**'
     - 'src/layer/vulkan/**'
+concurrency:
+  group: android-armv8-gpu-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   android-aarch64-gpu:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true
@@ -55,10 +54,6 @@ jobs:
   android-aarch64-gpu-ndk-r16b:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
     - uses: actions/checkout@v2
       with:
         submodules: true

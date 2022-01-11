@@ -20,11 +20,20 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+        self.w4 = nn.Parameter(torch.rand(16))
+        self.w5 = nn.Parameter(torch.rand(2))
+        self.w6 = nn.Parameter(torch.rand(3))
+        self.w7 = nn.Parameter(torch.rand(1))
+
     def forward(self, x, y, z, w, w0, w1, w2, w3):
         x = F.prelu(x, w0)
+        x = F.prelu(x, self.w4)
         y = F.prelu(y, w1)
+        y = F.prelu(y, self.w5)
         z = F.prelu(z, w2)
+        z = F.prelu(z, self.w6)
         w = F.prelu(w, w3)
+        w = F.prelu(w, self.w7)
         return x, y, z, w
 
 def test():

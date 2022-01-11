@@ -864,7 +864,6 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             {
                 if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
             }
-            fprintf_param_value(" 17=%d", impl_type)
 
             fwrite_weight_tag_data(op->weight_data, bp);
             fwrite_weight_data(op->bias_data, bp);

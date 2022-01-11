@@ -26,7 +26,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.Conv1d               op_0        1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding=%padding dilation=%dilation groups=1 bias=%bias @weight @bias
+nn.Conv1d               op_0        1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=%padding_mode padding=%padding dilation=%dilation groups=1 bias=%bias @weight @bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -43,6 +43,12 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
+        std::string padding_mode = captured_params.at("padding_mode").s;
+        if (padding_mode != "zeros")
+        {
+            fprintf(stderr, "unsupported padding_mode %s\n", padding_mode.c_str());
+        }
+
         op->params["0"] = captured_params.at("out_channels");
         op->params["1"] = captured_params.at("kernel_size").ai[0];
         op->params["2"] = captured_params.at("dilation").ai[0];
@@ -77,7 +83,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.Conv1d               op_0        1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding=%padding dilation=%dilation groups=%groups bias=%bias @weight @bias
+nn.Conv1d               op_0        1 1 input out in_channels=%in_channels out_channels=%out_channels kernel_size=%kernel_size stride=%stride padding_mode=%padding_mode padding=%padding dilation=%dilation groups=%groups bias=%bias @weight @bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -94,6 +100,12 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params, const std::map<std::string, Attribute>& captured_attrs) const
     {
+        std::string padding_mode = captured_params.at("padding_mode").s;
+        if (padding_mode != "zeros")
+        {
+            fprintf(stderr, "unsupported padding_mode %s\n", padding_mode.c_str());
+        }
+
         op->params["0"] = captured_params.at("out_channels");
         op->params["1"] = captured_params.at("kernel_size").ai[0];
         op->params["2"] = captured_params.at("dilation").ai[0];

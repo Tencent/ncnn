@@ -1732,9 +1732,9 @@ static void convolution_im2col_sgemm_transform_kernel_pack4_bf16s_neon(const Mat
     // dst = 4b-4a-maxk-inch/4a-outch/4b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __aarch64__
-    kernel_tm.create(32 * maxk, inch / 4, outch / 8 + (outch % 8) / 4, 2u);
+    kernel_tm.create(32 * maxk, inch / 4, outch / 8 + (outch % 8) / 4, (size_t)2u);
 #else
-    kernel_tm.create(16 * maxk, inch / 4, outch / 4, 2u);
+    kernel_tm.create(16 * maxk, inch / 4, outch / 4, (size_t)2u);
 #endif
 
     int q = 0;

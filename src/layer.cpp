@@ -246,13 +246,6 @@ Layer* create_layer(int index)
     }
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-    if (ncnn::cpu_support_arm_asimdhp() && ncnn::cpu_support_arm_asimddp())
-    {
-        layer_creator = layer_registry_arm82dot[index].creator;
-    }
-    else
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
 #if NCNN_RUNTIME_CPU && NCNN_ARM82
     if (ncnn::cpu_support_arm_asimdhp())
     {

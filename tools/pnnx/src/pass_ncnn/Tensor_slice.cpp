@@ -58,11 +58,14 @@ pnnx.Output             output      1 0 out
             }
         }
 
-        int input_rank = op->inputs[0]->shape.size();
-
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
-        if (input_rank > 5)
+        int input_rank = op->inputs[0]->shape.size();
+
+        if (batch_index >= 0 && batch_index < input_rank)
+            input_rank -= 1;
+
+        if (input_rank > 4)
         {
             fprintf(stderr, "slice %d-rank tensor with %d-rank axes is not possible!\n", input_rank, axes_rank);
             return;
@@ -77,10 +80,7 @@ pnnx.Output             output      1 0 out
             }
 
             if (axes[i] < 0)
-            {
-                int input_rank = op->inputs[0]->shape.size();
                 axes[i] = input_rank + axes[i];
-            }
 
             if (axes[i] > batch_index)
                 axes[i] -= 1;

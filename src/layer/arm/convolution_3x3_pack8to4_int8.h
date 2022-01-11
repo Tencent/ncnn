@@ -12,10 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_neon(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch)
+static void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_neon(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt)
 {
     // winograd42 transform kernel
-    Mat kernel_tm(6 * 6, inch, outch, 2u);
+    Mat kernel_tm(6 * 6, inch, outch, (size_t)2u);
 
     const short ktm[6][3] = {
         {6, 0, 0},
@@ -26,7 +26,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_neon(const Mat& 
         {0, 0, 6}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
