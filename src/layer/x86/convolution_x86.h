@@ -41,12 +41,15 @@ protected:
 public:
     Layer* activation;
 
-    Mat weight_data_packed;
+    Mat weight_sgemm_data;
     Mat weight_data_3x3_winograd23;
     Mat weight_data_3x3_winograd63;
 
     // forwardDilation
     Layer* convolution_dilation1;
+
+    // pack4/8
+    Mat weight_data_packed;
 
 #if NCNN_INT8
     // int8

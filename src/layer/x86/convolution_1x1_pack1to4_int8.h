@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv1x1s1_sgemm_pack8to4_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv1x1s1_sgemm_pack1to4_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -22,10 +22,10 @@ static void conv1x1s1_sgemm_pack8to4_int8_sse(const Mat& bottom_blob, Mat& top_b
     bottom_im2col.w = size;
     bottom_im2col.h = 1;
 
-    im2col_sgemm_pack8to4_int8_sse(bottom_im2col, top_blob, kernel, opt);
+    im2col_sgemm_pack1to4_int8_sse(bottom_im2col, top_blob, kernel, opt);
 }
 
-static void conv1x1s2_sgemm_pack8to4_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void conv1x1s2_sgemm_pack1to4_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -43,12 +43,30 @@ static void conv1x1s2_sgemm_pack8to4_int8_sse(const Mat& bottom_blob, Mat& top_b
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < channels; p++)
     {
-        const int64_t* r0 = bottom_blob.channel(p);
-        int64_t* outptr = bottom_blob_shrinked.channel(p);
+        const signed char* r0 = bottom_blob.channel(p);
+        signed char* outptr = bottom_blob_shrinked.channel(p);
 
         for (int i = 0; i < outh; i++)
         {
             int j = 0;
+            for (; j + 3 < outw; j += 4)
+            {
+                outptr[0] = r0[0];
+                outptr[1] = r0[2];
+                outptr[2] = r0[4];
+                outptr[3] = r0[6];
+
+                r0 += 8;
+                outptr += 4;
+            }
+            for (; j + 1 < outw; j += 2)
+            {
+                outptr[0] = r0[0];
+                outptr[1] = r0[2];
+
+                r0 += 4;
+                outptr += 2;
+            }
             for (; j < outw; j++)
             {
                 outptr[0] = r0[0];
@@ -61,5 +79,5 @@ static void conv1x1s2_sgemm_pack8to4_int8_sse(const Mat& bottom_blob, Mat& top_b
         }
     }
 
-    conv1x1s1_sgemm_pack8to4_int8_sse(bottom_blob_shrinked, top_blob, kernel, opt);
+    conv1x1s1_sgemm_pack1to4_int8_sse(bottom_blob_shrinked, top_blob, kernel, opt);
 }
