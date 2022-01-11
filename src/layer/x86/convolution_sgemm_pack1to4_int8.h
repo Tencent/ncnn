@@ -422,15 +422,17 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                     _sum01_13 = _mm256_add_epi32(_sum01_13, _mm256_unpackhi_epi16(_sl00_11, _sh00_11));
                     _sum11_03 = _mm256_add_epi32(_sum11_03, _mm256_unpackhi_epi16(_sl10_01, _sh10_01));
 #else
-                    // TODO use _mm_cvtepi8_epi16 on sse4.1
-                    __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
+                    __m128i _val01 = _mm_loadl_epi64((const __m128i*)tmpptr);
+#if __SSE4_1__
+                    _val01 = _mm_cvtepi8_epi16(_val01);
+#else
                     __m128i _extval01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _val01);
                     _val01 = _mm_unpacklo_epi8(_val01, _extval01);
+#endif
 
                     __m128i _val0 = _mm_shuffle_epi32(_val01, _MM_SHUFFLE(1, 0, 1, 0));
                     __m128i _val1 = _mm_shuffle_epi32(_val01, _MM_SHUFFLE(3, 2, 3, 2));
 
-                    // TODO use _mm_cvtepi8_epi16 on sse4.1
                     __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr0);
                     __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                     __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
@@ -524,7 +526,15 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
             {
                 __m128i _val = _mm_set_epi16(tmpptr[1], tmpptr[1], tmpptr[1], tmpptr[1], tmpptr[0], tmpptr[0], tmpptr[0], tmpptr[0]);
 
-                __m128i _w0123 = _mm_set_epi16(kptr0[3], kptr0[2], kptr0[1], kptr0[0], kptr0[3], kptr0[2], kptr0[1], kptr0[0]);
+                __m128i _w0123 = _mm_loadl_epi64((const __m128i*)kptr0);
+#if __SSE4_1__
+                _w0123 = _mm_cvtepi8_epi16(_w0123);
+#else
+                __m128i _extw0123 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w0123);
+                _w0123 = _mm_unpacklo_epi8(_w0123, _extw0123);
+#endif
+
+                _w0123 = _mm_shuffle_epi32(_w0123, _MM_SHUFFLE(1, 0, 1, 0));
 
                 __m128i _sl00 = _mm_mullo_epi16(_val, _w0123);
                 __m128i _sh00 = _mm_mulhi_epi16(_val, _w0123);
@@ -563,14 +573,16 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 int j = 0;
                 for (; j < nn4; j++)
                 {
-                    // TODO use _mm_cvtepi8_epi16 on sse4.1
-                    __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
+                    __m128i _val01 = _mm_loadl_epi64((const __m128i*)tmpptr);
+#if __SSE4_1__
+                    __m128i _val0 = _mm_cvtepi8_epi16(_val01);
+#else
                     __m128i _extval01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _val01);
                     __m128i _val0 = _mm_unpacklo_epi8(_val01, _extval01);
+#endif
 
                     _val0 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(1, 0, 1, 0));
 
-                    // TODO use _mm_cvtepi8_epi16 on sse4.1
                     __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr0);
                     __m128i _extw01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w01);
                     __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
@@ -613,7 +625,13 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
             {
                 __m128i _val = _mm_set1_epi16(tmpptr[0]);
 
-                __m128i _w0123 = _mm_set_epi16(0, 0, 0, 0, kptr0[3], kptr0[2], kptr0[1], kptr0[0]);
+                __m128i _w0123 = _mm_loadl_epi64((const __m128i*)kptr0);
+#if __SSE4_1__
+                _w0123 = _mm_cvtepi8_epi16(_w0123);
+#else
+                __m128i _extw0123 = _mm_cmpgt_epi8(_mm_setzero_si128(), _w0123);
+                _w0123 = _mm_unpacklo_epi8(_w0123, _extw0123);
+#endif
 
                 __m128i _sl00 = _mm_mullo_epi16(_val, _w0123);
                 __m128i _sh00 = _mm_mulhi_epi16(_val, _w0123);
