@@ -32,7 +32,6 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
     else
         tmp.create(maxk, inch, size, 8u, 8, opt.workspace_allocator);
 #else
-    Mat tmp;
     if (size >= 2)
         tmp.create(2 * maxk, inch, size / 2 + size % 2, 8u, 8, opt.workspace_allocator);
     else
