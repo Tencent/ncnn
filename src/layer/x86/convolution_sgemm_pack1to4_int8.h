@@ -26,28 +26,117 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
     Mat tmp;
     if (inch >= 4)
     {
+#if __AVX2__
+        if (size >= 4)
+            tmp.create(4 * maxk, inch / 4 + inch % 4, size / 4 + (size % 4) / 2 + size % 2, 4u, 4, opt.workspace_allocator);
+        else if (size >= 2)
+            tmp.create(2 * maxk, inch / 4 + inch % 4, size / 2 + size % 2, 4u, 4, opt.workspace_allocator);
+        else
+            tmp.create(maxk, inch / 4 + inch % 4, size, 4u, 4, opt.workspace_allocator);
+#else
         if (size >= 2)
             tmp.create(2 * maxk, inch / 4 + inch % 4, size / 2 + size % 2, 4u, 4, opt.workspace_allocator);
         else
             tmp.create(maxk, inch / 4 + inch % 4, size, 4u, 4, opt.workspace_allocator);
+#endif
     }
     else
     {
+#if __AVX2__
+        if (size >= 4)
+            tmp.create(4 * maxk, inch, size / 4 + (size % 4) / 2 + size % 2, 1u, 1, opt.workspace_allocator);
+        else if (size >= 2)
+            tmp.create(2 * maxk, inch, size / 2 + size % 2, 1u, 1, opt.workspace_allocator);
+        else
+            tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
+#else
         if (size >= 2)
             tmp.create(2 * maxk, inch, size / 2 + size % 2, 1u, 1, opt.workspace_allocator);
         else
             tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
+#endif
     }
     {
+#if __AVX2__
+        int remain_size_start = 0;
+        int nn_size = size >> 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            int i = remain_size_start + ii * 4;
+
+            signed char* tmpptr = tmp.channel(i / 4);
+
+            int q = 0;
+            for (; q + 3 < inch; q += 4)
+            {
+                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
+                const signed char* img1 = (const signed char*)bottom_im2col.channel(q + 1) + i;
+                const signed char* img2 = (const signed char*)bottom_im2col.channel(q + 2) + i;
+                const signed char* img3 = (const signed char*)bottom_im2col.channel(q + 3) + i;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img1[0];
+                    tmpptr[2] = img2[0];
+                    tmpptr[3] = img3[0];
+                    tmpptr[4] = img0[1];
+                    tmpptr[5] = img1[1];
+                    tmpptr[6] = img2[1];
+                    tmpptr[7] = img3[1];
+                    tmpptr[8] = img0[2];
+                    tmpptr[9] = img1[2];
+                    tmpptr[10] = img2[2];
+                    tmpptr[11] = img3[2];
+                    tmpptr[12] = img0[3];
+                    tmpptr[13] = img1[3];
+                    tmpptr[14] = img2[3];
+                    tmpptr[15] = img3[3];
+                    tmpptr += 16;
+
+                    img0 += size;
+                    img1 += size;
+                    img2 += size;
+                    img3 += size;
+                }
+            }
+            for (; q < inch; q++)
+            {
+                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img0[1];
+                    tmpptr[2] = img0[2];
+                    tmpptr[3] = img0[3];
+
+                    tmpptr += 4;
+
+                    img0 += size;
+                }
+            }
+        }
+
+        remain_size_start += nn_size << 2;
+        nn_size = (size - remain_size_start) >> 1;
+#else
         int remain_size_start = 0;
         int nn_size = (size - remain_size_start) >> 1;
+#endif
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 2;
 
+#if __AVX2__
+            signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
+#else
             signed char* tmpptr = tmp.channel(i / 2);
+#endif
 
             int q = 0;
             for (; q + 3 < inch; q += 4)
@@ -96,7 +185,11 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
+#if __AVX2__
+            signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
+#else
             signed char* tmpptr = tmp.channel(i / 2 + i % 2);
+#endif
 
             int q = 0;
             for (; q + 3 < inch; q += 4)
@@ -142,29 +235,193 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         int* outptr0 = top_blob.channel(p);
 
         int i = 0;
+#if __AVX2__
+        for (; i + 3 < size; i += 4)
+        {
+            const signed char* tmpptr = tmp.channel(i / 4);
+            const signed char* kptr0 = kernel.channel(p / 4);
+
+            int nn4 = (inch / 4) * maxk;
+            int nn1 = (inch % 4) * maxk;
+
+            __m256i _sum00_12 = _mm256_setzero_si256();
+            __m256i _sum20_32 = _mm256_setzero_si256();
+
+            if (nn4 > 0)
+            {
+                __m256i _sum10_02 = _mm256_setzero_si256();
+                __m256i _sum01_13 = _mm256_setzero_si256();
+                __m256i _sum11_03 = _mm256_setzero_si256();
+                __m256i _sum30_22 = _mm256_setzero_si256();
+                __m256i _sum21_33 = _mm256_setzero_si256();
+                __m256i _sum31_23 = _mm256_setzero_si256();
+
+                int j = 0;
+                for (; j < nn4; j++)
+                {
+                    __m128i _val0123 = _mm_loadu_si128((const __m128i*)tmpptr);
+                    __m256i _val0123_16 = _mm256_cvtepi8_epi16(_val0123);
+
+                    __m256i _val01_16 = _mm256_permute4x64_epi64(_val0123_16, _MM_SHUFFLE(1, 1, 0, 0));
+                    __m256i _val23_16 = _mm256_permute4x64_epi64(_val0123_16, _MM_SHUFFLE(3, 3, 2, 2));
+
+                    __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr0);
+                    __m256i _w01_16 = _mm256_cvtepi8_epi16(_w01);
+
+                    __m256i _val10_16 = _mm256_permute4x64_epi64(_val01_16, 78);
+                    __m256i _val32_16 = _mm256_permute4x64_epi64(_val23_16, 78);
+
+                    __m256i _sl00_11 = _mm256_mullo_epi16(_val01_16, _w01_16);
+                    __m256i _sh00_11 = _mm256_mulhi_epi16(_val01_16, _w01_16);
+                    __m256i _sl10_01 = _mm256_mullo_epi16(_val10_16, _w01_16);
+                    __m256i _sh10_01 = _mm256_mulhi_epi16(_val10_16, _w01_16);
+                    __m256i _sl20_31 = _mm256_mullo_epi16(_val23_16, _w01_16);
+                    __m256i _sh20_31 = _mm256_mulhi_epi16(_val23_16, _w01_16);
+                    __m256i _sl30_21 = _mm256_mullo_epi16(_val32_16, _w01_16);
+                    __m256i _sh30_21 = _mm256_mulhi_epi16(_val32_16, _w01_16);
+
+                    _sum00_12 = _mm256_add_epi32(_sum00_12, _mm256_unpacklo_epi16(_sl00_11, _sh00_11));
+                    _sum10_02 = _mm256_add_epi32(_sum10_02, _mm256_unpacklo_epi16(_sl10_01, _sh10_01));
+                    _sum01_13 = _mm256_add_epi32(_sum01_13, _mm256_unpackhi_epi16(_sl00_11, _sh00_11));
+                    _sum11_03 = _mm256_add_epi32(_sum11_03, _mm256_unpackhi_epi16(_sl10_01, _sh10_01));
+                    _sum20_32 = _mm256_add_epi32(_sum20_32, _mm256_unpacklo_epi16(_sl20_31, _sh20_31));
+                    _sum30_22 = _mm256_add_epi32(_sum30_22, _mm256_unpacklo_epi16(_sl30_21, _sh30_21));
+                    _sum21_33 = _mm256_add_epi32(_sum21_33, _mm256_unpackhi_epi16(_sl20_31, _sh20_31));
+                    _sum31_23 = _mm256_add_epi32(_sum31_23, _mm256_unpackhi_epi16(_sl30_21, _sh30_21));
+
+                    tmpptr += 16;
+                    kptr0 += 16;
+                }
+
+                // transpose 4x8
+                {
+                    __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                    _tmp0 = _mm256_unpacklo_epi32(_sum00_12, _sum10_02);
+                    _tmp1 = _mm256_unpacklo_epi32(_sum01_13, _sum11_03);
+                    _tmp2 = _mm256_unpackhi_epi32(_sum00_12, _sum10_02);
+                    _tmp3 = _mm256_unpackhi_epi32(_sum01_13, _sum11_03);
+                    _sum00_12 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                    _sum10_02 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                    _sum01_13 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                    _sum11_03 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+                }
+                {
+                    __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                    _tmp0 = _mm256_unpacklo_epi32(_sum20_32, _sum30_22);
+                    _tmp1 = _mm256_unpacklo_epi32(_sum21_33, _sum31_23);
+                    _tmp2 = _mm256_unpackhi_epi32(_sum20_32, _sum30_22);
+                    _tmp3 = _mm256_unpackhi_epi32(_sum21_33, _sum31_23);
+                    _sum20_32 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                    _sum30_22 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                    _sum21_33 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                    _sum31_23 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+                }
+
+                _sum00_12 = _mm256_add_epi32(_sum00_12, _sum10_02);
+                _sum01_13 = _mm256_add_epi32(_sum01_13, _sum11_03);
+                _sum00_12 = _mm256_add_epi32(_sum00_12, _sum01_13);
+
+                _sum20_32 = _mm256_add_epi32(_sum20_32, _sum30_22);
+                _sum21_33 = _mm256_add_epi32(_sum21_33, _sum31_23);
+                _sum20_32 = _mm256_add_epi32(_sum20_32, _sum21_33);
+
+                __m256i _perm_mask = _mm256_set_epi32(6, 4, 3, 1, 7, 5, 2, 0);
+                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
+                _sum20_32 = _mm256_permutevar8x32_epi32(_sum20_32, _perm_mask);
+            }
+
+            __m128i _sum00 = _mm256_extracti128_si256(_sum00_12, 0);
+            __m128i _sum10 = _mm256_extracti128_si256(_sum00_12, 1);
+            __m128i _sum20 = _mm256_extracti128_si256(_sum20_32, 0);
+            __m128i _sum30 = _mm256_extracti128_si256(_sum20_32, 1);
+
+            int j = 0;
+            for (; j < nn1; j++)
+            {
+                __m128i _val01 = _mm_set_epi16(tmpptr[1], tmpptr[1], tmpptr[1], tmpptr[1], tmpptr[0], tmpptr[0], tmpptr[0], tmpptr[0]);
+                __m128i _val23 = _mm_set_epi16(tmpptr[3], tmpptr[3], tmpptr[3], tmpptr[3], tmpptr[2], tmpptr[2], tmpptr[2], tmpptr[2]);
+
+                __m128i _w0123 = _mm_set_epi16(kptr0[3], kptr0[2], kptr0[1], kptr0[0], kptr0[3], kptr0[2], kptr0[1], kptr0[0]);
+
+                __m128i _sl00 = _mm_mullo_epi16(_val01, _w0123);
+                __m128i _sh00 = _mm_mulhi_epi16(_val01, _w0123);
+                __m128i _sl10 = _mm_mullo_epi16(_val23, _w0123);
+                __m128i _sh10 = _mm_mulhi_epi16(_val23, _w0123);
+
+                _sum00 = _mm_add_epi32(_sum00, _mm_unpacklo_epi16(_sl00, _sh00));
+                _sum10 = _mm_add_epi32(_sum10, _mm_unpackhi_epi16(_sl00, _sh00));
+                _sum20 = _mm_add_epi32(_sum20, _mm_unpacklo_epi16(_sl10, _sh10));
+                _sum30 = _mm_add_epi32(_sum30, _mm_unpackhi_epi16(_sl10, _sh10));
+
+                tmpptr += 4;
+                kptr0 += 4;
+            }
+
+            _mm_storeu_si128((__m128i*)outptr0, _sum00);
+            _mm_storeu_si128((__m128i*)(outptr0 + 4), _sum10);
+            _mm_storeu_si128((__m128i*)(outptr0 + 8), _sum20);
+            _mm_storeu_si128((__m128i*)(outptr0 + 12), _sum30);
+            outptr0 += 16;
+        }
+#endif
         for (; i + 1 < size; i += 2)
         {
+#if __AVX2__
+            const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
+#else
             const signed char* tmpptr = tmp.channel(i / 2);
+#endif
             const signed char* kptr0 = kernel.channel(p);
 
             int nn4 = (inch / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
+#if __AVX2__
+            __m256i _sum00_12 = _mm256_setzero_si256();
+#else
             __m128i _sum00 = _mm_setzero_si128();
             __m128i _sum10 = _mm_setzero_si128();
+#endif
 
             if (nn4 > 0)
             {
+#if __AVX2__
+                __m256i _sum10_02 = _mm256_setzero_si256();
+                __m256i _sum01_13 = _mm256_setzero_si256();
+                __m256i _sum11_03 = _mm256_setzero_si256();
+#else
                 __m128i _sum01 = _mm_setzero_si128();
                 __m128i _sum02 = _mm_setzero_si128();
                 __m128i _sum03 = _mm_setzero_si128();
                 __m128i _sum11 = _mm_setzero_si128();
                 __m128i _sum12 = _mm_setzero_si128();
                 __m128i _sum13 = _mm_setzero_si128();
+#endif
 
                 int j = 0;
                 for (; j < nn4; j++)
                 {
+#if __AVX2__
+                    __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
+                    __m256i _val01_16 = _mm256_cvtepi8_epi16(_val01);
+
+                    _val01_16 = _mm256_permute4x64_epi64(_val01_16, _MM_SHUFFLE(1, 1, 0, 0));
+
+                    __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr0);
+                    __m256i _w01_16 = _mm256_cvtepi8_epi16(_w01);
+
+                    __m256i _val10_16 = _mm256_permute4x64_epi64(_val01_16, 78);
+
+                    __m256i _sl00_11 = _mm256_mullo_epi16(_val01_16, _w01_16);
+                    __m256i _sh00_11 = _mm256_mulhi_epi16(_val01_16, _w01_16);
+                    __m256i _sl10_01 = _mm256_mullo_epi16(_val10_16, _w01_16);
+                    __m256i _sh10_01 = _mm256_mulhi_epi16(_val10_16, _w01_16);
+
+                    _sum00_12 = _mm256_add_epi32(_sum00_12, _mm256_unpacklo_epi16(_sl00_11, _sh00_11));
+                    _sum10_02 = _mm256_add_epi32(_sum10_02, _mm256_unpacklo_epi16(_sl10_01, _sh10_01));
+                    _sum01_13 = _mm256_add_epi32(_sum01_13, _mm256_unpackhi_epi16(_sl00_11, _sh00_11));
+                    _sum11_03 = _mm256_add_epi32(_sum11_03, _mm256_unpackhi_epi16(_sl10_01, _sh10_01));
+#else
                     // TODO use _mm_cvtepi8_epi16 on sse4.1
                     __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
                     __m128i _extval01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _val01);
@@ -196,11 +453,33 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                     _sum11 = _mm_add_epi32(_sum11, _mm_unpackhi_epi16(_sl10, _sh10));
                     _sum12 = _mm_add_epi32(_sum12, _mm_unpacklo_epi16(_sl11, _sh11));
                     _sum13 = _mm_add_epi32(_sum13, _mm_unpackhi_epi16(_sl11, _sh11));
+#endif
 
                     tmpptr += 8;
                     kptr0 += 16;
                 }
 
+#if __AVX2__
+                // transpose 4x8
+                {
+                    __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                    _tmp0 = _mm256_unpacklo_epi32(_sum00_12, _sum10_02);
+                    _tmp1 = _mm256_unpacklo_epi32(_sum01_13, _sum11_03);
+                    _tmp2 = _mm256_unpackhi_epi32(_sum00_12, _sum10_02);
+                    _tmp3 = _mm256_unpackhi_epi32(_sum01_13, _sum11_03);
+                    _sum00_12 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                    _sum10_02 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                    _sum01_13 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                    _sum11_03 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+                }
+
+                _sum00_12 = _mm256_add_epi32(_sum00_12, _sum10_02);
+                _sum01_13 = _mm256_add_epi32(_sum01_13, _sum11_03);
+                _sum00_12 = _mm256_add_epi32(_sum00_12, _sum01_13);
+
+                __m256i _perm_mask = _mm256_set_epi32(6, 4, 3, 1, 7, 5, 2, 0);
+                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
+#else
                 // transpose 4x4
                 {
                     __m128i _tmp0, _tmp1, _tmp2, _tmp3;
@@ -232,7 +511,13 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
                 _sum00 = _mm_add_epi32(_sum00, _sum02);
                 _sum10 = _mm_add_epi32(_sum10, _sum12);
+#endif
             }
+
+#if __AVX2__
+            __m128i _sum00 = _mm256_extracti128_si256(_sum00_12, 0);
+            __m128i _sum10 = _mm256_extracti128_si256(_sum00_12, 1);
+#endif
 
             int j = 0;
             for (; j < nn1; j++)
@@ -257,7 +542,11 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         }
         for (; i < size; i++)
         {
+#if __AVX2__
+            const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
+#else
             const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
+#endif
             const signed char* kptr0 = kernel.channel(p);
 
             int nn4 = (inch / 4) * maxk;
