@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
 
@@ -24,7 +24,6 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 
     // permute
     Mat tmp;
-#if __SSE2__
     if (inch >= 4)
     {
 #if __AVX2__
@@ -229,47 +228,11 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
             }
         }
     }
-#else // __SSE2__
-    tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            signed char* tmpptr = tmp.channel(i);
-
-            int q = 0;
-            for (; q < inch; q++)
-            {
-                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-
-                    tmpptr += 1;
-
-                    img0 += size;
-                }
-            }
-        }
-    }
-#endif // __SSE2__
-
-    int nn_outch = 0;
-    int remain_outch_start = 0;
-
-#if __SSE2__
-    nn_outch = outch >> 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
-    for (int pp = 0; pp < nn_outch; pp++)
+    for (int p = 0; p < outch; p++)
     {
-        int p = pp * 4;
-
         int* outptr0 = top_blob.channel(p);
-        int* outptr1 = top_blob.channel(p + 1);
-        int* outptr2 = top_blob.channel(p + 2);
-        int* outptr3 = top_blob.channel(p + 3);
 
         int i = 0;
 #if __AVX2__
@@ -394,32 +357,11 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 kptr0 += 4;
             }
 
-            int sum[16];
-            _mm_storeu_si128((__m128i*)sum, _sum00);
-            _mm_storeu_si128((__m128i*)(sum + 4), _sum10);
-            _mm_storeu_si128((__m128i*)(sum + 8), _sum20);
-            _mm_storeu_si128((__m128i*)(sum + 12), _sum30);
-
-            outptr0[0] = sum[0];
-            outptr1[0] = sum[1];
-            outptr2[0] = sum[2];
-            outptr3[0] = sum[3];
-            outptr0[1] = sum[4];
-            outptr1[1] = sum[5];
-            outptr2[1] = sum[6];
-            outptr3[1] = sum[7];
-            outptr0[2] = sum[8];
-            outptr1[2] = sum[9];
-            outptr2[2] = sum[10];
-            outptr3[2] = sum[11];
-            outptr0[3] = sum[12];
-            outptr1[3] = sum[13];
-            outptr2[3] = sum[14];
-            outptr3[3] = sum[15];
-            outptr0 += 4;
-            outptr1 += 4;
-            outptr2 += 4;
-            outptr3 += 4;
+            _mm_storeu_si128((__m128i*)outptr0, _sum00);
+            _mm_storeu_si128((__m128i*)(outptr0 + 4), _sum10);
+            _mm_storeu_si128((__m128i*)(outptr0 + 8), _sum20);
+            _mm_storeu_si128((__m128i*)(outptr0 + 12), _sum30);
+            outptr0 += 16;
         }
 #endif
         for (; i + 1 < size; i += 2)
@@ -429,7 +371,7 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 #else
             const signed char* tmpptr = tmp.channel(i / 2);
 #endif
-            const signed char* kptr0 = kernel.channel(p / 4);
+            const signed char* kptr0 = kernel.channel(p);
 
             int nn4 = (inch / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
@@ -594,22 +536,9 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 kptr0 += 4;
             }
 
-            int sum[8];
-            _mm_storeu_si128((__m128i*)sum, _sum00);
-            _mm_storeu_si128((__m128i*)(sum + 4), _sum10);
-
-            outptr0[0] = sum[0];
-            outptr1[0] = sum[1];
-            outptr2[0] = sum[2];
-            outptr3[0] = sum[3];
-            outptr0[1] = sum[4];
-            outptr1[1] = sum[5];
-            outptr2[1] = sum[6];
-            outptr3[1] = sum[7];
-            outptr0 += 2;
-            outptr1 += 2;
-            outptr2 += 2;
-            outptr3 += 2;
+            _mm_storeu_si128((__m128i*)outptr0, _sum00);
+            _mm_storeu_si128((__m128i*)(outptr0 + 4), _sum10);
+            outptr0 += 8;
         }
         for (; i < size; i++)
         {
@@ -618,7 +547,7 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 #else
             const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
 #endif
-            const signed char* kptr0 = kernel.channel(p / 4);
+            const signed char* kptr0 = kernel.channel(p);
 
             int nn4 = (inch / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
@@ -695,292 +624,26 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 kptr0 += 4;
             }
 
-            int sum[4];
-            _mm_storeu_si128((__m128i*)sum, _sum0);
-
-            outptr0[0] = sum[0];
-            outptr1[0] = sum[1];
-            outptr2[0] = sum[2];
-            outptr3[0] = sum[3];
-            outptr0 += 1;
-            outptr1 += 1;
-            outptr2 += 1;
-            outptr3 += 1;
-        }
-    }
-
-    remain_outch_start += nn_outch << 2;
-#endif // __SSE2__
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = remain_outch_start; p < outch; p++)
-    {
-        int* outptr0 = top_blob.channel(p);
-
-        int i = 0;
-#if __SSE2__
-#if __AVX2__
-        for (; i + 3 < size; i += 4)
-        {
-            const signed char* tmpptr = tmp.channel(i / 4);
-            const signed char* kptr0 = kernel.channel(p / 4 + p % 4);
-
-            int nn4 = (inch / 4) * maxk;
-            int nn1 = (inch % 4) * maxk;
-
-            int sum0 = 0;
-            int sum1 = 0;
-            int sum2 = 0;
-            int sum3 = 0;
-
-            if (nn4 > 0)
-            {
-                int j = 0;
-                for (; j < nn4; j++)
-                {
-                    signed char val0 = tmpptr[0];
-                    signed char val1 = tmpptr[1];
-                    signed char val2 = tmpptr[2];
-                    signed char val3 = tmpptr[3];
-                    signed char val4 = tmpptr[4];
-                    signed char val5 = tmpptr[5];
-                    signed char val6 = tmpptr[6];
-                    signed char val7 = tmpptr[7];
-                    signed char val8 = tmpptr[8];
-                    signed char val9 = tmpptr[9];
-                    signed char val10 = tmpptr[10];
-                    signed char val11 = tmpptr[11];
-                    signed char val12 = tmpptr[12];
-                    signed char val13 = tmpptr[13];
-                    signed char val14 = tmpptr[14];
-                    signed char val15 = tmpptr[15];
-
-                    signed char w0 = kptr0[0];
-                    signed char w1 = kptr0[1];
-                    signed char w2 = kptr0[2];
-                    signed char w3 = kptr0[3];
-
-                    sum0 += val0 * w0;
-                    sum0 += val1 * w1;
-                    sum0 += val2 * w2;
-                    sum0 += val3 * w3;
-                    sum1 += val4 * w0;
-                    sum1 += val5 * w1;
-                    sum1 += val6 * w2;
-                    sum1 += val7 * w3;
-                    sum2 += val8 * w0;
-                    sum2 += val9 * w1;
-                    sum2 += val10 * w2;
-                    sum2 += val11 * w3;
-                    sum3 += val12 * w0;
-                    sum3 += val13 * w1;
-                    sum3 += val14 * w2;
-                    sum3 += val15 * w3;
-
-                    tmpptr += 16;
-                    kptr0 += 4;
-                }
-            }
-
-            int j = 0;
-            for (; j < nn1; j++)
-            {
-                signed char val0 = tmpptr[0];
-                signed char val1 = tmpptr[1];
-                signed char val2 = tmpptr[2];
-                signed char val3 = tmpptr[3];
-                signed char w = kptr0[0];
-
-                sum0 += val0 * w;
-                sum1 += val1 * w;
-                sum2 += val2 * w;
-                sum3 += val3 * w;
-
-                tmpptr += 4;
-                kptr0 += 1;
-            }
-
-            outptr0[0] = sum0;
-            outptr0[1] = sum1;
-            outptr0[2] = sum2;
-            outptr0[3] = sum3;
+            _mm_storeu_si128((__m128i*)outptr0, _sum0);
             outptr0 += 4;
         }
-#endif
-        for (; i + 1 < size; i += 2)
-        {
-#if __AVX2__
-            const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2);
-#else
-            const signed char* tmpptr = tmp.channel(i / 2);
-#endif
-            const signed char* kptr0 = kernel.channel(p / 4 + p % 4);
-
-            int nn4 = (inch / 4) * maxk;
-            int nn1 = (inch % 4) * maxk;
-
-            int sum0 = 0;
-            int sum1 = 0;
-
-            if (nn4 > 0)
-            {
-                int j = 0;
-                for (; j < nn4; j++)
-                {
-                    signed char val0 = tmpptr[0];
-                    signed char val1 = tmpptr[1];
-                    signed char val2 = tmpptr[2];
-                    signed char val3 = tmpptr[3];
-                    signed char val4 = tmpptr[4];
-                    signed char val5 = tmpptr[5];
-                    signed char val6 = tmpptr[6];
-                    signed char val7 = tmpptr[7];
-
-                    signed char w0 = kptr0[0];
-                    signed char w1 = kptr0[1];
-                    signed char w2 = kptr0[2];
-                    signed char w3 = kptr0[3];
-
-                    sum0 += val0 * w0;
-                    sum0 += val1 * w1;
-                    sum0 += val2 * w2;
-                    sum0 += val3 * w3;
-                    sum1 += val4 * w0;
-                    sum1 += val5 * w1;
-                    sum1 += val6 * w2;
-                    sum1 += val7 * w3;
-
-                    tmpptr += 8;
-                    kptr0 += 4;
-                }
-            }
-
-            int j = 0;
-            for (; j < nn1; j++)
-            {
-                signed char val0 = tmpptr[0];
-                signed char val1 = tmpptr[1];
-                signed char w = kptr0[0];
-
-                sum0 += val0 * w;
-                sum1 += val1 * w;
-
-                tmpptr += 2;
-                kptr0 += 1;
-            }
-
-            outptr0[0] = sum0;
-            outptr0[1] = sum1;
-            outptr0 += 2;
-        }
-        for (; i < size; i++)
-        {
-#if __AVX2__
-            const signed char* tmpptr = tmp.channel(i / 4 + (i % 4) / 2 + i % 2);
-#else
-            const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
-#endif
-            const signed char* kptr0 = kernel.channel(p / 4 + p % 4);
-
-            int nn4 = (inch / 4) * maxk;
-            int nn1 = (inch % 4) * maxk;
-
-            int sum = 0;
-
-            if (nn4 > 0)
-            {
-                int j = 0;
-                for (; j < nn4; j++)
-                {
-                    signed char val0 = tmpptr[0];
-                    signed char val1 = tmpptr[1];
-                    signed char val2 = tmpptr[2];
-                    signed char val3 = tmpptr[3];
-
-                    signed char w0 = kptr0[0];
-                    signed char w1 = kptr0[1];
-                    signed char w2 = kptr0[2];
-                    signed char w3 = kptr0[3];
-
-                    sum += val0 * w0;
-                    sum += val1 * w1;
-                    sum += val2 * w2;
-                    sum += val3 * w3;
-
-                    tmpptr += 4;
-                    kptr0 += 4;
-                }
-            }
-
-            int j = 0;
-            for (; j < nn1; j++)
-            {
-                signed char val = tmpptr[0];
-                signed char w = kptr0[0];
-
-                sum += val * w;
-
-                tmpptr += 1;
-                kptr0 += 1;
-            }
-
-            outptr0[0] = sum;
-            outptr0 += 1;
-        }
-#else  // __SSE2__
-        for (; i < size; i++)
-        {
-            const signed char* tmpptr = tmp.channel(i);
-            const signed char* kptr0 = kernel.channel(p);
-
-            int nn1 = inch * maxk;
-
-            int sum = 0;
-            int j = 0;
-            for (; j < nn1; j++)
-            {
-                signed char val = tmpptr[0];
-                signed char w = kptr0[0];
-
-                sum += val * w;
-
-                tmpptr += 1;
-                kptr0 += 1;
-            }
-
-            outptr0[0] = sum;
-            outptr0 += 1;
-        }
-#endif // __SSE2__
     }
 }
 
-static void convolution_im2col_sgemm_transform_kernel_int8_sse(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
+static void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_sse(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
     const int maxk = kernel_w * kernel_h;
 
-#if __SSE2__
     // interleave
     // src = maxk-inch-outch
     // dst = 4a-4b-maxk-inch/4a-outch/4b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    if (outch >= 4)
-    {
-        if (inch >= 4)
-            kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4 + outch % 4, (size_t)1u);
-        else
-            kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4, (size_t)1u);
-    }
+    if (inch >= 4)
+        kernel_tm.create(16 * maxk, inch / 4 + inch % 4, outch / 4, (size_t)1u);
     else
-    {
-        if (inch >= 4)
-            kernel_tm.create(4 * maxk, inch / 4 + inch % 4, outch, (size_t)1u);
-        else
-            kernel_tm.create(1 * maxk, inch, outch, (size_t)1u);
-    }
+        kernel_tm.create(4 * maxk, inch, outch / 4, (size_t)1u);
 
-    int q = 0;
-    for (; q + 3 < outch; q += 4)
+    for (int q = 0; q + 3 < outch; q += 4)
     {
         signed char* g00 = kernel_tm.channel(q / 4);
 
@@ -1017,44 +680,9 @@ static void convolution_im2col_sgemm_transform_kernel_int8_sse(const Mat& _kerne
             }
         }
     }
-    // TODO unroll 2
-    for (; q < outch; q++)
-    {
-        signed char* g00 = kernel_tm.channel(q / 4 + q % 4);
-
-        int p = 0;
-        for (; p + 3 < inch; p += 4)
-        {
-            for (int k = 0; k < maxk; k++)
-            {
-                for (int j = 0; j < 4; j++)
-                {
-                    const signed char* k00 = kernel.channel(q).row<const signed char>(p + j);
-
-                    g00[0] = k00[k];
-
-                    g00++;
-                }
-            }
-        }
-        for (; p < inch; p++)
-        {
-            for (int k = 0; k < maxk; k++)
-            {
-                const signed char* k00 = kernel.channel(q).row<const signed char>(p);
-
-                g00[0] = k00[k];
-
-                g00++;
-            }
-        }
-    }
-#else  // __SSE2__
-    kernel_tm = _kernel.reshape(maxk, inch, outch);
-#endif // __SSE2__
 }
 
-static void convolution_im2col_sgemm_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
+static void convolution_im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
 {
     int w = bottom_blob.w;
     int inch = bottom_blob.c;
@@ -1118,5 +746,5 @@ static void convolution_im2col_sgemm_int8_sse(const Mat& bottom_blob, Mat& top_b
         }
     }
 
-    im2col_sgemm_int8_sse(bottom_im2col, top_blob, kernel, opt);
+    im2col_sgemm_pack1to4_int8_sse(bottom_im2col, top_blob, kernel, opt);
 }
