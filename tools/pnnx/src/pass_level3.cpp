@@ -17,10 +17,14 @@
 #include "pass_level3/eliminate_tuple_pair.h"
 #include "pass_level3/expand_quantization_modules.h"
 #include "pass_level3/fuse_attribute_expression.h"
-#include "pass_level3/fuse_cat_tensors.h"
+#include "pass_level3/fuse_cat_stack_tensors.h"
 #include "pass_level3/fuse_chunk_split_unpack.h"
 #include "pass_level3/fuse_expression.h"
+#include "pass_level3/fuse_index_expression.h"
 #include "pass_level3/fuse_rnn_unpack.h"
+#include "pass_level3/rename_F_conv_transposend.h"
+#include "pass_level3/rename_F_convmode.h"
+#include "pass_level3/rename_F_dropoutnd.h"
 
 // #include "pass_level4/canonicalize.h"
 // #include "pass_level4/fuse_custom_op.h"
@@ -30,7 +34,7 @@ namespace pnnx {
 
 void pass_level3(Graph& g)
 {
-    fuse_cat_tensors(g);
+    fuse_cat_stack_tensors(g);
 
     fuse_chunk_split_unpack(g);
 
@@ -42,7 +46,15 @@ void pass_level3(Graph& g)
 
     eliminate_tuple_pair(g);
 
+    rename_F_conv_transposend(g);
+
+    rename_F_convmode(g);
+
+    rename_F_dropoutnd(g);
+
     fuse_expression(g);
+
+    fuse_index_expression(g);
 
     //     dead_code_elimination(g);
 

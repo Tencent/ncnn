@@ -13,6 +13,10 @@
  * specific language governing permissions and limitations under the License.
  */
 
+#include "platform.h"
+
+#if NCNN_C_API
+
 #include "c_api.h"
 
 #include <stdlib.h>
@@ -180,6 +184,11 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 }
 
 /* mat api */
+ncnn_mat_t ncnn_mat_create()
+{
+    return (ncnn_mat_t)(new Mat());
+}
+
 ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator)
 {
     return (ncnn_mat_t)(new Mat(w, (size_t)4u, (Allocator*)allocator));
@@ -1351,3 +1360,5 @@ int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+#endif /* NCNN_C_API */

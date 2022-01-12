@@ -324,7 +324,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -365,7 +365,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -398,7 +398,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -999,7 +999,7 @@ static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -1040,7 +1040,7 @@ static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -1073,7 +1073,7 @@ static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];

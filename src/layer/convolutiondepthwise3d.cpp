@@ -171,15 +171,22 @@ int ConvolutionDepthWise3D::forward(const Mat& bottom_blob, Mat& top_blob, const
 
 #ifdef _WIN32
         #pragma omp parallel for num_threads(opt.num_threads)
-#else // _WIN32
+#else
         #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-#endif // _WIN32
+#endif
         for (int g = 0; g < group; g++)
         {
             for (int p = 0; p < num_output_g; p++)
             {
                 float* outptr = top_blob.channel(g * num_output_g + p);
                 const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
+
+#if NCNN_SIMPLEOMP
+                // shadowed variable for less openmp task args
+                const int outw = top_blob.w;
+                const int outh = top_blob.h;
+                const int outd = top_blob.d;
+#endif
 
                 for (int z = 0; z < outd; z++)
                 {

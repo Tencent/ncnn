@@ -381,9 +381,15 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         {
             // resolve dst_elempack
             int dims = top_blob_unpacked.dims;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (dims == 1) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
             if (dims == 2) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
             if (dims == 3 || dims == 4) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+#else
+            if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
+            if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
+            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+#endif
         }
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
@@ -423,7 +429,11 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             out_elempack = opt.use_fp16_arithmetic && _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = _h % 4 == 0 ? 4 : 1;
+#endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -620,7 +630,11 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             out_elempack = opt.use_fp16_arithmetic && _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = _c % 4 == 0 ? 4 : 1;
+#endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 

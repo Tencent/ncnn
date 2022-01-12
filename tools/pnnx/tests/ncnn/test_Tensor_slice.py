@@ -21,15 +21,15 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = x[:,:12,1:14:1]
+        x = x[:12,1:14:1]
         x = x[...,1:]
-        x = x[:,:,:x.size(2)-1]
-        y = y[:,1:,5:,3:]
-        y = y[:,:,1:13:1,:14]
-        y = y[:,:y.size(1):,:,:]
-        z = z[:,4:]
-        z = z[:,:2,:,:,2:-2:1]
-        z = z[:,:,:,z.size(3)-3:,:]
+        x = x[:,:x.size(1)-1]
+        y = y[1:,5:,3:]
+        y = y[:,1:13:1,:14]
+        y = y[:y.size(1):,:,:]
+        z = z[4:]
+        z = z[:2,:,:,2:-2:1]
+        z = z[:,:,z.size(2)-3:,:]
         return x, y, z
 
 def test():
@@ -37,9 +37,9 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 13, 26)
-    y = torch.rand(1, 15, 19, 21)
-    z = torch.rand(1, 18, 15, 19, 20)
+    x = torch.rand(13, 26)
+    y = torch.rand(15, 19, 21)
+    z = torch.rand(18, 15, 19, 20)
 
     a = net(x, y, z)
 
@@ -49,7 +49,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_Tensor_slice.pt inputshape=[1,13,26],[1,15,19,21],[1,18,15,19,20]")
+    os.system("../../src/pnnx test_Tensor_slice.pt inputshape=[13,26],[15,19,21],[18,15,19,20]")
 
     # ncnn inference
     import test_Tensor_slice_ncnn

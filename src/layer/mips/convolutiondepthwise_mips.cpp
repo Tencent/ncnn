@@ -41,6 +41,9 @@ ConvolutionDepthWise_mips::ConvolutionDepthWise_mips()
 
 int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
 {
+    if (dynamic_weight)
+        return 0;
+
     activation = create_activation_layer(activation_type, activation_params, opt);
 
     const int maxk = kernel_w * kernel_h;
@@ -477,6 +480,81 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
     {
         top_blob = top_blob_unpacked;
     }
+
+    return 0;
+}
+
+int ConvolutionDepthWise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int _kernel_w = _weight_data.w;
+    const int _kernel_h = _weight_data.h;
+    const int _num_output = _weight_data.c * _weight_data.elempack;
+
+    Mat weight_data_flattened;
+    flatten(_weight_data, weight_data_flattened, opt);
+    if (weight_data_flattened.empty())
+        return -100;
+
+    // weight_data_flattened as pack1
+    weight_data_flattened.w *= weight_data_flattened.elempack;
+    weight_data_flattened.elemsize /= weight_data_flattened.elempack;
+    weight_data_flattened.elempack = 1;
+
+    Mat bias_data_flattened;
+    if (bias_term)
+    {
+        const Mat& _bias_data = bottom_blobs[2];
+        flatten(_bias_data, bias_data_flattened, opt);
+        if (bias_data_flattened.empty())
+            return -100;
+
+        // bias_data_flattened as pack1
+        bias_data_flattened.w *= bias_data_flattened.elempack;
+        bias_data_flattened.elemsize /= bias_data_flattened.elempack;
+        bias_data_flattened.elempack = 1;
+    }
+
+    ncnn::Layer* op = ncnn::create_layer(ncnn::LayerType::ConvolutionDepthWise);
+
+    ncnn::ParamDict pd;
+    pd.set(0, _num_output);
+    pd.set(1, _kernel_w);
+    pd.set(11, _kernel_h);
+    pd.set(2, dilation_w);
+    pd.set(12, dilation_h);
+    pd.set(3, stride_w);
+    pd.set(13, stride_h);
+    pd.set(4, pad_left);
+    pd.set(15, pad_right);
+    pd.set(14, pad_top);
+    pd.set(16, pad_bottom);
+    pd.set(18, pad_value);
+    pd.set(5, bias_term);
+    pd.set(6, weight_data_flattened.w);
+    pd.set(7, group);
+    pd.set(8, int8_scale_term);
+    pd.set(9, activation_type);
+    pd.set(10, activation_params);
+
+    op->load_param(pd);
+
+    ncnn::Mat weights[2];
+    weights[0] = weight_data_flattened;
+    weights[1] = bias_data_flattened;
+
+    op->load_model(ncnn::ModelBinFromMatArray(weights));
+
+    op->create_pipeline(opt);
+
+    op->forward(bottom_blob, top_blob, opt);
+
+    op->destroy_pipeline(opt);
+
+    delete op;
 
     return 0;
 }

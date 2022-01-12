@@ -86,6 +86,7 @@ Usage: pnnx [model.pt] [(key=value)...]
   pnnxpy=model_pnnx.py
   ncnnparam=model.ncnn.param
   ncnnbin=model.ncnn.bin
+  ncnnpy=model_ncnn.py
   optlevel=2
   device=cpu/gpu
   inputshape=[1,3,224,224],...
@@ -96,7 +97,40 @@ Sample usage: pnnx mobilenet_v2.pt inputshape=[1,3,224,224]
               pnnx yolov5s.pt inputshape=[1,3,640,640] inputshape2=[1,3,320,320] device=gpu moduleop=models.common.Focus,models.yolo.Detect
 ```
 
+Parameters:
+
+`pnnxparam` (default="*.pnnx.param", * is the model name): PNNX graph definition file
+
+`pnnxbin` (default="*.pnnx.bin"): PNNX model weight
+
+`pnnxpy` (default="*_pnnx.py"): PyTorch script for inference, including model construction and weight initialization code
+
+`ncnnparam` (default="*.ncnn.param"): ncnn graph definition
+
+`ncnnbin` (default="*.ncnn.bin"): ncnn model weight
+
+`ncnnpy` (default="*_ncnn.py"): pyncnn script for inference
+
+`optlevel` (default=2): graph optimization level 
+
+| Option | Optimization level              |
+|--------|---------------------------------|
+|   0    | do not apply optimization       |
+|   1    | optimization for inference      |
+|   2    | optimization more for inference |
+
+`device` (default="cpu"): device type for the input in TorchScript model, cpu or gpu
+
+`inputshape` (Optional): shapes of model inputs. It is used to resolve tensor shapes in model graph. for example, `[1,3,224,224]` for the model with only 1 input, `[1,3,224,224],[1,3,224,224]` for the model that have 2 inputs.
+
+`inputshape2` (Optional): shapes of alternative model inputs, the format is identical to `inputshape`. Usually, it is used with `inputshape` to resolve dynamic shape (-1) in model graph.
+
+`customop` (Optional): list of Torch extensions (dynamic library) for custom operators, separated by ",". For example, `/home/nihui/.cache/torch_extensions/fused/fused.so,...`
+
+`moduleop` (Optional): list of modules to keep as one big operator, separated by ",". for example, `models.common.Focus,models.yolo.Detect`
+
 # The pnnx.param format
+
 ### example
 ```
 7767517
@@ -420,7 +454,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.AdaptiveMaxPool1d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveMaxPool2d       | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AdaptiveMaxPool3d       | :heavy_check_mark: | :heavy_check_mark: |
-|nn.AlphaDropout            |   |
+|nn.AlphaDropout            | :heavy_check_mark: | :heavy_check_mark: |
 |nn.AvgPool1d               | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.AvgPool2d               | :heavy_check_mark: | :heavy_check_mark:* |
 |nn.AvgPool3d               | :heavy_check_mark: | :heavy_check_mark:* |
@@ -440,9 +474,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.ConvTranspose2d         | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConvTranspose3d         | :heavy_check_mark: |
 |nn.CosineSimilarity        |   |
-|nn.Dropout                 |   | :heavy_check_mark:* |
-|nn.Dropout2d               |   |
-|nn.Dropout3d               |   |
+|nn.Dropout                 | :heavy_check_mark: | :heavy_check_mark: |
+|nn.Dropout2d               | :heavy_check_mark: | :heavy_check_mark: |
+|nn.Dropout3d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ELU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Embedding               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.EmbeddingBag            |   |
@@ -540,28 +574,28 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.adaptive_max_pool2d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_max_pool3d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.affine_grid              | :heavy_check_mark: | :heavy_check_mark: |
-|F.alpha_dropout            |  |
+|F.alpha_dropout            | :heavy_check_mark: | :heavy_check_mark: |
 |F.avg_pool1d               | :heavy_check_mark: | :heavy_check_mark:* |
 |F.avg_pool2d               | :heavy_check_mark: | :heavy_check_mark:* |
 |F.avg_pool3d               | :heavy_check_mark: | :heavy_check_mark:* |
 |F.batch_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.bilinear                 |  |
 |F.celu                     | :heavy_check_mark: |
-|F.conv1d                   | :heavy_check_mark: |
-|F.conv2d                   | :heavy_check_mark: | :heavy_check_mark:* |
-|F.conv3d                   | :heavy_check_mark: |
+|F.conv1d                   | :heavy_check_mark: | :heavy_check_mark: |
+|F.conv2d                   | :heavy_check_mark: | :heavy_check_mark: |
+|F.conv3d                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.conv_transpose1d         | :heavy_check_mark: |
-|F.conv_transpose2d         | :heavy_check_mark: |
+|F.conv_transpose2d         | :heavy_check_mark: | :heavy_check_mark: |
 |F.conv_transpose3d         | :heavy_check_mark: |
 |F.cosine_similarity        |  |
-|F.dropout                  |  |
-|F.dropout2d                |  |
-|F.dropout3d                |  |
+|F.dropout                  | :heavy_check_mark: | :heavy_check_mark: |
+|F.dropout2d                | :heavy_check_mark: | :heavy_check_mark: |
+|F.dropout3d                | :heavy_check_mark: | :heavy_check_mark: |
 |F.elu                      | :heavy_check_mark: | :heavy_check_mark: |
 |F.elu_                     | :heavy_check_mark: | :heavy_check_mark: |
-|F.embedding                |  |
+|F.embedding                | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding_bag            |  |
-|F.feature_alpha_dropout    |  |
+|F.feature_alpha_dropout    | :heavy_check_mark: | :heavy_check_mark: |
 |F.fold                     |  |
 |F.fractional_max_pool2d    |  |
 |F.fractional_max_pool3d    |  |

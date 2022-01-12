@@ -49,7 +49,7 @@ static int test_unaryop(const ncnn::Mat& _a)
     int ret = test_layer<ncnn::UnaryOp>("UnaryOp", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, op_type);
+        fprintf(stderr, "test_unaryop failed a.dims=%d a=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, op_type);
     }
 
     return ret;
@@ -58,12 +58,20 @@ static int test_unaryop(const ncnn::Mat& _a)
 static int test_unaryop_0()
 {
     return 0
+           || test_unaryop(RandomMat(11, 3, 2, 16))
+           || test_unaryop(RandomMat(10, 2, 2, 12))
+           || test_unaryop(RandomMat(6, 1, 5, 13));
+}
+
+static int test_unaryop_1()
+{
+    return 0
            || test_unaryop(RandomMat(11, 7, 16))
            || test_unaryop(RandomMat(10, 4, 12))
            || test_unaryop(RandomMat(6, 5, 13));
 }
 
-static int test_unaryop_1()
+static int test_unaryop_2()
 {
     return 0
            || test_unaryop(RandomMat(12, 16))
@@ -71,7 +79,7 @@ static int test_unaryop_1()
            || test_unaryop(RandomMat(14, 15));
 }
 
-static int test_unaryop_2()
+static int test_unaryop_3()
 {
     return 0
            || test_unaryop(RandomMat(128))
@@ -88,7 +96,8 @@ int main()
         int ret = 0
                   || test_unaryop_0()
                   || test_unaryop_1()
-                  || test_unaryop_2();
+                  || test_unaryop_2()
+                  || test_unaryop_3();
 
         if (ret != 0)
             return ret;

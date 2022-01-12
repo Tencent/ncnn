@@ -48,8 +48,9 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -341,8 +342,9 @@ static int unary_op_inplace_pack8_fp16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -554,8 +556,9 @@ static int unary_op_inplace_pack4_fp16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -751,8 +754,9 @@ static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -1082,8 +1086,9 @@ static int unary_op_inplace_pack4_bf16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -1111,8 +1116,9 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)

@@ -27,6 +27,20 @@
 
 namespace pnnx {
 
+static bool type_is_integer(int type)
+{
+    if (type == 1) return false;
+    if (type == 2) return false;
+    if (type == 3) return false;
+    if (type == 4) return true;
+    if (type == 5) return true;
+    if (type == 6) return true;
+    if (type == 7) return true;
+    if (type == 8) return true;
+    if (type == 9) return true;
+    return false;
+}
+
 static const char* type_to_string(int type)
 {
     if (type == 1) return "f32";
@@ -37,6 +51,7 @@ static const char* type_to_string(int type)
     if (type == 6) return "i16";
     if (type == 7) return "i8";
     if (type == 8) return "u8";
+    if (type == 9) return "bool";
     return "null";
 }
 
@@ -50,6 +65,21 @@ static const char* type_to_numpy_string(int type)
     if (type == 6) return "int16";
     if (type == 7) return "int8";
     if (type == 8) return "uint8";
+    if (type == 9) return "bool8";
+    return "null";
+}
+
+static const char* type_to_dtype_string(int type)
+{
+    if (type == 1) return "torch.float";
+    if (type == 2) return "torch.double";
+    if (type == 3) return "torch.half";
+    if (type == 4) return "torch.int";
+    if (type == 5) return "torch.long";
+    if (type == 6) return "torch.short";
+    if (type == 7) return "torch.int8";
+    if (type == 8) return "torch.uint8";
+    if (type == 9) return "torch.bool";
     return "null";
 }
 
@@ -63,6 +93,7 @@ static size_t type_to_elemsize(int type)
     if (type == 6) return 2;
     if (type == 7) return 1;
     if (type == 8) return 1;
+    if (type == 9) return 1;
     return 0; // null
 }
 
@@ -76,6 +107,7 @@ static int string_to_type(const char* s)
     if (strcmp(s, "i16") == 0) return 6;
     if (strcmp(s, "i8") == 0) return 7;
     if (strcmp(s, "u8") == 0) return 8;
+    if (strcmp(s, "bool") == 0) return 9;
     return 0; // null
 }
 
@@ -92,6 +124,7 @@ int get_at_tensor_type(const at::ScalarType& st)
     if (st == c10::ScalarType::QInt8) return 7;
     if (st == c10::ScalarType::Byte) return 8;
     if (st == c10::ScalarType::QUInt8) return 8;
+    if (st == c10::ScalarType::Bool) return 9;
     return 0; // unknown type
 }
 
@@ -240,6 +273,41 @@ Attribute::Attribute(const at::Tensor& t)
     type = get_at_tensor_type(t.scalar_type());
 
     const int ndim = (int)t.dim();
+
+    if (ndim == 0)
+    {
+        shape = {1};
+
+        data.resize(type_to_elemsize(type));
+
+        if (t.scalar_type() == c10::ScalarType::Long)
+        {
+            int64_t i = t.item<int64_t>();
+            memcpy((void*)data.data(), (const void*)&i, data.size());
+        }
+        else if (t.scalar_type() == c10::ScalarType::Int)
+        {
+            int i = t.item<int>();
+            memcpy((void*)data.data(), (const void*)&i, data.size());
+        }
+        else if (t.scalar_type() == c10::ScalarType::Double)
+        {
+            double f = t.item<double>();
+            memcpy((void*)data.data(), (const void*)&f, data.size());
+        }
+        else if (t.scalar_type() == c10::ScalarType::Float)
+        {
+            float f = t.item<float>();
+            memcpy((void*)data.data(), (const void*)&f, data.size());
+        }
+        else
+        {
+            fprintf(stderr, "unknown Attribute tensor scalar type %d\n", type);
+        }
+
+        return;
+    }
+
     shape.resize(ndim);
     for (int i = 0; i < ndim; i++)
         shape[i] = t.size(i);
@@ -1057,6 +1125,30 @@ static std::string make_slice_expression(const Operator* op)
     return r;
 }
 
+static std::string make_index_expression(const Operator* op)
+{
+    fprintf(stderr, "make_index_expression %s\n", op->name.c_str());
+
+    std::string index_expr = op->params.at("expr").s;
+
+    // strip out-most [ ] pair
+    index_expr = index_expr.substr(1, index_expr.size() - 2);
+
+    // None,None,   ->   ...,
+    bool leading_none = false;
+    while (index_expr.substr(0, 5) == "None,")
+    {
+        leading_none = true;
+        index_expr = index_expr.substr(5);
+    }
+    if (leading_none)
+    {
+        index_expr = "...," + index_expr;
+    }
+
+    return index_expr;
+}
+
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 {
     FILE* pyfp = fopen(pypath.c_str(), "wb");
@@ -1072,6 +1164,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     fprintf(pyfp, "import torch\n");
     fprintf(pyfp, "import torch.nn as nn\n");
     fprintf(pyfp, "import torch.nn.functional as F\n");
+    fprintf(pyfp, "import torchvision\n");
 
     fprintf(pyfp, "\n");
 
@@ -1085,7 +1178,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     {
         for (const Operator* op : ops)
         {
-            if (op->type.substr(0, 3) != "nn.")
+            if (op->type.substr(0, 3) != "nn." && op->type.substr(0, 16) != "torchvision.ops.")
                 continue;
 
             fprintf(pyfp, "        self.%s = %s(", sanitize_identifier(op->name).c_str(), op->type.c_str());
@@ -1196,7 +1289,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
         for (const Operator* op : ops)
         {
-            if (op->type.substr(0, 3) != "nn.")
+            if (op->type.substr(0, 3) != "nn." && op->type.substr(0, 16) != "torchvision.ops.")
                 continue;
 
             if (op->type == "nn.quantized.Conv2d" || op->type == "nn.quantized.Linear")
@@ -1252,6 +1345,49 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
                 fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
             }
+        }
+
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Attribute")
+                continue;
+
+            const std::string& key = op->attrs.begin()->first;
+            const Attribute& attr = op->attrs.begin()->second;
+
+            bool is_running_mean_var = false;
+            {
+                const Operand* r = op->outputs[0];
+                if (r->consumers.size() == 1)
+                {
+                    const Operator* op2 = r->consumers[0];
+                    if (op2->type == "F.batch_norm" || op2->type == "F.instance_norm")
+                    {
+                        if (r == op2->inputs[1] || r == op2->inputs[2])
+                        {
+                            is_running_mean_var = true;
+                        }
+                    }
+                }
+            }
+
+            if (is_running_mean_var)
+            {
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+            }
+            else
+            {
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+            }
+
+            for (size_t i = 0; i < attr.shape.size(); i++)
+            {
+                fprintf(pyfp, "%d", attr.shape[i]);
+                if (i + 1 != attr.shape.size())
+                    fprintf(pyfp, ",");
+            }
+
+            fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
         }
 
         fprintf(pyfp, "        archive.close()\n");
@@ -1313,11 +1449,22 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 std::string expanded_expr = expand_expression(op);
                 fprintf(pyfp, " = %s\n", expanded_expr.c_str());
             }
+            else if (op->type == "pnnx.Attribute")
+            {
+                const std::string& key = op->attrs.begin()->first;
+                fprintf(pyfp, "v_%s = self.%s_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+            }
             else if (op->type == "Tensor.slice")
             {
                 // slice expr
                 std::string slice_expr = make_slice_expression(op);
                 fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), slice_expr.c_str());
+            }
+            else if (op->type == "Tensor.index")
+            {
+                // index expr
+                std::string index_expr = make_index_expression(op);
+                fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
             }
             else if (op->type == "Tensor.view" || op->type == "Tensor.reshape")
             {
@@ -1359,10 +1506,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type == "torch.cat")
+            else if (op->type == "torch.cat" || op->type == "torch.stack")
             {
                 // cat
-                fprintf(pyfp, "v_%s = torch.cat(", sanitize_identifier(op->outputs[0]->name).c_str());
+                fprintf(pyfp, "v_%s = %s(", sanitize_identifier(op->outputs[0]->name).c_str(), op->type.c_str());
                 if (op->inputs.size() == 1)
                 {
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
@@ -1441,7 +1588,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type.substr(0, 3) == "nn.")
+            else if (op->type.substr(0, 3) == "nn." || op->type.substr(0, 16) == "torchvision.ops.")
             {
                 // self.xxx()
                 for (size_t i = 0; i < op->outputs.size(); i++)
@@ -1653,15 +1800,26 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
             const Operand* r = op->outputs[0];
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
-            fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-
-            for (size_t i = 0; i < r->shape.size(); i++)
+            if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "%d", r->shape[i]);
-                if (i + 1 != r->shape.size())
-                    fprintf(pyfp, ", ");
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
-            fprintf(pyfp, ")\n");
+            else
+            {
+                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
 
             input_names.push_back(input_name);
         }
@@ -1707,15 +1865,26 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
             const Operand* r = op->outputs[0];
             std::string input_name = std::string("v_") + sanitize_identifier(r->name);
-            fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-
-            for (size_t i = 0; i < r->shape.size(); i++)
+            if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "%d", r->shape[i]);
-                if (i + 1 != r->shape.size())
-                    fprintf(pyfp, ", ");
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
-            fprintf(pyfp, ")\n");
+            else
+            {
+                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
 
             input_names.push_back(input_name);
         }
@@ -1963,22 +2132,33 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
         fprintf(pyfp, "def test_inference():\n");
         fprintf(pyfp, "    torch.manual_seed(0)\n");
 
-        for (const Operator* op : ops)
+        for (int input_index = 0;; input_index++)
         {
-            if (op->type != "Input")
-                continue;
+            std::string input_name = std::string("in") + std::to_string(input_index);
+            const Operand* r = get_operand(input_name);
+            if (!r)
+                break;
 
-            const Operand* r = op->outputs[0];
-            std::string input_name = r->name;
-            fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
-
-            for (size_t i = 0; i < r->shape.size(); i++)
+            if (type_is_integer(r->type))
             {
-                fprintf(pyfp, "%d", r->shape[i]);
-                if (i + 1 != r->shape.size())
-                    fprintf(pyfp, ", ");
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
             }
-            fprintf(pyfp, ")\n");
+            else
+            {
+                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
         }
 
         fprintf(pyfp, "    out = []\n");
@@ -1987,25 +2167,48 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
         fprintf(pyfp, "    with ncnn.Net() as net:\n");
         fprintf(pyfp, "         net.load_param(\"%s\")\n", parampath.c_str());
         fprintf(pyfp, "         net.load_model(\"%s\")\n", binpath.c_str());
-        fprintf(pyfp, "         outcount = len(net.output_names())\n");
         fprintf(pyfp, "\n");
         fprintf(pyfp, "         with net.create_extractor() as ex:\n");
 
-        for (const Operator* op : ops)
+        for (int input_index = 0;; input_index++)
         {
-            if (op->type != "Input")
-                continue;
+            std::string input_name = std::string("in") + std::to_string(input_index);
+            const Operand* r = get_operand(input_name);
+            if (!r)
+                break;
 
-            const Operand* r = op->outputs[0];
-            std::string input_name = r->name;
-            fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.squeeze(0).numpy()).clone())\n", input_name.c_str(), input_name.c_str());
+            const int batch_index = r->params.at("__batch_index").i;
+            if (batch_index != 233)
+            {
+                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.squeeze(%d).numpy()).clone())\n", input_name.c_str(), input_name.c_str(), batch_index);
+            }
+            else
+            {
+                fprintf(pyfp, "            ex.input(\"%s\", ncnn.Mat(%s.numpy()).clone())\n", input_name.c_str(), input_name.c_str());
+            }
         }
 
         fprintf(pyfp, "\n");
 
-        fprintf(pyfp, "            for i in range(outcount):\n");
-        fprintf(pyfp, "                _, outi = ex.extract(\"out\" + str(i))\n");
-        fprintf(pyfp, "                out.append(torch.from_numpy(np.array(outi)).unsqueeze(0))\n");
+        for (int output_index = 0;; output_index++)
+        {
+            std::string output_name = std::string("out") + std::to_string(output_index);
+            const Operand* r = get_operand(output_name);
+            if (!r)
+                break;
+
+            fprintf(pyfp, "            _, %s = ex.extract(\"%s\")\n", output_name.c_str(), output_name.c_str());
+
+            const int batch_index = r->params.at("__batch_index").i;
+            if (batch_index != 233)
+            {
+                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)).unsqueeze(%d))\n", output_name.c_str(), batch_index);
+            }
+            else
+            {
+                fprintf(pyfp, "            out.append(torch.from_numpy(np.array(%s)))\n", output_name.c_str());
+            }
+        }
 
         fprintf(pyfp, "\n");
 

@@ -177,7 +177,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v31.4s, v1.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -282,7 +282,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -372,7 +372,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v23.4s, v1.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -430,7 +430,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -502,7 +502,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "ld1    {v24.4s, v25.4s}, [%20] \n"
 
                 // inch loop
-                "lsr    w4, %w21, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w21, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -552,7 +552,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w21, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w21, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -649,7 +649,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v15.4s, v0.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -711,7 +711,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -772,7 +772,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vdup.f32   q15, d1[1]          \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -840,7 +840,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -910,7 +910,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v11.4s, v0.s[3]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -949,7 +949,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1001,7 +1001,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vdup.f32   q11, d1[1]          \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1044,7 +1044,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1105,7 +1105,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "ld1    {v12.4s}, [%12]         \n"
 
                 // inch loop
-                "lsr    w4, %w13, #2            \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w13, #2            \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1139,7 +1139,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w13, #3            \n" // w4 = remain = inch & 3;
+                "and    w4, %w13, #3            \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1184,7 +1184,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vld1.f32   {d24-d25}, [%12]    \n"
 
                 // inch loop
-                "lsr        r4, %13, #2         \n" // r4 = nn = inch >> 2
+                "lsr        r4, %13, #2         \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1220,7 +1220,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %13, #3         \n" // r4 = remain = inch & 3;
+                "and        r4, %13, #3         \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1291,7 +1291,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v9.4s, %w6              \n"
 
                 // inch loop
-                "lsr    w4, %w7, #2             \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w7, #2             \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1325,7 +1325,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w7, #3             \n" // w4 = remain = inch & 3;
+                "and    w4, %w7, #3             \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1363,7 +1363,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vdup.f32   q9, %6              \n"
 
                 // inch loop
-                "lsr        r4, %7, #2          \n" // r4 = nn = inch >> 2
+                "lsr        r4, %7, #2          \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1401,7 +1401,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %7, #3          \n" // r4 = remain = inch & 3;
+                "and        r4, %7, #3          \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 
@@ -1451,7 +1451,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "dup    v8.4s, %w6              \n"
 
                 // inch loop
-                "lsr    w4, %w7, #2             \n" // w4 = nn = inch >> 2
+                "lsr    w4, %w7, #2             \n" // w4 = nn >> 2
                 "cmp    w4, #0                  \n"
                 "beq    1f                      \n"
 
@@ -1475,7 +1475,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and    w4, %w7, #3             \n" // w4 = remain = inch & 3;
+                "and    w4, %w7, #3             \n" // w4 = remain = nn & 3
                 "cmp    w4, #0                  \n"
                 "beq    3f                      \n"
 
@@ -1511,7 +1511,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "vdup.f32   q8, %6              \n"
 
                 // inch loop
-                "lsr        r4, %7, #2          \n" // r4 = nn = inch >> 2
+                "lsr        r4, %7, #2          \n" // r4 = nn >> 2
                 "cmp        r4, #0              \n"
                 "beq        1f                  \n"
 
@@ -1537,7 +1537,7 @@ static void im2col_sgemm_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat
                 "1:                             \n"
 
                 // remain loop
-                "and        r4, %7, #3          \n" // r4 = remain = inch & 3;
+                "and        r4, %7, #3          \n" // r4 = remain = nn & 3
                 "cmp        r4, #0              \n"
                 "beq        3f                  \n"
 

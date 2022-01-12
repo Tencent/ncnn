@@ -118,11 +118,17 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                     sub_mod = sub_mod.attr(module_name).toModule();
                 }
 
+                if (wrapped_name.empty())
+                {
+                    // top-level module
+                    wrapped_name = name;
+                }
+
                 op->name = wrapped_name;
 
-                //                 op->params["this"] = n->input(i)
+                // op->params["this"] = n->input(i)
 
-                //                 sub_mod.dump(true, true, true);
+                // sub_mod.dump(true, true, true);
 
                 op->attrs[name] = sub_mod.attr(name).toTensor();
             }

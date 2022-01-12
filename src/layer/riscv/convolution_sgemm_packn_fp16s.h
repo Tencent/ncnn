@@ -54,7 +54,8 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
+#ifdef RVV_SPEC_0_7
                     asm volatile(
                         "mv        t3,     %[LEN]  \n\t"
                         "mv        t1,     %[SRC]  \n\t"
@@ -83,7 +84,22 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
                     img0 += size * packn;
                     tmpptr += packn * 8;
+#else
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = img0[l];
+                        tmpptr[1] = img0[l + packn];
+                        tmpptr[2] = img0[l + packn * 2];
+                        tmpptr[3] = img0[l + packn * 3];
+                        tmpptr[4] = img0[l + packn * 4];
+                        tmpptr[5] = img0[l + packn * 5];
+                        tmpptr[6] = img0[l + packn * 6];
+                        tmpptr[7] = img0[l + packn * 7];
+                        tmpptr += 8;
+                    }
 
+                    img0 += size * packn;
+#endif
 #else
                     vfloat16m1_t _val0 = vle16_v_f16m1(img0, vl);
                     vfloat16m1_t _val1 = vle16_v_f16m1(img0 + packn, vl);
@@ -118,7 +134,8 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
+#ifdef RVV_SPEC_0_7
                     asm volatile(
                         "mv        t3,     %[LEN]  \n\t"
                         "mv        t1,     %[SRC]  \n\t"
@@ -138,6 +155,18 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
                     img0 += size * packn;
                     tmpptr += packn * 4;
+#else
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = img0[l];
+                        tmpptr[1] = img0[l + packn];
+                        tmpptr[2] = img0[l + packn * 2];
+                        tmpptr[3] = img0[l + packn * 3];
+                        tmpptr += 4;
+                    }
+
+                    img0 += size * packn;
+#endif
 #else
                     vfloat16m1_t _val0 = vle16_v_f16m1(img0, vl);
                     vfloat16m1_t _val1 = vle16_v_f16m1(img0 + packn, vl);
@@ -169,7 +198,8 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
+#ifdef RVV_SPEC_0_7
                     asm volatile(
                         "mv        t3,     %[LEN]  \n\t"
                         "mv        t1,     %[SRC]  \n\t"
@@ -185,6 +215,16 @@ static void im2col_sgemm_packn_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blo
 
                     img0 += size * packn;
                     tmpptr += packn * 2;
+#else
+                    for (int l = 0; l < packn; l++)
+                    {
+                        tmpptr[0] = img0[l];
+                        tmpptr[1] = img0[l + packn];
+                        tmpptr += 2;
+                    }
+
+                    img0 += size * packn;
+#endif
 #else
                     vfloat16m1_t _val0 = vle16_v_f16m1(img0, vl);
                     vfloat16m1_t _val1 = vle16_v_f16m1(img0 + packn, vl);

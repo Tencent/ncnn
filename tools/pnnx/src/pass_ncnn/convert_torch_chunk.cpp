@@ -45,10 +45,20 @@ void convert_torch_chunk(Graph& graph)
             axis = input_rank + axis;
         }
 
+        int chunks = op->params.at("chunks").i;
+
+        if (!op->inputs[0]->shape.empty())
+        {
+            int size = op->inputs[0]->shape[axis];
+            if (size % chunks != 0)
+            {
+                fprintf(stderr, "chunk with non-perfect divided size %d / %d is not supported\n", size, chunks);
+            }
+        }
+
         if (axis > batch_index)
             axis -= 1;
 
-        int chunks = op->params.at("chunks").i;
         op->params["0"].type = 5;
         op->params["0"].ai.resize(chunks, -233);
 

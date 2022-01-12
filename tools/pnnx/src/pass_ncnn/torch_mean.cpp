@@ -26,38 +26,6 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-torch.mean              op_0        1 1 input out dim=(2,3) keepdim=False
-pnnx.Output             output      1 0 out
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "Pooling";
-    }
-
-    const char* name_str() const
-    {
-        return "gap";
-    }
-
-    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
-    {
-        op->params["0"] = 1;
-        op->params["4"] = 1;
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_mean, 20)
-
-class torch_mean_1 : public GraphRewriterPass
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-3 2
-pnnx.Input              input       0 1 input
 torch.mean              op_0        1 1 input out dim=%dim keepdim=%keepdim
 pnnx.Output             output      1 0 out
 )PNNXIR";
@@ -79,7 +47,7 @@ pnnx.Output             output      1 0 out
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
-        // drop mean batch index
+        // drop batch index
         std::vector<int> new_dims;
         for (int i = 0; i < (int)dims.size(); i++)
         {
@@ -97,7 +65,7 @@ pnnx.Output             output      1 0 out
     }
 };
 
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_mean_1, 20)
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_mean, 20)
 
 } // namespace ncnn
 

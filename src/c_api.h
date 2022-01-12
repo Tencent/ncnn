@@ -16,8 +16,11 @@
 #ifndef NCNN_C_API_H
 #define NCNN_C_API_H
 
-#include <stddef.h>
 #include "platform.h"
+
+#if NCNN_C_API
+
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,6 +57,7 @@ NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_v
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create();
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
@@ -310,5 +314,7 @@ NCNN_EXPORT int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncn
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+#endif /* NCNN_C_API */
 
 #endif /* NCNN_C_API_H */

@@ -45,17 +45,11 @@ pnnx.Output             output      1 0 out
     {
         op->params["0"] = 0;
 
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
         const std::vector<int>& dims = captured_params.at("dims").ai;
 
         int input_rank = (int)op->inputs[0]->shape.size();
-
-        const int batch_index = op->inputs[0]->params["__batch_index"].i;
-
-        if (input_rank > 5)
-        {
-            fprintf(stderr, "permute %d-rank tensor is not supported yet!\n", input_rank);
-            return;
-        }
 
         if (input_rank == 0)
         {
@@ -63,9 +57,12 @@ pnnx.Output             output      1 0 out
             input_rank = (int)dims.size();
         }
 
-        if (input_rank != (int)dims.size())
+        if (batch_index >= 0 && batch_index < input_rank)
+            input_rank -= 1;
+
+        if (input_rank > 4)
         {
-            fprintf(stderr, "permute %d-rank tensor with %d-rank dims is not possible\n", input_rank, (int)dims.size());
+            fprintf(stderr, "permute %d-rank tensor is not supported yet!\n", input_rank);
             return;
         }
 
@@ -80,19 +77,25 @@ pnnx.Output             output      1 0 out
             new_dims.push_back(new_dim);
         }
 
-        if (input_rank == 2)
+        if (input_rank != (int)new_dims.size())
+        {
+            fprintf(stderr, "permute %d-rank tensor with %d-rank dims is not possible\n", input_rank, (int)new_dims.size());
+            return;
+        }
+
+        if (input_rank == 1)
         {
             // noop
             op->type = "Noop";
         }
-        if (input_rank == 3)
+        if (input_rank == 2)
         {
             if (new_dims == std::vector<int>{0, 1})
                 op->type = "Noop";
             else if (new_dims == std::vector<int>{1, 0})
                 op->params["0"] = 1;
         }
-        if (input_rank == 4)
+        if (input_rank == 3)
         {
             if (new_dims == std::vector<int>{0, 1, 2})
                 op->type = "Noop";
@@ -107,7 +110,7 @@ pnnx.Output             output      1 0 out
             else if (new_dims == std::vector<int>{2, 1, 0})
                 op->params["0"] = 5;
         }
-        if (input_rank == 5)
+        if (input_rank == 4)
         {
             if (new_dims == std::vector<int>{0, 1, 2, 3})
                 op->type = "Noop";
