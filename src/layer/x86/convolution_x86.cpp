@@ -16,9 +16,12 @@
 
 #if __SSE2__
 #include <emmintrin.h>
+#if __SSE4_1__
+#include <smmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif
+#endif // __SSE4_1__
 #endif // __SSE2__
 #include "x86_activation.h"
 #include "x86_usability.h"
@@ -54,7 +57,9 @@ namespace ncnn {
 #include "convolution_1x1_pack8to4_int8.h"
 #include "convolution_1x1_pack1to4_int8.h"
 #include "convolution_1x1_pack8to1_int8.h"
+#include "convolution_3x3_pack8to4_int8.h"
 #include "convolution_3x3_pack1to4_int8.h"
+#include "convolution_3x3_pack8to1_int8.h"
 #include "convolution_7x7_pack1to4_int8.h"
 #endif // NCNN_INT8
 
@@ -1203,6 +1208,10 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         {
             convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
         }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+        }
         else if (opt.use_sgemm_convolution)
         {
             convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
@@ -1254,6 +1263,10 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             convolution_im2col_sgemm_transform_kernel_pack8to1_int8_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
         }
         else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
         {
@@ -1368,6 +1381,10 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         {
             conv1x1s2_sgemm_pack8to4_int8_sse(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
         }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_pack8to4_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd42_data, opt);
+        }
         else if (opt.use_sgemm_convolution)
         {
             convolution_im2col_sgemm_pack8to4_int8_sse(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
@@ -1473,6 +1490,10 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             conv1x1s2_sgemm_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd42_data, opt);
         }
         else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
         {
