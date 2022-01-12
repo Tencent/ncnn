@@ -45,6 +45,8 @@ public:
     Mat weight_data_3x3_winograd23;
     Mat weight_data_3x3_winograd63;
 
+    Mat weight_3x3_winograd42_data;
+
     // forwardDilation
     Layer* convolution_dilation1;
 
