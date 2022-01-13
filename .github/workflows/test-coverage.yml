@@ -226,8 +226,6 @@ jobs:
     runs-on: [self-hosted, linux]
     steps:
     - uses: actions/checkout@v2
-    - name: lcov
-      run: sudo apt-get install lcov
     - name: build
       env:
         CC: gcc
