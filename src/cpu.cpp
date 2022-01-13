@@ -623,7 +623,7 @@ static int g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
 static int g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
 static int g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
 static int g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
-#else // defined(__i386__) || defined(__x86_64__)
+#else  // defined(__i386__) || defined(__x86_64__)
 static const int g_cpu_support_x86_avx = 0;
 static const int g_cpu_support_x86_avx2 = 0;
 static const int g_cpu_support_x86_avx_vnni = 0;
