@@ -28,12 +28,11 @@
 #endif
 #endif
 
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 #ifdef _MSC_VER
 #include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
 #endif
-
-#if defined(__i386__) || defined(__x86_64__)
 #if defined(__clang__) || defined(__GNUC__)
 #include <cpuid.h> // __get_cpuid() and __get_cpuid_count()
 #endif
@@ -441,7 +440,7 @@ int cpu_support_arm_asimddp()
 #endif
 }
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 static inline void x86_cpuid(int level, unsigned int out[4])
 {
 #if defined(_MSC_VER)
@@ -474,16 +473,19 @@ static inline void x86_cpuid_sublevel(int level, int sublevel, unsigned int out[
 
 static inline int x86_get_xcr0()
 {
-    int xcr0 = 0;
 #if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 160040219)
     return _xgetbv(a);
 #elif defined(__i386__) || defined(__x86_64__)
+    int xcr0 = 0;
     asm(".byte 0x0f, 0x01, 0xd0"
         : "=a"(xcr0)
         : "c"(0)
         : "%edx");
-#endif
     return xcr0;
+#else
+    NCNN_LOGE("x86_get_xcr0 is unknown for current compiler");
+    return 0xffffffff; // assume it will work
+#endif
 }
 
 static int get_cpu_support_x86_avx()
@@ -623,13 +625,13 @@ static int g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
 static int g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
 static int g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
 static int g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
-#else  // defined(__i386__) || defined(__x86_64__)
+#else  // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 static const int g_cpu_support_x86_avx = 0;
 static const int g_cpu_support_x86_avx2 = 0;
 static const int g_cpu_support_x86_avx_vnni = 0;
 static const int g_cpu_support_x86_avx512 = 0;
 static const int g_cpu_support_x86_avx512_vnni = 0;
-#endif // defined(__i386__) || defined(__x86_64__)
+#endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 
 int cpu_support_x86_avx()
 {
