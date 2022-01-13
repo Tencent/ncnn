@@ -474,7 +474,7 @@ static inline void x86_cpuid_sublevel(int level, int sublevel, unsigned int out[
 static inline int x86_get_xcr0()
 {
 #if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 160040219)
-    return _xgetbv(a);
+    return _xgetbv(0);
 #elif defined(__i386__) || defined(__x86_64__)
     int xcr0 = 0;
     asm(".byte 0x0f, 0x01, 0xd0"
