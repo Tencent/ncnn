@@ -167,11 +167,23 @@ macro(ncnn_add_layer class)
         endif()
     endif()
 
+    if(NCNN_RUNTIME_CPU AND NCNN_AVX512VNNI AND NCNN_TARGET_ARCH STREQUAL "x86")
+        if(NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
+            ncnn_add_arch_opt_source(${class} avx512vnni "-mfma -mf16c -mavx512f -mavx512vnni -mavx512vl")
+        endif()
+    endif()
+
     if(NCNN_RUNTIME_CPU AND NCNN_AVX2 AND NCNN_TARGET_ARCH STREQUAL "x86")
         if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC"))
             ncnn_add_arch_opt_layer(${class} avx2 "/arch:AVX2 /DAVX2 /fp:strict")
         else()
             ncnn_add_arch_opt_layer(${class} avx2 "-mfma -mf16c -mavx2")
+        endif()
+    endif()
+
+    if(NCNN_RUNTIME_CPU AND NCNN_AVXVNNI AND NCNN_TARGET_ARCH STREQUAL "x86")
+        if(NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
+            ncnn_add_arch_opt_source(${class} avxvnni "-mfma -mf16c -mavx2 -mavxvnni")
         endif()
     endif()
 
