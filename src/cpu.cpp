@@ -28,9 +28,14 @@
 #endif
 #endif
 
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 #ifdef _MSC_VER
 #include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+#include <cpuid.h> // __get_cpuid() and __get_cpuid_count()
+#endif
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -435,90 +440,222 @@ int cpu_support_arm_asimddp()
 #endif
 }
 
-int cpu_support_x86_avx2()
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+static inline void x86_cpuid(int level, unsigned int out[4])
 {
-#if !NCNN_AVX2
-    return 0;
-#endif
-#if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
 #if defined(_MSC_VER)
-    // TODO move to init function
-    int cpu_info[4];
-    __cpuid(cpu_info, 0);
-
-    int nIds = cpu_info[0];
-    if (nIds < 7)
-        return 0;
-
-    __cpuid(cpu_info, 1);
-    // check AVX XSAVE OSXSAVE
-    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
-        return 0;
-
-    // check XSAVE enabled by kernel
-    if ((_xgetbv(0) & 6) != 6)
-        return 0;
-
-    __cpuid(cpu_info, 7);
-    return cpu_info[1] & 0x00000020;
-#elif defined(__clang__)
-#if __clang_major__ >= 6
-    __builtin_cpu_init();
-#endif
-    return __builtin_cpu_supports("avx2");
-#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
-    __builtin_cpu_init();
-    return __builtin_cpu_supports("avx2");
+    __cpuid((int*)out, level);
+#elif defined(__clang__) || defined(__GNUC__)
+    __get_cpuid(level, out, out + 1, out + 2, out + 3);
 #else
-    // TODO: other x86 compilers checking avx2 here
-    NCNN_LOGE("AVX2 detection method is unknown for current compiler");
-    return 0;
-#endif
-#else
-    return 0;
+    NCNN_LOGE("x86_cpuid is unknown for current compiler");
+    out[0] = 0;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
 #endif
 }
 
-int cpu_support_x86_avx()
+static inline void x86_cpuid_sublevel(int level, int sublevel, unsigned int out[4])
+{
+#if defined(_MSC_VER)
+    __cpuidex((int*)out, level, sublevel);
+#elif defined(__clang__) || defined(__GNUC__)
+    __get_cpuid_count(level, sublevel, out, out + 1, out + 2, out + 3);
+#else
+    NCNN_LOGE("x86_cpuid_sublevel is unknown for current compiler");
+    out[0] = 0;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+#endif
+}
+
+static inline int x86_get_xcr0()
+{
+#if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 160040219)
+    return _xgetbv(0);
+#elif defined(__i386__) || defined(__x86_64__)
+    int xcr0 = 0;
+    asm(".byte 0x0f, 0x01, 0xd0"
+        : "=a"(xcr0)
+        : "c"(0)
+        : "%edx");
+    return xcr0;
+#else
+    NCNN_LOGE("x86_get_xcr0 is unknown for current compiler");
+    return 0xffffffff; // assume it will work
+#endif
+}
+
+static int get_cpu_support_x86_avx()
 {
 #if !NCNN_AVX
     return 0;
 #endif
-#if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
-#if defined(_MSC_VER)
-    // TODO move to init function
-    int cpu_info[4];
-    __cpuid(cpu_info, 0);
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 1)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    return 1;
+}
+
+static int get_cpu_support_x86_avx2()
+{
+#if !NCNN_AVX2
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
 
     int nIds = cpu_info[0];
     if (nIds < 7)
         return 0;
 
-    __cpuid(cpu_info, 1);
+    x86_cpuid(1, cpu_info);
     // check AVX XSAVE OSXSAVE
-    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
         return 0;
 
     // check XSAVE enabled by kernel
-    if ((_xgetbv(0) & 6) != 6)
+    if ((x86_get_xcr0() & 6) != 6)
         return 0;
-    return 1;
-#elif defined(__clang__)
-#if __clang_major__ >= 6
-    __builtin_cpu_init();
-#endif
-    return __builtin_cpu_supports("avx");
-#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
-    __builtin_cpu_init();
-    return __builtin_cpu_supports("avx");
-#else
-    // TODO: other x86 compilers checking avx here
-    NCNN_LOGE("AVX detection method is unknown for current compiler");
+
+    x86_cpuid_sublevel(7, 0, cpu_info);
+    return cpu_info[1] & (1u << 5);
+}
+
+static int get_cpu_support_x86_avx_vnni()
+{
+#if !NCNN_AVX2
     return 0;
 #endif
-#else
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[0] & (1u << 4);
+}
+
+static int get_cpu_support_x86_avx512()
+{
+#if !NCNN_AVX512
     return 0;
 #endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    // check avx512 XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 0xe0) != 0xe0)
+        return 0;
+
+    x86_cpuid_sublevel(7, 0, cpu_info);
+    return cpu_info[1] & (1u << 16);
+}
+
+static int get_cpu_support_x86_avx512_vnni()
+{
+#if !NCNN_AVX512
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    // check avx512 XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 0xe0) != 0xe0)
+        return 0;
+
+    x86_cpuid_sublevel(7, 0, cpu_info);
+    return cpu_info[2] & (1u << 11);
+}
+
+static int g_cpu_support_x86_avx = get_cpu_support_x86_avx();
+static int g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
+static int g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
+static int g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
+static int g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
+#else  // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+static const int g_cpu_support_x86_avx = 0;
+static const int g_cpu_support_x86_avx2 = 0;
+static const int g_cpu_support_x86_avx_vnni = 0;
+static const int g_cpu_support_x86_avx512 = 0;
+static const int g_cpu_support_x86_avx512_vnni = 0;
+#endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+
+int cpu_support_x86_avx()
+{
+    return g_cpu_support_x86_avx;
+}
+
+int cpu_support_x86_avx2()
+{
+    return g_cpu_support_x86_avx2;
+}
+
+int cpu_support_x86_avx_vnni()
+{
+    return g_cpu_support_x86_avx_vnni;
+}
+
+int cpu_support_x86_avx512()
+{
+    return g_cpu_support_x86_avx512;
+}
+
+int cpu_support_x86_avx512_vnni()
+{
+    return g_cpu_support_x86_avx512_vnni;
 }
 
 int cpu_support_mips_msa()

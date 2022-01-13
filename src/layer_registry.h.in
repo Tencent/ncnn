@@ -6,6 +6,11 @@ static const layer_registry_entry layer_registry[] = {
 @layer_registry@
 };
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX512
+static const layer_registry_entry layer_registry_avx512[] = {
+@layer_registry_avx512@
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_AVX512
 #if NCNN_RUNTIME_CPU && NCNN_AVX2
 static const layer_registry_entry layer_registry_avx2[] = {
 @layer_registry_avx2@
