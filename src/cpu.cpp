@@ -475,7 +475,10 @@ static inline int x86_get_xcr0()
 #if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 160040219)
     return _xgetbv(a);
 #elif defined(__i386__) || defined(__x86_64__)
-    asm(".byte 0x0f, 0x01, 0xd0" : "=a"(xcr0) : "c"(0) : "%edx");
+    asm(".byte 0x0f, 0x01, 0xd0"
+        : "=a"(xcr0)
+        : "c"(0)
+        : "%edx");
 #endif
     return xcr0;
 }
