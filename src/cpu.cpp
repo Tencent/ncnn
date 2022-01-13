@@ -33,8 +33,10 @@
 #include <immintrin.h> // _xgetbv()
 #endif
 
+#if defined(__i386__) || defined(__x86_64__)
 #if defined(__clang__) || defined(__GNUC__)
 #include <cpuid.h> // __get_cpuid() and __get_cpuid_count()
+#endif
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -439,6 +441,7 @@ int cpu_support_arm_asimddp()
 #endif
 }
 
+#if defined(__i386__) || defined(__x86_64__)
 static inline void x86_cpuid(int level, unsigned int out[4])
 {
 #if defined(_MSC_VER)
@@ -620,6 +623,13 @@ static int g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
 static int g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
 static int g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
 static int g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
+#else // defined(__i386__) || defined(__x86_64__)
+static const int g_cpu_support_x86_avx = 0;
+static const int g_cpu_support_x86_avx2 = 0;
+static const int g_cpu_support_x86_avx_vnni = 0;
+static const int g_cpu_support_x86_avx512 = 0;
+static const int g_cpu_support_x86_avx512_vnni = 0;
+#endif // defined(__i386__) || defined(__x86_64__)
 
 int cpu_support_x86_avx()
 {
