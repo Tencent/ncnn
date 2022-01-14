@@ -14,6 +14,24 @@
 
 static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
+#if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+    if (ncnn::cpu_support_x86_avx512_vnni())
+    {
+        extern void im2col_sgemm_pack8to4_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+        im2col_sgemm_pack8to4_int8_sse_avx512vnni(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
+#if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+    if (ncnn::cpu_support_x86_avx_vnni())
+    {
+        extern void im2col_sgemm_pack8to4_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+        im2col_sgemm_pack8to4_int8_sse_avxvnni(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
 
     const int size = bottom_im2col.w;
@@ -157,6 +175,12 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
                 __m256i _val10_16 = _mm256_permute4x64_epi64(_val01_16, 78);
 
+#if __AVXVNNI__ || __AVX512VNNI__
+                _sum00_11 = _mm256_dpwssd_epi32(_sum00_11, _val01_16, _w01_16);
+                _sum10_01 = _mm256_dpwssd_epi32(_sum10_01, _val10_16, _w01_16);
+                _sum02_13 = _mm256_dpwssd_epi32(_sum02_13, _val01_16, _w23_16);
+                _sum12_03 = _mm256_dpwssd_epi32(_sum12_03, _val10_16, _w23_16);
+#else
                 __m256i _sl00_11 = _mm256_mullo_epi16(_val01_16, _w01_16);
                 __m256i _sh00_11 = _mm256_mulhi_epi16(_val01_16, _w01_16);
                 __m256i _sl10_01 = _mm256_mullo_epi16(_val10_16, _w01_16);
@@ -174,11 +198,18 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum10_01 = _mm256_add_epi32(_sum10_01, _mm256_unpackhi_epi16(_sl10_01, _sh10_01));
                 _sum02_13 = _mm256_add_epi32(_sum02_13, _mm256_unpackhi_epi16(_sl02_13, _sh02_13));
                 _sum12_03 = _mm256_add_epi32(_sum12_03, _mm256_unpackhi_epi16(_sl12_03, _sh12_03));
+#endif
 
                 __m128i _val23 = _mm_loadu_si128((const __m128i*)(tmpptr + 16));
                 __m256i _val23_16 = _mm256_cvtepi8_epi16(_val23);
                 __m256i _val32_16 = _mm256_permute4x64_epi64(_val23_16, 78);
 
+#if __AVXVNNI__ || __AVX512VNNI__
+                _sum04_15 = _mm256_dpwssd_epi32(_sum04_15, _val23_16, _w01_16);
+                _sum14_05 = _mm256_dpwssd_epi32(_sum14_05, _val32_16, _w01_16);
+                _sum06_17 = _mm256_dpwssd_epi32(_sum06_17, _val23_16, _w23_16);
+                _sum16_07 = _mm256_dpwssd_epi32(_sum16_07, _val32_16, _w23_16);
+#else
                 __m256i _sl04_15 = _mm256_mullo_epi16(_val23_16, _w01_16);
                 __m256i _sh04_15 = _mm256_mulhi_epi16(_val23_16, _w01_16);
                 __m256i _sl14_05 = _mm256_mullo_epi16(_val32_16, _w01_16);
@@ -196,6 +227,7 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum14_05 = _mm256_add_epi32(_sum14_05, _mm256_unpackhi_epi16(_sl14_05, _sh14_05));
                 _sum06_17 = _mm256_add_epi32(_sum06_17, _mm256_unpackhi_epi16(_sl06_17, _sh06_17));
                 _sum16_07 = _mm256_add_epi32(_sum16_07, _mm256_unpackhi_epi16(_sl16_07, _sh16_07));
+#endif
 
                 tmpptr += 32;
                 kptr0 += 32;
@@ -497,6 +529,24 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
 static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
+// #if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+//     if (ncnn::cpu_support_x86_avx512_vnni())
+//     {
+//         extern void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse_avx512vnni(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
+//         convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse_avx512vnni(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
+//         return;
+//     }
+// #endif
+//
+// #if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+//     if (ncnn::cpu_support_x86_avx_vnni())
+//     {
+//         extern void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse_avxvnni(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
+//         convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse_avxvnni(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
+//         return;
+//     }
+// #endif
+
     const int maxk = kernel_w * kernel_h;
 
     // interleave
