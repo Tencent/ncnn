@@ -23,6 +23,7 @@
 #endif
 #include <stdio.h>
 #include <vector>
+#include <functional>
 
 static int detect_shufflenetv2(const cv::Mat& bgr, std::vector<float>& cls_scores)
 {

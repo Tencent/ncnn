@@ -23,6 +23,7 @@
 #endif
 #include <stdio.h>
 #include <vector>
+#include <functional>
 
 static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
 {
