@@ -444,10 +444,10 @@ static void conv3x3s1_winograd42_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 #if __AVXVNNI__ || __AVX512VNNI__
                         // 0 1 0 1 x x x x 8 9 8 9 x x x x
                         // 0 1 0 1 0 1 0 1 8 9 8 9 8 9 8 9
-                        __m256i _val0_0189 = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val0, _MM_SHUFFLE(1, 0, 1, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val0_23ab = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val0, _MM_SHUFFLE(3, 2, 3, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val0_45cd = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val0, _MM_SHUFFLE(1, 0, 1, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m256i _val0_67ef = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val0, _MM_SHUFFLE(3, 2, 3, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        __m256i _val0_0189 = _mm256_shuffle_epi32(_val0, _MM_SHUFFLE(0, 0, 0, 0));
+                        __m256i _val0_23ab = _mm256_shuffle_epi32(_val0, _MM_SHUFFLE(1, 1, 1, 1));
+                        __m256i _val0_45cd = _mm256_shuffle_epi32(_val0, _MM_SHUFFLE(2, 2, 2, 2));
+                        __m256i _val0_67ef = _mm256_shuffle_epi32(_val0, _MM_SHUFFLE(3, 3, 3, 3));
 
                         __m256i _val0_0123 = _mm256_permute2x128_si256(_val0_0189, _val0_23ab, _MM_SHUFFLE(0, 2, 0, 0));
                         __m256i _val0_4567 = _mm256_permute2x128_si256(_val0_45cd, _val0_67ef, _MM_SHUFFLE(0, 2, 0, 0));
@@ -493,10 +493,10 @@ static void conv3x3s1_winograd42_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
                         __m256i _val1 = _mm256_loadu_si256((const __m256i*)(r0 + 16));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        __m256i _val1_0189 = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val1, _MM_SHUFFLE(1, 0, 1, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val1_23ab = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val1, _MM_SHUFFLE(3, 2, 3, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val1_45cd = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val1, _MM_SHUFFLE(1, 0, 1, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m256i _val1_67ef = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val1, _MM_SHUFFLE(3, 2, 3, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        __m256i _val1_0189 = _mm256_shuffle_epi32(_val1, _MM_SHUFFLE(0, 0, 0, 0));
+                        __m256i _val1_23ab = _mm256_shuffle_epi32(_val1, _MM_SHUFFLE(1, 1, 1, 1));
+                        __m256i _val1_45cd = _mm256_shuffle_epi32(_val1, _MM_SHUFFLE(2, 2, 2, 2));
+                        __m256i _val1_67ef = _mm256_shuffle_epi32(_val1, _MM_SHUFFLE(3, 3, 3, 3));
 
                         __m256i _val1_0123 = _mm256_permute2x128_si256(_val1_0189, _val1_23ab, _MM_SHUFFLE(0, 2, 0, 0));
                         __m256i _val1_4567 = _mm256_permute2x128_si256(_val1_45cd, _val1_67ef, _MM_SHUFFLE(0, 2, 0, 0));
@@ -587,10 +587,10 @@ static void conv3x3s1_winograd42_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 #if __AVXVNNI__ || __AVX512VNNI__
                         // 0 1 0 1 x x x x 8 9 8 9 x x x x
                         // 0 1 0 1 0 1 0 1 8 9 8 9 8 9 8 9
-                        __m256i _val_0189 = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val, _MM_SHUFFLE(1, 0, 1, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val_23ab = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val, _MM_SHUFFLE(3, 2, 3, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val_45cd = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val, _MM_SHUFFLE(1, 0, 1, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m256i _val_67ef = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val, _MM_SHUFFLE(3, 2, 3, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        __m256i _val_0189 = _mm256_shuffle_epi32(_val, _MM_SHUFFLE(0, 0, 0, 0));
+                        __m256i _val_23ab = _mm256_shuffle_epi32(_val, _MM_SHUFFLE(1, 1, 1, 1));
+                        __m256i _val_45cd = _mm256_shuffle_epi32(_val, _MM_SHUFFLE(2, 2, 2, 2));
+                        __m256i _val_67ef = _mm256_shuffle_epi32(_val, _MM_SHUFFLE(3, 3, 3, 3));
 
                         __m256i _val_0123 = _mm256_permute2x128_si256(_val_0189, _val_23ab, _MM_SHUFFLE(0, 2, 0, 0));
                         __m256i _val_4567 = _mm256_permute2x128_si256(_val_45cd, _val_67ef, _MM_SHUFFLE(0, 2, 0, 0));
@@ -737,10 +737,10 @@ static void conv3x3s1_winograd42_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 #if __AVXVNNI__ || __AVX512VNNI__
                         // 0 1 0 1 x x x x
                         // 0 1 0 1 0 1 0 1
-                        __m128i _val_01 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val, _MM_SHUFFLE(1, 0, 1, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val_23 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val, _MM_SHUFFLE(3, 2, 3, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val_45 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val, _MM_SHUFFLE(1, 0, 1, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m128i _val_67 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val, _MM_SHUFFLE(3, 2, 3, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        __m128i _val_01 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(0, 0, 0, 0));
+                        __m128i _val_23 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(1, 1, 1, 1));
+                        __m128i _val_45 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(2, 2, 2, 2));
+                        __m128i _val_67 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(3, 3, 3, 3));
 
                         __m256i _val_0123 = _mm256_inserti128_si256(_mm256_castsi128_si256(_val_01), _val_23, 1);
                         __m256i _val_4567 = _mm256_inserti128_si256(_mm256_castsi128_si256(_val_45), _val_67, 1);
