@@ -225,6 +225,7 @@ else()
         check_cxx_compiler_flag("/arch:AVX512" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
         if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.16)
             # vs2017+ supports avx512 and vnni
+            set(NCNN_COMPILER_SUPPORT_X86_AVX_VNNI OFF)
             set(NCNN_COMPILER_SUPPORT_X86_AVX512 OFF)
             set(NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI OFF)
         endif()
