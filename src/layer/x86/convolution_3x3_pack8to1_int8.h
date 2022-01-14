@@ -468,17 +468,10 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         __m256i _w23 = _mm256_loadu_si256((const __m256i*)(k0 + 16));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        // 0 1 0 1 x x x x 8 9 8 9 x x x x
-                        // 0 1 0 1 0 1 0 1 8 9 8 9 8 9 8 9
-                        __m256i _val0_0189 = _mm256_shuffle_epi32(_val0, _MM_SHUFFLE(0, 0, 0, 0));
-                        __m256i _val0_23ab = _mm256_shuffle_epi32(_val0, _MM_SHUFFLE(1, 1, 1, 1));
-                        __m256i _val0_45cd = _mm256_shuffle_epi32(_val0, _MM_SHUFFLE(2, 2, 2, 2));
-                        __m256i _val0_67ef = _mm256_shuffle_epi32(_val0, _MM_SHUFFLE(3, 3, 3, 3));
-
-                        __m256i _val0_0123 = _mm256_permute2x128_si256(_val0_0189, _val0_23ab, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val0_4567 = _mm256_permute2x128_si256(_val0_45cd, _val0_67ef, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val0_89ab = _mm256_permute2x128_si256(_val0_0189, _val0_23ab, _MM_SHUFFLE(0, 3, 0, 1));
-                        __m256i _val0_cdef = _mm256_permute2x128_si256(_val0_45cd, _val0_67ef, _MM_SHUFFLE(0, 3, 0, 1));
+                        __m256i _val0_0123 = _mm256_permutevar8x32_epi32(_val0, _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0));
+                        __m256i _val0_4567 = _mm256_permutevar8x32_epi32(_val0, _mm256_set_epi32(3, 3, 3, 3, 2, 2, 2, 2));
+                        __m256i _val0_89ab = _mm256_permutevar8x32_epi32(_val0, _mm256_set_epi32(5, 5, 5, 5, 4, 4, 4, 4));
+                        __m256i _val0_cdef = _mm256_permutevar8x32_epi32(_val0, _mm256_set_epi32(7, 7, 7, 7, 6, 6, 6, 6));
 
                         _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w01, _val0_0123);
                         _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _w01, _val0_89ab);
@@ -519,15 +512,10 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         __m256i _val1 = _mm256_loadu_si256((const __m256i*)(r0 + 16));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        __m256i _val1_0189 = _mm256_shuffle_epi32(_val1, _MM_SHUFFLE(0, 0, 0, 0));
-                        __m256i _val1_23ab = _mm256_shuffle_epi32(_val1, _MM_SHUFFLE(1, 1, 1, 1));
-                        __m256i _val1_45cd = _mm256_shuffle_epi32(_val1, _MM_SHUFFLE(2, 2, 2, 2));
-                        __m256i _val1_67ef = _mm256_shuffle_epi32(_val1, _MM_SHUFFLE(3, 3, 3, 3));
-
-                        __m256i _val1_0123 = _mm256_permute2x128_si256(_val1_0189, _val1_23ab, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val1_4567 = _mm256_permute2x128_si256(_val1_45cd, _val1_67ef, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val1_89ab = _mm256_permute2x128_si256(_val1_0189, _val1_23ab, _MM_SHUFFLE(0, 3, 0, 1));
-                        __m256i _val1_cdef = _mm256_permute2x128_si256(_val1_45cd, _val1_67ef, _MM_SHUFFLE(0, 3, 0, 1));
+                        __m256i _val1_0123 = _mm256_permutevar8x32_epi32(_val1, _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0));
+                        __m256i _val1_4567 = _mm256_permutevar8x32_epi32(_val1, _mm256_set_epi32(3, 3, 3, 3, 2, 2, 2, 2));
+                        __m256i _val1_89ab = _mm256_permutevar8x32_epi32(_val1, _mm256_set_epi32(5, 5, 5, 5, 4, 4, 4, 4));
+                        __m256i _val1_cdef = _mm256_permutevar8x32_epi32(_val1, _mm256_set_epi32(7, 7, 7, 7, 6, 6, 6, 6));
 
                         _sum4_5 = _mm256_dpwssd_epi32(_sum4_5, _w01, _val1_0123);
                         _sum6_7 = _mm256_dpwssd_epi32(_sum6_7, _w01, _val1_89ab);
@@ -632,17 +620,10 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         __m256i _w23 = _mm256_loadu_si256((const __m256i*)(k0 + 16));
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        // 0 1 0 1 x x x x 8 9 8 9 x x x x
-                        // 0 1 0 1 0 1 0 1 8 9 8 9 8 9 8 9
-                        __m256i _val_0189 = _mm256_shuffle_epi32(_val, _MM_SHUFFLE(0, 0, 0, 0));
-                        __m256i _val_23ab = _mm256_shuffle_epi32(_val, _MM_SHUFFLE(1, 1, 1, 1));
-                        __m256i _val_45cd = _mm256_shuffle_epi32(_val, _MM_SHUFFLE(2, 2, 2, 2));
-                        __m256i _val_67ef = _mm256_shuffle_epi32(_val, _MM_SHUFFLE(3, 3, 3, 3));
-
-                        __m256i _val_0123 = _mm256_permute2x128_si256(_val_0189, _val_23ab, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val_4567 = _mm256_permute2x128_si256(_val_45cd, _val_67ef, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val_89ab = _mm256_permute2x128_si256(_val_0189, _val_23ab, _MM_SHUFFLE(0, 3, 0, 1));
-                        __m256i _val_cdef = _mm256_permute2x128_si256(_val_45cd, _val_67ef, _MM_SHUFFLE(0, 3, 0, 1));
+                        __m256i _val_0123 = _mm256_permutevar8x32_epi32(_val, _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0));
+                        __m256i _val_4567 = _mm256_permutevar8x32_epi32(_val, _mm256_set_epi32(3, 3, 3, 3, 2, 2, 2, 2));
+                        __m256i _val_89ab = _mm256_permutevar8x32_epi32(_val, _mm256_set_epi32(5, 5, 5, 5, 4, 4, 4, 4));
+                        __m256i _val_cdef = _mm256_permutevar8x32_epi32(_val, _mm256_set_epi32(7, 7, 7, 7, 6, 6, 6, 6));
 
                         _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w01, _val_0123);
                         _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _w01, _val_89ab);
