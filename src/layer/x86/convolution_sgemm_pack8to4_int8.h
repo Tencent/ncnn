@@ -529,24 +529,6 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
 static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
-// #if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
-//     if (ncnn::cpu_support_x86_avx512_vnni())
-//     {
-//         extern void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse_avx512vnni(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
-//         convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse_avx512vnni(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
-//         return;
-//     }
-// #endif
-//
-// #if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
-//     if (ncnn::cpu_support_x86_avx_vnni())
-//     {
-//         extern void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse_avxvnni(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
-//         convolution_im2col_sgemm_transform_kernel_pack8to4_int8_sse_avxvnni(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
-//         return;
-//     }
-// #endif
-
     const int maxk = kernel_w * kernel_h;
 
     // interleave
