@@ -2396,6 +2396,65 @@ cooling_down = 1
            nanodet_m  min =  561.56  max =  562.05  avg =  561.72
 ```
 
+### Z7-Lite 7020 XC7Z020CLG400-2 (Cortex-A9 766MHz x 2)
+```
+root@petalinux_hdmi:~# LD_LIBRARY_PATH=. ./benchncnn 8 2 0 -1 1
+loop_count = 8
+num_threads = 2
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =  389.18  max =  390.13  avg =  389.60
+     squeezenet_int8  min =  254.33  max =  255.24  avg =  254.85
+           mobilenet  min =  623.71  max =  625.01  avg =  624.46
+      mobilenet_int8  min =  240.40  max =  241.03  avg =  240.87
+        mobilenet_v2  min =  450.00  max =  450.89  avg =  450.40
+        mobilenet_v3  min =  362.99  max =  363.66  avg =  363.28
+          shufflenet  min =  212.20  max =  213.28  avg =  212.84
+       shufflenet_v2  min =  210.26  max =  212.64  avg =  211.53
+             mnasnet  min =  408.67  max =  409.64  avg =  409.17
+     proxylessnasnet  min =  449.86  max =  450.94  avg =  450.45
+     efficientnet_b0  min =  737.40  max =  739.58  avg =  738.32
+   efficientnetv2_b0  min =  848.58  max =  849.74  avg =  849.24
+        regnety_400m  min =  501.32  max =  503.02  avg =  501.87
+           blazeface  min =   70.89  max =   72.22  avg =   71.61
+      squeezenet_ssd  min =  978.55  max =  979.86  avg =  979.22
+ squeezenet_ssd_int8  min =  691.90  max =  694.18  avg =  692.73
+       mobilenet_ssd  min = 1353.12  max = 1354.13  avg = 1353.53
+  mobilenet_ssd_int8  min =  496.26  max =  497.29  avg =  496.61
+           nanodet_m  min =  542.04  max =  546.29  avg =  544.73
+    yolo-fastest-1.1  min =  282.75  max =  286.11  avg =  284.24
+      yolo-fastestv2  min =  230.91  max =  232.74  avg =  231.56
+
+root@petalinux_hdmi:~# LD_LIBRARY_PATH=. ./benchncnn 4 1 0 -1 1
+loop_count = 4
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =  637.19  max =  639.33  avg =  637.82
+     squeezenet_int8  min =  390.31  max =  391.63  avg =  390.94
+           mobilenet  min = 1085.54  max = 1085.96  avg = 1085.71
+      mobilenet_int8  min =  437.28  max =  437.65  avg =  437.44
+        mobilenet_v2  min =  716.03  max =  716.75  avg =  716.35
+        mobilenet_v3  min =  587.83  max =  588.55  avg =  588.21
+          shufflenet  min =  331.28  max =  331.97  avg =  331.63
+       shufflenet_v2  min =  331.03  max =  333.19  avg =  331.76
+             mnasnet  min =  682.68  max =  683.11  avg =  682.82
+     proxylessnasnet  min =  763.89  max =  764.80  avg =  764.35
+     efficientnet_b0  min = 1288.61  max = 1289.10  avg = 1288.81
+   efficientnetv2_b0  min = 1499.12  max = 1500.11  avg = 1499.65
+        regnety_400m  min =  852.03  max =  853.16  avg =  852.68
+           blazeface  min =  109.40  max =  111.51  avg =  110.41
+      squeezenet_ssd  min = 1493.25  max = 1497.00  avg = 1494.87
+ squeezenet_ssd_int8  min = 1016.77  max = 1019.31  avg = 1017.99
+       mobilenet_ssd  min = 2379.20  max = 2379.83  avg = 2379.64
+  mobilenet_ssd_int8  min =  881.70  max =  881.89  avg =  881.83
+           nanodet_m  min =  831.13  max =  832.58  avg =  831.87
+    yolo-fastest-1.1  min =  466.80  max =  469.90  avg =  468.79
+      yolo-fastestv2  min =  352.07  max =  355.20  avg =  353.36
+```
+
 ### Loongson 2K1000 (GS264 1.0GHz x 2)
 ```
 root@ls2k:~/ncnn/build/benchmark# ./benchncnn 4 2 0 -1 1
