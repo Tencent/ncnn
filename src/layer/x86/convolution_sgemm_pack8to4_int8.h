@@ -315,6 +315,12 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
                 __m256i _val10_16 = _mm256_permute4x64_epi64(_val01_16, 78);
 
+#if __AVXVNNI__ || __AVX512VNNI__
+                _sum00_11 = _mm256_dpwssd_epi32(_sum00_11, _val01_16, _w01_16);
+                _sum10_01 = _mm256_dpwssd_epi32(_sum10_01, _val10_16, _w01_16);
+                _sum02_13 = _mm256_dpwssd_epi32(_sum02_13, _val01_16, _w23_16);
+                _sum12_03 = _mm256_dpwssd_epi32(_sum12_03, _val10_16, _w23_16);
+#else
                 __m256i _sl00_11 = _mm256_mullo_epi16(_val01_16, _w01_16);
                 __m256i _sh00_11 = _mm256_mulhi_epi16(_val01_16, _w01_16);
                 __m256i _sl10_01 = _mm256_mullo_epi16(_val10_16, _w01_16);
@@ -332,6 +338,7 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum10_01 = _mm256_add_epi32(_sum10_01, _mm256_unpackhi_epi16(_sl10_01, _sh10_01));
                 _sum02_13 = _mm256_add_epi32(_sum02_13, _mm256_unpackhi_epi16(_sl02_13, _sh02_13));
                 _sum12_03 = _mm256_add_epi32(_sum12_03, _mm256_unpackhi_epi16(_sl12_03, _sh12_03));
+#endif
 #else
                 __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
                 __m128i _extval01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _val01);
@@ -481,6 +488,10 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
                 __m256i _valval = _mm256_inserti128_si256(_mm256_castsi128_si256(_val), _val, 1);
 
+#if __AVXVNNI__ || __AVX512VNNI__
+                _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _valval, _w01_16);
+                _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _valval, _w23_16);
+#else
                 __m256i _sl0_1 = _mm256_mullo_epi16(_valval, _w01_16);
                 __m256i _sh0_1 = _mm256_mulhi_epi16(_valval, _w01_16);
                 __m256i _sl2_3 = _mm256_mullo_epi16(_valval, _w23_16);
@@ -490,6 +501,7 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpacklo_epi16(_sl2_3, _sh2_3));
                 _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpackhi_epi16(_sl0_1, _sh0_1));
                 _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpackhi_epi16(_sl2_3, _sh2_3));
+#endif
 #else
                 __m128i _val = _mm_loadl_epi64((const __m128i*)tmpptr);
 #if __SSE4_1__
