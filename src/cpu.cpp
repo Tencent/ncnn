@@ -34,7 +34,7 @@
 #include <immintrin.h> // _xgetbv()
 #endif
 #if defined(__clang__) || defined(__GNUC__)
-#include <cpuid.h> // __get_cpuid() and __get_cpuid_count()
+#include <cpuid.h> // __get_cpuid() and __cpuid_count()
 #endif
 #endif
 
@@ -461,7 +461,7 @@ static inline void x86_cpuid_sublevel(int level, int sublevel, unsigned int out[
 #if defined(_MSC_VER)
     __cpuidex((int*)out, level, sublevel);
 #elif defined(__clang__) || defined(__GNUC__)
-    __get_cpuid_count(level, sublevel, out, out + 1, out + 2, out + 3);
+    __cpuid_count(level, sublevel, out[0], out[1], out[2], out[3]);
 #else
     NCNN_LOGE("x86_cpuid_sublevel is unknown for current compiler");
     out[0] = 0;
