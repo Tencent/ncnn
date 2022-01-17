@@ -223,12 +223,24 @@ else()
         check_cxx_compiler_flag("/arch:AVX2" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
         check_cxx_compiler_flag("/arch:AVX512" NCNN_COMPILER_SUPPORT_X86_AVX512)
         check_cxx_compiler_flag("/arch:AVX512" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
+        if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.16)
+            # vs2017+ supports avx512 and vnni
+            set(NCNN_COMPILER_SUPPORT_X86_AVX_VNNI OFF)
+            set(NCNN_COMPILER_SUPPORT_X86_AVX512 OFF)
+            set(NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI OFF)
+        endif()
     else()
         check_cxx_compiler_flag("-mavx" NCNN_COMPILER_SUPPORT_X86_AVX)
         check_cxx_compiler_flag("-mfma -mf16c -mavx2" NCNN_COMPILER_SUPPORT_X86_AVX2)
-        check_cxx_compiler_flag("-mfma -mf16c -mavx2 -mavxvnni" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
         check_cxx_compiler_flag("-mfma -mf16c -mavx512f" NCNN_COMPILER_SUPPORT_X86_AVX512)
-        check_cxx_compiler_flag("-mfma -mf16c -mavx512f -mavx512vnni -mavx512vl" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
+
+        set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c -mavx2 -mavxvnni")
+        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256i _s, _a, _b; _s = _mm256_dpwssd_epi32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
+
+        set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c -mavx512f -mavx512vnni -mavx512vl")
+        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256i _s, _a, _b; _s = _mm256_dpwssd_epi32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
+
+        unset(CMAKE_REQUIRED_FLAGS)
     endif()
 
     if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten" AND NCNN_COMPILER_SUPPORT_X86_AVX)

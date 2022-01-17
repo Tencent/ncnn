@@ -27,6 +27,7 @@
 #include "x86_usability.h"
 
 #include "benchmark.h"
+#include "cpu.h"
 #include "layer_type.h"
 
 namespace ncnn {

@@ -14,6 +14,24 @@
 
 static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
+#if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+    if (ncnn::cpu_support_x86_avx512_vnni())
+    {
+        extern void im2col_sgemm_pack1to4_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+        im2col_sgemm_pack1to4_int8_sse_avx512vnni(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
+#if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+    if (ncnn::cpu_support_x86_avx_vnni())
+    {
+        extern void im2col_sgemm_pack1to4_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+        im2col_sgemm_pack1to4_int8_sse_avxvnni(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
 
     const int size = bottom_im2col.w;
@@ -249,12 +267,17 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
             if (nn4 > 0)
             {
+#if __AVXVNNI__ || __AVX512VNNI__
+                __m256i _sum10_02 = _mm256_setzero_si256();
+                __m256i _sum30_22 = _mm256_setzero_si256();
+#else
                 __m256i _sum10_02 = _mm256_setzero_si256();
                 __m256i _sum01_13 = _mm256_setzero_si256();
                 __m256i _sum11_03 = _mm256_setzero_si256();
                 __m256i _sum30_22 = _mm256_setzero_si256();
                 __m256i _sum21_33 = _mm256_setzero_si256();
                 __m256i _sum31_23 = _mm256_setzero_si256();
+#endif
 
                 int j = 0;
                 for (; j < nn4; j++)
@@ -271,6 +294,12 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                     __m256i _val10_16 = _mm256_permute4x64_epi64(_val01_16, 78);
                     __m256i _val32_16 = _mm256_permute4x64_epi64(_val23_16, 78);
 
+#if __AVXVNNI__ || __AVX512VNNI__
+                    _sum00_12 = _mm256_dpwssd_epi32(_sum00_12, _val01_16, _w01_16);
+                    _sum10_02 = _mm256_dpwssd_epi32(_sum10_02, _val10_16, _w01_16);
+                    _sum20_32 = _mm256_dpwssd_epi32(_sum20_32, _val23_16, _w01_16);
+                    _sum30_22 = _mm256_dpwssd_epi32(_sum30_22, _val32_16, _w01_16);
+#else
                     __m256i _sl00_11 = _mm256_mullo_epi16(_val01_16, _w01_16);
                     __m256i _sh00_11 = _mm256_mulhi_epi16(_val01_16, _w01_16);
                     __m256i _sl10_01 = _mm256_mullo_epi16(_val10_16, _w01_16);
@@ -288,11 +317,20 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                     _sum30_22 = _mm256_add_epi32(_sum30_22, _mm256_unpacklo_epi16(_sl30_21, _sh30_21));
                     _sum21_33 = _mm256_add_epi32(_sum21_33, _mm256_unpackhi_epi16(_sl20_31, _sh20_31));
                     _sum31_23 = _mm256_add_epi32(_sum31_23, _mm256_unpackhi_epi16(_sl30_21, _sh30_21));
+#endif
 
                     tmpptr += 16;
                     kptr0 += 16;
                 }
 
+#if __AVXVNNI__ || __AVX512VNNI__
+                _sum00_12 = _mm256_hadd_epi32(_sum00_12, _sum10_02);
+                _sum20_32 = _mm256_hadd_epi32(_sum20_32, _sum30_22);
+
+                __m256i _perm_mask = _mm256_set_epi32(5, 1, 6, 2, 7, 3, 4, 0);
+                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
+                _sum20_32 = _mm256_permutevar8x32_epi32(_sum20_32, _perm_mask);
+#else
                 // transpose 4x8
                 {
                     __m256i _tmp0, _tmp1, _tmp2, _tmp3;
@@ -328,6 +366,7 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 __m256i _perm_mask = _mm256_set_epi32(6, 4, 3, 1, 7, 5, 2, 0);
                 _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
                 _sum20_32 = _mm256_permutevar8x32_epi32(_sum20_32, _perm_mask);
+#endif
             }
 
             __m128i _sum00 = _mm256_extracti128_si256(_sum00_12, 0);
@@ -386,9 +425,13 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
             if (nn4 > 0)
             {
 #if __AVX2__
+#if __AVXVNNI__ || __AVX512VNNI__
+                __m256i _sum10_02 = _mm256_setzero_si256();
+#else
                 __m256i _sum10_02 = _mm256_setzero_si256();
                 __m256i _sum01_13 = _mm256_setzero_si256();
                 __m256i _sum11_03 = _mm256_setzero_si256();
+#endif
 #else
                 __m128i _sum01 = _mm_setzero_si128();
                 __m128i _sum02 = _mm_setzero_si128();
@@ -412,6 +455,10 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
                     __m256i _val10_16 = _mm256_permute4x64_epi64(_val01_16, 78);
 
+#if __AVXVNNI__ || __AVX512VNNI__
+                    _sum00_12 = _mm256_dpwssd_epi32(_sum00_12, _val01_16, _w01_16);
+                    _sum10_02 = _mm256_dpwssd_epi32(_sum10_02, _val10_16, _w01_16);
+#else
                     __m256i _sl00_11 = _mm256_mullo_epi16(_val01_16, _w01_16);
                     __m256i _sh00_11 = _mm256_mulhi_epi16(_val01_16, _w01_16);
                     __m256i _sl10_01 = _mm256_mullo_epi16(_val10_16, _w01_16);
@@ -421,6 +468,7 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                     _sum10_02 = _mm256_add_epi32(_sum10_02, _mm256_unpacklo_epi16(_sl10_01, _sh10_01));
                     _sum01_13 = _mm256_add_epi32(_sum01_13, _mm256_unpackhi_epi16(_sl00_11, _sh00_11));
                     _sum11_03 = _mm256_add_epi32(_sum11_03, _mm256_unpackhi_epi16(_sl10_01, _sh10_01));
+#endif
 #else
                     __m128i _val01 = _mm_loadl_epi64((const __m128i*)tmpptr);
 #if __SSE4_1__
@@ -462,6 +510,12 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 }
 
 #if __AVX2__
+#if __AVXVNNI__ || __AVX512VNNI__
+                _sum00_12 = _mm256_hadd_epi32(_sum00_12, _sum10_02);
+
+                __m256i _perm_mask = _mm256_set_epi32(5, 1, 6, 2, 7, 3, 4, 0);
+                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
+#else
                 // transpose 4x8
                 {
                     __m256i _tmp0, _tmp1, _tmp2, _tmp3;
@@ -481,6 +535,7 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
                 __m256i _perm_mask = _mm256_set_epi32(6, 4, 3, 1, 7, 5, 2, 0);
                 _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
+#endif
 #else
                 // transpose 4x4
                 {
