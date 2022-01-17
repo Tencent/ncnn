@@ -175,24 +175,13 @@ set_target_properties(ncnn PROPERTIES VERSION ${NCNN_VERSION_STRING} SOVERSION $
 include(GenerateExportHeader)
 generate_export_header(ncnn)
 
-if(NCNN_SHARED_LIB)
-    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
-        # for cpu_support_x86_avx(2)
-        target_link_libraries(ncnn PRIVATE gcc)
-    endif()
-else()
+if(NOT NCNN_SHARED_LIB)
     set_target_properties(ncnn PROPERTIES COMPILE_FLAGS -DNCNN_STATIC_DEFINE)
 endif()
 
 if(NCNN_SIMPLESTL)
     # link math lib explicitly
     target_link_libraries(ncnn PUBLIC m)
-
-    # do not link gcc lib on darwin and emscripten
-    if(CMAKE_CXX_COMPILER_ID MATCHES "(Clang|GNU)" AND NOT CMAKE_SYSTEM_NAME MATCHES "(Darwin|Emscripten)")
-        # for cpu_support_x86_avx(2)
-        target_link_libraries(ncnn PUBLIC gcc)
-    endif()
 endif()
 
 target_include_directories(ncnn
