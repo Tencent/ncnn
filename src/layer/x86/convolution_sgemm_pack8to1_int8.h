@@ -502,14 +502,40 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
             int nn = inch * maxk; // inch always > 0
 
+#if __AVX2__
+            __m256i _sum0_1 = _mm256_setzero_si256();
+            __m256i _sum2_3 = _mm256_setzero_si256();
+#else
             __m128i _sum0 = _mm_setzero_si128();
             __m128i _sum1 = _mm_setzero_si128();
             __m128i _sum2 = _mm_setzero_si128();
             __m128i _sum3 = _mm_setzero_si128();
+#endif
 
             int j = 0;
             for (; j < nn; j++)
             {
+#if __AVX2__
+                __m128i _val = _mm_loadl_epi64((const __m128i*)tmpptr);
+                _val = _mm_cvtepi8_epi16(_val);
+
+                __m128i _w01 = _mm_loadu_si128((const __m128i*)kptr0);
+                __m128i _w23 = _mm_loadu_si128((const __m128i*)(kptr0 + 16));
+                __m256i _w01_16 = _mm256_cvtepi8_epi16(_w01);
+                __m256i _w23_16 = _mm256_cvtepi8_epi16(_w23);
+
+                __m256i _valval = _mm256_inserti128_si256(_mm256_castsi128_si256(_val), _val, 1);
+
+                __m256i _sl0_1 = _mm256_mullo_epi16(_valval, _w01_16);
+                __m256i _sh0_1 = _mm256_mulhi_epi16(_valval, _w01_16);
+                __m256i _sl2_3 = _mm256_mullo_epi16(_valval, _w23_16);
+                __m256i _sh2_3 = _mm256_mulhi_epi16(_valval, _w23_16);
+
+                _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpacklo_epi16(_sl0_1, _sh0_1));
+                _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpacklo_epi16(_sl2_3, _sh2_3));
+                _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpackhi_epi16(_sl0_1, _sh0_1));
+                _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpackhi_epi16(_sl2_3, _sh2_3));
+#else
                 __m128i _val = _mm_loadl_epi64((const __m128i*)tmpptr);
 #if __SSE4_1__
                 _val = _mm_cvtepi8_epi16(_val);
@@ -543,10 +569,18 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl1, _sh1));
                 _sum2 = _mm_add_epi32(_sum2, _mm_unpackhi_epi16(_sl2, _sh2));
                 _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl3, _sh3));
+#endif
 
                 tmpptr += 8;
                 kptr0 += 32;
             }
+
+#if __AVX2__
+            __m128i _sum0 = _mm256_extracti128_si256(_sum0_1, 0);
+            __m128i _sum1 = _mm256_extracti128_si256(_sum0_1, 1);
+            __m128i _sum2 = _mm256_extracti128_si256(_sum2_3, 0);
+            __m128i _sum3 = _mm256_extracti128_si256(_sum2_3, 1);
+#endif
 
             // transpose 4x4
             {

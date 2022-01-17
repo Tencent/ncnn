@@ -774,51 +774,38 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 
             if (nn4 > 0)
             {
+                __m256i _sum0_2 = _mm256_setzero_si256();
+                __m256i _sum1_3 = _mm256_setzero_si256();
+
                 int j = 0;
                 for (; j < nn4; j++)
                 {
-                    signed char val0 = tmpptr[0];
-                    signed char val1 = tmpptr[1];
-                    signed char val2 = tmpptr[2];
-                    signed char val3 = tmpptr[3];
-                    signed char val4 = tmpptr[4];
-                    signed char val5 = tmpptr[5];
-                    signed char val6 = tmpptr[6];
-                    signed char val7 = tmpptr[7];
-                    signed char val8 = tmpptr[8];
-                    signed char val9 = tmpptr[9];
-                    signed char val10 = tmpptr[10];
-                    signed char val11 = tmpptr[11];
-                    signed char val12 = tmpptr[12];
-                    signed char val13 = tmpptr[13];
-                    signed char val14 = tmpptr[14];
-                    signed char val15 = tmpptr[15];
+                    __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
+                    __m256i _val01_16 = _mm256_cvtepi8_epi16(_val01);
 
-                    signed char w0 = kptr0[0];
-                    signed char w1 = kptr0[1];
-                    signed char w2 = kptr0[2];
-                    signed char w3 = kptr0[3];
+                    __m128i _w0123 = _mm_loadl_epi64((const __m128i*)kptr0);
+                    __m128i _w = _mm_cvtepi8_epi16(_w0123);
+                    __m256i _ww = _mm256_inserti128_si256(_mm256_castsi128_si256(_w), _w, 1);
 
-                    sum0 += val0 * w0;
-                    sum0 += val1 * w1;
-                    sum0 += val2 * w2;
-                    sum0 += val3 * w3;
-                    sum1 += val4 * w0;
-                    sum1 += val5 * w1;
-                    sum1 += val6 * w2;
-                    sum1 += val7 * w3;
-                    sum2 += val8 * w0;
-                    sum2 += val9 * w1;
-                    sum2 += val10 * w2;
-                    sum2 += val11 * w3;
-                    sum3 += val12 * w0;
-                    sum3 += val13 * w1;
-                    sum3 += val14 * w2;
-                    sum3 += val15 * w3;
+                    __m256i _sl0_1 = _mm256_mullo_epi16(_val01_16, _ww);
+                    __m256i _sh0_1 = _mm256_mulhi_epi16(_val01_16, _ww);
+
+                    _sum0_2 = _mm256_add_epi32(_sum0_2, _mm256_unpacklo_epi16(_sl0_1, _sh0_1));
+                    _sum1_3 = _mm256_add_epi32(_sum1_3, _mm256_unpackhi_epi16(_sl0_1, _sh0_1));
 
                     tmpptr += 16;
                     kptr0 += 4;
                 }
+
+                __m128i _sum0 = _mm256_extracti128_si256(_sum0_2, 0);
+                __m128i _sum1 = _mm256_extracti128_si256(_sum1_3, 0);
+                __m128i _sum2 = _mm256_extracti128_si256(_sum0_2, 1);
+                __m128i _sum3 = _mm256_extracti128_si256(_sum1_3, 1);
+
+                sum0 = _mm_reduce_add_epi32(_sum0);
+                sum1 = _mm_reduce_add_epi32(_sum1);
+                sum2 = _mm_reduce_add_epi32(_sum2);
+                sum3 = _mm_reduce_add_epi32(_sum3);
             }
 
             int j = 0;
@@ -863,35 +850,39 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 
             if (nn4 > 0)
             {
+                __m128i _sum0 = _mm_setzero_si128();
+                __m128i _sum1 = _mm_setzero_si128();
+
                 int j = 0;
                 for (; j < nn4; j++)
                 {
-                    signed char val0 = tmpptr[0];
-                    signed char val1 = tmpptr[1];
-                    signed char val2 = tmpptr[2];
-                    signed char val3 = tmpptr[3];
-                    signed char val4 = tmpptr[4];
-                    signed char val5 = tmpptr[5];
-                    signed char val6 = tmpptr[6];
-                    signed char val7 = tmpptr[7];
+                    __m128i _val = _mm_loadl_epi64((const __m128i*)tmpptr);
+                    __m128i _extval = _mm_cmpgt_epi8(_mm_setzero_si128(), _val);
+                    __m128i _val0 = _mm_unpacklo_epi8(_val, _extval);
+                    __m128i _val1 = _mm_unpacklo_epi8(_val, _extval);
 
-                    signed char w0 = kptr0[0];
-                    signed char w1 = kptr0[1];
-                    signed char w2 = kptr0[2];
-                    signed char w3 = kptr0[3];
+                    __m128i _w0123 = _mm_loadl_epi64((const __m128i*)kptr0);
+#if __SSE4_1__
+                    __m128i _w = _mm_cvtepi8_epi16(_w0123);
+#else
+                    __m128i _extw = _mm_cmpgt_epi8(_mm_setzero_si128(), _w0123);
+                    __m128i _w = _mm_unpacklo_epi8(_w0123, _extw);
+#endif
 
-                    sum0 += val0 * w0;
-                    sum0 += val1 * w1;
-                    sum0 += val2 * w2;
-                    sum0 += val3 * w3;
-                    sum1 += val4 * w0;
-                    sum1 += val5 * w1;
-                    sum1 += val6 * w2;
-                    sum1 += val7 * w3;
+                    __m128i _sl0 = _mm_mullo_epi16(_val0, _w);
+                    __m128i _sh0 = _mm_mulhi_epi16(_val0, _w);
+                    __m128i _sl1 = _mm_mullo_epi16(_val1, _w);
+                    __m128i _sh1 = _mm_mulhi_epi16(_val1, _w);
+
+                    _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl0, _sh0));
+                    _sum1 = _mm_add_epi32(_sum1, _mm_unpacklo_epi16(_sl1, _sh1));
 
                     tmpptr += 8;
                     kptr0 += 4;
                 }
+
+                sum0 = _mm_reduce_add_epi32(_sum0);
+                sum1 = _mm_reduce_add_epi32(_sum1);
             }
 
             int j = 0;
@@ -928,27 +919,37 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 
             if (nn4 > 0)
             {
+                __m128i _sum = _mm_setzero_si128();
+
                 int j = 0;
                 for (; j < nn4; j++)
                 {
-                    signed char val0 = tmpptr[0];
-                    signed char val1 = tmpptr[1];
-                    signed char val2 = tmpptr[2];
-                    signed char val3 = tmpptr[3];
+                    __m128i _val0123 = _mm_loadl_epi64((const __m128i*)tmpptr);
+#if __SSE4_1__
+                    __m128i _val = _mm_cvtepi8_epi16(_val0123);
+#else
+                    __m128i _extval = _mm_cmpgt_epi8(_mm_setzero_si128(), _val0123);
+                    __m128i _val = _mm_unpacklo_epi8(_val0123, _extval);
+#endif
 
-                    signed char w0 = kptr0[0];
-                    signed char w1 = kptr0[1];
-                    signed char w2 = kptr0[2];
-                    signed char w3 = kptr0[3];
+                    __m128i _w0123 = _mm_loadl_epi64((const __m128i*)kptr0);
+#if __SSE4_1__
+                    __m128i _w = _mm_cvtepi8_epi16(_w0123);
+#else
+                    __m128i _extw = _mm_cmpgt_epi8(_mm_setzero_si128(), _w0123);
+                    __m128i _w = _mm_unpacklo_epi8(_w0123, _extw);
+#endif
 
-                    sum += val0 * w0;
-                    sum += val1 * w1;
-                    sum += val2 * w2;
-                    sum += val3 * w3;
+                    __m128i _sl = _mm_mullo_epi16(_val, _w);
+                    __m128i _sh = _mm_mulhi_epi16(_val, _w);
+
+                    _sum = _mm_add_epi32(_sum, _mm_unpacklo_epi16(_sl, _sh));
 
                     tmpptr += 4;
                     kptr0 += 4;
                 }
+
+                sum = _mm_reduce_add_epi32(_sum);
             }
 
             int j = 0;

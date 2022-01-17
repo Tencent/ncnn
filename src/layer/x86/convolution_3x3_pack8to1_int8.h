@@ -478,17 +478,15 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w23, _val0_4567);
                         _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _w23, _val0_cdef);
 #else
-                        // 0 0 1 1 x x x x 8 8 9 9 x x x x
-                        // 0 0 0 0 1 1 1 1 8 8 8 8 9 9 9 9
-                        __m256i _val0_0189 = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val0, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val0_23ab = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val0, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val0_45cd = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val0, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m256i _val0_67ef = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val0, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        // 0 0 1 1 2 2 3 3 8 8 9 9 a a b b
+                        // 4 4 5 5 6 6 7 7 c c d d e e f f
+                        __m256i _val0_0123_89ab = _mm256_unpacklo_epi16(_val0, _val0);
+                        __m256i _val0_4567_cdef = _mm256_unpackhi_epi16(_val0, _val0);
 
-                        __m256i _val0_0123 = _mm256_permute2x128_si256(_val0_0189, _val0_23ab, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val0_4567 = _mm256_permute2x128_si256(_val0_45cd, _val0_67ef, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val0_89ab = _mm256_permute2x128_si256(_val0_0189, _val0_23ab, _MM_SHUFFLE(0, 3, 0, 1));
-                        __m256i _val0_cdef = _mm256_permute2x128_si256(_val0_45cd, _val0_67ef, _MM_SHUFFLE(0, 3, 0, 1));
+                        __m256i _val0_0123 = _mm256_permutevar8x32_epi32(_val0_0123_89ab, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
+                        __m256i _val0_4567 = _mm256_permutevar8x32_epi32(_val0_4567_cdef, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
+                        __m256i _val0_89ab = _mm256_permutevar8x32_epi32(_val0_0123_89ab, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
+                        __m256i _val0_cdef = _mm256_permutevar8x32_epi32(_val0_4567_cdef, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
 
                         __m256i _sl00_01 = _mm256_mullo_epi16(_w01, _val0_0123);
                         __m256i _sh00_01 = _mm256_mulhi_epi16(_w01, _val0_0123);
@@ -522,15 +520,13 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum4_5 = _mm256_dpwssd_epi32(_sum4_5, _w23, _val1_4567);
                         _sum6_7 = _mm256_dpwssd_epi32(_sum6_7, _w23, _val1_cdef);
 #else
-                        __m256i _val1_0189 = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val1, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val1_23ab = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val1, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val1_45cd = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val1, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m256i _val1_67ef = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val1, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        __m256i _val1_0123_89ab = _mm256_unpacklo_epi16(_val1, _val1);
+                        __m256i _val1_4567_cdef = _mm256_unpackhi_epi16(_val1, _val1);
 
-                        __m256i _val1_0123 = _mm256_permute2x128_si256(_val1_0189, _val1_23ab, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val1_4567 = _mm256_permute2x128_si256(_val1_45cd, _val1_67ef, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val1_89ab = _mm256_permute2x128_si256(_val1_0189, _val1_23ab, _MM_SHUFFLE(0, 3, 0, 1));
-                        __m256i _val1_cdef = _mm256_permute2x128_si256(_val1_45cd, _val1_67ef, _MM_SHUFFLE(0, 3, 0, 1));
+                        __m256i _val1_0123 = _mm256_permutevar8x32_epi32(_val1_0123_89ab, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
+                        __m256i _val1_4567 = _mm256_permutevar8x32_epi32(_val1_4567_cdef, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
+                        __m256i _val1_89ab = _mm256_permutevar8x32_epi32(_val1_0123_89ab, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
+                        __m256i _val1_cdef = _mm256_permutevar8x32_epi32(_val1_4567_cdef, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
 
                         __m256i _sl04_05 = _mm256_mullo_epi16(_w01, _val1_0123);
                         __m256i _sh04_05 = _mm256_mulhi_epi16(_w01, _val1_0123);
@@ -630,17 +626,13 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w23, _val_4567);
                         _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _w23, _val_cdef);
 #else
-                        // 0 0 1 1 x x x x 8 8 9 9 x x x x
-                        // 0 0 0 0 1 1 1 1 8 8 8 8 9 9 9 9
-                        __m256i _val_0189 = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val_23ab = _mm256_shuffle_epi32(_mm256_shufflelo_epi16(_val, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m256i _val_45cd = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m256i _val_67ef = _mm256_shuffle_epi32(_mm256_shufflehi_epi16(_val, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        __m256i _val_0123_89ab = _mm256_unpacklo_epi16(_val, _val);
+                        __m256i _val_4567_cdef = _mm256_unpackhi_epi16(_val, _val);
 
-                        __m256i _val_0123 = _mm256_permute2x128_si256(_val_0189, _val_23ab, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val_4567 = _mm256_permute2x128_si256(_val_45cd, _val_67ef, _MM_SHUFFLE(0, 2, 0, 0));
-                        __m256i _val_89ab = _mm256_permute2x128_si256(_val_0189, _val_23ab, _MM_SHUFFLE(0, 3, 0, 1));
-                        __m256i _val_cdef = _mm256_permute2x128_si256(_val_45cd, _val_67ef, _MM_SHUFFLE(0, 3, 0, 1));
+                        __m256i _val_0123 = _mm256_permutevar8x32_epi32(_val_0123_89ab, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
+                        __m256i _val_4567 = _mm256_permutevar8x32_epi32(_val_4567_cdef, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
+                        __m256i _val_89ab = _mm256_permutevar8x32_epi32(_val_0123_89ab, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
+                        __m256i _val_cdef = _mm256_permutevar8x32_epi32(_val_4567_cdef, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
 
                         __m256i _sl00_01 = _mm256_mullo_epi16(_w01, _val_0123);
                         __m256i _sh00_01 = _mm256_mulhi_epi16(_w01, _val_0123);
@@ -670,15 +662,23 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         __m128i _w2 = _mm_loadu_si128((const __m128i*)(k0 + 16));
                         __m128i _w3 = _mm_loadu_si128((const __m128i*)(k0 + 24));
 
-                        __m128i _val0_01 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val0, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val0_23 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val0, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val0_45 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val0, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m128i _val0_67 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val0, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        // 0 0 1 1 2 2 3 3
+                        // 4 4 5 5 6 6 7 7
+                        __m128i _val0_0123 = _mm_unpacklo_epi16(_val0, _val0);
+                        __m128i _val0_4567 = _mm_unpackhi_epi16(_val0, _val0);
 
-                        __m128i _val1_01 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val1, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val1_23 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val1, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val1_45 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val1, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m128i _val1_67 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val1, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        __m128i _val1_0123 = _mm_unpacklo_epi16(_val1, _val1);
+                        __m128i _val1_4567 = _mm_unpackhi_epi16(_val1, _val1);
+
+                        __m128i _val0_01 = _mm_unpacklo_epi32(_val0_0123, _val0_0123);
+                        __m128i _val0_23 = _mm_unpackhi_epi32(_val0_0123, _val0_0123);
+                        __m128i _val0_45 = _mm_unpacklo_epi32(_val0_4567, _val0_4567);
+                        __m128i _val0_67 = _mm_unpackhi_epi32(_val0_4567, _val0_4567);
+
+                        __m128i _val1_01 = _mm_unpacklo_epi32(_val1_0123, _val1_0123);
+                        __m128i _val1_23 = _mm_unpackhi_epi32(_val1_0123, _val1_0123);
+                        __m128i _val1_45 = _mm_unpacklo_epi32(_val1_4567, _val1_4567);
+                        __m128i _val1_67 = _mm_unpackhi_epi32(_val1_4567, _val1_4567);
 
                         __m128i _sl00 = _mm_mullo_epi16(_w0, _val0_01);
                         __m128i _sh00 = _mm_mulhi_epi16(_w0, _val0_01);
@@ -789,15 +789,13 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w01, _val_0123);
                         _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w23, _val_4567);
 #else
-                        // 0 0 1 1 x x x x
-                        // 0 0 0 0 1 1 1 1
-                        __m128i _val_01 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val_23 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val_45 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m128i _val_67 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        // 0 0 1 1 2 2 3 3
+                        // 4 4 5 5 6 6 7 7
+                        __m256i _val_0123 = _mm256_castsi128_si256(_mm_unpacklo_epi16(_val, _val));
+                        __m256i _val_4567 = _mm256_castsi128_si256(_mm_unpackhi_epi16(_val, _val));
 
-                        __m256i _val_0123 = _mm256_inserti128_si256(_mm256_castsi128_si256(_val_01), _val_23, 1);
-                        __m256i _val_4567 = _mm256_inserti128_si256(_mm256_castsi128_si256(_val_45), _val_67, 1);
+                        _val_0123 = _mm256_permutevar8x32_epi32(_val_0123, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
+                        _val_4567 = _mm256_permutevar8x32_epi32(_val_4567, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
 
                         __m256i _sl00_01 = _mm256_mullo_epi16(_w01, _val_0123);
                         __m256i _sh00_01 = _mm256_mulhi_epi16(_w01, _val_0123);
@@ -815,10 +813,15 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         __m128i _w2 = _mm_loadu_si128((const __m128i*)(k0 + 16));
                         __m128i _w3 = _mm_loadu_si128((const __m128i*)(k0 + 24));
 
-                        __m128i _val01 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val23 = _mm_shuffle_epi32(_mm_shufflelo_epi16(_val, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(1, 1, 0, 0));
-                        __m128i _val45 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val, _MM_SHUFFLE(1, 1, 0, 0)), _MM_SHUFFLE(3, 3, 2, 2));
-                        __m128i _val67 = _mm_shuffle_epi32(_mm_shufflehi_epi16(_val, _MM_SHUFFLE(3, 3, 2, 2)), _MM_SHUFFLE(3, 3, 2, 2));
+                        // 0 0 1 1 2 2 3 3
+                        // 4 4 5 5 6 6 7 7
+                        __m128i _val_0123 = _mm_unpacklo_epi16(_val, _val);
+                        __m128i _val_4567 = _mm_unpackhi_epi16(_val, _val);
+
+                        __m128i _val01 = _mm_unpacklo_epi32(_val_0123, _val_0123);
+                        __m128i _val23 = _mm_unpackhi_epi32(_val_0123, _val_0123);
+                        __m128i _val45 = _mm_unpacklo_epi32(_val_4567, _val_4567);
+                        __m128i _val67 = _mm_unpackhi_epi32(_val_4567, _val_4567);
 
                         __m128i _sl0 = _mm_mullo_epi16(_w0, _val01);
                         __m128i _sh0 = _mm_mulhi_epi16(_w0, _val01);
