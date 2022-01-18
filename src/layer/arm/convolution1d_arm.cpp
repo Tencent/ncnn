@@ -147,7 +147,13 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
 
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     const int outw = (w - kernel_extent_w) / stride_w + 1;
@@ -524,7 +530,7 @@ int Convolution1D_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
 
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     const int outw = (w - kernel_extent_w) / stride_w + 1;
@@ -1196,7 +1202,6 @@ int Convolution1D_arm::create_pipeline_bf16s(const Option& opt)
 
     int elempack = 1;
     int out_elempack = 1;
-
 #if __ARM_NEON
     if (opt.use_packing_layout)
     {
@@ -1258,7 +1263,13 @@ int Convolution1D_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
 
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     const int outw = (w - kernel_extent_w) / stride_w + 1;

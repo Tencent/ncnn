@@ -1543,7 +1543,13 @@ int InnerProduct_arm::create_pipeline_bf16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
 
-    int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __ARM_NEON
 
     // src = inch-outch
     // dst = pb-inch-outch/pb
@@ -1763,7 +1769,13 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
     size_t elemsize = bottom_blob_flattened.elemsize;
     int elempack = bottom_blob_flattened.elempack;
 
-    int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __ARM_NEON
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);

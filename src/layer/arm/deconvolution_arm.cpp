@@ -120,8 +120,15 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         }
     }
 
-    int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int elempack = 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        elempack = num_input % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
 
 #if __ARM_NEON
     // pack4
@@ -333,7 +340,13 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
@@ -1911,8 +1924,15 @@ int Deconvolution_arm::create_pipeline_bf16s(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = opt.use_packing_layout && num_input % 4 == 0 ? 4 : 1;
-    int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    int elempack = 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        elempack = num_input % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
 
     Mat weight_data_transposed(weight_data.w);
     {
@@ -1985,7 +2005,13 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-    int out_elempack = opt.use_packing_layout && num_output % 4 == 0 ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
