@@ -193,6 +193,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_normal.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
+    pass_level2/torch_roll.cpp
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
     pass_level2/torch_stack.cpp
@@ -201,6 +202,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
+    pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp

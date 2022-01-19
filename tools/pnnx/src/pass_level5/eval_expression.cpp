@@ -171,7 +171,7 @@ static std::string eval_expression(const Operator* op)
                 exprstack.push(r);
             }
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "pow")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "pow" || t == "remainder")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -211,6 +211,13 @@ static std::string eval_expression(const Operator* op)
                 if (t == "pow")
                 {
                     float r = pow(af, bf);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "remainder")
+                {
+                    float r = fmod(af, bf);
+                    if (af * bf < 0)
+                        r += bf;
                     exprstack.push(std::to_string(r));
                 }
             }
