@@ -28,7 +28,7 @@ void fuse_chunk_split_unpack(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "torch.chunk" && op->type != "torch.split")
+            if (op->type != "torch.chunk" && op->type != "torch.split" && op->type != "torch.unbind")
                 continue;
 
             if (op->outputs.size() != 1)

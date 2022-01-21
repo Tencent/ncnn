@@ -59,7 +59,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_MaxPool1d.cpp
     pass_level1/nn_MaxPool2d.cpp
     pass_level1/nn_MaxPool3d.cpp
-    pass_level1/nn_maxunpool2d.cpp
+    #pass_level1/nn_maxunpool2d.cpp
     pass_level1/nn_Mish.cpp
     pass_level1/nn_MultiheadAttention.cpp
     pass_level1/nn_PixelShuffle.cpp
@@ -200,6 +200,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
     pass_level2/torch_transpose.cpp
+    pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
     pass_level2/torch_zeros.cpp
@@ -226,6 +227,7 @@ set(pnnx_pass_level3_SRCS
 set(pnnx_pass_level4_SRCS
     pass_level4/canonicalize.cpp
     pass_level4/dead_code_elimination.cpp
+    pass_level4/fold_constants.cpp
     pass_level4/fuse_custom_op.cpp
 )
 

@@ -339,7 +339,8 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "############# pass_level0\n");
 
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators);
+    std::map<std::string, pnnx::Attribute> foldable_constants;
+    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, foldable_constants);
 
     //     g->dump();
 
@@ -364,7 +365,7 @@ int main(int argc, char** argv)
 
         fprintf(stderr, "############# pass_level4\n");
 
-        pnnx::pass_level4(pnnx_graph);
+        pnnx::pass_level4(pnnx_graph, foldable_constants);
     }
 
     pnnx_graph.save("debug2.param", "debug2.bin");

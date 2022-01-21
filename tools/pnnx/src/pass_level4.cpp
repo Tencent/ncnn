@@ -15,14 +15,17 @@
 #include "pass_level4.h"
 
 #include "pass_level4/canonicalize.h"
+#include "pass_level4/fold_constants.h"
 #include "pass_level4/fuse_custom_op.h"
 #include "pass_level4/dead_code_elimination.h"
 
 namespace pnnx {
 
-void pass_level4(Graph& g)
+void pass_level4(Graph& g, const std::map<std::string, Attribute>& constants)
 {
     fuse_custom_op(g);
+
+    fold_constants(g, constants);
 
     dead_code_elimination(g);
 

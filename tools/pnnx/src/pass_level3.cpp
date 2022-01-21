@@ -45,7 +45,7 @@ void pass_level3(Graph& g)
 
     expand_quantization_modules(g);
 
-    fuse_attribute_expression(g);
+    // fuse_attribute_expression(g);
 
     eliminate_tuple_pair(g);
 
