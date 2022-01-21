@@ -539,7 +539,7 @@ static int get_cpu_support_x86_avx2()
 
 static int get_cpu_support_x86_avx_vnni()
 {
-#if !NCNN_AVX2
+#if !NCNN_AVXVNNI
     return 0;
 #endif
     unsigned int cpu_info[4] = {0};
@@ -593,7 +593,7 @@ static int get_cpu_support_x86_avx512()
 
 static int get_cpu_support_x86_avx512_vnni()
 {
-#if !NCNN_AVX512
+#if !NCNN_AVX512VNNI
     return 0;
 #endif
     unsigned int cpu_info[4] = {0};
