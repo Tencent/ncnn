@@ -130,7 +130,7 @@ void eliminate_noop_math(Graph& graph)
                     identity_input_id = 0;
                 }
                 else if (op0->type == "pnnx.Attribute" && attribute_is_all_constant(op0, 0.f, 0)
-                    && op2->type == "pnnx.Attribute" && attribute_is_all_constant(op0, 1.f, 1))
+                         && op2->type == "pnnx.Attribute" && attribute_is_all_constant(op0, 1.f, 1))
                 {
                     // x <= 0 + b * 1
                     need_eliminate = true;
