@@ -302,7 +302,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     }
 #endif // __SSE2__
 
-    if (dims != 3)
+    if (dims < 2)
         return Scale::forward_inplace(bottom_top_blobs, opt);
 
     int w = bottom_top_blob.w;
