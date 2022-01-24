@@ -15,8 +15,10 @@
 #include "pass_level3.h"
 
 #include "pass_level3/assign_unique_name.h"
+#include "pass_level3/eliminate_noop_math.h"
 #include "pass_level3/eliminate_tuple_pair.h"
 #include "pass_level3/expand_quantization_modules.h"
+#include "pass_level3/fold_constants.h"
 #include "pass_level3/fuse_cat_stack_tensors.h"
 #include "pass_level3/fuse_chunk_split_unpack.h"
 #include "pass_level3/fuse_expression.h"
@@ -32,8 +34,10 @@
 
 namespace pnnx {
 
-void pass_level3(Graph& g)
+void pass_level3(Graph& g, const std::map<std::string, Attribute>& foldable_constants)
 {
+    fold_constants(g, foldable_constants);
+
     assign_unique_name(g);
 
     fuse_cat_stack_tensors(g);
@@ -51,6 +55,8 @@ void pass_level3(Graph& g)
     rename_F_convmode(g);
 
     rename_F_dropoutnd(g);
+
+    eliminate_noop_math(g);
 
     fuse_expression(g);
 

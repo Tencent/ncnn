@@ -211,8 +211,10 @@ set(pnnx_pass_level2_SRCS
 
 set(pnnx_pass_level3_SRCS
     pass_level3/assign_unique_name.cpp
+    pass_level3/eliminate_noop_math.cpp
     pass_level3/eliminate_tuple_pair.cpp
     pass_level3/expand_quantization_modules.cpp
+    pass_level3/fold_constants.cpp
     pass_level3/fuse_cat_stack_tensors.cpp
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
@@ -226,7 +228,6 @@ set(pnnx_pass_level3_SRCS
 set(pnnx_pass_level4_SRCS
     pass_level4/canonicalize.cpp
     pass_level4/dead_code_elimination.cpp
-    pass_level4/fold_constants.cpp
     pass_level4/fuse_custom_op.cpp
 )
 

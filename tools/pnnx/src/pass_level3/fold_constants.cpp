@@ -19,14 +19,14 @@
 
 namespace pnnx {
 
-void fold_constants(Graph& graph, const std::map<std::string, Attribute>& constants)
+void fold_constants(Graph& graph, const std::map<std::string, Attribute>& foldable_constants)
 {
     for (size_t i = 0; i < graph.operands.size(); i++)
     {
         Operand* operand = graph.operands[i];
         const std::string& name = operand->name;
 
-        if (constants.find(name) == constants.end())
+        if (foldable_constants.find(name) == foldable_constants.end())
             continue;
 
         Operator* op = operand->producer;
@@ -36,7 +36,7 @@ void fold_constants(Graph& graph, const std::map<std::string, Attribute>& consta
         // replace producer with attribute
         Operator* op_new = graph.new_operator_before("pnnx.Attribute", std::string("pnnx_fold_") + name, op);
 
-        op_new->attrs["value"] = constants.at(name);
+        op_new->attrs[std::string("pnnx_fold_") + name] = foldable_constants.at(name);
         op_new->outputs.push_back(operand);
         operand->producer = op_new;
 

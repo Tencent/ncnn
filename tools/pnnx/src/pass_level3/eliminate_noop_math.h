@@ -16,6 +16,6 @@
 
 namespace pnnx {
 
-void fold_constants(Graph& graph, const std::map<std::string, Attribute>& constants);
+void eliminate_noop_math(Graph& graph);
 
 } // namespace pnnx
