@@ -297,11 +297,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 1)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = elembits == 16 && opt.use_fp16_arithmetic && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
-#else
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw / out_elempack == w && out_elempack == 4)
@@ -327,11 +323,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 2)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = elembits == 16 && opt.use_fp16_arithmetic && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
-#else
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh / out_elempack == h && out_elempack == 4)
@@ -357,11 +349,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 3)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = elembits == 16 && opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
-#else
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 4)
@@ -403,11 +391,7 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
         if (dims == 4)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = elembits == 16 && opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
-#else
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 4)
@@ -652,11 +636,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 1)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = elembits == 16 && opt.use_fp16_arithmetic && _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
-#else
             int out_elempack = _outw % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw / out_elempack == w && out_elempack == 4)
@@ -682,11 +662,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 2)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = elembits == 16 && opt.use_fp16_arithmetic && _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
-#else
             int out_elempack = _outh % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh / out_elempack == h && out_elempack == 4)
@@ -712,11 +688,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 3)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = elembits == 16 && opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
-#else
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 4)
@@ -758,11 +730,7 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         if (dims == 4)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = elembits == 16 && opt.use_fp16_arithmetic && _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
-#else
             int out_elempack = _outc % 4 == 0 ? 4 : 1;
-#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 4)

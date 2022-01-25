@@ -19,7 +19,7 @@ popd
 ##### android armv7 without neon
 mkdir -p build-android-armv7-without-neon
 pushd build-android-armv7-without-neon
-cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_PLATFORM=android-19 ..
+cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK/build/cmake/android.toolchain.cmake -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=OFF -DANDROID_PLATFORM=android-19 ..
 make -j4
 make install
 popd

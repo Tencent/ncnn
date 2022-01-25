@@ -64,7 +64,7 @@ jobs:
     - name: build-avx2
       run: |
         mkdir build-avx2; cd build-avx2
-        cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON ..
+        cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVXVNNI=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . --config Release -j 2
     - name: test-avx2
       run: cd build-avx2; ctest -C Release --output-on-failure -j 2
@@ -75,10 +75,3 @@ jobs:
         cmake --build . --config Release -j 2
     - name: test-avx
       run: cd build-avx; ctest -C Release --output-on-failure -j 2
-    - name: build-avx1-2
-      run: |
-        mkdir build-avx1-2; cd build-avx1-2
-        cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=ON -DNCNN_AVX2=ON -DNCNN_BUILD_TESTS=ON ..
-        cmake --build . --config Release -j 2
-    - name: test-avx1-2
-      run: cd build-avx1-2; ctest -C Release --output-on-failure -j 2

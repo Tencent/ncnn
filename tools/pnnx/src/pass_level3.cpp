@@ -14,6 +14,7 @@
 
 #include "pass_level3.h"
 
+#include "pass_level3/assign_unique_name.h"
 #include "pass_level3/eliminate_tuple_pair.h"
 #include "pass_level3/expand_quantization_modules.h"
 #include "pass_level3/fuse_attribute_expression.h"
@@ -34,6 +35,8 @@ namespace pnnx {
 
 void pass_level3(Graph& g)
 {
+    assign_unique_name(g);
+
     fuse_cat_stack_tensors(g);
 
     fuse_chunk_split_unpack(g);

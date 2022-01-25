@@ -92,6 +92,28 @@ _PS256_CONST(cephes_log_q1, -2.12194440e-4f);
 _PS256_CONST(cephes_log_q2, 0.693359375f);
 
 #ifndef __AVX2__
+typedef union imm_xmm_union
+{
+    __m256i imm;
+    __m128i xmm[2];
+} imm_xmm_union;
+
+#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)      \
+    {                                            \
+        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
+        u.imm = imm_;                            \
+        xmm0_ = u.xmm[0];                        \
+        xmm1_ = u.xmm[1];                        \
+    }
+
+#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)      \
+    {                                            \
+        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
+        u.xmm[0] = xmm0_;                        \
+        u.xmm[1] = xmm1_;                        \
+        imm_ = u.imm;                            \
+    }
+
 #define AVX2_BITOP_USING_SSE2(fn)                                      \
     static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, int a) \
     {                                                                  \
@@ -130,43 +152,14 @@ _PS256_CONST(cephes_log_q2, 0.693359375f);
         return _mm256_##fn(x, y);                                          \
     }
 #endif
-#ifndef __AVX2__
 
-typedef union imm_xmm_union
-{
-    __m256i imm;
-    __m128i xmm[2];
-} imm_xmm_union;
-
-#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)      \
-    {                                            \
-        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
-        u.imm = imm_;                            \
-        xmm0_ = u.xmm[0];                        \
-        xmm1_ = u.xmm[1];                        \
-    }
-
-#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)      \
-    {                                            \
-        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
-        u.xmm[0] = xmm0_;                        \
-        u.xmm[1] = xmm1_;                        \
-        imm_ = u.imm;                            \
-    }
-
-#if _MSC_VER
-#pragma message("Using SSE2 to perform AVX2 bitshift ops")
-#else
-#warning "Using SSE2 to perform AVX2 bitshift ops"
-#endif
-
-#endif /* __AVX2__ */
 AVX2_BITOP_USING_SSE2(slli_epi32)
 AVX2_BITOP_USING_SSE2(srli_epi32)
 AVX2_INTOP_USING_SSE2(cmpeq_epi32)
 AVX2_INTOP_USING_SSE2(sub_epi32)
 AVX2_INTOP_USING_SSE2(add_epi32)
 
+// Replace 256 bit operations with 128 bit ones when AVX2 is disabled
 #ifndef __AVX2__
 AVX2_INTOP_USING_SSE2(and_si128)
 AVX2_INTOP_USING_SSE2(andnot_si128)

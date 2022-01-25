@@ -232,6 +232,13 @@ Layer* create_layer(int index)
     // clang-format off
     // *INDENT-OFF*
     layer_creator_func layer_creator = 0;
+#if NCNN_RUNTIME_CPU && NCNN_AVX512
+    if (ncnn::cpu_support_x86_avx512())
+    {
+        layer_creator = layer_registry_avx512[index].creator;
+    }
+    else
+#endif// NCNN_RUNTIME_CPU && NCNN_AVX512
 #if NCNN_RUNTIME_CPU && NCNN_AVX2
     if (ncnn::cpu_support_x86_avx2())
     {

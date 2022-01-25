@@ -535,8 +535,15 @@ int ConvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, con
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int g_elempack = (support_packing && opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
-    int out_g_elempack = (support_packing && opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+    int g_elempack = 1;
+    int out_g_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        g_elempack = channels_g % 4 == 0 ? 4 : 1;
+        out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
+    }
+#endif
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
@@ -856,8 +863,8 @@ int ConvolutionDepthWise_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blo
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int g_elempack = (support_packing && opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
-    int out_g_elempack = (support_packing && opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+    int g_elempack = (opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
+    int out_g_elempack = (opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;
@@ -1491,8 +1498,15 @@ int ConvolutionDepthWise_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blo
     const int channels_g = channels * elempack / group;
     const int num_output_g = num_output / group;
 
-    int g_elempack = (support_packing && opt.use_packing_layout && channels_g % 4 == 0) ? 4 : 1;
-    int out_g_elempack = (support_packing && opt.use_packing_layout && num_output_g % 4 == 0) ? 4 : 1;
+    int g_elempack = 1;
+    int out_g_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        g_elempack = channels_g % 4 == 0 ? 4 : 1;
+        out_g_elempack = num_output_g % 4 == 0 ? 4 : 1;
+    }
+#endif
 
     // unpacking
     Mat bottom_blob_bordered_unpacked = bottom_blob_bordered;

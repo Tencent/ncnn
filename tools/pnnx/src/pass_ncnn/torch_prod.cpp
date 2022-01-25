@@ -64,6 +64,39 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_prod, 20)
 
+class torch_prod_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+torch.prod              op_0        1 1 input out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Reduction";
+    }
+
+    const char* name_str() const
+    {
+        return "prod";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        op->params["0"] = 6;
+        op->params["1"] = 1;
+        op->params["4"] = 0;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(torch_prod_1, 20)
+
 } // namespace ncnn
 
 } // namespace pnnx
