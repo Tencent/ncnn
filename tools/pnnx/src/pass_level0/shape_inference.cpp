@@ -134,8 +134,6 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         // auto mod2 = mod.deepcopy();
 
-        c10::InferenceMode guard(true);
-
         torch::jit::Module mod2 = torch::jit::load(ptpath);
         mod2.eval();
 

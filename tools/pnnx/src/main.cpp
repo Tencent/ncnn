@@ -323,8 +323,6 @@ int main(int argc, char** argv)
         input_tensors2.push_back(t);
     }
 
-    c10::InferenceMode guard(true);
-
     torch::jit::Module mod = torch::jit::load(ptpath);
 
     mod.eval();
