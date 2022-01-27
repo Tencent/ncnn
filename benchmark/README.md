@@ -1855,6 +1855,42 @@ cooling_down = 1
            nanodet_m  min =  179.42  max =  180.60  avg =  179.75
     yolo-fastest-1.1  min =   88.06  max =   88.85  avg =   88.35
       yolo-fastestv2  min =   68.68  max =   69.83  avg =   69.08
+
+nanopc-t4:/data/local/tmp # ./benchncnn 4 1 2 0 0
+[0 Mali-T860]  queueC=0[2]  queueG=0[2]  queueT=0[2]
+[0 Mali-T860]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=1
+[0 Mali-T860]  fp16-p/s/a=1/0/1  int8-p/s/a=1/0/0
+[0 Mali-T860]  subgroup=0  basic=0  vote=0  ballot=0  shuffle=0
+loop_count = 4
+num_threads = 1
+powersave = 2
+gpu_device = 0
+cooling_down = 0
+          squeezenet  min =   38.89  max =   39.38  avg =   39.04
+           mobilenet  min =   41.55  max =   41.99  avg =   41.76
+        mobilenet_v2  min =   35.11  max =   38.13  avg =   36.60
+        mobilenet_v3  min =   32.60  max =   37.89  avg =   35.90
+          shufflenet  min =   41.54  max =   41.80  avg =   41.67
+       shufflenet_v2  min =   36.18  max =   38.39  avg =   37.73
+             mnasnet  min =   35.75  max =   39.13  avg =   37.40
+     proxylessnasnet  min =   38.85  max =   42.31  avg =   40.61
+     efficientnet_b0  min =   62.03  max =   66.50  avg =   65.02
+   efficientnetv2_b0  min =  133.97  max =  147.08  avg =  143.37
+        regnety_400m  min =   44.76  max =   51.29  avg =   47.30
+           blazeface  min =   12.09  max =   15.37  avg =   13.13
+           googlenet  min =  130.76  max =  131.61  avg =  131.24
+            resnet18  min =  145.68  max =  146.20  avg =  145.94
+             alexnet  min =  187.09  max =  189.13  avg =  187.96
+               vgg16  min = 1144.59  max = 1148.60  avg = 1147.09
+            resnet50  min =  290.04  max =  290.47  avg =  290.20
+      squeezenet_ssd  min =  176.15  max =  183.08  avg =  180.50
+       mobilenet_ssd  min =   97.35  max =  103.96  avg =  102.20
+      mobilenet_yolo  min =  224.85  max =  227.17  avg =  226.32
+  mobilenetv2_yolov3  min =  120.87  max =  122.01  avg =  121.46
+         yolov4-tiny  min =  303.30  max =  402.31  avg =  330.61
+           nanodet_m  min =   63.01  max =   75.46  avg =   69.81
+    yolo-fastest-1.1  min =   39.46  max =   41.62  avg =   40.96
+      yolo-fastestv2  min =   29.42  max =   38.66  avg =   32.45
 ```
 
 ### NanoPi R2S, Rockchip RK3328 (Cortex-A53 1.3GHz x 4) Armbian focal (21.05.1) aarch64
