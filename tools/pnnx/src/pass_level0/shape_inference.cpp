@@ -64,8 +64,8 @@ static bool value_link_output(const torch::jit::Value* v, const std::vector<torc
 void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, std::map<std::string, Attribute>& foldable_constants)
 {
     // collect all intermediate output tensors
-    std::vector< std::unordered_set<std::string> > more_value_names;
-    std::vector< std::vector<torch::jit::Value*> > more_values;
+    std::vector<std::unordered_set<std::string> > more_value_names;
+    std::vector<std::vector<torch::jit::Value*> > more_values;
     {
         std::unordered_set<std::string> value_names;
         std::vector<torch::jit::Value*> values;
