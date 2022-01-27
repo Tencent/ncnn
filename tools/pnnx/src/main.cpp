@@ -279,9 +279,6 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
     }
 
-    //     at::AutoNonVariableTypeMode nonVarTypeModeGuard(true);
-    //     torch::autograd::AutoGradMode guard(false);
-
     for (auto m : customop_modules)
     {
         fprintf(stderr, "load custom module %s\n", m.c_str());
@@ -326,6 +323,8 @@ int main(int argc, char** argv)
         input_tensors2.push_back(t);
     }
 
+    c10::InferenceMode guard(true);
+
     torch::jit::Module mod = torch::jit::load(ptpath);
 
     mod.eval();
@@ -340,7 +339,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "############# pass_level0\n");
 
     std::map<std::string, pnnx::Attribute> foldable_constants;
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, foldable_constants);
+    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, foldable_constants);
 
     //     g->dump();
 
@@ -361,7 +360,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_level3\n");
 
-        pnnx::pass_level3(pnnx_graph, foldable_constants);
+        pnnx::pass_level3(pnnx_graph);
 
         fprintf(stderr, "############# pass_level4\n");
 
@@ -374,7 +373,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_level5\n");
 
-        pnnx::pass_level5(pnnx_graph);
+        pnnx::pass_level5(pnnx_graph, foldable_constants);
     }
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);

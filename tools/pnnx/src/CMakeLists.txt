@@ -186,6 +186,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clone.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_flatten.cpp
+    pass_level2/torch_flip.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_matmul.cpp
     pass_level2/torch_mean.cpp
@@ -193,6 +194,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_normal.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
+    pass_level2/torch_randn.cpp
     pass_level2/torch_roll.cpp
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
@@ -214,7 +216,6 @@ set(pnnx_pass_level3_SRCS
     pass_level3/eliminate_noop_math.cpp
     pass_level3/eliminate_tuple_pair.cpp
     pass_level3/expand_quantization_modules.cpp
-    pass_level3/fold_constants.cpp
     pass_level3/fuse_cat_stack_tensors.cpp
     pass_level3/fuse_chunk_split_unpack.cpp
     pass_level3/fuse_expression.cpp
@@ -237,6 +238,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_slice.cpp
     pass_level5/eliminate_view_reshape.cpp
     pass_level5/eval_expression.cpp
+    pass_level5/fold_constants.cpp
     pass_level5/fuse_channel_shuffle.cpp
     pass_level5/fuse_constant_expression.cpp
     pass_level5/fuse_conv1d_batchnorm1d.cpp
