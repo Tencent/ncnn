@@ -66,10 +66,11 @@ static NCNN_FORCEINLINE int32_t float2int8_sse(const __m128& _v0)
 
     __m128i _v8 = _mm_packs_epi16(_v0_s16, _v0_s16);
 
-    // TODO use _mm_cvtsi128_si64 on 64bit target
-    int32_t v8[4];
-    _mm_storeu_si128((__m128i*)v8, _v8);
-    return v8[0];
+#if defined(__x86_64__) || defined(_M_X64)
+    return (int32_t)_mm_cvtsi128_si64(_v8);
+#else
+    return _mm_cvtsi128_si32(_v8);
+#endif
 }
 
 static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& _v1)
@@ -94,10 +95,13 @@ static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& 
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16, _v01_s16);
 
-    // TODO use _mm_cvtsi128_si64 on 64bit target
+#if defined(__x86_64__) || defined(_M_X64)
+    return _mm_cvtsi128_si64(_v8);
+#else
     int64_t v8[2];
     _mm_storeu_si128((__m128i*)v8, _v8);
     return v8[0];
+#endif
 }
 
 static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& _v1, const __m128& _v2, const __m128& _v3)
@@ -291,10 +295,13 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16low, _v01_s16low);
 
-    // TODO use _mm_cvtsi128_si64 on 64bit target
+#if defined(__x86_64__) || defined(_M_X64)
+    return _mm_cvtsi128_si64(_v8);
+#else
     int64_t v8[2];
     _mm_storeu_si128((__m128i*)v8, _v8);
     return v8[0];
+#endif
 }
 
 static NCNN_FORCEINLINE __m128i float2int8_avx(const __m256& _v0, const __m256& _v1)
