@@ -217,7 +217,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/eliminate_tuple_pair.cpp
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_cat_stack_tensors.cpp
-    pass_level3/fuse_chunk_split_unpack.cpp
+    pass_level3/fuse_chunk_split_unbind_unpack.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp

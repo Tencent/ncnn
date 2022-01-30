@@ -12,13 +12,13 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "fuse_chunk_split_unpack.h"
+#include "fuse_chunk_split_unbind_unpack.h"
 #include <algorithm>
 #include "pass_level2.h"
 
 namespace pnnx {
 
-void fuse_chunk_split_unpack(Graph& graph)
+void fuse_chunk_split_unbind_unpack(Graph& graph)
 {
     while (1)
     {

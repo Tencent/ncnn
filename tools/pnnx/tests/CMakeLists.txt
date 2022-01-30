@@ -181,6 +181,7 @@ pnnx_add_test(torch_split)
 pnnx_add_test(torch_squeeze)
 pnnx_add_test(torch_stack)
 pnnx_add_test(torch_transpose)
+pnnx_add_test(torch_unbind)
 pnnx_add_test(torch_unsqueeze)
 
 pnnx_add_test(mobilenet_v2)

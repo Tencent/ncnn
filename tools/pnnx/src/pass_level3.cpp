@@ -19,7 +19,7 @@
 #include "pass_level3/eliminate_tuple_pair.h"
 #include "pass_level3/expand_quantization_modules.h"
 #include "pass_level3/fuse_cat_stack_tensors.h"
-#include "pass_level3/fuse_chunk_split_unpack.h"
+#include "pass_level3/fuse_chunk_split_unbind_unpack.h"
 #include "pass_level3/fuse_expression.h"
 #include "pass_level3/fuse_index_expression.h"
 #include "pass_level3/fuse_rnn_unpack.h"
@@ -39,7 +39,7 @@ void pass_level3(Graph& g)
 
     fuse_cat_stack_tensors(g);
 
-    fuse_chunk_split_unpack(g);
+    fuse_chunk_split_unbind_unpack(g);
 
     fuse_rnn_unpack(g);
 
