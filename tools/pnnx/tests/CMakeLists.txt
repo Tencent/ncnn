@@ -181,6 +181,7 @@ pnnx_add_test(torch_split)
 pnnx_add_test(torch_squeeze)
 pnnx_add_test(torch_stack)
 pnnx_add_test(torch_transpose)
+pnnx_add_test(torch_unbind)
 pnnx_add_test(torch_unsqueeze)
 
 pnnx_add_test(mobilenet_v2)
@@ -192,6 +193,8 @@ pnnx_add_test(squeezenet1_1)
 # TODO enable end2end quantization model test
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)
 
+pnnx_add_test(pnnx_eliminate_noop_math)
+pnnx_add_test(pnnx_fold_constant)
 pnnx_add_test(pnnx_fuse_conv1d_batchnorm1d)
 pnnx_add_test(pnnx_fuse_conv2d_batchnorm2d)
 pnnx_add_test(pnnx_fuse_convtranspose1d_batchnorm1d)

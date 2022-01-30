@@ -12,21 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_level4.h"
-
-#include "pass_level4/canonicalize.h"
-#include "pass_level4/fuse_custom_op.h"
-#include "pass_level4/dead_code_elimination.h"
+#include "ir.h"
 
 namespace pnnx {
 
-void pass_level4(Graph& g)
-{
-    fuse_custom_op(g);
-
-    dead_code_elimination(g);
-
-    //canonicalize(g);
-}
+void fuse_chunk_split_unbind_unpack(Graph& graph);
 
 } // namespace pnnx

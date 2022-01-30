@@ -20,39 +20,40 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
-        x = x[[2, 1], [0, 1]]
-        y = y[..., [1, 0]]
-        z = z[[True, False], [False, False, True, False]]
-        return x, y, z
+        self.w0 = nn.Parameter(torch.zeros(1, 12, 52))
+        self.w1 = nn.Parameter(torch.ones(1, 12, 52))
+        self.w2 = nn.Parameter(torch.ones(1, 12, 52))
+
+    def forward(self, x):
+        x = x + 0
+        x = x * 1 / 1
+        x = 0 + 1 * x
+        x = x + self.w0 * self.w1
+        x = x * self.w2
+        return x
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 6)
-    y = torch.rand(5, 9, 2)
-    z = torch.rand(2, 4, 5, 10)
+    x = torch.rand(1, 12, 52)
 
-    a = net(x, y, z)
+    a = net(x)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_Tensor_index.pt")
+    mod = torch.jit.trace(net, x)
+    mod.save("test_pnnx_eliminate_noop_math.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_Tensor_index.pt inputshape=[3,6],[5,9,2],[2,4,5,10]")
+    os.system("../src/pnnx test_pnnx_eliminate_noop_math.pt inputshape=[1,12,52]")
 
     # pnnx inference
-    import test_Tensor_index_pnnx
-    b = test_Tensor_index_pnnx.test_inference()
+    import test_pnnx_eliminate_noop_math_pnnx
+    b = test_pnnx_eliminate_noop_math_pnnx.test_inference()
 
-    for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
-            return False
-    return True
+    return torch.equal(a, b)
 
 if __name__ == "__main__":
     if test():

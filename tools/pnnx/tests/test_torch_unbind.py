@@ -21,33 +21,33 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = x[[2, 1], [0, 1]]
-        y = y[..., [1, 0]]
-        z = z[[True, False], [False, False, True, False]]
-        return x, y, z
+        x0, x1, x2 = torch.unbind(x, dim=1)
+        y0, y1, y2, y3, y4, y5, y6, y7, y8 = torch.unbind(y, dim=2)
+        z0, z1, z2, z3 = torch.unbind(z, dim=0)
+        return x0, x1, y0, y1, y2, y3, y4, y5, y6, y7, y8, z0, z1, z2, z3
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(3, 6)
-    y = torch.rand(5, 9, 2)
-    z = torch.rand(2, 4, 5, 10)
+    x = torch.rand(1, 3, 16)
+    y = torch.rand(1, 5, 9, 11)
+    z = torch.rand(4, 8, 5, 9, 10)
 
     a = net(x, y, z)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_Tensor_index.pt")
+    mod.save("test_torch_unbind.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_Tensor_index.pt inputshape=[3,6],[5,9,2],[2,4,5,10]")
+    os.system("../src/pnnx test_torch_unbind.pt inputshape=[1,3,16],[1,5,9,11],[4,8,5,9,10]")
 
     # pnnx inference
-    import test_Tensor_index_pnnx
-    b = test_Tensor_index_pnnx.test_inference()
+    import test_torch_unbind_pnnx
+    b = test_torch_unbind_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

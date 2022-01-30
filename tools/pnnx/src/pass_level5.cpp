@@ -14,6 +14,7 @@
 
 #include "pass_level5.h"
 
+#include "pass_level5/fold_constants.h"
 #include "pass_level5/eliminate_dropout.h"
 #include "pass_level5/eliminate_slice.h"
 #include "pass_level5/eliminate_view_reshape.h"
@@ -29,10 +30,11 @@
 #include "pass_level5/fuse_slice_indices.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
+#include "pass_level3/fuse_index_expression.h"
 
 namespace pnnx {
 
-void pass_level5(Graph& g)
+void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_constants)
 {
     eval_expression(g);
 
@@ -59,6 +61,10 @@ void pass_level5(Graph& g)
     eliminate_dropout(g);
 
     fuse_channel_shuffle(g);
+
+    fold_constants(g, foldable_constants);
+
+    fuse_index_expression(g);
 
     dead_code_elimination(g);
 
