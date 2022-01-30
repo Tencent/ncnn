@@ -30,6 +30,7 @@
 #include "pass_level5/fuse_slice_indices.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
+#include "pass_level3/fuse_index_expression.h"
 
 namespace pnnx {
 
@@ -62,6 +63,8 @@ void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_cons
     fuse_channel_shuffle(g);
 
     fold_constants(g, foldable_constants);
+
+    fuse_index_expression(g);
 
     dead_code_elimination(g);
 

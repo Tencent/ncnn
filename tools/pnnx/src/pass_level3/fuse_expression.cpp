@@ -18,13 +18,13 @@
 
 namespace pnnx {
 
-static bool operand_maybe_tensor(Operand* operand)
+static bool operand_maybe_tensor(const Operand* operand)
 {
-    Operator* op = operand->producer;
+    const Operator* op = operand->producer;
 
     if (op->type == "prim::Constant")
     {
-        const Parameter& param = op->params["value"];
+        const Parameter& param = op->params.at("value");
         if (param.type == 0 || param.type == 1 || param.type == 2 || param.type == 3 || param.type == 4)
         {
             return false;
@@ -83,9 +83,25 @@ static bool operand_maybe_tensor(Operand* operand)
     return true;
 }
 
+static bool operand_is_foldable(const Operand* operand)
+{
+    const Operator* op = operand->producer;
+
+    if (op->type == "pnnx.Input")
+        return false;
+
+    for (auto x : op->inputs)
+    {
+        if (!operand_is_foldable(x))
+            return false;
+    }
+
+    return true;
+}
+
 static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, bool checksubgraph = true)
 {
-    //     fprintf(stderr, "fuse_expression %s\n", operand->name.c_str());
+    // fprintf(stderr, "fuse_expression %s\n", operand->name.c_str());
 
     Operator* op = operand->producer;
 
@@ -162,6 +178,28 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
                 sprintf(tmp, "@%d", (int)(it - inputs.begin()));
                 expr += tmp;
             }
+        }
+    }
+    else if (checksubgraph && operand_maybe_tensor(operand) && operand_is_foldable(operand))
+    {
+        // fprintf(stderr, "operand_is_foldable %s\n", operand->name.c_str());
+
+        auto it = std::find(inputs.begin(), inputs.end(), operand);
+        if (it == inputs.end())
+        {
+            // tensor
+            char tmp[32];
+            sprintf(tmp, "@%d", (int)inputs.size());
+            expr += tmp;
+
+            inputs.push_back(operand);
+        }
+        else
+        {
+            // tensor
+            char tmp[32];
+            sprintf(tmp, "@%d", (int)(it - inputs.begin()));
+            expr += tmp;
         }
     }
     else if (op->type == "prim::NumToTensor")

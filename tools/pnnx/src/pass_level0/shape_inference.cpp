@@ -273,7 +273,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             auto node = v->uses()[i].user;
             for (auto x : node->outputs())
             {
-                if (output_tensors.find(x) == output_tensors.end() && x != graph->outputs()[0])
+                if (output_tensors.find(x) == output_tensors.end())
                 {
                     link_to_output = true;
                     break;
