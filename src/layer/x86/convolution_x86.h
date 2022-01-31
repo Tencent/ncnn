@@ -52,6 +52,7 @@ public:
 
     // pack4/8
     Mat weight_data_packed;
+    Mat weight_3x3_winograd42_data_packed;
 
 #if NCNN_INT8
     // int8
