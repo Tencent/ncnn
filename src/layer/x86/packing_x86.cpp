@@ -119,7 +119,31 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 float* outptr = top_blob.row(i);
 
-                for (int j = 0; j < w; j++)
+                int j = 0;
+#if __SSE2__
+                for (; j + 3 < w; j += 4)
+                {
+                    // transpose 4x4
+                    __m128 _r0 = _mm_loadu_ps(r0);
+                    __m128 _r1 = _mm_loadu_ps(r1);
+                    __m128 _r2 = _mm_loadu_ps(r2);
+                    __m128 _r3 = _mm_loadu_ps(r3);
+
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+
+                    _mm_store_ps(outptr, _r0);
+                    _mm_store_ps(outptr + 4, _r1);
+                    _mm_store_ps(outptr + 4 * 2, _r2);
+                    _mm_store_ps(outptr + 4 * 3, _r3);
+
+                    r0 += 4;
+                    r1 += 4;
+                    r2 += 4;
+                    r3 += 4;
+                    outptr += 16;
+                }
+#endif // __SSE2__
+                for (; j < w; j++)
                 {
                     outptr[0] = *r0++;
                     outptr[1] = *r1++;
@@ -142,7 +166,31 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 float* outptr2 = top_blob.row(i * 4 + 2);
                 float* outptr3 = top_blob.row(i * 4 + 3);
 
-                for (int j = 0; j < w; j++)
+                int j = 0;
+#if __SSE2__
+                for (; j + 3 < w; j += 4)
+                {
+                    // transpose 4x4
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
+                    __m128 _r2 = _mm_load_ps(r0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(r0 + 4 * 3);
+
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+
+                    _mm_storeu_ps(outptr0, _r0);
+                    _mm_storeu_ps(outptr1, _r1);
+                    _mm_storeu_ps(outptr2, _r2);
+                    _mm_storeu_ps(outptr3, _r3);
+
+                    r0 += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
+#endif // __SSE2__
+                for (; j < w; j++)
                 {
                     *outptr0++ = r0[0];
                     *outptr1++ = r0[1];
@@ -372,7 +420,31 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
                 float* outptr = top_blob.channel(q);
 
-                for (int i = 0; i < size; i++)
+                int i = 0;
+#if __SSE2__
+                for (; i + 3 < size; i += 4)
+                {
+                    // transpose 4x4
+                    __m128 _r0 = _mm_loadu_ps(r0);
+                    __m128 _r1 = _mm_loadu_ps(r1);
+                    __m128 _r2 = _mm_loadu_ps(r2);
+                    __m128 _r3 = _mm_loadu_ps(r3);
+
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+
+                    _mm_store_ps(outptr, _r0);
+                    _mm_store_ps(outptr + 4, _r1);
+                    _mm_store_ps(outptr + 4 * 2, _r2);
+                    _mm_store_ps(outptr + 4 * 3, _r3);
+
+                    r0 += 4;
+                    r1 += 4;
+                    r2 += 4;
+                    r3 += 4;
+                    outptr += 16;
+                }
+#endif // __SSE2__
+                for (; i < size; i++)
                 {
                     outptr[0] = *r0++;
                     outptr[1] = *r1++;
@@ -395,7 +467,31 @@ int Packing_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 float* outptr2 = top_blob.channel(q * 4 + 2);
                 float* outptr3 = top_blob.channel(q * 4 + 3);
 
-                for (int i = 0; i < size; i++)
+                int i = 0;
+#if __SSE2__
+                for (; i + 3 < size; i += 4)
+                {
+                    // transpose 4x4
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
+                    __m128 _r2 = _mm_load_ps(r0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(r0 + 4 * 3);
+
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+
+                    _mm_storeu_ps(outptr0, _r0);
+                    _mm_storeu_ps(outptr1, _r1);
+                    _mm_storeu_ps(outptr2, _r2);
+                    _mm_storeu_ps(outptr3, _r3);
+
+                    r0 += 16;
+                    outptr0 += 4;
+                    outptr1 += 4;
+                    outptr2 += 4;
+                    outptr3 += 4;
+                }
+#endif // __SSE2__
+                for (; i < size; i++)
                 {
                     *outptr0++ = r0[0];
                     *outptr1++ = r0[1];

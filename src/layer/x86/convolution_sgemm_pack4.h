@@ -54,43 +54,22 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 4x12
-                    __m128 _r0 = _mm_loadu_ps(img0);
-                    __m128 _r1 = _mm_loadu_ps(img0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(img0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(img0 + 4 * 3);
-                    __m128 _r4 = _mm_loadu_ps(img0 + 4 * 4);
-                    __m128 _r5 = _mm_loadu_ps(img0 + 4 * 5);
-                    __m128 _r6 = _mm_loadu_ps(img0 + 4 * 6);
-                    __m128 _r7 = _mm_loadu_ps(img0 + 4 * 7);
-                    __m128 _r8 = _mm_loadu_ps(img0 + 4 * 8);
-                    __m128 _r9 = _mm_loadu_ps(img0 + 4 * 9);
-                    __m128 _ra = _mm_loadu_ps(img0 + 4 * 10);
-                    __m128 _rb = _mm_loadu_ps(img0 + 4 * 11);
+                    __m128 _r0 = _mm_load_ps(img0);
+                    __m128 _r1 = _mm_load_ps(img0 + 4);
+                    __m128 _r2 = _mm_load_ps(img0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(img0 + 4 * 3);
+                    __m128 _r4 = _mm_load_ps(img0 + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(img0 + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(img0 + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(img0 + 4 * 7);
+                    __m128 _r8 = _mm_load_ps(img0 + 4 * 8);
+                    __m128 _r9 = _mm_load_ps(img0 + 4 * 9);
+                    __m128 _ra = _mm_load_ps(img0 + 4 * 10);
+                    __m128 _rb = _mm_load_ps(img0 + 4 * 11);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_r4, _r5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_r4, _r5);
-                    __m128 _tmp6 = _mm_unpacklo_ps(_r6, _r7);
-                    __m128 _tmp7 = _mm_unpackhi_ps(_r6, _r7);
-                    __m128 _tmp8 = _mm_unpacklo_ps(_r8, _r9);
-                    __m128 _tmp9 = _mm_unpackhi_ps(_r8, _r9);
-                    __m128 _tmpa = _mm_unpacklo_ps(_ra, _rb);
-                    __m128 _tmpb = _mm_unpackhi_ps(_ra, _rb);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
-                    _r4 = _mm_movelh_ps(_tmp4, _tmp6);
-                    _r5 = _mm_movehl_ps(_tmp6, _tmp4);
-                    _r6 = _mm_movelh_ps(_tmp5, _tmp7);
-                    _r7 = _mm_movehl_ps(_tmp7, _tmp5);
-                    _r8 = _mm_movelh_ps(_tmp8, _tmpa);
-                    _r9 = _mm_movehl_ps(_tmpa, _tmp8);
-                    _ra = _mm_movelh_ps(_tmp9, _tmpb);
-                    _rb = _mm_movehl_ps(_tmpb, _tmp9);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r4);
@@ -128,31 +107,17 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 4x8
-                    __m128 _r0 = _mm_loadu_ps(img0);
-                    __m128 _r1 = _mm_loadu_ps(img0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(img0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(img0 + 4 * 3);
-                    __m128 _r4 = _mm_loadu_ps(img0 + 4 * 4);
-                    __m128 _r5 = _mm_loadu_ps(img0 + 4 * 5);
-                    __m128 _r6 = _mm_loadu_ps(img0 + 4 * 6);
-                    __m128 _r7 = _mm_loadu_ps(img0 + 4 * 7);
+                    __m128 _r0 = _mm_load_ps(img0);
+                    __m128 _r1 = _mm_load_ps(img0 + 4);
+                    __m128 _r2 = _mm_load_ps(img0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(img0 + 4 * 3);
+                    __m128 _r4 = _mm_load_ps(img0 + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(img0 + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(img0 + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(img0 + 4 * 7);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_r4, _r5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_r4, _r5);
-                    __m128 _tmp6 = _mm_unpacklo_ps(_r6, _r7);
-                    __m128 _tmp7 = _mm_unpackhi_ps(_r6, _r7);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
-                    _r4 = _mm_movelh_ps(_tmp4, _tmp6);
-                    _r5 = _mm_movehl_ps(_tmp6, _tmp4);
-                    _r6 = _mm_movelh_ps(_tmp5, _tmp7);
-                    _r7 = _mm_movehl_ps(_tmp7, _tmp5);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r4);
@@ -186,19 +151,12 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 4x4
-                    __m128 _r0 = _mm_loadu_ps(img0);
-                    __m128 _r1 = _mm_loadu_ps(img0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(img0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(img0 + 4 * 3);
+                    __m128 _r0 = _mm_load_ps(img0);
+                    __m128 _r1 = _mm_load_ps(img0 + 4);
+                    __m128 _r2 = _mm_load_ps(img0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(img0 + 4 * 3);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r1);
@@ -228,8 +186,8 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 4x2
-                    __m128 _r0 = _mm_loadu_ps(img0);
-                    __m128 _r1 = _mm_loadu_ps(img0 + 4);
+                    __m128 _r0 = _mm_load_ps(img0);
+                    __m128 _r1 = _mm_load_ps(img0 + 4);
 
                     __m128 _r01_0 = _mm_unpacklo_ps(_r0, _r1);
                     __m128 _r01_1 = _mm_unpackhi_ps(_r0, _r1);
@@ -256,7 +214,7 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
 
                 for (int k = 0; k < maxk; k++)
                 {
-                    __m128 _val = _mm_loadu_ps(img0);
+                    __m128 _val = _mm_load_ps(img0);
                     _mm_store_ps(tmpptr, _val);
 
                     img0 += size * 4;
@@ -297,7 +255,7 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _w0 = _mm_loadu_ps(kptr0);
+                __m128 _w0 = _mm_load_ps(kptr0);
 
                 __m128 _val0 = _mm_load1_ps(tmpptr);
                 __m128 _val1 = _mm_load1_ps(tmpptr + 1);
@@ -362,7 +320,7 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _w0 = _mm_loadu_ps(kptr0);
+                __m128 _w0 = _mm_load_ps(kptr0);
 
                 __m128 _val0 = _mm_load1_ps(tmpptr);
                 __m128 _val1 = _mm_load1_ps(tmpptr + 1);
@@ -411,7 +369,7 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _w0 = _mm_loadu_ps(kptr0);
+                __m128 _w0 = _mm_load_ps(kptr0);
 
                 __m128 _val0 = _mm_load1_ps(tmpptr);
                 __m128 _val1 = _mm_load1_ps(tmpptr + 1);
@@ -446,7 +404,7 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _w0 = _mm_loadu_ps(kptr0);
+                __m128 _w0 = _mm_load_ps(kptr0);
 
                 __m128 _val0 = _mm_load1_ps(tmpptr);
                 __m128 _val1 = _mm_load1_ps(tmpptr + 1);
@@ -474,7 +432,7 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _w0 = _mm_loadu_ps(kptr0);
+                __m128 _w0 = _mm_load_ps(kptr0);
                 __m128 _val0 = _mm_load1_ps(tmpptr);
                 _sum = _mm_comp_fmadd_ps(_val0, _w0, _sum);
 
@@ -485,6 +443,76 @@ static void im2col_sgemm_pack4_sse(const Mat& bottom_im2col, Mat& top_blob, cons
             _mm_store_ps(outptr0, _sum);
 
             outptr0 += 4;
+        }
+    }
+}
+
+static void convolution_im2col_sgemm_transform_kernel_pack4_sse(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
+{
+    const int maxk = kernel_w * kernel_h;
+
+    // interleave
+    // src = maxk-inch-outch
+    // dst = 4b-4a-maxk-inch/4a-outch/4b
+    Mat kernel = _kernel.reshape(maxk, inch, outch);
+    kernel_tm.create(16 * maxk, inch / 4, outch / 4);
+
+    int q = 0;
+    for (; q + 3 < outch; q += 4)
+    {
+        const Mat k0 = kernel.channel(q);
+        const Mat k1 = kernel.channel(q + 1);
+        const Mat k2 = kernel.channel(q + 2);
+        const Mat k3 = kernel.channel(q + 3);
+
+        float* g00 = kernel_tm.channel(q / 4);
+
+        for (int p = 0; p + 3 < inch; p += 4)
+        {
+            const float* k00 = k0.row(p);
+            const float* k01 = k0.row(p + 1);
+            const float* k02 = k0.row(p + 2);
+            const float* k03 = k0.row(p + 3);
+
+            const float* k10 = k1.row(p);
+            const float* k11 = k1.row(p + 1);
+            const float* k12 = k1.row(p + 2);
+            const float* k13 = k1.row(p + 3);
+
+            const float* k20 = k2.row(p);
+            const float* k21 = k2.row(p + 1);
+            const float* k22 = k2.row(p + 2);
+            const float* k23 = k2.row(p + 3);
+
+            const float* k30 = k3.row(p);
+            const float* k31 = k3.row(p + 1);
+            const float* k32 = k3.row(p + 2);
+            const float* k33 = k3.row(p + 3);
+
+            for (int k = 0; k < maxk; k++)
+            {
+                g00[0] = k00[k];
+                g00[1] = k10[k];
+                g00[2] = k20[k];
+                g00[3] = k30[k];
+
+                g00[4] = k01[k];
+                g00[5] = k11[k];
+                g00[6] = k21[k];
+                g00[7] = k31[k];
+
+                g00[8] = k02[k];
+                g00[9] = k12[k];
+                g00[10] = k22[k];
+                g00[11] = k32[k];
+
+                g00[12] = k03[k];
+                g00[13] = k13[k];
+                g00[14] = k23[k];
+                g00[15] = k33[k];
+
+                g00 += 16;
+            }
         }
     }
 }
@@ -522,7 +550,7 @@ static void convolution_im2col_sgemm_pack4_sse(const Mat& bottom_blob, Mat& top_
                         int j = 0;
                         for (; j < outw; j++)
                         {
-                            __m128 _val = _mm_loadu_ps(sptr);
+                            __m128 _val = _mm_load_ps(sptr);
                             _mm_store_ps(ptr, _val);
 
                             sptr += stride_w * 4;

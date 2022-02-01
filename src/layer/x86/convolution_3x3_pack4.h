@@ -183,14 +183,14 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 8; m++)
                     {
-                        __m128 _r00 = _mm_loadu_ps(r0);
-                        __m128 _r01 = _mm_loadu_ps(r0 + 4);
-                        __m128 _r02 = _mm_loadu_ps(r0 + 4 * 2);
-                        __m128 _r03 = _mm_loadu_ps(r0 + 4 * 3);
-                        __m128 _r04 = _mm_loadu_ps(r0 + 4 * 4);
-                        __m128 _r05 = _mm_loadu_ps(r0 + 4 * 5);
-                        __m128 _r06 = _mm_loadu_ps(r0 + 4 * 6);
-                        __m128 _r07 = _mm_loadu_ps(r0 + 4 * 7);
+                        __m128 _r00 = _mm_load_ps(r0);
+                        __m128 _r01 = _mm_load_ps(r0 + 4);
+                        __m128 _r02 = _mm_load_ps(r0 + 4 * 2);
+                        __m128 _r03 = _mm_load_ps(r0 + 4 * 3);
+                        __m128 _r04 = _mm_load_ps(r0 + 4 * 4);
+                        __m128 _r05 = _mm_load_ps(r0 + 4 * 5);
+                        __m128 _r06 = _mm_load_ps(r0 + 4 * 6);
+                        __m128 _r07 = _mm_load_ps(r0 + 4 * 7);
 
                         __m128 _tmp0m = _mm_comp_fmadd_ps(_v5_25, _mm_sub_ps(_r04, _r02), _mm_sub_ps(_r00, _r06));
                         __m128 _tmp7m = _mm_comp_fmadd_ps(_v5_25, _mm_sub_ps(_r03, _r05), _mm_sub_ps(_r07, _r01));
@@ -235,14 +235,14 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 8; m++)
                     {
-                        __m128 _tmp00 = _mm_loadu_ps(tmp[m][0]);
-                        __m128 _tmp01 = _mm_loadu_ps(tmp[m][1]);
-                        __m128 _tmp02 = _mm_loadu_ps(tmp[m][2]);
-                        __m128 _tmp03 = _mm_loadu_ps(tmp[m][3]);
-                        __m128 _tmp04 = _mm_loadu_ps(tmp[m][4]);
-                        __m128 _tmp05 = _mm_loadu_ps(tmp[m][5]);
-                        __m128 _tmp06 = _mm_loadu_ps(tmp[m][6]);
-                        __m128 _tmp07 = _mm_loadu_ps(tmp[m][7]);
+                        __m128 _tmp00 = _mm_load_ps(tmp[m][0]);
+                        __m128 _tmp01 = _mm_load_ps(tmp[m][1]);
+                        __m128 _tmp02 = _mm_load_ps(tmp[m][2]);
+                        __m128 _tmp03 = _mm_load_ps(tmp[m][3]);
+                        __m128 _tmp04 = _mm_load_ps(tmp[m][4]);
+                        __m128 _tmp05 = _mm_load_ps(tmp[m][5]);
+                        __m128 _tmp06 = _mm_load_ps(tmp[m][6]);
+                        __m128 _tmp07 = _mm_load_ps(tmp[m][7]);
 
                         __m128 _r0tm0 = _mm_comp_fmadd_ps(_v5_25, _mm_sub_ps(_tmp04, _tmp02), _mm_sub_ps(_tmp00, _tmp06));
                         __m128 _r0tm7 = _mm_comp_fmadd_ps(_v5_25, _mm_sub_ps(_tmp03, _tmp05), _mm_sub_ps(_tmp07, _tmp01));
@@ -330,43 +330,22 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 4x12
-                    __m128 _r0 = _mm_loadu_ps(r0);
-                    __m128 _r1 = _mm_loadu_ps(r0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(r0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(r0 + 4 * 3);
-                    __m128 _r4 = _mm_loadu_ps(r0 + 4 * 4);
-                    __m128 _r5 = _mm_loadu_ps(r0 + 4 * 5);
-                    __m128 _r6 = _mm_loadu_ps(r0 + 4 * 6);
-                    __m128 _r7 = _mm_loadu_ps(r0 + 4 * 7);
-                    __m128 _r8 = _mm_loadu_ps(r0 + 4 * 8);
-                    __m128 _r9 = _mm_loadu_ps(r0 + 4 * 9);
-                    __m128 _ra = _mm_loadu_ps(r0 + 4 * 10);
-                    __m128 _rb = _mm_loadu_ps(r0 + 4 * 11);
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
+                    __m128 _r2 = _mm_load_ps(r0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(r0 + 4 * 3);
+                    __m128 _r4 = _mm_load_ps(r0 + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(r0 + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(r0 + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(r0 + 4 * 7);
+                    __m128 _r8 = _mm_load_ps(r0 + 4 * 8);
+                    __m128 _r9 = _mm_load_ps(r0 + 4 * 9);
+                    __m128 _ra = _mm_load_ps(r0 + 4 * 10);
+                    __m128 _rb = _mm_load_ps(r0 + 4 * 11);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_r4, _r5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_r4, _r5);
-                    __m128 _tmp6 = _mm_unpacklo_ps(_r6, _r7);
-                    __m128 _tmp7 = _mm_unpackhi_ps(_r6, _r7);
-                    __m128 _tmp8 = _mm_unpacklo_ps(_r8, _r9);
-                    __m128 _tmp9 = _mm_unpackhi_ps(_r8, _r9);
-                    __m128 _tmpa = _mm_unpacklo_ps(_ra, _rb);
-                    __m128 _tmpb = _mm_unpackhi_ps(_ra, _rb);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
-                    _r4 = _mm_movelh_ps(_tmp4, _tmp6);
-                    _r5 = _mm_movehl_ps(_tmp6, _tmp4);
-                    _r6 = _mm_movelh_ps(_tmp5, _tmp7);
-                    _r7 = _mm_movehl_ps(_tmp7, _tmp5);
-                    _r8 = _mm_movelh_ps(_tmp8, _tmpa);
-                    _r9 = _mm_movehl_ps(_tmpa, _tmp8);
-                    _ra = _mm_movelh_ps(_tmp9, _tmpb);
-                    _rb = _mm_movehl_ps(_tmpb, _tmp9);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r4);
@@ -396,31 +375,17 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 4x8
-                    __m128 _r0 = _mm_loadu_ps(r0);
-                    __m128 _r1 = _mm_loadu_ps(r0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(r0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(r0 + 4 * 3);
-                    __m128 _r4 = _mm_loadu_ps(r0 + 4 * 4);
-                    __m128 _r5 = _mm_loadu_ps(r0 + 4 * 5);
-                    __m128 _r6 = _mm_loadu_ps(r0 + 4 * 6);
-                    __m128 _r7 = _mm_loadu_ps(r0 + 4 * 7);
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
+                    __m128 _r2 = _mm_load_ps(r0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(r0 + 4 * 3);
+                    __m128 _r4 = _mm_load_ps(r0 + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(r0 + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(r0 + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(r0 + 4 * 7);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_r4, _r5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_r4, _r5);
-                    __m128 _tmp6 = _mm_unpacklo_ps(_r6, _r7);
-                    __m128 _tmp7 = _mm_unpackhi_ps(_r6, _r7);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
-                    _r4 = _mm_movelh_ps(_tmp4, _tmp6);
-                    _r5 = _mm_movehl_ps(_tmp6, _tmp4);
-                    _r6 = _mm_movelh_ps(_tmp5, _tmp7);
-                    _r7 = _mm_movehl_ps(_tmp7, _tmp5);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r4);
@@ -446,19 +411,12 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 4x4
-                    __m128 _r0 = _mm_loadu_ps(r0);
-                    __m128 _r1 = _mm_loadu_ps(r0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(r0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(r0 + 4 * 3);
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
+                    __m128 _r2 = _mm_load_ps(r0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(r0 + 4 * 3);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r1);
@@ -480,8 +438,8 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 4x2
-                    __m128 _r0 = _mm_loadu_ps(r0);
-                    __m128 _r1 = _mm_loadu_ps(r0 + 4);
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
 
                     __m128 _r01_0 = _mm_unpacklo_ps(_r0, _r1);
                     __m128 _r01_1 = _mm_unpackhi_ps(_r0, _r1);
@@ -503,7 +461,7 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    __m128 _val = _mm_loadu_ps(r0);
+                    __m128 _val = _mm_load_ps(r0);
                     _mm_store_ps(tmpptr, _val);
 
                     r0 += bottom_blob_tm.cstep * 4;
@@ -551,7 +509,7 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
 
                         __m128 _val0 = _mm_load1_ps(r0);
                         __m128 _val1 = _mm_load1_ps(r0 + 1);
@@ -616,7 +574,7 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
 
                         __m128 _val0 = _mm_load1_ps(r0);
                         __m128 _val1 = _mm_load1_ps(r0 + 1);
@@ -665,7 +623,7 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
 
                         __m128 _val0 = _mm_load1_ps(r0);
                         __m128 _val1 = _mm_load1_ps(r0 + 1);
@@ -700,7 +658,7 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
 
                         __m128 _val0 = _mm_load1_ps(r0);
                         __m128 _val1 = _mm_load1_ps(r0 + 1);
@@ -728,7 +686,7 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
                         __m128 _val0 = _mm_load1_ps(r0);
                         _sum = _mm_comp_fmadd_ps(_val0, _w0, _sum);
 
@@ -815,14 +773,14 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                     // TODO msa optimize
                     for (int m = 0; m < 8; m++)
                     {
-                        __m128 _out0tm0 = _mm_loadu_ps(output0_tm_0);
-                        __m128 _out0tm1 = _mm_loadu_ps(output0_tm_1);
-                        __m128 _out0tm2 = _mm_loadu_ps(output0_tm_2);
-                        __m128 _out0tm3 = _mm_loadu_ps(output0_tm_3);
-                        __m128 _out0tm4 = _mm_loadu_ps(output0_tm_4);
-                        __m128 _out0tm5 = _mm_loadu_ps(output0_tm_5);
-                        __m128 _out0tm6 = _mm_loadu_ps(output0_tm_6);
-                        __m128 _out0tm7 = _mm_loadu_ps(output0_tm_7);
+                        __m128 _out0tm0 = _mm_load_ps(output0_tm_0);
+                        __m128 _out0tm1 = _mm_load_ps(output0_tm_1);
+                        __m128 _out0tm2 = _mm_load_ps(output0_tm_2);
+                        __m128 _out0tm3 = _mm_load_ps(output0_tm_3);
+                        __m128 _out0tm4 = _mm_load_ps(output0_tm_4);
+                        __m128 _out0tm5 = _mm_load_ps(output0_tm_5);
+                        __m128 _out0tm6 = _mm_load_ps(output0_tm_6);
+                        __m128 _out0tm7 = _mm_load_ps(output0_tm_7);
 
                         __m128 _tmp024a = _mm_add_ps(_out0tm1, _out0tm2);
                         __m128 _tmp135a = _mm_sub_ps(_out0tm1, _out0tm2);
@@ -859,14 +817,14 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 6; m++)
                     {
-                        __m128 _tmp00 = _mm_loadu_ps(tmp[m][0]);
-                        __m128 _tmp01 = _mm_loadu_ps(tmp[m][1]);
-                        __m128 _tmp02 = _mm_loadu_ps(tmp[m][2]);
-                        __m128 _tmp03 = _mm_loadu_ps(tmp[m][3]);
-                        __m128 _tmp04 = _mm_loadu_ps(tmp[m][4]);
-                        __m128 _tmp05 = _mm_loadu_ps(tmp[m][5]);
-                        __m128 _tmp06 = _mm_loadu_ps(tmp[m][6]);
-                        __m128 _tmp07 = _mm_loadu_ps(tmp[m][7]);
+                        __m128 _tmp00 = _mm_load_ps(tmp[m][0]);
+                        __m128 _tmp01 = _mm_load_ps(tmp[m][1]);
+                        __m128 _tmp02 = _mm_load_ps(tmp[m][2]);
+                        __m128 _tmp03 = _mm_load_ps(tmp[m][3]);
+                        __m128 _tmp04 = _mm_load_ps(tmp[m][4]);
+                        __m128 _tmp05 = _mm_load_ps(tmp[m][5]);
+                        __m128 _tmp06 = _mm_load_ps(tmp[m][6]);
+                        __m128 _tmp07 = _mm_load_ps(tmp[m][7]);
 
                         __m128 _tmp024a = _mm_add_ps(_tmp01, _tmp02);
                         __m128 _tmp135a = _mm_sub_ps(_tmp01, _tmp02);
@@ -1054,12 +1012,12 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 6; m++)
                     {
-                        __m128 _r00 = _mm_loadu_ps(r0);
-                        __m128 _r01 = _mm_loadu_ps(r0 + 4);
-                        __m128 _r02 = _mm_loadu_ps(r0 + 4 * 2);
-                        __m128 _r03 = _mm_loadu_ps(r0 + 4 * 3);
-                        __m128 _r04 = _mm_loadu_ps(r0 + 4 * 4);
-                        __m128 _r05 = _mm_loadu_ps(r0 + 4 * 5);
+                        __m128 _r00 = _mm_load_ps(r0);
+                        __m128 _r01 = _mm_load_ps(r0 + 4);
+                        __m128 _r02 = _mm_load_ps(r0 + 4 * 2);
+                        __m128 _r03 = _mm_load_ps(r0 + 4 * 3);
+                        __m128 _r04 = _mm_load_ps(r0 + 4 * 4);
+                        __m128 _r05 = _mm_load_ps(r0 + 4 * 5);
 
                         __m128 _tmp0m = _mm_comp_fmadd_ps(_vm5, _r02, _mm_comp_fmadd_ps(_v4, _r00, _r04));
                         __m128 _tmp1m = _mm_comp_fmadd_ps(_vm4, _mm_add_ps(_r01, _r02), _mm_add_ps(_r04, _r03));
@@ -1087,12 +1045,12 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 6; m++)
                     {
-                        __m128 _tmp00 = _mm_loadu_ps(tmp[m][0]);
-                        __m128 _tmp01 = _mm_loadu_ps(tmp[m][1]);
-                        __m128 _tmp02 = _mm_loadu_ps(tmp[m][2]);
-                        __m128 _tmp03 = _mm_loadu_ps(tmp[m][3]);
-                        __m128 _tmp04 = _mm_loadu_ps(tmp[m][4]);
-                        __m128 _tmp05 = _mm_loadu_ps(tmp[m][5]);
+                        __m128 _tmp00 = _mm_load_ps(tmp[m][0]);
+                        __m128 _tmp01 = _mm_load_ps(tmp[m][1]);
+                        __m128 _tmp02 = _mm_load_ps(tmp[m][2]);
+                        __m128 _tmp03 = _mm_load_ps(tmp[m][3]);
+                        __m128 _tmp04 = _mm_load_ps(tmp[m][4]);
+                        __m128 _tmp05 = _mm_load_ps(tmp[m][5]);
 
                         __m128 _r0tm0 = _mm_comp_fmadd_ps(_vm5, _tmp02, _mm_comp_fmadd_ps(_v4, _tmp00, _tmp04));
                         __m128 _r0tm1 = _mm_comp_fmadd_ps(_vm4, _mm_add_ps(_tmp01, _tmp02), _mm_add_ps(_tmp04, _tmp03));
@@ -1162,43 +1120,22 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 4x12
-                    __m128 _r0 = _mm_loadu_ps(r0);
-                    __m128 _r1 = _mm_loadu_ps(r0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(r0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(r0 + 4 * 3);
-                    __m128 _r4 = _mm_loadu_ps(r0 + 4 * 4);
-                    __m128 _r5 = _mm_loadu_ps(r0 + 4 * 5);
-                    __m128 _r6 = _mm_loadu_ps(r0 + 4 * 6);
-                    __m128 _r7 = _mm_loadu_ps(r0 + 4 * 7);
-                    __m128 _r8 = _mm_loadu_ps(r0 + 4 * 8);
-                    __m128 _r9 = _mm_loadu_ps(r0 + 4 * 9);
-                    __m128 _ra = _mm_loadu_ps(r0 + 4 * 10);
-                    __m128 _rb = _mm_loadu_ps(r0 + 4 * 11);
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
+                    __m128 _r2 = _mm_load_ps(r0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(r0 + 4 * 3);
+                    __m128 _r4 = _mm_load_ps(r0 + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(r0 + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(r0 + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(r0 + 4 * 7);
+                    __m128 _r8 = _mm_load_ps(r0 + 4 * 8);
+                    __m128 _r9 = _mm_load_ps(r0 + 4 * 9);
+                    __m128 _ra = _mm_load_ps(r0 + 4 * 10);
+                    __m128 _rb = _mm_load_ps(r0 + 4 * 11);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_r4, _r5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_r4, _r5);
-                    __m128 _tmp6 = _mm_unpacklo_ps(_r6, _r7);
-                    __m128 _tmp7 = _mm_unpackhi_ps(_r6, _r7);
-                    __m128 _tmp8 = _mm_unpacklo_ps(_r8, _r9);
-                    __m128 _tmp9 = _mm_unpackhi_ps(_r8, _r9);
-                    __m128 _tmpa = _mm_unpacklo_ps(_ra, _rb);
-                    __m128 _tmpb = _mm_unpackhi_ps(_ra, _rb);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
-                    _r4 = _mm_movelh_ps(_tmp4, _tmp6);
-                    _r5 = _mm_movehl_ps(_tmp6, _tmp4);
-                    _r6 = _mm_movelh_ps(_tmp5, _tmp7);
-                    _r7 = _mm_movehl_ps(_tmp7, _tmp5);
-                    _r8 = _mm_movelh_ps(_tmp8, _tmpa);
-                    _r9 = _mm_movehl_ps(_tmpa, _tmp8);
-                    _ra = _mm_movelh_ps(_tmp9, _tmpb);
-                    _rb = _mm_movehl_ps(_tmpb, _tmp9);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r4);
@@ -1228,31 +1165,17 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 4x8
-                    __m128 _r0 = _mm_loadu_ps(r0);
-                    __m128 _r1 = _mm_loadu_ps(r0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(r0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(r0 + 4 * 3);
-                    __m128 _r4 = _mm_loadu_ps(r0 + 4 * 4);
-                    __m128 _r5 = _mm_loadu_ps(r0 + 4 * 5);
-                    __m128 _r6 = _mm_loadu_ps(r0 + 4 * 6);
-                    __m128 _r7 = _mm_loadu_ps(r0 + 4 * 7);
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
+                    __m128 _r2 = _mm_load_ps(r0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(r0 + 4 * 3);
+                    __m128 _r4 = _mm_load_ps(r0 + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(r0 + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(r0 + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(r0 + 4 * 7);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_r4, _r5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_r4, _r5);
-                    __m128 _tmp6 = _mm_unpacklo_ps(_r6, _r7);
-                    __m128 _tmp7 = _mm_unpackhi_ps(_r6, _r7);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
-                    _r4 = _mm_movelh_ps(_tmp4, _tmp6);
-                    _r5 = _mm_movehl_ps(_tmp6, _tmp4);
-                    _r6 = _mm_movelh_ps(_tmp5, _tmp7);
-                    _r7 = _mm_movehl_ps(_tmp7, _tmp5);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r4);
@@ -1278,19 +1201,12 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 4x4
-                    __m128 _r0 = _mm_loadu_ps(r0);
-                    __m128 _r1 = _mm_loadu_ps(r0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(r0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(r0 + 4 * 3);
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
+                    __m128 _r2 = _mm_load_ps(r0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(r0 + 4 * 3);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r1);
@@ -1312,8 +1228,8 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 4x2
-                    __m128 _r0 = _mm_loadu_ps(r0);
-                    __m128 _r1 = _mm_loadu_ps(r0 + 4);
+                    __m128 _r0 = _mm_load_ps(r0);
+                    __m128 _r1 = _mm_load_ps(r0 + 4);
 
                     __m128 _r01_0 = _mm_unpacklo_ps(_r0, _r1);
                     __m128 _r01_1 = _mm_unpackhi_ps(_r0, _r1);
@@ -1335,7 +1251,7 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    __m128 _val = _mm_loadu_ps(r0);
+                    __m128 _val = _mm_load_ps(r0);
                     _mm_store_ps(tmpptr, _val);
 
                     r0 += bottom_blob_tm.cstep * 4;
@@ -1383,7 +1299,7 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
 
                         __m128 _val0 = _mm_load1_ps(r0);
                         __m128 _val1 = _mm_load1_ps(r0 + 1);
@@ -1448,7 +1364,7 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
 
                         __m128 _val0 = _mm_load1_ps(r0);
                         __m128 _val1 = _mm_load1_ps(r0 + 1);
@@ -1497,7 +1413,7 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
 
                         __m128 _val0 = _mm_load1_ps(r0);
                         __m128 _val1 = _mm_load1_ps(r0 + 1);
@@ -1532,7 +1448,7 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
 
                         __m128 _val0 = _mm_load1_ps(r0);
                         __m128 _val1 = _mm_load1_ps(r0 + 1);
@@ -1560,7 +1476,7 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m128 _w0 = _mm_loadu_ps(k0);
+                        __m128 _w0 = _mm_load_ps(k0);
                         __m128 _val0 = _mm_load1_ps(r0);
                         _sum = _mm_comp_fmadd_ps(_val0, _w0, _sum);
 
@@ -1639,12 +1555,12 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
                     // TODO msa optimize
                     for (int m = 0; m < 6; m++)
                     {
-                        __m128 _out0tm0 = _mm_loadu_ps(output0_tm_0);
-                        __m128 _out0tm1 = _mm_loadu_ps(output0_tm_1);
-                        __m128 _out0tm2 = _mm_loadu_ps(output0_tm_2);
-                        __m128 _out0tm3 = _mm_loadu_ps(output0_tm_3);
-                        __m128 _out0tm4 = _mm_loadu_ps(output0_tm_4);
-                        __m128 _out0tm5 = _mm_loadu_ps(output0_tm_5);
+                        __m128 _out0tm0 = _mm_load_ps(output0_tm_0);
+                        __m128 _out0tm1 = _mm_load_ps(output0_tm_1);
+                        __m128 _out0tm2 = _mm_load_ps(output0_tm_2);
+                        __m128 _out0tm3 = _mm_load_ps(output0_tm_3);
+                        __m128 _out0tm4 = _mm_load_ps(output0_tm_4);
+                        __m128 _out0tm5 = _mm_load_ps(output0_tm_5);
 
                         __m128 _tmp02a = _mm_add_ps(_out0tm1, _out0tm2);
                         __m128 _tmp13a = _mm_sub_ps(_out0tm1, _out0tm2);
@@ -1672,12 +1588,12 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 4; m++)
                     {
-                        __m128 _tmp00 = _mm_loadu_ps(tmp[m][0]);
-                        __m128 _tmp01 = _mm_loadu_ps(tmp[m][1]);
-                        __m128 _tmp02 = _mm_loadu_ps(tmp[m][2]);
-                        __m128 _tmp03 = _mm_loadu_ps(tmp[m][3]);
-                        __m128 _tmp04 = _mm_loadu_ps(tmp[m][4]);
-                        __m128 _tmp05 = _mm_loadu_ps(tmp[m][5]);
+                        __m128 _tmp00 = _mm_load_ps(tmp[m][0]);
+                        __m128 _tmp01 = _mm_load_ps(tmp[m][1]);
+                        __m128 _tmp02 = _mm_load_ps(tmp[m][2]);
+                        __m128 _tmp03 = _mm_load_ps(tmp[m][3]);
+                        __m128 _tmp04 = _mm_load_ps(tmp[m][4]);
+                        __m128 _tmp05 = _mm_load_ps(tmp[m][5]);
 
                         __m128 _tmp02a = _mm_add_ps(_tmp01, _tmp02);
                         __m128 _tmp13a = _mm_sub_ps(_tmp01, _tmp02);

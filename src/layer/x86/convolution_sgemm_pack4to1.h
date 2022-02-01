@@ -51,43 +51,22 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 4x12
-                    __m128 _r0 = _mm_loadu_ps(img0);
-                    __m128 _r1 = _mm_loadu_ps(img0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(img0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(img0 + 4 * 3);
-                    __m128 _r4 = _mm_loadu_ps(img0 + 4 * 4);
-                    __m128 _r5 = _mm_loadu_ps(img0 + 4 * 5);
-                    __m128 _r6 = _mm_loadu_ps(img0 + 4 * 6);
-                    __m128 _r7 = _mm_loadu_ps(img0 + 4 * 7);
-                    __m128 _r8 = _mm_loadu_ps(img0 + 4 * 8);
-                    __m128 _r9 = _mm_loadu_ps(img0 + 4 * 9);
-                    __m128 _ra = _mm_loadu_ps(img0 + 4 * 10);
-                    __m128 _rb = _mm_loadu_ps(img0 + 4 * 11);
+                    __m128 _r0 = _mm_load_ps(img0);
+                    __m128 _r1 = _mm_load_ps(img0 + 4);
+                    __m128 _r2 = _mm_load_ps(img0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(img0 + 4 * 3);
+                    __m128 _r4 = _mm_load_ps(img0 + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(img0 + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(img0 + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(img0 + 4 * 7);
+                    __m128 _r8 = _mm_load_ps(img0 + 4 * 8);
+                    __m128 _r9 = _mm_load_ps(img0 + 4 * 9);
+                    __m128 _ra = _mm_load_ps(img0 + 4 * 10);
+                    __m128 _rb = _mm_load_ps(img0 + 4 * 11);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_r4, _r5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_r4, _r5);
-                    __m128 _tmp6 = _mm_unpacklo_ps(_r6, _r7);
-                    __m128 _tmp7 = _mm_unpackhi_ps(_r6, _r7);
-                    __m128 _tmp8 = _mm_unpacklo_ps(_r8, _r9);
-                    __m128 _tmp9 = _mm_unpackhi_ps(_r8, _r9);
-                    __m128 _tmpa = _mm_unpacklo_ps(_ra, _rb);
-                    __m128 _tmpb = _mm_unpackhi_ps(_ra, _rb);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
-                    _r4 = _mm_movelh_ps(_tmp4, _tmp6);
-                    _r5 = _mm_movehl_ps(_tmp6, _tmp4);
-                    _r6 = _mm_movelh_ps(_tmp5, _tmp7);
-                    _r7 = _mm_movehl_ps(_tmp7, _tmp5);
-                    _r8 = _mm_movelh_ps(_tmp8, _tmpa);
-                    _r9 = _mm_movehl_ps(_tmpa, _tmp8);
-                    _ra = _mm_movelh_ps(_tmp9, _tmpb);
-                    _rb = _mm_movehl_ps(_tmpb, _tmp9);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r4);
@@ -125,31 +104,17 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 4x8
-                    __m128 _r0 = _mm_loadu_ps(img0);
-                    __m128 _r1 = _mm_loadu_ps(img0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(img0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(img0 + 4 * 3);
-                    __m128 _r4 = _mm_loadu_ps(img0 + 4 * 4);
-                    __m128 _r5 = _mm_loadu_ps(img0 + 4 * 5);
-                    __m128 _r6 = _mm_loadu_ps(img0 + 4 * 6);
-                    __m128 _r7 = _mm_loadu_ps(img0 + 4 * 7);
+                    __m128 _r0 = _mm_load_ps(img0);
+                    __m128 _r1 = _mm_load_ps(img0 + 4);
+                    __m128 _r2 = _mm_load_ps(img0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(img0 + 4 * 3);
+                    __m128 _r4 = _mm_load_ps(img0 + 4 * 4);
+                    __m128 _r5 = _mm_load_ps(img0 + 4 * 5);
+                    __m128 _r6 = _mm_load_ps(img0 + 4 * 6);
+                    __m128 _r7 = _mm_load_ps(img0 + 4 * 7);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    __m128 _tmp4 = _mm_unpacklo_ps(_r4, _r5);
-                    __m128 _tmp5 = _mm_unpackhi_ps(_r4, _r5);
-                    __m128 _tmp6 = _mm_unpacklo_ps(_r6, _r7);
-                    __m128 _tmp7 = _mm_unpackhi_ps(_r6, _r7);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
-                    _r4 = _mm_movelh_ps(_tmp4, _tmp6);
-                    _r5 = _mm_movehl_ps(_tmp6, _tmp4);
-                    _r6 = _mm_movelh_ps(_tmp5, _tmp7);
-                    _r7 = _mm_movehl_ps(_tmp7, _tmp5);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r4);
@@ -183,19 +148,12 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 4x4
-                    __m128 _r0 = _mm_loadu_ps(img0);
-                    __m128 _r1 = _mm_loadu_ps(img0 + 4);
-                    __m128 _r2 = _mm_loadu_ps(img0 + 4 * 2);
-                    __m128 _r3 = _mm_loadu_ps(img0 + 4 * 3);
+                    __m128 _r0 = _mm_load_ps(img0);
+                    __m128 _r1 = _mm_load_ps(img0 + 4);
+                    __m128 _r2 = _mm_load_ps(img0 + 4 * 2);
+                    __m128 _r3 = _mm_load_ps(img0 + 4 * 3);
 
-                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
-                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
-                    __m128 _tmp2 = _mm_unpacklo_ps(_r2, _r3);
-                    __m128 _tmp3 = _mm_unpackhi_ps(_r2, _r3);
-                    _r0 = _mm_movelh_ps(_tmp0, _tmp2);
-                    _r1 = _mm_movehl_ps(_tmp2, _tmp0);
-                    _r2 = _mm_movelh_ps(_tmp1, _tmp3);
-                    _r3 = _mm_movehl_ps(_tmp3, _tmp1);
+                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
 
                     _mm_store_ps(tmpptr, _r0);
                     _mm_store_ps(tmpptr + 4, _r1);
@@ -221,7 +179,7 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
 
                 for (int k = 0; k < maxk; k++)
                 {
-                    __m128 _val = _mm_loadu_ps(img0);
+                    __m128 _val = _mm_load_ps(img0);
                     _mm_store_ps(tmpptr, _val);
 
                     img0 += size * 4;
@@ -270,9 +228,9 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _val0 = _mm_loadu_ps(tmpptr);
-                __m128 _val1 = _mm_loadu_ps(tmpptr + 4);
-                __m128 _val2 = _mm_loadu_ps(tmpptr + 8);
+                __m128 _val0 = _mm_load_ps(tmpptr);
+                __m128 _val1 = _mm_load_ps(tmpptr + 4);
+                __m128 _val2 = _mm_load_ps(tmpptr + 8);
 
                 __m128 _w0 = _mm_load1_ps(kptr0);
                 __m128 _w1 = _mm_load1_ps(kptr0 + 1);
@@ -332,8 +290,8 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _val0 = _mm_loadu_ps(tmpptr);
-                __m128 _val1 = _mm_loadu_ps(tmpptr + 4);
+                __m128 _val0 = _mm_load_ps(tmpptr);
+                __m128 _val1 = _mm_load_ps(tmpptr + 4);
 
                 __m128 _w0 = _mm_load1_ps(kptr0);
                 __m128 _w1 = _mm_load1_ps(kptr0 + 1);
@@ -381,7 +339,7 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _val0 = _mm_loadu_ps(tmpptr);
+                __m128 _val0 = _mm_load_ps(tmpptr);
 
                 __m128 _w0 = _mm_load1_ps(kptr0);
                 __m128 _w1 = _mm_load1_ps(kptr0 + 1);
@@ -419,7 +377,7 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
             for (int j = 0; j < nn; j++)
             {
                 __m128 _val0 = _mm_load1_ps(tmpptr);
-                __m128 _w0 = _mm_loadu_ps(kptr0);
+                __m128 _w0 = _mm_load_ps(kptr0);
                 _sum = _mm_comp_fmadd_ps(_val0, _w0, _sum);
 
                 tmpptr += 1;
@@ -462,9 +420,9 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _val0 = _mm_loadu_ps(tmpptr);
-                __m128 _val1 = _mm_loadu_ps(tmpptr + 4);
-                __m128 _val2 = _mm_loadu_ps(tmpptr + 8);
+                __m128 _val0 = _mm_load_ps(tmpptr);
+                __m128 _val1 = _mm_load_ps(tmpptr + 4);
+                __m128 _val2 = _mm_load_ps(tmpptr + 8);
                 __m128 _w0 = _mm_load1_ps(kptr0);
                 _sum0 = _mm_comp_fmadd_ps(_w0, _val0, _sum0);
                 _sum1 = _mm_comp_fmadd_ps(_w0, _val1, _sum1);
@@ -492,8 +450,8 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _val0 = _mm_loadu_ps(tmpptr);
-                __m128 _val1 = _mm_loadu_ps(tmpptr + 4);
+                __m128 _val0 = _mm_load_ps(tmpptr);
+                __m128 _val1 = _mm_load_ps(tmpptr + 4);
                 __m128 _w0 = _mm_load1_ps(kptr0);
                 _sum0 = _mm_comp_fmadd_ps(_w0, _val0, _sum0);
                 _sum1 = _mm_comp_fmadd_ps(_w0, _val1, _sum1);
@@ -518,7 +476,7 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _val0 = _mm_loadu_ps(tmpptr);
+                __m128 _val0 = _mm_load_ps(tmpptr);
                 __m128 _w0 = _mm_load1_ps(kptr0);
                 _sum0 = _mm_comp_fmadd_ps(_w0, _val0, _sum0);
 
@@ -543,8 +501,8 @@ static void im2col_sgemm_pack4to1_sse(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __m128 _val0 = _mm_loadu_ps(tmpptr);
-                __m128 _w0 = _mm_loadu_ps(kptr0);
+                __m128 _val0 = _mm_load_ps(tmpptr);
+                __m128 _w0 = _mm_load_ps(kptr0);
                 _sum0 = _mm_comp_fmadd_ps(_val0, _w0, _sum0);
 
                 tmpptr += 4;
@@ -649,7 +607,7 @@ static void convolution_im2col_sgemm_pack4to1_sse(const Mat& bottom_blob, Mat& t
                         int j = 0;
                         for (; j < outw; j++)
                         {
-                            __m128 _val = _mm_loadu_ps(sptr);
+                            __m128 _val = _mm_load_ps(sptr);
                             _mm_store_ps(ptr, _val);
 
                             sptr += stride_w * 4;
