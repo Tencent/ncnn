@@ -30,6 +30,7 @@ namespace ncnn {
 
 #if __SSE2__
 #include "convolutiondepthwise_3x3_pack4.h"
+#include "convolutiondepthwise_5x5_pack4.h"
 #if __AVX__
 #if __AVX2__
 #include "convolutiondepthwise_3x3_pack8_fp16.h"
@@ -464,6 +465,28 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 convdw3x3s2_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw5x5s1_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+
+                return 0;
+            }
+            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw5x5s2_pack4_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
 
                 if (activation)
                 {
