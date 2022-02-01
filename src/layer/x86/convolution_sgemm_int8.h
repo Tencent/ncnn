@@ -840,6 +840,7 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 
                     __m128i _w0123 = _mm_loadl_epi64((const __m128i*)kptr0);
                     __m128i _w = _mm_cvtepi8_epi16(_w0123);
+                    _w = _mm_unpacklo_epi64(_w, _w);
                     __m256i _ww = _mm256_inserti128_si256(_mm256_castsi128_si256(_w), _w, 1);
 
                     __m256i _sl0_1 = _mm256_mullo_epi16(_val01_16, _ww);
