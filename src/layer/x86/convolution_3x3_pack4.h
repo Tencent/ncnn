@@ -163,6 +163,11 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[8][8][4];
 
             __m128 _v5_25 = _mm_set1_ps(5.25f);
@@ -744,6 +749,11 @@ static void conv3x3s1_winograd64_pack4_sse(const Mat& bottom_blob, Mat& top_blob
             //             const float bias0 = bias ? bias[p] : 0.f;
             __m128 _bias0 = bias ? _mm_loadu_ps((const float*)bias + p * 4) : _mm_setzero_ps();
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[6][8][4];
 
             __m128 _v32 = _mm_set1_ps(32.f);
@@ -995,6 +1005,11 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[6][6][4];
 
             __m128 _vm5 = _mm_set1_ps(-5.f);
@@ -1530,6 +1545,11 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
             // const float bias0 = bias ? bias[p] : 0.f;
             __m128 _bias0 = bias ? _mm_loadu_ps((const float*)bias + p * 4) : _mm_setzero_ps();
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[4][6][4];
 
             __m128 _v2 = _mm_set1_ps(2.f);

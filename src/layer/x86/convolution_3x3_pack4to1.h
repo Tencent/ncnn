@@ -226,6 +226,11 @@ static void conv3x3s1_winograd64_pack4to1_sse(const Mat& bottom_blob, Mat& top_b
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
 
+#ifdef _MSC_VER
+            __declspec(align(16))
+#else
+            __attribute__((aligned(16)))
+#endif
             float tmp[8][8][4];
 
             __m128 _v5_25 = _mm_set1_ps(5.25f);
