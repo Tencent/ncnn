@@ -20,6 +20,9 @@
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
+#if __XOP__
+#include <x86intrin.h>
+#endif
 #endif
 #endif // __SSE2__
 

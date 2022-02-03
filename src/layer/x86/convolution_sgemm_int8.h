@@ -32,6 +32,15 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
     }
 #endif
 
+#if NCNN_XOP && __SSE2__ && !__XOP__
+    if (ncnn::cpu_support_x86_xop())
+    {
+        extern void im2col_sgemm_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+        im2col_sgemm_int8_sse_xop(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
 
     const int size = bottom_im2col.w;
@@ -507,12 +516,17 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 __m256i _sum11_03 = _mm256_setzero_si256();
 #endif
 #else
+#if __XOP__
+                __m128i _sum01 = _mm_setzero_si128();
+                __m128i _sum11 = _mm_setzero_si128();
+#else
                 __m128i _sum01 = _mm_setzero_si128();
                 __m128i _sum02 = _mm_setzero_si128();
                 __m128i _sum03 = _mm_setzero_si128();
                 __m128i _sum11 = _mm_setzero_si128();
                 __m128i _sum12 = _mm_setzero_si128();
                 __m128i _sum13 = _mm_setzero_si128();
+#endif
 #endif
 
                 int j = 0;
@@ -560,6 +574,12 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                     __m128i _w0 = _mm_unpacklo_epi8(_w01, _extw01);
                     __m128i _w1 = _mm_unpackhi_epi8(_w01, _extw01);
 
+#if __XOP__
+                    _sum00 = _mm_maddd_epi16(_val0, _w0, _sum00);
+                    _sum01 = _mm_maddd_epi16(_val0, _w1, _sum01);
+                    _sum10 = _mm_maddd_epi16(_val1, _w0, _sum10);
+                    _sum11 = _mm_maddd_epi16(_val1, _w1, _sum11);
+#else
                     __m128i _sl00 = _mm_mullo_epi16(_val0, _w0);
                     __m128i _sh00 = _mm_mulhi_epi16(_val0, _w0);
                     __m128i _sl01 = _mm_mullo_epi16(_val0, _w1);
@@ -577,6 +597,7 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                     _sum11 = _mm_add_epi32(_sum11, _mm_unpackhi_epi16(_sl10, _sh10));
                     _sum12 = _mm_add_epi32(_sum12, _mm_unpacklo_epi16(_sl11, _sh11));
                     _sum13 = _mm_add_epi32(_sum13, _mm_unpackhi_epi16(_sl11, _sh11));
+#endif
 #endif
 
                     tmpptr += 8;
@@ -611,6 +632,10 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
 #endif
 #else
+#if __XOP__
+                _sum00 = _mm_hadd_epi32(_sum00, _sum01);
+                _sum10 = _mm_hadd_epi32(_sum10, _sum11);
+#else
                 // transpose 4x4
                 {
                     __m128i _tmp0, _tmp1, _tmp2, _tmp3;
@@ -642,6 +667,7 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 
                 _sum00 = _mm_add_epi32(_sum00, _sum02);
                 _sum10 = _mm_add_epi32(_sum10, _sum12);
+#endif
 #endif
             }
 

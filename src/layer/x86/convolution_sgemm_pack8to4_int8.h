@@ -32,6 +32,15 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
     }
 #endif
 
+#if NCNN_XOP && __SSE2__ && !__XOP__
+    if (ncnn::cpu_support_x86_xop())
+    {
+        extern void im2col_sgemm_pack8to4_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+        im2col_sgemm_pack8to4_int8_sse_xop(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
 
     const int size = bottom_im2col.w;
@@ -354,6 +363,16 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 __m128i _w2 = _mm_unpacklo_epi8(_w23, _extw23);
                 __m128i _w3 = _mm_unpackhi_epi8(_w23, _extw23);
 
+#if __XOP__
+                _sum00 = _mm_maddd_epi16(_val0, _w0, _sum00);
+                _sum01 = _mm_maddd_epi16(_val0, _w1, _sum01);
+                _sum02 = _mm_maddd_epi16(_val0, _w2, _sum02);
+                _sum03 = _mm_maddd_epi16(_val0, _w3, _sum03);
+                _sum10 = _mm_maddd_epi16(_val1, _w0, _sum10);
+                _sum11 = _mm_maddd_epi16(_val1, _w1, _sum11);
+                _sum12 = _mm_maddd_epi16(_val1, _w2, _sum12);
+                _sum13 = _mm_maddd_epi16(_val1, _w3, _sum13);
+#else
                 __m128i _sl00 = _mm_mullo_epi16(_val0, _w0);
                 __m128i _sh00 = _mm_mulhi_epi16(_val0, _w0);
                 __m128i _sl01 = _mm_mullo_epi16(_val0, _w1);
@@ -387,6 +406,7 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum11 = _mm_add_epi32(_sum11, _mm_unpackhi_epi16(_sl11, _sh11));
                 _sum12 = _mm_add_epi32(_sum12, _mm_unpackhi_epi16(_sl12, _sh12));
                 _sum13 = _mm_add_epi32(_sum13, _mm_unpackhi_epi16(_sl13, _sh13));
+#endif
 #endif
 
                 tmpptr += 16;
@@ -519,6 +539,12 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 __m128i _w2 = _mm_unpacklo_epi8(_w23, _extw23);
                 __m128i _w3 = _mm_unpackhi_epi8(_w23, _extw23);
 
+#if __XOP__
+                _sum0 = _mm_maddd_epi16(_val, _w0, _sum0);
+                _sum1 = _mm_maddd_epi16(_val, _w1, _sum1);
+                _sum2 = _mm_maddd_epi16(_val, _w2, _sum2);
+                _sum3 = _mm_maddd_epi16(_val, _w3, _sum3);
+#else
                 __m128i _sl0 = _mm_mullo_epi16(_val, _w0);
                 __m128i _sh0 = _mm_mulhi_epi16(_val, _w0);
                 __m128i _sl1 = _mm_mullo_epi16(_val, _w1);
@@ -536,6 +562,7 @@ static void im2col_sgemm_pack8to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl1, _sh1));
                 _sum2 = _mm_add_epi32(_sum2, _mm_unpackhi_epi16(_sl2, _sh2));
                 _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl3, _sh3));
+#endif
 #endif
 
                 tmpptr += 8;
