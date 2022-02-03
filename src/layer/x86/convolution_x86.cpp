@@ -73,11 +73,12 @@ namespace ncnn {
 #endif // NCNN_INT8
 
 #if __AVX__
+#include "convolution_sgemm_pack8.h"
+#include "convolution_1x1_pack8.h"
 #include "convolution_3x3_pack1to8.h"
 #include "convolution_3x3_pack8to1.h"
 #include "convolution_3x3_pack8.h"
 #include "convolution_2x2_pack8.h"
-#include "convolution_1x1_pack8.h"
 #if __AVX2__
 #include "convolution_2x2_pack8_fp16.h"
 #include "convolution_1x1_pack8_fp16.h"
@@ -352,20 +353,24 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             conv2x2s1_weight_fp16_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
         }
-        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
 #else
-        if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
 #endif
         {
-            conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
+            convolution_im2col_sgemm_transform_kernel_pack8_avx(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-            conv1x1s1_sgemm_transform_kernel_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
+            convolution_im2col_sgemm_transform_kernel_pack8_avx(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
+        {
+            conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
+        }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack8_avx(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
         }
     }
 #endif
@@ -502,7 +507,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
 #endif
 
-                conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+                conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
 #if __AVX2__
             }
 #endif
@@ -525,7 +530,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             {
 #endif
 
-                conv1x1s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+                conv1x1s2_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
 #if __AVX2__
             }
 #endif
@@ -566,6 +571,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 #if __AVX2__
             }
 #endif
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);

@@ -27,7 +27,7 @@ static void conv3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat
     {
         Mat out = top_blob.channel(p);
 
-        __m256 _bias0 = bias ? _mm256_loadu_ps(bias + p * 8) : _mm256_set1_ps(0.f);
+        __m256 _bias0 = bias ? _mm256_loadu_ps(bias + p * 8) : _mm256_setzero_ps();
         out.fill(_bias0);
 
         for (int q = 0; q < inch; q++)
@@ -1200,7 +1200,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
             for (; i + 11 < tiles; i += 12)
             {
-                float* tm2p = tm2.row(i / 12);
+                float* tmpptr = tm2.row(i / 12);
 
                 const float* r0 = bottom_blob_tm;
 
@@ -1208,6 +1208,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+                    // transpose 8x12
                     __m256 _r0 = _mm256_loadu_ps(r0);
                     __m256 _r1 = _mm256_loadu_ps(r0 + 8);
                     __m256 _r2 = _mm256_loadu_ps(r0 + 16);
@@ -1218,27 +1219,66 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     __m256 _r7 = _mm256_loadu_ps(r0 + 56);
                     __m256 _r8 = _mm256_loadu_ps(r0 + 64);
                     __m256 _r9 = _mm256_loadu_ps(r0 + 72);
-                    __m256 _r10 = _mm256_loadu_ps(r0 + 80);
-                    __m256 _r11 = _mm256_loadu_ps(r0 + 88);
-                    _mm256_storeu_ps(tm2p, _r0);
-                    _mm256_storeu_ps(tm2p + 8, _r1);
-                    _mm256_storeu_ps(tm2p + 16, _r2);
-                    _mm256_storeu_ps(tm2p + 24, _r3);
-                    _mm256_storeu_ps(tm2p + 32, _r4);
-                    _mm256_storeu_ps(tm2p + 40, _r5);
-                    _mm256_storeu_ps(tm2p + 48, _r6);
-                    _mm256_storeu_ps(tm2p + 56, _r7);
-                    _mm256_storeu_ps(tm2p + 64, _r8);
-                    _mm256_storeu_ps(tm2p + 72, _r9);
-                    _mm256_storeu_ps(tm2p + 80, _r10);
-                    _mm256_storeu_ps(tm2p + 88, _r11);
-                    tm2p += 96;
+                    __m256 _ra = _mm256_loadu_ps(r0 + 80);
+                    __m256 _rb = _mm256_loadu_ps(r0 + 88);
+
+                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+                    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+                    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+                    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+                    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+                    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+                    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+                    __m256 _tmp8 = _mm256_unpacklo_ps(_r8, _r9);
+                    __m256 _tmp9 = _mm256_unpackhi_ps(_r8, _r9);
+                    __m256 _tmpa = _mm256_unpacklo_ps(_ra, _rb);
+                    __m256 _tmpb = _mm256_unpackhi_ps(_ra, _rb);
+                    __m256 _tmpc = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpd = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpe = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpf = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpg = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmph = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpi = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpj = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpk = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpl = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpm = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpn = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
+                    _r0 = _mm256_permute2f128_ps(_tmpc, _tmpg, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r1 = _mm256_permute2f128_ps(_tmpk, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r2 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r3 = _mm256_permute2f128_ps(_tmpe, _tmpi, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r4 = _mm256_permute2f128_ps(_tmpm, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r5 = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r6 = _mm256_permute2f128_ps(_tmpc, _tmpg, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r7 = _mm256_permute2f128_ps(_tmpk, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r8 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r9 = _mm256_permute2f128_ps(_tmpe, _tmpi, _MM_SHUFFLE(0, 3, 0, 1));
+                    _ra = _mm256_permute2f128_ps(_tmpm, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+                    _rb = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_storeu_ps(tmpptr, _r0);
+                    _mm256_storeu_ps(tmpptr + 8, _r1);
+                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_storeu_ps(tmpptr + 8 * 4, _r4);
+                    _mm256_storeu_ps(tmpptr + 8 * 5, _r5);
+                    _mm256_storeu_ps(tmpptr + 8 * 6, _r6);
+                    _mm256_storeu_ps(tmpptr + 8 * 7, _r7);
+                    _mm256_storeu_ps(tmpptr + 8 * 8, _r8);
+                    _mm256_storeu_ps(tmpptr + 8 * 9, _r9);
+                    _mm256_storeu_ps(tmpptr + 8 * 10, _ra);
+                    _mm256_storeu_ps(tmpptr + 8 * 11, _rb);
+
+                    tmpptr += 96;
                     r0 += bottom_blob_tm.cstep * 8;
                 }
             }
             for (; i + 7 < tiles; i += 8)
             {
-                float* tm2p = tm2.row(i / 12 + (i % 12) / 8);
+                float* tmpptr = tm2.row(i / 12 + (i % 12) / 8);
 
                 const float* r0 = bottom_blob_tm;
 
@@ -1246,29 +1286,57 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+                    // transpose 8x8
                     __m256 _r0 = _mm256_loadu_ps(r0);
                     __m256 _r1 = _mm256_loadu_ps(r0 + 8);
-                    _mm256_storeu_ps(tm2p, _r0);
-                    _mm256_storeu_ps(tm2p + 8, _r1);
-                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
-                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
-                    _mm256_storeu_ps(tm2p + 16, _r2);
-                    _mm256_storeu_ps(tm2p + 24, _r3);
-                    __m256 _r4 = _mm256_loadu_ps(r0 + 32);
-                    __m256 _r5 = _mm256_loadu_ps(r0 + 40);
-                    _mm256_storeu_ps(tm2p + 32, _r4);
-                    _mm256_storeu_ps(tm2p + 40, _r5);
-                    __m256 _r6 = _mm256_loadu_ps(r0 + 48);
-                    __m256 _r7 = _mm256_loadu_ps(r0 + 56);
-                    _mm256_storeu_ps(tm2p + 48, _r6);
-                    _mm256_storeu_ps(tm2p + 56, _r7);
-                    tm2p += 64;
+                    __m256 _r2 = _mm256_loadu_ps(r0 + 8 * 2);
+                    __m256 _r3 = _mm256_loadu_ps(r0 + 8 * 3);
+                    __m256 _r4 = _mm256_loadu_ps(r0 + 8 * 4);
+                    __m256 _r5 = _mm256_loadu_ps(r0 + 8 * 5);
+                    __m256 _r6 = _mm256_loadu_ps(r0 + 8 * 6);
+                    __m256 _r7 = _mm256_loadu_ps(r0 + 8 * 7);
+
+                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+                    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+                    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+                    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+                    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+                    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+                    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+                    __m256 _tmp8 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmp9 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpa = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpb = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpc = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpd = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpe = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpf = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+                    _r0 = _mm256_permute2f128_ps(_tmp8, _tmpc, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r1 = _mm256_permute2f128_ps(_tmp9, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r2 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r3 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r4 = _mm256_permute2f128_ps(_tmp8, _tmpc, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r5 = _mm256_permute2f128_ps(_tmp9, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r6 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r7 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_storeu_ps(tmpptr, _r0);
+                    _mm256_storeu_ps(tmpptr + 8, _r1);
+                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_storeu_ps(tmpptr + 8 * 4, _r4);
+                    _mm256_storeu_ps(tmpptr + 8 * 5, _r5);
+                    _mm256_storeu_ps(tmpptr + 8 * 6, _r6);
+                    _mm256_storeu_ps(tmpptr + 8 * 7, _r7);
+
+                    tmpptr += 64;
                     r0 += bottom_blob_tm.cstep * 8;
                 }
             }
             for (; i + 3 < tiles; i += 4)
             {
-                float* tm2p = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+                float* tmpptr = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
 
                 const float* r0 = bottom_blob_tm;
 
@@ -1276,21 +1344,37 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+                    // transpose 8x4
                     __m256 _r0 = _mm256_loadu_ps(r0);
                     __m256 _r1 = _mm256_loadu_ps(r0 + 8);
-                    _mm256_storeu_ps(tm2p, _r0);
-                    _mm256_storeu_ps(tm2p + 8, _r1);
-                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
-                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
-                    _mm256_storeu_ps(tm2p + 16, _r2);
-                    _mm256_storeu_ps(tm2p + 24, _r3);
-                    tm2p += 32;
+                    __m256 _r2 = _mm256_loadu_ps(r0 + 8 * 2);
+                    __m256 _r3 = _mm256_loadu_ps(r0 + 8 * 3);
+
+                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+                    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+                    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+                    __m256 _tmp4 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmp5 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmp6 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmp7 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+                    _r0 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r1 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r2 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r3 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_storeu_ps(tmpptr, _r0);
+                    _mm256_storeu_ps(tmpptr + 8, _r1);
+                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
+
+                    tmpptr += 32;
                     r0 += bottom_blob_tm.cstep * 8;
                 }
             }
             for (; i + 1 < tiles; i += 2)
             {
-                float* tm2p = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+                float* tmpptr = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
 
                 const float* r0 = bottom_blob_tm;
 
@@ -1298,27 +1382,36 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
+                    // transpose 8x2
                     __m256 _r0 = _mm256_loadu_ps(r0);
                     __m256 _r1 = _mm256_loadu_ps(r0 + 8);
-                    _mm256_storeu_ps(tm2p, _r0);
-                    _mm256_storeu_ps(tm2p + 8, _r1);
-                    tm2p += 16;
+
+                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+                    _r0 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r1 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_storeu_ps(tmpptr, _r0);
+                    _mm256_storeu_ps(tmpptr + 8, _r1);
+
+                    tmpptr += 16;
                     r0 += bottom_blob_tm.cstep * 8;
                 }
             }
 
             for (; i < tiles; i++)
             {
-                float* tm2p = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+                float* tmpptr = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
 
                 const float* r0 = bottom_blob_tm;
                 r0 += (r * tiles + i) * 8;
 
                 for (int q = 0; q < inch; q++)
                 {
-                    __m256 _r0 = _mm256_loadu_ps(r0);
-                    _mm256_storeu_ps(tm2p, _r0);
-                    tm2p += 8;
+                    __m256 _val = _mm256_loadu_ps(r0);
+                    _mm256_storeu_ps(tmpptr, _val);
+
+                    tmpptr += 8;
                     r0 += bottom_blob_tm.cstep * 8;
                 }
             }
@@ -1344,674 +1437,209 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                 for (; i + 11 < tiles; i += 12)
                 {
                     const float* r0 = bb2.row(i / 12);
-                    const float* k01 = kernel0_tm.row(r);
+                    const float* k0 = kernel0_tm.row(r);
 
-                    int nn = inch; // inch always > 0
-                    __m256 _sum0 = _mm256_set1_ps(0.f);
-                    __m256 _sum1 = _mm256_set1_ps(0.f);
-                    __m256 _sum2 = _mm256_set1_ps(0.f);
-                    __m256 _sum3 = _mm256_set1_ps(0.f);
-                    __m256 _sum4 = _mm256_set1_ps(0.f);
-                    __m256 _sum5 = _mm256_set1_ps(0.f);
-                    __m256 _sum6 = _mm256_set1_ps(0.f);
-                    __m256 _sum7 = _mm256_set1_ps(0.f);
-                    __m256 _sum8 = _mm256_set1_ps(0.f);
-                    __m256 _sum9 = _mm256_set1_ps(0.f);
-                    __m256 _sum10 = _mm256_set1_ps(0.f);
-                    __m256 _sum11 = _mm256_set1_ps(0.f);
+                    int nn = inch * 8; // inch always > 0
 
-                    for (; nn > 0; nn--)
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    __m256 _sum2 = _mm256_setzero_ps();
+                    __m256 _sum3 = _mm256_setzero_ps();
+                    __m256 _sum4 = _mm256_setzero_ps();
+                    __m256 _sum5 = _mm256_setzero_ps();
+                    __m256 _sum6 = _mm256_setzero_ps();
+                    __m256 _sum7 = _mm256_setzero_ps();
+                    __m256 _sum8 = _mm256_setzero_ps();
+                    __m256 _sum9 = _mm256_setzero_ps();
+                    __m256 _suma = _mm256_setzero_ps();
+                    __m256 _sumb = _mm256_setzero_ps();
+
+                    for (int j = 0; j < nn; j++)
                     {
-                        __m256 _k01 = _mm256_loadu_ps(k01);
-                        __m256 _r00 = _mm256_broadcast_ss(r0 + 0);
-                        __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
-                        __m256 _r02 = _mm256_broadcast_ss(r0 + 16);
-                        __m256 _r03 = _mm256_broadcast_ss(r0 + 24);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-                        __m256 _r04 = _mm256_broadcast_ss(r0 + 32);
-                        __m256 _r05 = _mm256_broadcast_ss(r0 + 40);
-                        __m256 _r06 = _mm256_broadcast_ss(r0 + 48);
-                        __m256 _r07 = _mm256_broadcast_ss(r0 + 56);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-                        __m256 _r08 = _mm256_broadcast_ss(r0 + 64);
-                        __m256 _r09 = _mm256_broadcast_ss(r0 + 72);
-                        __m256 _r010 = _mm256_broadcast_ss(r0 + 80);
-                        __m256 _r011 = _mm256_broadcast_ss(r0 + 88);
+                        __m256 _w0 = _mm256_loadu_ps(k0);
 
-                        _sum8 = _mm256_comp_fmadd_ps(_k01, _r08, _sum8);
-                        _sum9 = _mm256_comp_fmadd_ps(_k01, _r09, _sum9);
-                        _sum10 = _mm256_comp_fmadd_ps(_k01, _r010, _sum10);
-                        _sum11 = _mm256_comp_fmadd_ps(_k01, _r011, _sum11);
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                        __m256 _val2 = _mm256_broadcast_ss(r0 + 2);
+                        __m256 _val3 = _mm256_broadcast_ss(r0 + 3);
+                        _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
+                        __m256 _val4 = _mm256_broadcast_ss(r0 + 4);
+                        __m256 _val5 = _mm256_broadcast_ss(r0 + 5);
+                        _sum4 = _mm256_comp_fmadd_ps(_val4, _w0, _sum4);
+                        _sum5 = _mm256_comp_fmadd_ps(_val5, _w0, _sum5);
+                        __m256 _val6 = _mm256_broadcast_ss(r0 + 6);
+                        __m256 _val7 = _mm256_broadcast_ss(r0 + 7);
+                        _sum6 = _mm256_comp_fmadd_ps(_val6, _w0, _sum6);
+                        _sum7 = _mm256_comp_fmadd_ps(_val7, _w0, _sum7);
+                        __m256 _val8 = _mm256_broadcast_ss(r0 + 8);
+                        __m256 _val9 = _mm256_broadcast_ss(r0 + 9);
+                        _sum8 = _mm256_comp_fmadd_ps(_val8, _w0, _sum8);
+                        _sum9 = _mm256_comp_fmadd_ps(_val9, _w0, _sum9);
+                        __m256 _vala = _mm256_broadcast_ss(r0 + 10);
+                        __m256 _valb = _mm256_broadcast_ss(r0 + 11);
+                        _suma = _mm256_comp_fmadd_ps(_vala, _w0, _suma);
+                        _sumb = _mm256_comp_fmadd_ps(_valb, _w0, _sumb);
 
-                        _k01 = _mm256_loadu_ps(k01 + 8);
-                        _r00 = _mm256_broadcast_ss(r0 + 1);
-                        _r01 = _mm256_broadcast_ss(r0 + 9);
-                        _r02 = _mm256_broadcast_ss(r0 + 17);
-                        _r03 = _mm256_broadcast_ss(r0 + 25);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-                        _r04 = _mm256_broadcast_ss(r0 + 33);
-                        _r05 = _mm256_broadcast_ss(r0 + 41);
-                        _r06 = _mm256_broadcast_ss(r0 + 49);
-                        _r07 = _mm256_broadcast_ss(r0 + 57);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _r08 = _mm256_broadcast_ss(r0 + 65);
-                        _r09 = _mm256_broadcast_ss(r0 + 73);
-                        _r010 = _mm256_broadcast_ss(r0 + 81);
-                        _r011 = _mm256_broadcast_ss(r0 + 89);
-
-                        _sum8 = _mm256_comp_fmadd_ps(_k01, _r08, _sum8);
-                        _sum9 = _mm256_comp_fmadd_ps(_k01, _r09, _sum9);
-                        _sum10 = _mm256_comp_fmadd_ps(_k01, _r010, _sum10);
-                        _sum11 = _mm256_comp_fmadd_ps(_k01, _r011, _sum11);
-
-                        _k01 = _mm256_loadu_ps(k01 + 16);
-                        _r00 = _mm256_broadcast_ss(r0 + 2);
-                        _r01 = _mm256_broadcast_ss(r0 + 10);
-                        _r02 = _mm256_broadcast_ss(r0 + 18);
-                        _r03 = _mm256_broadcast_ss(r0 + 26);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-                        _r04 = _mm256_broadcast_ss(r0 + 34);
-                        _r05 = _mm256_broadcast_ss(r0 + 42);
-                        _r06 = _mm256_broadcast_ss(r0 + 50);
-                        _r07 = _mm256_broadcast_ss(r0 + 58);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-                        _r08 = _mm256_broadcast_ss(r0 + 66);
-                        _r09 = _mm256_broadcast_ss(r0 + 74);
-                        _r010 = _mm256_broadcast_ss(r0 + 82);
-                        _r011 = _mm256_broadcast_ss(r0 + 90);
-
-                        _sum8 = _mm256_comp_fmadd_ps(_k01, _r08, _sum8);
-                        _sum9 = _mm256_comp_fmadd_ps(_k01, _r09, _sum9);
-                        _sum10 = _mm256_comp_fmadd_ps(_k01, _r010, _sum10);
-                        _sum11 = _mm256_comp_fmadd_ps(_k01, _r011, _sum11);
-
-                        _k01 = _mm256_loadu_ps(k01 + 24);
-                        _r00 = _mm256_broadcast_ss(r0 + 3);
-                        _r01 = _mm256_broadcast_ss(r0 + 11);
-                        _r02 = _mm256_broadcast_ss(r0 + 19);
-                        _r03 = _mm256_broadcast_ss(r0 + 27);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 35);
-                        _r05 = _mm256_broadcast_ss(r0 + 43);
-                        _r06 = _mm256_broadcast_ss(r0 + 51);
-                        _r07 = _mm256_broadcast_ss(r0 + 59);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _r08 = _mm256_broadcast_ss(r0 + 67);
-                        _r09 = _mm256_broadcast_ss(r0 + 75);
-                        _r010 = _mm256_broadcast_ss(r0 + 83);
-                        _r011 = _mm256_broadcast_ss(r0 + 91);
-
-                        _sum8 = _mm256_comp_fmadd_ps(_k01, _r08, _sum8);
-                        _sum9 = _mm256_comp_fmadd_ps(_k01, _r09, _sum9);
-                        _sum10 = _mm256_comp_fmadd_ps(_k01, _r010, _sum10);
-                        _sum11 = _mm256_comp_fmadd_ps(_k01, _r011, _sum11);
-
-                        _k01 = _mm256_loadu_ps(k01 + 32);
-                        _r00 = _mm256_broadcast_ss(r0 + 4);
-                        _r01 = _mm256_broadcast_ss(r0 + 12);
-                        _r02 = _mm256_broadcast_ss(r0 + 20);
-                        _r03 = _mm256_broadcast_ss(r0 + 28);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 36);
-                        _r05 = _mm256_broadcast_ss(r0 + 44);
-                        _r06 = _mm256_broadcast_ss(r0 + 52);
-                        _r07 = _mm256_broadcast_ss(r0 + 60);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _r08 = _mm256_broadcast_ss(r0 + 68);
-                        _r09 = _mm256_broadcast_ss(r0 + 76);
-                        _r010 = _mm256_broadcast_ss(r0 + 84);
-                        _r011 = _mm256_broadcast_ss(r0 + 92);
-
-                        _sum8 = _mm256_comp_fmadd_ps(_k01, _r08, _sum8);
-                        _sum9 = _mm256_comp_fmadd_ps(_k01, _r09, _sum9);
-                        _sum10 = _mm256_comp_fmadd_ps(_k01, _r010, _sum10);
-                        _sum11 = _mm256_comp_fmadd_ps(_k01, _r011, _sum11);
-
-                        _k01 = _mm256_loadu_ps(k01 + 40);
-                        _r00 = _mm256_broadcast_ss(r0 + 5);
-                        _r01 = _mm256_broadcast_ss(r0 + 13);
-                        _r02 = _mm256_broadcast_ss(r0 + 21);
-                        _r03 = _mm256_broadcast_ss(r0 + 29);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 37);
-                        _r05 = _mm256_broadcast_ss(r0 + 45);
-                        _r06 = _mm256_broadcast_ss(r0 + 53);
-                        _r07 = _mm256_broadcast_ss(r0 + 61);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _r08 = _mm256_broadcast_ss(r0 + 69);
-                        _r09 = _mm256_broadcast_ss(r0 + 77);
-                        _r010 = _mm256_broadcast_ss(r0 + 85);
-                        _r011 = _mm256_broadcast_ss(r0 + 93);
-
-                        _sum8 = _mm256_comp_fmadd_ps(_k01, _r08, _sum8);
-                        _sum9 = _mm256_comp_fmadd_ps(_k01, _r09, _sum9);
-                        _sum10 = _mm256_comp_fmadd_ps(_k01, _r010, _sum10);
-                        _sum11 = _mm256_comp_fmadd_ps(_k01, _r011, _sum11);
-
-                        _k01 = _mm256_loadu_ps(k01 + 48);
-                        _r00 = _mm256_broadcast_ss(r0 + 6);
-                        _r01 = _mm256_broadcast_ss(r0 + 14);
-                        _r02 = _mm256_broadcast_ss(r0 + 22);
-                        _r03 = _mm256_broadcast_ss(r0 + 30);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 38);
-                        _r05 = _mm256_broadcast_ss(r0 + 46);
-                        _r06 = _mm256_broadcast_ss(r0 + 54);
-                        _r07 = _mm256_broadcast_ss(r0 + 62);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-                        _r08 = _mm256_broadcast_ss(r0 + 70);
-                        _r09 = _mm256_broadcast_ss(r0 + 78);
-                        _r010 = _mm256_broadcast_ss(r0 + 86);
-                        _r011 = _mm256_broadcast_ss(r0 + 94);
-
-                        _sum8 = _mm256_comp_fmadd_ps(_k01, _r08, _sum8);
-                        _sum9 = _mm256_comp_fmadd_ps(_k01, _r09, _sum9);
-                        _sum10 = _mm256_comp_fmadd_ps(_k01, _r010, _sum10);
-                        _sum11 = _mm256_comp_fmadd_ps(_k01, _r011, _sum11);
-
-                        _k01 = _mm256_loadu_ps(k01 + 56);
-                        _r00 = _mm256_broadcast_ss(r0 + 7);
-                        _r01 = _mm256_broadcast_ss(r0 + 15);
-                        _r02 = _mm256_broadcast_ss(r0 + 23);
-                        _r03 = _mm256_broadcast_ss(r0 + 31);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 39);
-                        _r05 = _mm256_broadcast_ss(r0 + 47);
-                        _r06 = _mm256_broadcast_ss(r0 + 55);
-                        _r07 = _mm256_broadcast_ss(r0 + 63);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _r08 = _mm256_broadcast_ss(r0 + 71);
-                        _r09 = _mm256_broadcast_ss(r0 + 79);
-                        _r010 = _mm256_broadcast_ss(r0 + 87);
-                        _r011 = _mm256_broadcast_ss(r0 + 95);
-                        _sum8 = _mm256_comp_fmadd_ps(_k01, _r08, _sum8);
-                        _sum9 = _mm256_comp_fmadd_ps(_k01, _r09, _sum9);
-                        _sum10 = _mm256_comp_fmadd_ps(_k01, _r010, _sum10);
-                        _sum11 = _mm256_comp_fmadd_ps(_k01, _r011, _sum11);
-
-                        k01 += 64;
-                        r0 += 96;
+                        r0 += 12;
+                        k0 += 8;
                     }
+
                     _mm256_storeu_ps(output0_tm, _sum0);
                     _mm256_storeu_ps(output0_tm + 8, _sum1);
-                    _mm256_storeu_ps(output0_tm + 16, _sum2);
-                    _mm256_storeu_ps(output0_tm + 24, _sum3);
-                    _mm256_storeu_ps(output0_tm + 32, _sum4);
-                    _mm256_storeu_ps(output0_tm + 40, _sum5);
-                    _mm256_storeu_ps(output0_tm + 48, _sum6);
-                    _mm256_storeu_ps(output0_tm + 56, _sum7);
-                    _mm256_storeu_ps(output0_tm + 64, _sum8);
-                    _mm256_storeu_ps(output0_tm + 72, _sum9);
-                    _mm256_storeu_ps(output0_tm + 80, _sum10);
-                    _mm256_storeu_ps(output0_tm + 88, _sum11);
-                    output0_tm += 96;
+                    _mm256_storeu_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_storeu_ps(output0_tm + 8 * 3, _sum3);
+                    _mm256_storeu_ps(output0_tm + 8 * 4, _sum4);
+                    _mm256_storeu_ps(output0_tm + 8 * 5, _sum5);
+                    _mm256_storeu_ps(output0_tm + 8 * 6, _sum6);
+                    _mm256_storeu_ps(output0_tm + 8 * 7, _sum7);
+                    _mm256_storeu_ps(output0_tm + 8 * 8, _sum8);
+                    _mm256_storeu_ps(output0_tm + 8 * 9, _sum9);
+                    _mm256_storeu_ps(output0_tm + 8 * 10, _suma);
+                    _mm256_storeu_ps(output0_tm + 8 * 11, _sumb);
+
+                    output0_tm += 8 * 12;
                 }
                 for (; i + 7 < tiles; i += 8)
                 {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8);
-                    const float* k01 = kernel0_tm.row(r);
+                    const float* k0 = kernel0_tm.row(r);
 
-                    int nn = inch; // inch always > 0
-                    __m256 _sum0 = _mm256_set1_ps(0.f);
-                    __m256 _sum1 = _mm256_set1_ps(0.f);
-                    __m256 _sum2 = _mm256_set1_ps(0.f);
-                    __m256 _sum3 = _mm256_set1_ps(0.f);
-                    __m256 _sum4 = _mm256_set1_ps(0.f);
-                    __m256 _sum5 = _mm256_set1_ps(0.f);
-                    __m256 _sum6 = _mm256_set1_ps(0.f);
-                    __m256 _sum7 = _mm256_set1_ps(0.f);
+                    int nn = inch * 8; // inch always > 0
 
-                    for (; nn > 0; nn--)
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    __m256 _sum2 = _mm256_setzero_ps();
+                    __m256 _sum3 = _mm256_setzero_ps();
+                    __m256 _sum4 = _mm256_setzero_ps();
+                    __m256 _sum5 = _mm256_setzero_ps();
+                    __m256 _sum6 = _mm256_setzero_ps();
+                    __m256 _sum7 = _mm256_setzero_ps();
+
+                    for (int j = 0; j < nn; j++)
                     {
-                        __m256 _k01 = _mm256_loadu_ps(k01);
-                        __m256 _r00 = _mm256_broadcast_ss(r0 + 0);
-                        __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
-                        __m256 _r02 = _mm256_broadcast_ss(r0 + 16);
-                        __m256 _r03 = _mm256_broadcast_ss(r0 + 24);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-                        __m256 _r04 = _mm256_broadcast_ss(r0 + 32);
-                        __m256 _r05 = _mm256_broadcast_ss(r0 + 40);
-                        __m256 _r06 = _mm256_broadcast_ss(r0 + 48);
-                        __m256 _r07 = _mm256_broadcast_ss(r0 + 56);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
+                        __m256 _w0 = _mm256_loadu_ps(k0);
 
-                        _k01 = _mm256_loadu_ps(k01 + 8);
-                        _r00 = _mm256_broadcast_ss(r0 + 1);
-                        _r01 = _mm256_broadcast_ss(r0 + 9);
-                        _r02 = _mm256_broadcast_ss(r0 + 17);
-                        _r03 = _mm256_broadcast_ss(r0 + 25);
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                        __m256 _val2 = _mm256_broadcast_ss(r0 + 2);
+                        __m256 _val3 = _mm256_broadcast_ss(r0 + 3);
+                        _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
+                        __m256 _val4 = _mm256_broadcast_ss(r0 + 4);
+                        __m256 _val5 = _mm256_broadcast_ss(r0 + 5);
+                        _sum4 = _mm256_comp_fmadd_ps(_val4, _w0, _sum4);
+                        _sum5 = _mm256_comp_fmadd_ps(_val5, _w0, _sum5);
+                        __m256 _val6 = _mm256_broadcast_ss(r0 + 6);
+                        __m256 _val7 = _mm256_broadcast_ss(r0 + 7);
+                        _sum6 = _mm256_comp_fmadd_ps(_val6, _w0, _sum6);
+                        _sum7 = _mm256_comp_fmadd_ps(_val7, _w0, _sum7);
 
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-                        _r04 = _mm256_broadcast_ss(r0 + 33);
-                        _r05 = _mm256_broadcast_ss(r0 + 41);
-                        _r06 = _mm256_broadcast_ss(r0 + 49);
-                        _r07 = _mm256_broadcast_ss(r0 + 57);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _k01 = _mm256_loadu_ps(k01 + 16);
-                        _r00 = _mm256_broadcast_ss(r0 + 2);
-                        _r01 = _mm256_broadcast_ss(r0 + 10);
-                        _r02 = _mm256_broadcast_ss(r0 + 18);
-                        _r03 = _mm256_broadcast_ss(r0 + 26);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 34);
-                        _r05 = _mm256_broadcast_ss(r0 + 42);
-                        _r06 = _mm256_broadcast_ss(r0 + 50);
-                        _r07 = _mm256_broadcast_ss(r0 + 58);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _k01 = _mm256_loadu_ps(k01 + 24);
-                        _r00 = _mm256_broadcast_ss(r0 + 3);
-                        _r01 = _mm256_broadcast_ss(r0 + 11);
-                        _r02 = _mm256_broadcast_ss(r0 + 19);
-                        _r03 = _mm256_broadcast_ss(r0 + 27);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 35);
-                        _r05 = _mm256_broadcast_ss(r0 + 43);
-                        _r06 = _mm256_broadcast_ss(r0 + 51);
-                        _r07 = _mm256_broadcast_ss(r0 + 59);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _k01 = _mm256_loadu_ps(k01 + 32);
-                        _r00 = _mm256_broadcast_ss(r0 + 4);
-                        _r01 = _mm256_broadcast_ss(r0 + 12);
-                        _r02 = _mm256_broadcast_ss(r0 + 20);
-                        _r03 = _mm256_broadcast_ss(r0 + 28);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 36);
-                        _r05 = _mm256_broadcast_ss(r0 + 44);
-                        _r06 = _mm256_broadcast_ss(r0 + 52);
-                        _r07 = _mm256_broadcast_ss(r0 + 60);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _k01 = _mm256_loadu_ps(k01 + 40);
-                        _r00 = _mm256_broadcast_ss(r0 + 5);
-                        _r01 = _mm256_broadcast_ss(r0 + 13);
-                        _r02 = _mm256_broadcast_ss(r0 + 21);
-                        _r03 = _mm256_broadcast_ss(r0 + 29);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 37);
-                        _r05 = _mm256_broadcast_ss(r0 + 45);
-                        _r06 = _mm256_broadcast_ss(r0 + 53);
-                        _r07 = _mm256_broadcast_ss(r0 + 61);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _k01 = _mm256_loadu_ps(k01 + 48);
-                        _r00 = _mm256_broadcast_ss(r0 + 6);
-                        _r01 = _mm256_broadcast_ss(r0 + 14);
-                        _r02 = _mm256_broadcast_ss(r0 + 22);
-                        _r03 = _mm256_broadcast_ss(r0 + 30);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 38);
-                        _r05 = _mm256_broadcast_ss(r0 + 46);
-                        _r06 = _mm256_broadcast_ss(r0 + 54);
-                        _r07 = _mm256_broadcast_ss(r0 + 62);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        _k01 = _mm256_loadu_ps(k01 + 56);
-                        _r00 = _mm256_broadcast_ss(r0 + 7);
-                        _r01 = _mm256_broadcast_ss(r0 + 15);
-                        _r02 = _mm256_broadcast_ss(r0 + 23);
-                        _r03 = _mm256_broadcast_ss(r0 + 31);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _r04 = _mm256_broadcast_ss(r0 + 39);
-                        _r05 = _mm256_broadcast_ss(r0 + 47);
-                        _r06 = _mm256_broadcast_ss(r0 + 55);
-                        _r07 = _mm256_broadcast_ss(r0 + 63);
-                        _sum4 = _mm256_comp_fmadd_ps(_k01, _r04, _sum4);
-                        _sum5 = _mm256_comp_fmadd_ps(_k01, _r05, _sum5);
-                        _sum6 = _mm256_comp_fmadd_ps(_k01, _r06, _sum6);
-                        _sum7 = _mm256_comp_fmadd_ps(_k01, _r07, _sum7);
-
-                        k01 += 64;
-                        r0 += 64;
+                        r0 += 8;
+                        k0 += 8;
                     }
+
                     _mm256_storeu_ps(output0_tm, _sum0);
                     _mm256_storeu_ps(output0_tm + 8, _sum1);
-                    _mm256_storeu_ps(output0_tm + 16, _sum2);
-                    _mm256_storeu_ps(output0_tm + 24, _sum3);
-                    _mm256_storeu_ps(output0_tm + 32, _sum4);
-                    _mm256_storeu_ps(output0_tm + 40, _sum5);
-                    _mm256_storeu_ps(output0_tm + 48, _sum6);
-                    _mm256_storeu_ps(output0_tm + 56, _sum7);
-                    output0_tm += 64;
+                    _mm256_storeu_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_storeu_ps(output0_tm + 8 * 3, _sum3);
+                    _mm256_storeu_ps(output0_tm + 8 * 4, _sum4);
+                    _mm256_storeu_ps(output0_tm + 8 * 5, _sum5);
+                    _mm256_storeu_ps(output0_tm + 8 * 6, _sum6);
+                    _mm256_storeu_ps(output0_tm + 8 * 7, _sum7);
+
+                    output0_tm += 8 * 8;
                 }
                 for (; i + 3 < tiles; i += 4)
                 {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+                    const float* k0 = kernel0_tm.row(r);
 
-                    const float* k01 = kernel0_tm.row(r);
+                    int nn = inch * 8; // inch always > 0
 
-                    int nn = inch; // inch always > 0
-                    __m256 _sum0 = _mm256_set1_ps(0.f);
-                    __m256 _sum1 = _mm256_set1_ps(0.f);
-                    __m256 _sum2 = _mm256_set1_ps(0.f);
-                    __m256 _sum3 = _mm256_set1_ps(0.f);
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    __m256 _sum2 = _mm256_setzero_ps();
+                    __m256 _sum3 = _mm256_setzero_ps();
 
-                    for (; nn > 0; nn--)
+                    for (int j = 0; j < nn; j++)
                     {
-                        __m256 _k01 = _mm256_loadu_ps(k01);
-                        __m256 _r00 = _mm256_broadcast_ss(r0 + 0);
-                        __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
-                        __m256 _r02 = _mm256_broadcast_ss(r0 + 16);
-                        __m256 _r03 = _mm256_broadcast_ss(r0 + 24);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
+                        __m256 _w0 = _mm256_loadu_ps(k0);
 
-                        _k01 = _mm256_loadu_ps(k01 + 8);
-                        _r00 = _mm256_broadcast_ss(r0 + 1);
-                        _r01 = _mm256_broadcast_ss(r0 + 9);
-                        _r02 = _mm256_broadcast_ss(r0 + 17);
-                        _r03 = _mm256_broadcast_ss(r0 + 25);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                        __m256 _val2 = _mm256_broadcast_ss(r0 + 2);
+                        __m256 _val3 = _mm256_broadcast_ss(r0 + 3);
+                        _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
 
-                        _k01 = _mm256_loadu_ps(k01 + 16);
-                        _r00 = _mm256_broadcast_ss(r0 + 2);
-                        _r01 = _mm256_broadcast_ss(r0 + 10);
-                        _r02 = _mm256_broadcast_ss(r0 + 18);
-                        _r03 = _mm256_broadcast_ss(r0 + 26);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _k01 = _mm256_loadu_ps(k01 + 24);
-                        _r00 = _mm256_broadcast_ss(r0 + 3);
-                        _r01 = _mm256_broadcast_ss(r0 + 11);
-                        _r02 = _mm256_broadcast_ss(r0 + 19);
-                        _r03 = _mm256_broadcast_ss(r0 + 27);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _k01 = _mm256_loadu_ps(k01 + 32);
-                        _r00 = _mm256_broadcast_ss(r0 + 4);
-                        _r01 = _mm256_broadcast_ss(r0 + 12);
-                        _r02 = _mm256_broadcast_ss(r0 + 20);
-                        _r03 = _mm256_broadcast_ss(r0 + 28);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _k01 = _mm256_loadu_ps(k01 + 40);
-                        _r00 = _mm256_broadcast_ss(r0 + 5);
-                        _r01 = _mm256_broadcast_ss(r0 + 13);
-                        _r02 = _mm256_broadcast_ss(r0 + 21);
-                        _r03 = _mm256_broadcast_ss(r0 + 29);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _k01 = _mm256_loadu_ps(k01 + 48);
-                        _r00 = _mm256_broadcast_ss(r0 + 6);
-                        _r01 = _mm256_broadcast_ss(r0 + 14);
-                        _r02 = _mm256_broadcast_ss(r0 + 22);
-                        _r03 = _mm256_broadcast_ss(r0 + 30);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-
-                        _k01 = _mm256_loadu_ps(k01 + 56);
-                        _r00 = _mm256_broadcast_ss(r0 + 7);
-                        _r01 = _mm256_broadcast_ss(r0 + 15);
-                        _r02 = _mm256_broadcast_ss(r0 + 23);
-                        _r03 = _mm256_broadcast_ss(r0 + 31);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r00, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-                        _sum2 = _mm256_comp_fmadd_ps(_k01, _r02, _sum2);
-                        _sum3 = _mm256_comp_fmadd_ps(_k01, _r03, _sum3);
-                        k01 += 64;
-                        r0 += 32;
+                        r0 += 4;
+                        k0 += 8;
                     }
+
                     _mm256_storeu_ps(output0_tm, _sum0);
                     _mm256_storeu_ps(output0_tm + 8, _sum1);
-                    _mm256_storeu_ps(output0_tm + 16, _sum2);
-                    _mm256_storeu_ps(output0_tm + 24, _sum3);
-                    output0_tm += 32;
+                    _mm256_storeu_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_storeu_ps(output0_tm + 8 * 3, _sum3);
+
+                    output0_tm += 8 * 4;
                 }
                 for (; i + 1 < tiles; i += 2)
                 {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+                    const float* k0 = kernel0_tm.row(r);
 
-                    const float* k01 = kernel0_tm.row(r);
+                    int nn = inch * 8; // inch always > 0
 
-                    int nn = inch; // inch always > 0
-                    __m256 _sum0 = _mm256_set1_ps(0.f);
-                    __m256 _sum1 = _mm256_set1_ps(0.f);
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
 
-                    for (; nn > 0; nn--)
+                    for (int j = 0; j < nn; j++)
                     {
-                        __m256 _k01 = _mm256_loadu_ps(k01);
-                        __m256 _r0 = _mm256_broadcast_ss(r0);
-                        __m256 _r01 = _mm256_broadcast_ss(r0 + 8);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r0, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
+                        __m256 _w0 = _mm256_loadu_ps(k0);
 
-                        _k01 = _mm256_loadu_ps(k01 + 8);
-                        _r0 = _mm256_broadcast_ss(r0 + 1);
-                        _r01 = _mm256_broadcast_ss(r0 + 9);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r0, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
 
-                        _k01 = _mm256_loadu_ps(k01 + 16);
-                        _r0 = _mm256_broadcast_ss(r0 + 2);
-                        _r01 = _mm256_broadcast_ss(r0 + 10);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r0, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-
-                        _k01 = _mm256_loadu_ps(k01 + 24);
-                        _r0 = _mm256_broadcast_ss(r0 + 3);
-                        _r01 = _mm256_broadcast_ss(r0 + 11);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r0, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-
-                        _k01 = _mm256_loadu_ps(k01 + 32);
-                        _r0 = _mm256_broadcast_ss(r0 + 4);
-                        _r01 = _mm256_broadcast_ss(r0 + 12);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r0, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-
-                        _k01 = _mm256_loadu_ps(k01 + 40);
-                        _r0 = _mm256_broadcast_ss(r0 + 5);
-                        _r01 = _mm256_broadcast_ss(r0 + 13);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r0, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-
-                        _k01 = _mm256_loadu_ps(k01 + 48);
-                        _r0 = _mm256_broadcast_ss(r0 + 6);
-                        _r01 = _mm256_broadcast_ss(r0 + 14);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r0, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-
-                        _k01 = _mm256_loadu_ps(k01 + 56);
-                        _r0 = _mm256_broadcast_ss(r0 + 7);
-                        _r01 = _mm256_broadcast_ss(r0 + 15);
-                        _sum0 = _mm256_comp_fmadd_ps(_k01, _r0, _sum0);
-                        _sum1 = _mm256_comp_fmadd_ps(_k01, _r01, _sum1);
-
-                        k01 += 64;
-                        r0 += 16;
+                        r0 += 2;
+                        k0 += 8;
                     }
+
                     _mm256_storeu_ps(output0_tm, _sum0);
                     _mm256_storeu_ps(output0_tm + 8, _sum1);
-                    output0_tm += 16;
+
+                    output0_tm += 8 * 2;
                 }
 
                 for (; i < tiles; i++)
                 {
                     const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+                    const float* k0 = kernel0_tm.row(r);
 
-                    const float* k01 = kernel0_tm.row(r);
+                    int nn = inch * 8; // inch always > 0
 
-                    int nn = inch; // inch always > 0
-                    __m256 _sum0 = _mm256_set1_ps(0.f);
+                    __m256 _sum0 = _mm256_setzero_ps();
 
-                    for (; nn > 0; nn--)
+                    for (int j = 0; j < nn; j++)
                     {
-                        __m256 _k01 = _mm256_loadu_ps(k01);
-                        __m256 _r0 = _mm256_broadcast_ss(r0);
-                        __m256 _mul0 = _mm256_mul_ps(_k01, _r0);
+                        __m256 _w0 = _mm256_loadu_ps(k0);
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
 
-                        _k01 = _mm256_loadu_ps(k01 + 8);
-                        _r0 = _mm256_broadcast_ss(r0 + 1);
-                        __m256 _mul1 = _mm256_mul_ps(_k01, _r0);
-
-                        _k01 = _mm256_loadu_ps(k01 + 16);
-                        _r0 = _mm256_broadcast_ss(r0 + 2);
-                        __m256 _mul2 = _mm256_mul_ps(_k01, _r0);
-                        __m256 _add01 = _mm256_add_ps(_mul0, _mul1);
-
-                        _k01 = _mm256_loadu_ps(k01 + 24);
-                        _r0 = _mm256_broadcast_ss(r0 + 3);
-                        __m256 _mul3 = _mm256_mul_ps(_k01, _r0);
-
-                        __m256 _add23 = _mm256_add_ps(_mul2, _mul3);
-                        __m256 _add0123 = _mm256_add_ps(_add01, _add23);
-                        _sum0 = _mm256_add_ps(_sum0, _add0123);
-
-                        _k01 = _mm256_loadu_ps(k01 + 32);
-                        _r0 = _mm256_broadcast_ss(r0 + 4);
-                        __m256 _mul4 = _mm256_mul_ps(_k01, _r0);
-
-                        _k01 = _mm256_loadu_ps(k01 + 40);
-                        _r0 = _mm256_broadcast_ss(r0 + 5);
-                        __m256 _mul5 = _mm256_mul_ps(_k01, _r0);
-
-                        _k01 = _mm256_loadu_ps(k01 + 48);
-                        _r0 = _mm256_broadcast_ss(r0 + 6);
-                        __m256 _mul6 = _mm256_mul_ps(_k01, _r0);
-                        __m256 _add45 = _mm256_add_ps(_mul4, _mul5);
-
-                        _k01 = _mm256_loadu_ps(k01 + 56);
-                        _r0 = _mm256_broadcast_ss(r0 + 7);
-                        __m256 _mul7 = _mm256_mul_ps(_k01, _r0);
-
-                        __m256 _add67 = _mm256_add_ps(_mul6, _mul7);
-                        __m256 _add4567 = _mm256_add_ps(_add45, _add67);
-                        _sum0 = _mm256_add_ps(_sum0, _add4567);
-
-                        k01 += 64;
-                        r0 += 8;
+                        r0 += 1;
+                        k0 += 8;
                     }
+
                     _mm256_storeu_ps(output0_tm, _sum0);
+
                     output0_tm += 8;
                 }
             }
@@ -2057,7 +1685,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
             Mat out0 = top_blob_bordered.channel(p);
 
             //             const float bias0 = bias ? bias[p] : 0.f;
-            __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + p * 8) : _mm256_set1_ps(0.f);
+            __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
 
             float tmp[6][8][8];
 
