@@ -56,22 +56,18 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr);
-            __m256 _s = _mm256_loadu_ps(scale);
+            __m256 _p = _mm256_loadu_ps(ptr + i * 8);
+            __m256 _s = _mm256_loadu_ps(scale + i * 8);
             if (bias_term)
             {
-                __m256 _bias = _mm256_loadu_ps(bias);
+                __m256 _bias = _mm256_loadu_ps(bias + i * 8);
                 _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
-                bias += 8;
             }
             else
             {
                 _p = _mm256_mul_ps(_p, _s);
             }
-            _mm256_storeu_ps(ptr, _p);
-
-            ptr += 8;
-            scale += 8;
+            _mm256_storeu_ps(ptr + i * 8, _p);
         }
 #else
         int nn = size >> 2;
@@ -79,38 +75,31 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
-            __m128 _p = _mm_loadu_ps(ptr);
-            __m128 _s = _mm_loadu_ps(scale);
+            __m128 _p = _mm_loadu_ps(ptr + i * 4);
+            __m128 _s = _mm_loadu_ps(scale + i * 4);
             if (bias_term)
             {
-                __m128 _bias = _mm_loadu_ps(bias);
+                __m128 _bias = _mm_loadu_ps(bias + i * 4);
                 _p = _mm_comp_fmadd_ps(_p, _s, _bias);
-                bias += 4;
             }
             else
             {
                 _p = _mm_mul_ps(_p, _s);
             }
-            _mm_storeu_ps(ptr, _p);
-
-            ptr += 4;
-            scale += 4;
+            _mm_storeu_ps(ptr + i * 4, _p);
         }
 #endif // __AVX__
 
-        for (int i = 0; i < remain; i++)
+        for (int i = size - remain; i < size; i++)
         {
             if (bias_term)
             {
-                *ptr = *ptr * *scale + *bias;
-                bias++;
+                ptr[i] = ptr[i] * scale[i] + bias[i];
             }
             else
             {
-                *ptr = *ptr * *scale;
+                ptr[i] = ptr[i] * scale[i];
             }
-
-            ptr++, scale++;
         }
 
         return 0;
