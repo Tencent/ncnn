@@ -33,10 +33,10 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 #endif
 
 #if NCNN_XOP && __SSE2__ && !__XOP__
-    if (ncnn::cpu_support_x86_avx_vnni())
+    if (ncnn::cpu_support_x86_xop())
     {
-        extern void im2col_sgemm_pack1to4_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
-        im2col_sgemm_pack1to4_int8_sse_avxvnni(bottom_im2col, top_blob, kernel, opt);
+        extern void im2col_sgemm_pack1to4_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+        im2col_sgemm_pack1to4_int8_sse_xop(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
