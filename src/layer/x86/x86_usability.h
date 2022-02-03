@@ -21,7 +21,11 @@
 #if __AVX__
 #include <immintrin.h>
 #if __XOP__
+#ifdef _MSC_VER
+#include <ammintrin.h>
+#else
 #include <x86intrin.h>
+#endif
 #endif
 #endif
 #endif // __SSE2__
