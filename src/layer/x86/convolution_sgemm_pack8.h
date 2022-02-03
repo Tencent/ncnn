@@ -118,7 +118,7 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                     _mm256_storeu_ps(tmpptr + 8 * 11, _rb);
 
                     img0 += size * 8;
-                    tmpptr += 48;
+                    tmpptr += 96;
                 }
             }
         }
