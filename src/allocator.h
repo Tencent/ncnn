@@ -37,7 +37,11 @@
 namespace ncnn {
 
 // the alignment of all the allocated buffers
+#if NCNN_AVX
+#define NCNN_MALLOC_ALIGN 32
+#else
 #define NCNN_MALLOC_ALIGN 16
+#endif
 
 // we have some optimized kernels that may overread buffer a bit in loop
 // it is common to interleave next-loop data load with arithmetic instructions

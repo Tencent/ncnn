@@ -1010,6 +1010,11 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
             const Mat img0 = bottom_blob_bordered.channel(q);
             Mat img0_tm = bottom_blob_tm.channel(q);
 
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
             float tmp[8][8][8];
 
             // tile
@@ -1021,64 +1026,43 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 8; m++)
                     {
-                        __m256 _r00 = _mm256_loadu_ps(r0);
-                        __m256 _r01 = _mm256_loadu_ps(r0 + 8);
-                        __m256 _r02 = _mm256_loadu_ps(r0 + 16);
-                        __m256 _r03 = _mm256_loadu_ps(r0 + 24);
-                        __m256 _r04 = _mm256_loadu_ps(r0 + 32);
-                        __m256 _r05 = _mm256_loadu_ps(r0 + 40);
-                        __m256 _r06 = _mm256_loadu_ps(r0 + 48);
-                        __m256 _r07 = _mm256_loadu_ps(r0 + 56);
+                        __m256 _r00 = _mm256_load_ps(r0);
+                        __m256 _r01 = _mm256_load_ps(r0 + 8);
+                        __m256 _r02 = _mm256_load_ps(r0 + 16);
+                        __m256 _r03 = _mm256_load_ps(r0 + 24);
+                        __m256 _r04 = _mm256_load_ps(r0 + 32);
+                        __m256 _r05 = _mm256_load_ps(r0 + 40);
+                        __m256 _r06 = _mm256_load_ps(r0 + 48);
+                        __m256 _r07 = _mm256_load_ps(r0 + 56);
 
                         __m256 _tmp0m = _mm256_fmadd_1_ps(_mm256_sub_ps(_r00, _r06), _mm256_sub_ps(_r04, _r02), 5.25f);
                         __m256 _tmp7m = _mm256_fmadd_1_ps(_mm256_sub_ps(_r07, _r01), _mm256_sub_ps(_r03, _r05), 5.25f);
-                        _mm256_storeu_ps(tmp[0][m], _tmp0m);
-                        _mm256_storeu_ps(tmp[7][m], _tmp7m);
-
-                        //                         tmp[0][m] = r0[0] - r0[6] + (r0[4] - r0[2]) * 5.25;
-                        //                         tmp[7][m] = r0[7] - r0[1] + (r0[3] - r0[5]) * 5.25;
+                        _mm256_store_ps(tmp[0][m], _tmp0m);
+                        _mm256_store_ps(tmp[7][m], _tmp7m);
 
                         __m256 _tmp12a = _mm256_fmrsub_1_ps(_mm256_add_ps(_r02, _r06), _r04, 4.25f);
                         __m256 _tmp12b = _mm256_fmrsub_1_ps(_mm256_add_ps(_r01, _r05), _r03, 4.25f);
 
-                        //                         float tmp12a = (r0[2] + r0[6] - r0[4] * 4.25);
-                        //                         float tmp12b = (r0[1] + r0[5] - r0[3] * 4.25);
-
                         __m256 _tmp1m = _mm256_add_ps(_tmp12a, _tmp12b);
                         __m256 _tmp2m = _mm256_sub_ps(_tmp12a, _tmp12b);
-                        _mm256_storeu_ps(tmp[1][m], _tmp1m);
-                        _mm256_storeu_ps(tmp[2][m], _tmp2m);
-
-                        //                         tmp[1][m] = tmp12a + tmp12b;
-                        //                         tmp[2][m] = tmp12a - tmp12b;
+                        _mm256_store_ps(tmp[1][m], _tmp1m);
+                        _mm256_store_ps(tmp[2][m], _tmp2m);
 
                         __m256 _tmp34a = _mm256_fmrsub_1_ps(_mm256_fmadd_1_ps(_r06, _r02, 0.25f), _r04, 1.25f);
                         __m256 _tmp34b = _mm256_fmadd_1_ps(_mm256_fmrsub_1_ps(_mm256_mul_ps(_r01, _mm256_set1_ps(0.5f)), _r03, 2.5f), _r05, 2.f);
 
-                        //                         float tmp34a = (r0[6] + r0[2] * 0.25 - r0[4] * 1.25);
-                        //                         float tmp34b = (r0[1] * 0.5 - r0[3] * 2.5 + r0[5] * 2);
-
                         __m256 _tmp3m = _mm256_add_ps(_tmp34a, _tmp34b);
                         __m256 _tmp4m = _mm256_sub_ps(_tmp34a, _tmp34b);
-                        _mm256_storeu_ps(tmp[3][m], _tmp3m);
-                        _mm256_storeu_ps(tmp[4][m], _tmp4m);
-
-                        //                         tmp[3][m] = tmp34a + tmp34b;
-                        //                         tmp[4][m] = tmp34a - tmp34b;
+                        _mm256_store_ps(tmp[3][m], _tmp3m);
+                        _mm256_store_ps(tmp[4][m], _tmp4m);
 
                         __m256 _tmp56a = _mm256_fmadd_1_ps(_r06, _mm256_fmrsub_1_ps(_r02, _r04, 1.25f), 4.f);
                         __m256 _tmp56b = _mm256_fmadd_1_ps(_mm256_fmrsub_1_ps(_mm256_mul_ps(_r01, _mm256_set1_ps(2.f)), _r03, 2.5f), _r05, 0.5f);
 
-                        //                         float tmp56a = (r0[6] + (r0[2] - r0[4] * 1.25) * 4);
-                        //                         float tmp56b = (r0[1] * 2 - r0[3] * 2.5 + r0[5] * 0.5);
-
                         __m256 _tmp5m = _mm256_add_ps(_tmp56a, _tmp56b);
                         __m256 _tmp6m = _mm256_sub_ps(_tmp56a, _tmp56b);
-                        _mm256_storeu_ps(tmp[5][m], _tmp5m);
-                        _mm256_storeu_ps(tmp[6][m], _tmp6m);
-
-                        //                         tmp[5][m] = tmp56a + tmp56b;
-                        //                         tmp[6][m] = tmp56a - tmp56b;
+                        _mm256_store_ps(tmp[5][m], _tmp5m);
+                        _mm256_store_ps(tmp[6][m], _tmp6m);
 
                         r0 += w * 8;
                     }
@@ -1094,65 +1078,44 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 8; m++)
                     {
-                        __m256 _tmp00 = _mm256_loadu_ps(tmp[m][0]);
-                        __m256 _tmp01 = _mm256_loadu_ps(tmp[m][1]);
-                        __m256 _tmp02 = _mm256_loadu_ps(tmp[m][2]);
-                        __m256 _tmp03 = _mm256_loadu_ps(tmp[m][3]);
-                        __m256 _tmp04 = _mm256_loadu_ps(tmp[m][4]);
-                        __m256 _tmp05 = _mm256_loadu_ps(tmp[m][5]);
-                        __m256 _tmp06 = _mm256_loadu_ps(tmp[m][6]);
-                        __m256 _tmp07 = _mm256_loadu_ps(tmp[m][7]);
+                        __m256 _tmp00 = _mm256_load_ps(tmp[m][0]);
+                        __m256 _tmp01 = _mm256_load_ps(tmp[m][1]);
+                        __m256 _tmp02 = _mm256_load_ps(tmp[m][2]);
+                        __m256 _tmp03 = _mm256_load_ps(tmp[m][3]);
+                        __m256 _tmp04 = _mm256_load_ps(tmp[m][4]);
+                        __m256 _tmp05 = _mm256_load_ps(tmp[m][5]);
+                        __m256 _tmp06 = _mm256_load_ps(tmp[m][6]);
+                        __m256 _tmp07 = _mm256_load_ps(tmp[m][7]);
 
                         __m256 _r0tm0 = _mm256_fmadd_1_ps(_mm256_sub_ps(_tmp00, _tmp06), _mm256_sub_ps(_tmp04, _tmp02), 5.25f);
                         __m256 _r0tm7 = _mm256_fmadd_1_ps(_mm256_sub_ps(_tmp07, _tmp01), _mm256_sub_ps(_tmp03, _tmp05), 5.25f);
 
-                        //                         r0_tm[0] = tmp0[0] - tmp0[6] + (tmp0[4] - tmp0[2]) * 5.25;
-                        //                         r0_tm[7] = tmp0[7] - tmp0[1] + (tmp0[3] - tmp0[5]) * 5.25;
-
                         __m256 _tmp12a = _mm256_fmrsub_1_ps(_mm256_add_ps(_tmp02, _tmp06), _tmp04, 4.25f);
                         __m256 _tmp12b = _mm256_fmrsub_1_ps(_mm256_add_ps(_tmp01, _tmp05), _tmp03, 4.25f);
-
-                        //                         float tmp12a = (tmp0[2] + tmp0[6] - tmp0[4] * 4.25);
-                        //                         float tmp12b = (tmp0[1] + tmp0[5] - tmp0[3] * 4.25);
 
                         __m256 _r0tm1 = _mm256_add_ps(_tmp12a, _tmp12b);
                         __m256 _r0tm2 = _mm256_sub_ps(_tmp12a, _tmp12b);
 
-                        //                         r0_tm[1] = tmp12a + tmp12b;
-                        //                         r0_tm[2] = tmp12a - tmp12b;
-
                         __m256 _tmp34a = _mm256_fmrsub_1_ps(_mm256_fmadd_1_ps(_tmp06, _tmp02, 0.25f), _tmp04, 1.25f);
                         __m256 _tmp34b = _mm256_fmadd_1_ps(_mm256_fmrsub_1_ps(_mm256_mul_ps(_tmp01, _mm256_set1_ps(0.5f)), _tmp03, 2.5f), _tmp05, 2.f);
-
-                        //                         float tmp34a = (tmp0[6] + tmp0[2] * 0.25 - tmp0[4] * 1.25);
-                        //                         float tmp34b = (tmp0[1] * 0.5 - tmp0[3] * 2.5 + tmp0[5] * 2);
 
                         __m256 _r0tm3 = _mm256_add_ps(_tmp34a, _tmp34b);
                         __m256 _r0tm4 = _mm256_sub_ps(_tmp34a, _tmp34b);
 
-                        //                         r0_tm[3] = tmp34a + tmp34b;
-                        //                         r0_tm[4] = tmp34a - tmp34b;
-
                         __m256 _tmp56a = _mm256_fmadd_1_ps(_tmp06, _mm256_fmrsub_1_ps(_tmp02, _tmp04, 1.25f), 4.f);
                         __m256 _tmp56b = _mm256_fmadd_1_ps(_mm256_fmrsub_1_ps(_mm256_mul_ps(_tmp01, _mm256_set1_ps(2.f)), _tmp03, 2.5f), _tmp05, 0.5f);
-
-                        //                         float tmp56a = (tmp0[6] + (tmp0[2] - tmp0[4] * 1.25) * 4);
-                        //                         float tmp56b = (tmp0[1] * 2 - tmp0[3] * 2.5 + tmp0[5] * 0.5);
 
                         __m256 _r0tm5 = _mm256_add_ps(_tmp56a, _tmp56b);
                         __m256 _r0tm6 = _mm256_sub_ps(_tmp56a, _tmp56b);
 
-                        //                         r0_tm[5] = tmp56a + tmp56b;
-                        //                         r0_tm[6] = tmp56a - tmp56b;
-
-                        _mm256_storeu_ps(r0_tm_0, _r0tm0);
-                        _mm256_storeu_ps(r0_tm_1, _r0tm1);
-                        _mm256_storeu_ps(r0_tm_2, _r0tm2);
-                        _mm256_storeu_ps(r0_tm_3, _r0tm3);
-                        _mm256_storeu_ps(r0_tm_4, _r0tm4);
-                        _mm256_storeu_ps(r0_tm_5, _r0tm5);
-                        _mm256_storeu_ps(r0_tm_6, _r0tm6);
-                        _mm256_storeu_ps(r0_tm_7, _r0tm7);
+                        _mm256_store_ps(r0_tm_0, _r0tm0);
+                        _mm256_store_ps(r0_tm_1, _r0tm1);
+                        _mm256_store_ps(r0_tm_2, _r0tm2);
+                        _mm256_store_ps(r0_tm_3, _r0tm3);
+                        _mm256_store_ps(r0_tm_4, _r0tm4);
+                        _mm256_store_ps(r0_tm_5, _r0tm5);
+                        _mm256_store_ps(r0_tm_6, _r0tm6);
+                        _mm256_store_ps(r0_tm_7, _r0tm7);
 
                         r0_tm_0 += tiles * 64;
                         r0_tm_1 += tiles * 64;
@@ -1209,18 +1172,18 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 8x12
-                    __m256 _r0 = _mm256_loadu_ps(r0);
-                    __m256 _r1 = _mm256_loadu_ps(r0 + 8);
-                    __m256 _r2 = _mm256_loadu_ps(r0 + 16);
-                    __m256 _r3 = _mm256_loadu_ps(r0 + 24);
-                    __m256 _r4 = _mm256_loadu_ps(r0 + 32);
-                    __m256 _r5 = _mm256_loadu_ps(r0 + 40);
-                    __m256 _r6 = _mm256_loadu_ps(r0 + 48);
-                    __m256 _r7 = _mm256_loadu_ps(r0 + 56);
-                    __m256 _r8 = _mm256_loadu_ps(r0 + 64);
-                    __m256 _r9 = _mm256_loadu_ps(r0 + 72);
-                    __m256 _ra = _mm256_loadu_ps(r0 + 80);
-                    __m256 _rb = _mm256_loadu_ps(r0 + 88);
+                    __m256 _r0 = _mm256_load_ps(r0);
+                    __m256 _r1 = _mm256_load_ps(r0 + 8);
+                    __m256 _r2 = _mm256_load_ps(r0 + 16);
+                    __m256 _r3 = _mm256_load_ps(r0 + 24);
+                    __m256 _r4 = _mm256_load_ps(r0 + 32);
+                    __m256 _r5 = _mm256_load_ps(r0 + 40);
+                    __m256 _r6 = _mm256_load_ps(r0 + 48);
+                    __m256 _r7 = _mm256_load_ps(r0 + 56);
+                    __m256 _r8 = _mm256_load_ps(r0 + 64);
+                    __m256 _r9 = _mm256_load_ps(r0 + 72);
+                    __m256 _ra = _mm256_load_ps(r0 + 80);
+                    __m256 _rb = _mm256_load_ps(r0 + 88);
 
                     __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
                     __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
@@ -1259,18 +1222,18 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     _ra = _mm256_permute2f128_ps(_tmpm, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
                     _rb = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
 
-                    _mm256_storeu_ps(tmpptr, _r0);
-                    _mm256_storeu_ps(tmpptr + 8, _r1);
-                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
-                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
-                    _mm256_storeu_ps(tmpptr + 8 * 4, _r4);
-                    _mm256_storeu_ps(tmpptr + 8 * 5, _r5);
-                    _mm256_storeu_ps(tmpptr + 8 * 6, _r6);
-                    _mm256_storeu_ps(tmpptr + 8 * 7, _r7);
-                    _mm256_storeu_ps(tmpptr + 8 * 8, _r8);
-                    _mm256_storeu_ps(tmpptr + 8 * 9, _r9);
-                    _mm256_storeu_ps(tmpptr + 8 * 10, _ra);
-                    _mm256_storeu_ps(tmpptr + 8 * 11, _rb);
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_store_ps(tmpptr + 8 * 4, _r4);
+                    _mm256_store_ps(tmpptr + 8 * 5, _r5);
+                    _mm256_store_ps(tmpptr + 8 * 6, _r6);
+                    _mm256_store_ps(tmpptr + 8 * 7, _r7);
+                    _mm256_store_ps(tmpptr + 8 * 8, _r8);
+                    _mm256_store_ps(tmpptr + 8 * 9, _r9);
+                    _mm256_store_ps(tmpptr + 8 * 10, _ra);
+                    _mm256_store_ps(tmpptr + 8 * 11, _rb);
 
                     tmpptr += 96;
                     r0 += bottom_blob_tm.cstep * 8;
@@ -1287,14 +1250,14 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 8x8
-                    __m256 _r0 = _mm256_loadu_ps(r0);
-                    __m256 _r1 = _mm256_loadu_ps(r0 + 8);
-                    __m256 _r2 = _mm256_loadu_ps(r0 + 8 * 2);
-                    __m256 _r3 = _mm256_loadu_ps(r0 + 8 * 3);
-                    __m256 _r4 = _mm256_loadu_ps(r0 + 8 * 4);
-                    __m256 _r5 = _mm256_loadu_ps(r0 + 8 * 5);
-                    __m256 _r6 = _mm256_loadu_ps(r0 + 8 * 6);
-                    __m256 _r7 = _mm256_loadu_ps(r0 + 8 * 7);
+                    __m256 _r0 = _mm256_load_ps(r0);
+                    __m256 _r1 = _mm256_load_ps(r0 + 8);
+                    __m256 _r2 = _mm256_load_ps(r0 + 8 * 2);
+                    __m256 _r3 = _mm256_load_ps(r0 + 8 * 3);
+                    __m256 _r4 = _mm256_load_ps(r0 + 8 * 4);
+                    __m256 _r5 = _mm256_load_ps(r0 + 8 * 5);
+                    __m256 _r6 = _mm256_load_ps(r0 + 8 * 6);
+                    __m256 _r7 = _mm256_load_ps(r0 + 8 * 7);
 
                     __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
                     __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
@@ -1321,14 +1284,14 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     _r6 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
                     _r7 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
 
-                    _mm256_storeu_ps(tmpptr, _r0);
-                    _mm256_storeu_ps(tmpptr + 8, _r1);
-                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
-                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
-                    _mm256_storeu_ps(tmpptr + 8 * 4, _r4);
-                    _mm256_storeu_ps(tmpptr + 8 * 5, _r5);
-                    _mm256_storeu_ps(tmpptr + 8 * 6, _r6);
-                    _mm256_storeu_ps(tmpptr + 8 * 7, _r7);
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_store_ps(tmpptr + 8 * 4, _r4);
+                    _mm256_store_ps(tmpptr + 8 * 5, _r5);
+                    _mm256_store_ps(tmpptr + 8 * 6, _r6);
+                    _mm256_store_ps(tmpptr + 8 * 7, _r7);
 
                     tmpptr += 64;
                     r0 += bottom_blob_tm.cstep * 8;
@@ -1345,10 +1308,10 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 8x4
-                    __m256 _r0 = _mm256_loadu_ps(r0);
-                    __m256 _r1 = _mm256_loadu_ps(r0 + 8);
-                    __m256 _r2 = _mm256_loadu_ps(r0 + 8 * 2);
-                    __m256 _r3 = _mm256_loadu_ps(r0 + 8 * 3);
+                    __m256 _r0 = _mm256_load_ps(r0);
+                    __m256 _r1 = _mm256_load_ps(r0 + 8);
+                    __m256 _r2 = _mm256_load_ps(r0 + 8 * 2);
+                    __m256 _r3 = _mm256_load_ps(r0 + 8 * 3);
 
                     __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
                     __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
@@ -1363,10 +1326,10 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     _r2 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
                     _r3 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
 
-                    _mm256_storeu_ps(tmpptr, _r0);
-                    _mm256_storeu_ps(tmpptr + 8, _r1);
-                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
-                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
 
                     tmpptr += 32;
                     r0 += bottom_blob_tm.cstep * 8;
@@ -1383,16 +1346,16 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                 for (int q = 0; q < inch; q++)
                 {
                     // transpose 8x2
-                    __m256 _r0 = _mm256_loadu_ps(r0);
-                    __m256 _r1 = _mm256_loadu_ps(r0 + 8);
+                    __m256 _r0 = _mm256_load_ps(r0);
+                    __m256 _r1 = _mm256_load_ps(r0 + 8);
 
                     __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
                     __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
                     _r0 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
                     _r1 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
 
-                    _mm256_storeu_ps(tmpptr, _r0);
-                    _mm256_storeu_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
 
                     tmpptr += 16;
                     r0 += bottom_blob_tm.cstep * 8;
@@ -1408,8 +1371,8 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                 for (int q = 0; q < inch; q++)
                 {
-                    __m256 _val = _mm256_loadu_ps(r0);
-                    _mm256_storeu_ps(tmpptr, _val);
+                    __m256 _val = _mm256_load_ps(r0);
+                    _mm256_store_ps(tmpptr, _val);
 
                     tmpptr += 8;
                     r0 += bottom_blob_tm.cstep * 8;
@@ -1456,7 +1419,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m256 _w0 = _mm256_loadu_ps(k0);
+                        __m256 _w0 = _mm256_load_ps(k0);
 
                         __m256 _val0 = _mm256_broadcast_ss(r0);
                         __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
@@ -1487,18 +1450,18 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         k0 += 8;
                     }
 
-                    _mm256_storeu_ps(output0_tm, _sum0);
-                    _mm256_storeu_ps(output0_tm + 8, _sum1);
-                    _mm256_storeu_ps(output0_tm + 8 * 2, _sum2);
-                    _mm256_storeu_ps(output0_tm + 8 * 3, _sum3);
-                    _mm256_storeu_ps(output0_tm + 8 * 4, _sum4);
-                    _mm256_storeu_ps(output0_tm + 8 * 5, _sum5);
-                    _mm256_storeu_ps(output0_tm + 8 * 6, _sum6);
-                    _mm256_storeu_ps(output0_tm + 8 * 7, _sum7);
-                    _mm256_storeu_ps(output0_tm + 8 * 8, _sum8);
-                    _mm256_storeu_ps(output0_tm + 8 * 9, _sum9);
-                    _mm256_storeu_ps(output0_tm + 8 * 10, _suma);
-                    _mm256_storeu_ps(output0_tm + 8 * 11, _sumb);
+                    _mm256_store_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm + 8, _sum1);
+                    _mm256_store_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_store_ps(output0_tm + 8 * 3, _sum3);
+                    _mm256_store_ps(output0_tm + 8 * 4, _sum4);
+                    _mm256_store_ps(output0_tm + 8 * 5, _sum5);
+                    _mm256_store_ps(output0_tm + 8 * 6, _sum6);
+                    _mm256_store_ps(output0_tm + 8 * 7, _sum7);
+                    _mm256_store_ps(output0_tm + 8 * 8, _sum8);
+                    _mm256_store_ps(output0_tm + 8 * 9, _sum9);
+                    _mm256_store_ps(output0_tm + 8 * 10, _suma);
+                    _mm256_store_ps(output0_tm + 8 * 11, _sumb);
 
                     output0_tm += 8 * 12;
                 }
@@ -1520,7 +1483,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m256 _w0 = _mm256_loadu_ps(k0);
+                        __m256 _w0 = _mm256_load_ps(k0);
 
                         __m256 _val0 = _mm256_broadcast_ss(r0);
                         __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
@@ -1543,14 +1506,14 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         k0 += 8;
                     }
 
-                    _mm256_storeu_ps(output0_tm, _sum0);
-                    _mm256_storeu_ps(output0_tm + 8, _sum1);
-                    _mm256_storeu_ps(output0_tm + 8 * 2, _sum2);
-                    _mm256_storeu_ps(output0_tm + 8 * 3, _sum3);
-                    _mm256_storeu_ps(output0_tm + 8 * 4, _sum4);
-                    _mm256_storeu_ps(output0_tm + 8 * 5, _sum5);
-                    _mm256_storeu_ps(output0_tm + 8 * 6, _sum6);
-                    _mm256_storeu_ps(output0_tm + 8 * 7, _sum7);
+                    _mm256_store_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm + 8, _sum1);
+                    _mm256_store_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_store_ps(output0_tm + 8 * 3, _sum3);
+                    _mm256_store_ps(output0_tm + 8 * 4, _sum4);
+                    _mm256_store_ps(output0_tm + 8 * 5, _sum5);
+                    _mm256_store_ps(output0_tm + 8 * 6, _sum6);
+                    _mm256_store_ps(output0_tm + 8 * 7, _sum7);
 
                     output0_tm += 8 * 8;
                 }
@@ -1568,7 +1531,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m256 _w0 = _mm256_loadu_ps(k0);
+                        __m256 _w0 = _mm256_load_ps(k0);
 
                         __m256 _val0 = _mm256_broadcast_ss(r0);
                         __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
@@ -1583,10 +1546,10 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         k0 += 8;
                     }
 
-                    _mm256_storeu_ps(output0_tm, _sum0);
-                    _mm256_storeu_ps(output0_tm + 8, _sum1);
-                    _mm256_storeu_ps(output0_tm + 8 * 2, _sum2);
-                    _mm256_storeu_ps(output0_tm + 8 * 3, _sum3);
+                    _mm256_store_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm + 8, _sum1);
+                    _mm256_store_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_store_ps(output0_tm + 8 * 3, _sum3);
 
                     output0_tm += 8 * 4;
                 }
@@ -1602,7 +1565,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m256 _w0 = _mm256_loadu_ps(k0);
+                        __m256 _w0 = _mm256_load_ps(k0);
 
                         __m256 _val0 = _mm256_broadcast_ss(r0);
                         __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
@@ -1613,8 +1576,8 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         k0 += 8;
                     }
 
-                    _mm256_storeu_ps(output0_tm, _sum0);
-                    _mm256_storeu_ps(output0_tm + 8, _sum1);
+                    _mm256_store_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm + 8, _sum1);
 
                     output0_tm += 8 * 2;
                 }
@@ -1630,7 +1593,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __m256 _w0 = _mm256_loadu_ps(k0);
+                        __m256 _w0 = _mm256_load_ps(k0);
                         __m256 _val0 = _mm256_broadcast_ss(r0);
                         _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
 
@@ -1638,7 +1601,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         k0 += 8;
                     }
 
-                    _mm256_storeu_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm, _sum0);
 
                     output0_tm += 8;
                 }
@@ -1687,6 +1650,11 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
             //             const float bias0 = bias ? bias[p] : 0.f;
             __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
 
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
             float tmp[6][8][8];
 
             // tile
@@ -1710,54 +1678,37 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                     // TODO neon optimize
                     for (int m = 0; m < 8; m++)
                     {
-                        __m256 _out0tm0 = _mm256_loadu_ps(output0_tm_0);
-                        __m256 _out0tm1 = _mm256_loadu_ps(output0_tm_1);
-                        __m256 _out0tm2 = _mm256_loadu_ps(output0_tm_2);
-                        __m256 _out0tm3 = _mm256_loadu_ps(output0_tm_3);
-                        __m256 _out0tm4 = _mm256_loadu_ps(output0_tm_4);
-                        __m256 _out0tm5 = _mm256_loadu_ps(output0_tm_5);
-                        __m256 _out0tm6 = _mm256_loadu_ps(output0_tm_6);
-                        __m256 _out0tm7 = _mm256_loadu_ps(output0_tm_7);
+                        __m256 _out0tm0 = _mm256_load_ps(output0_tm_0);
+                        __m256 _out0tm1 = _mm256_load_ps(output0_tm_1);
+                        __m256 _out0tm2 = _mm256_load_ps(output0_tm_2);
+                        __m256 _out0tm3 = _mm256_load_ps(output0_tm_3);
+                        __m256 _out0tm4 = _mm256_load_ps(output0_tm_4);
+                        __m256 _out0tm5 = _mm256_load_ps(output0_tm_5);
+                        __m256 _out0tm6 = _mm256_load_ps(output0_tm_6);
+                        __m256 _out0tm7 = _mm256_load_ps(output0_tm_7);
 
                         __m256 _tmp024a = _mm256_add_ps(_out0tm1, _out0tm2);
                         __m256 _tmp135a = _mm256_sub_ps(_out0tm1, _out0tm2);
 
-                        //                         float tmp024a = output0_tm[1] + output0_tm[2];
-                        //                         float tmp135a = output0_tm[1] - output0_tm[2];
-
                         __m256 _tmp024b = _mm256_add_ps(_out0tm3, _out0tm4);
                         __m256 _tmp135b = _mm256_sub_ps(_out0tm3, _out0tm4);
-
-                        //                         float tmp024b = output0_tm[3] + output0_tm[4];
-                        //                         float tmp135b = output0_tm[3] - output0_tm[4];
 
                         __m256 _tmp024c = _mm256_add_ps(_out0tm5, _out0tm6);
                         __m256 _tmp135c = _mm256_sub_ps(_out0tm5, _out0tm6);
 
-                        //                         float tmp024c = output0_tm[5] + output0_tm[6];
-                        //                         float tmp135c = output0_tm[5] - output0_tm[6];
-
                         __m256 _tmp0m = _mm256_add_ps(_mm256_add_ps(_out0tm0, _tmp024a), _mm256_fmadd_1_ps(_tmp024b, _tmp024c, 32.f));
                         __m256 _tmp2m = _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f);
                         __m256 _tmp4m = _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f);
-                        _mm256_storeu_ps(tmp[0][m], _tmp0m);
-                        _mm256_storeu_ps(tmp[2][m], _tmp2m);
-                        _mm256_storeu_ps(tmp[4][m], _tmp4m);
-
-                        //                         tmp[0][m] = output0_tm[0] + tmp024a + tmp024b + tmp024c * 32;
-                        //                         tmp[2][m] = tmp024a + tmp024b * 4 + tmp024c * 8;
-                        //                         tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
+                        _mm256_store_ps(tmp[0][m], _tmp0m);
+                        _mm256_store_ps(tmp[2][m], _tmp2m);
+                        _mm256_store_ps(tmp[4][m], _tmp4m);
 
                         __m256 _tmp1m = _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f);
                         __m256 _tmp3m = _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f);
                         __m256 _tmp5m = _mm256_add_ps(_mm256_add_ps(_out0tm7, _tmp135a), _mm256_fmadd_1_ps(_tmp135c, _tmp135b, 32.f));
-                        _mm256_storeu_ps(tmp[1][m], _tmp1m);
-                        _mm256_storeu_ps(tmp[3][m], _tmp3m);
-                        _mm256_storeu_ps(tmp[5][m], _tmp5m);
-
-                        //                         tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
-                        //                         tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
-                        //                         tmp[5][m] = output0_tm[7] + tmp135a + tmp135b * 32 + tmp135c;
+                        _mm256_store_ps(tmp[1][m], _tmp1m);
+                        _mm256_store_ps(tmp[3][m], _tmp3m);
+                        _mm256_store_ps(tmp[5][m], _tmp5m);
 
                         output0_tm_0 += tiles * 64;
                         output0_tm_1 += tiles * 64;
@@ -1771,54 +1722,37 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
 
                     for (int m = 0; m < 6; m++)
                     {
-                        __m256 _tmp00 = _mm256_loadu_ps(tmp[m][0]);
-                        __m256 _tmp01 = _mm256_loadu_ps(tmp[m][1]);
-                        __m256 _tmp02 = _mm256_loadu_ps(tmp[m][2]);
-                        __m256 _tmp03 = _mm256_loadu_ps(tmp[m][3]);
-                        __m256 _tmp04 = _mm256_loadu_ps(tmp[m][4]);
-                        __m256 _tmp05 = _mm256_loadu_ps(tmp[m][5]);
-                        __m256 _tmp06 = _mm256_loadu_ps(tmp[m][6]);
-                        __m256 _tmp07 = _mm256_loadu_ps(tmp[m][7]);
+                        __m256 _tmp00 = _mm256_load_ps(tmp[m][0]);
+                        __m256 _tmp01 = _mm256_load_ps(tmp[m][1]);
+                        __m256 _tmp02 = _mm256_load_ps(tmp[m][2]);
+                        __m256 _tmp03 = _mm256_load_ps(tmp[m][3]);
+                        __m256 _tmp04 = _mm256_load_ps(tmp[m][4]);
+                        __m256 _tmp05 = _mm256_load_ps(tmp[m][5]);
+                        __m256 _tmp06 = _mm256_load_ps(tmp[m][6]);
+                        __m256 _tmp07 = _mm256_load_ps(tmp[m][7]);
 
                         __m256 _tmp024a = _mm256_add_ps(_tmp01, _tmp02);
                         __m256 _tmp135a = _mm256_sub_ps(_tmp01, _tmp02);
 
-                        //                         float tmp024a = tmp0[1] + tmp0[2];
-                        //                         float tmp135a = tmp0[1] - tmp0[2];
-
                         __m256 _tmp024b = _mm256_add_ps(_tmp03, _tmp04);
                         __m256 _tmp135b = _mm256_sub_ps(_tmp03, _tmp04);
-
-                        //                         float tmp024b = tmp0[3] + tmp0[4];
-                        //                         float tmp135b = tmp0[3] - tmp0[4];
 
                         __m256 _tmp024c = _mm256_add_ps(_tmp05, _tmp06);
                         __m256 _tmp135c = _mm256_sub_ps(_tmp05, _tmp06);
 
-                        //                         float tmp024c = tmp0[5] + tmp0[6];
-                        //                         float tmp135c = tmp0[5] - tmp0[6];
-
                         __m256 _out00 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp00, _tmp024a), _mm256_fmadd_1_ps(_tmp024b, _tmp024c, 32.f)));
                         __m256 _out02 = _mm256_add_ps(_bias0, _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f));
                         __m256 _out04 = _mm256_add_ps(_bias0, _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f));
-                        _mm256_storeu_ps(output0, _out00);
-                        _mm256_storeu_ps(output0 + 16, _out02);
-                        _mm256_storeu_ps(output0 + 32, _out04);
-
-                        //                         output0[0] = bias0 + tmp0[0] + tmp024a + tmp024b + tmp024c * 32;
-                        //                         output0[2] = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
-                        //                         output0[4] = bias0 + tmp024a + tmp024b * 16 + tmp024c + tmp024c;
+                        _mm256_store_ps(output0, _out00);
+                        _mm256_store_ps(output0 + 16, _out02);
+                        _mm256_store_ps(output0 + 32, _out04);
 
                         __m256 _out01 = _mm256_add_ps(_bias0, _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f));
                         __m256 _out03 = _mm256_add_ps(_bias0, _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f));
                         __m256 _out05 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp07, _tmp135a), _mm256_fmadd_1_ps(_tmp135c, _tmp135b, 32.f)));
-                        _mm256_storeu_ps(output0 + 8, _out01);
-                        _mm256_storeu_ps(output0 + 24, _out03);
-                        _mm256_storeu_ps(output0 + 40, _out05);
-
-                        //                         output0[1] = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
-                        //                         output0[3] = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;
-                        //                         output0[5] = bias0 + tmp0[7] + tmp135a + tmp135b * 32 + tmp135c;
+                        _mm256_store_ps(output0 + 8, _out01);
+                        _mm256_store_ps(output0 + 24, _out03);
+                        _mm256_store_ps(output0 + 40, _out05);
 
                         output0 += outw * 8;
                     }

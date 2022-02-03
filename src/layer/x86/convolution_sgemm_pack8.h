@@ -54,18 +54,18 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 8x12
-                    __m256 _r0 = _mm256_loadu_ps(img0);
-                    __m256 _r1 = _mm256_loadu_ps(img0 + 8);
-                    __m256 _r2 = _mm256_loadu_ps(img0 + 8 * 2);
-                    __m256 _r3 = _mm256_loadu_ps(img0 + 8 * 3);
-                    __m256 _r4 = _mm256_loadu_ps(img0 + 8 * 4);
-                    __m256 _r5 = _mm256_loadu_ps(img0 + 8 * 5);
-                    __m256 _r6 = _mm256_loadu_ps(img0 + 8 * 6);
-                    __m256 _r7 = _mm256_loadu_ps(img0 + 8 * 7);
-                    __m256 _r8 = _mm256_loadu_ps(img0 + 8 * 8);
-                    __m256 _r9 = _mm256_loadu_ps(img0 + 8 * 9);
-                    __m256 _ra = _mm256_loadu_ps(img0 + 8 * 10);
-                    __m256 _rb = _mm256_loadu_ps(img0 + 8 * 11);
+                    __m256 _r0 = _mm256_load_ps(img0);
+                    __m256 _r1 = _mm256_load_ps(img0 + 8);
+                    __m256 _r2 = _mm256_load_ps(img0 + 8 * 2);
+                    __m256 _r3 = _mm256_load_ps(img0 + 8 * 3);
+                    __m256 _r4 = _mm256_load_ps(img0 + 8 * 4);
+                    __m256 _r5 = _mm256_load_ps(img0 + 8 * 5);
+                    __m256 _r6 = _mm256_load_ps(img0 + 8 * 6);
+                    __m256 _r7 = _mm256_load_ps(img0 + 8 * 7);
+                    __m256 _r8 = _mm256_load_ps(img0 + 8 * 8);
+                    __m256 _r9 = _mm256_load_ps(img0 + 8 * 9);
+                    __m256 _ra = _mm256_load_ps(img0 + 8 * 10);
+                    __m256 _rb = _mm256_load_ps(img0 + 8 * 11);
 
                     __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
                     __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
@@ -104,18 +104,18 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                     _ra = _mm256_permute2f128_ps(_tmpm, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
                     _rb = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
 
-                    _mm256_storeu_ps(tmpptr, _r0);
-                    _mm256_storeu_ps(tmpptr + 8, _r1);
-                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
-                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
-                    _mm256_storeu_ps(tmpptr + 8 * 4, _r4);
-                    _mm256_storeu_ps(tmpptr + 8 * 5, _r5);
-                    _mm256_storeu_ps(tmpptr + 8 * 6, _r6);
-                    _mm256_storeu_ps(tmpptr + 8 * 7, _r7);
-                    _mm256_storeu_ps(tmpptr + 8 * 8, _r8);
-                    _mm256_storeu_ps(tmpptr + 8 * 9, _r9);
-                    _mm256_storeu_ps(tmpptr + 8 * 10, _ra);
-                    _mm256_storeu_ps(tmpptr + 8 * 11, _rb);
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_store_ps(tmpptr + 8 * 4, _r4);
+                    _mm256_store_ps(tmpptr + 8 * 5, _r5);
+                    _mm256_store_ps(tmpptr + 8 * 6, _r6);
+                    _mm256_store_ps(tmpptr + 8 * 7, _r7);
+                    _mm256_store_ps(tmpptr + 8 * 8, _r8);
+                    _mm256_store_ps(tmpptr + 8 * 9, _r9);
+                    _mm256_store_ps(tmpptr + 8 * 10, _ra);
+                    _mm256_store_ps(tmpptr + 8 * 11, _rb);
 
                     img0 += size * 8;
                     tmpptr += 96;
@@ -140,14 +140,14 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 8x8
-                    __m256 _r0 = _mm256_loadu_ps(img0);
-                    __m256 _r1 = _mm256_loadu_ps(img0 + 8);
-                    __m256 _r2 = _mm256_loadu_ps(img0 + 8 * 2);
-                    __m256 _r3 = _mm256_loadu_ps(img0 + 8 * 3);
-                    __m256 _r4 = _mm256_loadu_ps(img0 + 8 * 4);
-                    __m256 _r5 = _mm256_loadu_ps(img0 + 8 * 5);
-                    __m256 _r6 = _mm256_loadu_ps(img0 + 8 * 6);
-                    __m256 _r7 = _mm256_loadu_ps(img0 + 8 * 7);
+                    __m256 _r0 = _mm256_load_ps(img0);
+                    __m256 _r1 = _mm256_load_ps(img0 + 8);
+                    __m256 _r2 = _mm256_load_ps(img0 + 8 * 2);
+                    __m256 _r3 = _mm256_load_ps(img0 + 8 * 3);
+                    __m256 _r4 = _mm256_load_ps(img0 + 8 * 4);
+                    __m256 _r5 = _mm256_load_ps(img0 + 8 * 5);
+                    __m256 _r6 = _mm256_load_ps(img0 + 8 * 6);
+                    __m256 _r7 = _mm256_load_ps(img0 + 8 * 7);
 
                     __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
                     __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
@@ -174,14 +174,14 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                     _r6 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
                     _r7 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
 
-                    _mm256_storeu_ps(tmpptr, _r0);
-                    _mm256_storeu_ps(tmpptr + 8, _r1);
-                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
-                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
-                    _mm256_storeu_ps(tmpptr + 8 * 4, _r4);
-                    _mm256_storeu_ps(tmpptr + 8 * 5, _r5);
-                    _mm256_storeu_ps(tmpptr + 8 * 6, _r6);
-                    _mm256_storeu_ps(tmpptr + 8 * 7, _r7);
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_store_ps(tmpptr + 8 * 4, _r4);
+                    _mm256_store_ps(tmpptr + 8 * 5, _r5);
+                    _mm256_store_ps(tmpptr + 8 * 6, _r6);
+                    _mm256_store_ps(tmpptr + 8 * 7, _r7);
 
                     img0 += size * 8;
                     tmpptr += 64;
@@ -206,10 +206,10 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 8x4
-                    __m256 _r0 = _mm256_loadu_ps(img0);
-                    __m256 _r1 = _mm256_loadu_ps(img0 + 8);
-                    __m256 _r2 = _mm256_loadu_ps(img0 + 8 * 2);
-                    __m256 _r3 = _mm256_loadu_ps(img0 + 8 * 3);
+                    __m256 _r0 = _mm256_load_ps(img0);
+                    __m256 _r1 = _mm256_load_ps(img0 + 8);
+                    __m256 _r2 = _mm256_load_ps(img0 + 8 * 2);
+                    __m256 _r3 = _mm256_load_ps(img0 + 8 * 3);
 
                     __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
                     __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
@@ -224,10 +224,10 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                     _r2 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
                     _r3 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
 
-                    _mm256_storeu_ps(tmpptr, _r0);
-                    _mm256_storeu_ps(tmpptr + 8, _r1);
-                    _mm256_storeu_ps(tmpptr + 8 * 2, _r2);
-                    _mm256_storeu_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
 
                     img0 += size * 8;
                     tmpptr += 32;
@@ -252,16 +252,16 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
                     // transpose 8x2
-                    __m256 _r0 = _mm256_loadu_ps(img0);
-                    __m256 _r1 = _mm256_loadu_ps(img0 + 8);
+                    __m256 _r0 = _mm256_load_ps(img0);
+                    __m256 _r1 = _mm256_load_ps(img0 + 8);
 
                     __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
                     __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
                     _r0 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
                     _r1 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
 
-                    _mm256_storeu_ps(tmpptr, _r0);
-                    _mm256_storeu_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
 
                     img0 += size * 8;
                     tmpptr += 16;
@@ -282,8 +282,8 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
 
                 for (int k = 0; k < maxk; k++)
                 {
-                    __m256 _val = _mm256_loadu_ps(img0);
-                    _mm256_storeu_ps(tmpptr, _val);
+                    __m256 _val = _mm256_load_ps(img0);
+                    _mm256_store_ps(tmpptr, _val);
 
                     img0 += size * 8;
                     tmpptr += 8;
@@ -323,7 +323,7 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m256 _w0 = _mm256_loadu_ps(kptr0);
+                __m256 _w0 = _mm256_load_ps(kptr0);
 
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
                 __m256 _val1 = _mm256_broadcast_ss(tmpptr + 1);
@@ -354,18 +354,18 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 kptr0 += 8;
             }
 
-            _mm256_storeu_ps(outptr0, _sum0);
-            _mm256_storeu_ps(outptr0 + 8, _sum1);
-            _mm256_storeu_ps(outptr0 + 8 * 2, _sum2);
-            _mm256_storeu_ps(outptr0 + 8 * 3, _sum3);
-            _mm256_storeu_ps(outptr0 + 8 * 4, _sum4);
-            _mm256_storeu_ps(outptr0 + 8 * 5, _sum5);
-            _mm256_storeu_ps(outptr0 + 8 * 6, _sum6);
-            _mm256_storeu_ps(outptr0 + 8 * 7, _sum7);
-            _mm256_storeu_ps(outptr0 + 8 * 8, _sum8);
-            _mm256_storeu_ps(outptr0 + 8 * 9, _sum9);
-            _mm256_storeu_ps(outptr0 + 8 * 10, _suma);
-            _mm256_storeu_ps(outptr0 + 8 * 11, _sumb);
+            _mm256_store_ps(outptr0, _sum0);
+            _mm256_store_ps(outptr0 + 8, _sum1);
+            _mm256_store_ps(outptr0 + 8 * 2, _sum2);
+            _mm256_store_ps(outptr0 + 8 * 3, _sum3);
+            _mm256_store_ps(outptr0 + 8 * 4, _sum4);
+            _mm256_store_ps(outptr0 + 8 * 5, _sum5);
+            _mm256_store_ps(outptr0 + 8 * 6, _sum6);
+            _mm256_store_ps(outptr0 + 8 * 7, _sum7);
+            _mm256_store_ps(outptr0 + 8 * 8, _sum8);
+            _mm256_store_ps(outptr0 + 8 * 9, _sum9);
+            _mm256_store_ps(outptr0 + 8 * 10, _suma);
+            _mm256_store_ps(outptr0 + 8 * 11, _sumb);
 
             outptr0 += 8 * 12;
         }
@@ -387,7 +387,7 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m256 _w0 = _mm256_loadu_ps(kptr0);
+                __m256 _w0 = _mm256_load_ps(kptr0);
 
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
                 __m256 _val1 = _mm256_broadcast_ss(tmpptr + 1);
@@ -410,14 +410,14 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 kptr0 += 8;
             }
 
-            _mm256_storeu_ps(outptr0, _sum0);
-            _mm256_storeu_ps(outptr0 + 8, _sum1);
-            _mm256_storeu_ps(outptr0 + 8 * 2, _sum2);
-            _mm256_storeu_ps(outptr0 + 8 * 3, _sum3);
-            _mm256_storeu_ps(outptr0 + 8 * 4, _sum4);
-            _mm256_storeu_ps(outptr0 + 8 * 5, _sum5);
-            _mm256_storeu_ps(outptr0 + 8 * 6, _sum6);
-            _mm256_storeu_ps(outptr0 + 8 * 7, _sum7);
+            _mm256_store_ps(outptr0, _sum0);
+            _mm256_store_ps(outptr0 + 8, _sum1);
+            _mm256_store_ps(outptr0 + 8 * 2, _sum2);
+            _mm256_store_ps(outptr0 + 8 * 3, _sum3);
+            _mm256_store_ps(outptr0 + 8 * 4, _sum4);
+            _mm256_store_ps(outptr0 + 8 * 5, _sum5);
+            _mm256_store_ps(outptr0 + 8 * 6, _sum6);
+            _mm256_store_ps(outptr0 + 8 * 7, _sum7);
 
             outptr0 += 8 * 8;
         }
@@ -435,7 +435,7 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m256 _w0 = _mm256_loadu_ps(kptr0);
+                __m256 _w0 = _mm256_load_ps(kptr0);
 
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
                 __m256 _val1 = _mm256_broadcast_ss(tmpptr + 1);
@@ -450,10 +450,10 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 kptr0 += 8;
             }
 
-            _mm256_storeu_ps(outptr0, _sum0);
-            _mm256_storeu_ps(outptr0 + 8, _sum1);
-            _mm256_storeu_ps(outptr0 + 8 * 2, _sum2);
-            _mm256_storeu_ps(outptr0 + 8 * 3, _sum3);
+            _mm256_store_ps(outptr0, _sum0);
+            _mm256_store_ps(outptr0 + 8, _sum1);
+            _mm256_store_ps(outptr0 + 8 * 2, _sum2);
+            _mm256_store_ps(outptr0 + 8 * 3, _sum3);
 
             outptr0 += 8 * 4;
         }
@@ -469,7 +469,7 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m256 _w0 = _mm256_loadu_ps(kptr0);
+                __m256 _w0 = _mm256_load_ps(kptr0);
 
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
                 __m256 _val1 = _mm256_broadcast_ss(tmpptr + 1);
@@ -480,8 +480,8 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 kptr0 += 8;
             }
 
-            _mm256_storeu_ps(outptr0, _sum0);
-            _mm256_storeu_ps(outptr0 + 8, _sum1);
+            _mm256_store_ps(outptr0, _sum0);
+            _mm256_store_ps(outptr0 + 8, _sum1);
 
             outptr0 += 8 * 2;
         }
@@ -496,7 +496,7 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __m256 _w0 = _mm256_loadu_ps(kptr0);
+                __m256 _w0 = _mm256_load_ps(kptr0);
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
                 _sum = _mm256_comp_fmadd_ps(_val0, _w0, _sum);
 
@@ -504,7 +504,7 @@ static void im2col_sgemm_pack8_avx(const Mat& bottom_im2col, Mat& top_blob, cons
                 kptr0 += 8;
             }
 
-            _mm256_storeu_ps(outptr0, _sum);
+            _mm256_store_ps(outptr0, _sum);
 
             outptr0 += 8;
         }
