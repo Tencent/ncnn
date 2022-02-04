@@ -367,6 +367,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
             conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
+            conv3x3s1_winograd42_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
         }
         else if (opt.use_sgemm_convolution)
         {
@@ -543,7 +544,17 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             if (num_input >= 16 && num_output >= 16)
             {
-                conv3x3s1_winograd64_pack8_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                // we need more proper conditions
+                if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
+                {
+                    conv3x3s1_winograd42_pack8_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data, bias_data, opt);
+                }
+                else
+                {
+                    conv3x3s1_winograd64_pack8_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                }
+
+//                 conv3x3s1_winograd64_pack8_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
             }
             else
             {

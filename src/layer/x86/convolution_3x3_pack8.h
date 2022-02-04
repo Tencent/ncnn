@@ -770,7 +770,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
     }
     // interleave
     // src = 64-inch-outch
-    // dst = 8b-8a-inch/8a-64-outch/8b;
+    // dst = 8b-8a-inch/8a-64-outch/8b
     kernel_tm_pack8.create(inch / 8, 64, outch / 8, (size_t)4u * 64, 64);
 
     int q = 0;
@@ -1035,29 +1035,29 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         __m256 _r06 = _mm256_load_ps(r0 + 48);
                         __m256 _r07 = _mm256_load_ps(r0 + 56);
 
-                        __m256 _tmp0m = _mm256_fmadd_1_ps(_mm256_sub_ps(_r00, _r06), _mm256_sub_ps(_r04, _r02), 5.25f);
-                        __m256 _tmp7m = _mm256_fmadd_1_ps(_mm256_sub_ps(_r07, _r01), _mm256_sub_ps(_r03, _r05), 5.25f);
+                        __m256 _tmp0m = _mm256_comp_fmadd_ps(_mm256_set1_ps(5.25f), _mm256_sub_ps(_r04, _r02), _mm256_sub_ps(_r00, _r06));
+                        __m256 _tmp7m = _mm256_comp_fmadd_ps(_mm256_set1_ps(5.25f), _mm256_sub_ps(_r03, _r05), _mm256_sub_ps(_r07, _r01));
                         _mm256_store_ps(tmp[0][m], _tmp0m);
                         _mm256_store_ps(tmp[7][m], _tmp7m);
 
-                        __m256 _tmp12a = _mm256_fmrsub_1_ps(_mm256_add_ps(_r02, _r06), _r04, 4.25f);
-                        __m256 _tmp12b = _mm256_fmrsub_1_ps(_mm256_add_ps(_r01, _r05), _r03, 4.25f);
+                        __m256 _tmp12a = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.25f), _r04, _mm256_add_ps(_r02, _r06));
+                        __m256 _tmp12b = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.25f), _r03, _mm256_add_ps(_r01, _r05));
 
                         __m256 _tmp1m = _mm256_add_ps(_tmp12a, _tmp12b);
                         __m256 _tmp2m = _mm256_sub_ps(_tmp12a, _tmp12b);
                         _mm256_store_ps(tmp[1][m], _tmp1m);
                         _mm256_store_ps(tmp[2][m], _tmp2m);
 
-                        __m256 _tmp34a = _mm256_fmrsub_1_ps(_mm256_fmadd_1_ps(_r06, _r02, 0.25f), _r04, 1.25f);
-                        __m256 _tmp34b = _mm256_fmadd_1_ps(_mm256_fmrsub_1_ps(_mm256_mul_ps(_r01, _mm256_set1_ps(0.5f)), _r03, 2.5f), _r05, 2.f);
+                        __m256 _tmp34a = _mm256_comp_fmadd_ps(_mm256_set1_ps(-1.25f), _r04, _mm256_comp_fmadd_ps(_mm256_set1_ps(0.25f), _r02, _r06));
+                        __m256 _tmp34b = _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _r05, _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.5f), _r03, _mm256_mul_ps(_r01, _mm256_set1_ps(0.5f))));
 
                         __m256 _tmp3m = _mm256_add_ps(_tmp34a, _tmp34b);
                         __m256 _tmp4m = _mm256_sub_ps(_tmp34a, _tmp34b);
                         _mm256_store_ps(tmp[3][m], _tmp3m);
                         _mm256_store_ps(tmp[4][m], _tmp4m);
 
-                        __m256 _tmp56a = _mm256_fmadd_1_ps(_r06, _mm256_fmrsub_1_ps(_r02, _r04, 1.25f), 4.f);
-                        __m256 _tmp56b = _mm256_fmadd_1_ps(_mm256_fmrsub_1_ps(_mm256_mul_ps(_r01, _mm256_set1_ps(2.f)), _r03, 2.5f), _r05, 0.5f);
+                        __m256 _tmp56a = _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _mm256_comp_fmadd_ps(_mm256_set1_ps(-1.25f), _r04, _r02), _r06);
+                        __m256 _tmp56b = _mm256_comp_fmadd_ps(_mm256_set1_ps(0.5f), _r05, _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.5f), _r03, _mm256_mul_ps(_r01, _mm256_set1_ps(2.f))));
 
                         __m256 _tmp5m = _mm256_add_ps(_tmp56a, _tmp56b);
                         __m256 _tmp6m = _mm256_sub_ps(_tmp56a, _tmp56b);
@@ -1087,23 +1087,23 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         __m256 _tmp06 = _mm256_load_ps(tmp[m][6]);
                         __m256 _tmp07 = _mm256_load_ps(tmp[m][7]);
 
-                        __m256 _r0tm0 = _mm256_fmadd_1_ps(_mm256_sub_ps(_tmp00, _tmp06), _mm256_sub_ps(_tmp04, _tmp02), 5.25f);
-                        __m256 _r0tm7 = _mm256_fmadd_1_ps(_mm256_sub_ps(_tmp07, _tmp01), _mm256_sub_ps(_tmp03, _tmp05), 5.25f);
+                        __m256 _r0tm0 = _mm256_comp_fmadd_ps(_mm256_set1_ps(5.25f), _mm256_sub_ps(_tmp04, _tmp02), _mm256_sub_ps(_tmp00, _tmp06));
+                        __m256 _r0tm7 = _mm256_comp_fmadd_ps(_mm256_set1_ps(5.25f), _mm256_sub_ps(_tmp03, _tmp05), _mm256_sub_ps(_tmp07, _tmp01));
 
-                        __m256 _tmp12a = _mm256_fmrsub_1_ps(_mm256_add_ps(_tmp02, _tmp06), _tmp04, 4.25f);
-                        __m256 _tmp12b = _mm256_fmrsub_1_ps(_mm256_add_ps(_tmp01, _tmp05), _tmp03, 4.25f);
+                        __m256 _tmp12a = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.25f), _tmp04, _mm256_add_ps(_tmp02, _tmp06));
+                        __m256 _tmp12b = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.25f), _tmp03, _mm256_add_ps(_tmp01, _tmp05));
 
                         __m256 _r0tm1 = _mm256_add_ps(_tmp12a, _tmp12b);
                         __m256 _r0tm2 = _mm256_sub_ps(_tmp12a, _tmp12b);
 
-                        __m256 _tmp34a = _mm256_fmrsub_1_ps(_mm256_fmadd_1_ps(_tmp06, _tmp02, 0.25f), _tmp04, 1.25f);
-                        __m256 _tmp34b = _mm256_fmadd_1_ps(_mm256_fmrsub_1_ps(_mm256_mul_ps(_tmp01, _mm256_set1_ps(0.5f)), _tmp03, 2.5f), _tmp05, 2.f);
+                        __m256 _tmp34a = _mm256_comp_fmadd_ps(_mm256_set1_ps(-1.25f), _tmp04, _mm256_comp_fmadd_ps(_mm256_set1_ps(0.25f), _tmp02, _tmp06));
+                        __m256 _tmp34b = _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _tmp05, _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.5f), _tmp03, _mm256_mul_ps(_tmp01, _mm256_set1_ps(0.5f))));
 
                         __m256 _r0tm3 = _mm256_add_ps(_tmp34a, _tmp34b);
                         __m256 _r0tm4 = _mm256_sub_ps(_tmp34a, _tmp34b);
 
-                        __m256 _tmp56a = _mm256_fmadd_1_ps(_tmp06, _mm256_fmrsub_1_ps(_tmp02, _tmp04, 1.25f), 4.f);
-                        __m256 _tmp56b = _mm256_fmadd_1_ps(_mm256_fmrsub_1_ps(_mm256_mul_ps(_tmp01, _mm256_set1_ps(2.f)), _tmp03, 2.5f), _tmp05, 0.5f);
+                        __m256 _tmp56a = _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _mm256_comp_fmadd_ps(_mm256_set1_ps(-1.25f), _tmp04, _tmp02), _tmp06);
+                        __m256 _tmp56b = _mm256_comp_fmadd_ps(_mm256_set1_ps(0.5f), _tmp05, _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.5f), _tmp03, _mm256_mul_ps(_tmp01, _mm256_set1_ps(2.f))));
 
                         __m256 _r0tm5 = _mm256_add_ps(_tmp56a, _tmp56b);
                         __m256 _r0tm6 = _mm256_sub_ps(_tmp56a, _tmp56b);
@@ -1648,7 +1648,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
             Mat out0 = top_blob_bordered.channel(p);
 
             //             const float bias0 = bias ? bias[p] : 0.f;
-            __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
+            __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
 
 #ifdef _MSC_VER
             __declspec(align(32))
@@ -1696,16 +1696,16 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         __m256 _tmp024c = _mm256_add_ps(_out0tm5, _out0tm6);
                         __m256 _tmp135c = _mm256_sub_ps(_out0tm5, _out0tm6);
 
-                        __m256 _tmp0m = _mm256_add_ps(_mm256_add_ps(_out0tm0, _tmp024a), _mm256_fmadd_1_ps(_tmp024b, _tmp024c, 32.f));
-                        __m256 _tmp2m = _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f);
-                        __m256 _tmp4m = _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f);
+                        __m256 _tmp0m = _mm256_add_ps(_mm256_add_ps(_out0tm0, _tmp024a), _mm256_comp_fmadd_ps(_mm256_set1_ps(32.f), _tmp024c, _tmp024b));
+                        __m256 _tmp2m = _mm256_comp_fmadd_ps(_mm256_set1_ps(8.f), _tmp024c, _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _tmp024b, _tmp024a));
+                        __m256 _tmp4m = _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _tmp024c, _mm256_comp_fmadd_ps(_mm256_set1_ps(16.f), _tmp024b, _tmp024a));
                         _mm256_store_ps(tmp[0][m], _tmp0m);
                         _mm256_store_ps(tmp[2][m], _tmp2m);
                         _mm256_store_ps(tmp[4][m], _tmp4m);
 
-                        __m256 _tmp1m = _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f);
-                        __m256 _tmp3m = _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f);
-                        __m256 _tmp5m = _mm256_add_ps(_mm256_add_ps(_out0tm7, _tmp135a), _mm256_fmadd_1_ps(_tmp135c, _tmp135b, 32.f));
+                        __m256 _tmp1m = _mm256_comp_fmadd_ps(_mm256_set1_ps(16.f), _tmp135c, _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _tmp135b, _tmp135a));
+                        __m256 _tmp3m = _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _tmp135c, _mm256_comp_fmadd_ps(_mm256_set1_ps(8.f), _tmp135b, _tmp135a));
+                        __m256 _tmp5m = _mm256_add_ps(_mm256_add_ps(_out0tm7, _tmp135a), _mm256_comp_fmadd_ps(_mm256_set1_ps(32.f), _tmp135b, _tmp135c));
                         _mm256_store_ps(tmp[1][m], _tmp1m);
                         _mm256_store_ps(tmp[3][m], _tmp3m);
                         _mm256_store_ps(tmp[5][m], _tmp5m);
@@ -1740,19 +1740,845 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
                         __m256 _tmp024c = _mm256_add_ps(_tmp05, _tmp06);
                         __m256 _tmp135c = _mm256_sub_ps(_tmp05, _tmp06);
 
-                        __m256 _out00 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp00, _tmp024a), _mm256_fmadd_1_ps(_tmp024b, _tmp024c, 32.f)));
-                        __m256 _out02 = _mm256_add_ps(_bias0, _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f));
-                        __m256 _out04 = _mm256_add_ps(_bias0, _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f));
+                        __m256 _out00 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp00, _tmp024a), _mm256_comp_fmadd_ps(_mm256_set1_ps(32.f), _tmp024c, _tmp024b)));
+                        __m256 _out02 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_mm256_set1_ps(8.f), _tmp024c, _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _tmp024b, _tmp024a)));
+                        __m256 _out04 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _tmp024c, _mm256_comp_fmadd_ps(_mm256_set1_ps(16.f), _tmp024b, _tmp024a)));
                         _mm256_store_ps(output0, _out00);
                         _mm256_store_ps(output0 + 16, _out02);
                         _mm256_store_ps(output0 + 32, _out04);
 
-                        __m256 _out01 = _mm256_add_ps(_bias0, _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f));
-                        __m256 _out03 = _mm256_add_ps(_bias0, _mm256_fmadd_1_ps(_mm256_fmadd_1_ps(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f));
-                        __m256 _out05 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp07, _tmp135a), _mm256_fmadd_1_ps(_tmp135c, _tmp135b, 32.f)));
+                        __m256 _out01 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_mm256_set1_ps(16.f), _tmp135c, _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _tmp135b, _tmp135a)));
+                        __m256 _out03 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _tmp135c, _mm256_comp_fmadd_ps(_mm256_set1_ps(8.f), _tmp135b, _tmp135a)));
+                        __m256 _out05 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp07, _tmp135a), _mm256_comp_fmadd_ps(_mm256_set1_ps(32.f), _tmp135b, _tmp135c)));
                         _mm256_store_ps(output0 + 8, _out01);
                         _mm256_store_ps(output0 + 24, _out03);
                         _mm256_store_ps(output0 + 40, _out05);
+
+                        output0 += outw * 8;
+                    }
+                }
+            }
+        }
+    }
+    // END transform output
+
+    // cut result pad
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
+}
+
+static void conv3x3s1_winograd42_transform_kernel_pack8_avx(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
+{
+    // winograd42 transform kernel
+    Mat kernel_tm(6 * 6, inch, outch);
+
+    const float ktm[6][3] = {
+        {1.0f / 4, 0.0f, 0.0f},
+        {-1.0f / 6, -1.0f / 6, -1.0f / 6},
+        {-1.0f / 6, 1.0f / 6, -1.0f / 6},
+        {1.0f / 24, 1.0f / 12, 1.0f / 6},
+        {1.0f / 24, -1.0f / 12, 1.0f / 6},
+        {0.0f, 0.0f, 1.0f}
+    };
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
+            const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
+            float* kernel_tm0 = kernel_tm.channel(p).row(q);
+
+            // transform kernel
+            const float* k0 = kernel0;
+            const float* k1 = kernel0 + 3;
+            const float* k2 = kernel0 + 6;
+
+            // h
+            float tmp[6][3];
+            for (int i = 0; i < 6; i++)
+            {
+                tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
+                tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
+                tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
+            }
+
+            // U
+            for (int j = 0; j < 6; j++)
+            {
+                float* tmpp = &tmp[j][0];
+
+                for (int i = 0; i < 6; i++)
+                {
+                    kernel_tm0[j * 6 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                }
+            }
+        }
+    }
+
+    // interleave
+    // src = 36-inch-outch
+    // dst = 8b-8a-inch/8a-36-outch/8b
+    kernel_tm_pack4.create(inch / 8, 36, outch / 8, (size_t)4u * 64, 64);
+
+    for (int q = 0; q + (8 - 1) < outch; q += 8)
+    {
+        Mat g0 = kernel_tm_pack4.channel(q / 8);
+
+        for (int k = 0; k < 36; k++)
+        {
+            float* g00 = g0.row<float>(k);
+
+            for (int p = 0; p + (8 - 1) < inch; p += 8)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const float* k00 = kernel_tm.channel(q + j).row(p + i);
+                        g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+            }
+        }
+    }
+}
+
+static void conv3x3s1_winograd42_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    // pad to 4n+2
+    Mat bottom_blob_bordered = bottom_blob;
+
+    outw = (outw + 3) / 4 * 4;
+    outh = (outh + 3) / 4 * 4;
+
+    w = outw + 2;
+    h = outh + 2;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
+
+    const float* bias = _bias;
+
+    // BEGIN transform input
+    Mat bottom_blob_tm;
+    {
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+
+        const int tiles = w_tm / 6 * h_tm / 6;
+
+        bottom_blob_tm.create(tiles, 36, inch, 4u * elempack, elempack, opt.workspace_allocator);
+
+        // const float itm[4][4] = {
+        //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
+        //     {0.0f,-4.0f, -4.0f, 1.0f, 1.0f, 0.0f},
+        //     {0.0f, 4.0f, -4.0f,-1.0f, 1.0f, 0.0f},
+        //     {0.0f,-2.0f, -1.0f, 2.0f, 1.0f, 0.0f},
+        //     {0.0f, 2.0f, -1.0f,-2.0f, 1.0f, 0.0f},
+        //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
+        // };
+
+        // 0 =  4 * r00 - 5 * r02 + r04
+        // 1 = -4 * (r01 + r02) + r04 + r03
+        // 2 =  4 * (r01 - r02) + r04 - r03
+        // 3 = -2 * (r01 - r03) + r04 - r02
+        // 4 =  2 * (r01 - r03) + r04 - r02
+        // 5 =  4 * r01 - 5 * r03 + r05
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < inch; q++)
+        {
+            const Mat img0 = bottom_blob_bordered.channel(q);
+            Mat img0_tm = bottom_blob_tm.channel(q);
+
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
+            float tmp[6][6][8];
+
+            // tile
+            for (int i = 0; i < h_tm / 6; i++)
+            {
+                for (int j = 0; j < w_tm / 6; j++)
+                {
+                    const float* r0 = img0.row(i * 4) + (j * 4) * 8;
+
+                    for (int m = 0; m < 6; m++)
+                    {
+                        __m256 _r00 = _mm256_load_ps(r0);
+                        __m256 _r01 = _mm256_load_ps(r0 + 8);
+                        __m256 _r02 = _mm256_load_ps(r0 + 8 * 2);
+                        __m256 _r03 = _mm256_load_ps(r0 + 8 * 3);
+                        __m256 _r04 = _mm256_load_ps(r0 + 8 * 4);
+                        __m256 _r05 = _mm256_load_ps(r0 + 8 * 5);
+
+                        __m256 _tmp0m = _mm256_comp_fmadd_ps(_mm256_set1_ps(-5.f), _r02, _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _r00, _r04));
+                        __m256 _tmp1m = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.f), _mm256_add_ps(_r01, _r02), _mm256_add_ps(_r04, _r03));
+                        __m256 _tmp2m = _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _mm256_sub_ps(_r01, _r02), _mm256_sub_ps(_r04, _r03));
+                        __m256 _tmp3m = _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.f), _mm256_sub_ps(_r01, _r03), _mm256_sub_ps(_r04, _r02));
+                        __m256 _tmp4m = _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _mm256_sub_ps(_r01, _r03), _mm256_sub_ps(_r04, _r02));
+                        __m256 _tmp5m = _mm256_comp_fmadd_ps(_mm256_set1_ps(-5.f), _r03, _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _r01, _r05));
+
+                        _mm256_store_ps(tmp[0][m], _tmp0m);
+                        _mm256_store_ps(tmp[1][m], _tmp1m);
+                        _mm256_store_ps(tmp[2][m], _tmp2m);
+                        _mm256_store_ps(tmp[3][m], _tmp3m);
+                        _mm256_store_ps(tmp[4][m], _tmp4m);
+                        _mm256_store_ps(tmp[5][m], _tmp5m);
+
+                        r0 += w * 8;
+                    }
+
+                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm / 6 + j) * 8;
+                    float* r0_tm_1 = r0_tm_0 + tiles * 8;
+                    float* r0_tm_2 = r0_tm_0 + tiles * 8 * 2;
+                    float* r0_tm_3 = r0_tm_0 + tiles * 8 * 3;
+                    float* r0_tm_4 = r0_tm_0 + tiles * 8 * 4;
+                    float* r0_tm_5 = r0_tm_0 + tiles * 8 * 5;
+
+                    for (int m = 0; m < 6; m++)
+                    {
+                        __m256 _tmp00 = _mm256_load_ps(tmp[m][0]);
+                        __m256 _tmp01 = _mm256_load_ps(tmp[m][1]);
+                        __m256 _tmp02 = _mm256_load_ps(tmp[m][2]);
+                        __m256 _tmp03 = _mm256_load_ps(tmp[m][3]);
+                        __m256 _tmp04 = _mm256_load_ps(tmp[m][4]);
+                        __m256 _tmp05 = _mm256_load_ps(tmp[m][5]);
+
+                        __m256 _r0tm0 = _mm256_comp_fmadd_ps(_mm256_set1_ps(-5.f), _tmp02, _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _tmp00, _tmp04));
+                        __m256 _r0tm1 = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.f), _mm256_add_ps(_tmp01, _tmp02), _mm256_add_ps(_tmp04, _tmp03));
+                        __m256 _r0tm2 = _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _mm256_sub_ps(_tmp01, _tmp02), _mm256_sub_ps(_tmp04, _tmp03));
+                        __m256 _r0tm3 = _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.f), _mm256_sub_ps(_tmp01, _tmp03), _mm256_sub_ps(_tmp04, _tmp02));
+                        __m256 _r0tm4 = _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _mm256_sub_ps(_tmp01, _tmp03), _mm256_sub_ps(_tmp04, _tmp02));
+                        __m256 _r0tm5 = _mm256_comp_fmadd_ps(_mm256_set1_ps(-5.f), _tmp03, _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _tmp01, _tmp05));
+
+                        _mm256_store_ps(r0_tm_0, _r0tm0);
+                        _mm256_store_ps(r0_tm_1, _r0tm1);
+                        _mm256_store_ps(r0_tm_2, _r0tm2);
+                        _mm256_store_ps(r0_tm_3, _r0tm3);
+                        _mm256_store_ps(r0_tm_4, _r0tm4);
+                        _mm256_store_ps(r0_tm_5, _r0tm5);
+
+                        r0_tm_0 += tiles * 8 * 6;
+                        r0_tm_1 += tiles * 8 * 6;
+                        r0_tm_2 += tiles * 8 * 6;
+                        r0_tm_3 += tiles * 8 * 6;
+                        r0_tm_4 += tiles * 8 * 6;
+                        r0_tm_5 += tiles * 8 * 6;
+                    }
+                }
+            }
+        }
+    }
+    bottom_blob_bordered = Mat();
+    // END transform input
+
+    // BEGIN dot
+    Mat top_blob_tm;
+    {
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+
+        const int tiles = h_tm / 6 * w_tm / 6;
+
+        // permute
+        //         bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
+        Mat bottom_blob_tm2;
+        if (tiles >= 12)
+            bottom_blob_tm2.create(12 * inch, tiles / 12 + (tiles % 12) / 8 + (tiles % 12 % 8) / 4 + (tiles % 12 % 4) / 2 + tiles % 12 % 2, 36, 4u * elempack, elempack, opt.workspace_allocator);
+        else if (tiles >= 8)
+            bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + (tiles % 4) / 2 + tiles % 2, 36, 4u * elempack, elempack, opt.workspace_allocator);
+        else if (tiles >= 4)
+            bottom_blob_tm2.create(4 * inch, tiles / 4 + (tiles % 4) / 2 + tiles % 2, 36, 4u * elempack, elempack, opt.workspace_allocator);
+        else if (tiles >= 2)
+            bottom_blob_tm2.create(2 * inch, tiles / 2 + tiles % 2, 36, 4u * elempack, elempack, opt.workspace_allocator);
+        else // if (tiles >= 1)
+            bottom_blob_tm2.create(1 * inch, tiles, 36, 4u * elempack, elempack, opt.workspace_allocator);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int r = 0; r < 36; r++)
+        {
+            Mat tm2 = bottom_blob_tm2.channel(r);
+
+            // tile
+            int i = 0;
+            for (; i + 11 < tiles; i += 12)
+            {
+                float* tmpptr = tm2.row(i / 12);
+
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r * tiles + i) * 8;
+
+                for (int q = 0; q < inch; q++)
+                {
+                    // transpose 8x12
+                    __m256 _r0 = _mm256_load_ps(r0);
+                    __m256 _r1 = _mm256_load_ps(r0 + 8);
+                    __m256 _r2 = _mm256_load_ps(r0 + 8 * 2);
+                    __m256 _r3 = _mm256_load_ps(r0 + 8 * 3);
+                    __m256 _r4 = _mm256_load_ps(r0 + 8 * 4);
+                    __m256 _r5 = _mm256_load_ps(r0 + 8 * 5);
+                    __m256 _r6 = _mm256_load_ps(r0 + 8 * 6);
+                    __m256 _r7 = _mm256_load_ps(r0 + 8 * 7);
+                    __m256 _r8 = _mm256_load_ps(r0 + 8 * 8);
+                    __m256 _r9 = _mm256_load_ps(r0 + 8 * 9);
+                    __m256 _ra = _mm256_load_ps(r0 + 8 * 10);
+                    __m256 _rb = _mm256_load_ps(r0 + 8 * 11);
+
+                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+                    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+                    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+                    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+                    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+                    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+                    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+                    __m256 _tmp8 = _mm256_unpacklo_ps(_r8, _r9);
+                    __m256 _tmp9 = _mm256_unpackhi_ps(_r8, _r9);
+                    __m256 _tmpa = _mm256_unpacklo_ps(_ra, _rb);
+                    __m256 _tmpb = _mm256_unpackhi_ps(_ra, _rb);
+                    __m256 _tmpc = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpd = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpe = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpf = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpg = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmph = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpi = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpj = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpk = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpl = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpm = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpn = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
+                    _r0 = _mm256_permute2f128_ps(_tmpc, _tmpg, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r1 = _mm256_permute2f128_ps(_tmpk, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r2 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r3 = _mm256_permute2f128_ps(_tmpe, _tmpi, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r4 = _mm256_permute2f128_ps(_tmpm, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r5 = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r6 = _mm256_permute2f128_ps(_tmpc, _tmpg, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r7 = _mm256_permute2f128_ps(_tmpk, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r8 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r9 = _mm256_permute2f128_ps(_tmpe, _tmpi, _MM_SHUFFLE(0, 3, 0, 1));
+                    _ra = _mm256_permute2f128_ps(_tmpm, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+                    _rb = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_store_ps(tmpptr + 8 * 4, _r4);
+                    _mm256_store_ps(tmpptr + 8 * 5, _r5);
+                    _mm256_store_ps(tmpptr + 8 * 6, _r6);
+                    _mm256_store_ps(tmpptr + 8 * 7, _r7);
+                    _mm256_store_ps(tmpptr + 8 * 8, _r8);
+                    _mm256_store_ps(tmpptr + 8 * 9, _r9);
+                    _mm256_store_ps(tmpptr + 8 * 10, _ra);
+                    _mm256_store_ps(tmpptr + 8 * 11, _rb);
+
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tmpptr += 96;
+                }
+            }
+            for (; i + 7 < tiles; i += 8)
+            {
+                float* tmpptr = tm2.row(i / 12 + (i % 12) / 8);
+
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r * tiles + i) * 8;
+
+                for (int q = 0; q < inch; q++)
+                {
+                    // transpose 8x8
+                    __m256 _r0 = _mm256_load_ps(r0);
+                    __m256 _r1 = _mm256_load_ps(r0 + 8);
+                    __m256 _r2 = _mm256_load_ps(r0 + 8 * 2);
+                    __m256 _r3 = _mm256_load_ps(r0 + 8 * 3);
+                    __m256 _r4 = _mm256_load_ps(r0 + 8 * 4);
+                    __m256 _r5 = _mm256_load_ps(r0 + 8 * 5);
+                    __m256 _r6 = _mm256_load_ps(r0 + 8 * 6);
+                    __m256 _r7 = _mm256_load_ps(r0 + 8 * 7);
+
+                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+                    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+                    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+                    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
+                    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
+                    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
+                    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
+                    __m256 _tmp8 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmp9 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpa = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpb = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpc = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpd = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmpe = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmpf = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
+                    _r0 = _mm256_permute2f128_ps(_tmp8, _tmpc, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r1 = _mm256_permute2f128_ps(_tmp9, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r2 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r3 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r4 = _mm256_permute2f128_ps(_tmp8, _tmpc, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r5 = _mm256_permute2f128_ps(_tmp9, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r6 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r7 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
+                    _mm256_store_ps(tmpptr + 8 * 4, _r4);
+                    _mm256_store_ps(tmpptr + 8 * 5, _r5);
+                    _mm256_store_ps(tmpptr + 8 * 6, _r6);
+                    _mm256_store_ps(tmpptr + 8 * 7, _r7);
+
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tmpptr += 64;
+                }
+            }
+            for (; i + 3 < tiles; i += 4)
+            {
+                float* tmpptr = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r * tiles + i) * 8;
+
+                for (int q = 0; q < inch; q++)
+                {
+                    // transpose 8x4
+                    __m256 _r0 = _mm256_load_ps(r0);
+                    __m256 _r1 = _mm256_load_ps(r0 + 8);
+                    __m256 _r2 = _mm256_load_ps(r0 + 8 * 2);
+                    __m256 _r3 = _mm256_load_ps(r0 + 8 * 3);
+
+                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+                    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
+                    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
+                    __m256 _tmp4 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmp5 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
+                    __m256 _tmp6 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
+                    __m256 _tmp7 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
+                    _r0 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r1 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r2 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
+                    _r3 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+                    _mm256_store_ps(tmpptr + 8 * 2, _r2);
+                    _mm256_store_ps(tmpptr + 8 * 3, _r3);
+
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tmpptr += 32;
+                }
+            }
+            for (; i + 1 < tiles; i += 2)
+            {
+                float* tmpptr = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r * tiles + i) * 8;
+
+                for (int q = 0; q < inch; q++)
+                {
+                    // transpose 8x2
+                    __m256 _r0 = _mm256_load_ps(r0);
+                    __m256 _r1 = _mm256_load_ps(r0 + 8);
+
+                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
+                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
+                    _r0 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
+                    _r1 = _mm256_permute2f128_ps(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
+
+                    _mm256_store_ps(tmpptr, _r0);
+                    _mm256_store_ps(tmpptr + 8, _r1);
+
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tmpptr += 16;
+                }
+            }
+            for (; i < tiles; i++)
+            {
+                float* tmpptr = tm2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+
+                const float* r0 = bottom_blob_tm;
+
+                r0 += (r * tiles + i) * 8;
+
+                for (int q = 0; q < inch; q++)
+                {
+                    __m256 _val = _mm256_load_ps(r0);
+                    _mm256_store_ps(tmpptr, _val);
+
+                    r0 += bottom_blob_tm.cstep * 8;
+                    tmpptr += 8;
+                }
+            }
+        }
+
+        bottom_blob_tm = Mat();
+        // permute end
+
+        top_blob_tm.create(tiles, 36, outch, 4u * elempack, elempack, opt.workspace_allocator);
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < outch; p++)
+        {
+            float* output0_tm = top_blob_tm.channel(p);
+
+            const Mat kernel0_tm = kernel_tm.channel(p);
+
+            for (int r = 0; r < 36; r++)
+            {
+                const Mat bb2 = bottom_blob_tm2.channel(r);
+
+                int i = 0;
+                for (; i + 11 < tiles; i += 12)
+                {
+                    const float* r0 = bb2.row(i / 12);
+                    const float* k0 = kernel0_tm.row(r);
+
+                    int nn = inch * 8; // inch always > 0
+
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    __m256 _sum2 = _mm256_setzero_ps();
+                    __m256 _sum3 = _mm256_setzero_ps();
+                    __m256 _sum4 = _mm256_setzero_ps();
+                    __m256 _sum5 = _mm256_setzero_ps();
+                    __m256 _sum6 = _mm256_setzero_ps();
+                    __m256 _sum7 = _mm256_setzero_ps();
+                    __m256 _sum8 = _mm256_setzero_ps();
+                    __m256 _sum9 = _mm256_setzero_ps();
+                    __m256 _suma = _mm256_setzero_ps();
+                    __m256 _sumb = _mm256_setzero_ps();
+
+                    for (int j = 0; j < nn; j++)
+                    {
+                        __m256 _w0 = _mm256_load_ps(k0);
+
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                        __m256 _val2 = _mm256_broadcast_ss(r0 + 2);
+                        __m256 _val3 = _mm256_broadcast_ss(r0 + 3);
+                        _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
+                        __m256 _val4 = _mm256_broadcast_ss(r0 + 4);
+                        __m256 _val5 = _mm256_broadcast_ss(r0 + 5);
+                        _sum4 = _mm256_comp_fmadd_ps(_val4, _w0, _sum4);
+                        _sum5 = _mm256_comp_fmadd_ps(_val5, _w0, _sum5);
+                        __m256 _val6 = _mm256_broadcast_ss(r0 + 6);
+                        __m256 _val7 = _mm256_broadcast_ss(r0 + 7);
+                        _sum6 = _mm256_comp_fmadd_ps(_val6, _w0, _sum6);
+                        _sum7 = _mm256_comp_fmadd_ps(_val7, _w0, _sum7);
+                        __m256 _val8 = _mm256_broadcast_ss(r0 + 8);
+                        __m256 _val9 = _mm256_broadcast_ss(r0 + 9);
+                        _sum8 = _mm256_comp_fmadd_ps(_val8, _w0, _sum8);
+                        _sum9 = _mm256_comp_fmadd_ps(_val9, _w0, _sum9);
+                        __m256 _vala = _mm256_broadcast_ss(r0 + 10);
+                        __m256 _valb = _mm256_broadcast_ss(r0 + 11);
+                        _suma = _mm256_comp_fmadd_ps(_vala, _w0, _suma);
+                        _sumb = _mm256_comp_fmadd_ps(_valb, _w0, _sumb);
+
+                        r0 += 12;
+                        k0 += 8;
+                    }
+
+                    _mm256_store_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm + 8, _sum1);
+                    _mm256_store_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_store_ps(output0_tm + 8 * 3, _sum3);
+                    _mm256_store_ps(output0_tm + 8 * 4, _sum4);
+                    _mm256_store_ps(output0_tm + 8 * 5, _sum5);
+                    _mm256_store_ps(output0_tm + 8 * 6, _sum6);
+                    _mm256_store_ps(output0_tm + 8 * 7, _sum7);
+                    _mm256_store_ps(output0_tm + 8 * 8, _sum8);
+                    _mm256_store_ps(output0_tm + 8 * 9, _sum9);
+                    _mm256_store_ps(output0_tm + 8 * 10, _suma);
+                    _mm256_store_ps(output0_tm + 8 * 11, _sumb);
+
+                    output0_tm += 8 * 12;
+                }
+                for (; i + 7 < tiles; i += 8)
+                {
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8);
+                    const float* k0 = kernel0_tm.row(r);
+
+                    int nn = inch * 8; // inch always > 0
+
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    __m256 _sum2 = _mm256_setzero_ps();
+                    __m256 _sum3 = _mm256_setzero_ps();
+                    __m256 _sum4 = _mm256_setzero_ps();
+                    __m256 _sum5 = _mm256_setzero_ps();
+                    __m256 _sum6 = _mm256_setzero_ps();
+                    __m256 _sum7 = _mm256_setzero_ps();
+
+                    for (int j = 0; j < nn; j++)
+                    {
+                        __m256 _w0 = _mm256_load_ps(k0);
+
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                        __m256 _val2 = _mm256_broadcast_ss(r0 + 2);
+                        __m256 _val3 = _mm256_broadcast_ss(r0 + 3);
+                        _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
+                        __m256 _val4 = _mm256_broadcast_ss(r0 + 4);
+                        __m256 _val5 = _mm256_broadcast_ss(r0 + 5);
+                        _sum4 = _mm256_comp_fmadd_ps(_val4, _w0, _sum4);
+                        _sum5 = _mm256_comp_fmadd_ps(_val5, _w0, _sum5);
+                        __m256 _val6 = _mm256_broadcast_ss(r0 + 6);
+                        __m256 _val7 = _mm256_broadcast_ss(r0 + 7);
+                        _sum6 = _mm256_comp_fmadd_ps(_val6, _w0, _sum6);
+                        _sum7 = _mm256_comp_fmadd_ps(_val7, _w0, _sum7);
+
+                        r0 += 8;
+                        k0 += 8;
+                    }
+
+                    _mm256_store_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm + 8, _sum1);
+                    _mm256_store_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_store_ps(output0_tm + 8 * 3, _sum3);
+                    _mm256_store_ps(output0_tm + 8 * 4, _sum4);
+                    _mm256_store_ps(output0_tm + 8 * 5, _sum5);
+                    _mm256_store_ps(output0_tm + 8 * 6, _sum6);
+                    _mm256_store_ps(output0_tm + 8 * 7, _sum7);
+
+                    output0_tm += 8 * 8;
+                }
+                for (; i + 3 < tiles; i += 4)
+                {
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4);
+                    const float* k0 = kernel0_tm.row(r);
+
+                    int nn = inch * 8; // inch always > 0
+
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+                    __m256 _sum2 = _mm256_setzero_ps();
+                    __m256 _sum3 = _mm256_setzero_ps();
+
+                    for (int j = 0; j < nn; j++)
+                    {
+                        __m256 _w0 = _mm256_load_ps(k0);
+
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                        __m256 _val2 = _mm256_broadcast_ss(r0 + 2);
+                        __m256 _val3 = _mm256_broadcast_ss(r0 + 3);
+                        _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
+                        _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
+
+                        r0 += 4;
+                        k0 += 8;
+                    }
+
+                    _mm256_store_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm + 8, _sum1);
+                    _mm256_store_ps(output0_tm + 8 * 2, _sum2);
+                    _mm256_store_ps(output0_tm + 8 * 3, _sum3);
+
+                    output0_tm += 8 * 4;
+                }
+                for (; i + 1 < tiles; i += 2)
+                {
+                    const float* r0 = bb2.row(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2);
+                    const float* k0 = kernel0_tm.row(r);
+
+                    int nn = inch * 8; // inch always > 0
+
+                    __m256 _sum0 = _mm256_setzero_ps();
+                    __m256 _sum1 = _mm256_setzero_ps();
+
+                    for (int j = 0; j < nn; j++)
+                    {
+                        __m256 _w0 = _mm256_load_ps(k0);
+
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        __m256 _val1 = _mm256_broadcast_ss(r0 + 1);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+                        _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+
+                        r0 += 2;
+                        k0 += 8;
+                    }
+
+                    _mm256_store_ps(output0_tm, _sum0);
+                    _mm256_store_ps(output0_tm + 8, _sum1);
+
+                    output0_tm += 8 * 2;
+                }
+                for (; i < tiles; i++)
+                {
+                    const float* r0 = bb2.row<const float>(i / 12 + (i % 12) / 8 + (i % 12 % 8) / 4 + (i % 12 % 4) / 2 + i % 12 % 2);
+                    const float* k0 = kernel0_tm.row<const float>(r);
+
+                    int nn = inch * 8; // inch always > 0
+
+                    __m256 _sum0 = _mm256_setzero_ps();
+
+                    for (int j = 0; j < nn; j++)
+                    {
+                        __m256 _w0 = _mm256_load_ps(k0);
+                        __m256 _val0 = _mm256_broadcast_ss(r0);
+                        _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
+
+                        r0 += 1;
+                        k0 += 8;
+                    }
+
+                    _mm256_store_ps(output0_tm, _sum0);
+
+                    output0_tm += 8;
+                }
+            }
+        }
+    }
+    bottom_blob_tm = Mat();
+    // END dot
+
+    // BEGIN transform output
+    Mat top_blob_bordered;
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
+    }
+    {
+        // const float otm[4][6] = {
+        //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
+        //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
+        //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
+        //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
+        // };
+
+        // 0 = r00 + (r01 + r02) + (r03 + r04)
+        // 1 =       (r01 - r02) + (r03 - r04) * 2
+        // 2 =       (r01 + r02) + (r03 + r04) * 4
+        // 3 = r05 + (r01 - r02) + (r03 - r04) * 8
+
+        int w_tm = outw / 4 * 6;
+        int h_tm = outh / 4 * 6;
+        const int tiles = w_tm / 6 * h_tm / 6;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < outch; p++)
+        {
+            const Mat out0_tm = top_blob_tm.channel(p);
+            Mat out0 = top_blob_bordered.channel(p);
+
+            // const float bias0 = bias ? bias[p] : 0.f;
+            __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
+
+#ifdef _MSC_VER
+            __declspec(align(32))
+#else
+            __attribute__((aligned(32)))
+#endif
+            float tmp[4][6][8];
+
+            // tile
+            for (int i = 0; i < outh / 4; i++)
+            {
+                for (int j = 0; j < outw / 4; j++)
+                {
+                    // top_blob_tm.create(tiles, 36, outch, elemsize, elempack);
+
+                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm / 6 + j) * 8;
+                    const float* output0_tm_1 = output0_tm_0 + tiles * 8;
+                    const float* output0_tm_2 = output0_tm_0 + tiles * 8 * 2;
+                    const float* output0_tm_3 = output0_tm_0 + tiles * 8 * 3;
+                    const float* output0_tm_4 = output0_tm_0 + tiles * 8 * 4;
+                    const float* output0_tm_5 = output0_tm_0 + tiles * 8 * 5;
+
+                    float* output0 = out0.row<float>(i * 4) + (j * 4) * 8;
+
+                    // TODO msa optimize
+                    for (int m = 0; m < 6; m++)
+                    {
+                        __m256 _out0tm0 = _mm256_load_ps(output0_tm_0);
+                        __m256 _out0tm1 = _mm256_load_ps(output0_tm_1);
+                        __m256 _out0tm2 = _mm256_load_ps(output0_tm_2);
+                        __m256 _out0tm3 = _mm256_load_ps(output0_tm_3);
+                        __m256 _out0tm4 = _mm256_load_ps(output0_tm_4);
+                        __m256 _out0tm5 = _mm256_load_ps(output0_tm_5);
+
+                        __m256 _tmp02a = _mm256_add_ps(_out0tm1, _out0tm2);
+                        __m256 _tmp13a = _mm256_sub_ps(_out0tm1, _out0tm2);
+
+                        __m256 _tmp02b = _mm256_add_ps(_out0tm3, _out0tm4);
+                        __m256 _tmp13b = _mm256_sub_ps(_out0tm3, _out0tm4);
+
+                        __m256 _tmp0m = _mm256_add_ps(_mm256_add_ps(_out0tm0, _tmp02a), _tmp02b);
+                        __m256 _tmp1m = _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _tmp13b, _tmp13a);
+                        __m256 _tmp2m = _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _tmp02b, _tmp02a);
+                        __m256 _tmp3m = _mm256_comp_fmadd_ps(_mm256_set1_ps(8.f), _tmp13b, _mm256_add_ps(_out0tm5, _tmp13a));
+
+                        _mm256_store_ps(tmp[0][m], _tmp0m);
+                        _mm256_store_ps(tmp[1][m], _tmp1m);
+                        _mm256_store_ps(tmp[2][m], _tmp2m);
+                        _mm256_store_ps(tmp[3][m], _tmp3m);
+
+                        output0_tm_0 += tiles * 8 * 6;
+                        output0_tm_1 += tiles * 8 * 6;
+                        output0_tm_2 += tiles * 8 * 6;
+                        output0_tm_3 += tiles * 8 * 6;
+                        output0_tm_4 += tiles * 8 * 6;
+                        output0_tm_5 += tiles * 8 * 6;
+                    }
+
+                    for (int m = 0; m < 4; m++)
+                    {
+                        __m256 _tmp00 = _mm256_load_ps(tmp[m][0]);
+                        __m256 _tmp01 = _mm256_load_ps(tmp[m][1]);
+                        __m256 _tmp02 = _mm256_load_ps(tmp[m][2]);
+                        __m256 _tmp03 = _mm256_load_ps(tmp[m][3]);
+                        __m256 _tmp04 = _mm256_load_ps(tmp[m][4]);
+                        __m256 _tmp05 = _mm256_load_ps(tmp[m][5]);
+
+                        __m256 _tmp02a = _mm256_add_ps(_tmp01, _tmp02);
+                        __m256 _tmp13a = _mm256_sub_ps(_tmp01, _tmp02);
+
+                        __m256 _tmp02b = _mm256_add_ps(_tmp03, _tmp04);
+                        __m256 _tmp13b = _mm256_sub_ps(_tmp03, _tmp04);
+
+                        __m256 _out00 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp00, _tmp02a), _tmp02b));
+                        __m256 _out01 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _tmp13b, _tmp13a));
+                        __m256 _out02 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _tmp02b, _tmp02a));
+                        __m256 _out03 = _mm256_add_ps(_bias0, _mm256_comp_fmadd_ps(_mm256_set1_ps(8.f), _tmp13b, _mm256_add_ps(_tmp05, _tmp13a)));
+
+                        _mm256_store_ps(output0, _out00);
+                        _mm256_store_ps(output0 + 8, _out01);
+                        _mm256_store_ps(output0 + 8 * 2, _out02);
+                        _mm256_store_ps(output0 + 8 * 3, _out03);
 
                         output0 += outw * 8;
                     }
