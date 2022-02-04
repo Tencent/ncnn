@@ -1648,7 +1648,7 @@ static void conv3x3s1_winograd64_pack8_avx(const Mat& bottom_blob, Mat& top_blob
             Mat out0 = top_blob_bordered.channel(p);
 
             //             const float bias0 = bias ? bias[p] : 0.f;
-            __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
+            __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
 
 #ifdef _MSC_VER
             __declspec(align(32))
@@ -2496,7 +2496,7 @@ static void conv3x3s1_winograd42_pack8_avx(const Mat& bottom_blob, Mat& top_blob
             Mat out0 = top_blob_bordered.channel(p);
 
             // const float bias0 = bias ? bias[p] : 0.f;
-            __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
+            __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + p * 8) : _mm256_setzero_ps();
 
 #ifdef _MSC_VER
             __declspec(align(32))
