@@ -27,7 +27,7 @@ static void convdw3x3s1_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
     {
         Mat out = top_blob.channel(g);
 
-        __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + g * 8) : _mm256_setzero_ps();
+        __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + g * 8) : _mm256_setzero_ps();
 
         const float* k0 = kernel.row(g);
 
@@ -587,7 +587,7 @@ static void convdw3x3s2_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const M
     {
         Mat out = top_blob.channel(g);
 
-        __m256 _bias0 = bias ? _mm256_load_ps((const float*)bias + g * 8) : _mm256_setzero_ps();
+        __m256 _bias0 = bias ? _mm256_loadu_ps((const float*)bias + g * 8) : _mm256_setzero_ps();
 
         const float* k0 = kernel.row(g);
 

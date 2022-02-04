@@ -580,8 +580,8 @@ static void convolution_im2col_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_
                         int j = 0;
                         for (; j < outw; j++)
                         {
-                            __m256 _v = _mm256_loadu_ps(sptr);
-                            _mm256_storeu_ps(ptr, _v);
+                            __m256 _v = _mm256_load_ps(sptr);
+                            _mm256_store_ps(ptr, _v);
 
                             sptr += stride_w * 8;
                             ptr += 8;

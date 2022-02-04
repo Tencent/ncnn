@@ -135,19 +135,18 @@ static void im2col_sgemm_pack1to8_avx(const Mat& bottom_im2col, Mat& top_blob, c
 
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
                 __m256 _val1 = _mm256_broadcast_ss(tmpptr + 1);
-                __m256 _val2 = _mm256_broadcast_ss(tmpptr + 2);
-                __m256 _val3 = _mm256_broadcast_ss(tmpptr + 3);
-                __m256 _val4 = _mm256_broadcast_ss(tmpptr + 4);
-                __m256 _val5 = _mm256_broadcast_ss(tmpptr + 5);
-                __m256 _val6 = _mm256_broadcast_ss(tmpptr + 6);
-                __m256 _val7 = _mm256_broadcast_ss(tmpptr + 7);
-
                 _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
                 _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                __m256 _val2 = _mm256_broadcast_ss(tmpptr + 2);
+                __m256 _val3 = _mm256_broadcast_ss(tmpptr + 3);
                 _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
                 _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
+                __m256 _val4 = _mm256_broadcast_ss(tmpptr + 4);
+                __m256 _val5 = _mm256_broadcast_ss(tmpptr + 5);
                 _sum4 = _mm256_comp_fmadd_ps(_val4, _w0, _sum4);
                 _sum5 = _mm256_comp_fmadd_ps(_val5, _w0, _sum5);
+                __m256 _val6 = _mm256_broadcast_ss(tmpptr + 6);
+                __m256 _val7 = _mm256_broadcast_ss(tmpptr + 7);
                 _sum6 = _mm256_comp_fmadd_ps(_val6, _w0, _sum6);
                 _sum7 = _mm256_comp_fmadd_ps(_val7, _w0, _sum7);
 
