@@ -445,6 +445,10 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             convolution_im2col_sgemm_transform_kernel_pack8to1_avx(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
         }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd64_transform_kernel_pack8to1_avx(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
+        }
         else if (opt.use_sgemm_convolution)
         {
             convolution_im2col_sgemm_transform_kernel_pack8to1_avx(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
@@ -948,7 +952,15 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv3x3s1_pack8to1_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+            if (opt.use_winograd_convolution)
+            {
+                // TODO more proper condition
+                conv3x3s1_winograd64_pack8to1_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+            }
+            else
+            {
+                conv3x3s1_pack8to1_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+            }
 
             if (activation)
             {
