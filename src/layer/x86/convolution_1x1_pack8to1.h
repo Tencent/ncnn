@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+static void conv1x1s1_sgemm_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -22,10 +22,10 @@ static void conv1x1s1_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
     bottom_im2col.w = size;
     bottom_im2col.h = 1;
 
-    im2col_sgemm_pack8_avx(bottom_im2col, top_blob, kernel, _bias, opt);
+    im2col_sgemm_pack8to1_avx(bottom_im2col, top_blob, kernel, _bias, opt);
 }
 
-static void conv1x1s2_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
+static void conv1x1s2_sgemm_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int channels = bottom_blob.c;
@@ -48,11 +48,10 @@ static void conv1x1s2_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
 
         for (int i = 0; i < outh; i++)
         {
-            int j = 0;
-            for (; j < outw; j++)
+            for (int j = 0; j < outw; j++)
             {
-                __m256 _v = _mm256_loadu_ps(r0);
-                _mm256_storeu_ps(outptr, _v);
+                __m256 _v = _mm256_load_ps(r0);
+                _mm256_store_ps(outptr, _v);
 
                 r0 += 16;
                 outptr += 8;
@@ -62,5 +61,5 @@ static void conv1x1s2_sgemm_pack8_avx(const Mat& bottom_blob, Mat& top_blob, con
         }
     }
 
-    conv1x1s1_sgemm_pack8_avx(bottom_blob_shrinked, top_blob, kernel, _bias, opt);
+    conv1x1s1_sgemm_pack8to1_avx(bottom_blob_shrinked, top_blob, kernel, _bias, opt);
 }
