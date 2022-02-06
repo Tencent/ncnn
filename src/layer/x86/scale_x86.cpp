@@ -92,7 +92,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
         }
 #endif // __AVX__
 #endif // __SSE2__
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = size - remain; i < size; i++)
         {
             if (bias_term)
