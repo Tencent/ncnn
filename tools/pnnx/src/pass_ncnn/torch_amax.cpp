@@ -62,6 +62,7 @@ pnnx.Output             output      1 0 out
         op->params["1"] = 0;
         op->params["3"] = new_dims;
         op->params["4"] = captured_params.at("keepdim").b ? 1 : 0;
+        op->params["5"] = 1;
     }
 };
 

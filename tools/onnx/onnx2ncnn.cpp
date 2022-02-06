@@ -5383,6 +5383,7 @@ int main(int argc, char** argv)
                 fprintf(pp, " 1=%d", 1);
             }
             fprintf(pp, " 4=%d", keepdims);
+            fprintf(pp, " 5=1");
         }
         else if (op == "Reorg")
         {
