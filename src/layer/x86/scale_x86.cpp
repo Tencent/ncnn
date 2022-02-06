@@ -92,6 +92,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
         }
 #endif // __AVX__
 #endif // __SSE2__
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = size - remain; i < size; i++)
         {
             if (bias_term)
@@ -410,8 +411,6 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                         ptr += 8;
                     }
 #endif // __AVX__
-#endif // __SSE2__
-
                     __m128 _s128 = _mm_set1_ps(s);
                     __m128 _bias128;
                     if (bias_term)
@@ -424,6 +423,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
                         ptr += 4;
                     }
+#endif // __SSE2__
 
                     for (; j < size; j++)
                     {
