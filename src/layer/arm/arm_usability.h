@@ -15,37 +15,6 @@
 #ifndef ARM_USABILITY_H
 #define ARM_USABILITY_H
 
-class FPSCRGuard
-{
-#if !__aarch64__
-public:
-    FPSCRGuard()
-    {
-        // set round mode to round to nearest for armv7
-        // this impacts all vcvtr instructions in guarded scope
-        asm volatile(
-            "vmrs   %0, FPSCR               \n"
-            "bic    r10, %0, #0x00c00000    \n"
-            "vmsr   FPSCR, r10              \n"
-            : "=r"(FPSCR_value)
-            :
-            : "memory", "r10");
-    }
-
-    ~FPSCRGuard()
-    {
-        asm volatile(
-            "vmsr   FPSCR, %0           \n"
-            :
-            : "r"(FPSCR_value)
-            : "memory");
-    }
-
-private:
-    int FPSCR_value;
-#endif // !__aarch64__
-};
-
 static inline signed char float2int8(float v)
 {
     int int32 = round(v);
@@ -63,17 +32,18 @@ static inline int8x8_t float2int8(float32x4_t _vlow, float32x4_t _vhigh)
     int32x4_t _vlow32 = vcvtaq_s32_f32(_vlow);
     int32x4_t _vhigh32 = vcvtaq_s32_f32(_vhigh);
 #else
-    // use vcvtr.s32.f32
-    int32x4_t _vlow32 = int32x4_t();
-    int32x4_t _vhigh32 = int32x4_t();
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 0)), _vlow32, 0);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 1)), _vlow32, 1);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 2)), _vlow32, 2);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 3)), _vlow32, 3);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 0)), _vhigh32, 0);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 1)), _vhigh32, 1);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 2)), _vhigh32, 2);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 3)), _vhigh32, 3);
+    // vcvtq_s32_f32 is round to zero
+    // simulate round to nearest via +/-0.5
+    float32x4_t _p5 = vdupq_n_f32(0.5f);
+    int32x4_t _signmask = vdupq_n_s32(1 << 31);
+    int32x4_t _signlow = vandq_s32(vreinterpretq_s32_f32(_vlow), _signmask);
+    int32x4_t _signhigh = vandq_s32(vreinterpretq_s32_f32(_vhigh), _signmask);
+    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow));
+    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh));
+    float32x4_t _vlow5 = vaddq_f32(_vlow, _p5low);
+    float32x4_t _vhigh5 = vaddq_f32(_vhigh, _p5high);
+    int32x4_t _vlow32 = vcvtq_s32_f32(_vlow5);
+    int32x4_t _vhigh32 = vcvtq_s32_f32(_vhigh5);
 #endif
     int16x8_t _v16 = vcombine_s16(vqmovn_s32(_vlow32), vqmovn_s32(_vhigh32));
     int8x8_t _v8 = vqmovn_s16(_v16);
@@ -86,17 +56,18 @@ static inline int8x8_t float2int8relu(float32x4_t _vlow, float32x4_t _vhigh)
     int32x4_t _vlow32 = vcvtaq_s32_f32(_vlow);
     int32x4_t _vhigh32 = vcvtaq_s32_f32(_vhigh);
 #else
-    // use vcvtr.s32.f32
-    int32x4_t _vlow32 = int32x4_t();
-    int32x4_t _vhigh32 = int32x4_t();
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 0)), _vlow32, 0);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 1)), _vlow32, 1);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 2)), _vlow32, 2);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 3)), _vlow32, 3);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 0)), _vhigh32, 0);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 1)), _vhigh32, 1);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 2)), _vhigh32, 2);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 3)), _vhigh32, 3);
+    // vcvtq_s32_f32 is round to zero
+    // simulate round to nearest via +/-0.5
+    float32x4_t _p5 = vdupq_n_f32(0.5f);
+    int32x4_t _signmask = vdupq_n_s32(1 << 31);
+    int32x4_t _signlow = vandq_s32(vreinterpretq_s32_f32(_vlow), _signmask);
+    int32x4_t _signhigh = vandq_s32(vreinterpretq_s32_f32(_vhigh), _signmask);
+    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow));
+    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh));
+    float32x4_t _vlow5 = vaddq_f32(_vlow, _p5low);
+    float32x4_t _vhigh5 = vaddq_f32(_vhigh, _p5high);
+    int32x4_t _vlow32 = vcvtq_s32_f32(_vlow5);
+    int32x4_t _vhigh32 = vcvtq_s32_f32(_vhigh5);
 #endif
     int16x8_t _v16 = vcombine_s16(vqmovn_s32(_vlow32), vqmovn_s32(_vhigh32));
     int8x8_t _v8 = vqmovn_s16(_v16);
@@ -113,27 +84,27 @@ static inline int8x8_t float2int8leakyrelu(float32x4_t _vlow, float32x4_t _vhigh
     int32x4_t _vlow32_leaky = vcvtaq_s32_f32(_vlow_leaky);
     int32x4_t _vhigh32_leaky = vcvtaq_s32_f32(_vhigh_leaky);
 #else
-    // use vcvtr.s32.f32
-    int32x4_t _vlow32 = int32x4_t();
-    int32x4_t _vhigh32 = int32x4_t();
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 0)), _vlow32, 0);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 1)), _vlow32, 1);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 2)), _vlow32, 2);
-    _vlow32 = vsetq_lane_s32(round(vgetq_lane_f32(_vlow, 3)), _vlow32, 3);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 0)), _vhigh32, 0);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 1)), _vhigh32, 1);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 2)), _vhigh32, 2);
-    _vhigh32 = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh, 3)), _vhigh32, 3);
-    int32x4_t _vlow32_leaky = int32x4_t();
-    int32x4_t _vhigh32_leaky = int32x4_t();
-    _vlow32_leaky = vsetq_lane_s32(round(vgetq_lane_f32(_vlow_leaky, 0)), _vlow32_leaky, 0);
-    _vlow32_leaky = vsetq_lane_s32(round(vgetq_lane_f32(_vlow_leaky, 1)), _vlow32_leaky, 1);
-    _vlow32_leaky = vsetq_lane_s32(round(vgetq_lane_f32(_vlow_leaky, 2)), _vlow32_leaky, 2);
-    _vlow32_leaky = vsetq_lane_s32(round(vgetq_lane_f32(_vlow_leaky, 3)), _vlow32_leaky, 3);
-    _vhigh32_leaky = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh_leaky, 0)), _vhigh32_leaky, 0);
-    _vhigh32_leaky = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh_leaky, 1)), _vhigh32_leaky, 1);
-    _vhigh32_leaky = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh_leaky, 2)), _vhigh32_leaky, 2);
-    _vhigh32_leaky = vsetq_lane_s32(round(vgetq_lane_f32(_vhigh_leaky, 3)), _vhigh32_leaky, 3);
+    // vcvtq_s32_f32 is round to zero
+    // simulate round to nearest via +/-0.5
+    float32x4_t _p5 = vdupq_n_f32(0.5f);
+    int32x4_t _signmask = vdupq_n_s32(1 << 31);
+    int32x4_t _signlow = vandq_s32(vreinterpretq_s32_f32(_vlow), _signmask);
+    int32x4_t _signhigh = vandq_s32(vreinterpretq_s32_f32(_vhigh), _signmask);
+    float32x4_t _p5low = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow));
+    float32x4_t _p5high = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh));
+    float32x4_t _vlow5 = vaddq_f32(_vlow, _p5low);
+    float32x4_t _vhigh5 = vaddq_f32(_vhigh, _p5high);
+    int32x4_t _vlow32 = vcvtq_s32_f32(_vlow5);
+    int32x4_t _vhigh32 = vcvtq_s32_f32(_vhigh5);
+
+    int32x4_t _signlow_leaky = vandq_s32(vreinterpretq_s32_f32(_vlow_leaky), _signmask);
+    int32x4_t _signhigh_leaky = vandq_s32(vreinterpretq_s32_f32(_vhigh_leaky), _signmask);
+    float32x4_t _p5low_leaky = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signlow_leaky));
+    float32x4_t _p5high_leaky = vreinterpretq_f32_s32(vorrq_s32(vreinterpretq_s32_f32(_p5), _signhigh_leaky));
+    float32x4_t _vlow5_leaky = vaddq_f32(_vlow_leaky, _p5low_leaky);
+    float32x4_t _vhigh5_leaky = vaddq_f32(_vhigh_leaky, _p5high_leaky);
+    int32x4_t _vlow32_leaky = vcvtq_s32_f32(_vlow5_leaky);
+    int32x4_t _vhigh32_leaky = vcvtq_s32_f32(_vhigh5_leaky);
 #endif
     int16x8_t _v16 = vcombine_s16(vqmovn_s32(_vlow32), vqmovn_s32(_vhigh32));
     int16x8_t _v16_leaky = vcombine_s16(vqmovn_s32(_vlow32_leaky), vqmovn_s32(_vhigh32_leaky));

@@ -39,8 +39,8 @@ static int RandomInt2(int a, int b)
 
 static int test_mat_pixel_drawing_c1(int w, int h)
 {
-    ncnn::Mat a(w, h, 1u, 1);
-    ncnn::Mat b(h, w, 1u, 1);
+    ncnn::Mat a(w, h, (size_t)1u, 1);
+    ncnn::Mat b(h, w, (size_t)1u, 1);
 
     int _color = 0;
     unsigned char* color = (unsigned char*)&_color;
@@ -108,7 +108,7 @@ static int test_mat_pixel_drawing_c1(int w, int h)
     ncnn::draw_line_c1(b, h, w, y0 - h, x0 - w, y1 + h, x1 + w, _color, 1);
 
     // transpose b
-    ncnn::Mat c(w, h, 1u, 1);
+    ncnn::Mat c(w, h, (size_t)1u, 1);
     ncnn::kanna_rotate_c1(b, h, w, c, w, h, 5);
 
     // draw text
@@ -153,8 +153,8 @@ static int test_mat_pixel_drawing_c1(int w, int h)
 
 static int test_mat_pixel_drawing_c2(int w, int h)
 {
-    ncnn::Mat a(w, h, 2u, 2);
-    ncnn::Mat b(h, w, 2u, 2);
+    ncnn::Mat a(w, h, (size_t)2u, 2);
+    ncnn::Mat b(h, w, (size_t)2u, 2);
 
     int _color = 0;
     unsigned char* color = (unsigned char*)&_color;
@@ -233,7 +233,7 @@ static int test_mat_pixel_drawing_c2(int w, int h)
     ncnn::draw_line_c2(b, h, w, y0 - h, x0 - w, y1 + h, x1 + w, _color, 1);
 
     // transpose b
-    ncnn::Mat c(w, h, 2u, 2);
+    ncnn::Mat c(w, h, (size_t)2u, 2);
     ncnn::kanna_rotate_c2(b, h, w, c, w, h, 5);
 
     // draw text
@@ -280,8 +280,8 @@ static int test_mat_pixel_drawing_c2(int w, int h)
 
 static int test_mat_pixel_drawing_c3(int w, int h)
 {
-    ncnn::Mat a(w, h, 3u, 3);
-    ncnn::Mat b(h, w, 3u, 3);
+    ncnn::Mat a(w, h, (size_t)3u, 3);
+    ncnn::Mat b(h, w, (size_t)3u, 3);
 
     int _color = 0;
     unsigned char* color = (unsigned char*)&_color;
@@ -371,7 +371,7 @@ static int test_mat_pixel_drawing_c3(int w, int h)
     ncnn::draw_line_c3(b, h, w, y0 - h, x0 - w, y1 + h, x1 + w, _color, 1);
 
     // transpose b
-    ncnn::Mat c(w, h, 3u, 3);
+    ncnn::Mat c(w, h, (size_t)3u, 3);
     ncnn::kanna_rotate_c3(b, h, w, c, w, h, 5);
 
     // draw text
@@ -420,8 +420,8 @@ static int test_mat_pixel_drawing_c3(int w, int h)
 
 static int test_mat_pixel_drawing_c4(int w, int h)
 {
-    ncnn::Mat a(w, h, 4u, 4);
-    ncnn::Mat b(h, w, 4u, 4);
+    ncnn::Mat a(w, h, (size_t)4u, 4);
+    ncnn::Mat b(h, w, (size_t)4u, 4);
 
     int _color = 0;
     unsigned char* color = (unsigned char*)&_color;
@@ -522,7 +522,7 @@ static int test_mat_pixel_drawing_c4(int w, int h)
     ncnn::draw_line_c4(b, h, w, y0 - h, x0 - w, y1 + h, x1 + w, _color, 1);
 
     // transpose b
-    ncnn::Mat c(w, h, 4u, 4);
+    ncnn::Mat c(w, h, (size_t)4u, 4);
     ncnn::kanna_rotate_c4(b, h, w, c, w, h, 5);
 
     // draw text
@@ -592,8 +592,8 @@ static int test_mat_pixel_drawing_0()
 
 static int test_mat_pixel_drawing_yuv420sp(int w, int h)
 {
-    ncnn::Mat a(w, h * 3 / 2, 1u, 1);
-    ncnn::Mat b(h, w * 3 / 2, 1u, 1);
+    ncnn::Mat a(w, h * 3 / 2, (size_t)1u, 1);
+    ncnn::Mat b(h, w * 3 / 2, (size_t)1u, 1);
 
     int _color = 0;
     unsigned char* color = (unsigned char*)&_color;
@@ -683,7 +683,7 @@ static int test_mat_pixel_drawing_yuv420sp(int w, int h)
     ncnn::draw_line_yuv420sp(b, h, w, y0 - h, x0 - w, y1 + h, x1 + w, _color, 2);
 
     // transpose b
-    ncnn::Mat c(w, h * 3 / 2, 1u, 1);
+    ncnn::Mat c(w, h * 3 / 2, (size_t)1u, 1);
     ncnn::kanna_rotate_yuv420sp(b, h, w, c, w, h, 5);
 
     // draw text

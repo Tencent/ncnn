@@ -35,6 +35,7 @@ public:
     // -233 = drop this dim (default)
     int w;
     int h;
+    int d;
     int c;
 
     // flag permute chw->hwc or hw->wh before and after reshape

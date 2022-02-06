@@ -92,7 +92,7 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 for (int j = 0; j < w; j++)
                 {
-                    ptr[j] = ptr[j] * gamma_data[j] + beta_data[j];
+                    ptr[j] = (ptr[j] * a + b) * gamma_data[j] + beta_data[j];
                 }
             }
             else
@@ -144,7 +144,7 @@ int LayerNorm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 for (int i = 0; i < size; i++)
                 {
-                    ptr[i] = ptr[i] * gamma_data[i] + beta_data[i];
+                    ptr[i] = (ptr[i] * a + b) * gamma_data[i] + beta_data[i];
                 }
             }
             else

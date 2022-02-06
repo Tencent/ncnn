@@ -13,6 +13,10 @@
  * specific language governing permissions and limitations under the License.
  */
 
+#include "platform.h"
+
+#if NCNN_C_API
+
 #include "c_api.h"
 
 #include <stdlib.h>
@@ -180,34 +184,49 @@ void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_comput
 }
 
 /* mat api */
+ncnn_mat_t ncnn_mat_create()
+{
+    return (ncnn_mat_t)(new Mat());
+}
+
 ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, c, (size_t)4u, (Allocator*)allocator));
+}
+
+ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, data, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, data, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, data, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, data, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, data, 4u, (Allocator*)allocator));
+    return (ncnn_mat_t)(new Mat(w, h, c, data, (size_t)4u, (Allocator*)allocator));
+}
+
+ncnn_mat_t ncnn_mat_create_external_4d(int w, int h, int d, int c, void* data, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, data, (size_t)4u, (Allocator*)allocator));
 }
 
 ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elempack, ncnn_allocator_t allocator)
@@ -225,6 +244,11 @@ ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int ele
     return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack, (Allocator*)allocator));
 }
 
+ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, (Allocator*)allocator));
+}
+
 ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
     return (ncnn_mat_t)(new Mat(w, data, elemsize, elempack, (Allocator*)allocator));
@@ -238,6 +262,11 @@ ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t ele
 ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
     return (ncnn_mat_t)(new Mat(w, h, c, data, elemsize, elempack, (Allocator*)allocator));
+}
+
+ncnn_mat_t ncnn_mat_create_external_4d_elem(int w, int h, int d, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(w, h, d, c, data, elemsize, elempack, (Allocator*)allocator));
 }
 
 void ncnn_mat_destroy(ncnn_mat_t mat)
@@ -270,6 +299,11 @@ ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c, ncnn_a
     return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, c, (Allocator*)allocator)));
 }
 
+ncnn_mat_t ncnn_mat_reshape_4d(const ncnn_mat_t mat, int w, int h, int d, int c, ncnn_allocator_t allocator)
+{
+    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, d, c, (Allocator*)allocator)));
+}
+
 int ncnn_mat_get_dims(const ncnn_mat_t mat)
 {
     return ((const Mat*)mat)->dims;
@@ -283,6 +317,11 @@ int ncnn_mat_get_w(const ncnn_mat_t mat)
 int ncnn_mat_get_h(const ncnn_mat_t mat)
 {
     return ((const Mat*)mat)->h;
+}
+
+int ncnn_mat_get_d(const ncnn_mat_t mat)
+{
+    return ((const Mat*)mat)->d;
 }
 
 int ncnn_mat_get_c(const ncnn_mat_t mat)
@@ -792,12 +831,12 @@ public:
         {
             bottom_blobs0[i] = (ncnn_mat_t)&bottom_blobs[i];
         }
-        std::vector<ncnn_mat_t*> top_blobs0(n2, (ncnn_mat_t*)0);
+        std::vector<ncnn_mat_t> top_blobs0(n2, (ncnn_mat_t)0);
         int ret = layer->forward_n(layer, bottom_blobs0.data(), n, top_blobs0.data(), n2, (ncnn_option_t)&opt);
         for (int i = 0; i < n2; i++)
         {
-            top_blobs[i] = *(Mat*)*top_blobs0[i];
-            ncnn_mat_destroy(*top_blobs0[i]);
+            top_blobs[i] = *(Mat*)top_blobs0[i];
+            ncnn_mat_destroy(top_blobs0[i]);
         }
         return ret;
     }
@@ -859,7 +898,7 @@ static int __ncnn_Layer_forward_1(const ncnn_layer_t layer, const ncnn_mat_t bot
     return ret;
 }
 
-static int __ncnn_Layer_forward_n(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t** top_blobs, int n2, const ncnn_option_t opt)
+static int __ncnn_Layer_forward_n(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t* top_blobs, int n2, const ncnn_option_t opt)
 {
     std::vector<Mat> _bottom_blobs(n);
     std::vector<Mat> _top_blobs(n2);
@@ -870,7 +909,7 @@ static int __ncnn_Layer_forward_n(const ncnn_layer_t layer, const ncnn_mat_t* bo
     int ret = ((const Layer*)layer->pthis)->Layer::forward(_bottom_blobs, _top_blobs, *(const Option*)opt);
     for (int i = 0; i < n2; i++)
     {
-        *top_blobs[i] = (ncnn_mat_t)(new Mat(_top_blobs[i]));
+        top_blobs[i] = (ncnn_mat_t)(new Mat(_top_blobs[i]));
     }
     return ret;
 }
@@ -918,7 +957,7 @@ static int __ncnn_layer_forward_1(const ncnn_layer_t layer, const ncnn_mat_t bot
     return ret;
 }
 
-static int __ncnn_layer_forward_n(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t** top_blobs, int n2, const ncnn_option_t opt)
+static int __ncnn_layer_forward_n(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t* top_blobs, int n2, const ncnn_option_t opt)
 {
     std::vector<Mat> _bottom_blobs(n);
     std::vector<Mat> _top_blobs(n2);
@@ -929,7 +968,7 @@ static int __ncnn_layer_forward_n(const ncnn_layer_t layer, const ncnn_mat_t* bo
     int ret = ((const Layer*)layer->pthis)->forward(_bottom_blobs, _top_blobs, *(const Option*)opt);
     for (int i = 0; i < n2; i++)
     {
-        *top_blobs[i] = (ncnn_mat_t)(new Mat(_top_blobs[i]));
+        top_blobs[i] = (ncnn_mat_t)(new Mat(_top_blobs[i]));
     }
     return ret;
 }
@@ -1321,3 +1360,5 @@ int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+#endif /* NCNN_C_API */

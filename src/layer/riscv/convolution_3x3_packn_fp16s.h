@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_kernel_packn_fp16sa_rvv(const Mat& kernel, Mat& kernel_tm_packn, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_packn_fp16sa_rvv(const Mat& kernel, Mat& kernel_tm_packn, int inch, int outch, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
 
@@ -31,7 +31,7 @@ static void conv3x3s1_winograd64_transform_kernel_packn_fp16sa_rvv(const Mat& ke
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -324,7 +324,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -365,7 +365,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -398,7 +398,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -743,7 +743,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd42_transform_kernel_packn_fp16sa_rvv(const Mat& kernel, Mat& kernel_tm_packn, int inch, int outch)
+static void conv3x3s1_winograd42_transform_kernel_packn_fp16sa_rvv(const Mat& kernel, Mat& kernel_tm_packn, int inch, int outch, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
 
@@ -759,7 +759,7 @@ static void conv3x3s1_winograd42_transform_kernel_packn_fp16sa_rvv(const Mat& ke
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -999,7 +999,7 @@ static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -1040,7 +1040,7 @@ static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];
@@ -1073,7 +1073,7 @@ static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
 
                 for (int q = 0; q < inch; q++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = r0[l];

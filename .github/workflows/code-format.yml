@@ -2,6 +2,10 @@ name: code-format
 
 on: [push, pull_request, pull_request_target]
 
+concurrency:
+  group: code-format-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   code-format:
     runs-on: ubuntu-20.04
@@ -10,7 +14,7 @@ jobs:
 
     - name: cache-clang-format
       id: cache-clang-format
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v2.1.7
       with:
         path: clang-format-install
         key: clang-format-install-4

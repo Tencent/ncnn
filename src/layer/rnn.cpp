@@ -29,8 +29,6 @@ int RNN::load_param(const ParamDict& pd)
     num_output = pd.get(0, 0);
     weight_data_size = pd.get(1, 0);
     direction = pd.get(2, 0);
-    if (direction == 2)
-        one_blob_only = true;
     return 0;
 }
 
@@ -172,28 +170,72 @@ int RNN::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 
 int RNN::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-    if (bottom_blobs.size() != 2 || top_blobs.size() != 2)
-    {
-        return forward(bottom_blobs[0], top_blobs[0], opt);
-    }
     const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;
+    int num_directions = direction == 2 ? 2 : 1;
+
+    Mat hidden;
+    Allocator* hidden_allocator = top_blobs.size() == 2 ? opt.blob_allocator : opt.workspace_allocator;
+    if (bottom_blobs.size() == 2)
+    {
+        hidden = bottom_blobs[1].clone(hidden_allocator);
+    }
+    else
+    {
+        hidden.create(num_output, num_directions, 4u, hidden_allocator);
+        if (hidden.empty())
+            return -100;
+        hidden.fill(0.f);
+    }
+
     Mat& top_blob = top_blobs[0];
-    Mat& hidden_state = top_blobs[1];
-
-    //Copy previous states
-    hidden_state = bottom_blobs[1].clone(opt.blob_allocator);
-
-    top_blob.create(num_output, T, 4u, opt.blob_allocator);
+    top_blob.create(num_output * num_directions, T, 4u, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden_state, opt);
+        int ret = rnn(bottom_blob, top_blob, direction, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden, opt);
         if (ret != 0)
             return ret;
+    }
+
+    if (direction == 2)
+    {
+        Mat top_blob_forward(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_forward.empty())
+            return -100;
+
+        Mat top_blob_reverse(num_output, T, 4u, opt.workspace_allocator);
+        if (top_blob_reverse.empty())
+            return -100;
+
+        Mat hidden0 = hidden.row_range(0, 1);
+        int ret0 = rnn(bottom_blob, top_blob_forward, 0, weight_xc_data.channel(0), bias_c_data.channel(0), weight_hc_data.channel(0), hidden0, opt);
+        if (ret0 != 0)
+            return ret0;
+
+        Mat hidden1 = hidden.row_range(1, 1);
+        int ret1 = rnn(bottom_blob, top_blob_reverse, 1, weight_xc_data.channel(1), bias_c_data.channel(1), weight_hc_data.channel(1), hidden1, opt);
+        if (ret1 != 0)
+            return ret1;
+
+        // concat w
+        for (int i = 0; i < T; i++)
+        {
+            const float* pf = top_blob_forward.row(i);
+            const float* pr = top_blob_reverse.row(i);
+            float* ptr = top_blob.row(i);
+
+            memcpy(ptr, pf, num_output * sizeof(float));
+            memcpy(ptr + num_output, pr, num_output * sizeof(float));
+        }
+    }
+
+    if (top_blobs.size() == 2)
+    {
+        top_blobs[1] = hidden;
     }
 
     return 0;

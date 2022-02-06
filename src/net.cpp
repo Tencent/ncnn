@@ -797,7 +797,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
         int elemcount = 0;
         if (dims == 1) elemcount = bottom_blob.elempack * bottom_blob.w;
         if (dims == 2) elemcount = bottom_blob.elempack * bottom_blob.h;
-        if (dims == 3) elemcount = bottom_blob.elempack * bottom_blob.c;
+        if (dims == 3 || dims == 4) elemcount = bottom_blob.elempack * bottom_blob.c;
 
         int elembits = bottom_blob.elembits();
 
@@ -2608,6 +2608,13 @@ int Extractor::extract(int blob_index, Mat& feat, int type)
     }
     // *INDENT-ON*
     // clang-format on
+
+    if (d->opt.use_local_pool_allocator && feat.allocator == d->net->d->local_blob_allocator)
+    {
+        // detach the returned mat from local pool allocator
+        // so we could destroy net instance much earlier
+        feat = feat.clone();
+    }
 
     set_kmp_blocktime(old_blocktime);
     set_flush_denormals(old_flush_denormals);

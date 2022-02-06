@@ -456,7 +456,7 @@ static int test_mat_pixel_affine_0()
 
 static int test_mat_pixel_affine_yuv420sp(int w, int h)
 {
-    ncnn::Mat a0(w, h * 3 / 2, 1u, 1);
+    ncnn::Mat a0(w, h * 3 / 2, (size_t)1u, 1);
 
     ncnn::Mat a0_y = RandomMat(w, h, 1);
     ncnn::Mat a0_uv = RandomMat(w / 2, h / 2, 2);
@@ -468,21 +468,21 @@ static int test_mat_pixel_affine_yuv420sp(int w, int h)
     ncnn::get_rotation_matrix(-70.f, 0.3f, w / 2, h / 2, tm);
     ncnn::invert_affine_transform(tm, tm_inv);
 
-    ncnn::Mat a1(w / 2, (h / 2) * 3 / 2, 1u, 1);
+    ncnn::Mat a1(w / 2, (h / 2) * 3 / 2, (size_t)1u, 1);
     ncnn::Mat a2 = a0.clone();
 
     ncnn::warpaffine_bilinear_yuv420sp(a0, w, h, a1, w / 2, h / 2, tm, 0);
     ncnn::warpaffine_bilinear_yuv420sp(a1, w / 2, h / 2, a2, w, h, tm_inv, -233);
 
     // Y
-    if (CompareNearlyEqual(ncnn::Mat(w, h, (unsigned char*)a0, 1u, 1), ncnn::Mat(w, h, (unsigned char*)a2, 1u, 1)) != 0)
+    if (CompareNearlyEqual(ncnn::Mat(w, h, (unsigned char*)a0, (size_t)1u, 1), ncnn::Mat(w, h, (unsigned char*)a2, (size_t)1u, 1)) != 0)
     {
         fprintf(stderr, "test_mat_pixel_affine_yuv420sp Y failed w=%d h=%d\n", w, h);
         return -1;
     }
 
     // UV
-    if (CompareNearlyEqual(ncnn::Mat(w / 2, h / 2, (unsigned char*)a0 + w * h, 2u, 2), ncnn::Mat(w / 2, h / 2, (unsigned char*)a2 + w * h, 2u, 2)) != 0)
+    if (CompareNearlyEqual(ncnn::Mat(w / 2, h / 2, (unsigned char*)a0 + w * h, (size_t)2u, 2), ncnn::Mat(w / 2, h / 2, (unsigned char*)a2 + w * h, (size_t)2u, 2)) != 0)
     {
         fprintf(stderr, "test_mat_pixel_affine_yuv420sp UV failed w=%d h=%d\n", w, h);
         return -1;

@@ -567,7 +567,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack4to1_msa(const Mat& _k
     // src = maxk-inch-outch
     // dst = pb-pa-maxk-inch/pa-outch/pb
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    kernel_tm.create(4 * 4 * maxk, inch / 4, outch / 4 + outch % 4, 4u);
+    kernel_tm.create(4 * 4 * maxk, inch / 4, outch / 4 + outch % 4);
 
     int q = 0;
     for (; q + 3 < outch; q += 4)

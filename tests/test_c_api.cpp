@@ -55,8 +55,9 @@ static int test_c_api_0()
         op->create_pipeline(op, opt);
 
         const ncnn_mat_t bottom_blobs[2] = {a, b};
-        ncnn_mat_t* top_blobs[1] = {&c};
+        ncnn_mat_t top_blobs[1] = {0};
         op->forward_n(op, bottom_blobs, 2, top_blobs, 1, opt);
+        c = top_blobs[0];
 
         op->destroy_pipeline(op, opt);
 
@@ -286,6 +287,8 @@ static int test_c_api_2()
         ncnn_extractor_destroy(ex);
     }
 
+    ncnn_net_destroy(net);
+
     // check c
     bool success = false;
     if (c)
@@ -315,8 +318,6 @@ static int test_c_api_2()
     ncnn_mat_destroy(a);
     ncnn_mat_destroy(b);
     ncnn_mat_destroy(c);
-
-    ncnn_net_destroy(net);
 
     ncnn_option_destroy(opt);
 
