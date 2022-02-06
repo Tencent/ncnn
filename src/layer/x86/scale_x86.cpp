@@ -35,12 +35,12 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
     Mat& bottom_top_blob = bottom_top_blobs[0];
     const Mat& scale_blob = bottom_top_blobs[1];
 
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int channels = bottom_top_blob.c;
-    int dims = bottom_top_blob.dims;
-#if __SSE2__
-    int elempack = bottom_top_blob.elempack;
+    const int w = bottom_top_blob.w;
+    const int h = bottom_top_blob.h;
+    const int channels = bottom_top_blob.c;
+    const int dims = bottom_top_blob.dims;
+
+    const int elempack = bottom_top_blob.elempack;
 
     const float* scale = scale_blob;
     const float* bias = bias_data;
@@ -50,10 +50,12 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
         float* ptr = (float*)bottom_top_blob;
         int size = w * elempack;
 
+        int remain = size;
+#if __SSE2__
 #if __AVX__
         int nn = size >> 3;
-        int remain = size & 7;
-        #pragma omp parallel for num_threads(opt.num_threads)
+        remain = size & 7;
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
             __m256 _p = _mm256_loadu_ps(ptr + i * 8);
@@ -71,8 +73,8 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
         }
 #else
         int nn = size >> 2;
-        int remain = size & 3;
-        #pragma omp parallel for num_threads(opt.num_threads)
+        remain = size & 3;
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < nn; i++)
         {
             __m128 _p = _mm_loadu_ps(ptr + i * 4);
@@ -89,7 +91,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             _mm_storeu_ps(ptr + i * 4, _p);
         }
 #endif // __AVX__
-
+#endif // __SSE2__
         for (int i = size - remain; i < size; i++)
         {
             if (bias_term)
@@ -105,6 +107,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
         return 0;
     }
 
+#if __SSE2__
 #if __AVX__
     if (elempack == 8)
     {
@@ -112,7 +115,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
         {
             if (bias_term)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -131,7 +134,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -155,7 +158,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
             if (bias_term)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -174,7 +177,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -191,7 +194,6 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                 }
             }
         }
-
         return 0;
     }
 #endif // __AVX__
@@ -202,7 +204,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
         {
             if (bias_term)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -221,7 +223,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int i = 0; i < h; i++)
                 {
                     float* ptr = bottom_top_blob.row(i);
@@ -245,7 +247,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
 
             if (bias_term)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -264,7 +266,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
             }
             else
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
@@ -281,195 +283,200 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                 }
             }
         }
+    }
+#endif // __SSE2__
 
-        if (elempack == 1)
+    if (elempack == 1)
+    {
+        if (dims == 2)
         {
-            if (dims == 2)
+            int size = w;
+            if (bias_term)
             {
-                int size = w;
-                if (bias_term)
+#pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < h; i++)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        float* ptr = bottom_top_blob.row(i);
+                    float* ptr = bottom_top_blob.row(i);
 
-                        float s = scale_blob[i];
-                        float bias = bias_data[i];
+                    float s = scale_blob[i];
+                    float bias = bias_data[i];
 
-                        int j = 0;
+                    int j = 0;
+#if __SSE2__
 #if __AVX__
-                        __m256 _s = _mm256_set1_ps(s);
-                        __m256 _bias = _mm256_set1_ps(bias);
+                    __m256 _s = _mm256_set1_ps(s);
+                    __m256 _bias = _mm256_set1_ps(bias);
 
-                        for (; j + 7 < size; j += 8)
-                        {
-                            __m256 _p = _mm256_loadu_ps(ptr);
-                            _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
-                            _mm256_storeu_ps(ptr, _p);
+                    for (; j + 7 < size; j += 8)
+                    {
+                        __m256 _p = _mm256_loadu_ps(ptr);
+                        _p = _mm256_comp_fmadd_ps(_p, _s, _bias);
+                        _mm256_storeu_ps(ptr, _p);
 
-                            ptr += 8;
-                        }
-#else
-                        __m128 _s = _mm_set1_ps(s);
-                        __m128 _bias = _mm_set1_ps(bias);
-
-                        for (; j + 3 < size; j += 4)
-                        {
-                            __m128 _p = _mm_loadu_ps(ptr);
-                            _p = _mm_comp_fmadd_ps(_p, _s, _bias);
-                            _mm_storeu_ps(ptr, _p);
-
-                            ptr += 4;
-                        }
-#endif // __AVX__
-
-                        for (; j < size; j++)
-                        {
-                            *ptr = *ptr * s + bias;
-
-                            ptr++;
-                        }
+                        ptr += 8;
                     }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < w; i++)
-                    {
-                        float* ptr = bottom_top_blob.row(i);
-
-                        float s = scale_blob[i];
-
-                        int j = 0;
-#if __AVX__
-                        __m256 _s = _mm256_set1_ps(s);
-
-                        for (; j + 7 < size; j += 8)
-                        {
-                            __m256 _p = _mm256_loadu_ps(ptr);
-                            _p = _mm256_mul_ps(_p, _s);
-                            _mm256_storeu_ps(ptr, _p);
-
-                            ptr += 8;
-                        }
 #else
-                        __m128 _s = _mm_set1_ps(s);
+                    __m128 _s = _mm_set1_ps(s);
+                    __m128 _bias = _mm_set1_ps(bias);
 
-                        for (; j + 3 < size; j += 4)
-                        {
-                            __m128 _p = _mm_loadu_ps(ptr);
-                            _p = _mm_mul_ps(_p, _s);
-                            _mm_storeu_ps(ptr, _p);
+                    for (; j + 3 < size; j += 4)
+                    {
+                        __m128 _p = _mm_loadu_ps(ptr);
+                        _p = _mm_comp_fmadd_ps(_p, _s, _bias);
+                        _mm_storeu_ps(ptr, _p);
 
-                            ptr += 4;
-                        }
+                        ptr += 4;
+                    }
 #endif // __AVX__
+#endif // __SSE2__
 
-                        for (; j < size; j++)
-                        {
-                            *ptr *= s;
+                    for (; j < size; j++)
+                    {
+                        *ptr = *ptr * s + bias;
 
-                            ptr++;
-                        }
+                        ptr++;
                     }
                 }
             }
-
-            if (dims == 3)
+            else
             {
-                int size = w * h;
-                if (bias_term)
+#pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < h; i++)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < channels; i++)
-                    {
-                        float* ptr = bottom_top_blob.channel(i);
+                    float* ptr = bottom_top_blob.row(i);
 
-                        float s = scale_blob[i];
+                    float s = scale_blob[i];
 
-                        int j = 0;
+                    int j = 0;
+#if __SSE2__
 #if __AVX__
-                        __m256 _s256 = _mm256_set1_ps(s);
-                        __m256 _bias256 = _mm256_set1_ps(bias_data[i]);
-                        for (; j + 7 < size; j += 8)
-                        {
-                            __m256 _p = _mm256_loadu_ps(ptr);
-                            _p = _mm256_comp_fmadd_ps(_p, _s256, _bias256);
-                            _mm256_storeu_ps(ptr, _p);
+                    __m256 _s = _mm256_set1_ps(s);
 
-                            ptr += 8;
-                        }
-#endif // __AVX__
+                    for (; j + 7 < size; j += 8)
+                    {
+                        __m256 _p = _mm256_loadu_ps(ptr);
+                        _p = _mm256_mul_ps(_p, _s);
+                        _mm256_storeu_ps(ptr, _p);
 
-                        __m128 _s128 = _mm_set1_ps(s);
-                        __m128 _bias128;
-                        if (bias_term)
-                            _bias128 = _mm_set1_ps(bias_data[i]);
-                        for (; j < size; j += 4)
-                        {
-                            __m128 _p = _mm_load_ps(ptr);
-                            _p = _mm_comp_fmadd_ps(_p, _s128, _bias128);
-                            _mm_storeu_ps(ptr, _p);
-
-                            ptr += 4;
-                        }
-
-                        for (; j < size; j++)
-                        {
-                            *ptr = *ptr * s + bias_data[i];
-                            ptr++;
-                        }
+                        ptr += 8;
                     }
-                }
-                else
-                {
-                    #pragma omp parallel for num_threads(opt.num_threads)
-                    for (int i = 0; i < channels; i++)
+#else
+                    __m128 _s = _mm_set1_ps(s);
+
+                    for (; j + 3 < size; j += 4)
                     {
-                        float* ptr = bottom_top_blob.channel(i);
+                        __m128 _p = _mm_loadu_ps(ptr);
+                        _p = _mm_mul_ps(_p, _s);
+                        _mm_storeu_ps(ptr, _p);
 
-                        float s = scale_blob[i];
-
-                        int j = 0;
-#if __AVX__
-                        __m256 _s256 = _mm256_set1_ps(s);
-                        for (; j + 7 < size; j += 8)
-                        {
-                            __m256 _p = _mm256_loadu_ps(ptr);
-                            _p = _mm256_mul_ps(_p, _s256);
-                            _mm256_storeu_ps(ptr, _p);
-
-                            ptr += 8;
-                        }
+                        ptr += 4;
+                    }
 #endif // __AVX__
+#endif // __SSE2__
 
-                        __m128 _s128 = _mm_set1_ps(s);
-                        for (; j < size; j += 4)
-                        {
-                            __m128 _p = _mm_load_ps(ptr);
-                            _p = _mm_mul_ps(_p, _s128);
-                            _mm_storeu_ps(ptr, _p);
+                    for (; j < size; j++)
+                    {
+                        *ptr *= s;
 
-                            ptr += 4;
-                        }
-
-                        for (; j < size; j++)
-                        {
-                            *ptr *= s;
-                            ptr++;
-                        }
+                        ptr++;
                     }
                 }
             }
         }
 
-        return 0;
-    }
+        if (dims == 3)
+        {
+            int size = w * h;
+            if (bias_term)
+            {
+#pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < channels; i++)
+                {
+                    float* ptr = bottom_top_blob.channel(i);
 
+                    float s = scale_blob[i];
+
+                    int j = 0;
+#if __SSE2__
+#if __AVX__
+                    __m256 _s256 = _mm256_set1_ps(s);
+                    __m256 _bias256 = _mm256_set1_ps(bias_data[i]);
+                    for (; j + 7 < size; j += 8)
+                    {
+                        __m256 _p = _mm256_loadu_ps(ptr);
+                        _p = _mm256_comp_fmadd_ps(_p, _s256, _bias256);
+                        _mm256_storeu_ps(ptr, _p);
+
+                        ptr += 8;
+                    }
+#endif // __AVX__
 #endif // __SSE2__
 
-    return Scale::forward_inplace(bottom_top_blobs, opt);
+                    __m128 _s128 = _mm_set1_ps(s);
+                    __m128 _bias128;
+                    if (bias_term)
+                        _bias128 = _mm_set1_ps(bias_data[i]);
+                    for (; j < size; j += 4)
+                    {
+                        __m128 _p = _mm_load_ps(ptr);
+                        _p = _mm_comp_fmadd_ps(_p, _s128, _bias128);
+                        _mm_storeu_ps(ptr, _p);
+
+                        ptr += 4;
+                    }
+
+                    for (; j < size; j++)
+                    {
+                        *ptr = *ptr * s + bias_data[i];
+                        ptr++;
+                    }
+                }
+            }
+            else
+            {
+#pragma omp parallel for num_threads(opt.num_threads)
+                for (int i = 0; i < channels; i++)
+                {
+                    float* ptr = bottom_top_blob.channel(i);
+
+                    float s = scale_blob[i];
+
+                    int j = 0;
+#if __SSE2__
+#if __AVX__
+                    __m256 _s256 = _mm256_set1_ps(s);
+                    for (; j + 7 < size; j += 8)
+                    {
+                        __m256 _p = _mm256_loadu_ps(ptr);
+                        _p = _mm256_mul_ps(_p, _s256);
+                        _mm256_storeu_ps(ptr, _p);
+
+                        ptr += 8;
+                    }
+#endif // __AVX__
+
+                    __m128 _s128 = _mm_set1_ps(s);
+                    for (; j < size; j += 4)
+                    {
+                        __m128 _p = _mm_load_ps(ptr);
+                        _p = _mm_mul_ps(_p, _s128);
+                        _mm_storeu_ps(ptr, _p);
+
+                        ptr += 4;
+                    }
+#endif // __SSE2__
+
+                    for (; j < size; j++)
+                    {
+                        *ptr *= s;
+                        ptr++;
+                    }
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 } // namespace ncnn
