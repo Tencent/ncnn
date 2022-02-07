@@ -128,40 +128,41 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         float* rows1p = rows1;
         float* Dp = dst.row(dy);
 
+        int dx = 0;
 #if __SSE2__
-        int nn = w >> 3;
-#else
-        int nn = 0;
-#endif
-        int remain = w - (nn << 3);
-
-#if __SSE2__
-        __m128 _b0 = _mm_set1_ps(b0);
-        __m128 _b1 = _mm_set1_ps(b1);
-        for (; nn > 0; nn--)
+#if __AVX__
+        __m256 _b0_256 = _mm256_set1_ps(b0);
+        __m256 _b1_256 = _mm256_set1_ps(b1);
+        for (; dx + 7 < w; dx += 8)
         {
-            __m128 _rows0 = _mm_loadu_ps(rows0p);
-            __m128 _rows1 = _mm_loadu_ps(rows1p);
-
-            __m128 _D = _mm_mul_ps(_rows0, _b0);
-            _D = _mm_comp_fmadd_ps(_rows1, _b1, _D);
-
-            _mm_storeu_ps(Dp, _D);
-
-            __m128 _rows0n = _mm_loadu_ps(rows0p + 4);
-            __m128 _rows1n = _mm_loadu_ps(rows1p + 4);
-
-            __m128 _Dn = _mm_mul_ps(_rows0n, _b0);
-            _Dn = _mm_comp_fmadd_ps(_rows1n, _b1, _Dn);
-
-            _mm_storeu_ps(Dp + 4, _Dn);
+            __m256 _rows0 = _mm256_loadu_ps(rows0p);
+            __m256 _rows1 = _mm256_loadu_ps(rows1p);
+            __m256 _D = _mm256_mul_ps(_rows0, _b0_256);
+            _D = _mm256_comp_fmadd_ps(_rows1, _b1_256, _D);
+            _mm256_storeu_ps(Dp, _D);
 
             Dp += 8;
             rows0p += 8;
             rows1p += 8;
         }
+#endif // __AVX__
+        __m128 _b0_128 = _mm_set1_ps(b0);
+        __m128 _b1_128 = _mm_set1_ps(b1);
+        for (; dx + 3 < w; dx += 4)
+        {
+            __m128 _rows0 = _mm_loadu_ps(rows0p);
+            __m128 _rows1 = _mm_loadu_ps(rows1p);
+
+            __m128 _D = _mm_mul_ps(_rows0, _b0_128);
+            _D = _mm_comp_fmadd_ps(_rows1, _b1_128, _D);
+            _mm_storeu_ps(Dp, _D);
+
+            Dp += 4;
+            rows0p += 4;
+            rows1p += 4;
+        }
 #endif // __SSE2__
-        for (; remain; --remain)
+        for (; dx < w; dx++)
         {
             *Dp++ = *rows0p++ * b0 + *rows1p++ * b1;
         }
