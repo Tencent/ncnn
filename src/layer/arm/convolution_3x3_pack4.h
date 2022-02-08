@@ -86,10 +86,12 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
         const Mat k6 = kernel_tm.channel(q + 6);
         const Mat k7 = kernel_tm.channel(q + 7);
 
-        float* g00 = kernel_tm_pack4.channel(q / 8);
+        Mat g0 = kernel_tm_pack4.channel(q / 8);
 
         for (int k = 0; k < 64; k++)
         {
+            float* g00 = g0.row(k);
+
             for (int p = 0; p + 3 < inch; p += 4)
             {
                 const float* k00 = k0.row(p);
@@ -185,13 +187,15 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
         const Mat k3 = kernel_tm.channel(q + 3);
 
 #if __aarch64__
-        float* g00 = kernel_tm_pack4.channel(q / 8 + (q % 8) / 4);
+        Mat g0 = kernel_tm_pack4.channel(q / 8 + (q % 8) / 4);
 #else
-        float* g00 = kernel_tm_pack4.channel(q / 4);
+        Mat g0 = kernel_tm_pack4.channel(q / 4);
 #endif
 
         for (int k = 0; k < 64; k++)
         {
+            float* g00 = g0.row(k);
+
             for (int p = 0; p + 3 < inch; p += 4)
             {
                 const float* k00 = k0.row(p);
@@ -2115,10 +2119,12 @@ static void conv3x3s1_winograd42_transform_kernel_pack4_neon(const Mat& kernel, 
         const Mat k6 = kernel_tm.channel(q + 6);
         const Mat k7 = kernel_tm.channel(q + 7);
 
-        float* g00 = kernel_tm_pack4.channel(q / 8);
+        Mat g0 = kernel_tm_pack4.channel(q / 8);
 
         for (int k = 0; k < 36; k++)
         {
+            float* g00 = g0.row(k);
+
             for (int p = 0; p + 3 < inch; p += 4)
             {
                 const float* k00 = k0.row(p);
@@ -2214,13 +2220,15 @@ static void conv3x3s1_winograd42_transform_kernel_pack4_neon(const Mat& kernel, 
         const Mat k3 = kernel_tm.channel(q + 3);
 
 #if __aarch64__
-        float* g00 = kernel_tm_pack4.channel(q / 8 + (q % 8) / 4);
+        Mat g0 = kernel_tm_pack4.channel(q / 8 + (q % 8) / 4);
 #else
-        float* g00 = kernel_tm_pack4.channel(q / 4);
+        Mat g0 = kernel_tm_pack4.channel(q / 4);
 #endif
 
         for (int k = 0; k < 36; k++)
         {
+            float* g00 = g0.row(k);
+
             for (int p = 0; p + 3 < inch; p += 4)
             {
                 const float* k00 = k0.row(p);

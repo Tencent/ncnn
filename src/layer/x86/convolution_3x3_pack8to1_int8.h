@@ -101,10 +101,12 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(const Mat& k
         const Mat k2 = kernel_tm.channel(p + 2);
         const Mat k3 = kernel_tm.channel(p + 3);
 
-        short* g00 = kernel_tm_pack8to1.channel(p / 4);
+        Mat g0 = kernel_tm_pack8to1.channel(p / 4);
 
         for (int k = 0; k < 36; k++)
         {
+            short* g00 = g0.row<short>(k);
+
             for (int q = 0; q + 7 < inch; q += 8)
             {
 #if __AVXVNNI__ || __AVX512VNNI__ || __XOP__
@@ -149,10 +151,12 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(const Mat& k
     {
         const Mat k0 = kernel_tm.channel(p);
 
-        short* g00 = kernel_tm_pack8to1.channel(p / 4 + p % 4);
+        Mat g0 = kernel_tm_pack8to1.channel(p / 4 + p % 4);
 
         for (int k = 0; k < 36; k++)
         {
+            short* g00 = g0.row<short>(k);
+
             for (int q = 0; q + 7 < inch; q += 8)
             {
                 for (int i = 0; i < 8; i++)

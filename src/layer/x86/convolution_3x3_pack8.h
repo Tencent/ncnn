@@ -785,10 +785,12 @@ static void conv3x3s1_winograd64_transform_kernel_pack8_avx(const Mat& kernel, M
         const Mat k6 = kernel_tm.channel(q + 6);
         const Mat k7 = kernel_tm.channel(q + 7);
 
-        float* g00 = kernel_tm_pack8.channel(q / 8);
+        Mat g0 = kernel_tm_pack8.channel(q / 8);
 
         for (int k = 0; k < 64; k++)
         {
+            float* g00 = g0.row(k);
+
             for (int p = 0; p + 7 < inch; p += 8)
             {
                 const float* k00 = k0.row(p);
@@ -1820,10 +1822,12 @@ static void conv3x3s1_winograd42_transform_kernel_pack8_avx(const Mat& kernel, M
 
     for (int q = 0; q + (8 - 1) < outch; q += 8)
     {
-        float* g00 = kernel_tm_pack4.channel(q / 8);
+        Mat g0 = kernel_tm_pack4.channel(q / 8);
 
         for (int k = 0; k < 36; k++)
         {
+            float* g00 = g0.row<float>(k);
+
             for (int p = 0; p + (8 - 1) < inch; p += 8)
             {
                 for (int i = 0; i < 8; i++)

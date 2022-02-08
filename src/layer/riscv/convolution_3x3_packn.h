@@ -73,10 +73,12 @@ static void conv3x3s1_winograd64_transform_kernel_packn_rvv(const Mat& kernel, M
 
     for (int q = 0; q + (packn - 1) < outch; q += packn)
     {
-        float* g00 = kernel_tm_packn.channel(q / packn);
+        Mat g0 = kernel_tm_packn.channel(q / packn);
 
         for (int k = 0; k < 64; k++)
         {
+            float* g00 = g0.row<float>(k);
+
             for (int p = 0; p + (packn - 1) < inch; p += packn)
             {
                 for (int i = 0; i < packn; i++)
@@ -799,10 +801,12 @@ static void conv3x3s1_winograd42_transform_kernel_packn_rvv(const Mat& kernel, M
 
     for (int q = 0; q + (packn - 1) < outch; q += packn)
     {
-        float* g00 = kernel_tm_packn.channel(q / packn);
+        Mat g0 = kernel_tm_packn.channel(q / packn);
 
         for (int k = 0; k < 36; k++)
         {
+            float* g00 = g0.row<float>(k);
+
             for (int p = 0; p + (packn - 1) < inch; p += packn)
             {
                 for (int i = 0; i < packn; i++)
