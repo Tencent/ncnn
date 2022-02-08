@@ -71,12 +71,10 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_msa(const Mat& kernel, M
 
     for (int q = 0; q + (4 - 1) < outch; q += 4)
     {
-        Mat g0 = kernel_tm_pack4.channel(q / 4);
+        float* g00 = kernel_tm_pack4.channel(q / 4);
 
         for (int k = 0; k < 64; k++)
         {
-            float* g00 = g0.row<float>(k);
-
             for (int p = 0; p + (4 - 1) < inch; p += 4)
             {
                 for (int i = 0; i < 4; i++)
@@ -941,12 +939,10 @@ static void conv3x3s1_winograd42_transform_kernel_pack4_msa(const Mat& kernel, M
 
     for (int q = 0; q + (4 - 1) < outch; q += 4)
     {
-        Mat g0 = kernel_tm_pack4.channel(q / 4);
+        float* g00 = kernel_tm_pack4.channel(q / 4);
 
         for (int k = 0; k < 36; k++)
         {
-            float* g00 = g0.row<float>(k);
-
             for (int p = 0; p + (4 - 1) < inch; p += 4)
             {
                 for (int i = 0; i < 4; i++)

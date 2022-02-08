@@ -86,12 +86,10 @@ static void conv3x3s1_winograd64_transform_kernel_pack4to1_neon(const Mat& kerne
         const Mat k6 = kernel_tm.channel(p + 6);
         const Mat k7 = kernel_tm.channel(p + 7);
 
-        Mat g0 = kernel_tm_pack4.channel(p / 8);
+        float* g00 = kernel_tm_pack4.channel(p / 8);
 
         for (int k = 0; k < 64; k++)
         {
-            float* g00 = g0.row(k);
-
             for (int q = 0; q + 3 < inch; q += 4)
             {
                 const float* k00 = k0.row(q);
@@ -183,15 +181,13 @@ static void conv3x3s1_winograd64_transform_kernel_pack4to1_neon(const Mat& kerne
         const Mat k3 = kernel_tm.channel(p + 3);
 
 #if __aarch64__
-        Mat g0 = kernel_tm_pack4.channel(p / 8 + (p % 8) / 4);
+        float* g00 = kernel_tm_pack4.channel(p / 8 + (p % 8) / 4);
 #else
-        Mat g0 = kernel_tm_pack4.channel(p / 4);
+        float* g00 = kernel_tm_pack4.channel(p / 4);
 #endif
 
         for (int k = 0; k < 64; k++)
         {
-            float* g00 = g0.row(k);
-
             for (int q = 0; q + 3 < inch; q += 4)
             {
                 const float* k00 = k0.row(q);
@@ -243,15 +239,13 @@ static void conv3x3s1_winograd64_transform_kernel_pack4to1_neon(const Mat& kerne
         const Mat k0 = kernel_tm.channel(p);
 
 #if __aarch64__
-        Mat g0 = kernel_tm_pack4.channel(p / 8 + (p % 8) / 4 + p % 4);
+        float* g00 = kernel_tm_pack4.channel(p / 8 + (p % 8) / 4 + p % 4);
 #else
-        Mat g0 = kernel_tm_pack4.channel(p / 4 + p % 4);
+        float* g00 = kernel_tm_pack4.channel(p / 4 + p % 4);
 #endif
 
         for (int k = 0; k < 64; k++)
         {
-            float* g00 = g0.row(k);
-
             for (int q = 0; q + 3 < inch; q += 4)
             {
                 const float* k00 = k0.row(q);

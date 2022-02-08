@@ -77,12 +77,10 @@ static void conv3x3s1_winograd64_transform_kernel_pack4to1_sse(const Mat& kernel
         const Mat k2 = kernel_tm.channel(p + 2);
         const Mat k3 = kernel_tm.channel(p + 3);
 
-        Mat g0 = kernel_tm_pack4.channel(p / 4);
+        float* g00 = kernel_tm_pack4.channel(p / 4);
 
         for (int k = 0; k < 64; k++)
         {
-            float* g00 = g0.row(k);
-
             for (int q = 0; q + 3 < inch; q += 4)
             {
                 const float* k00 = k0.row(q);
@@ -133,12 +131,10 @@ static void conv3x3s1_winograd64_transform_kernel_pack4to1_sse(const Mat& kernel
     {
         const Mat k0 = kernel_tm.channel(p);
 
-        Mat g0 = kernel_tm_pack4.channel(p / 4 + p % 4);
+        float* g00 = kernel_tm_pack4.channel(p / 4 + p % 4);
 
         for (int k = 0; k < 64; k++)
         {
-            float* g00 = g0.row(k);
-
             for (int q = 0; q + 3 < inch; q += 4)
             {
                 const float* k00 = k0.row(q);

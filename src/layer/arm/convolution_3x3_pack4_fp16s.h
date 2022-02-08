@@ -81,12 +81,10 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_fp16sa_neon(const Mat& k
         const Mat k6 = kernel_tm.channel(q + 6);
         const Mat k7 = kernel_tm.channel(q + 7);
 
-        Mat g0 = kernel_tm_pack4.channel(q / 8);
+        __fp16* g00 = kernel_tm_pack4.channel(q / 8);
 
         for (int k = 0; k < 64; k++)
         {
-            __fp16* g00 = g0.row<__fp16>(k);
-
             for (int p = 0; p + 3 < inch; p += 4)
             {
                 const float* k00 = k0.row(p);
@@ -180,12 +178,10 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_fp16sa_neon(const Mat& k
         const Mat k2 = kernel_tm.channel(q + 2);
         const Mat k3 = kernel_tm.channel(q + 3);
 
-        Mat g0 = kernel_tm_pack4.channel(q / 8 + (q % 8) / 4);
+        __fp16* g00 = kernel_tm_pack4.channel(q / 8 + (q % 8) / 4);
 
         for (int k = 0; k < 64; k++)
         {
-            __fp16* g00 = g0.row<__fp16>(k);
-
             for (int p = 0; p + 3 < inch; p += 4)
             {
                 const float* k00 = k0.row(p);
