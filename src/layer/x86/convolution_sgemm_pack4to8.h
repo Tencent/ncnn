@@ -196,12 +196,10 @@ static void convolution_im2col_sgemm_transform_kernel_pack4to8_avx(const Mat& _k
 
     for (int q = 0; q + 7 < outch; q += 8)
     {
-        Mat g0 = kernel_tm.channel(q / 8);
+        float* g00 = kernel_tm.channel(q / 8);
 
         for (int p = 0; p + 3 < inch; p += 4)
         {
-            float* g00 = g0.row(p / 4);
-
             for (int k = 0; k < maxk; k++)
             {
                 for (int i = 0; i < 4; i++)

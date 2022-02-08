@@ -97,12 +97,10 @@ static void convolution_transform_kernel_packed_rvv(const Mat& weight_data, Mat&
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_packed.channel(q / out_elempack);
+            float* g00 = weight_data_packed.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                float* g00 = g0.row(p / elempack);
-
                 for (int k = 0; k < maxk; k++)
                 {
                     for (int i = 0; i < elempack; i++)
@@ -650,12 +648,10 @@ static void convolution_transform_kernel_packed_fp16s_rvv(const Mat& weight_data
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_fp16.channel(q / out_elempack);
+            __fp16* g00 = weight_data_fp16.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                __fp16* g00 = g0.row<__fp16>(p / elempack);
-
                 for (int k = 0; k < maxk; k++)
                 {
                     for (int i = 0; i < elempack; i++)

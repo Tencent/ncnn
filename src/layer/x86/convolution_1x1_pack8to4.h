@@ -51,8 +51,8 @@ static void conv1x1s2_sgemm_pack8to4_avx(const Mat& bottom_blob, Mat& top_blob, 
             int j = 0;
             for (; j < outw; j++)
             {
-                __m256 _v = _mm256_loadu_ps(r0);
-                _mm256_storeu_ps(outptr, _v);
+                __m256 _v = _mm256_load_ps(r0);
+                _mm256_store_ps(outptr, _v);
 
                 r0 += 16;
                 outptr += 8;

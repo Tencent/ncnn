@@ -30,7 +30,7 @@ static void conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(const Mat& kernel, M
         const Mat k6 = weight_data_r2.channel(q + 6);
         const Mat k7 = weight_data_r2.channel(q + 7);
 
-        Mat g0 = weight_data_pack8.channel(q / 8);
+        unsigned short* g00 = weight_data_pack8.channel(q / 8);
 
         for (int p = 0; p + 7 < num_input; p += 8)
         {
@@ -106,7 +106,6 @@ static void conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(const Mat& kernel, M
             const float* k76 = k7.row(p + 6);
             const float* k77 = k7.row(p + 7);
 
-            unsigned short* g00 = (unsigned short*)g0.row(p / 8);
             g00[0] = float32_to_float16(k00[0]);
             g00[1] = float32_to_float16(k10[0]);
             g00[2] = float32_to_float16(k20[0]);
