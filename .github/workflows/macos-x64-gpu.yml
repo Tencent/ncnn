@@ -123,5 +123,5 @@ jobs:
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+            -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 3

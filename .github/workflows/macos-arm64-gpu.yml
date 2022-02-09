@@ -85,5 +85,5 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/include \
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 3
