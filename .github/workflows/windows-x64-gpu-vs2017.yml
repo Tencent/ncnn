@@ -33,7 +33,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   windows-vs2017-gpu:
-    runs-on: windows-2016
+    runs-on: windows-2019
     steps:
     - uses: actions/checkout@v2
       with:
