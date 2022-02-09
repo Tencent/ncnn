@@ -50,7 +50,7 @@ jobs:
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
-        cmake -DNCNN_AVX2=ON -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake -DNCNN_AVX2=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
     - name: build-avx2
       run: |

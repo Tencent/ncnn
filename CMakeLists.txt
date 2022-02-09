@@ -120,10 +120,6 @@ if(NCNN_SHARED_LIB)
             set(NCNN_ENABLE_LTO OFF)
         endif()
     endif()
-
-    if(NOT NCNN_ENABLE_LTO)
-        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE)
-    endif()
 endif()
 
 if(NOT NCNN_STDIO OR NOT NCNN_STRING)

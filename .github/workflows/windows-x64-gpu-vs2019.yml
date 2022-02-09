@@ -102,5 +102,5 @@ jobs:
         $env:VULKAN_SDK="C:/VulkanSDK/1.2.189.0"
         $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         mkdir build-shared; cd build-shared
-        cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2

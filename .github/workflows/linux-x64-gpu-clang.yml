@@ -102,5 +102,5 @@ jobs:
       run: |
         export VULKAN_SDK=`pwd`/1.2.189.0/x86_64
         mkdir build-shared && cd build-shared
-        cmake -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
