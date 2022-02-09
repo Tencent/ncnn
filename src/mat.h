@@ -727,7 +727,7 @@ NCNN_EXPORT unsigned short float32_to_float16(float value);
 // convert half precision floating point to float
 NCNN_EXPORT float float16_to_float32(unsigned short value);
 // convert float to brain half
-NCNN_EXPORT inline unsigned short float32_to_bfloat16(float value)
+NCNN_EXPORT NCNN_FORCEINLINE unsigned short float32_to_bfloat16(float value)
 {
     // 16 : 16
     union
@@ -739,7 +739,7 @@ NCNN_EXPORT inline unsigned short float32_to_bfloat16(float value)
     return tmp.u >> 16;
 }
 // convert brain half to float
-NCNN_EXPORT inline float bfloat16_to_float32(unsigned short value)
+NCNN_EXPORT NCNN_FORCEINLINE float bfloat16_to_float32(unsigned short value)
 {
     // 16 : 16
     union
@@ -751,11 +751,11 @@ NCNN_EXPORT inline float bfloat16_to_float32(unsigned short value)
     return tmp.f;
 }
 #if __ARM_NEON
-NCNN_EXPORT inline uint16x4_t vcvt_bf16_f32(float32x4_t _v)
+NCNN_EXPORT NCNN_FORCEINLINE uint16x4_t vcvt_bf16_f32(float32x4_t _v)
 {
     return vshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
 }
-NCNN_EXPORT inline float32x4_t vcvt_f32_bf16(uint16x4_t _v)
+NCNN_EXPORT NCNN_FORCEINLINE float32x4_t vcvt_f32_bf16(uint16x4_t _v)
 {
     return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
 }
@@ -785,119 +785,119 @@ NCNN_EXPORT void quantize_to_int8(const Mat& src, Mat& dst, const Mat& scale_dat
 NCNN_EXPORT void dequantize_from_int32(const Mat& src, Mat& dst, const Mat& scale_data, const Mat& bias_data, const Option& opt = Option());
 NCNN_EXPORT void requantize_from_int32_to_int8(const Mat& src, Mat& dst, const Mat& scale_in_data, const Mat& scale_out_data, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt = Option());
 
-inline Mat::Mat()
+NCNN_FORCEINLINE Mat::Mat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
 }
 
-inline Mat::Mat(int _w, size_t _elemsize, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, size_t _elemsize, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _allocator);
 }
 
-inline Mat::Mat(int _w, int _h, size_t _elemsize, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, size_t _elemsize, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _allocator);
 }
 
-inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
 
-inline Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _d, _c, _elemsize, _allocator);
 }
 
-inline Mat::Mat(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _elempack, _allocator);
 }
 
-inline Mat::Mat(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _elempack, _allocator);
 }
 
-inline Mat::Mat(int _w, int _h, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _elempack, _allocator);
 }
 
-inline Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
 }
 
-inline Mat::Mat(const Mat& m)
+NCNN_FORCEINLINE Mat::Mat(const Mat& m)
     : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), d(m.d), c(m.c), cstep(m.cstep)
 {
     addref();
 }
 
-inline Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
     cstep = w;
 }
 
-inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
     cstep = (size_t)w * h;
 }
 
-inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
-inline Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 }
 
-inline Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
     cstep = w;
 }
 
-inline Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
     cstep = (size_t)w * h;
 }
 
-inline Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 }
 
-inline Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
+NCNN_FORCEINLINE Mat::Mat(int _w, int _h, int _d, int _c, void* _data, size_t _elemsize, int _elempack, Allocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 }
 
-inline Mat::~Mat()
+NCNN_FORCEINLINE Mat::~Mat()
 {
     release();
 }
 
-inline void Mat::fill(float _v)
+NCNN_FORCEINLINE void Mat::fill(float _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -949,7 +949,7 @@ inline void Mat::fill(float _v)
     }
 }
 
-inline void Mat::fill(int _v)
+NCNN_FORCEINLINE void Mat::fill(int _v)
 {
     int size = (int)total();
     int* ptr = (int*)data;
@@ -1002,7 +1002,7 @@ inline void Mat::fill(int _v)
 }
 
 #if __ARM_NEON
-inline void Mat::fill(float32x4_t _v)
+NCNN_FORCEINLINE void Mat::fill(float32x4_t _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1013,7 +1013,7 @@ inline void Mat::fill(float32x4_t _v)
     }
 }
 
-inline void Mat::fill(uint16x4_t _v)
+NCNN_FORCEINLINE void Mat::fill(uint16x4_t _v)
 {
     int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
@@ -1024,7 +1024,7 @@ inline void Mat::fill(uint16x4_t _v)
     }
 }
 
-inline void Mat::fill(int32x4_t _v)
+NCNN_FORCEINLINE void Mat::fill(int32x4_t _v)
 {
     int size = (int)total();
     int* ptr = (int*)data;
@@ -1035,7 +1035,7 @@ inline void Mat::fill(int32x4_t _v)
     }
 }
 
-inline void Mat::fill(int32x4_t _v0, int32x4_t _v1)
+NCNN_FORCEINLINE void Mat::fill(int32x4_t _v0, int32x4_t _v1)
 {
     int size = (int)total();
     int* ptr = (int*)data;
@@ -1047,7 +1047,7 @@ inline void Mat::fill(int32x4_t _v0, int32x4_t _v1)
     }
 }
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-inline void Mat::fill(float16x4_t _v)
+NCNN_FORCEINLINE void Mat::fill(float16x4_t _v)
 {
     int size = (int)total();
     __fp16* ptr = (__fp16*)data;
@@ -1058,7 +1058,7 @@ inline void Mat::fill(float16x4_t _v)
     }
 }
 
-inline void Mat::fill(float16x8_t _v)
+NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 {
     int size = (int)total();
     __fp16* ptr = (__fp16*)data;
@@ -1071,7 +1071,7 @@ inline void Mat::fill(float16x8_t _v)
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
 #if __AVX__
-inline void Mat::fill(__m256 _v)
+NCNN_FORCEINLINE void Mat::fill(__m256 _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1081,7 +1081,7 @@ inline void Mat::fill(__m256 _v)
         ptr += 8;
     }
 }
-inline void Mat::fill(__m128i _v)
+NCNN_FORCEINLINE void Mat::fill(__m128i _v)
 {
     int size = (int)total();
     unsigned short* ptr = (unsigned short*)data;
@@ -1094,7 +1094,7 @@ inline void Mat::fill(__m128i _v)
 #endif // __AVX__
 
 #if __mips_msa
-inline void Mat::fill(v4f32 _v)
+NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
@@ -1107,7 +1107,7 @@ inline void Mat::fill(v4f32 _v)
 #endif // __mips_msa
 
 #if __riscv_vector
-inline void Mat::fill(vfloat32m1_t _v)
+NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 4;
     const word_type vl = vsetvl_e32m1(packn);
@@ -1121,7 +1121,7 @@ inline void Mat::fill(vfloat32m1_t _v)
     }
 }
 
-inline void Mat::fill(vuint16m1_t _v)
+NCNN_FORCEINLINE void Mat::fill(vuint16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);
@@ -1135,7 +1135,7 @@ inline void Mat::fill(vuint16m1_t _v)
     }
 }
 
-inline void Mat::fill(vint8m1_t _v)
+NCNN_FORCEINLINE void Mat::fill(vint8m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 1;
     const word_type vl = vsetvl_e8m1(packn);
@@ -1149,7 +1149,7 @@ inline void Mat::fill(vint8m1_t _v)
     }
 }
 #if __riscv_zfh
-inline void Mat::fill(vfloat16m1_t _v)
+NCNN_FORCEINLINE void Mat::fill(vfloat16m1_t _v)
 {
     const int packn = cpu_riscv_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);
@@ -1166,7 +1166,7 @@ inline void Mat::fill(vfloat16m1_t _v)
 #endif // __riscv_vector
 
 template<typename T>
-inline void Mat::fill(T _v)
+NCNN_FORCEINLINE void Mat::fill(T _v)
 {
     int size = (int)total();
     T* ptr = (T*)data;
@@ -1176,7 +1176,7 @@ inline void Mat::fill(T _v)
     }
 }
 
-inline Mat& Mat::operator=(const Mat& m)
+NCNN_FORCEINLINE Mat& Mat::operator=(const Mat& m)
 {
     if (this == &m)
         return *this;
@@ -1203,13 +1203,13 @@ inline Mat& Mat::operator=(const Mat& m)
     return *this;
 }
 
-inline void Mat::addref()
+NCNN_FORCEINLINE void Mat::addref()
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
 }
 
-inline void Mat::release()
+NCNN_FORCEINLINE void Mat::release()
 {
     if (refcount && NCNN_XADD(refcount, -1) == 1)
     {
@@ -1235,22 +1235,22 @@ inline void Mat::release()
     refcount = 0;
 }
 
-inline bool Mat::empty() const
+NCNN_FORCEINLINE bool Mat::empty() const
 {
     return data == 0 || total() == 0;
 }
 
-inline size_t Mat::total() const
+NCNN_FORCEINLINE size_t Mat::total() const
 {
     return cstep * c;
 }
 
-inline int Mat::elembits() const
+NCNN_FORCEINLINE int Mat::elembits() const
 {
     return elempack ? static_cast<int>(elemsize * 8) / elempack : 0;
 }
 
-inline Mat Mat::shape() const
+NCNN_FORCEINLINE Mat Mat::shape() const
 {
     if (dims == 1)
         return Mat(w * elempack, (void*)0);
@@ -1264,7 +1264,7 @@ inline Mat Mat::shape() const
     return Mat();
 }
 
-inline Mat Mat::channel(int _c)
+NCNN_FORCEINLINE Mat Mat::channel(int _c)
 {
     Mat m(w, h, d, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
     m.dims = dims - 1;
@@ -1273,7 +1273,7 @@ inline Mat Mat::channel(int _c)
     return m;
 }
 
-inline const Mat Mat::channel(int _c) const
+NCNN_FORCEINLINE const Mat Mat::channel(int _c) const
 {
     Mat m(w, h, d, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
     m.dims = dims - 1;
@@ -1282,164 +1282,164 @@ inline const Mat Mat::channel(int _c) const
     return m;
 }
 
-inline Mat Mat::depth(int z)
+NCNN_FORCEINLINE Mat Mat::depth(int z)
 {
     return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
 }
 
-inline const Mat Mat::depth(int z) const
+NCNN_FORCEINLINE const Mat Mat::depth(int z) const
 {
     return Mat(w, h, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
 }
 
-inline float* Mat::row(int y)
+NCNN_FORCEINLINE float* Mat::row(int y)
 {
     return (float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
-inline const float* Mat::row(int y) const
+NCNN_FORCEINLINE const float* Mat::row(int y) const
 {
     return (const float*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 template<typename T>
-inline T* Mat::row(int y)
+NCNN_FORCEINLINE T* Mat::row(int y)
 {
     return (T*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
 template<typename T>
-inline const T* Mat::row(int y) const
+NCNN_FORCEINLINE const T* Mat::row(int y) const
 {
     return (const T*)((unsigned char*)data + (size_t)w * y * elemsize);
 }
 
-inline Mat Mat::channel_range(int _c, int channels)
+NCNN_FORCEINLINE Mat Mat::channel_range(int _c, int channels)
 {
     Mat m(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
     m.dims = dims;
     return m;
 }
 
-inline const Mat Mat::channel_range(int _c, int channels) const
+NCNN_FORCEINLINE const Mat Mat::channel_range(int _c, int channels) const
 {
     Mat m(w, h, d, channels, (unsigned char*)data + cstep * _c * elemsize, elemsize, elempack, allocator);
     m.dims = dims;
     return m;
 }
 
-inline Mat Mat::depth_range(int z, int depths)
+NCNN_FORCEINLINE Mat Mat::depth_range(int z, int depths)
 {
     Mat m(w, h, depths, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)w * h;
     return m;
 }
 
-inline const Mat Mat::depth_range(int z, int depths) const
+NCNN_FORCEINLINE const Mat Mat::depth_range(int z, int depths) const
 {
     Mat m(w, h, depths, (unsigned char*)data + (size_t)w * h * z * elemsize, elemsize, elempack, allocator);
     m.cstep = (size_t)w * h;
     return m;
 }
 
-inline Mat Mat::row_range(int y, int rows)
+NCNN_FORCEINLINE Mat Mat::row_range(int y, int rows)
 {
     return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
 }
 
-inline const Mat Mat::row_range(int y, int rows) const
+NCNN_FORCEINLINE const Mat Mat::row_range(int y, int rows) const
 {
     return Mat(w, rows, (unsigned char*)data + (size_t)w * y * elemsize, elemsize, elempack, allocator);
 }
 
-inline Mat Mat::range(int x, int n)
+NCNN_FORCEINLINE Mat Mat::range(int x, int n)
 {
     return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
 }
 
-inline const Mat Mat::range(int x, int n) const
+NCNN_FORCEINLINE const Mat Mat::range(int x, int n) const
 {
     return Mat(n, (unsigned char*)data + x * elemsize, elemsize, elempack, allocator);
 }
 
 template<typename T>
-inline Mat::operator T*()
+NCNN_FORCEINLINE Mat::operator T*()
 {
     return (T*)data;
 }
 
 template<typename T>
-inline Mat::operator const T*() const
+NCNN_FORCEINLINE Mat::operator const T*() const
 {
     return (const T*)data;
 }
 
-inline float& Mat::operator[](size_t i)
+NCNN_FORCEINLINE float& Mat::operator[](size_t i)
 {
     return ((float*)data)[i];
 }
 
-inline const float& Mat::operator[](size_t i) const
+NCNN_FORCEINLINE const float& Mat::operator[](size_t i) const
 {
     return ((const float*)data)[i];
 }
 
 #if NCNN_VULKAN
 
-inline VkMat::VkMat()
+NCNN_FORCEINLINE VkMat::VkMat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
 }
 
-inline VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _allocator);
 }
 
-inline VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _allocator);
 }
 
-inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
 
-inline VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _d, _c, _elemsize, _allocator);
 }
 
-inline VkMat::VkMat(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _elemsize, _elempack, _allocator);
 }
 
-inline VkMat::VkMat(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _elemsize, _elempack, _allocator);
 }
 
-inline VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _c, _elemsize, _elempack, _allocator);
 }
 
-inline VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0), cstep(0)
 {
     create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
 }
 
-inline VkMat::VkMat(const VkMat& m)
+NCNN_FORCEINLINE VkMat::VkMat(const VkMat& m)
     : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), d(m.d), c(m.c)
 {
     addref();
@@ -1447,60 +1447,60 @@ inline VkMat::VkMat(const VkMat& m)
     cstep = m.cstep;
 }
 
-inline VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
     cstep = w;
 }
 
-inline VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
     cstep = w * h;
 }
 
-inline VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 }
 
-inline VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
     cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
 }
 
-inline VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
     cstep = w;
 }
 
-inline VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
     cstep = w * h;
 }
 
-inline VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
     cstep = alignSize(w * h * elemsize, 16) / elemsize;
 }
 
-inline VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkMat::VkMat(int _w, int _h, int _d, int _c, VkBufferMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
     cstep = alignSize(w * h * d * elemsize, 16) / elemsize;
 }
 
-inline VkMat::~VkMat()
+NCNN_FORCEINLINE VkMat::~VkMat()
 {
     release();
 }
 
-inline VkMat& VkMat::operator=(const VkMat& m)
+NCNN_FORCEINLINE VkMat& VkMat::operator=(const VkMat& m)
 {
     if (this == &m)
         return *this;
@@ -1527,7 +1527,7 @@ inline VkMat& VkMat::operator=(const VkMat& m)
     return *this;
 }
 
-inline Mat VkMat::mapped() const
+NCNN_FORCEINLINE Mat VkMat::mapped() const
 {
     if (!allocator->mappable)
         return Mat();
@@ -1547,7 +1547,7 @@ inline Mat VkMat::mapped() const
     return Mat();
 }
 
-inline void* VkMat::mapped_ptr() const
+NCNN_FORCEINLINE void* VkMat::mapped_ptr() const
 {
     if (!allocator->mappable)
         return 0;
@@ -1555,13 +1555,13 @@ inline void* VkMat::mapped_ptr() const
     return (unsigned char*)data->mapped_ptr + data->offset;
 }
 
-inline void VkMat::addref()
+NCNN_FORCEINLINE void VkMat::addref()
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
 }
 
-inline void VkMat::release()
+NCNN_FORCEINLINE void VkMat::release()
 {
     if (refcount && NCNN_XADD(refcount, -1) == 1)
     {
@@ -1587,22 +1587,22 @@ inline void VkMat::release()
     refcount = 0;
 }
 
-inline bool VkMat::empty() const
+NCNN_FORCEINLINE bool VkMat::empty() const
 {
     return data == 0 || total() == 0;
 }
 
-inline size_t VkMat::total() const
+NCNN_FORCEINLINE size_t VkMat::total() const
 {
     return cstep * c;
 }
 
-inline int VkMat::elembits() const
+NCNN_FORCEINLINE int VkMat::elembits() const
 {
     return elempack ? static_cast<int>(elemsize) * 8 / elempack : 0;
 }
 
-inline Mat VkMat::shape() const
+NCNN_FORCEINLINE Mat VkMat::shape() const
 {
     if (dims == 1)
         return Mat(w * elempack, (void*)0);
@@ -1616,126 +1616,126 @@ inline Mat VkMat::shape() const
     return Mat();
 }
 
-inline VkBuffer VkMat::buffer() const
+NCNN_FORCEINLINE VkBuffer VkMat::buffer() const
 {
     return data->buffer;
 }
 
-inline size_t VkMat::buffer_offset() const
+NCNN_FORCEINLINE size_t VkMat::buffer_offset() const
 {
     return data->offset;
 }
 
-inline size_t VkMat::buffer_capacity() const
+NCNN_FORCEINLINE size_t VkMat::buffer_capacity() const
 {
     return data->capacity;
 }
 
-inline VkImageMat::VkImageMat()
+NCNN_FORCEINLINE VkImageMat::VkImageMat()
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
 }
 
-inline VkImageMat::VkImageMat(int _w, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
     create(_w, _elemsize, _allocator);
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
     create(_w, _h, _elemsize, _allocator);
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, int _c, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
     create(_w, _h, _c, _elemsize, _allocator);
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, int _d, int _c, size_t _elemsize, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
     create(_w, _h, _d, _c, _elemsize, _allocator);
 }
 
-inline VkImageMat::VkImageMat(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
     create(_w, _elemsize, _elempack, _allocator);
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
     create(_w, _h, _elemsize, _elempack, _allocator);
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
     create(_w, _h, _c, _elemsize, _elempack, _allocator);
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(0), refcount(0), elemsize(0), elempack(0), allocator(0), dims(0), w(0), h(0), d(0), c(0)
 {
     create(_w, _h, _d, _c, _elemsize, _elempack, _allocator);
 }
 
-inline VkImageMat::VkImageMat(const VkImageMat& m)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(const VkImageMat& m)
     : data(m.data), refcount(m.refcount), elemsize(m.elemsize), elempack(m.elempack), allocator(m.allocator), dims(m.dims), w(m.w), h(m.h), d(m.d), c(m.c)
 {
     addref();
 }
 
-inline VkImageMat::VkImageMat(int _w, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, int _c, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, int _c, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, int _d, int _c, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, int _d, int _c, VkImageMemory* _data, size_t _elemsize, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(1), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
 }
 
-inline VkImageMat::VkImageMat(int _w, VkImageMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, VkImageMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(1), w(_w), h(1), d(1), c(1)
 {
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, VkImageMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, VkImageMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(2), w(_w), h(_h), d(1), c(1)
 {
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, int _c, VkImageMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, int _c, VkImageMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(3), w(_w), h(_h), d(1), c(_c)
 {
 }
 
-inline VkImageMat::VkImageMat(int _w, int _h, int _d, int _c, VkImageMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
+NCNN_FORCEINLINE VkImageMat::VkImageMat(int _w, int _h, int _d, int _c, VkImageMemory* _data, size_t _elemsize, int _elempack, VkAllocator* _allocator)
     : data(_data), refcount(0), elemsize(_elemsize), elempack(_elempack), allocator(_allocator), dims(4), w(_w), h(_h), d(_d), c(_c)
 {
 }
 
-inline VkImageMat::~VkImageMat()
+NCNN_FORCEINLINE VkImageMat::~VkImageMat()
 {
     release();
 }
 
-inline VkImageMat& VkImageMat::operator=(const VkImageMat& m)
+NCNN_FORCEINLINE VkImageMat& VkImageMat::operator=(const VkImageMat& m)
 {
     if (this == &m)
         return *this;
@@ -1760,7 +1760,7 @@ inline VkImageMat& VkImageMat::operator=(const VkImageMat& m)
     return *this;
 }
 
-inline Mat VkImageMat::mapped() const
+NCNN_FORCEINLINE Mat VkImageMat::mapped() const
 {
     if (!allocator->mappable || !data->mapped_ptr)
         return Mat();
@@ -1780,7 +1780,7 @@ inline Mat VkImageMat::mapped() const
     return Mat();
 }
 
-inline void* VkImageMat::mapped_ptr() const
+NCNN_FORCEINLINE void* VkImageMat::mapped_ptr() const
 {
     if (!allocator->mappable || !data->mapped_ptr)
         return 0;
@@ -1788,13 +1788,13 @@ inline void* VkImageMat::mapped_ptr() const
     return (unsigned char*)data->mapped_ptr + data->bind_offset;
 }
 
-inline void VkImageMat::addref()
+NCNN_FORCEINLINE void VkImageMat::addref()
 {
     if (refcount)
         NCNN_XADD(refcount, 1);
 }
 
-inline void VkImageMat::release()
+NCNN_FORCEINLINE void VkImageMat::release()
 {
     if (refcount && NCNN_XADD(refcount, -1) == 1)
     {
@@ -1818,22 +1818,22 @@ inline void VkImageMat::release()
     refcount = 0;
 }
 
-inline bool VkImageMat::empty() const
+NCNN_FORCEINLINE bool VkImageMat::empty() const
 {
     return data == 0 || total() == 0;
 }
 
-inline size_t VkImageMat::total() const
+NCNN_FORCEINLINE size_t VkImageMat::total() const
 {
     return w * h * d * c;
 }
 
-inline int VkImageMat::elembits() const
+NCNN_FORCEINLINE int VkImageMat::elembits() const
 {
     return elempack ? static_cast<int>(elemsize) * 8 / elempack : 0;
 }
 
-inline Mat VkImageMat::shape() const
+NCNN_FORCEINLINE Mat VkImageMat::shape() const
 {
     if (dims == 1)
         return Mat(w * elempack, (void*)0);
@@ -1847,12 +1847,12 @@ inline Mat VkImageMat::shape() const
     return Mat();
 }
 
-inline VkImage VkImageMat::image() const
+NCNN_FORCEINLINE VkImage VkImageMat::image() const
 {
     return data->image;
 }
 
-inline VkImageView VkImageMat::imageview() const
+NCNN_FORCEINLINE VkImageView VkImageMat::imageview() const
 {
     return data->imageview;
 }
