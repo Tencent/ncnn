@@ -390,6 +390,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_logsumexp.cpp
+    pass_ncnn/torch_matmul.cpp
     pass_ncnn/torch_mean.cpp
     pass_ncnn/torch_permute.cpp
     pass_ncnn/torch_prod.cpp
