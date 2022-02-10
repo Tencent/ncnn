@@ -16,6 +16,7 @@
 
 #include "pass_level5/fold_constants.h"
 #include "pass_level5/eliminate_dropout.h"
+#include "pass_level5/eliminate_noop_pad.h"
 #include "pass_level5/eliminate_slice.h"
 #include "pass_level5/eliminate_view_reshape.h"
 #include "pass_level5/eval_expression.h"
@@ -54,11 +55,13 @@ void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_cons
 
     fuse_linear_batchnorm1d(g);
 
+    eliminate_noop_pad(g);
+
+    eliminate_dropout(g);
+
     fuse_contiguous_view(g);
 
     eliminate_view_reshape(g);
-
-    eliminate_dropout(g);
 
     fuse_channel_shuffle(g);
 
