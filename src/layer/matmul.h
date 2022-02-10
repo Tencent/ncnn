@@ -24,7 +24,12 @@ class MatMul : public Layer
 public:
     MatMul();
 
+    virtual int load_param(const ParamDict& pd);
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+public:
+    int transB;
 };
 
 } // namespace ncnn

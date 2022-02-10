@@ -22,6 +22,13 @@ MatMul::MatMul()
     support_inplace = false;
 }
 
+int MatMul::load_param(const ParamDict& pd)
+{
+    transB = pd.get(0, 0);
+
+    return 0;
+}
+
 static void transpose(const Mat& X, Mat& XT, const Option& opt)
 {
     const int w = X.w;
@@ -111,11 +118,19 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         if (top_blob.empty())
             return -100;
 
-        Mat BT(B.h, B.w, elemsize, opt.workspace_allocator);
-        if (BT.empty())
-            return -100;
+        Mat BT;
+        if (transB == 0)
+        {
+            BT.create(B.h, B.w, elemsize, opt.workspace_allocator);
+            if (BT.empty())
+                return -100;
 
-        transpose(B, BT, opt);
+            transpose(B, BT, opt);
+        }
+        else
+        {
+            BT = B;
+        }
 
         matmul_transb(A, BT, top_blob, opt);
     }
@@ -128,11 +143,19 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         Mat A1 = A.reshape(A.w, 1);
 
-        Mat BT(B.h, B.w, elemsize, opt.workspace_allocator);
-        if (BT.empty())
-            return -100;
+        Mat BT;
+        if (transB == 0)
+        {
+            BT.create(B.h, B.w, elemsize, opt.workspace_allocator);
+            if (BT.empty())
+                return -100;
 
-        transpose(B, BT, opt);
+            transpose(B, BT, opt);
+        }
+        else
+        {
+            BT = B;
+        }
 
         matmul_transb(A1, BT, top_blob1, opt);
 
@@ -165,11 +188,19 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         for (int p = 0; p < batch_size; p++)
         {
-            Mat BT(B.h, B.w, elemsize, opt.workspace_allocator);
-            if (BT.empty())
-                return -100;
+            Mat BT;
+            if (transB == 0)
+            {
+                BT.create(B.h, B.w, elemsize, opt.workspace_allocator);
+                if (BT.empty())
+                    return -100;
 
-            transpose(B.channel(p), BT, opt);
+                transpose(B.channel(p), BT, opt);
+            }
+            else
+            {
+                BT = B.channel(p);
+            }
 
             Mat top_blob1_p = top_blob1.channel(p);
             matmul_transb(A1, BT, top_blob1_p, opt);
@@ -217,11 +248,18 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         Mat BT0;
         if (B1.c == 1)
         {
-            BT0.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
-            if (BT0.empty())
-                return -100;
+            if (transB == 0)
+            {
+                BT0.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
+                if (BT0.empty())
+                    return -100;
 
-            transpose(B1.channel(0), BT0, opt);
+                transpose(B1.channel(0), BT0, opt);
+            }
+            else
+            {
+                BT0 = B1.channel(0);
+            }
         }
 
         for (int p = 0; p < batch_size; p++)
@@ -236,11 +274,18 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             }
             else
             {
-                BT.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
-                if (BT.empty())
-                    return -100;
+                if (transB == 0)
+                {
+                    BT.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
+                    if (BT.empty())
+                        return -100;
 
-                transpose(B1.channel(Bp), BT, opt);
+                    transpose(B1.channel(Bp), BT, opt);
+                }
+                else
+                {
+                    BT = B1.channel(Bp);
+                }
             }
 
             Mat top_blob_p = top_blob.channel(p);
@@ -262,11 +307,18 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         Mat BT00;
         if (B1.d == 1 && B1.c == 1)
         {
-            BT00.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
-            if (BT00.empty())
-                return -100;
+            if (transB == 0)
+            {
+                BT00.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
+                if (BT00.empty())
+                    return -100;
 
-            transpose(B1.channel(0).depth(0), BT00, opt);
+                transpose(B1.channel(0).depth(0), BT00, opt);
+            }
+            else
+            {
+                BT00 = B1.channel(0).depth(0);
+            }
         }
 
         for (int p = 0; p < batch_size_c; p++)
@@ -277,11 +329,18 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             Mat BT0x;
             if (B1.d == 1 && B1.c != 1)
             {
-                BT0x.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
-                if (BT0x.empty())
-                    return -100;
+                if (transB == 0)
+                {
+                    BT0x.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
+                    if (BT0x.empty())
+                        return -100;
 
-                transpose(B1.channel(Bp).depth(0), BT0x, opt);
+                    transpose(B1.channel(Bp).depth(0), BT0x, opt);
+                }
+                else
+                {
+                    BT0x = B1.channel(Bp).depth(0);
+                }
             }
 
             for (int q = 0; q < batch_size_d; q++)
@@ -300,11 +359,18 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                 }
                 else
                 {
-                    BT.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
-                    if (BT.empty())
-                        return -100;
+                    if (transB == 0)
+                    {
+                        BT.create(B1.h, B1.w, elemsize, opt.workspace_allocator);
+                        if (BT.empty())
+                            return -100;
 
-                    transpose(B1.channel(Bp).depth(Bd), BT, opt);
+                        transpose(B1.channel(Bp).depth(Bd), BT, opt);
+                    }
+                    else
+                    {
+                        BT = B1.channel(Bp).depth(Bd);
+                    }
                 }
 
                 Mat top_blob_p_q = top_blob.channel(p).depth(q);
