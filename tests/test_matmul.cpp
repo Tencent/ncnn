@@ -110,9 +110,9 @@ static int test_matmul_5()
            || test_matmul(RandomMat(16, 22, 9, 17), RandomMat(10, 16, 9, 17))
            || test_matmul(RandomMat(14, 20, 8, 18), RandomMat(9, 14, 8, 18))
 
-           || test_matmul(RandomMat(14, 23, 10, 16), RandomMat(14, 5, 10, 16))
-           || test_matmul(RandomMat(16, 22, 9, 17), RandomMat(16, 10, 9, 17))
-           || test_matmul(RandomMat(14, 20, 8, 18), RandomMat(14, 9, 8, 18));
+           || test_matmul_transb(RandomMat(14, 23, 10, 16), RandomMat(14, 5, 10, 16))
+           || test_matmul_transb(RandomMat(16, 22, 9, 17), RandomMat(16, 10, 9, 17))
+           || test_matmul_transb(RandomMat(14, 20, 8, 18), RandomMat(14, 9, 8, 18));
 }
 
 static int test_matmul_6()

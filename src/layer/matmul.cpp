@@ -90,8 +90,6 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const int max_ABdims = std::max(Adims, Bdims);
     const size_t elemsize = A.elemsize;
 
-    fprintf(stderr, "A %d (%d %d %d %d) B %d (%d %d %d %d)\n", Adims, A.w, A.h, A.d, A.c, Bdims, B.w, B.h, B.d, B.c);
-
     if (Adims == 1 && Bdims == 1)
     {
         // dot product
@@ -114,9 +112,10 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     else if (Adims == 2 && Bdims == 2)
     {
         // matrix multiply
+        const int M = A.h;
         const int N = transB == 0 ? B.w : B.h;
 
-        top_blob.create(N, A.h, elemsize, opt.blob_allocator);
+        top_blob.create(N, M, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -168,7 +167,9 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     else if (Adims == 2 && Bdims == 1)
     {
         // matrix multiply
-        Mat top_blob1(1, A.h, elemsize, opt.blob_allocator);
+        const int M = A.h;
+
+        Mat top_blob1(1, M, elemsize, opt.blob_allocator);
         if (top_blob1.empty())
             return -100;
 
@@ -176,7 +177,7 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
         matmul_transb(A, BT, top_blob1, opt);
 
-        top_blob = top_blob1.reshape(A.h);
+        top_blob = top_blob1.reshape(M);
     }
     else if (Adims == 1 && Bdims > 2)
     {
@@ -219,9 +220,10 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     else if (Adims > 2 && Bdims == 1)
     {
         // batched matrix multiply
+        const int M = A.h;
         const int batch_size = A.d * A.c;
 
-        Mat top_blob1(1, A.h, batch_size, elemsize, opt.blob_allocator);
+        Mat top_blob1(1, M, batch_size, elemsize, opt.blob_allocator);
         if (top_blob1.empty())
             return -100;
 
@@ -235,19 +237,20 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         }
 
         if (Adims == 3)
-            top_blob = top_blob1.reshape(A.h, A.d * A.c);
+            top_blob = top_blob1.reshape(M, A.d * A.c);
         else
-            top_blob = top_blob1.reshape(A.h, A.d, A.c);
+            top_blob = top_blob1.reshape(M, A.d, A.c);
     }
     else if (max_ABdims == 3)
     {
         Mat A1 = Adims == 2 ? A.reshape(A.w, A.h, 1) : A;
         Mat B1 = Bdims == 2 ? B.reshape(B.w, B.h, 1) : B;
 
+        const int M = A1.h;
         const int N = transB == 0 ? B1.w : B1.h;
         const int batch_size = std::max(A1.c, B1.c);
 
-        top_blob.create(N, A1.h, batch_size, elemsize, opt.blob_allocator);
+        top_blob.create(N, M, batch_size, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
@@ -303,11 +306,12 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         Mat A1 = Adims == 3 ? A.reshape(A.w, A.h, A.c, 1) : A;
         Mat B1 = Bdims == 3 ? B.reshape(B.w, B.h, B.c, 1) : B;
 
+        const int M = A1.h;
         const int N = transB == 0 ? B1.w : B1.h;
         const int batch_size_d = std::max(A1.d, B1.d);
         const int batch_size_c = std::max(A1.c, B1.c);
 
-        top_blob.create(N, A1.h, batch_size_d, batch_size_c, elemsize, opt.blob_allocator);
+        top_blob.create(N, M, batch_size_d, batch_size_c, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
 
