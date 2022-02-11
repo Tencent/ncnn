@@ -704,7 +704,7 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
             _sum4_6 = _mm256_add_epi32(_sum4_6, _sum5_7);
             __m128i _sum0 = _mm256_extracti128_si256(_sum0_2, 0);
             __m128i _sum2 = _mm256_extracti128_si256(_sum0_2, 1);
-            __m128i _sum4 = _mm256_extracti128_si256(_sum4_6, 1);
+            __m128i _sum4 = _mm256_extracti128_si256(_sum4_6, 0);
             __m128i _sum6 = _mm256_extracti128_si256(_sum4_6, 1);
 
             outptr0[0] = _mm_reduce_add_epi32(_sum0);

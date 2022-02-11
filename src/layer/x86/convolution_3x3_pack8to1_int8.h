@@ -974,7 +974,7 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum7 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl3, _sh3));
 
                         k0 += 8;
-                        r0 += 16;
+                        r0 += 32;
                     }
 
                     _sum0 = _mm_add_epi32(_sum0, _sum1);

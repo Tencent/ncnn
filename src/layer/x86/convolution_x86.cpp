@@ -1342,10 +1342,10 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         {
             convolution_im2col_sgemm_transform_kernel_pack8to1_int8_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
         }
-        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
-        }
+        // else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // {
+        //     conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+        // }
         else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
         {
             convolution_im2col_sgemm_transform_kernel_pack8to1_int8_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
@@ -1569,10 +1569,10 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         {
             conv1x1s2_sgemm_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
         }
-        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv3x3s1_winograd42_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd42_data, opt);
-        }
+        // else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        // {
+        //     conv3x3s1_winograd42_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd42_data, opt);
+        // }
         else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
         {
             convolution_im2col_sgemm_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);

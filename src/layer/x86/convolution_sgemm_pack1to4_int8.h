@@ -266,7 +266,7 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         for (; i + 3 < size; i += 4)
         {
             const signed char* tmpptr = tmp.channel(i / 4);
-            const signed char* kptr0 = kernel.channel(p / 4);
+            const signed char* kptr0 = kernel.channel(p);
 
             int nn4 = (inch / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
