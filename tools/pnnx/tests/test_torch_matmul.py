@@ -20,14 +20,16 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x0, x1, y0, y1, z0, z1, w0, w1, s0, s1, t0, t1):
+    def forward(self, x0, x1, y0, y1, z0, z1, w0, w1, s0, s1, t0, t1, u0, u1, v0, v1):
         x = torch.matmul(x0, x1)
         y = torch.matmul(y0, y1)
         z = torch.matmul(z0, z1)
         w = torch.matmul(w0, w1)
         s = torch.matmul(s0, s1)
         t = torch.matmul(t0, t1)
-        return x, y, z, w, s, t
+        u = torch.matmul(u0, u1)
+        v = torch.matmul(v0, v1)
+        return x, y, z, w, s, t, u, v
 
 def test():
     net = Model()
@@ -46,16 +48,20 @@ def test():
     s1 = torch.rand(14, 5)
     t0 = torch.rand(6, 9, 13, 14)
     t1 = torch.rand(6, 9, 14, 15)
+    u0 = torch.rand(13)
+    u1 = torch.rand(7, 13, 4)
+    v0 = torch.rand(4, 5)
+    v1 = torch.rand(10, 5, 40)
 
-    a = net(x0, x1, y0, y1, z0, z1, w0, w1, s0, s1, t0, t1)
+    a = net(x0, x1, y0, y1, z0, z1, w0, w1, s0, s1, t0, t1, u0, u1, v0, v1)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x0, x1, y0, y1, z0, z1, w0, w1, s0, s1, t0, t1))
+    mod = torch.jit.trace(net, (x0, x1, y0, y1, z0, z1, w0, w1, s0, s1, t0, t1, u0, u1, v0, v1))
     mod.save("test_torch_mean.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_mean.pt inputshape=[13],[13],[5,12],[12],[10,3,4],[4],[10,23,14],[10,14,5],[10,23,14],[14,5],[6,9,13,14],[6,9,14,15]")
+    os.system("../src/pnnx test_torch_mean.pt inputshape=[13],[13],[5,12],[12],[10,3,4],[4],[10,23,14],[10,14,5],[10,23,14],[14,5],[6,9,13,14],[6,9,14,15],[13],[7,13,4],[4,5],[10,5,40]")
 
     # pnnx inference
     import test_torch_mean_pnnx
