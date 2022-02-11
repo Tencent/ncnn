@@ -249,8 +249,8 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
         const ncnn::Mat mb = b.channel(q);
         for (int z = 0; z < a.d; z++)
         {
-            const ncnn::Mat da = a.depth(z);
-            const ncnn::Mat db = b.depth(z);
+            const ncnn::Mat da = ma.depth(z);
+            const ncnn::Mat db = mb.depth(z);
             for (int i = 0; i < a.h; i++)
             {
                 const float* pa = da.row(i);
