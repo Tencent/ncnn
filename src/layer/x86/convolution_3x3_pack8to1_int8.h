@@ -968,10 +968,10 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl0, _sh0));
                         _sum2 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl1, _sh1));
                         _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl1, _sh1));
-                        _sum4 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl2, _sh2));
-                        _sum5 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl2, _sh2));
-                        _sum6 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl3, _sh3));
-                        _sum7 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl3, _sh3));
+                        _sum4 = _mm_add_epi32(_sum4, _mm_unpacklo_epi16(_sl2, _sh2));
+                        _sum5 = _mm_add_epi32(_sum5, _mm_unpackhi_epi16(_sl2, _sh2));
+                        _sum6 = _mm_add_epi32(_sum6, _mm_unpacklo_epi16(_sl3, _sh3));
+                        _sum7 = _mm_add_epi32(_sum7, _mm_unpackhi_epi16(_sl3, _sh3));
 
                         k0 += 8;
                         r0 += 32;
