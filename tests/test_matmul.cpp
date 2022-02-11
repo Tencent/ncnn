@@ -66,56 +66,16 @@ static int test_matmul_0()
 static int test_matmul_1()
 {
     return 0
-           || test_matmul(RandomMat(5, 6), RandomMat(5))
-           || test_matmul(RandomMat(16, 12), RandomMat(16))
-           || test_matmul(RandomMat(11, 16), RandomMat(11));
+           || test_matmul(RandomMat(5), RandomMat(6, 5))
+           || test_matmul(RandomMat(16), RandomMat(12, 16))
+           || test_matmul(RandomMat(11), RandomMat(16, 11))
+
+           || test_matmul_transb(RandomMat(5), RandomMat(5, 6))
+           || test_matmul_transb(RandomMat(16), RandomMat(16, 12))
+           || test_matmul_transb(RandomMat(11), RandomMat(11, 16));
 }
 
 static int test_matmul_2()
-{
-    return 0
-           || test_matmul(RandomMat(32, 3, 10), RandomMat(32))
-           || test_matmul(RandomMat(31, 4, 16), RandomMat(31))
-           || test_matmul(RandomMat(28, 5, 28), RandomMat(28));
-}
-
-static int test_matmul_3()
-{
-    return 0
-           || test_matmul(RandomMat(14, 23, 10), RandomMat(5, 14, 10))
-           || test_matmul(RandomMat(16, 22, 16), RandomMat(10, 16, 16))
-           || test_matmul(RandomMat(14, 20, 28), RandomMat(9, 14, 28))
-
-           || test_matmul_transb(RandomMat(14, 23, 10), RandomMat(14, 5, 10))
-           || test_matmul_transb(RandomMat(16, 22, 16), RandomMat(16, 10, 16))
-           || test_matmul_transb(RandomMat(14, 20, 28), RandomMat(14, 9, 28));
-}
-
-static int test_matmul_4()
-{
-    return 0
-           || test_matmul(RandomMat(14, 23, 10), RandomMat(5, 14))
-           || test_matmul(RandomMat(16, 22, 16), RandomMat(10, 16))
-           || test_matmul(RandomMat(14, 20, 28), RandomMat(9, 14))
-
-           || test_matmul_transb(RandomMat(14, 23, 10), RandomMat(14, 5))
-           || test_matmul_transb(RandomMat(16, 22, 16), RandomMat(16, 10))
-           || test_matmul_transb(RandomMat(14, 20, 28), RandomMat(14, 9));
-}
-
-static int test_matmul_5()
-{
-    return 0
-           || test_matmul(RandomMat(14, 23, 10, 16), RandomMat(5, 14, 10, 16))
-           || test_matmul(RandomMat(16, 22, 9, 17), RandomMat(10, 16, 9, 17))
-           || test_matmul(RandomMat(14, 20, 8, 18), RandomMat(9, 14, 8, 18))
-
-           || test_matmul_transb(RandomMat(14, 23, 10, 16), RandomMat(14, 5, 10, 16))
-           || test_matmul_transb(RandomMat(16, 22, 9, 17), RandomMat(16, 10, 9, 17))
-           || test_matmul_transb(RandomMat(14, 20, 8, 18), RandomMat(14, 9, 8, 18));
-}
-
-static int test_matmul_6()
 {
     return 0
            || test_matmul(RandomMat(13), RandomMat(7, 13, 12))
@@ -127,7 +87,55 @@ static int test_matmul_6()
            || test_matmul_transb(RandomMat(20), RandomMat(20, 8, 19));
 }
 
+static int test_matmul_3()
+{
+    return 0
+           || test_matmul(RandomMat(13), RandomMat(7, 13, 5, 12))
+           || test_matmul(RandomMat(24), RandomMat(6, 24, 4, 16))
+           || test_matmul(RandomMat(20), RandomMat(8, 20, 3, 19))
+
+           || test_matmul_transb(RandomMat(13), RandomMat(13, 7, 5, 12))
+           || test_matmul_transb(RandomMat(24), RandomMat(24, 6, 4, 16))
+           || test_matmul_transb(RandomMat(20), RandomMat(20, 8, 3, 19));
+}
+
+static int test_matmul_4()
+{
+    return 0
+           || test_matmul(RandomMat(5, 6), RandomMat(5))
+           || test_matmul(RandomMat(16, 12), RandomMat(16))
+           || test_matmul(RandomMat(11, 16), RandomMat(11));
+}
+
+static int test_matmul_5()
+{
+    return 0
+           || test_matmul(RandomMat(32, 3, 10), RandomMat(32))
+           || test_matmul(RandomMat(31, 4, 16), RandomMat(31))
+           || test_matmul(RandomMat(28, 5, 28), RandomMat(28));
+}
+
+static int test_matmul_6()
+{
+    return 0
+           || test_matmul(RandomMat(32, 3, 4, 10), RandomMat(32))
+           || test_matmul(RandomMat(31, 4, 5, 16), RandomMat(31))
+           || test_matmul(RandomMat(18, 5, 6, 28), RandomMat(18));
+}
+
 static int test_matmul_7()
+{
+    return 0
+           || test_matmul(RandomMat(14, 10), RandomMat(5, 14))
+           || test_matmul(RandomMat(16, 16), RandomMat(10, 16))
+           || test_matmul(RandomMat(14, 28), RandomMat(9, 14))
+
+           || test_matmul_transb(RandomMat(14, 10), RandomMat(14, 5))
+           || test_matmul_transb(RandomMat(16, 16), RandomMat(16, 10))
+           || test_matmul_transb(RandomMat(14, 28), RandomMat(14, 9));
+}
+
+static int test_matmul_8()
 {
     return 0
            || test_matmul(RandomMat(5, 4), RandomMat(4, 5, 12))
@@ -137,6 +145,90 @@ static int test_matmul_7()
            || test_matmul_transb(RandomMat(5, 4), RandomMat(5, 4, 12))
            || test_matmul_transb(RandomMat(5, 14), RandomMat(5, 5, 16))
            || test_matmul_transb(RandomMat(5, 24), RandomMat(5, 6, 19));
+}
+
+static int test_matmul_9()
+{
+    return 0
+           || test_matmul(RandomMat(5, 4), RandomMat(4, 5, 2, 12))
+           || test_matmul(RandomMat(5, 14), RandomMat(5, 5, 3, 16))
+           || test_matmul(RandomMat(5, 24), RandomMat(6, 5, 4, 19))
+
+           || test_matmul_transb(RandomMat(5, 4), RandomMat(5, 4, 2, 12))
+           || test_matmul_transb(RandomMat(5, 14), RandomMat(5, 5, 3, 16))
+           || test_matmul_transb(RandomMat(5, 24), RandomMat(5, 6, 4, 19));
+}
+
+static int test_matmul_10()
+{
+    return 0
+           || test_matmul(RandomMat(14, 23, 10), RandomMat(5, 14))
+           || test_matmul(RandomMat(16, 22, 16), RandomMat(10, 16))
+           || test_matmul(RandomMat(14, 20, 28), RandomMat(9, 14))
+
+           || test_matmul_transb(RandomMat(14, 23, 10), RandomMat(14, 5))
+           || test_matmul_transb(RandomMat(16, 22, 16), RandomMat(16, 10))
+           || test_matmul_transb(RandomMat(14, 20, 28), RandomMat(14, 9));
+}
+
+static int test_matmul_11()
+{
+    return 0
+           || test_matmul(RandomMat(14, 13, 2, 10), RandomMat(5, 14))
+           || test_matmul(RandomMat(16, 12, 3, 16), RandomMat(10, 16))
+           || test_matmul(RandomMat(14, 10, 4, 28), RandomMat(9, 14))
+
+           || test_matmul_transb(RandomMat(14, 13, 2, 10), RandomMat(14, 5))
+           || test_matmul_transb(RandomMat(16, 12, 3, 16), RandomMat(16, 10))
+           || test_matmul_transb(RandomMat(14, 10, 4, 28), RandomMat(14, 9));
+}
+
+static int test_matmul_12()
+{
+    return 0
+           || test_matmul(RandomMat(14, 23, 10), RandomMat(5, 14, 10))
+           || test_matmul(RandomMat(16, 22, 16), RandomMat(10, 16, 16))
+           || test_matmul(RandomMat(14, 20, 28), RandomMat(9, 14, 28))
+
+           || test_matmul_transb(RandomMat(14, 23, 10), RandomMat(14, 5, 10))
+           || test_matmul_transb(RandomMat(16, 22, 16), RandomMat(16, 10, 16))
+           || test_matmul_transb(RandomMat(14, 20, 28), RandomMat(14, 9, 28));
+}
+
+static int test_matmul_13()
+{
+    return 0
+           || test_matmul(RandomMat(14, 23, 10), RandomMat(5, 14, 1, 16))
+           || test_matmul(RandomMat(16, 22, 9), RandomMat(10, 16, 1, 17))
+           || test_matmul(RandomMat(14, 20, 8), RandomMat(9, 14, 1, 18))
+
+           || test_matmul_transb(RandomMat(14, 23, 10), RandomMat(14, 5, 1, 16))
+           || test_matmul_transb(RandomMat(16, 22, 9), RandomMat(16, 10, 1, 17))
+           || test_matmul_transb(RandomMat(14, 20, 8), RandomMat(14, 9, 1, 18));
+}
+
+static int test_matmul_14()
+{
+    return 0
+           || test_matmul(RandomMat(14, 23, 10, 1), RandomMat(5, 14, 1, 16))
+           || test_matmul(RandomMat(16, 22, 9, 1), RandomMat(10, 16, 1, 17))
+           || test_matmul(RandomMat(14, 20, 8, 1), RandomMat(9, 14, 1, 18))
+
+           || test_matmul_transb(RandomMat(14, 23, 10, 1), RandomMat(14, 5, 1, 16))
+           || test_matmul_transb(RandomMat(16, 22, 9, 1), RandomMat(16, 10, 1, 17))
+           || test_matmul_transb(RandomMat(14, 20, 8, 1), RandomMat(14, 9, 1, 18));
+}
+
+static int test_matmul_15()
+{
+    return 0
+           || test_matmul(RandomMat(14, 23, 10, 16), RandomMat(5, 14, 10, 16))
+           || test_matmul(RandomMat(16, 22, 9, 17), RandomMat(10, 16, 9, 17))
+           || test_matmul(RandomMat(14, 20, 8, 18), RandomMat(9, 14, 8, 18))
+
+           || test_matmul_transb(RandomMat(14, 23, 10, 16), RandomMat(14, 5, 10, 16))
+           || test_matmul_transb(RandomMat(16, 22, 9, 17), RandomMat(16, 10, 9, 17))
+           || test_matmul_transb(RandomMat(14, 20, 8, 18), RandomMat(14, 9, 8, 18));
 }
 
 int main()
@@ -151,5 +243,13 @@ int main()
            || test_matmul_4()
            || test_matmul_5()
            || test_matmul_6()
-           || test_matmul_7();
+           || test_matmul_7()
+           || test_matmul_8()
+           || test_matmul_9()
+           || test_matmul_10()
+           || test_matmul_11()
+           || test_matmul_12()
+           || test_matmul_13()
+           || test_matmul_14()
+           || test_matmul_15();
 }

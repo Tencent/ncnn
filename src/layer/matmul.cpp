@@ -201,11 +201,11 @@ int MatMul::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                 if (BT.empty())
                     return -100;
 
-                transpose(B.channel(p), BT, opt);
+                transpose(B1.channel(p), BT, opt);
             }
             else
             {
-                BT = B.channel(p);
+                BT = B1.channel(p);
             }
 
             Mat top_blob1_p = top_blob1.channel(p);
