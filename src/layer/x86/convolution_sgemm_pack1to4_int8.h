@@ -336,9 +336,8 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum00_12 = _mm256_hadd_epi32(_sum00_12, _sum10_02);
                 _sum20_32 = _mm256_hadd_epi32(_sum20_32, _sum30_22);
 
-                __m256i _perm_mask = _mm256_set_epi32(5, 1, 6, 2, 7, 3, 4, 0);
-                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
-                _sum20_32 = _mm256_permutevar8x32_epi32(_sum20_32, _perm_mask);
+                _sum00_12 = _mm256_permute4x64_epi64(_sum00_12, _MM_SHUFFLE(2, 1, 3, 0));
+                _sum20_32 = _mm256_permute4x64_epi64(_sum20_32, _MM_SHUFFLE(2, 1, 3, 0));
 #else
                 // transpose 4x8
                 {
@@ -534,8 +533,7 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 #if __AVXVNNI__ || __AVX512VNNI__
                 _sum00_12 = _mm256_hadd_epi32(_sum00_12, _sum10_02);
 
-                __m256i _perm_mask = _mm256_set_epi32(5, 1, 6, 2, 7, 3, 4, 0);
-                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
+                _sum00_12 = _mm256_permute4x64_epi64(_sum00_12, _MM_SHUFFLE(2, 1, 3, 0));
 #else
                 // transpose 4x8
                 {
