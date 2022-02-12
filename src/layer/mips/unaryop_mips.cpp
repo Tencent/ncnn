@@ -60,6 +60,8 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
     return 0;
 }
 
+namespace UnaryOp_mips_functor {
+
 struct unary_op_abs_pack4
 {
     v4f32 operator()(const v4f32& x) const
@@ -261,13 +263,17 @@ struct unary_op_tanh_pack4
         return tanh_ps(x);
     }
 };
+
+} // namespace UnaryOp_mips_functor
 #endif // __mips_msa
 
 int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if __mips_msa
+    using namespace UnaryOp_mips_functor;
+
     int elempack = bottom_top_blob.elempack;
 
-#if __mips_msa
     if (elempack == 4)
     {
         if (op_type == Operation_ABS)

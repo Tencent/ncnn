@@ -1156,6 +1156,8 @@ static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+namespace BinaryOp_riscv_functor {
+
 struct binary_op_add_rvv
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
@@ -1299,6 +1301,8 @@ struct binary_op_rdiv_rvv
         return vfdiv_vf_f32m8(y, x, vl);
     }
 };
+
+} // namespace BinaryOp_riscv_functor
 #endif
 
 int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -1315,6 +1319,8 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     Mat& top_blob = top_blobs[0];
 
 #if __riscv_vector
+    using namespace BinaryOp_riscv_functor;
+
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
     if (elempack != 1 || elempack1 != 1)
@@ -1362,6 +1368,8 @@ int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
         return forward_inplace_fp16s(bottom_top_blob, opt);
     }
 #endif
+
+    using namespace BinaryOp_riscv_functor;
 
     if (op_type == Operation_ADD)
         return binary_op_scalar_rvv<binary_op_add_rvv>(bottom_top_blob, b, opt);
@@ -2513,6 +2521,8 @@ static int binary_op_scalar_rvv_fp16s(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+namespace BinaryOp_riscv_functor {
+
 struct binary_op_add_rvv_fp16
 {
     vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
@@ -2656,6 +2666,8 @@ struct binary_op_rdiv_rvv_fp16
         return vfdiv_vf_f16m8(y, x, vl);
     }
 };
+
+} // namespace BinaryOp_riscv_functor
 
 template<typename Op>
 static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
@@ -3450,6 +3462,8 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
     return 0;
 }
 
+namespace BinaryOp_riscv_functor {
+
 struct binary_op_add_fp16s
 {
     __fp16 operator()(const __fp16& x, const __fp16& y) const
@@ -3522,11 +3536,15 @@ struct binary_op_rdiv_fp16s
     }
 };
 
+} // namespace BinaryOp_riscv_functor
+
 int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
+
+    using namespace BinaryOp_riscv_functor;
 
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
@@ -3595,6 +3613,8 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
 
 int BinaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace BinaryOp_riscv_functor;
+
     if (op_type == Operation_ADD)
         return binary_op_scalar_rvv_fp16s<binary_op_add_rvv_fp16>(bottom_top_blob, b, opt);
 
