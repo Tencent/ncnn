@@ -994,7 +994,7 @@ namespace BinaryOp_x86_functor {
 #define MAKE_FUNCTION(NAME, IMPL)                                 \
     struct NAME                                                   \
     {                                                             \
-        __m128 operator()(const __m128& x, const __m128& y) const \
+        __m256 operator()(const __m256& x, const __m256& y) const \
         {                                                         \
             return IMPL;                                          \
         }                                                         \
