@@ -1016,13 +1016,13 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_mips_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL)                                 \
-    struct NAME                                                   \
-    {                                                             \
+#define MAKE_FUNCTION(NAME, IMPL)                              \
+    struct NAME                                                \
+    {                                                          \
         v4f32 operator()(const v4f32& x, const v4f32& y) const \
-        {                                                         \
-            return IMPL;                                          \
-        }                                                         \
+        {                                                      \
+            return IMPL;                                       \
+        }                                                      \
     };
 
 MAKE_FUNCTION(binary_op_add_pack4, __msa_fadd_w(x, y))

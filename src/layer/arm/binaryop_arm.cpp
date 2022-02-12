@@ -2149,13 +2149,13 @@ static int binary_op_scalar_inplace_pack8_fp16s(Mat& a, float b, const Option& o
 
 namespace BinaryOp_arm_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL)                                 \
-    struct NAME                                                   \
-    {                                                             \
+#define MAKE_FUNCTION(NAME, IMPL)                                                \
+    struct NAME                                                                  \
+    {                                                                            \
         float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const \
-        {                                                         \
-            return IMPL;                                          \
-        }                                                         \
+        {                                                                        \
+            return IMPL;                                                         \
+        }                                                                        \
     };
 
 MAKE_FUNCTION(binary_op_add_pack8_fp16s, vaddq_f16(x, y))
