@@ -1014,6 +1014,8 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+namespace BinaryOp_mips_functor {
+
 struct binary_op_add_pack4
 {
     v4f32 operator()(const v4f32& x, const v4f32& y) const
@@ -1085,6 +1087,8 @@ struct binary_op_rdiv_pack4
         return __msa_fdiv_w(y, x);
     }
 };
+
+} // namespace BinaryOp_mips_functor
 #endif // __mips_msa
 
 int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -1094,6 +1098,8 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     Mat& top_blob = top_blobs[0];
 
 #if __mips_msa
+    using namespace BinaryOp_mips_functor;
+
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
 
@@ -1134,6 +1140,8 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 int BinaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
 #if __mips_msa
+    using namespace BinaryOp_mips_functor;
+
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 4)

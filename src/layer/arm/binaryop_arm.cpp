@@ -994,6 +994,8 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+namespace BinaryOp_arm_functor {
+
 struct binary_op_add_pack4
 {
     float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
@@ -1077,6 +1079,8 @@ struct binary_op_rdiv_pack4
     }
 #endif
 };
+
+} // namespace BinaryOp_arm_functor
 #endif // __ARM_NEON
 
 int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -1098,6 +1102,8 @@ int BinaryOp_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     Mat& top_blob = top_blobs[0];
 
 #if __ARM_NEON
+    using namespace BinaryOp_arm_functor;
+
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
 
@@ -1150,6 +1156,8 @@ int BinaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif
 
 #if __ARM_NEON
+    using namespace BinaryOp_arm_functor;
+
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 4)
@@ -2139,6 +2147,8 @@ static int binary_op_scalar_inplace_pack8_fp16s(Mat& a, float b, const Option& o
     return 0;
 }
 
+namespace BinaryOp_arm_functor {
+
 struct binary_op_add_pack8_fp16s
 {
     float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
@@ -2212,6 +2222,8 @@ struct binary_op_rdiv_pack8_fp16s
         return vdivq_f16(y, x);
     }
 };
+
+} // namespace BinaryOp_arm_functor
 
 template<typename Op>
 static int binary_op_pack4_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
@@ -3165,6 +3177,8 @@ static int binary_op_scalar_inplace_pack4_fp16s(Mat& a, float b, const Option& o
     return 0;
 }
 
+namespace BinaryOp_arm_functor {
+
 struct binary_op_add_pack4_fp16s
 {
     float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
@@ -3236,6 +3250,8 @@ struct binary_op_rdiv_pack4_fp16s
         return vdiv_f16(y, x);
     }
 };
+
+} // namespace BinaryOp_arm_functor
 
 template<typename Op>
 static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
@@ -4057,6 +4073,8 @@ static int binary_op_scalar_inplace_fp16s(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+namespace BinaryOp_arm_functor {
+
 struct binary_op_add_fp16s
 {
     __fp16 operator()(const __fp16& x, const __fp16& y) const
@@ -4129,12 +4147,16 @@ struct binary_op_rdiv_fp16s
     }
 };
 
+} // namespace BinaryOp_arm_functor
+
 int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
 
     Mat& top_blob = top_blobs[0];
+
+    using namespace BinaryOp_arm_functor;
 
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
@@ -4234,6 +4256,8 @@ int BinaryOp_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
 int BinaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace BinaryOp_arm_functor;
+
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 8)
@@ -6103,6 +6127,8 @@ static int binary_op_scalar_inplace_bf16s(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+namespace BinaryOp_arm_functor {
+
 struct binary_op_add
 {
     float operator()(const float& x, const float& y) const
@@ -6175,12 +6201,16 @@ struct binary_op_rdiv
     }
 };
 
+} // namespace BinaryOp_arm_functor
+
 int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
 
     Mat& top_blob = top_blobs[0];
+
+    using namespace BinaryOp_arm_functor;
 
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
@@ -6252,6 +6282,8 @@ int BinaryOp_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
 int BinaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace BinaryOp_arm_functor;
+
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
