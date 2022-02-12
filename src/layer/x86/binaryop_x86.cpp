@@ -1140,7 +1140,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         for (int x = 0; x < w; x++)
                         {
                             __m128 _p = _mm_loadu_ps(ptr);
-                            __m128 _outp = op(_p, _b0);
+                            __m128 _outp = op(std::move(_p), _b0);
                             _mm_storeu_ps(outptr, _outp);
                             ptr += 4;
                             outptr += 4;
@@ -1172,7 +1172,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         for (int x = 0; x < w; x++)
                         {
                             __m128 _p = _mm_loadu_ps(ptr);
-                            __m128 _outp = op(_p, _b0);
+                            __m128 _outp = op(std::move(_p), _b0);
                             _mm_storeu_ps(outptr, _outp);
                             ptr += 4;
                             outptr += 4;
@@ -1201,7 +1201,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     for (int i = 0; i < size; i++)
                     {
                         __m128 _p = _mm_loadu_ps(ptr);
-                        __m128 _outp = op(_p, _b0);
+                        __m128 _outp = op(std::move(_p), _b0);
                         _mm_storeu_ps(outptr, _outp);
                         ptr += 4;
                         outptr += 4;
@@ -1222,7 +1222,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int i = 0; i < size; i++)
                 {
                     __m128 _p = _mm_loadu_ps(ptr);
-                    __m128 _outp = op(_p, _b0);
+                    __m128 _outp = op(std::move(_p), _b0);
                     _mm_storeu_ps(outptr, _outp);
                     ptr += 4;
                     outptr += 4;
@@ -1256,7 +1256,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         for (int x = 0; x < w1; x++)
                         {
                             __m128 _p = _mm_loadu_ps(ptr1);
-                            __m128 _outp = op(_a0, _p);
+                            __m128 _outp = op(_a0, std::move(_p));
                             _mm_storeu_ps(outptr, _outp);
                             ptr1 += 4;
                             outptr += 4;
@@ -1289,7 +1289,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     for (int i = 0; i < size; i++)
                     {
                         __m128 _p = _mm_loadu_ps(ptr);
-                        __m128 _outp = op(_p, _b0);
+                        __m128 _outp = op(std::move(_p), _b0);
                         _mm_storeu_ps(outptr, _outp);
                         ptr += 4;
                         outptr += 4;
@@ -1316,7 +1316,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     {
                         __m128 _p = _mm_loadu_ps(ptr);
                         __m128 _p1 = _mm_set1_ps(*ptr1);
-                        __m128 _outp = op(_p, _p1);
+                        __m128 _outp = op(std::move(_p), std::move(_p1));
                         _mm_storeu_ps(outptr, _outp);
                         ptr += 4;
                         ptr1 += 1;
@@ -1344,7 +1344,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     for (int i = 0; i < size1; i++)
                     {
                         __m128 _p1 = _mm_loadu_ps(ptr1);
-                        __m128 _outp = op(_a0, _p1);
+                        __m128 _outp = op(_a0, std::move(_p1));
                         _mm_storeu_ps(outptr, _outp);
                         ptr1 += 4;
                         outptr += 4;
@@ -1371,7 +1371,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     {
                         __m128 _p = _mm_set1_ps(*ptr);
                         __m128 _p1 = _mm_loadu_ps(ptr1);
-                        __m128 _outp = op(_p, _p1);
+                        __m128 _outp = op(std::move(_p), std::move(_p1));
                         _mm_storeu_ps(outptr, _outp);
                         ptr += 1;
                         ptr1 += 4;
@@ -1402,7 +1402,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         for (int x = 0; x < w; x++)
                         {
                             __m128 _p = _mm_loadu_ps(ptr);
-                            __m128 _outp = op(_p, _p1);
+                            __m128 _outp = op(std::move(_p), _p1);
                             _mm_storeu_ps(outptr, _outp);
 
                             ptr += 4;
@@ -1434,7 +1434,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         {
                             __m128 _p = _mm_loadu_ps(ptr);
                             __m128 _p1 = _mm_loadu_ps(ptr1 + x * 4);
-                            __m128 _outp = op(_p, _p1);
+                            __m128 _outp = op(std::move(_p), std::move(_p1));
                             _mm_storeu_ps(outptr, _outp);
 
                             ptr += 4;
@@ -1466,7 +1466,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         for (int x = 0; x < w1; x++)
                         {
                             __m128 _p1 = _mm_loadu_ps(ptr1);
-                            __m128 _outp = op(_p, _p1);
+                            __m128 _outp = op(_p, std::move(_p1));
                             _mm_storeu_ps(outptr, _outp);
 
                             ptr1 += 4;
@@ -1498,7 +1498,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         {
                             __m128 _p = _mm_loadu_ps(ptr + x * 4);
                             __m128 _p1 = _mm_loadu_ps(ptr1);
-                            __m128 _outp = op(_p, _p1);
+                            __m128 _outp = op(std::move(_p), std::move(_p1));
                             _mm_storeu_ps(outptr, _outp);
 
                             ptr1 += 4;
@@ -1526,7 +1526,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 {
                     __m128 _p = _mm_loadu_ps(ptr);
                     __m128 _p1 = _mm_loadu_ps(ptr1);
-                    __m128 _outp = op(_p, _p1);
+                    __m128 _outp = op(std::move(_p), std::move(_p1));
                     _mm_storeu_ps(outptr, _outp);
                     ptr += 4;
                     ptr1 += 4;
@@ -1557,7 +1557,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     for (int x = 0; x < w; x++)
                     {
                         __m128 _p = _mm_loadu_ps(ptr);
-                        __m128 _outp = op(_p, _b0);
+                        __m128 _outp = op(std::move(_p), _b0);
                         _mm_storeu_ps(outptr, _outp);
                         ptr += 4;
                         outptr += 4;
@@ -1585,7 +1585,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     for (int i = 0; i < size; i++)
                     {
                         __m128 _p = _mm_loadu_ps(ptr);
-                        __m128 _outp = op(_p, _b0);
+                        __m128 _outp = op(std::move(_p), _b0);
                         _mm_storeu_ps(outptr, _outp);
                         ptr += 4;
                         outptr += 4;
@@ -1606,7 +1606,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int i = 0; i < size; i++)
                 {
                     __m128 _p = _mm_loadu_ps(ptr);
-                    __m128 _outp = op(_p, _b0);
+                    __m128 _outp = op(std::move(_p), _b0);
                     _mm_storeu_ps(outptr, _outp);
                     ptr += 4;
                     outptr += 4;
@@ -1640,7 +1640,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         for (int x = 0; x < w1; x++)
                         {
                             __m128 _p = _mm_loadu_ps(ptr1);
-                            __m128 _outp = op(_a0, _p);
+                            __m128 _outp = op(_a0, std::move(_p));
                             _mm_storeu_ps(outptr, _outp);
                             ptr1 += 4;
                             outptr += 4;
@@ -1674,7 +1674,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     for (int x = 0; x < w1; x++)
                     {
                         __m128 _p1 = _mm_loadu_ps(ptr1);
-                        __m128 _outp = op(_a0, _p1);
+                        __m128 _outp = op(_a0, std::move(_p1));
                         _mm_storeu_ps(outptr, _outp);
                         ptr1 += 4;
                         outptr += 4;
@@ -1701,7 +1701,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             {
                 __m128 _p = _mm_loadu_ps(ptr);
                 __m128 _p1 = _mm_loadu_ps(ptr1);
-                __m128 _outp = op(_p, _p1);
+                __m128 _outp = op(std::move(_p),std::move( _p1));
                 _mm_storeu_ps(outptr, _outp);
                 ptr += 4;
                 ptr1 += 4;
@@ -1726,7 +1726,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int i = 0; i < size; i++)
                 {
                     __m128 _p = _mm_loadu_ps(ptr);
-                    __m128 _outp = op(_p, _b0);
+                    __m128 _outp = op(std::move(_p), _b0);
                     _mm_storeu_ps(outptr, _outp);
                     ptr += 4;
                     outptr += 4;
@@ -1746,7 +1746,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int x = 0; x < w; x++)
                 {
                     __m128 _p = _mm_loadu_ps(ptr);
-                    __m128 _outp = op(_p, _b0);
+                    __m128 _outp = op(std::move(_p), _b0);
                     _mm_storeu_ps(outptr, _outp);
                     ptr += 4;
                     outptr += 4;
@@ -1779,7 +1779,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     for (int i = 0; i < size1; i++)
                     {
                         __m128 _p1 = _mm_loadu_ps(ptr1);
-                        __m128 _outp = op(_a0, _p1);
+                        __m128 _outp = op(_a0, std::move(_p1));
                         _mm_storeu_ps(outptr, _outp);
                         ptr1 += 4;
                         outptr += 4;
@@ -1806,7 +1806,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     for (int i = 0; i < size1; i++)
                     {
                         __m128 _p1 = _mm_loadu_ps(ptr1);
-                        __m128 _outp = op(_a0, _p1);
+                        __m128 _outp = op(_a0, std::move(_p1));
                         _mm_storeu_ps(outptr, _outp);
                         ptr1 += 4;
                         outptr += 4;
@@ -1829,7 +1829,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int i = 0; i < size1; i++)
                 {
                     __m128 _p1 = _mm_loadu_ps(ptr1);
-                    __m128 _outp = op(_a0, _p1);
+                    __m128 _outp = op(_a0, std::move(_p1));
                     _mm_storeu_ps(outptr, _outp);
                     ptr1 += 4;
                     outptr += 4;
@@ -1851,7 +1851,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int i = 0; i < w1; i++)
                 {
                     __m128 _p1 = _mm_loadu_ps(ptr1);
-                    __m128 _outp = op(_a0, _p1);
+                    __m128 _outp = op(_a0, std::move(_p1));
                     _mm_storeu_ps(outptr, _outp);
                     ptr1 += 4;
                     outptr += 4;
@@ -1878,7 +1878,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int i = 0; i < size1; i++)
                 {
                     __m128 _p1 = _mm_loadu_ps(ptr1);
-                    __m128 _outp = op(_a0, _p1);
+                    __m128 _outp = op(_a0, std::move(_p1));
                     _mm_storeu_ps(outptr, _outp);
                     ptr1 += 4;
                     outptr += 4;
@@ -1905,7 +1905,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int i = 0; i < size1; i++)
                 {
                     __m128 _p1 = _mm_loadu_ps(ptr1);
-                    __m128 _outp = op(_a0, _p1);
+                    __m128 _outp = op(_a0, std::move(_p1));
                     _mm_storeu_ps(outptr, _outp);
                     ptr1 += 4;
                     outptr += 4;
@@ -1932,7 +1932,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int x = 0; x < w1; x++)
                 {
                     __m128 _p1 = _mm_loadu_ps(ptr1);
-                    __m128 _outp = op(_a0, _p1);
+                    __m128 _outp = op(_a0, std::move(_p1));
                     _mm_storeu_ps(outptr, _outp);
                     ptr1 += 4;
                     outptr += 4;
@@ -1959,7 +1959,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                 for (int i = 0; i < w; i++)
                 {
                     __m128 _p = _mm_loadu_ps(ptr);
-                    __m128 _outp = op(_p, _b0);
+                    __m128 _outp = op(std::move(_p), _b0);
                     _mm_storeu_ps(outptr, _outp);
                     ptr += 4;
                     outptr += 4;
@@ -1976,7 +1976,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             {
                 __m128 _p = _mm_loadu_ps(ptr);
                 __m128 _p1 = _mm_loadu_ps(ptr1);
-                __m128 _outp = op(_p, _p1);
+                __m128 _outp = op(std::move(_p), std::move(_p1));
                 _mm_storeu_ps(outptr, _outp);
                 ptr += 4;
                 ptr1 += 4;
@@ -2009,7 +2009,7 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
         for (int i = 0; i < size; i++)
         {
             __m128 _p = _mm_loadu_ps(ptr);
-            _p = op(_p, _b);
+            _p = op(std::move(_p), _b);
             _mm_storeu_ps(ptr, _p);
             ptr += 4;
         }
@@ -2020,77 +2020,26 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_x86_functor {
 
-struct binary_op_add_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_add_ps(x, y);
-    }
+#define MAKE_FUNCTION(NAME, IMPL)\
+struct NAME\
+{\
+    __m128 operator()(const __m128& x, const __m128& y) const\
+    {\
+        return IMPL;\
+    }\
 };
 
-struct binary_op_sub_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_sub_ps(x, y);
-    }
-};
+MAKE_FUNCTION(binary_op_add_pack4, _mm_add_ps(x, y))
+MAKE_FUNCTION(binary_op_sub_pack4, _mm_sub_ps(x, y))
+MAKE_FUNCTION(binary_op_mul_pack4, _mm_mul_ps(x, y))
+MAKE_FUNCTION(binary_op_div_pack4, _mm_div_ps(x, y))
+MAKE_FUNCTION(binary_op_max_pack4, _mm_max_ps(x, y))
+MAKE_FUNCTION(binary_op_min_pack4, _mm_min_ps(x, y))
+MAKE_FUNCTION(binary_op_pow_pack4, exp_ps(_mm_mul_ps(y, log_ps(x))))
+MAKE_FUNCTION(binary_op_rsub_pack4, _mm_sub_ps(x, y))
+MAKE_FUNCTION(binary_op_rdiv_pack4, _mm_div_ps(x, y))
 
-struct binary_op_mul_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_mul_ps(x, y);
-    }
-};
-
-struct binary_op_div_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_div_ps(x, y);
-    }
-};
-
-struct binary_op_max_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_max_ps(x, y);
-    }
-};
-
-struct binary_op_min_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_min_ps(x, y);
-    }
-};
-
-struct binary_op_pow_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return exp_ps(_mm_mul_ps(y, log_ps(x)));
-    }
-};
-
-struct binary_op_rsub_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_sub_ps(y, x);
-    }
-};
-
-struct binary_op_rdiv_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_div_ps(y, x);
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_x86_functor
 #endif // __SSE2__
