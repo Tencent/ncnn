@@ -2036,8 +2036,8 @@ MAKE_FUNCTION(binary_op_div_pack4, _mm_div_ps(x, y))
 MAKE_FUNCTION(binary_op_max_pack4, _mm_max_ps(x, y))
 MAKE_FUNCTION(binary_op_min_pack4, _mm_min_ps(x, y))
 MAKE_FUNCTION(binary_op_pow_pack4, exp_ps(_mm_mul_ps(y, log_ps(x))))
-MAKE_FUNCTION(binary_op_rsub_pack4, _mm_sub_ps(x, y))
-MAKE_FUNCTION(binary_op_rdiv_pack4, _mm_div_ps(x, y))
+MAKE_FUNCTION(binary_op_rsub_pack4, _mm_sub_ps(y, x))
+MAKE_FUNCTION(binary_op_rdiv_pack4, _mm_div_ps(y, x))
 
 #undef MAKE_FUNCTION
 
