@@ -1701,7 +1701,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             {
                 __m128 _p = _mm_loadu_ps(ptr);
                 __m128 _p1 = _mm_loadu_ps(ptr1);
-                __m128 _outp = op(std::move(_p),std::move( _p1));
+                __m128 _outp = op(std::move(_p), std::move(_p1));
                 _mm_storeu_ps(outptr, _outp);
                 ptr += 4;
                 ptr1 += 4;
@@ -2020,14 +2020,14 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_x86_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL)\
-struct NAME\
-{\
-    __m128 operator()(const __m128& x, const __m128& y) const\
-    {\
-        return IMPL;\
-    }\
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                 \
+    struct NAME                                                   \
+    {                                                             \
+        __m128 operator()(const __m128& x, const __m128& y) const \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
+    };
 
 MAKE_FUNCTION(binary_op_add_pack4, _mm_add_ps(x, y))
 MAKE_FUNCTION(binary_op_sub_pack4, _mm_sub_ps(x, y))
