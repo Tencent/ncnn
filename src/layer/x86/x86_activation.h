@@ -131,7 +131,7 @@ static NCNN_FORCEINLINE __m256 tanh_avx(__m256 inputs)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
     const __m256 two = _mm256_set1_ps(2.0f);
-#if __AVX2__
+#if __FMA__
     return _mm256_fmsub_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two, one);
 #else
     return _mm256_sub_ps(_mm256_mul_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two), one);

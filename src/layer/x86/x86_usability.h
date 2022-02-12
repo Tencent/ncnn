@@ -147,7 +147,7 @@ static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& 
     return _v8;
 }
 
-#ifndef __AVX2__
+#ifndef __FMA__
 
 static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
 {
@@ -156,7 +156,7 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, con
 #endif
 
 #if __AVX__
-#ifndef __AVX2__
+#ifndef __FMA__
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
 {
     return _mm256_add_ps(_mm256_mul_ps(_a, _b), _c);
