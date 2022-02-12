@@ -2149,79 +2149,26 @@ static int binary_op_scalar_inplace_pack8_fp16s(Mat& a, float b, const Option& o
 
 namespace BinaryOp_arm_functor {
 
-struct binary_op_add_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vaddq_f16(x, y);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                 \
+    struct NAME                                                   \
+    {                                                             \
+        float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
+    };
 
-struct binary_op_sub_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vsubq_f16(x, y);
-    }
-};
+MAKE_FUNCTION(binary_op_add_pack8_fp16s, vaddq_f16(x, y))
+MAKE_FUNCTION(binary_op_sub_pack8_fp16s, vsubq_f16(x, y))
+MAKE_FUNCTION(binary_op_mul_pack8_fp16s, vmulq_f16(x, y))
+MAKE_FUNCTION(binary_op_div_pack8_fp16s, vdivq_f16(x, y))
+MAKE_FUNCTION(binary_op_max_pack8_fp16s, vmaxq_f16(x, y))
+MAKE_FUNCTION(binary_op_min_pack8_fp16s, vminq_f16(x, y))
+MAKE_FUNCTION(binary_op_pow_pack8_fp16s, vcombine_f16(vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_low_f16(x)), vcvt_f32_f16(vget_low_f16(y)))), vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_high_f16(x)), vcvt_f32_f16(vget_high_f16(y))))))
+MAKE_FUNCTION(binary_op_rsub_pack8_fp16s, vsubq_f16(y, x))
+MAKE_FUNCTION(binary_op_rdiv_pack8_fp16s, vdivq_f16(y, x))
 
-struct binary_op_mul_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vmulq_f16(x, y);
-    }
-};
-
-struct binary_op_div_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vdivq_f16(x, y);
-    }
-};
-
-struct binary_op_max_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vmaxq_f16(x, y);
-    }
-};
-
-struct binary_op_min_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vminq_f16(x, y);
-    }
-};
-
-struct binary_op_pow_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        float16x4_t z_low = vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_low_f16(x)), vcvt_f32_f16(vget_low_f16(y))));
-        float16x4_t z_high = vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_high_f16(x)), vcvt_f32_f16(vget_high_f16(y))));
-        return vcombine_f16(z_low, z_high);
-    }
-};
-
-struct binary_op_rsub_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vsubq_f16(y, x);
-    }
-};
-
-struct binary_op_rdiv_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vdivq_f16(y, x);
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_arm_functor
 
