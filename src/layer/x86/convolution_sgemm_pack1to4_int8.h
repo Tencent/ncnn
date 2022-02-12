@@ -32,6 +32,15 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
     }
 #endif
 
+#if NCNN_AVX2 && __AVX__ && !__AVX2__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        extern void im2col_sgemm_pack1to4_int8_sse_avx2(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+        im2col_sgemm_pack1to4_int8_sse_avx2(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
 #if NCNN_XOP && __SSE2__ && !__XOP__
     if (ncnn::cpu_support_x86_xop())
     {

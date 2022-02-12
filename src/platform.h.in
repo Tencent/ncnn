@@ -32,6 +32,7 @@
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_XOP
+#cmakedefine01 NCNN_FMA
 #cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_AVXVNNI
 #cmakedefine01 NCNN_AVX512
