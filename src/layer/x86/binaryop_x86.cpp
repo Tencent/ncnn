@@ -989,6 +989,8 @@ static int binary_op_scalar_inplace_pack8(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+namespace BinaryOp_x86_functor {
+
 struct binary_op_add_pack8
 {
     __m256 operator()(const __m256& x, const __m256& y) const
@@ -1060,6 +1062,8 @@ struct binary_op_rdiv_pack8
         return _mm256_div_ps(y, x);
     }
 };
+
+} // namespace BinaryOp_x86_functor
 #endif // __AVX__
 
 template<typename Op>
@@ -2014,6 +2018,8 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
     return 0;
 }
 
+namespace BinaryOp_x86_functor {
+
 struct binary_op_add_pack4
 {
     __m128 operator()(const __m128& x, const __m128& y) const
@@ -2085,11 +2091,15 @@ struct binary_op_rdiv_pack4
         return _mm_div_ps(y, x);
     }
 };
+
+} // namespace BinaryOp_x86_functor
 #endif // __SSE2__
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if __SSE2__
+    using namespace BinaryOp_x86_functor;
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
@@ -2166,6 +2176,8 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
 #if __SSE2__
+    using namespace BinaryOp_x86_functor;
+
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
