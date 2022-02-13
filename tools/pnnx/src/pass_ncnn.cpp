@@ -16,6 +16,7 @@
 
 #include "pass_ncnn/convert_attribute.h"
 #include "pass_ncnn/convert_custom_op.h"
+#include "pass_ncnn/convert_half_to_float.h"
 #include "pass_ncnn/convert_input.h"
 #include "pass_ncnn/convert_torch_cat.h"
 #include "pass_ncnn/convert_torch_chunk.h"
@@ -72,6 +73,8 @@ void pass_ncnn(Graph& g)
     ncnn::chain_multi_output(g);
 
     ncnn::solve_batch_index(g);
+
+    ncnn::convert_half_to_float(g);
 
     int opindex = 0;
     for (auto x : g_global_pnnx_ncnn_graph_rewriter_passes)
