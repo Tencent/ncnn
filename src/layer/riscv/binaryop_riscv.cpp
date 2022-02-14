@@ -3246,7 +3246,11 @@ namespace BinaryOp_riscv_functor {
 
 MAKE_FUNCTION(binary_op_add_fp16s, x + y)
 MAKE_FUNCTION(binary_op_sub_fp16s, x - y)
-MAKE_FUNCTION(binary_op_mul_fp16s, x* y)
+// clang-format off
+// *INDENT-OFF*
+MAKE_FUNCTION(binary_op_mul_fp16s, x * y)
+// *INDENT-ON*
+// clang-format on
 MAKE_FUNCTION(binary_op_div_fp16s, x / y)
 MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y))
 MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y))

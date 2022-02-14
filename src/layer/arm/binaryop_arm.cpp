@@ -3927,7 +3927,11 @@ namespace BinaryOp_arm_functor {
 
 MAKE_FUNCTION(binary_op_add_fp16s, x + y)
 MAKE_FUNCTION(binary_op_sub_fp16s, x - y)
-MAKE_FUNCTION(binary_op_mul_fp16s, x* y)
+// clang-format off
+// *INDENT-OFF*
+MAKE_FUNCTION(binary_op_mul_fp16s, x * y)
+// *INDENT-ON*
+// clang-format on
 MAKE_FUNCTION(binary_op_div_fp16s, x / y)
 MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y))
 MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y))
@@ -5930,7 +5934,11 @@ namespace BinaryOp_arm_functor {
 
 MAKE_FUNCTION(binary_op_add, x + y)
 MAKE_FUNCTION(binary_op_sub, x - y)
-MAKE_FUNCTION(binary_op_mul, x* y)
+// clang-format off
+// *INDENT-OFF*
+MAKE_FUNCTION(binary_op_mul, x * y)
+// *INDENT-ON*
+// clang-format on
 MAKE_FUNCTION(binary_op_div, x / y)
 MAKE_FUNCTION(binary_op_max, std::max(x, y))
 MAKE_FUNCTION(binary_op_min, std::min(x, y))
