@@ -3916,18 +3916,18 @@ static int binary_op_scalar_inplace_fp16s(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_arm_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL)                                                \
-    struct NAME                                                                  \
-    {                                                                            \
+#define MAKE_FUNCTION(NAME, IMPL)                                 \
+    struct NAME                                                   \
+    {                                                             \
         __fp16 operator()(const __fp16& x, const __fp16& y) const \
-        {                                                                        \
-            return IMPL;                                                         \
-        }                                                                        \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
     };
 
-MAKE_FUNCTION(binary_op_add_fp16s, x+y)
-MAKE_FUNCTION(binary_op_sub_fp16s, x-y)
-MAKE_FUNCTION(binary_op_mul_fp16s, x*y)
+MAKE_FUNCTION(binary_op_add_fp16s, x + y)
+MAKE_FUNCTION(binary_op_sub_fp16s, x - y)
+MAKE_FUNCTION(binary_op_mul_fp16s, x* y)
 MAKE_FUNCTION(binary_op_div_fp16s, x / y)
 MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y))
 MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y))
@@ -5919,18 +5919,18 @@ static int binary_op_scalar_inplace_bf16s(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_arm_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL)                                                \
-    struct NAME                                                                  \
-    {                                                                            \
+#define MAKE_FUNCTION(NAME, IMPL)                            \
+    struct NAME                                              \
+    {                                                        \
         float operator()(const float x, const float y) const \
-        {                                                                        \
-            return IMPL;                                                         \
-        }                                                                        \
+        {                                                    \
+            return IMPL;                                     \
+        }                                                    \
     };
 
-MAKE_FUNCTION(binary_op_add, x+y)
-MAKE_FUNCTION(binary_op_sub, x-y)
-MAKE_FUNCTION(binary_op_mul, x*y)
+MAKE_FUNCTION(binary_op_add, x + y)
+MAKE_FUNCTION(binary_op_sub, x - y)
+MAKE_FUNCTION(binary_op_mul, x* y)
 MAKE_FUNCTION(binary_op_div, x / y)
 MAKE_FUNCTION(binary_op_max, std::max(x, y))
 MAKE_FUNCTION(binary_op_min, std::min(x, y))
