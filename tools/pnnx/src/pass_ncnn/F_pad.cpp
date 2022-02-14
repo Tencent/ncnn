@@ -41,6 +41,18 @@ pnnx.Output             output      1 0 out
         return "pad";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pad = captured_params.at("pad").ai;
+        for (int x : pad)
+        {
+            if (x < 0)
+                return false;
+        }
+
+        return true;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& pad = captured_params.at("pad").ai;
@@ -102,6 +114,18 @@ pnnx.Output             output      1 0 out
         return "pad";
     }
 
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pad = captured_params.at("pad").ai;
+        for (int x : pad)
+        {
+            if (x < 0)
+                return false;
+        }
+
+        return true;
+    }
+
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::vector<int>& pad = captured_params.at("pad").ai;
@@ -140,6 +164,146 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_pad_1, 20)
+
+class F_pad_2 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+F.pad                   op_0        1 1 input out pad=%pad mode=constant value=%value
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Crop";
+    }
+
+    const char* name_str() const
+    {
+        return "pad";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pad = captured_params.at("pad").ai;
+        for (int x : pad)
+        {
+            if (x > 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pad = captured_params.at("pad").ai;
+
+        std::vector<int> starts;
+        std::vector<int> ends;
+        std::vector<int> axes;
+
+        if (pad.size() == 2)
+        {
+            starts = { -pad[0] };
+            ends = { pad[1] };
+            axes = { -1 };
+        }
+        else if (pad.size() == 4)
+        {
+            starts = { -pad[2], -pad[0] };
+            ends = { pad[3], pad[1] };
+            axes = { -2, -1 };
+        }
+        else if (pad.size() == 6)
+        {
+            starts = { -pad[4], -pad[2], -pad[0] };
+            ends = { pad[5], pad[3], pad[1] };
+            axes = { -3, -2, -1 };
+        }
+
+        op->params["9"] = starts;
+        op->params["10"] = ends;
+        op->params["11"] = axes;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_pad_2, 20)
+
+class F_pad_3 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+3 2
+pnnx.Input              input       0 1 input
+F.pad                   op_0        1 1 input out pad=%pad mode=%mode
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "Padding";
+    }
+
+    const char* name_str() const
+    {
+        return "pad";
+    }
+
+    bool match(const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pad = captured_params.at("pad").ai;
+        for (int x : pad)
+        {
+            if (x < 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::vector<int>& pad = captured_params.at("pad").ai;
+
+        std::vector<int> starts;
+        std::vector<int> ends;
+        std::vector<int> axes;
+
+        if (pad.size() == 2)
+        {
+            starts = { -pad[0] };
+            ends = { pad[1] };
+            axes = { -1 };
+        }
+        else if (pad.size() == 4)
+        {
+            starts = { -pad[2], -pad[0] };
+            ends = { pad[3], pad[1] };
+            axes = { -2, -1 };
+        }
+        else if (pad.size() == 6)
+        {
+            starts = { -pad[4], -pad[2], -pad[0] };
+            ends = { pad[5], pad[3], pad[1] };
+            axes = { -3, -2, -1 };
+        }
+
+        op->params["9"] = starts;
+        op->params["10"] = ends;
+        op->params["11"] = axes;
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_pad_3, 20)
 
 } // namespace ncnn
 
