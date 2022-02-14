@@ -132,6 +132,8 @@ public:
     std::vector<std::string> as;
 };
 
+bool operator==(const Parameter& lhs, const Parameter& rhs);
+
 class Attribute
 {
 public:
@@ -150,6 +152,8 @@ public:
 
     std::vector<char> data;
 };
+
+bool operator==(const Attribute& lhs, const Attribute& rhs);
 
 class Operator;
 class Operand

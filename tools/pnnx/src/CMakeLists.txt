@@ -234,6 +234,7 @@ set(pnnx_pass_level4_SRCS
 
 set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_dropout.cpp
+    pass_level5/eliminate_identity_operator.cpp
     pass_level5/eliminate_maxpool_indices.cpp
     pass_level5/eliminate_noop_pad.cpp
     pass_level5/eliminate_slice.cpp
