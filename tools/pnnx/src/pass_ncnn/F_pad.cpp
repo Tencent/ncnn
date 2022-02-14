@@ -210,21 +210,21 @@ pnnx.Output             output      1 0 out
 
         if (pad.size() == 2)
         {
-            starts = { -pad[0] };
-            ends = { pad[1] };
-            axes = { -1 };
+            starts = {-pad[0]};
+            ends = {pad[1]};
+            axes = {-1};
         }
         else if (pad.size() == 4)
         {
-            starts = { -pad[2], -pad[0] };
-            ends = { pad[3], pad[1] };
-            axes = { -2, -1 };
+            starts = {-pad[2], -pad[0]};
+            ends = {pad[3], pad[1]};
+            axes = {-2, -1};
         }
         else if (pad.size() == 6)
         {
-            starts = { -pad[4], -pad[2], -pad[0] };
-            ends = { pad[5], pad[3], pad[1] };
-            axes = { -3, -2, -1 };
+            starts = {-pad[4], -pad[2], -pad[0]};
+            ends = {pad[5], pad[3], pad[1]};
+            axes = {-3, -2, -1};
         }
 
         op->params["9"] = starts;
@@ -280,21 +280,21 @@ pnnx.Output             output      1 0 out
 
         if (pad.size() == 2)
         {
-            starts = { -pad[0] };
-            ends = { pad[1] };
-            axes = { -1 };
+            starts = {-pad[0]};
+            ends = {pad[1]};
+            axes = {-1};
         }
         else if (pad.size() == 4)
         {
-            starts = { -pad[2], -pad[0] };
-            ends = { pad[3], pad[1] };
-            axes = { -2, -1 };
+            starts = {-pad[2], -pad[0]};
+            ends = {pad[3], pad[1]};
+            axes = {-2, -1};
         }
         else if (pad.size() == 6)
         {
-            starts = { -pad[4], -pad[2], -pad[0] };
-            ends = { pad[5], pad[3], pad[1] };
-            axes = { -3, -2, -1 };
+            starts = {-pad[4], -pad[2], -pad[0]};
+            ends = {pad[5], pad[3], pad[1]};
+            axes = {-3, -2, -1};
         }
 
         op->params["9"] = starts;
