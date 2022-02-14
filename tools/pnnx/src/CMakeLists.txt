@@ -234,7 +234,9 @@ set(pnnx_pass_level4_SRCS
 
 set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_dropout.cpp
+    pass_level5/eliminate_identity_operator.cpp
     pass_level5/eliminate_maxpool_indices.cpp
+    pass_level5/eliminate_noop_pad.cpp
     pass_level5/eliminate_slice.cpp
     pass_level5/eliminate_view_reshape.cpp
     pass_level5/eval_expression.cpp
@@ -247,6 +249,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
+    pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_slice_indices.cpp
     pass_level5/unroll_rnn_op.cpp
 )
@@ -274,6 +277,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_deconvolution_activation.cpp
     pass_ncnn/fuse_deconvolutiondepthwise_activation.cpp
     pass_ncnn/fuse_innerproduct_activation.cpp
+    pass_ncnn/fuse_transpose_matmul.cpp
 
     pass_ncnn/F_adaptive_avg_pool1d.cpp
     pass_ncnn/F_adaptive_avg_pool2d.cpp
@@ -390,6 +394,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_logsumexp.cpp
+    pass_ncnn/torch_matmul.cpp
     pass_ncnn/torch_mean.cpp
     pass_ncnn/torch_permute.cpp
     pass_ncnn/torch_prod.cpp
