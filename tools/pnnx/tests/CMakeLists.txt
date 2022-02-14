@@ -201,6 +201,7 @@ pnnx_add_test(pnnx_fuse_conv2d_batchnorm2d)
 pnnx_add_test(pnnx_fuse_convtranspose1d_batchnorm1d)
 pnnx_add_test(pnnx_fuse_convtranspose2d_batchnorm2d)
 pnnx_add_test(pnnx_fuse_linear_batchnorm1d)
+pnnx_add_test(pnnx_fuse_select_to_unbind)
 
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_add_test(F_mish)
