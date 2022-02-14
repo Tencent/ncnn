@@ -3464,77 +3464,26 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
 namespace BinaryOp_riscv_functor {
 
-struct binary_op_add_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x + y;
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                 \
+    struct NAME                                                   \
+    {                                                             \
+        __fp16 operator()(const __fp16& x, const __fp16& y) const \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
+    };
 
-struct binary_op_sub_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x - y;
-    }
-};
+MAKE_FUNCTION(binary_op_add_fp16s, x + y)
+MAKE_FUNCTION(binary_op_sub_fp16s, x - y)
+MAKE_FUNCTION(binary_op_mul_fp16s, x * y)
+MAKE_FUNCTION(binary_op_div_fp16s, x / y)
+MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y))
+MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y))
+MAKE_FUNCTION(binary_op_pow_fp16s, (__fp16)pow((float)x, (float)y))
+MAKE_FUNCTION(binary_op_rsub_fp16s, y-x)
+MAKE_FUNCTION(binary_op_rdiv_fp16s, y/x)
 
-struct binary_op_mul_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x * y;
-    }
-};
-
-struct binary_op_div_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x / y;
-    }
-};
-
-struct binary_op_max_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return std::max(x, y);
-    }
-};
-
-struct binary_op_min_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return std::min(x, y);
-    }
-};
-
-struct binary_op_pow_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return (__fp16)pow((float)x, (float)y);
-    }
-};
-
-struct binary_op_rsub_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return y - x;
-    }
-};
-
-struct binary_op_rdiv_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return y / x;
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_riscv_functor
 
