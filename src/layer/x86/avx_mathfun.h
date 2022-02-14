@@ -412,7 +412,6 @@ static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
     xmm2 = _mm256_fmadd_ps(y, xmm2, xmm2);
     xmm3 = _mm256_fmadd_ps(y, xmm3, xmm3);
 
-
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(__m256*)_ps256_coscof_p0;
     __m256 z = _mm256_mul_ps(x, x);
