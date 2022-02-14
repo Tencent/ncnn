@@ -35,6 +35,7 @@
 #include "pass_ncnn/fuse_deconvolution_activation.h"
 #include "pass_ncnn/fuse_deconvolutiondepthwise_activation.h"
 #include "pass_ncnn/fuse_innerproduct_activation.h"
+#include "pass_ncnn/fuse_transpose_matmul.h"
 
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
@@ -89,6 +90,7 @@ void pass_ncnn(Graph& g)
     ncnn::insert_split(g);
 
     ncnn::eliminate_noop(g);
+    ncnn::fuse_transpose_matmul(g);
     ncnn::fuse_convolution_activation(g);
     ncnn::fuse_convolution1d_activation(g);
     ncnn::fuse_convolutiondepthwise_activation(g);
