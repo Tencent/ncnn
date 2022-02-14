@@ -145,6 +145,8 @@ pnnx_ncnn_add_test(resnet18)
 pnnx_ncnn_add_test(shufflenet_v2_x1_0)
 pnnx_ncnn_add_test(squeezenet1_1)
 
+pnnx_ncnn_add_test(ncnn_fuse_transpose_matmul)
+
 if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_ncnn_add_test(F_mish)
     pnnx_ncnn_add_test(nn_Mish)
