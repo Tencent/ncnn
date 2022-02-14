@@ -3246,13 +3246,13 @@ namespace BinaryOp_riscv_functor {
 
 MAKE_FUNCTION(binary_op_add_fp16s, x + y)
 MAKE_FUNCTION(binary_op_sub_fp16s, x - y)
-MAKE_FUNCTION(binary_op_mul_fp16s, x * y)
+MAKE_FUNCTION(binary_op_mul_fp16s, x* y)
 MAKE_FUNCTION(binary_op_div_fp16s, x / y)
 MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y))
 MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y))
 MAKE_FUNCTION(binary_op_pow_fp16s, (__fp16)pow((float)x, (float)y))
-MAKE_FUNCTION(binary_op_rsub_fp16s, y-x)
-MAKE_FUNCTION(binary_op_rdiv_fp16s, y/x)
+MAKE_FUNCTION(binary_op_rsub_fp16s, y - x)
+MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x)
 
 #undef MAKE_FUNCTION
 
