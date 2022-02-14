@@ -42,11 +42,11 @@ void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_cons
 
     fuse_constant_expression(g);
 
-    eliminate_identity_operator(g);
-
     eliminate_slice(g);
 
     fuse_slice_indices(g);
+
+    eliminate_identity_operator(g);
 
     fuse_conv1d_batchnorm1d(g);
 
