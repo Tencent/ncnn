@@ -53,7 +53,7 @@ class Model(nn.Module):
         y = F.interpolate(y, size=(16,24), mode='bicubic', align_corners=True)
         y = F.interpolate(y, scale_factor=(2,3), mode='bicubic', align_corners=True)
 
-        y = F.interpolate(y, scale_factor=(1.7,2), mode='nearest', recompute_scale_factor=True)
+        y = F.interpolate(y, scale_factor=(1.6,2), mode='nearest', recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(2,1.2), mode='bilinear', align_corners=False, recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(0.5,0.4), mode='bilinear', align_corners=True, recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(0.8,0.9), mode='bicubic', align_corners=False, recompute_scale_factor=True)
