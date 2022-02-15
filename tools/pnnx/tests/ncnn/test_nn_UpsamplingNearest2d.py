@@ -27,7 +27,7 @@ class Model(nn.Module):
         self.up_4 = nn.UpsamplingNearest2d(size=(16,24))
         self.up_5 = nn.UpsamplingNearest2d(scale_factor=(2,3))
 
-        self.up_w = nn.UpsamplingNearest2d(scale_factor=(2.976744,2.976744))
+        self.up_w = nn.UpsamplingNearest2d(scale_factor=(1.499,1.499))
 
     def forward(self, x, w):
         x = self.up_0(x)
@@ -46,7 +46,7 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 3, 32, 32)
-    w = torch.rand(1, 8, 86, 86)
+    w = torch.rand(1, 8, 12, 12)
 
     a = net(x, w)
 
@@ -56,7 +56,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_UpsamplingNearest2d.pt inputshape=[1,3,32,32],[1,8,86,86]")
+    os.system("../../src/pnnx test_nn_UpsamplingNearest2d.pt inputshape=[1,3,32,32],[1,8,12,12]")
 
     # ncnn inference
     import test_nn_UpsamplingNearest2d_ncnn
