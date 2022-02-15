@@ -1016,77 +1016,26 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_mips_functor {
 
-struct binary_op_add_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return __msa_fadd_w(x, y);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                              \
+    struct NAME                                                \
+    {                                                          \
+        v4f32 operator()(const v4f32& x, const v4f32& y) const \
+        {                                                      \
+            return IMPL;                                       \
+        }                                                      \
+    };
 
-struct binary_op_sub_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return __msa_fsub_w(x, y);
-    }
-};
+MAKE_FUNCTION(binary_op_add_pack4, __msa_fadd_w(x, y))
+MAKE_FUNCTION(binary_op_sub_pack4, __msa_fsub_w(x, y))
+MAKE_FUNCTION(binary_op_mul_pack4, __msa_fmul_w(x, y))
+MAKE_FUNCTION(binary_op_div_pack4, __msa_fdiv_w(x, y))
+MAKE_FUNCTION(binary_op_max_pack4, __msa_fmax_w(x, y))
+MAKE_FUNCTION(binary_op_min_pack4, __msa_fmin_w(x, y))
+MAKE_FUNCTION(binary_op_pow_pack4, pow_ps(x, y))
+MAKE_FUNCTION(binary_op_rsub_pack4, __msa_fsub_w(y, x))
+MAKE_FUNCTION(binary_op_rdiv_pack4, __msa_fdiv_w(y, x))
 
-struct binary_op_mul_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return __msa_fmul_w(x, y);
-    }
-};
-
-struct binary_op_div_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return __msa_fdiv_w(x, y);
-    }
-};
-
-struct binary_op_max_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return __msa_fmax_w(x, y);
-    }
-};
-
-struct binary_op_min_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return __msa_fmin_w(x, y);
-    }
-};
-
-struct binary_op_pow_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return pow_ps(x, y);
-    }
-};
-
-struct binary_op_rsub_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return __msa_fsub_w(y, x);
-    }
-};
-
-struct binary_op_rdiv_pack4
-{
-    v4f32 operator()(const v4f32& x, const v4f32& y) const
-    {
-        return __msa_fdiv_w(y, x);
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_mips_functor
 #endif // __mips_msa

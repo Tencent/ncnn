@@ -1158,149 +1158,35 @@ static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_riscv_functor {
 
-struct binary_op_add_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfadd_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y, const word_type& vl) const
-    {
-        return vfadd_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const float& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfadd_vf_f32m8(y, x, vl);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPLVV, IMPLVS, IMPLSV)                                                     \
+    struct NAME                                                                                         \
+    {                                                                                                   \
+        vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type vl) const \
+        {                                                                                               \
+            return IMPLVV;                                                                              \
+        }                                                                                               \
+        vfloat32m8_t operator()(const vfloat32m8_t& x, const float y, const word_type vl) const         \
+        {                                                                                               \
+            return IMPLVS;                                                                              \
+        }                                                                                               \
+        vfloat32m8_t operator()(const float x, const vfloat32m8_t& y, const word_type vl) const         \
+        {                                                                                               \
+            return IMPLSV;                                                                              \
+        }                                                                                               \
+    };
 
-struct binary_op_sub_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfsub_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfrsub_vf_f32m8(y, x, vl);
-    }
-};
+MAKE_FUNCTION(binary_op_add_rvv, vfadd_vv_f32m8(x, y, vl), vfadd_vf_f32m8(x, y, vl), vfadd_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_sub_rvv, vfsub_vv_f32m8(x, y, vl), vfsub_vf_f32m8(x, y, vl), vfrsub_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_mul_rvv, vfmul_vv_f32m8(x, y, vl), vfmul_vf_f32m8(x, y, vl), vfmul_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_div_rvv, vfdiv_vv_f32m8(x, y, vl), vfdiv_vf_f32m8(x, y, vl), vfrdiv_vf_f32m8(y, x, vl))
 
-struct binary_op_mul_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmul_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmul_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmul_vf_f32m8(y, x, vl);
-    }
-};
+MAKE_FUNCTION(binary_op_max_rvv, vfmax_vv_f32m8(x, y, vl), vfmax_vf_f32m8(x, y, vl), vfmax_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_min_rvv, vfmin_vv_f32m8(x, y, vl), vfmin_vf_f32m8(x, y, vl), vfmin_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_pow_rvv, pow_ps(x, y, vl), pow_ps(x, vfmv_v_f_f32m8(y, vl), vl), pow_ps(vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rsub_rvv, vfsub_vv_f32m8(y, x, vl), vfrsub_vf_f32m8(x, y, vl), vfsub_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_rdiv_rvv, vfdiv_vv_f32m8(y, x, vl), vfrdiv_vf_f32m8(x, y, vl), vfdiv_vf_f32m8(y, x, vl))
 
-struct binary_op_div_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfdiv_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfrdiv_vf_f32m8(y, x, vl);
-    }
-};
-
-struct binary_op_max_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmax_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmax_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmax_vf_f32m8(y, x, vl);
-    }
-};
-
-struct binary_op_min_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmin_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmin_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmin_vf_f32m8(y, x, vl);
-    }
-};
-
-struct binary_op_pow_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return pow_ps(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return pow_ps(x, vfmv_v_f_f32m8(y, vl), vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return pow_ps(vfmv_v_f_f32m8(x, vl), y, vl);
-    }
-};
-
-struct binary_op_rsub_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vv_f32m8(y, x, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y, const word_type& vl) const
-    {
-        return vfrsub_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const float& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vf_f32m8(y, x, vl);
-    }
-};
-
-struct binary_op_rdiv_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vv_f32m8(y, x, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfrdiv_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vf_f32m8(y, x, vl);
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_riscv_functor
 #endif
@@ -2523,149 +2409,34 @@ static int binary_op_scalar_rvv_fp16s(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_riscv_functor {
 
-struct binary_op_add_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfadd_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const float& y, const word_type& vl) const
-    {
-        return vfadd_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const float& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfadd_vf_f16m8(y, x, vl);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPLVV, IMPLVS, IMPLSV)                                                     \
+    struct NAME                                                                                         \
+    {                                                                                                   \
+        vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type vl) const \
+        {                                                                                               \
+            return IMPLVV;                                                                              \
+        }                                                                                               \
+        vfloat16m8_t operator()(const vfloat16m8_t& x, const float y, const word_type vl) const         \
+        {                                                                                               \
+            return IMPLVS;                                                                              \
+        }                                                                                               \
+        vfloat16m8_t operator()(const float x, const vfloat16m8_t& y, const word_type vl) const         \
+        {                                                                                               \
+            return IMPLSV;                                                                              \
+        }                                                                                               \
+    };
 
-struct binary_op_sub_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfsub_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfrsub_vf_f16m8(y, x, vl);
-    }
-};
+MAKE_FUNCTION(binary_op_add_rvv_fp16, vfadd_vv_f16m8(x, y, vl), vfadd_vf_f16m8(x, y, vl), vfadd_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_sub_rvv_fp16, vfsub_vv_f16m8(x, y, vl), vfsub_vf_f16m8(x, y, vl), vfrsub_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_mul_rvv_fp16, vfmul_vv_f16m8(x, y, vl), vfmul_vf_f16m8(x, y, vl), vfmul_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_div_rvv_fp16, vfdiv_vv_f16m8(x, y, vl), vfdiv_vf_f16m8(x, y, vl), vfrdiv_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_max_rvv_fp16, vfmax_vv_f16m8(x, y, vl), vfmax_vf_f16m8(x, y, vl), vfmax_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_min_rvv_fp16, vfmin_vv_f16m8(x, y, vl), vfmin_vf_f16m8(x, y, vl), vfmin_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_pow_rvv_fp16, pow_ps(x, y, vl), pow_ps(x, vfmv_v_f_f16m8(y, vl), vl), pow_ps(vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rsub_rvv_fp16, vfsub_vv_f16m8(y, x, vl), vfrsub_vf_f16m8(x, y, vl), vfsub_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_rdiv_rvv_fp16, vfdiv_vv_f16m8(y, x, vl), vfrdiv_vf_f16m8(x, y, vl), vfdiv_vf_f16m8(y, x, vl))
 
-struct binary_op_mul_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmul_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmul_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmul_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_div_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfdiv_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfrdiv_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_max_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmax_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmax_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmax_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_min_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmin_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmin_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmin_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_pow_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return pow_ps(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const __fp16& y, const word_type& vl) const
-    {
-        return pow_ps(x, vfmv_v_f_f16m8(y, vl), vl);
-    }
-    vfloat16m8_t operator()(const __fp16& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return pow_ps(vfmv_v_f_f16m8(x, vl), y, vl);
-    }
-};
-
-struct binary_op_rsub_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vv_f16m8(y, x, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const float& y, const word_type& vl) const
-    {
-        return vfrsub_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const float& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_rdiv_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vv_f16m8(y, x, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfrdiv_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vf_f16m8(y, x, vl);
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_riscv_functor
 
@@ -3464,77 +3235,30 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
 namespace BinaryOp_riscv_functor {
 
-struct binary_op_add_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x + y;
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                 \
+    struct NAME                                                   \
+    {                                                             \
+        __fp16 operator()(const __fp16& x, const __fp16& y) const \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
+    };
 
-struct binary_op_sub_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x - y;
-    }
-};
+MAKE_FUNCTION(binary_op_add_fp16s, x + y)
+MAKE_FUNCTION(binary_op_sub_fp16s, x - y)
+// clang-format off
+// *INDENT-OFF*
+MAKE_FUNCTION(binary_op_mul_fp16s, x * y)
+// *INDENT-ON*
+// clang-format on
+MAKE_FUNCTION(binary_op_div_fp16s, x / y)
+MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y))
+MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y))
+MAKE_FUNCTION(binary_op_pow_fp16s, (__fp16)pow((float)x, (float)y))
+MAKE_FUNCTION(binary_op_rsub_fp16s, y - x)
+MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x)
 
-struct binary_op_mul_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x * y;
-    }
-};
-
-struct binary_op_div_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x / y;
-    }
-};
-
-struct binary_op_max_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return std::max(x, y);
-    }
-};
-
-struct binary_op_min_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return std::min(x, y);
-    }
-};
-
-struct binary_op_pow_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return (__fp16)pow((float)x, (float)y);
-    }
-};
-
-struct binary_op_rsub_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return y - x;
-    }
-};
-
-struct binary_op_rdiv_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return y / x;
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_riscv_functor
 

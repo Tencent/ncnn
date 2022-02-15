@@ -996,89 +996,34 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_arm_functor {
 
-struct binary_op_add_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
-    {
-        return vaddq_f32(x, y);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                                \
+    struct NAME                                                                  \
+    {                                                                            \
+        float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const \
+        {                                                                        \
+            return IMPL;                                                         \
+        }                                                                        \
+    };
 
-struct binary_op_sub_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
-    {
-        return vsubq_f32(x, y);
-    }
-};
-
-struct binary_op_mul_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
-    {
-        return vmulq_f32(x, y);
-    }
-};
-
-struct binary_op_div_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+MAKE_FUNCTION(binary_op_add_pack4, vaddq_f32(x, y))
+MAKE_FUNCTION(binary_op_sub_pack4, vsubq_f32(x, y))
+MAKE_FUNCTION(binary_op_mul_pack4, vmulq_f32(x, y))
 #if __aarch64__
-    {
-        return vdivq_f32(x, y);
-    }
+MAKE_FUNCTION(binary_op_div_pack4, vdivq_f32(x, y))
 #else
-    {
-        return div_ps(x, y);
-    }
+MAKE_FUNCTION(binary_op_div_pack4, div_ps(x, y))
 #endif
-};
-
-struct binary_op_max_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
-    {
-        return vmaxq_f32(x, y);
-    }
-};
-
-struct binary_op_min_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
-    {
-        return vminq_f32(x, y);
-    }
-};
-
-struct binary_op_pow_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
-    {
-        return pow_ps(x, y);
-    }
-};
-
-struct binary_op_rsub_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
-    {
-        return vsubq_f32(y, x);
-    }
-};
-
-struct binary_op_rdiv_pack4
-{
-    float32x4_t operator()(const float32x4_t& x, const float32x4_t& y) const
+MAKE_FUNCTION(binary_op_max_pack4, vmaxq_f32(x, y))
+MAKE_FUNCTION(binary_op_min_pack4, vminq_f32(x, y))
+MAKE_FUNCTION(binary_op_pow_pack4, pow_ps(x, y))
+MAKE_FUNCTION(binary_op_rsub_pack4, vsubq_f32(y, x))
 #if __aarch64__
-    {
-        return vdivq_f32(y, x);
-    }
+MAKE_FUNCTION(binary_op_rdiv_pack4, vdivq_f32(y, x))
 #else
-    {
-        return div_ps(y, x);
-    }
+MAKE_FUNCTION(binary_op_rdiv_pack4, div_ps(y, x))
 #endif
-};
+
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_arm_functor
 #endif // __ARM_NEON
@@ -2149,79 +2094,26 @@ static int binary_op_scalar_inplace_pack8_fp16s(Mat& a, float b, const Option& o
 
 namespace BinaryOp_arm_functor {
 
-struct binary_op_add_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vaddq_f16(x, y);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                                \
+    struct NAME                                                                  \
+    {                                                                            \
+        float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const \
+        {                                                                        \
+            return IMPL;                                                         \
+        }                                                                        \
+    };
 
-struct binary_op_sub_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vsubq_f16(x, y);
-    }
-};
+MAKE_FUNCTION(binary_op_add_pack8_fp16s, vaddq_f16(x, y))
+MAKE_FUNCTION(binary_op_sub_pack8_fp16s, vsubq_f16(x, y))
+MAKE_FUNCTION(binary_op_mul_pack8_fp16s, vmulq_f16(x, y))
+MAKE_FUNCTION(binary_op_div_pack8_fp16s, vdivq_f16(x, y))
+MAKE_FUNCTION(binary_op_max_pack8_fp16s, vmaxq_f16(x, y))
+MAKE_FUNCTION(binary_op_min_pack8_fp16s, vminq_f16(x, y))
+MAKE_FUNCTION(binary_op_pow_pack8_fp16s, vcombine_f16(vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_low_f16(x)), vcvt_f32_f16(vget_low_f16(y)))), vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_high_f16(x)), vcvt_f32_f16(vget_high_f16(y))))))
+MAKE_FUNCTION(binary_op_rsub_pack8_fp16s, vsubq_f16(y, x))
+MAKE_FUNCTION(binary_op_rdiv_pack8_fp16s, vdivq_f16(y, x))
 
-struct binary_op_mul_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vmulq_f16(x, y);
-    }
-};
-
-struct binary_op_div_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vdivq_f16(x, y);
-    }
-};
-
-struct binary_op_max_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vmaxq_f16(x, y);
-    }
-};
-
-struct binary_op_min_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vminq_f16(x, y);
-    }
-};
-
-struct binary_op_pow_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        float16x4_t z_low = vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_low_f16(x)), vcvt_f32_f16(vget_low_f16(y))));
-        float16x4_t z_high = vcvt_f16_f32(pow_ps(vcvt_f32_f16(vget_high_f16(x)), vcvt_f32_f16(vget_high_f16(y))));
-        return vcombine_f16(z_low, z_high);
-    }
-};
-
-struct binary_op_rsub_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vsubq_f16(y, x);
-    }
-};
-
-struct binary_op_rdiv_pack8_fp16s
-{
-    float16x8_t operator()(const float16x8_t& x, const float16x8_t& y) const
-    {
-        return vdivq_f16(y, x);
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_arm_functor
 
@@ -3179,77 +3071,26 @@ static int binary_op_scalar_inplace_pack4_fp16s(Mat& a, float b, const Option& o
 
 namespace BinaryOp_arm_functor {
 
-struct binary_op_add_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vadd_f16(x, y);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                                \
+    struct NAME                                                                  \
+    {                                                                            \
+        float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const \
+        {                                                                        \
+            return IMPL;                                                         \
+        }                                                                        \
+    };
 
-struct binary_op_sub_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vsub_f16(x, y);
-    }
-};
+MAKE_FUNCTION(binary_op_add_pack4_fp16s, vadd_f16(x, y))
+MAKE_FUNCTION(binary_op_sub_pack4_fp16s, vsub_f16(x, y))
+MAKE_FUNCTION(binary_op_mul_pack4_fp16s, vmul_f16(x, y))
+MAKE_FUNCTION(binary_op_div_pack4_fp16s, vdiv_f16(x, y))
+MAKE_FUNCTION(binary_op_max_pack4_fp16s, vmax_f16(x, y))
+MAKE_FUNCTION(binary_op_min_pack4_fp16s, vmin_f16(x, y))
+MAKE_FUNCTION(binary_op_pow_pack4_fp16s, vcvt_f16_f32(pow_ps(vcvt_f32_f16(x), vcvt_f32_f16(y))))
+MAKE_FUNCTION(binary_op_rsub_pack4_fp16s, vsub_f16(y, x))
+MAKE_FUNCTION(binary_op_rdiv_pack4_fp16s, vdiv_f16(y, x))
 
-struct binary_op_mul_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vmul_f16(x, y);
-    }
-};
-
-struct binary_op_div_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vdiv_f16(x, y);
-    }
-};
-
-struct binary_op_max_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vmax_f16(x, y);
-    }
-};
-
-struct binary_op_min_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vmin_f16(x, y);
-    }
-};
-
-struct binary_op_pow_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vcvt_f16_f32(pow_ps(vcvt_f32_f16(x), vcvt_f32_f16(y)));
-    }
-};
-
-struct binary_op_rsub_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vsub_f16(y, x);
-    }
-};
-
-struct binary_op_rdiv_pack4_fp16s
-{
-    float16x4_t operator()(const float16x4_t& x, const float16x4_t& y) const
-    {
-        return vdiv_f16(y, x);
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_arm_functor
 
@@ -4075,77 +3916,30 @@ static int binary_op_scalar_inplace_fp16s(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_arm_functor {
 
-struct binary_op_add_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x + y;
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                 \
+    struct NAME                                                   \
+    {                                                             \
+        __fp16 operator()(const __fp16& x, const __fp16& y) const \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
+    };
 
-struct binary_op_sub_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x - y;
-    }
-};
+MAKE_FUNCTION(binary_op_add_fp16s, x + y)
+MAKE_FUNCTION(binary_op_sub_fp16s, x - y)
+// clang-format off
+// *INDENT-OFF*
+MAKE_FUNCTION(binary_op_mul_fp16s, x * y)
+// *INDENT-ON*
+// clang-format on
+MAKE_FUNCTION(binary_op_div_fp16s, x / y)
+MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y))
+MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y))
+MAKE_FUNCTION(binary_op_pow_fp16s, (__fp16)pow(x, y))
+MAKE_FUNCTION(binary_op_rsub_fp16s, y - x)
+MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x)
 
-struct binary_op_mul_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x * y;
-    }
-};
-
-struct binary_op_div_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x / y;
-    }
-};
-
-struct binary_op_max_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return std::max(x, y);
-    }
-};
-
-struct binary_op_min_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return std::min(x, y);
-    }
-};
-
-struct binary_op_pow_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return (__fp16)pow(x, y);
-    }
-};
-
-struct binary_op_rsub_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return y - x;
-    }
-};
-
-struct binary_op_rdiv_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return y / x;
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_arm_functor
 
@@ -6129,77 +5923,30 @@ static int binary_op_scalar_inplace_bf16s(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_arm_functor {
 
-struct binary_op_add
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return x + y;
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                            \
+    struct NAME                                              \
+    {                                                        \
+        float operator()(const float x, const float y) const \
+        {                                                    \
+            return IMPL;                                     \
+        }                                                    \
+    };
 
-struct binary_op_sub
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return x - y;
-    }
-};
+MAKE_FUNCTION(binary_op_add, x + y)
+MAKE_FUNCTION(binary_op_sub, x - y)
+// clang-format off
+// *INDENT-OFF*
+MAKE_FUNCTION(binary_op_mul, x * y)
+// *INDENT-ON*
+// clang-format on
+MAKE_FUNCTION(binary_op_div, x / y)
+MAKE_FUNCTION(binary_op_max, std::max(x, y))
+MAKE_FUNCTION(binary_op_min, std::min(x, y))
+MAKE_FUNCTION(binary_op_pow, static_cast<float>(pow(x, y)))
+MAKE_FUNCTION(binary_op_rsub, y - x)
+MAKE_FUNCTION(binary_op_rdiv, y / x)
 
-struct binary_op_mul
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return x * y;
-    }
-};
-
-struct binary_op_div
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return x / y;
-    }
-};
-
-struct binary_op_max
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return std::max(x, y);
-    }
-};
-
-struct binary_op_min
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return std::min(x, y);
-    }
-};
-
-struct binary_op_pow
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return (float)pow(x, y);
-    }
-};
-
-struct binary_op_rsub
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return y - x;
-    }
-};
-
-struct binary_op_rdiv
-{
-    float operator()(const float& x, const float& y) const
-    {
-        return y / x;
-    }
-};
+#undef MAKE_FUNCTION
 
 } // namespace BinaryOp_arm_functor
 
