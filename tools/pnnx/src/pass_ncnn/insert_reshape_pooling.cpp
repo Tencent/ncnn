@@ -43,8 +43,8 @@ void insert_reshape_pooling(Graph& graph)
             // nn.MaxPool3d    4d-5d-4d
             bool insert_reshape = false;
             if ((op->type == "nn.MaxPool1d" && input_rank == 2)
-                || (op->type == "nn.MaxPool2d" && input_rank == 3)
-                || (op->type == "nn.MaxPool3d" && input_rank == 4))
+                    || (op->type == "nn.MaxPool2d" && input_rank == 3)
+                    || (op->type == "nn.MaxPool3d" && input_rank == 4))
             {
                 insert_reshape = true;
             }
