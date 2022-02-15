@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   windows-vs2017:
-    runs-on: windows-2016
+    runs-on: windows-2019
     steps:
     - uses: actions/checkout@v2
     - name: build
@@ -38,5 +38,5 @@ jobs:
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
-        cmake -T v141,host=x64 -A Win32 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake -T v141,host=x64 -A Win32 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2

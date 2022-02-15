@@ -148,7 +148,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
                 const Mat k2 = weight_data_r2.channel(q + 2);
                 const Mat k3 = weight_data_r2.channel(q + 3);
 
-                Mat g0 = weight_data_pack4.channel(q / 4);
+                float* g00 = weight_data_pack4.channel(q / 4);
 
                 for (int p = 0; p + 3 < num_input; p += 4)
                 {
@@ -171,8 +171,6 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
                     const float* k31 = k3.row(p + 1);
                     const float* k32 = k3.row(p + 2);
                     const float* k33 = k3.row(p + 3);
-
-                    float* g00 = g0.row(p / 4);
 
                     for (int k = 0; k < maxk; k++)
                     {
@@ -220,7 +218,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
                 const Mat k2 = weight_data_r2.channel(q + 2);
                 const Mat k3 = weight_data_r2.channel(q + 3);
 
-                Mat g0 = weight_data_pack1to4.channel(q / 4);
+                float* g00 = weight_data_pack1to4.channel(q / 4);
 
                 for (int p = 0; p < num_input; p++)
                 {
@@ -228,8 +226,6 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
                     const float* k10 = k1.row(p);
                     const float* k20 = k2.row(p);
                     const float* k30 = k3.row(p);
-
-                    float* g00 = g0.row(p);
 
                     for (int k = 0; k < maxk; k++)
                     {
@@ -258,7 +254,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
             for (int q = 0; q < num_output; q++)
             {
                 const Mat k0 = weight_data_r2.channel(q);
-                Mat g0 = weight_data_pack4to1.channel(q);
+                float* g00 = weight_data_pack4to1.channel(q);
 
                 for (int p = 0; p + 3 < num_input; p += 4)
                 {
@@ -266,8 +262,6 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
                     const float* k01 = k0.row(p + 1);
                     const float* k02 = k0.row(p + 2);
                     const float* k03 = k0.row(p + 3);
-
-                    float* g00 = g0.row(p / 4);
 
                     for (int k = 0; k < maxk; k++)
                     {
@@ -778,12 +772,10 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_fp16.channel(q / out_elempack);
+            __fp16* g00 = weight_data_fp16.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                __fp16* g00 = g0.row<__fp16>(p / elempack);
-
                 for (int k = 0; k < maxk; k++)
                 {
                     for (int i = 0; i < elempack; i++)
@@ -1960,12 +1952,10 @@ int Deconvolution_arm::create_pipeline_bf16s(const Option& opt)
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_bf16.channel(q / out_elempack);
+            unsigned short* g00 = weight_data_bf16.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                unsigned short* g00 = g0.row<unsigned short>(p / elempack);
-
                 for (int k = 0; k < maxk; k++)
                 {
                     for (int i = 0; i < elempack; i++)

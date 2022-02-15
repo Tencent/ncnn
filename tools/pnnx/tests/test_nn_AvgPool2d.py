@@ -28,7 +28,7 @@ class Model(nn.Module):
         self.pool_5 = nn.AvgPool2d(kernel_size=2, stride=1, padding=0, ceil_mode=True, count_include_pad=True)
         self.pool_6 = nn.AvgPool2d(kernel_size=(5,4), stride=1, padding=2, ceil_mode=False, count_include_pad=False, divisor_override=18)
 
-    def forward(self, x):
+    def forward(self, x, y):
         x = self.pool_0(x)
         x = self.pool_1(x)
         x = self.pool_2(x)
@@ -36,7 +36,15 @@ class Model(nn.Module):
         x = self.pool_4(x)
         x = self.pool_5(x)
         x = self.pool_6(x)
-        return x
+
+        y = self.pool_0(y)
+        y = self.pool_1(y)
+        y = self.pool_2(y)
+        y = self.pool_3(y)
+        y = self.pool_4(y)
+        y = self.pool_5(y)
+        y = self.pool_6(y)
+        return x, y
 
 def test():
     net = Model()
@@ -44,22 +52,26 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 12, 128, 128)
+    y = torch.rand(12, 128, 128)
 
-    a = net(x)
+    a = net(x, y)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    mod = torch.jit.trace(net, (x, y))
     mod.save("test_nn_AvgPool2d.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_nn_AvgPool2d.pt inputshape=[1,12,128,128]")
+    os.system("../src/pnnx test_nn_AvgPool2d.pt inputshape=[1,12,128,128],[12,128,128]")
 
     # pnnx inference
     import test_nn_AvgPool2d_pnnx
     b = test_nn_AvgPool2d_pnnx.test_inference()
 
-    return torch.equal(a, b)
+    for a0, b0 in zip(a, b):
+        if not torch.equal(a0, b0):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

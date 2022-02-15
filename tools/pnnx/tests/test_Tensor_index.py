@@ -39,15 +39,15 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_Tensor_slice.pt")
+    mod.save("test_Tensor_index.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_Tensor_slice.pt inputshape=[3,6],[5,9,2],[2,4,5,10]")
+    os.system("../src/pnnx test_Tensor_index.pt inputshape=[3,6],[5,9,2],[2,4,5,10]")
 
     # pnnx inference
-    import test_Tensor_slice_pnnx
-    b = test_Tensor_slice_pnnx.test_inference()
+    import test_Tensor_index_pnnx
+    b = test_Tensor_index_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

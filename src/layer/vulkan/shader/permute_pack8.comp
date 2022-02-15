@@ -145,7 +145,7 @@ void main()
             y4 = gz * 8 + ivec4(0, 1, 2, 3);
             yy4 = y4 + 4;
             z4 = ivec4(gy);
-            zz4 = y4;
+            zz4 = z4;
         }
         if (order_type == 3)
         {

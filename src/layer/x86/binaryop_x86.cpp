@@ -989,77 +989,30 @@ static int binary_op_scalar_inplace_pack8(Mat& a, float b, const Option& opt)
     return 0;
 }
 
-struct binary_op_add_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return _mm256_add_ps(x, y);
-    }
-};
+namespace BinaryOp_x86_functor {
 
-struct binary_op_sub_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return _mm256_sub_ps(x, y);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                 \
+    struct NAME                                                   \
+    {                                                             \
+        __m256 operator()(const __m256& x, const __m256& y) const \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
+    };
 
-struct binary_op_mul_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return _mm256_mul_ps(x, y);
-    }
-};
+MAKE_FUNCTION(binary_op_add_pack8, _mm256_add_ps(x, y))
+MAKE_FUNCTION(binary_op_sub_pack8, _mm256_sub_ps(x, y))
+MAKE_FUNCTION(binary_op_mul_pack8, _mm256_mul_ps(x, y))
+MAKE_FUNCTION(binary_op_div_pack8, _mm256_div_ps(x, y))
+MAKE_FUNCTION(binary_op_max_pack8, _mm256_max_ps(x, y))
+MAKE_FUNCTION(binary_op_min_pack8, _mm256_min_ps(x, y))
+MAKE_FUNCTION(binary_op_pow_pack8, exp256_ps(_mm256_mul_ps(y, log256_ps(x))))
+MAKE_FUNCTION(binary_op_rsub_pack8, _mm256_sub_ps(y, x))
+MAKE_FUNCTION(binary_op_rdiv_pack8, _mm256_div_ps(y, x))
 
-struct binary_op_div_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return _mm256_div_ps(x, y);
-    }
-};
+#undef MAKE_FUNCTION
 
-struct binary_op_max_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return _mm256_max_ps(x, y);
-    }
-};
-
-struct binary_op_min_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return _mm256_min_ps(x, y);
-    }
-};
-
-struct binary_op_pow_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return exp256_ps(_mm256_mul_ps(y, log256_ps(x)));
-    }
-};
-
-struct binary_op_rsub_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return _mm256_sub_ps(y, x);
-    }
-};
-
-struct binary_op_rdiv_pack8
-{
-    __m256 operator()(const __m256& x, const __m256& y) const
-    {
-        return _mm256_div_ps(y, x);
-    }
-};
+} // namespace BinaryOp_x86_functor
 #endif // __AVX__
 
 template<typename Op>
@@ -2014,82 +1967,37 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
     return 0;
 }
 
-struct binary_op_add_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_add_ps(x, y);
-    }
-};
+namespace BinaryOp_x86_functor {
 
-struct binary_op_sub_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_sub_ps(x, y);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL)                                 \
+    struct NAME                                                   \
+    {                                                             \
+        __m128 operator()(const __m128& x, const __m128& y) const \
+        {                                                         \
+            return IMPL;                                          \
+        }                                                         \
+    };
 
-struct binary_op_mul_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_mul_ps(x, y);
-    }
-};
+MAKE_FUNCTION(binary_op_add_pack4, _mm_add_ps(x, y))
+MAKE_FUNCTION(binary_op_sub_pack4, _mm_sub_ps(x, y))
+MAKE_FUNCTION(binary_op_mul_pack4, _mm_mul_ps(x, y))
+MAKE_FUNCTION(binary_op_div_pack4, _mm_div_ps(x, y))
+MAKE_FUNCTION(binary_op_max_pack4, _mm_max_ps(x, y))
+MAKE_FUNCTION(binary_op_min_pack4, _mm_min_ps(x, y))
+MAKE_FUNCTION(binary_op_pow_pack4, exp_ps(_mm_mul_ps(y, log_ps(x))))
+MAKE_FUNCTION(binary_op_rsub_pack4, _mm_sub_ps(y, x))
+MAKE_FUNCTION(binary_op_rdiv_pack4, _mm_div_ps(y, x))
 
-struct binary_op_div_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_div_ps(x, y);
-    }
-};
+#undef MAKE_FUNCTION
 
-struct binary_op_max_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_max_ps(x, y);
-    }
-};
-
-struct binary_op_min_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_min_ps(x, y);
-    }
-};
-
-struct binary_op_pow_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return exp_ps(_mm_mul_ps(y, log_ps(x)));
-    }
-};
-
-struct binary_op_rsub_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_sub_ps(y, x);
-    }
-};
-
-struct binary_op_rdiv_pack4
-{
-    __m128 operator()(const __m128& x, const __m128& y) const
-    {
-        return _mm_div_ps(y, x);
-    }
-};
+} // namespace BinaryOp_x86_functor
 #endif // __SSE2__
 
 int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
 #if __SSE2__
+    using namespace BinaryOp_x86_functor;
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
@@ -2166,6 +2074,8 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 int BinaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
 #if __SSE2__
+    using namespace BinaryOp_x86_functor;
+
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__

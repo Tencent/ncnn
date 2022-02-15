@@ -44,7 +44,7 @@ jobs:
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
     - name: build-noint8
       run: |

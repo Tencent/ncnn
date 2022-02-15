@@ -45,33 +45,6 @@ void assign_unique_name(Graph& graph)
             }
         }
     }
-
-    // assign unique name for all operands
-    {
-        std::unordered_set<std::string> names;
-        int make_unique_index = 0;
-
-        for (size_t i = 0; i < graph.operands.size(); i++)
-        {
-            Operand* operand = graph.operands[i];
-            const std::string& name = operand->name;
-
-            if (names.find(name) == names.end())
-            {
-                names.insert(name);
-            }
-            else
-            {
-                // duplicated found
-                std::string new_name = std::string("pnnx_unique_") + std::to_string(make_unique_index);
-                fprintf(stderr, "assign unique operand name %s to %s\n", new_name.c_str(), name.c_str());
-                operand->name = new_name;
-                names.insert(new_name);
-
-                make_unique_index++;
-            }
-        }
-    }
 }
 
 } // namespace pnnx

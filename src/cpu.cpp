@@ -512,6 +512,46 @@ static int get_cpu_support_x86_avx()
     return 1;
 }
 
+static int get_cpu_support_x86_fma()
+{
+#if !NCNN_FMA
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    return cpu_info[2] & (1u << 12);
+}
+
+static int get_cpu_support_x86_xop()
+{
+#if !NCNN_XOP
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0x80000000, cpu_info);
+
+    if (cpu_info[0] < 0x80000001)
+        return 0;
+
+    x86_cpuid(0x80000001, cpu_info);
+
+    return cpu_info[2] & (1u << 11);
+}
+
 static int get_cpu_support_x86_avx2()
 {
 #if !NCNN_AVX2
@@ -588,7 +628,7 @@ static int get_cpu_support_x86_avx512()
         return 0;
 
     x86_cpuid_sublevel(7, 0, cpu_info);
-    return cpu_info[1] & (1u << 16);
+    return (cpu_info[1] & (1u << 16)) && (cpu_info[1] & (1u << 31));
 }
 
 static int get_cpu_support_x86_avx512_vnni()
@@ -621,12 +661,16 @@ static int get_cpu_support_x86_avx512_vnni()
 }
 
 static int g_cpu_support_x86_avx = get_cpu_support_x86_avx();
+static int g_cpu_support_x86_fma = get_cpu_support_x86_fma();
+static int g_cpu_support_x86_xop = get_cpu_support_x86_xop();
 static int g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
 static int g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
 static int g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
 static int g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
 #else  // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 static const int g_cpu_support_x86_avx = 0;
+static const int g_cpu_support_x86_fma = 0;
+static const int g_cpu_support_x86_xop = 0;
 static const int g_cpu_support_x86_avx2 = 0;
 static const int g_cpu_support_x86_avx_vnni = 0;
 static const int g_cpu_support_x86_avx512 = 0;
@@ -636,6 +680,16 @@ static const int g_cpu_support_x86_avx512_vnni = 0;
 int cpu_support_x86_avx()
 {
     return g_cpu_support_x86_avx;
+}
+
+int cpu_support_x86_fma()
+{
+    return g_cpu_support_x86_fma;
+}
+
+int cpu_support_x86_xop()
+{
+    return g_cpu_support_x86_xop;
 }
 
 int cpu_support_x86_avx2()
