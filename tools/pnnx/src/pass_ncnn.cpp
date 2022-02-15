@@ -37,6 +37,7 @@
 #include "pass_ncnn/fuse_deconvolutiondepthwise_activation.h"
 #include "pass_ncnn/fuse_innerproduct_activation.h"
 #include "pass_ncnn/fuse_transpose_matmul.h"
+#include "pass_ncnn/insert_reshape_pooling.h"
 
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
@@ -72,6 +73,8 @@ void pass_ncnn(Graph& g)
     ncnn::expand_expression(g);
 
     ncnn::chain_multi_output(g);
+
+    ncnn::insert_reshape_pooling(g);
 
     ncnn::solve_batch_index(g);
 
