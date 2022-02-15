@@ -104,7 +104,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
         {
             if (resize_type == 1) // nearest
             {
-                const float ws = outw ? w / (float)outw : 1.f / width_scale;
+                const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -211,7 +211,7 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
         if (resize_type == 1) // nearest
         {
-            const float ws = outw ? w / (float)outw : 1.f / width_scale;
+            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -306,8 +306,8 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
     {
         if (resize_type == 1) // nearest
         {
-            const float hs = outh ? h / (float)outh : 1.f / height_scale;
-            const float ws = outw ? w / (float)outw : 1.f / width_scale;
+            const float hs = output_height ? h / (float)outh : 1.f / height_scale;
+            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -390,8 +390,8 @@ int Interp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     if (resize_type == 1) // nearest
     {
-        const float hs = outh ? h / (float)outh : 1.f / height_scale;
-        const float ws = outw ? w / (float)outw : 1.f / width_scale;
+        const float hs = output_height ? h / (float)outh : 1.f / height_scale;
+        const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
