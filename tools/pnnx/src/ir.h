@@ -218,6 +218,8 @@ public:
 
     Operator* new_operator_before(const std::string& type, const std::string& name, const Operator* cur);
 
+    Operator* new_operator_after(const std::string& type, const std::string& name, const Operator* cur);
+
     Operand* new_operand(const torch::jit::Value* v);
 
     Operand* new_operand(const std::string& name);

@@ -2419,6 +2419,15 @@ Operator* Graph::new_operator_before(const std::string& type, const std::string&
     return op;
 }
 
+Operator* Graph::new_operator_after(const std::string& type, const std::string& name, const Operator* cur)
+{
+    Operator* op = new Operator;
+    op->type = type;
+    op->name = name;
+    ops.insert(std::find(ops.begin(), ops.end(), cur) + 1, op);
+    return op;
+}
+
 Operand* Graph::new_operand(const torch::jit::Value* v)
 {
     Operand* r = new Operand;
