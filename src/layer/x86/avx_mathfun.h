@@ -326,7 +326,7 @@ _PS256_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
 
 */
 static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
-{ // any x
+{   // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, sign_bit, y;
     __m256i imm0, imm2;
 
@@ -446,7 +446,7 @@ static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
 
 /* almost the same as sin_ps */
 static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
-{ // any x
+{   // any x
     __m256 xmm1, xmm2 = _mm256_setzero_ps(), xmm3, y;
     __m256i imm0, imm2;
 

@@ -185,7 +185,6 @@ static NCNN_FORCEINLINE v4sf log_ps(v4sf x)
     y = _mm_comp_fmadd_ps(y, x, *(v4sf*)_ps_cephes_log_p8);
     y = _mm_mul_ps(y, x);
 
-
     y = _mm_mul_ps(y, z);
 
     y = _mm_comp_fmadd_ps(e, *(v4sf*)_ps_cephes_log_q1, y);
@@ -261,7 +260,6 @@ static NCNN_FORCEINLINE v4sf exp_ps(v4sf x)
     y = _mm_comp_fmadd_ps(y, x, *(v4sf*)_ps_cephes_exp_p4);
     y = _mm_comp_fmadd_ps(y, x, *(v4sf*)_ps_cephes_exp_p5);
     y = _mm_comp_fmadd_ps(y, tmp, x);
-
 
     y = _mm_add_ps(y, one);
 

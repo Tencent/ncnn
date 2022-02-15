@@ -168,7 +168,6 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, const __m128 _b, co
 }
 #endif // !__FMA__
 
-
 #if __AVX__
 #ifndef __FMA__
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
