@@ -50,7 +50,7 @@ Layer::Layer()
     support_image_storage = false;
     support_tensor_storage = false;
 
-    support_weight_fp16_storage = false;
+    support_reserved_00 = false;
 
     typeindex = -1;
 

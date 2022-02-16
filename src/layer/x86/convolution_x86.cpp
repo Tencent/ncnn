@@ -96,10 +96,6 @@ namespace ncnn {
 #include "convolution_3x3_pack8to1.h"
 #include "convolution_3x3_pack8.h"
 #include "convolution_2x2_pack8.h"
-#if __AVX2__
-#include "convolution_2x2_pack8_fp16.h"
-#include "convolution_1x1_pack8_fp16.h"
-#endif
 #endif
 #endif // __SSE2__
 
@@ -107,9 +103,6 @@ Convolution_x86::Convolution_x86()
 {
 #if __SSE2__
     support_packing = true;
-#if __AVX2__
-    support_weight_fp16_storage = true;
-#endif
 #endif // __SSE2__
 
     activation = 0;
@@ -232,24 +225,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
-#if __AVX2__
-
-        if (opt.use_weight_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(weight_data, weight_sgemm_data, num_input, num_output);
-        }
-        else if (opt.use_weight_fp16_storage && kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-        {
-            conv1x1s1_sgemm_transform_kernel_fp16_pack8_avx(weight_data, weight_sgemm_data, num_input, num_output);
-        }
-        else if (opt.use_weight_fp16_storage && kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-        {
-            conv2x2s1_weight_fp16_pack8_avx(weight_data, weight_data_packed, num_input, num_output);
-        }
-        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-#else
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-#endif
         {
             convolution_im2col_sgemm_transform_kernel_pack8_avx(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
         }
@@ -599,19 +575,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-#if __AVX2__
-            if (opt.use_weight_fp16_storage)
-            {
-                conv1x1s1_sgemm_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
-            }
-            if (!opt.use_weight_fp16_storage)
-            {
-#endif
-
-                conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
-#if __AVX2__
-            }
-#endif
+            conv1x1s1_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
 
             if (activation)
             {
@@ -620,21 +584,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
-#if __AVX2__
+            conv1x1s2_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
 
-            if (opt.use_weight_fp16_storage)
-            {
-                conv1x1s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
-            }
-            if (!opt.use_weight_fp16_storage)
-
-            {
-#endif
-
-                conv1x1s2_sgemm_pack8_avx(bottom_blob_bordered, top_blob, weight_sgemm_data, bias_data, opt);
-#if __AVX2__
-            }
-#endif
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
@@ -666,20 +617,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         }
         else if (kernel_w == 2 && kernel_h == 2 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-#if __AVX2__
+            conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
 
-            if (opt.use_weight_fp16_storage)
-            {
-                conv2x2s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-            }
-            if (!opt.use_weight_fp16_storage)
-            {
-#endif
-
-                conv2x2s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-#if __AVX2__
-            }
-#endif
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
