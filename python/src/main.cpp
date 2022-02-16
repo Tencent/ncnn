@@ -197,7 +197,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_subgroup_ballot", &Option::use_subgroup_ballot)
     .def_readwrite("use_subgroup_shuffle", &Option::use_subgroup_shuffle)
     .def_readwrite("use_image_storage", &Option::use_image_storage)
-    .def_readwrite("use_tensor_storage", &Option::use_tensor_storage)
+    .def_readwrite("use_tensor_storage", &Option::use_tensor_storage);
 
     py::class_<Mat> mat(m, "Mat", py::buffer_protocol());
     mat.def(py::init<>())
