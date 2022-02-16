@@ -199,7 +199,8 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_image_storage", &Option::use_image_storage)
     .def_readwrite("use_tensor_storage", &Option::use_tensor_storage)
 
-    py::class_<Mat> mat(m, "Mat", py::buffer_protocol());
+    py::class_<Mat>
+    mat(m, "Mat", py::buffer_protocol());
     mat.def(py::init<>())
     .def(py::init(
     [](py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
