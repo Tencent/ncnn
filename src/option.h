@@ -117,9 +117,7 @@ public:
     bool use_image_storage;
     bool use_tensor_storage;
 
-    // used for fp16 weight storage in AVX
-    // TODO drop this option
-    bool use_weight_fp16_storage;
+    bool use_reserved_0;
 
     // enable DAZ(Denormals-Are-Zero) and FTZ(Flush-To-Zero)
     // default value is 3

@@ -371,7 +371,6 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
     opt.use_image_storage = false;
     opt.use_bf16_storage = false;
     opt.use_vulkan_compute = false;
-    opt.use_weight_fp16_storage = false;
 
     op->create_pipeline(opt);
 
@@ -809,7 +808,6 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
     opt.use_image_storage = false;
     opt.use_bf16_storage = false;
     opt.use_vulkan_compute = false;
-    opt.use_weight_fp16_storage = false;
 
     op->create_pipeline(opt);
 
@@ -1191,7 +1189,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
-    opts[0].use_weight_fp16_storage = false;
 
     opts[1].use_packing_layout = false;
     opts[1].use_fp16_packed = true;
@@ -1200,7 +1197,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_bf16_storage = true;
     opts[1].use_shader_pack8 = false;
     opts[1].use_image_storage = true;
-    opts[1].use_weight_fp16_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
@@ -1209,7 +1205,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = false;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = false;
-    opts[2].use_weight_fp16_storage = false;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
@@ -1218,7 +1213,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_bf16_storage = true;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
-    opts[3].use_weight_fp16_storage = true;
 
     opts[4].use_packing_layout = true;
     opts[4].use_fp16_packed = true;
@@ -1227,7 +1221,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[4].use_bf16_storage = true;
     opts[4].use_shader_pack8 = true;
     opts[4].use_image_storage = true;
-    opts[4].use_weight_fp16_storage = true;
 
     opts[5].use_packing_layout = true;
     opts[5].use_fp16_packed = false;
@@ -1236,7 +1229,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[5].use_bf16_storage = false;
     opts[5].use_shader_pack8 = false;
     opts[5].use_image_storage = false;
-    opts[5].use_weight_fp16_storage = false;
     opts[5].use_sgemm_convolution = false;
     opts[5].use_winograd_convolution = false;
 
@@ -1247,7 +1239,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[6].use_bf16_storage = true;
     opts[6].use_shader_pack8 = true;
     opts[6].use_image_storage = true;
-    opts[6].use_weight_fp16_storage = true;
     opts[6].use_sgemm_convolution = false;
     opts[6].use_winograd_convolution = false;
 
@@ -1346,7 +1337,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
-    opts[0].use_weight_fp16_storage = false;
 
     opts[1].use_packing_layout = false;
     opts[1].use_fp16_packed = true;
@@ -1355,7 +1345,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_bf16_storage = true;
     opts[1].use_shader_pack8 = false;
     opts[1].use_image_storage = true;
-    opts[1].use_weight_fp16_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
@@ -1364,7 +1353,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = false;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = false;
-    opts[2].use_weight_fp16_storage = false;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
@@ -1373,7 +1361,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_bf16_storage = true;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
-    opts[3].use_weight_fp16_storage = true;
 
     opts[4].use_packing_layout = true;
     opts[4].use_fp16_packed = true;
@@ -1382,7 +1369,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[4].use_bf16_storage = true;
     opts[4].use_shader_pack8 = true;
     opts[4].use_image_storage = true;
-    opts[4].use_weight_fp16_storage = true;
 
     opts[5].use_packing_layout = true;
     opts[5].use_fp16_packed = false;
@@ -1391,7 +1377,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[5].use_bf16_storage = false;
     opts[5].use_shader_pack8 = false;
     opts[5].use_image_storage = false;
-    opts[5].use_weight_fp16_storage = false;
     opts[5].use_sgemm_convolution = false;
     opts[5].use_winograd_convolution = false;
 
@@ -1402,7 +1387,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[6].use_bf16_storage = true;
     opts[6].use_shader_pack8 = true;
     opts[6].use_image_storage = true;
-    opts[6].use_weight_fp16_storage = true;
     opts[6].use_sgemm_convolution = false;
     opts[6].use_winograd_convolution = false;
 

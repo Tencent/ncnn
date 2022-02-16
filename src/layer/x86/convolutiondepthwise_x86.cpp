@@ -32,9 +32,6 @@ namespace ncnn {
 #include "convolutiondepthwise_3x3_pack4.h"
 #include "convolutiondepthwise_5x5_pack4.h"
 #if __AVX__
-#if __AVX2__
-#include "convolutiondepthwise_3x3_pack8_fp16.h"
-#endif
 #include "convolutiondepthwise_3x3_pack8.h"
 #include "convolutiondepthwise_5x5_pack8.h"
 #endif
@@ -49,9 +46,6 @@ ConvolutionDepthWise_x86::ConvolutionDepthWise_x86()
 {
 #if __SSE2__
     support_packing = true;
-#if __AVX2__
-    support_weight_fp16_storage = true;
-#endif
 #endif // __SSE2__
     activation = 0;
 }
@@ -93,24 +87,6 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         // pack8
         if (elempack == 8)
         {
-#if __AVX2__
-            if (opt.use_weight_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
-            {
-                Mat weight_data_r2 = weight_data.reshape(maxk, group);
-                Mat weight_data_tmp;
-                convert_packing(weight_data_r2, weight_data_tmp, 8, opt);
-                ncnn::cast_float32_to_float16(weight_data_tmp, weight_data_packed, opt);
-                return 0;
-            }
-            if (opt.use_weight_fp16_storage && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
-            {
-                Mat weight_data_r2 = weight_data.reshape(maxk, group);
-                Mat weight_data_tmp;
-                convert_packing(weight_data_r2, weight_data_tmp, 8, opt);
-                ncnn::cast_float32_to_float16(weight_data_tmp, weight_data_packed, opt);
-                return 0;
-            }
-#endif
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_packed, 8, opt);
 
@@ -318,20 +294,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-#if __AVX2__
+                convdw3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
 
-                if (opt.use_weight_fp16_storage)
-                {
-                    convdw3x3s1_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-                }
-                if (!opt.use_weight_fp16_storage)
-                {
-#endif
-
-                    convdw3x3s1_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-#if __AVX2__
-                }
-#endif
                 if (activation)
                 {
                     activation->forward_inplace(top_blob, opt);
@@ -341,18 +305,8 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
             }
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-#if __AVX2__
-                if (opt.use_weight_fp16_storage)
-                {
-                    convdw3x3s2_fp16_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-                }
-                if (!opt.use_weight_fp16_storage)
-                {
-#endif
-                    convdw3x3s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
-#if __AVX2__
-                }
-#endif
+                convdw3x3s2_pack8_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
                 if (activation)
                 {
                     activation->forward_inplace(top_blob, opt);
