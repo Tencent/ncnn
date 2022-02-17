@@ -2,7 +2,6 @@
 # ncnn
 
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://raw.githubusercontent.com/Tencent/ncnn/master/LICENSE.txt)
-[![Build Status](https://travis-ci.org/Tencent/ncnn.svg?branch=master)](https://travis-ci.org/Tencent/ncnn)
 [![download](https://img.shields.io/github/downloads/Tencent/ncnn/total.svg)](https://github.com/Tencent/ncnn/releases)
 [![codecov](https://codecov.io/gh/Tencent/ncnn/branch/master/graph/badge.svg)](https://codecov.io/gh/Tencent/ncnn)
 [![Language grade: C/C++](https://img.shields.io/lgtm/grade/cpp/g/Tencent/ncnn.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/Tencent/ncnn/context:cpp)

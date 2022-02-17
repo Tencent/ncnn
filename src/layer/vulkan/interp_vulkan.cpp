@@ -369,8 +369,8 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
-        constants[10].f = w / (float)outw;
-        constants[11].f = h / (float)outh;
+        constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
+        constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                    : elempack == 4 ? pipeline_interp_pack4
@@ -410,7 +410,7 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
             constants[7].i = top_blob.h;
             constants[8].i = top_blob.c;
             constants[9].i = top_blob.cstep;
-            constants[10].f = w / (float)outw;
+            constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
             constants[11].f = 1.f;
 
             if (resize_type == 2 && align_corner)
@@ -511,8 +511,8 @@ int Interp_vulkan::forward(const std::vector<VkMat>& bottom_blobs, std::vector<V
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = top_blob.cstep;
-        constants[10].f = w / (float)outw;
-        constants[11].f = h / (float)outh;
+        constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
+        constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
 
         if (resize_type == 2 && align_corner)
         {
@@ -649,8 +649,8 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = 0; //top_blob.cstep;
-        constants[10].f = w / (float)outw;
-        constants[11].f = h / (float)outh;
+        constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
+        constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
 
         const Pipeline* pipeline = elempack == 8 ? pipeline_interp_pack8
                                    : elempack == 4 ? pipeline_interp_pack4
@@ -690,7 +690,7 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
             constants[7].i = top_blob.h;
             constants[8].i = top_blob.c;
             constants[9].i = 0; //top_blob.cstep;
-            constants[10].f = w / (float)outw;
+            constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
             constants[11].f = 1.f;
 
             if (resize_type == 2 && align_corner)
@@ -791,8 +791,8 @@ int Interp_vulkan::forward(const std::vector<VkImageMat>& bottom_blobs, std::vec
         constants[7].i = top_blob.h;
         constants[8].i = top_blob.c;
         constants[9].i = 0; //top_blob.cstep;
-        constants[10].f = w / (float)outw;
-        constants[11].f = h / (float)outh;
+        constants[10].f = (resize_type == 2 || output_width) ? w / (float)outw : 1.f / width_scale;
+        constants[11].f = (resize_type == 2 || output_height) ? h / (float)outh : 1.f / height_scale;
 
         if (resize_type == 2 && align_corner)
         {

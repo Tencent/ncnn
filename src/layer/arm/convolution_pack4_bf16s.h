@@ -29,7 +29,7 @@ static void convolution_transform_kernel_pack4_bf16s_neon(const Mat& weight_data
         const Mat k2 = weight_data_r2.channel(q + 2);
         const Mat k3 = weight_data_r2.channel(q + 3);
 
-        Mat g0 = weight_data_bf16.channel(q / 4);
+        unsigned short* g00 = weight_data_bf16.channel(q / 4);
 
         for (int p = 0; p + 3 < num_input; p += 4)
         {
@@ -52,8 +52,6 @@ static void convolution_transform_kernel_pack4_bf16s_neon(const Mat& weight_data
             const float* k31 = k3.row(p + 1);
             const float* k32 = k3.row(p + 2);
             const float* k33 = k3.row(p + 3);
-
-            unsigned short* g00 = g0.row<unsigned short>(p / 4);
 
             for (int k = 0; k < maxk; k++)
             {

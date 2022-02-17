@@ -496,12 +496,10 @@ int DeconvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& o
 
             for (int q = 0; q + (out_elempack_g - 1) < num_output_g; q += out_elempack_g)
             {
-                Mat g0 = weight_data_pack4.channel(q / out_elempack_g);
+                float* g00 = weight_data_pack4.channel(q / out_elempack_g);
 
                 for (int p = 0; p + (elempack_g - 1) < channels_g; p += elempack_g)
                 {
-                    float* g00 = g0.row(p / elempack_g);
-
                     for (int k = 0; k < maxk; k++)
                     {
                         for (int i = 0; i < out_elempack_g; i++)

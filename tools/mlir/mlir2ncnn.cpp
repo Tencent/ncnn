@@ -1481,6 +1481,7 @@ int main(int argc, char** argv)
                         fprintf(pp, ",0");
                 }
                 fprintf(pp, " 4=%d", keep_dims);
+                fprintf(pp, " 5=1");
             }
         }
         else if (op == "tf.Minimum")

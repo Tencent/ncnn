@@ -40,24 +40,24 @@ void eliminate_dropout(Graph& graph)
                 x->remove_consumer(op);
             }
 
-            Operand* slice_out = op->outputs[0];
+            Operand* dropout_out = op->outputs[0];
 
-            for (auto& x : slice_out->consumers)
+            for (auto& x : dropout_out->consumers)
             {
                 for (size_t j = 0; j < x->inputs.size(); j++)
                 {
-                    if (x->inputs[j] == slice_out)
+                    if (x->inputs[j] == dropout_out)
                         x->inputs[j] = op->inputs[0];
                 }
 
                 op->inputs[0]->consumers.push_back(x);
             }
 
-            slice_out->producer = 0;
-            slice_out->consumers.clear();
+            dropout_out->producer = 0;
+            dropout_out->consumers.clear();
 
-            graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), slice_out));
-            delete slice_out;
+            graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), dropout_out));
+            delete dropout_out;
 
             op->inputs.clear();
             op->outputs.clear();

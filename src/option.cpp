@@ -60,7 +60,7 @@ Option::Option()
     use_image_storage = false;
     use_tensor_storage = false;
 
-    use_weight_fp16_storage = false;
+    use_reserved_0 = false;
 
     flush_denormals = 3;
 
