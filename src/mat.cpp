@@ -1058,6 +1058,101 @@ void VkImageMat::create_like(const VkImageMat& im, VkAllocator* _allocator)
     if (_dims == 4)
         create(im.w, im.h, im.d, im.c, im.elemsize, im.elempack, _allocator);
 }
+
+void VkMat::substract_mean_normalize(const float* mean_vals, const float* norm_vals, const VulkanDevice* vkdev, Option& opt)
+{
+    Layer* op;
+    ncnn::VkCompute cmd(vkdev);
+
+    opt.use_vulkan_compute = true;
+    if (mean_vals && !norm_vals)
+    {
+        // substract mean only
+        op = create_layer(LayerType::Bias);
+        op->vkdev = vkdev;
+        ParamDict pd;
+        pd.set(0, c);
+
+        op->load_param(pd);
+
+        Mat weights[1];
+        weights[0] = Mat(c);
+        for (int q = 0; q < c; q++)
+        {
+            weights[0][q] = -mean_vals[q];
+        }
+
+        op->load_model(ModelBinFromMatArray(weights));
+    }
+    else if (!mean_vals && norm_vals)
+    {
+        // normalize only
+        op = create_layer(LayerType::Scale);
+        op->vkdev = vkdev;
+        ParamDict pd;
+        pd.set(0, c);
+
+        op->load_param(pd);
+
+        Mat weights[1];
+        weights[0] = Mat(c);
+        for (int q = 0; q < c; q++)
+        {
+            weights[0][q] = norm_vals[q];
+        }
+
+        op->load_model(ModelBinFromMatArray(weights));
+    }
+    else if (mean_vals && norm_vals)
+    {
+        // substract mean and normalize
+        op = create_layer(LayerType::Scale);
+        op->vkdev = vkdev;
+        ParamDict pd;
+        pd.set(0, c);
+        pd.set(1, 1);
+
+        op->load_param(pd);
+
+        Mat weights[2];
+        weights[0] = Mat(c);
+        weights[1] = Mat(c);
+        for (int q = 0; q < c; q++)
+        {
+            weights[0][q] = norm_vals[q];
+            weights[1][q] = -mean_vals[q] * norm_vals[q];
+        }
+
+        op->load_model(ModelBinFromMatArray(weights));
+    }
+    else // if (!mean_vals && !norm_vals)
+    {
+        return;
+    }
+    // upload model
+    {
+        ncnn::VkTransfer cmd(vkdev);
+        ncnn::VkWeightAllocator* weight_vkallocator = new ncnn::VkWeightAllocator(vkdev);
+        ncnn::VkWeightStagingAllocator* weight_staging_vkallocator = new ncnn::VkWeightStagingAllocator(vkdev);
+        ncnn::Option opt_upload = opt;
+        opt_upload.blob_vkallocator = weight_vkallocator;
+        opt_upload.workspace_vkallocator = weight_vkallocator;
+        opt_upload.staging_vkallocator = weight_staging_vkallocator;
+
+        op->upload_model(cmd, opt_upload);
+
+        cmd.submit_and_wait();
+    }
+
+    op->create_pipeline(opt);
+    op->forward_inplace(*this, cmd, opt);
+    cmd.submit_and_wait();
+
+    op->destroy_pipeline(opt);
+
+    delete op;
+}
+
 #endif // NCNN_VULKAN
 
 void Mat::substract_mean_normalize(const float* mean_vals, const float* norm_vals)

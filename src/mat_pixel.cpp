@@ -21,6 +21,12 @@
 #endif // __ARM_NEON
 #include "platform.h"
 
+#if NCNN_VULKAN
+#include "command.h"
+#include "gpu.h"
+#include "layer.h"
+#endif
+
 namespace ncnn {
 
 #if NCNN_PIXEL
@@ -2587,6 +2593,43 @@ Mat Mat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h,
     NCNN_LOGE("unknown convert type %d", type);
     return Mat();
 }
+
+#if NCNN_VULKAN
+VkMat VkMat::from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, const VulkanDevice* vkdev, Option &opt)
+{
+    opt.use_vulkan_compute = true;
+    // point to mat
+    ncnn::Mat m = Mat::from_pixels(pixels, type, w, h);
+
+    ncnn::VkCompute cmd(vkdev);
+    ncnn::VkMat m_gpu, top_gpu;
+    cmd.record_upload(m, m_gpu, opt);
+
+    ncnn::Layer* InterLayer = ncnn::create_layer("Interp");
+
+    InterLayer->vkdev = vkdev;
+    // load param
+    {
+        ncnn::ParamDict pd;
+        pd.set(0, 2); //1=nearest  2=bilinear  3=bicubic
+        pd.set(3, target_height);
+        pd.set(4, target_width);
+        InterLayer->load_param(pd);
+    }
+    InterLayer->create_pipeline(opt);
+    InterLayer->forward(m_gpu, top_gpu, cmd, opt);
+    cmd.submit_and_wait();
+
+    {
+        m_gpu.release();
+        m.release();
+        InterLayer->destroy_pipeline(opt);
+        delete InterLayer;
+    }
+
+    return top_gpu;
+}
+#endif
 
 Mat Mat::from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int roix, int roiy, int roiw, int roih, Allocator* allocator)
 {

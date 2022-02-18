@@ -404,6 +404,10 @@ public:
     // allocate like
     void create_like(const VkImageMat& im, VkAllocator* allocator);
 
+    static VkMat from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int target_width, int target_height, const VulkanDevice* vkdev, Option &opt);
+    // substract channel-wise mean values, then multiply by normalize values, pass 0 to skip
+    void substract_mean_normalize(const float* mean_vals, const float* norm_vals, const VulkanDevice* vkdev, Option &opt);
+
     // mapped
     Mat mapped() const;
     void* mapped_ptr() const;
