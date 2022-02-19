@@ -23,7 +23,6 @@
 #endif
 #include <stdio.h>
 #include <vector>
-#include "ncnn/cpu.h"
 #include "cpu.h"
 
 #if NCNN_VULKAN
