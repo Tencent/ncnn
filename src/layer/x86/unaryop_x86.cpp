@@ -53,7 +53,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 #if __AVX__
     nn = size >> 3;
     remain = size & 7;
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < nn; i++)
     {
         __m256 _p = _mm256_loadu_ps(ptr + i * 8);
@@ -63,7 +63,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 #else
     nn = size >> 2;
     remain = size & 3;
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < nn; i++)
     {
         __m128 _p = _mm_loadu_ps(ptr + i * 4);
@@ -73,7 +73,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 #endif // __AVX__
 
 #endif // __SSE2__
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = size - remain; i < size; i++)
     {
         ptr[i] = op(a[i]);
@@ -134,8 +134,8 @@ struct unary_op_floor
 #ifdef __SSE4_1__
         return (__m128)_mm_floor_ps(x);
         printf("sse\n");
-#endif // __SSE4_1__
-        // TODO sse optimize
+#endif // __SSE4_1__ \
+// TODO sse optimize
         float tmp[4];
         _mm_storeu_ps(tmp, x);
         tmp[0] = floor(tmp[0]);
@@ -161,11 +161,11 @@ struct unary_op_ceil
     }
 #ifdef __SSE2__
     __m128 operator()(const __m128& x) const
-    {  
+    {
 #ifdef __SSE4_1__
         return (__m128)_mm_ceil_ps(x);
 #endif // __SSE4_1__ \
-        // TODO sse optimize
+// TODO sse optimize
         float tmp[4];
         _mm_storeu_ps(tmp, x);
         tmp[0] = ceil(tmp[0]);
