@@ -22,18 +22,6 @@
 #endif // __SSE2__
 
 #if __AVX__
-#include <stdint.h>
-typedef union m128i
-{
-    __m128i vec;
-    uint16_t m128i_u16[8];
-} m128;
-
-typedef union m256i
-{
-    __m256i vec;
-    uint32_t m256i_u32[8];
-} m256;
 static inline __m256 bfloat2float_avx(__m128i v0)
 {
     __m128i zero = _mm_set1_epi32(0);
@@ -45,7 +33,6 @@ static inline __m256 bfloat2float_avx(__m128i v0)
     return _mm256_castsi256_ps(ab);
 }
 #if __AVX2__
-
 static inline __m256i float2bfloat_avx(__m256 v0, __m256 v1)
 {
     __m256i a = _mm256_castps_si256(v0);
