@@ -698,5 +698,4 @@ static NCNN_FORCEINLINE __m256 pow_ps(__m256 a, __m256 b)
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));
 }
 
-
 #endif // AVX_MATHFUN_H

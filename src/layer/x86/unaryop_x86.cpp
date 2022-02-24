@@ -33,7 +33,7 @@ namespace ncnn {
 UnaryOp_x86::UnaryOp_x86()
 {
 #ifdef __SSE2__
-    support_packing = false;
+    support_packing = true;
 #endif // __SSE2__
 }
 
@@ -42,7 +42,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 {
     Op op;
     float* ptr = (float*)a;
-    int size = static_cast<int>(a.total());
+    int size = static_cast<int>(a.total()) * a.elempack;
     int nn = size;
     int remain = size;
 

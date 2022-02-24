@@ -125,7 +125,6 @@ typedef union xmm_mm_union
 */
 static NCNN_FORCEINLINE v4sf log_ps(v4sf x)
 {
-// can use SVML
 #ifdef USE_SSE2
     v4si emm0;
 #else
@@ -679,11 +678,6 @@ static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
     /* update the sign */
     *s = _mm_xor_ps(xmm1, sign_bit_sin);
     *c = _mm_xor_ps(xmm2, sign_bit_cos);
-}
-
-static NCNN_FORCEINLINE __m128 fabs_ps(v4sf x)
-{
-    return _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);
 }
 
 #endif // SSE_MATHFUN_H
