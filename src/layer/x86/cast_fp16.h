@@ -12,12 +12,16 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
+void cast_fp32_to_fp16_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_fp16_to_fp32_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+#endif
+
 static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-#if NCNN_F16C && __AVX__ && !__F16C__
+#if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        extern void cast_fp32_to_fp16_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
         cast_fp32_to_fp16_sse_f16c(bottom_blob, top_blob, opt);
         return;
     }
@@ -70,7 +74,6 @@ static void cast_fp16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
 #if NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
-        extern void cast_fp16_to_fp32_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
         cast_fp16_to_fp32_sse_f16c(bottom_blob, top_blob, opt);
         return;
     }
