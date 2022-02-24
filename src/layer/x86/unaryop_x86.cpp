@@ -22,7 +22,7 @@
 #if __SSE4_1__
 #include <smmintrin.h>
 #if __AVX__
-#define __SVML__ (!_MSC_VER && (_MSC_VER >= 1920))
+#define __SVML__ (_MSC_VER && (_MSC_VER >= 1920))
 #include "avx_mathfun.h"
 #include <immintrin.h>
 #endif // __AVX__
