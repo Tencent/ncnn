@@ -327,7 +327,7 @@ _PS_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
    deliver full speed.
 */
 static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
-{ // any x
+{   // any x
     v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, sign_bit, y;
 
 #ifdef USE_SSE2
@@ -436,7 +436,7 @@ static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
 
 /* almost the same as sin_ps */
 static NCNN_FORCEINLINE v4sf cos_ps(v4sf x)
-{ // any x
+{   // any x
     v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, y;
 #ifdef USE_SSE2
     v4si emm0, emm2;

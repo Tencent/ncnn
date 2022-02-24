@@ -50,8 +50,8 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 #if __AVX__
     nn = size >> 3;
     remain = size & 7;
-#pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < nn; i ++)
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < nn; i++)
     {
         __m256 _p = _mm256_loadu_ps(ptr + i * 8);
         _p = op(_p);
@@ -60,8 +60,8 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 #else
     nn = size >> 2;
     remain = size & 3;
-#pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < nn; i ++)
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int i = 0; i < nn; i++)
     {
         __m128 _p = _mm_loadu_ps(ptr + i * 4);
         _p = op(_p);
@@ -484,7 +484,7 @@ struct unary_op_reciprocal
 #ifdef __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return _mm_div_ps(*(__m128 *)_ps_1, x);
+        return _mm_div_ps(*(__m128*)_ps_1, x);
     }
 #ifdef __AVX__
     __m256 operator()(const __m256& x) const
