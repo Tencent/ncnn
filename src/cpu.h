@@ -56,10 +56,12 @@ NCNN_EXPORT int cpu_support_arm_asimddp();
 
 // avx = x86 avx
 NCNN_EXPORT int cpu_support_x86_avx();
-// xop = x86 xop
-NCNN_EXPORT int cpu_support_x86_xop();
 // fma = x86 fma
 NCNN_EXPORT int cpu_support_x86_fma();
+// xop = x86 xop
+NCNN_EXPORT int cpu_support_x86_xop();
+// f16c = x86 f16c
+NCNN_EXPORT int cpu_support_x86_f16c();
 // avx2 = x86 avx2 + fma + f16c
 NCNN_EXPORT int cpu_support_x86_avx2();
 // avx_vnni = x86 avx vnni
