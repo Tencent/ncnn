@@ -12,8 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "convolution_x86_avx2.h"
-
 #include "cpu.h"
 #include "mat.h"
 #include "x86_usability.h"
