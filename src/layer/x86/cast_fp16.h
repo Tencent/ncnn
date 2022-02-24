@@ -57,16 +57,11 @@ static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const O
             ptr += 4;
             outptr += 4;
         }
-        for (; i < size; i++)
-        {
-            *outptr++ = _cvtss_sh(*ptr++, _MM_FROUND_TRUNC);
-        }
-#else
+#endif
         for (; i < size; i++)
         {
             *outptr++ = float32_to_float16(*ptr++);
         }
-#endif
     }
 }
 
@@ -115,15 +110,10 @@ static void cast_fp16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
             ptr += 4;
             outptr += 4;
         }
-        for (; i < size; i++)
-        {
-            *outptr++ = _cvtsh_ss(*ptr++);
-        }
-#else
+#endif
         for (; i < size; i++)
         {
             *outptr++ = float16_to_float32(*ptr++);
         }
-#endif
     }
 }
