@@ -52,16 +52,21 @@ static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const O
         {
             __m128 _v_fp32 = _mm_loadu_ps(ptr);
             __m128i _v_fp16 = _mm_cvtps_ph(_v_fp32, _MM_FROUND_TRUNC);
-            _mm_storeu_si64(outptr, _v_fp16);
+            _mm_storeu_si128(outptr, _v_fp16);
 
             ptr += 4;
             outptr += 4;
         }
-#endif
+        for (; i < size; i++)
+        {
+            *outptr++ = _cvtss_sh(*ptr++, _MM_FROUND_TRUNC);
+        }
+#else
         for (; i < size; i++)
         {
             *outptr++ = float32_to_float16(*ptr++);
         }
+#endif
     }
 }
 
@@ -103,17 +108,22 @@ static void cast_fp16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128i _v_fp16 = _mm_loadu_si64(ptr);
+            __m128i _v_fp16 = _mm_loadu_si128(ptr);
             __m128 _v_fp32 = _mm_cvtph_ps(_v_fp16);
             _mm_storeu_ps(outptr, _v_fp32);
 
             ptr += 4;
             outptr += 4;
         }
-#endif
+        for (; i < size; i++)
+        {
+            *outptr++ = _cvtsh_ss(*ptr++);
+        }
+#else
         for (; i < size; i++)
         {
             *outptr++ = float16_to_float32(*ptr++);
         }
+#endif
     }
 }
