@@ -22,7 +22,6 @@
 #if __SSE4_1__
 #include <smmintrin.h>
 #if __AVX__
-#define __SVML__ (_MSC_VER && (_MSC_VER >= 1920))
 #include "avx_mathfun.h"
 #include <immintrin.h>
 #endif // __AVX__
@@ -332,9 +331,6 @@ struct unary_op_tan
 #ifdef __SSE2__
     __m128 operator()(const __m128& x) const
     {
-#ifdef __SVML__
-        return (__m128)_mm_tan_ps(x);
-#endif
         //TODO sse optimize
         float tmp[4];
         _mm_storeu_ps(tmp, x);
@@ -347,9 +343,6 @@ struct unary_op_tan
 #ifdef __AVX__
     __m256 operator()(const __m256& x) const
     {
-#ifdef __SVML__
-        return (__m256)_mm256_tan_ps(x);
-#endif
         //TODO avx optimize
         float tmp[8];
         _mm256_storeu_ps(tmp, x);
@@ -376,9 +369,6 @@ struct unary_op_asin
 #ifdef __SSE2__
     __m128 operator()(const __m128& x) const
     {
-#ifdef __SVML__
-        return (__m128)_mm_asin_ps(x);
-#endif
         //TODO sse optimize
         float tmp[4];
         _mm_storeu_ps(tmp, x);
@@ -391,9 +381,6 @@ struct unary_op_asin
 #ifdef __AVX__
     __m256 operator()(const __m256& x) const
     {
-#ifdef __SVML__
-        return (__m256)_mm256_asin_ps(x);
-#endif
         //TODO avx optimize
         float tmp[8];
         _mm256_storeu_ps(tmp, x);
@@ -420,9 +407,6 @@ struct unary_op_acos
 #ifdef __SSE2__
     __m128 operator()(const __m128& x) const
     {
-#ifdef __SVML__
-        return (__m128)_mm_acos_ps(x);
-#endif
         //TODO sse optimize
         float tmp[4];
         _mm_storeu_ps(tmp, x);
@@ -435,9 +419,6 @@ struct unary_op_acos
 #ifdef __AVX__
     __m256 operator()(const __m256& x) const
     {
-#ifdef __SVML__
-        return (__m256)_mm256_acos_ps(x);
-#endif
         //TODO avx optimize
         float tmp[8];
         _mm256_storeu_ps(tmp, x);
@@ -464,9 +445,6 @@ struct unary_op_atan
 #ifdef __SSE2__
     __m128 operator()(const __m128& x) const
     {
-#ifdef __SVML__
-        return (__m128)_mm_atan_ps(x);
-#endif
         //TODO sse optimize
         float tmp[4];
         _mm_storeu_ps(tmp, x);
@@ -479,9 +457,6 @@ struct unary_op_atan
 #ifdef __AVX__
     __m256 operator()(const __m256& x) const
     {
-#ifdef __SVML__
-        return (__m256)_mm256_atan_ps(x);
-#endif
         //TODO avx optimize
         float tmp[8];
         _mm256_storeu_ps(tmp, x);
