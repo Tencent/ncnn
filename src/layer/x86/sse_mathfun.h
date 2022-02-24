@@ -34,6 +34,7 @@
 
 #define USE_SSE2 1
 
+
 #include <xmmintrin.h>
 #include <x86_usability.h>
 
@@ -124,6 +125,7 @@ typedef union xmm_mm_union
 */
 static NCNN_FORCEINLINE v4sf log_ps(v4sf x)
 {
+// can use SVML
 #ifdef USE_SSE2
     v4si emm0;
 #else
@@ -326,7 +328,7 @@ _PS_CONST(cephes_FOPI, 1.27323954473516f); // 4 / M_PI
    deliver full speed.
 */
 static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
-{   // any x
+{ // any x
     v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, sign_bit, y;
 
 #ifdef USE_SSE2
@@ -400,9 +402,9 @@ static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
     xmm1 = *(v4sf*)_ps_minus_cephes_DP1;
     xmm2 = *(v4sf*)_ps_minus_cephes_DP2;
     xmm3 = *(v4sf*)_ps_minus_cephes_DP3;
-    xmm1 = _mm_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm_comp_fmadd_ps(y, xmm1, x);
+    x = _mm_comp_fmadd_ps(y, xmm2, x);
+    x = _mm_comp_fmadd_ps(y, xmm3, x);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(v4sf*)_ps_coscof_p0;
@@ -412,7 +414,6 @@ static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
     y = _mm_comp_fmadd_ps(y, z, *(v4sf*)_ps_coscof_p2);
     y = _mm_mul_ps(y, z);
     y = _mm_mul_ps(y, z);
-    // y = y - z * 0.5
     y = _mm_comp_fnmadd_ps(z, *(v4sf*)_ps_0p5, y);
     y = _mm_add_ps(y, *(v4sf*)_ps_1);
 
@@ -436,7 +437,7 @@ static NCNN_FORCEINLINE v4sf sin_ps(v4sf x)
 
 /* almost the same as sin_ps */
 static NCNN_FORCEINLINE v4sf cos_ps(v4sf x)
-{   // any x
+{ // any x
     v4sf xmm1, xmm2 = _mm_setzero_ps(), xmm3, y;
 #ifdef USE_SSE2
     v4si emm0, emm2;
@@ -509,9 +510,9 @@ static NCNN_FORCEINLINE v4sf cos_ps(v4sf x)
     xmm1 = *(v4sf*)_ps_minus_cephes_DP1;
     xmm2 = *(v4sf*)_ps_minus_cephes_DP2;
     xmm3 = *(v4sf*)_ps_minus_cephes_DP3;
-    xmm1 = _mm_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm_comp_fmadd_ps(y, xmm1, x);
+    x = _mm_comp_fmadd_ps(y, xmm2, x);
+    x = _mm_comp_fmadd_ps(y, xmm3, x);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(v4sf*)_ps_coscof_p0;
@@ -521,20 +522,16 @@ static NCNN_FORCEINLINE v4sf cos_ps(v4sf x)
     y = _mm_comp_fmadd_ps(y, z, *(v4sf*)_ps_coscof_p2);
     y = _mm_mul_ps(y, z);
     y = _mm_mul_ps(y, z);
-    // y = y - z * 0.5
     y = _mm_comp_fnmadd_ps(z, *(v4sf*)_ps_0p5, y);
     y = _mm_add_ps(y, *(v4sf*)_ps_1);
 
     /* Evaluate the second polynom  (Pi/4 <= x <= 0) */
 
     v4sf y2 = *(v4sf*)_ps_sincof_p0;
+    y2 = _mm_comp_fmadd_ps(y2, z, *(v4sf*)_ps_sincof_p1);
+    y2 = _mm_comp_fmadd_ps(y2, z, *(v4sf*)_ps_sincof_p2);
     y2 = _mm_mul_ps(y2, z);
-    y2 = _mm_add_ps(y2, *(v4sf*)_ps_sincof_p1);
-    y2 = _mm_mul_ps(y2, z);
-    y2 = _mm_add_ps(y2, *(v4sf*)_ps_sincof_p2);
-    y2 = _mm_mul_ps(y2, z);
-    y2 = _mm_mul_ps(y2, x);
-    y2 = _mm_add_ps(y2, x);
+    y2 = _mm_comp_fmadd_ps(y2, x, x);
 
     /* select the correct result from the two polynoms */
     xmm3 = poly_mask;
@@ -626,9 +623,9 @@ static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
     xmm1 = *(v4sf*)_ps_minus_cephes_DP1;
     xmm2 = *(v4sf*)_ps_minus_cephes_DP2;
     xmm3 = *(v4sf*)_ps_minus_cephes_DP3;
-    xmm1 = _mm_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm_comp_fmadd_ps(y, xmm1, x);
+    x = _mm_comp_fmadd_ps(y, xmm2, x);
+    x = _mm_comp_fmadd_ps(y, xmm3, x);
 
 #ifdef USE_SSE2
     emm4 = _mm_sub_epi32(emm4, *(v4si*)_pi32_2);
@@ -658,7 +655,6 @@ static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
     y = _mm_comp_fmadd_ps(y, z, *(v4sf*)_ps_coscof_p2);
     y = _mm_mul_ps(y, z);
     y = _mm_mul_ps(y, z);
-    // y = y - z * 0.5
     y = _mm_comp_fnmadd_ps(z, *(v4sf*)_ps_0p5, y);
     y = _mm_add_ps(y, *(v4sf*)_ps_1);
 
