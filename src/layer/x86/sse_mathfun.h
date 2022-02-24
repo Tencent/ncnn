@@ -34,7 +34,6 @@
 
 #define USE_SSE2 1
 
-
 #include <xmmintrin.h>
 #include <x86_usability.h>
 
@@ -66,6 +65,7 @@ typedef __m64 v2si; // vector of 2 int (mmx)
 #define _PS_CONST_TYPE(Name, Type, Val) \
     static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = {Val, Val, Val, Val}
 
+_PS_CONST(0, 0.0f);
 _PS_CONST(1, 1.0f);
 _PS_CONST(0p5, 0.5f);
 /* the smallest non denormalized float number */
@@ -679,6 +679,11 @@ static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
     /* update the sign */
     *s = _mm_xor_ps(xmm1, sign_bit_sin);
     *c = _mm_xor_ps(xmm2, sign_bit_cos);
+}
+
+static NCNN_FORCEINLINE __m128 fabs_ps(v4sf x)
+{
+    return _mm_and_ps(x, *(v4sf*)_ps_inv_sign_mask);
 }
 
 #endif // SSE_MATHFUN_H

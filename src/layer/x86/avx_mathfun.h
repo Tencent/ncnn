@@ -62,6 +62,7 @@ _PI32AVX_CONST(4, 4);
 #define _PS256_CONST_TYPE(Name, Type, Val) \
     static const ALIGN32_BEG Type _ps256_##Name[8] ALIGN32_END = {Val, Val, Val, Val, Val, Val, Val, Val}
 
+_PS256_CONST(0, 0.0f);
 _PS256_CONST(1, 1.0f);
 _PS256_CONST(0p5, 0.5f);
 /* the smallest non denormalized float number */
@@ -696,5 +697,6 @@ static NCNN_FORCEINLINE __m256 pow_ps(__m256 a, __m256 b)
     // pow(x, m) = exp(m * log(x))
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));
 }
+
 
 #endif // AVX_MATHFUN_H
