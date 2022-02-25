@@ -42,6 +42,20 @@ int HardSwish_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int elempack = bottom_top_blob.elempack;
 
 #if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        Mat tmp;
+        convert_packing(bottom_top_blob, tmp, 8, opt);
+
+        forward_inplace(tmp, opt);
+
+        convert_packing(tmp, bottom_top_blob, 16, opt);
+
+        return 0;
+    }
+#endif // __AVX512F__
+
     if (elempack == 8)
     {
         #pragma omp parallel for num_threads(opt.num_threads)

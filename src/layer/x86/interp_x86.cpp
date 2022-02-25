@@ -60,6 +60,22 @@ int Interp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        std::vector<Mat> tmp(2);
+        convert_packing(bottom_blob, tmp[0], 8, opt);
+        convert_packing(reference_blob, tmp[1], 8, opt);
+
+        std::vector<Mat> tmpout(1);
+        forward(tmp, tmpout, opt);
+
+        convert_packing(tmpout[0], top_blob, 16, opt);
+
+        return 0;
+    }
+#endif // __AVX512F__
+
     int outw = reference_blob.w;
     int outh = reference_blob.h;
 
