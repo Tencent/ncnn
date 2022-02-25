@@ -394,7 +394,7 @@ static NCNN_FORCEINLINE void _mm256_comp_fmadd_ps8(__m256& _sum,
 
 #if __AVX512F__
 static NCNN_FORCEINLINE void transpose16_ps(__m512& _r0, __m512& _r1, __m512& _r2, __m512& _r3, __m512& _r4, __m512& _r5, __m512& _r6, __m512& _r7,
-                                            __m512& _r8, __m512& _r9, __m512& _ra, __m512& _rb, __m512& _rc, __m512& _rd, __m512& _re, __m512& _rf)
+        __m512& _r8, __m512& _r9, __m512& _ra, __m512& _rb, __m512& _rc, __m512& _rd, __m512& _re, __m512& _rf)
 {
     __m512 _tmp0 = _mm512_unpacklo_ps(_r0, _r1);
     __m512 _tmp1 = _mm512_unpackhi_ps(_r0, _r1);
