@@ -81,6 +81,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
     return 0;
 }
 
+namespace UnaryOp_x86_functor {
 struct unary_op_abs
 {
     float operator()(const float& x) const
@@ -514,8 +515,11 @@ struct unary_op_tanh
 #endif // __SSE2__
 };
 
+} // namespace UnaryOp_x86_functor
+
 int UnaryOp_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace UnaryOp_x86_functor;
     if (op_type == Operation_ABS)
         return unary_op_inplace<unary_op_abs>(bottom_top_blob, opt);
 
