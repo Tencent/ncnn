@@ -29,4 +29,4 @@ public:
 
 } // namespace ncnn
 
-#endif // LAYER_UNARYOP_H
+#endif // LAYER_UNARYOP_X86_H
