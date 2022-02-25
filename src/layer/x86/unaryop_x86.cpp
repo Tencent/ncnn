@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -34,7 +34,7 @@ namespace ncnn {
 
 UnaryOp_x86::UnaryOp_x86()
 {
-#ifdef __SSE2__
+#if __SSE2__
     support_packing = true;
 #endif // __SSE2__
 }
@@ -88,12 +88,12 @@ struct unary_op_abs
     {
         return (float)fabs(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)abs_sse(x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)abs_avx(x);
@@ -108,12 +108,12 @@ struct unary_op_neg
     {
         return -x;
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)_mm_sub_ps(_mm_setzero_ps(), x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)_mm256_sub_ps(_mm256_setzero_ps(), x);
@@ -128,10 +128,10 @@ struct unary_op_floor
     {
         return (float)floor(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-#ifdef __SSE4_1__
+#if __SSE4_1__
         return (__m128)_mm_floor_ps(x);
         printf("sse\n");
 #endif // __SSE4_1__ \
@@ -159,10 +159,10 @@ struct unary_op_ceil
     {
         return (float)ceil(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-#ifdef __SSE4_1__
+#if __SSE4_1__
         return (__m128)_mm_ceil_ps(x);
 #endif // __SSE4_1__ \
 // TODO sse optimize
@@ -174,7 +174,7 @@ struct unary_op_ceil
         tmp[3] = ceil(tmp[3]);
         return _mm_loadu_ps(tmp);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)_mm256_ceil_ps(x);
@@ -189,12 +189,12 @@ struct unary_op_square
     {
         return x * x;
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)_mm_mul_ps(x, x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)_mm256_mul_ps(x, x);
@@ -209,12 +209,12 @@ struct unary_op_sqrt
     {
         return (float)sqrt(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)_mm_sqrt_ps(x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)_mm256_sqrt_ps(x);
@@ -229,12 +229,12 @@ struct unary_op_rsqrt
     {
         return (float)(1.f / sqrt(x));
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)_mm_rsqrt_ps(x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)_mm256_rsqrt_ps(x);
@@ -249,12 +249,12 @@ struct unary_op_exp
     {
         return (float)exp(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)exp_ps(x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)exp256_ps(x);
@@ -269,12 +269,12 @@ struct unary_op_log
     {
         return (float)log(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)log_ps(x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)log256_ps(x);
@@ -289,12 +289,12 @@ struct unary_op_sin
     {
         return (float)sin(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)sin_ps(x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)sin256_ps(x);
@@ -309,12 +309,12 @@ struct unary_op_cos
     {
         return (float)cos(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)cos_ps(x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)cos256_ps(x);
@@ -329,7 +329,7 @@ struct unary_op_tan
     {
         return (float)tan(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         //TODO sse optimize
@@ -341,7 +341,7 @@ struct unary_op_tan
         tmp[3] = tan(tmp[3]);
         return _mm_loadu_ps(tmp);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         //TODO avx optimize
@@ -367,7 +367,7 @@ struct unary_op_asin
     {
         return (float)asin(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         //TODO sse optimize
@@ -379,7 +379,7 @@ struct unary_op_asin
         tmp[3] = asin(tmp[3]);
         return _mm_loadu_ps(tmp);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         //TODO avx optimize
@@ -405,7 +405,7 @@ struct unary_op_acos
     {
         return (float)acos(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         //TODO sse optimize
@@ -417,7 +417,7 @@ struct unary_op_acos
         tmp[3] = acos(tmp[3]);
         return _mm_loadu_ps(tmp);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         //TODO avx optimize
@@ -443,7 +443,7 @@ struct unary_op_atan
     {
         return (float)atan(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         //TODO sse optimize
@@ -455,7 +455,7 @@ struct unary_op_atan
         tmp[3] = atan(tmp[3]);
         return _mm_loadu_ps(tmp);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         //TODO avx optimize
@@ -481,12 +481,12 @@ struct unary_op_reciprocal
     {
         return 1.f / x;
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return _mm_div_ps(*(__m128*)_ps_1, x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return _mm256_div_ps(*(__m256*)_ps256_1, x);
@@ -501,12 +501,12 @@ struct unary_op_tanh
     {
         return (float)tanh(x);
     }
-#ifdef __SSE2__
+#if __SSE2__
     __m128 operator()(const __m128& x) const
     {
         return (__m128)tanh_sse(x);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)tanh_avx(x);
