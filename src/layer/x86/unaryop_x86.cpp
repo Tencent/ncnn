@@ -111,12 +111,12 @@ struct unary_op_neg
 #ifdef __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)_mm_sub_ps(*(__m128*)_ps_0, x);
+        return (__m128)_mm_sub_ps(_mm_setzero_ps(), x);
     }
 #ifdef __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)_mm256_sub_ps(*(__m256*)_ps256_0, x);
+        return (__m256)_mm256_sub_ps(_mm256_setzero_ps(), x);
     }
 #endif // __AVX__
 #endif // __SSE2__

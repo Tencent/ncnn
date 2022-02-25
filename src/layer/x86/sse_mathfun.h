@@ -65,7 +65,6 @@ typedef __m64 v2si; // vector of 2 int (mmx)
 #define _PS_CONST_TYPE(Name, Type, Val) \
     static const ALIGN16_BEG Type _ps_##Name[4] ALIGN16_END = {Val, Val, Val, Val}
 
-_PS_CONST(0, 0.0f);
 _PS_CONST(1, 1.0f);
 _PS_CONST(0p5, 0.5f);
 /* the smallest non denormalized float number */

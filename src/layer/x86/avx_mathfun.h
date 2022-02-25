@@ -62,7 +62,6 @@ _PI32AVX_CONST(4, 4);
 #define _PS256_CONST_TYPE(Name, Type, Val) \
     static const ALIGN32_BEG Type _ps256_##Name[8] ALIGN32_END = {Val, Val, Val, Val, Val, Val, Val, Val}
 
-_PS256_CONST(0, 0.0f);
 _PS256_CONST(1, 1.0f);
 _PS256_CONST(0p5, 0.5f);
 /* the smallest non denormalized float number */
