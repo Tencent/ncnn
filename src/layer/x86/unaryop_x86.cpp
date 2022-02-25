@@ -133,7 +133,6 @@ struct unary_op_floor
     {
 #if __SSE4_1__
         return (__m128)_mm_floor_ps(x);
-        printf("sse\n");
 #endif // __SSE4_1__ \
 // TODO sse optimize
         float tmp[4];
@@ -144,7 +143,7 @@ struct unary_op_floor
         tmp[3] = floor(tmp[3]);
         return _mm_loadu_ps(tmp);
     }
-#ifdef __AVX__
+#if __AVX__
     __m256 operator()(const __m256& x) const
     {
         return (__m256)_mm256_floor_ps(x);
