@@ -255,6 +255,21 @@ int ConvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, con
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        Mat tmp;
+        convert_packing(bottom_blob, tmp, 8, opt);
+
+        Mat tmpout;
+        forward(tmp, tmpout, opt);
+
+        convert_packing(tmpout, top_blob, 16, opt);
+
+        return 0;
+    }
+#endif // __AVX512F__
+
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 

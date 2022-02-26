@@ -121,6 +121,21 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     }
 #endif
 
+#if __AVX512F__
+    if (bottom_blob.elempack == 16)
+    {
+        Mat tmp;
+        convert_packing(bottom_blob, tmp, 8, opt);
+
+        Mat tmpout;
+        forward(tmp, tmpout, opt);
+
+        convert_packing(tmpout, top_blob, 16, opt);
+
+        return 0;
+    }
+#endif // __AVX512F__
+
     const int num_input = weight_data_size / num_output;
 
     if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
