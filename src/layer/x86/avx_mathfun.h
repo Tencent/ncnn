@@ -402,9 +402,9 @@ static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm256_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm256_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(__m256*)_ps256_coscof_p0;
@@ -511,9 +511,9 @@ static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm256_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm256_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(__m256*)_ps256_coscof_p0;
@@ -631,9 +631,9 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm256_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm256_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
 #ifdef __AVX2__
     imm4 = _mm256_comp_sub_epi32(imm4, *(__m256i*)_pi32_256_2);

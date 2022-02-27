@@ -1147,7 +1147,7 @@ x3 = pooling3d(x2, kernel, stride)
 | 18        | out_h         | int  | out_w     |                   |
 | 21        | kernel_d      | int  | kernel_w  |                   |
 | 22        | stride_d      | int  | stride_w  |                   |
-| 23        | pad_front     | int  | pad_top   |                   |
+| 23        | pad_front     | int  | pad_left  |                   |
 | 28        | out_d         | int  | out_w     |                   |
 
 Pooling type:

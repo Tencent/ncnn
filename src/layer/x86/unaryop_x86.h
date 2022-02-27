@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,26 +12,21 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_GELU_H
-#define LAYER_GELU_H
+#ifndef LAYER_UNARYOP_X86_H
+#define LAYER_UNARYOP_X86_H
 
-#include "layer.h"
+#include "unaryop.h"
 
 namespace ncnn {
 
-class GELU : public Layer
+class UnaryOp_x86 : virtual public UnaryOp
 {
 public:
-    GELU();
-
-    virtual int load_param(const ParamDict& pd);
+    UnaryOp_x86();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
-
-public:
-    int fast_gelu;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_GELU_H
+#endif // LAYER_UNARYOP_X86_H

@@ -37,7 +37,7 @@ int Pooling3D::load_param(const ParamDict& pd)
     pad_right = pd.get(14, pad_left);
     pad_top = pd.get(13, pad_left);
     pad_bottom = pd.get(15, pad_top);
-    pad_front = pd.get(23, pad_top);
+    pad_front = pd.get(23, pad_left);
     pad_behind = pd.get(16, pad_front);
     global_pooling = pd.get(4, 0);
     pad_mode = pd.get(5, 0);
