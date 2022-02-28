@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -25,8 +25,9 @@ class Model(nn.Module):
         self.w3 = nn.Parameter(torch.rand(12, 2, 3, 3, 3))
 
     def forward(self, y):
-        y = F.conv_transpose3d(y, self.w2, self.b2, stride=(2,2, 2), padding=(1,0, 1), output_padding=(1,1, 0))
-        y = F.conv_transpose3d(y, self.w3, None, stride=(1,1,2), padding=(2,2,1), dilation=(2,2,1), groups=3)
+        #y = F.conv_transpose3d(y, self.w2, self.b2, stride=(2,2,2), padding=(1,0,1), output_padding=(1,1,0))
+        y = F.conv_transpose3d(y, self.w2, self.b2, stride=(1,1,1), padding=(0,0,0), output_padding=(0,0,0))
+        #y = F.conv_transpose3d(y, self.w3, None, stride=(1,1,2), padding=(2,2,1), dilation=(2,2,1), groups=3)
         return y
 
 def test():
@@ -50,6 +51,8 @@ def test():
     import test_F_conv_transpose3d_ncnn
     b = test_F_conv_transpose3d_ncnn.test_inference()
 
+    print(a)
+    print(b)
     return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":

@@ -84,7 +84,7 @@ static int deconvolution1d(const Mat& bottom_blob, Mat& top_blob, const Mat& wei
 
             for (int q = 0; q < h; q++)
             {
-                float val = bottom_blob.row(q)[j];
+                const float val = bottom_blob.row(q)[j];
 
                 for (int k = 0; k < kernel_w; k++)
                 {
