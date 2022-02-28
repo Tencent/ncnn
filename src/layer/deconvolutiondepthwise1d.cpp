@@ -230,7 +230,7 @@ int DeconvolutionDepthWise1D::forward(const Mat& bottom_blob, Mat& top_blob, con
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0  || output_w > 0)
+    if (pad_left > 0 || pad_right > 0 || output_w > 0)
     {
         top_blob_bordered.create(outw, num_output, elemsize, opt.workspace_allocator);
     }
