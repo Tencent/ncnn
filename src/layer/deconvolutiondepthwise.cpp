@@ -66,40 +66,17 @@ int DeconvolutionDepthWise::load_model(const ModelBin& mb)
     return 0;
 }
 
-int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int stride_w, int stride_h, int dilation_w, int dilation_h, int group, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    // deconvolv with NxN kernel
-    // value = value + bias
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int inch = bottom_blob.c;
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int outch = top_blob.c;
 
-    if (channels % group != 0 || num_output % group != 0)
-    {
-        // reject invalid group
-        return -100;
-    }
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
-    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
-
-    Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
-    {
-        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
-    }
-    else
-    {
-        top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    }
-    if (top_blob_bordered.empty())
-        return -100;
+    const int bias_term = bias_data.empty() ? 0 : 1;
 
     const int maxk = kernel_w * kernel_h;
 
@@ -123,14 +100,14 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
     }
 
     // depth-wise
-    if (channels == group && group == num_output)
+    if (inch == group && group == outch)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             const float* inptr = bottom_blob.channel(g);
             const float* kptr = (const float*)weight_data + maxk * g;
-            Mat m = top_blob_bordered.channel(g);
+            Mat m = top_blob.channel(g);
 
             const float bias = bias_term ? bias_data[g] : 0.f;
 
@@ -201,9 +178,8 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
     }
     else
     {
-        // num_output
-        const int channels_g = channels / group;
-        const int num_output_g = num_output / group;
+        const int inch_g = inch / group;
+        const int outch_g = outch / group;
 
 #ifdef _WIN32
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -212,14 +188,18 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
 #endif
         for (int g = 0; g < group; g++)
         {
-            for (int p = 0; p < num_output_g; p++)
+            for (int p = 0; p < outch_g; p++)
             {
-                Mat out = top_blob_bordered.channel(g * num_output_g + p);
+                Mat out = top_blob.channel(g * outch_g + p);
 
-                const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
-                const float bias = bias_term ? bias_data[g * num_output_g + p] : 0.f;
+                const float* weight_data_ptr = (const float*)weight_data + maxk * inch_g * outch_g * g;
+                const float bias = bias_term ? bias_data[g * outch_g + p] : 0.f;
 
                 out.fill(bias);
+
+                // shadowed variable for less openmp task args
+                const int w = bottom_blob.w;
+                const int h = bottom_blob.h;
 
                 for (int i = 0; i < h; i++)
                 {
@@ -227,12 +207,11 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
                     {
                         float* outptr = out.row(i * stride_h) + j * stride_w;
 
-                        const float* kptr = weight_data_ptr + maxk * channels_g * p;
+                        const float* kptr = weight_data_ptr + maxk * inch_g * p;
 
-                        // channels_g
-                        for (int q = 0; q < channels_g; q++)
+                        for (int q = 0; q < inch_g; q++)
                         {
-                            const Mat m = bottom_blob.channel(channels_g * g + q);
+                            const Mat m = bottom_blob.channel(inch_g * g + q);
                             float val = *(m.row(i) + j);
 
                             for (int k = 0; k < maxk; k++)
@@ -294,6 +273,38 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
             }
         }
     }
+
+    return 0;
+}
+
+int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    size_t elemsize = bottom_blob.elemsize;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+
+    Mat top_blob_bordered;
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    {
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
+    }
+    else
+    {
+        top_blob_bordered = top_blob;
+        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+    }
+    if (top_blob_bordered.empty())
+        return -100;
+
+    int ret = deconvolutiondepthwise(bottom_blob, top_blob_bordered, weight_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, dilation_w, dilation_h, group, activation_type, activation_params, opt);
+    if (ret != 0)
+        return ret;
 
     cut_padding(top_blob_bordered, top_blob, opt);
     if (top_blob.empty())
