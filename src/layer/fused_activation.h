@@ -16,7 +16,6 @@
 #define FUSED_ACTIVATION_H
 
 #include <math.h>
-#include <algorithm>
 #include "mat.h"
 #include "layer_type.h"
 
