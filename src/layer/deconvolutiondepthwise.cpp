@@ -113,6 +113,12 @@ static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const M
 
             out.fill(bias);
 
+            // shadowed variable for less openmp task args
+            const int w = bottom_blob.w;
+            const int h = bottom_blob.h;
+            const int outw = top_blob.w;
+            const int outh = top_blob.h;
+
             for (int i = 0; i < h; i++)
             {
                 for (int j = 0; j < w; j++)
@@ -164,6 +170,8 @@ static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const M
                 // shadowed variable for less openmp task args
                 const int w = bottom_blob.w;
                 const int h = bottom_blob.h;
+                const int outw = top_blob.w;
+                const int outh = top_blob.h;
 
                 for (int i = 0; i < h; i++)
                 {

@@ -127,6 +127,14 @@ static int deconvolutiondepthwise3d(const Mat& bottom_blob, Mat& top_blob, const
 
             out.fill(bias);
 
+            // shadowed variable for less openmp task args
+            const int w = bottom_blob.w;
+            const int h = bottom_blob.h;
+            const int d = bottom_blob.d;
+            const int outw = top_blob.w;
+            const int outh = top_blob.h;
+            const int outd = top_blob.d;
+
             for (int z = 0; z < d; z++)
             {
                 for (int i = 0; i < h; i++)
@@ -182,6 +190,9 @@ static int deconvolutiondepthwise3d(const Mat& bottom_blob, Mat& top_blob, const
                 const int w = bottom_blob.w;
                 const int h = bottom_blob.h;
                 const int d = bottom_blob.d;
+                const int outw = top_blob.w;
+                const int outh = top_blob.h;
+                const int outd = top_blob.d;
 
                 for (int z = 0; z < d; z++)
                 {
