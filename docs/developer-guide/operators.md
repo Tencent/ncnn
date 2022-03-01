@@ -16,7 +16,11 @@
 * [ConvolutionDepthWise3D](#convolutiondepthwise3d)
 * [Crop](#crop)
 * [Deconvolution](#deconvolution)
+* [Deconvolution1D](#deconvolution1d)
+* [Deconvolution3D](#deconvolution3d)
 * [DeconvolutionDepthWise](#deconvolutiondepthwise)
+* [DeconvolutionDepthWise1D](#deconvolutiondepthwise1d)
+* [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
 * [Dequantize](#dequantize)
 * [Dropout](#dropout)
 * [Eltwise](#eltwise)
@@ -459,7 +463,6 @@ y = activation(x3, act_type, act_params)
 | 4         | pad_left      | int   | 0         |                   |
 | 5         | bias_term     | int   | 0         |                   |
 | 6         | weight_data_size| int | 0         |                   |
-| 8         | int8_scale_term| int  | 0         |                   |
 | 9         | activation_type| int  | 0         |                   |
 | 10        | activation_params| array | [ ]    |                   |
 | 11        | kernel_h      | int   | kernel_w  |                   |
@@ -475,7 +478,79 @@ y = activation(x3, act_type, act_params)
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input, num_output] |
+| weight_data   | float/fp16 | [kernel_w, kernel_h, num_input, num_output] |
+| bias_data     | float | [num_output]          |
+
+# Deconvolution1D
+```
+x2 = deconv1d(x, weight, kernel, stride, dilation) + bias
+x3 = depad(x2, pads, pad_value)
+y = activation(x3, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 18        | output_pad_right| int | 0         |                   |
+| 20        | output_w      | int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16 | [kernel_w, num_input, num_output] |
+| bias_data     | float | [num_output]          |
+
+# Deconvolution3D
+```
+x2 = deconv3d(x, weight, kernel, stride, dilation) + bias
+x3 = depad(x2, pads, pad_value)
+y = activation(x3, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+| 17        | pad_behind    | int   | pad_front |                   |
+| 18        | output_pad_right| int | 0         |                   |
+| 19        | output_pad_bottom| int | output_pad_right |           |
+| 20        | output_pad_behind| int | output_pad_right |           |
+| 21        | kernel_d      | int   | kernel_w  |                   |
+| 22        | dilation_d    | int   | dilation_w |                  |
+| 23        | stride_d      | int   | stride_w  |                   |
+| 24        | pad_front     | int   | pad_left  |                   |
+| 25        | output_w      | int   | 0         |                   |
+| 26        | output_h      | int   | output_w  |                   |
+| 27        | output_d      | int   | output_w  |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16 | [kernel_w, kernel_h, kernel_d, num_input, num_output] |
 | bias_data     | float | [num_output]          |
 
 # DeconvolutionDepthWise
@@ -497,7 +572,6 @@ y = activation(x3, act_type, act_params)
 | 5         | bias_term     | int   | 0         |                   |
 | 6         | weight_data_size| int | 0         |                   |
 | 7         | group         | int   | 1         |                   |
-| 8         | int8_scale_term| int  | 0         |                   |
 | 9         | activation_type| int  | 0         |                   |
 | 10        | activation_params| array | [ ]    |                   |
 | 11        | kernel_h      | int   | kernel_w  |                   |
@@ -513,7 +587,81 @@ y = activation(x3, act_type, act_params)
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input / group, num_output / group, group] |
+| weight_data   | float/fp16 | [kernel_w, kernel_h, num_input / group, num_output / group, group] |
+| bias_data     | float | [num_output]          |
+
+# DeconvolutionDepthWise1D
+```
+x2 = deconv1d(x, weight, kernel, stride, dilation, group) + bias
+x3 = depad(x2, pads, pad_value)
+y = activation(x3, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 7         | group         | int   | 1         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 18        | output_pad_right| int | 0         |                   |
+| 20        | output_w      | int   | 0         |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16 | [kernel_w, num_input / group, num_output / group, group] |
+| bias_data     | float | [num_output]          |
+
+# DeconvolutionDepthWise3D
+```
+x2 = deconv3d(x, weight, kernel, stride, dilation, group) + bias
+x3 = depad(x2, pads, pad_value)
+y = activation(x3, act_type, act_params)
+```
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 7         | group         | int   | 1         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+| 17        | pad_behind    | int   | pad_front |                   |
+| 18        | output_pad_right| int | 0         |                   |
+| 19        | output_pad_bottom| int | output_pad_right |           |
+| 20        | output_pad_behind| int | output_pad_right |           |
+| 21        | kernel_d      | int   | kernel_w  |                   |
+| 22        | dilation_d    | int   | dilation_w |                  |
+| 23        | stride_d      | int   | stride_w  |                   |
+| 24        | pad_front     | int   | pad_left  |                   |
+| 25        | output_w      | int   | 0         |                   |
+| 26        | output_h      | int   | output_w  |                   |
+| 27        | output_d      | int   | output_w  |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
 
 # Dequantize

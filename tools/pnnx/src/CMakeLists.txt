@@ -291,7 +291,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_conv_transpose1d.cpp
     pass_ncnn/F_conv_transpose2d.cpp
+    pass_ncnn/F_conv_transpose3d.cpp
     pass_ncnn/F_conv1d.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_conv3d.cpp
@@ -346,7 +348,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Conv1d.cpp
     pass_ncnn/nn_Conv2d.cpp
     pass_ncnn/nn_Conv3d.cpp
+    pass_ncnn/nn_ConvTranspose1d.cpp
     pass_ncnn/nn_ConvTranspose2d.cpp
+    pass_ncnn/nn_ConvTranspose3d.cpp
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_Embedding.cpp
     pass_ncnn/nn_GELU.cpp

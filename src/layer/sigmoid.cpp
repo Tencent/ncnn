@@ -38,7 +38,10 @@ int Sigmoid::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (int i = 0; i < size; i++)
         {
-            ptr[i] = static_cast<float>(1.f / (1.f + exp(-ptr[i])));
+            float v = ptr[i];
+            v = std::min(v, 88.3762626647949f);
+            v = std::max(v, -88.3762626647949f);
+            ptr[i] = static_cast<float>(1.f / (1.f + exp(-v)));
         }
     }
 

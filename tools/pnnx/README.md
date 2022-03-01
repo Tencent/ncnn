@@ -470,9 +470,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Conv1d                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Conv2d                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Conv3d                  | :heavy_check_mark: | :heavy_check_mark: |
-|nn.ConvTranspose1d         | :heavy_check_mark: |
+|nn.ConvTranspose1d         | :heavy_check_mark: | :heavy_check_mark: |
 |nn.ConvTranspose2d         | :heavy_check_mark: | :heavy_check_mark: |
-|nn.ConvTranspose3d         | :heavy_check_mark: |
+|nn.ConvTranspose3d         | :heavy_check_mark: | :heavy_check_mark: |
 |nn.CosineSimilarity        |   |
 |nn.Dropout                 | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Dropout2d               | :heavy_check_mark: | :heavy_check_mark: |
@@ -584,9 +584,9 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.conv1d                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.conv2d                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.conv3d                   | :heavy_check_mark: | :heavy_check_mark: |
-|F.conv_transpose1d         | :heavy_check_mark: |
+|F.conv_transpose1d         | :heavy_check_mark: | :heavy_check_mark: |
 |F.conv_transpose2d         | :heavy_check_mark: | :heavy_check_mark: |
-|F.conv_transpose3d         | :heavy_check_mark: |
+|F.conv_transpose3d         | :heavy_check_mark: | :heavy_check_mark: |
 |F.cosine_similarity        |  |
 |F.dropout                  | :heavy_check_mark: | :heavy_check_mark: |
 |F.dropout2d                | :heavy_check_mark: | :heavy_check_mark: |
