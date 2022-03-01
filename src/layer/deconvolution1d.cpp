@@ -69,17 +69,16 @@ static int deconvolution1d(const Mat& bottom_blob, Mat& top_blob, const Mat& wei
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outh; p++)
     {
-        float* outptr = top_blob.row(p);
+        Mat out = top_blob.row_range(p, 1);
 
         const float bias = bias_term ? bias_data[p] : 0.f;
 
-        for (int i = 0; i < outw; i++)
-        {
-            outptr[i] = bias;
-        }
+        out.fill(bias);
 
         for (int j = 0; j < w; j++)
         {
+            float* outptr = (float*)out + j * stride_w;
+
             const float* kptr = (const float*)weight_data + kernel_w * h * p;
 
             for (int q = 0; q < h; q++)
@@ -94,12 +93,12 @@ static int deconvolution1d(const Mat& bottom_blob, Mat& top_blob, const Mat& wei
 
                 kptr += kernel_w;
             }
-
-            outptr += stride_w;
         }
 
         if (activation_type == 1)
         {
+            float* outptr = out;
+
             for (int i = 0; i < outw; i++)
             {
                 outptr[i] = std::max(outptr[i], 0.f);
@@ -107,6 +106,7 @@ static int deconvolution1d(const Mat& bottom_blob, Mat& top_blob, const Mat& wei
         }
         else if (activation_type == 2)
         {
+            float* outptr = out;
             float slope = activation_params[0];
 
             for (int i = 0; i < outw; i++)
@@ -116,6 +116,7 @@ static int deconvolution1d(const Mat& bottom_blob, Mat& top_blob, const Mat& wei
         }
         else if (activation_type == 3)
         {
+            float* outptr = out;
             float min = activation_params[0];
             float max = activation_params[1];
 
@@ -129,6 +130,7 @@ static int deconvolution1d(const Mat& bottom_blob, Mat& top_blob, const Mat& wei
         }
         else if (activation_type == 4)
         {
+            float* outptr = out;
             for (int i = 0; i < outw; i++)
             {
                 outptr[i] = static_cast<float>(1.f / (1.f + exp(-outptr[i])));

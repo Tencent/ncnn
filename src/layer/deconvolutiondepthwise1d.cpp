@@ -73,31 +73,32 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
+            Mat out = top_blob.row_range(g, 1);
+
             const float* inptr = bottom_blob.row(g);
             const float* kptr = (const float*)weight_data + kernel_w * g;
-            float* outptr = top_blob.row(g);
 
             const float bias = bias_term ? bias_data[g] : 0.f;
 
-            for (int i = 0; i < outw; i++)
-            {
-                outptr[i] = bias;
-            }
+            out.fill(bias);
 
             for (int j = 0; j < w; j++)
             {
+                float* outptr = (float*)out + j * stride_w;
+
+                const float val = inptr[j];
+
                 for (int k = 0; k < kernel_w; k++)
                 {
-                    float val = inptr[j];
                     float w = kptr[k];
                     outptr[k * dilation_w] += val * w;
                 }
-
-                outptr += stride_w;
             }
 
             if (activation_type == 1)
             {
+                float* outptr = out;
+
                 for (int i = 0; i < outw; i++)
                 {
                     outptr[i] = std::max(outptr[i], 0.f);
@@ -105,6 +106,7 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
             }
             else if (activation_type == 2)
             {
+                float* outptr = out;
                 float slope = activation_params[0];
 
                 for (int i = 0; i < outw; i++)
@@ -114,6 +116,7 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
             }
             else if (activation_type == 3)
             {
+                float* outptr = out;
                 float min = activation_params[0];
                 float max = activation_params[1];
 
@@ -127,6 +130,8 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
             }
             else if (activation_type == 4)
             {
+                float* outptr = out;
+
                 for (int i = 0; i < outw; i++)
                 {
                     outptr[i] = static_cast<float>(1.f / (1.f + exp(-outptr[i])));
@@ -148,23 +153,22 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
         {
             for (int p = 0; p < outh_g; p++)
             {
-                float* outptr = top_blob.row(g * outh_g + p);
+                Mat out = top_blob.row_range(g * outh_g + p, 1);
 
                 const float* weight_data_ptr = (const float*)weight_data + kernel_w * h_g * outh_g * g;
                 const float bias = bias_term ? bias_data[g * outh_g + p] : 0.f;
 
-                for (int i = 0; i < outw; i++)
-                {
-                    outptr[i] = bias;
-                }
+                out.fill(bias);
 
                 for (int j = 0; j < w; j++)
                 {
+                    float* outptr = (float*)out + j * stride_w;
+
                     const float* kptr = weight_data_ptr + kernel_w * h_g * p;
 
                     for (int q = 0; q < h_g; q++)
                     {
-                        float val = bottom_blob.row(h_g * g + q)[j];
+                        const float val = bottom_blob.row(h_g * g + q)[j];
 
                         for (int k = 0; k < kernel_w; k++)
                         {
@@ -173,12 +177,12 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
 
                         kptr += kernel_w;
                     }
-
-                    outptr += stride_w;
                 }
 
                 if (activation_type == 1)
                 {
+                    float* outptr = out;
+
                     for (int i = 0; i < outw; i++)
                     {
                         outptr[i] = std::max(outptr[i], 0.f);
@@ -186,6 +190,7 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
                 }
                 else if (activation_type == 2)
                 {
+                    float* outptr = out;
                     float slope = activation_params[0];
 
                     for (int i = 0; i < outw; i++)
@@ -195,6 +200,7 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
                 }
                 else if (activation_type == 3)
                 {
+                    float* outptr = out;
                     float min = activation_params[0];
                     float max = activation_params[1];
 
@@ -208,6 +214,8 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
                 }
                 else if (activation_type == 4)
                 {
+                    float* outptr = out;
+
                     for (int i = 0; i < outw; i++)
                     {
                         outptr[i] = static_cast<float>(1.f / (1.f + exp(-outptr[i])));
