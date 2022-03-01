@@ -63,26 +63,17 @@ static int test_deconvolutiondepthwise3d(int w, int h, int d, int c, int outch, 
 
 static int test_deconvolutiondepthwise3d_0()
 {
-    static const int kdsp[16][4] = {
+    static const int kdsp[7][4] = {
         {1, 1, 1, 0},
         {1, 1, 2, 0},
         {2, 1, 1, 1},
         {2, 1, 2, -233},
         {3, 1, 1, 1},
         {3, 1, 2, 1},
-        {3, 2, 1, 1},
-        {4, 1, 1, -233},
-        {4, 1, 2, -234},
-        {4, 2, 1, -234},
-        {5, 1, 1, 2},
-        {5, 1, 2, 2},
-        {5, 2, 2, 2},
-        {7, 1, 1, 3},
-        {7, 1, 2, 3},
-        {7, 2, 1, -233},
+        {3, 2, 1, -234},
     };
 
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 7; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];
