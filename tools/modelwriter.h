@@ -42,7 +42,11 @@
 #include "layer/convolutiondepthwise3d.h"
 #include "layer/crop.h"
 #include "layer/deconvolution.h"
+#include "layer/deconvolution1d.h"
+#include "layer/deconvolution3d.h"
 #include "layer/deconvolutiondepthwise.h"
+#include "layer/deconvolutiondepthwise1d.h"
+#include "layer/deconvolutiondepthwise3d.h"
 #include "layer/detectionoutput.h"
 #include "layer/dropout.h"
 #include "layer/eltwise.h"
@@ -1233,6 +1237,106 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 mac += (uint64_t)op->kernel_h * op->kernel_w * inw * inh * outc * inc;
             }
         }
+        else if (layer->type == "Deconvolution1D")
+        {
+            ncnn::Deconvolution1D* op = (ncnn::Deconvolution1D*)layer;
+            ncnn::Deconvolution1D* op_default = (ncnn::Deconvolution1D*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", kernel_w)
+            fprintf_param_value(" 2=%d", dilation_w)
+            fprintf_param_value(" 3=%d", stride_w)
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            fprintf_param_value(" 18=%d", output_pad_right)
+            fprintf_param_value(" 20=%d", output_w)
+            fprintf_param_value(" 5=%d", bias_term)
+            fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 9=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inw = blobs[layer->bottoms[0]].shape.w;
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int outh = blobs[layer->tops[0]].shape.h;
+
+                mac += (uint64_t)op->kernel_w * inw * outh * inh;
+            }
+        }
+        else if (layer->type == "Deconvolution3D")
+        {
+            ncnn::Deconvolution3D* op = (ncnn::Deconvolution3D*)layer;
+            ncnn::Deconvolution3D* op_default = (ncnn::Deconvolution3D*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", kernel_w)
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+                if (op->kernel_d != op->kernel_w) fprintf(pp, " 21=%d", op->kernel_d);
+            }
+            fprintf_param_value(" 2=%d", dilation_w)
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+                if (op->dilation_d != op->dilation_w) fprintf(pp, " 22=%d", op->dilation_d);
+            }
+            fprintf_param_value(" 3=%d", stride_w)
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+                if (op->stride_d != op->stride_w) fprintf(pp, " 23=%d", op->stride_d);
+            }
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+                if (op->pad_front != op->pad_left) fprintf(pp, " 24=%d", op->pad_front);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
+            {
+                if (op->pad_behind != op->pad_front) fprintf(pp, " 17=%d", op->pad_behind);
+            }
+            fprintf_param_value(" 18=%d", output_pad_right)
+            {
+                if (op->output_pad_bottom != op->output_pad_right) fprintf(pp, " 19=%d", op->output_pad_bottom);
+                if (op->output_pad_behind != op->output_pad_right) fprintf(pp, " 20=%d", op->output_pad_behind);
+            }
+            fprintf_param_value(" 25=%d", output_w)
+            {
+                if (op->output_h != op->output_w) fprintf(pp, " 26=%d", op->output_h);
+                if (op->output_d != op->output_w) fprintf(pp, " 27=%d", op->output_d);
+            }
+            fprintf_param_value(" 5=%d", bias_term)
+            fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 9=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inw = blobs[layer->bottoms[0]].shape.w;
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int ind = blobs[layer->bottoms[0]].shape.d;
+                int inc = blobs[layer->bottoms[0]].shape.c;
+                int outc = blobs[layer->tops[0]].shape.c;
+
+                mac += (uint64_t)op->kernel_d * op->kernel_h * op->kernel_w * inw * inh * ind * outc * inc;
+            }
+        }
         else if (layer->type == "DeconvolutionDepthWise")
         {
             ncnn::DeconvolutionDepthWise* op = (ncnn::DeconvolutionDepthWise*)layer;
@@ -1288,6 +1392,108 @@ int ModelWriter::save(const char* parampath, const char* binpath)
                 int outc = blobs[layer->tops[0]].shape.c;
 
                 mac += (uint64_t)op->kernel_h * op->kernel_w * inw * inh * (outc / op->group) * (inc / op->group) * op->group;
+            }
+        }
+        else if (layer->type == "DeconvolutionDepthWise1D")
+        {
+            ncnn::DeconvolutionDepthWise1D* op = (ncnn::DeconvolutionDepthWise1D*)layer;
+            ncnn::DeconvolutionDepthWise1D* op_default = (ncnn::DeconvolutionDepthWise1D*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", kernel_w)
+            fprintf_param_value(" 2=%d", dilation_w)
+            fprintf_param_value(" 3=%d", stride_w)
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            fprintf_param_value(" 18=%d", output_pad_right)
+            fprintf_param_value(" 20=%d", output_w)
+            fprintf_param_value(" 5=%d", bias_term)
+            fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 7=%d", group)
+            fprintf_param_value(" 9=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inw = blobs[layer->bottoms[0]].shape.w;
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int outh = blobs[layer->tops[0]].shape.h;
+
+                mac += (uint64_t)op->kernel_w * inw * (outh / op->group) * (inh / op->group) * op->group;
+            }
+        }
+        else if (layer->type == "DeconvolutionDepthWise3D")
+        {
+            ncnn::DeconvolutionDepthWise3D* op = (ncnn::DeconvolutionDepthWise3D*)layer;
+            ncnn::DeconvolutionDepthWise3D* op_default = (ncnn::DeconvolutionDepthWise3D*)layer_default;
+
+            fprintf_param_value(" 0=%d", num_output)
+            fprintf_param_value(" 1=%d", kernel_w)
+            {
+                if (op->kernel_h != op->kernel_w) fprintf(pp, " 11=%d", op->kernel_h);
+                if (op->kernel_d != op->kernel_w) fprintf(pp, " 21=%d", op->kernel_d);
+            }
+            fprintf_param_value(" 2=%d", dilation_w)
+            {
+                if (op->dilation_h != op->dilation_w) fprintf(pp, " 12=%d", op->dilation_h);
+                if (op->dilation_d != op->dilation_w) fprintf(pp, " 22=%d", op->dilation_d);
+            }
+            fprintf_param_value(" 3=%d", stride_w)
+            {
+                if (op->stride_h != op->stride_w) fprintf(pp, " 13=%d", op->stride_h);
+                if (op->stride_d != op->stride_w) fprintf(pp, " 23=%d", op->stride_d);
+            }
+            fprintf_param_value(" 4=%d", pad_left)
+            {
+                if (op->pad_top != op->pad_left) fprintf(pp, " 14=%d", op->pad_top);
+                if (op->pad_front != op->pad_left) fprintf(pp, " 24=%d", op->pad_front);
+            }
+            {
+                if (op->pad_right != op->pad_left) fprintf(pp, " 15=%d", op->pad_right);
+            }
+            {
+                if (op->pad_bottom != op->pad_top) fprintf(pp, " 16=%d", op->pad_bottom);
+            }
+            {
+                if (op->pad_behind != op->pad_front) fprintf(pp, " 17=%d", op->pad_behind);
+            }
+            fprintf_param_value(" 18=%d", output_pad_right)
+            {
+                if (op->output_pad_bottom != op->output_pad_right) fprintf(pp, " 19=%d", op->output_pad_bottom);
+                if (op->output_pad_behind != op->output_pad_right) fprintf(pp, " 20=%d", op->output_pad_behind);
+            }
+            fprintf_param_value(" 25=%d", output_w)
+            {
+                if (op->output_h != op->output_w) fprintf(pp, " 26=%d", op->output_h);
+                if (op->output_d != op->output_w) fprintf(pp, " 27=%d", op->output_d);
+            }
+            fprintf_param_value(" 5=%d", bias_term)
+            fprintf_param_value(" 6=%d", weight_data_size)
+            fprintf_param_value(" 7=%d", group)
+            fprintf_param_value(" 9=%d", activation_type)
+            {
+                if (!op->activation_params.empty()) fprintf_param_float_array(10, op->activation_params, pp);
+            }
+
+            fwrite_weight_tag_data(op->weight_data, bp);
+            fwrite_weight_data(op->bias_data, bp);
+
+            if (shape_ready)
+            {
+                int inw = blobs[layer->bottoms[0]].shape.w;
+                int inh = blobs[layer->bottoms[0]].shape.h;
+                int ind = blobs[layer->bottoms[0]].shape.d;
+                int inc = blobs[layer->bottoms[0]].shape.c;
+                int outc = blobs[layer->tops[0]].shape.c;
+
+                mac += (uint64_t)op->kernel_d * op->kernel_h * op->kernel_w * inw * inh * ind * (outc / op->group) * (inc / op->group) * op->group;
             }
         }
         else if (layer->type == "DetectionOutput")
