@@ -14,6 +14,8 @@
 
 #include "deconvolutiondepthwise1d.h"
 
+#include "fused_activation.h"
+
 namespace ncnn {
 
 DeconvolutionDepthWise1D::DeconvolutionDepthWise1D()
@@ -95,46 +97,12 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
                 }
             }
 
-            if (activation_type == 1)
             {
                 float* outptr = out;
 
                 for (int i = 0; i < outw; i++)
                 {
-                    outptr[i] = std::max(outptr[i], 0.f);
-                }
-            }
-            else if (activation_type == 2)
-            {
-                float* outptr = out;
-                float slope = activation_params[0];
-
-                for (int i = 0; i < outw; i++)
-                {
-                    outptr[i] = outptr[i] > 0.f ? outptr[i] : outptr[i] * slope;
-                }
-            }
-            else if (activation_type == 3)
-            {
-                float* outptr = out;
-                float min = activation_params[0];
-                float max = activation_params[1];
-
-                for (int i = 0; i < outw; i++)
-                {
-                    if (outptr[i] < min)
-                        outptr[i] = min;
-                    if (outptr[i] > max)
-                        outptr[i] = max;
-                }
-            }
-            else if (activation_type == 4)
-            {
-                float* outptr = out;
-
-                for (int i = 0; i < outw; i++)
-                {
-                    outptr[i] = static_cast<float>(1.f / (1.f + exp(-outptr[i])));
+                    outptr[i] = activation_ss(outptr[i], activation_type, activation_params);
                 }
             }
         }
@@ -179,46 +147,12 @@ static int deconvolutiondepthwise1d(const Mat& bottom_blob, Mat& top_blob, const
                     }
                 }
 
-                if (activation_type == 1)
                 {
                     float* outptr = out;
 
                     for (int i = 0; i < outw; i++)
                     {
-                        outptr[i] = std::max(outptr[i], 0.f);
-                    }
-                }
-                else if (activation_type == 2)
-                {
-                    float* outptr = out;
-                    float slope = activation_params[0];
-
-                    for (int i = 0; i < outw; i++)
-                    {
-                        outptr[i] = outptr[i] > 0.f ? outptr[i] : outptr[i] * slope;
-                    }
-                }
-                else if (activation_type == 3)
-                {
-                    float* outptr = out;
-                    float min = activation_params[0];
-                    float max = activation_params[1];
-
-                    for (int i = 0; i < outw; i++)
-                    {
-                        if (outptr[i] < min)
-                            outptr[i] = min;
-                        if (outptr[i] > max)
-                            outptr[i] = max;
-                    }
-                }
-                else if (activation_type == 4)
-                {
-                    float* outptr = out;
-
-                    for (int i = 0; i < outw; i++)
-                    {
-                        outptr[i] = static_cast<float>(1.f / (1.f + exp(-outptr[i])));
+                        outptr[i] = activation_ss(outptr[i], activation_type, activation_params);
                     }
                 }
             }

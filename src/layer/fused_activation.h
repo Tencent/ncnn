@@ -16,6 +16,7 @@
 #define FUSED_ACTIVATION_H
 
 #include <math.h>
+#include <algorithm>
 #include "mat.h"
 #include "layer_type.h"
 
@@ -46,6 +47,8 @@ static NCNN_FORCEINLINE float activation_ss(float v, int activation_type, const 
     }
     case 4:
     {
+        v = std::min(v, 88.3762626647949f);
+        v = std::max(v, -88.3762626647949f);
         v = 1.f / (1.f + exp(-v));
         break;
     }
