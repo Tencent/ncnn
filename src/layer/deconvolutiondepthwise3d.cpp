@@ -95,8 +95,8 @@ static int deconvolutiondepthwise3d(const Mat& bottom_blob, Mat& top_blob, const
     {
         int p1 = 0;
         int p2 = 0;
-        int gap0 = w * dilation_h - kernel_w * dilation_w;
-        int gap1 = h * w * dilation_d - w * kernel_h * dilation_h;
+        int gap0 = outw * dilation_h - kernel_w * dilation_w;
+        int gap1 = outh * outw * dilation_d - outw * kernel_h * dilation_h;
         for (int z = 0; z < kernel_d; z++)
         {
             for (int i = 0; i < kernel_h; i++)

@@ -56,9 +56,9 @@ pnnx.Output             output      1 0 out
         op->params["4"] = captured_params.at("padding").ai[2];
         op->params["14"] = captured_params.at("padding").ai[1];
         op->params["24"] = captured_params.at("padding").ai[0];
-        op->params["25"] = captured_params.at("output_padding").ai[2];
-        op->params["26"] = captured_params.at("output_padding").ai[1];
-        op->params["27"] = captured_params.at("output_padding").ai[0];
+        op->params["18"] = captured_params.at("output_padding").ai[2];
+        op->params["19"] = captured_params.at("output_padding").ai[1];
+        op->params["20"] = captured_params.at("output_padding").ai[0];
         op->params["5"] = captured_params.at("bias").b ? 1 : 0;
         op->params["6"] = (int)(captured_attrs.at("op_0.weight").data.size() / sizeof(float));
 
@@ -135,9 +135,9 @@ pnnx.Output             output      1 0 out
         op->params["4"] = captured_params.at("padding").ai[2];
         op->params["14"] = captured_params.at("padding").ai[1];
         op->params["24"] = captured_params.at("padding").ai[0];
-        op->params["25"] = captured_params.at("output_padding").ai[2];
-        op->params["26"] = captured_params.at("output_padding").ai[1];
-        op->params["27"] = captured_params.at("output_padding").ai[0];
+        op->params["18"] = captured_params.at("output_padding").ai[2];
+        op->params["19"] = captured_params.at("output_padding").ai[1];
+        op->params["20"] = captured_params.at("output_padding").ai[0];
         op->params["5"] = captured_params.at("bias").b ? 1 : 0;
         op->params["6"] = (int)(captured_attrs.at("op_0.weight").data.size() / sizeof(float));
         op->params["7"] = captured_params.at("groups");
