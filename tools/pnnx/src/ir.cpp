@@ -1735,6 +1735,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     {
                         fprintf(pyfp, "%s=", it.first.c_str());
                     }
+                    else if (op->inputs.empty() && i == 0)
+                    {
+                        fprintf(pyfp, "%s=", it.first.c_str());
+                    }
                     else
                     {
                         fprintf(pyfp, ", %s=", it.first.c_str());
