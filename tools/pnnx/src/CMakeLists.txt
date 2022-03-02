@@ -185,16 +185,23 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clamp.cpp
     pass_level2/torch_clone.cpp
     pass_level2/torch_dequantize.cpp
+    pass_level2/torch_empty.cpp
+    pass_level2/torch_empty_like.cpp
     pass_level2/torch_flatten.cpp
     pass_level2/torch_flip.cpp
+    pass_level2/torch_full.cpp
+    pass_level2/torch_full_like.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_matmul.cpp
     pass_level2/torch_mean.cpp
     pass_level2/torch_norm.cpp
     pass_level2/torch_normal.cpp
+    pass_level2/torch_ones.cpp
+    pass_level2/torch_ones_like.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp
+    pass_level2/torch_randn_like.cpp
     pass_level2/torch_roll.cpp
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
@@ -263,6 +270,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_cat.cpp
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_split.cpp
+    pass_ncnn/convert_torch_unbind.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/insert_split.cpp
