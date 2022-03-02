@@ -33,7 +33,7 @@ jobs:
   windows-vs2015:
     runs-on: windows-2019
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: cache-protobuf
       id: cache-protobuf
       uses: actions/cache@v2.1.7

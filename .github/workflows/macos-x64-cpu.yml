@@ -35,7 +35,7 @@ jobs:
   macos-clang:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: protobuf
       run: brew install protobuf opencv3
     - name: cache-openmp
