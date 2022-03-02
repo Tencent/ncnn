@@ -1056,7 +1056,7 @@ int create_gpu_instance()
         // t860 = 0x13b5 0x8602000
         // t880 = 0x13b5 0x8800020
         // g51  = 0x13b5 0x70901010
-        // g52  = 0x13b5 0x74021000
+        // g52  = 0x13b5 0x74021000 / 0x72120000
         // g71  = 0x13b5 0x60a00002
         // g72  = 0x13b5 0x62210001
         // g76  = 0x13b5 0x72110000
@@ -1104,6 +1104,7 @@ int create_gpu_instance()
                     || physicalDeviceProperties.deviceID == 0x8602000
                     || physicalDeviceProperties.deviceID == 0x8800020
                     || physicalDeviceProperties.deviceID == 0x70901010
+                    || physicalDeviceProperties.deviceID == 0x72120000
                     || physicalDeviceProperties.deviceID == 0x74021000
                     || physicalDeviceProperties.deviceID == 0x60a00002
                     || physicalDeviceProperties.deviceID == 0x62210001))
