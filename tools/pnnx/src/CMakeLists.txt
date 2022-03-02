@@ -187,6 +187,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_flatten.cpp
     pass_level2/torch_flip.cpp
+    pass_level2/torch_full.cpp
+    pass_level2/torch_full_like.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_matmul.cpp
     pass_level2/torch_mean.cpp
