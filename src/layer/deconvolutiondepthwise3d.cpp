@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,35 +12,42 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "deconvolutiondepthwise.h"
+#include "deconvolutiondepthwise3d.h"
 
 #include "fused_activation.h"
 
 namespace ncnn {
 
-DeconvolutionDepthWise::DeconvolutionDepthWise()
+DeconvolutionDepthWise3D::DeconvolutionDepthWise3D()
 {
     one_blob_only = true;
     support_inplace = false;
 }
 
-int DeconvolutionDepthWise::load_param(const ParamDict& pd)
+int DeconvolutionDepthWise3D::load_param(const ParamDict& pd)
 {
     num_output = pd.get(0, 0);
     kernel_w = pd.get(1, 0);
     kernel_h = pd.get(11, kernel_w);
+    kernel_d = pd.get(21, kernel_w);
     dilation_w = pd.get(2, 1);
     dilation_h = pd.get(12, dilation_w);
+    dilation_d = pd.get(22, dilation_w);
     stride_w = pd.get(3, 1);
     stride_h = pd.get(13, stride_w);
+    stride_d = pd.get(23, stride_w);
     pad_left = pd.get(4, 0);
     pad_right = pd.get(15, pad_left);
     pad_top = pd.get(14, pad_left);
     pad_bottom = pd.get(16, pad_top);
+    pad_front = pd.get(24, pad_left);
+    pad_behind = pd.get(17, pad_front);
     output_pad_right = pd.get(18, 0);
     output_pad_bottom = pd.get(19, output_pad_right);
-    output_w = pd.get(20, 0);
-    output_h = pd.get(21, output_w);
+    output_pad_behind = pd.get(20, output_pad_right);
+    output_w = pd.get(25, 0);
+    output_h = pd.get(26, output_w);
+    output_d = pd.get(27, output_w);
     bias_term = pd.get(5, 0);
     weight_data_size = pd.get(6, 0);
     group = pd.get(7, 1);
@@ -50,7 +57,7 @@ int DeconvolutionDepthWise::load_param(const ParamDict& pd)
     return 0;
 }
 
-int DeconvolutionDepthWise::load_model(const ModelBin& mb)
+int DeconvolutionDepthWise3D::load_model(const ModelBin& mb)
 {
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
@@ -66,19 +73,21 @@ int DeconvolutionDepthWise::load_model(const ModelBin& mb)
     return 0;
 }
 
-static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int stride_w, int stride_h, int dilation_w, int dilation_h, int group, int activation_type, const Mat& activation_params, const Option& opt)
+static int deconvolutiondepthwise3d(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int kernel_d, int stride_w, int stride_h, int stride_d, int dilation_w, int dilation_h, int dilation_d, int group, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int inch = bottom_blob.c;
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
+    const int outd = top_blob.d;
     const int outch = top_blob.c;
 
     const int bias_term = bias_data.empty() ? 0 : 1;
 
-    const int maxk = kernel_w * kernel_h;
+    const int maxk = kernel_w * kernel_h * kernel_d;
 
     // kernel offsets
     std::vector<int> _space_ofs(maxk);
@@ -86,16 +95,21 @@ static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const M
     {
         int p1 = 0;
         int p2 = 0;
-        int gap = outw * dilation_h - kernel_w * dilation_w;
-        for (int i = 0; i < kernel_h; i++)
+        int gap0 = outw * dilation_h - kernel_w * dilation_w;
+        int gap1 = outh * outw * dilation_d - outw * kernel_h * dilation_h;
+        for (int z = 0; z < kernel_d; z++)
         {
-            for (int j = 0; j < kernel_w; j++)
+            for (int i = 0; i < kernel_h; i++)
             {
-                space_ofs[p1] = p2;
-                p1++;
-                p2 += dilation_w;
+                for (int j = 0; j < kernel_w; j++)
+                {
+                    space_ofs[p1] = p2;
+                    p1++;
+                    p2 += dilation_w;
+                }
+                p2 += gap0;
             }
-            p2 += gap;
+            p2 += gap1;
         }
     }
 
@@ -116,28 +130,33 @@ static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const M
             // shadowed variable for less openmp task args
             const int w = bottom_blob.w;
             const int h = bottom_blob.h;
+            const int d = bottom_blob.d;
             const int outw = top_blob.w;
             const int outh = top_blob.h;
+            const int outd = top_blob.d;
 
-            for (int i = 0; i < h; i++)
+            for (int z = 0; z < d; z++)
             {
-                for (int j = 0; j < w; j++)
+                for (int i = 0; i < h; i++)
                 {
-                    float* outptr = out.row(i * stride_h) + j * stride_w;
-
-                    const float val = inptr[i * w + j];
-
-                    for (int k = 0; k < maxk; k++)
+                    for (int j = 0; j < w; j++)
                     {
-                        float w = kptr[k];
-                        outptr[space_ofs[k]] += val * w;
+                        float* outptr = out.depth(z * stride_d).row(i * stride_h) + j * stride_w;
+
+                        const float val = inptr[z * w * h + i * w + j];
+
+                        for (int k = 0; k < maxk; k++)
+                        {
+                            float w = kptr[k];
+                            outptr[space_ofs[k]] += val * w;
+                        }
                     }
                 }
             }
 
             {
                 float* outptr = out;
-                int size = outw * outh;
+                int size = outw * outh * outd;
 
                 for (int i = 0; i < size; i++)
                 {
@@ -170,34 +189,39 @@ static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const M
                 // shadowed variable for less openmp task args
                 const int w = bottom_blob.w;
                 const int h = bottom_blob.h;
+                const int d = bottom_blob.d;
                 const int outw = top_blob.w;
                 const int outh = top_blob.h;
+                const int outd = top_blob.d;
 
-                for (int i = 0; i < h; i++)
+                for (int z = 0; z < d; z++)
                 {
-                    for (int j = 0; j < w; j++)
+                    for (int i = 0; i < h; i++)
                     {
-                        float* outptr = out.row(i * stride_h) + j * stride_w;
-
-                        const float* kptr = weight_data_ptr + maxk * inch_g * p;
-
-                        for (int q = 0; q < inch_g; q++)
+                        for (int j = 0; j < w; j++)
                         {
-                            const float val = bottom_blob.channel(inch_g * g + q).row(i)[j];
+                            float* outptr = out.depth(z * stride_d).row(i * stride_h) + j * stride_w;
 
-                            for (int k = 0; k < maxk; k++)
+                            const float* kptr = weight_data_ptr + maxk * inch_g * p;
+
+                            for (int q = 0; q < inch_g; q++)
                             {
-                                outptr[space_ofs[k]] += val * kptr[k];
-                            }
+                                const float val = bottom_blob.channel(inch_g * g + q).depth(z).row(i)[j];
 
-                            kptr += maxk;
+                                for (int k = 0; k < maxk; k++)
+                                {
+                                    outptr[space_ofs[k]] += val * kptr[k];
+                                }
+
+                                kptr += maxk;
+                            }
                         }
                     }
                 }
 
                 {
                     float* outptr = out;
-                    int size = outw * outh;
+                    int size = outw * outh * outd;
 
                     for (int i = 0; i < size; i++)
                     {
@@ -211,32 +235,35 @@ static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const M
     return 0;
 }
 
-int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int DeconvolutionDepthWise3D::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     size_t elemsize = bottom_blob.elemsize;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int kernel_extent_d = dilation_d * (kernel_d - 1) + 1;
 
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
+    int outd = (d - 1) * stride_d + kernel_extent_d + output_pad_behind;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || pad_front > 0 || pad_behind > 0 || (output_w > 0 && output_h > 0 && output_d > 0))
     {
-        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.workspace_allocator);
+        top_blob_bordered.create(outw, outh, outd, num_output, elemsize, opt.workspace_allocator);
     }
     else
     {
         top_blob_bordered = top_blob;
-        top_blob_bordered.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+        top_blob_bordered.create(outw, outh, outd, num_output, elemsize, opt.blob_allocator);
     }
     if (top_blob_bordered.empty())
         return -100;
 
-    int ret = deconvolutiondepthwise(bottom_blob, top_blob_bordered, weight_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, dilation_w, dilation_h, group, activation_type, activation_params, opt);
+    int ret = deconvolutiondepthwise3d(bottom_blob, top_blob_bordered, weight_data, bias_data, kernel_w, kernel_h, kernel_d, stride_w, stride_h, stride_d, dilation_w, dilation_h, dilation_d, group, activation_type, activation_params, opt);
     if (ret != 0)
         return ret;
 
@@ -247,26 +274,27 @@ int DeconvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const
     return 0;
 }
 
-void DeconvolutionDepthWise::cut_padding(const Mat& top_blob_bordered, Mat& top_blob, const Option& opt) const
+void DeconvolutionDepthWise3D::cut_padding(const Mat& top_blob_bordered, Mat& top_blob, const Option& opt) const
 {
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || pad_front > 0 || pad_behind > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
+        copy_cut_border_3d(top_blob_bordered, top_blob, pad_top, pad_bottom, pad_left, pad_right, pad_front, pad_behind, opt);
     }
-    else if (output_w > 0 && output_h > 0)
+    else if (output_w > 0 && output_h > 0 && output_d > 0)
     {
         int wcut = top_blob_bordered.w - output_w;
         int hcut = top_blob_bordered.h - output_h;
+        int dcut = top_blob_bordered.d - output_d;
 
-        if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233)
+        if (pad_left == -233 || pad_right == -233 || pad_top == -233 || pad_bottom == -233 || pad_front == -233 || pad_behind == -233)
         {
             // onnx padding=SAME_UPPER
-            copy_cut_border(top_blob_bordered, top_blob, hcut / 2, hcut - hcut / 2, wcut / 2, wcut - wcut / 2, opt);
+            copy_cut_border_3d(top_blob_bordered, top_blob, hcut / 2, hcut - hcut / 2, wcut / 2, wcut - wcut / 2, dcut / 2, dcut - dcut / 2, opt);
         }
-        else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234)
+        else if (pad_left == -234 || pad_right == -234 || pad_top == -234 || pad_bottom == -234 || pad_front == -234 || pad_behind == -234)
         {
             // onnx padding=SAME_LOWER
-            copy_cut_border(top_blob_bordered, top_blob, hcut - hcut / 2, hcut / 2, wcut - wcut / 2, wcut / 2, opt);
+            copy_cut_border_3d(top_blob_bordered, top_blob, hcut - hcut / 2, hcut / 2, wcut - wcut / 2, wcut / 2, dcut - dcut / 2, dcut / 2, opt);
         }
     }
     else
