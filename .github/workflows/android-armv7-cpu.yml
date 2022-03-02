@@ -25,7 +25,7 @@ jobs:
   android-armv7:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: build
       run: |
         mkdir build && cd build

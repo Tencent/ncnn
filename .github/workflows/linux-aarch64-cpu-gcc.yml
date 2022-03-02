@@ -29,7 +29,7 @@ jobs:
   linux-gcc:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
@@ -39,7 +39,7 @@ jobs:
         key: qemu-aarch64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -83,7 +83,7 @@ jobs:
   linux-gcc-arm82:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
@@ -93,7 +93,7 @@ jobs:
         key: qemu-aarch64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu

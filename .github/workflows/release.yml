@@ -25,7 +25,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-full-source
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: package
@@ -45,7 +45,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: apt
@@ -88,7 +88,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-1804-shared
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: apt
@@ -131,7 +131,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: apt
@@ -174,7 +174,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004-shared
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: apt
@@ -222,7 +222,7 @@ jobs:
         key: openmp-macos-release-11.0.0
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -269,7 +269,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: download-openmp-macos
       uses: actions/download-artifact@v2
       with:
@@ -337,7 +337,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-macos-vulkan
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: download-openmp-macos
@@ -439,7 +439,7 @@ jobs:
         key: openmp-ios-release-11.0.0
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -490,7 +490,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: download-openmp-ios
       uses: actions/download-artifact@v2
       with:
@@ -562,7 +562,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: download-openmp-ios
@@ -667,7 +667,7 @@ jobs:
         key: openmp-ios-bitcode-release-11.0.0
     - name: checkout
       if: steps.cache-openmp.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
     - name: openmp
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -718,7 +718,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-bitcode
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: download-openmp-ios-bitcode
       uses: actions/download-artifact@v2
       with:
@@ -790,7 +790,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ios-vulkan-bitcode
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: download-openmp-ios-bitcode
@@ -890,7 +890,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: ndk-fix-debug
       run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
     - name: build-armv7
@@ -951,7 +951,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-shared
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: ndk-fix-debug
       run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
     - name: build-armv7
@@ -1012,7 +1012,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-vulkansdk
@@ -1092,7 +1092,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-android-vulkan-shared
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-vulkansdk
@@ -1172,7 +1172,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-webassembly
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: emsdk
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
@@ -1237,7 +1237,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-protobuf
@@ -1320,7 +1320,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015-shared
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-protobuf
@@ -1403,7 +1403,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-protobuf
@@ -1486,7 +1486,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017-shared
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-protobuf
@@ -1569,7 +1569,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-protobuf
@@ -1652,7 +1652,7 @@ jobs:
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019-shared
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-protobuf

@@ -33,7 +33,7 @@ jobs:
             torchvision-version: 0.11.1
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
@@ -49,7 +49,7 @@ jobs:
         key: torchvision-${{ matrix.torchvision-version }}-linux-install-20211228
     - name: checkout-torchvision-${{ matrix.torchvision-version }}
       if: steps.cache-torchvision.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: pytorch/vision
         path: vision

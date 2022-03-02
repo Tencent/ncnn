@@ -25,7 +25,7 @@ jobs:
   linux-gcc-gpu:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: lcov
@@ -51,7 +51,7 @@ jobs:
         key: swiftshader-linux-install-20220211
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -95,7 +95,7 @@ jobs:
   linux-gcc-gpu-lavapipe:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: lcov
@@ -114,7 +114,7 @@ jobs:
         key: lavapipe-linux-install-20211127
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: mesa3d/mesa
         path: mesa
@@ -159,7 +159,7 @@ jobs:
   linux-gcc-x64:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: lcov
       run: sudo apt-get install lcov
     - name: build-sse2
@@ -225,7 +225,7 @@ jobs:
   linux-gcc-x64-avx512:
     runs-on: [self-hosted, linux]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: build
       env:
         CC: gcc
@@ -256,7 +256,7 @@ jobs:
   linux-gcc-arm:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: lcov
       run: sudo apt-get install lcov
 
@@ -268,7 +268,7 @@ jobs:
         key: qemu-arm-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -314,7 +314,7 @@ jobs:
   linux-gcc-aarch64:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: lcov
       run: sudo apt-get install lcov
 
@@ -326,7 +326,7 @@ jobs:
         key: qemu-aarch64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -372,7 +372,7 @@ jobs:
   linux-gcc-arm82:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
@@ -384,7 +384,7 @@ jobs:
         key: qemu-aarch64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -429,7 +429,7 @@ jobs:
   linux-gcc-arm82-omp:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
@@ -441,7 +441,7 @@ jobs:
         key: qemu-aarch64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -486,7 +486,7 @@ jobs:
   linux-gcc-arm82dot-omp:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
@@ -498,7 +498,7 @@ jobs:
         key: qemu-aarch64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -543,7 +543,7 @@ jobs:
   linux-gcc-mipsisa32r6el:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
@@ -555,7 +555,7 @@ jobs:
         key: qemu-mipsel-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -601,7 +601,7 @@ jobs:
   linux-gcc-mipsisa64r6el:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
@@ -613,7 +613,7 @@ jobs:
         key: qemu-mips64el-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -659,7 +659,7 @@ jobs:
   linux-gcc-riscv64:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
@@ -672,7 +672,7 @@ jobs:
         key: qemu-riscv64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -718,7 +718,7 @@ jobs:
   linux-gcc-riscv64-rvv:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
@@ -738,7 +738,7 @@ jobs:
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: sifive/qemu
         path: qemu
@@ -775,7 +775,7 @@ jobs:
 
     - name: checkout-riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain

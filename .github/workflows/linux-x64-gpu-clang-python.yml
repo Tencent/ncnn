@@ -32,7 +32,7 @@ jobs:
       matrix:
         python-version: [3.6, 3.8]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-vulkansdk
@@ -56,7 +56,7 @@ jobs:
         key: swiftshader-linux-install-20220211
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: google/swiftshader
         path: swiftshader

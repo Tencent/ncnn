@@ -31,7 +31,7 @@ jobs:
   linux-gcc-arm:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
@@ -41,7 +41,7 @@ jobs:
         key: qemu-arm-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -85,7 +85,7 @@ jobs:
   linux-gcc-armhf:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
@@ -95,7 +95,7 @@ jobs:
         key: qemu-arm-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -139,7 +139,7 @@ jobs:
   linux-gcc-armhf-vfpv3-d16:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
@@ -149,7 +149,7 @@ jobs:
         key: qemu-arm-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
