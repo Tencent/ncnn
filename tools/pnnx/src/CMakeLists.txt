@@ -199,6 +199,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp
+    pass_level2/torch_randn_like.cpp
     pass_level2/torch_roll.cpp
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
