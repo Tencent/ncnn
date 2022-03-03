@@ -422,9 +422,14 @@ int ConvolutionDepthWise_vulkan::upload_model(VkTransfer& cmd, const Option& opt
         Mat weight_data_r2 = weight_data.reshape(maxk, group);
         convert_packing(weight_data_r2, weight_data_packed, elempack, opt);
 
-        cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
-
-        cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
+        if (support_image_storage && opt.use_image_storage)
+        {
+            cmd.record_upload(weight_data_packed, weight_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(weight_data_packed, weight_data_gpu, opt);
+        }
 
         if (bias_term)
         {
