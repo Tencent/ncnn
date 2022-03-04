@@ -133,15 +133,22 @@ struct unary_op_floor
     {
 #if __SSE4_1__
         return (__m128)_mm_floor_ps(x);
-#endif // __SSE4_1__ \
-// TODO sse optimize
-        float tmp[4];
-        _mm_storeu_ps(tmp, x);
-        tmp[0] = floor(tmp[0]);
-        tmp[1] = floor(tmp[1]);
-        tmp[2] = floor(tmp[2]);
-        tmp[3] = floor(tmp[3]);
-        return _mm_loadu_ps(tmp);
+#endif // __SSE4_1__
+        const __m128 magic_sign_bit = _mm_set_ps1(-0.0f);
+        const __m128 magic_one = _mm_set_ps1(1.0f);
+        const __m128 magic_no_fraction = _mm_set_ps1(8388608.0f); // 2^23
+
+        __m128 v1 = _mm_andnot_ps(magic_sign_bit, x);
+        __m128 v2 = _mm_cmplt_ps(magic_no_fraction, v1);
+        __m128 v3 = _mm_or_ps(
+            _mm_cvtepi32_ps(_mm_cvttps_epi32(v1)),
+            _mm_and_ps(magic_sign_bit, x));
+
+        return _mm_or_ps(
+            _mm_and_ps(x, v2),
+            _mm_andnot_ps(
+                v2,
+                _mm_sub_ps(v3, _mm_and_ps(_mm_cmplt_ps(x, v3), magic_one))));
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
@@ -163,15 +170,31 @@ struct unary_op_ceil
     {
 #if __SSE4_1__
         return (__m128)_mm_ceil_ps(x);
-#endif // __SSE4_1__ \
-// TODO sse optimize
-        float tmp[4];
-        _mm_storeu_ps(tmp, x);
-        tmp[0] = ceil(tmp[0]);
-        tmp[1] = ceil(tmp[1]);
-        tmp[2] = ceil(tmp[2]);
-        tmp[3] = ceil(tmp[3]);
-        return _mm_loadu_ps(tmp);
+#endif // __SSE4_1__
+        const __m128 magic_negative_one = _mm_set_ps1(-1.0f);
+        const __m128 magic_infinity = _mm_set_ps1(INFINITY);
+        const __m128 magic_max_fraction = _mm_set_ps1(8388607.5f);
+    
+        __m128i v1 = _mm_castps_si128(x);
+        __m128i v2 = _mm_srai_epi32(v1, 31);
+        __m128i v3 = _mm_cmpgt_epi32(
+            _mm_and_si128(v1, _mm_castps_si128(magic_infinity)), 
+            _mm_castps_si128(magic_max_fraction));
+        __m128 v4 = _mm_castsi128_ps(_mm_or_si128(
+            _mm_andnot_si128(
+                v3,
+                _mm_or_si128(
+                    _mm_castps_si128(_mm_cvtepi32_ps(_mm_cvttps_epi32(x))),
+                    _mm_slli_epi32(v2, 31))),
+            _mm_and_si128(v1, v3)));
+
+        return _mm_sub_ps(
+            v4,
+            _mm_castsi128_ps(_mm_andnot_si128(
+                v2,
+                _mm_andnot_si128(
+                    _mm_cmpeq_epi32(v1, _mm_castps_si128(v4)),
+                    _mm_castps_si128(magic_negative_one)))));
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
