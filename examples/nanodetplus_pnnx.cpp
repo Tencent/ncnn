@@ -224,15 +224,15 @@ static int detect_nanodet(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/RangiLyu/nanodet
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-//     nanodet.load_param("nanodet-plus-m_320.torchscript.ncnn.param");
-//     nanodet.load_model("nanodet-plus-m_320.torchscript.ncnn.bin");
+    //     nanodet.load_param("nanodet-plus-m_320.torchscript.ncnn.param");
+    //     nanodet.load_model("nanodet-plus-m_320.torchscript.ncnn.bin");
     nanodet.load_param("nanodet-plus-m_416.torchscript.ncnn.param");
     nanodet.load_model("nanodet-plus-m_416.torchscript.ncnn.bin");
 
     int width = bgr.cols;
     int height = bgr.rows;
 
-//     const int target_size = 320;
+    //     const int target_size = 320;
     const int target_size = 416;
     const float prob_threshold = 0.4f;
     const float nms_threshold = 0.5f;
