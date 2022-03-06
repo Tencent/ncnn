@@ -132,6 +132,8 @@ public:
     std::vector<std::string> as;
 };
 
+bool operator==(const Parameter& lhs, const Parameter& rhs);
+
 class Attribute
 {
 public:
@@ -150,6 +152,8 @@ public:
 
     std::vector<char> data;
 };
+
+bool operator==(const Attribute& lhs, const Attribute& rhs);
 
 class Operator;
 class Operand
@@ -213,6 +217,8 @@ public:
     Operator* new_operator(const std::string& type, const std::string& name);
 
     Operator* new_operator_before(const std::string& type, const std::string& name, const Operator* cur);
+
+    Operator* new_operator_after(const std::string& type, const std::string& name, const Operator* cur);
 
     Operand* new_operand(const torch::jit::Value* v);
 

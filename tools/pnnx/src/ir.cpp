@@ -268,6 +268,38 @@ Parameter::Parameter(const torch::jit::Value* value)
 {
 }
 
+bool operator==(const Parameter& lhs, const Parameter& rhs)
+{
+    if (lhs.type != rhs.type)
+        return false;
+
+    if (lhs.type == 0)
+        return true;
+
+    if (lhs.type == 1 && lhs.b == rhs.b)
+        return true;
+
+    if (lhs.type == 2 && lhs.i == rhs.i)
+        return true;
+
+    if (lhs.type == 3 && lhs.f == rhs.f)
+        return true;
+
+    if (lhs.type == 4 && lhs.s == rhs.s)
+        return true;
+
+    if (lhs.type == 5 && lhs.ai == rhs.ai)
+        return true;
+
+    if (lhs.type == 6 && lhs.af == rhs.af)
+        return true;
+
+    if (lhs.type == 7 && lhs.as == rhs.as)
+        return true;
+
+    return false;
+}
+
 Attribute::Attribute(const at::Tensor& t)
 {
     type = get_at_tensor_type(t.scalar_type());
@@ -341,6 +373,23 @@ Attribute::Attribute(const std::initializer_list<int>& _shape, const std::vector
         data.resize(size * type_to_elemsize(type));
         memcpy((void*)data.data(), (const void*)t.data(), data.size());
     }
+}
+
+bool operator==(const Attribute& lhs, const Attribute& rhs)
+{
+    if (lhs.type != rhs.type)
+        return false;
+
+    if (lhs.type == 0)
+        return true;
+
+    if (lhs.shape != rhs.shape)
+        return false;
+
+    if (lhs.data != rhs.data)
+        return false;
+
+    return true;
 }
 
 Parameter Parameter::parse_from_string(const std::string& value)
@@ -1686,6 +1735,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     {
                         fprintf(pyfp, "%s=", it.first.c_str());
                     }
+                    else if (op->inputs.empty() && i == 0)
+                    {
+                        fprintf(pyfp, "%s=", it.first.c_str());
+                    }
                     else
                     {
                         fprintf(pyfp, ", %s=", it.first.c_str());
@@ -2367,6 +2420,15 @@ Operator* Graph::new_operator_before(const std::string& type, const std::string&
     op->type = type;
     op->name = name;
     ops.insert(std::find(ops.begin(), ops.end(), cur), op);
+    return op;
+}
+
+Operator* Graph::new_operator_after(const std::string& type, const std::string& name, const Operator* cur)
+{
+    Operator* op = new Operator;
+    op->type = type;
+    op->name = name;
+    ops.insert(std::find(ops.begin(), ops.end(), cur) + 1, op);
     return op;
 }
 

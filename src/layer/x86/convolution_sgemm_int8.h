@@ -12,33 +12,58 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+void im2col_sgemm_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+void im2col_sgemm_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+void im2col_sgemm_int8_sse_avx2(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
+void im2col_sgemm_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+#endif
+
 static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
-#if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        extern void im2col_sgemm_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_int8_sse_avx512vnni(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
 
-#if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        extern void im2col_sgemm_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_int8_sse_avxvnni(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
 
-#if NCNN_XOP && __SSE2__ && !__XOP__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        im2col_sgemm_int8_sse_avx2(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
     if (ncnn::cpu_support_x86_xop())
     {
-        extern void im2col_sgemm_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_int8_sse_xop(bottom_im2col, top_blob, kernel, opt);
         return;
     }
+#endif
 #endif
 
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
@@ -373,9 +398,8 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 _sum00_12 = _mm256_hadd_epi32(_sum00_12, _sum10_02);
                 _sum20_32 = _mm256_hadd_epi32(_sum20_32, _sum30_22);
 
-                __m256i _perm_mask = _mm256_set_epi32(5, 1, 6, 2, 7, 3, 4, 0);
-                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
-                _sum20_32 = _mm256_permutevar8x32_epi32(_sum20_32, _perm_mask);
+                _sum00_12 = _mm256_permute4x64_epi64(_sum00_12, _MM_SHUFFLE(2, 1, 3, 0));
+                _sum20_32 = _mm256_permute4x64_epi64(_sum20_32, _MM_SHUFFLE(2, 1, 3, 0));
 #else
                 // transpose 4x8
                 {
@@ -608,8 +632,7 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
 #if __AVXVNNI__ || __AVX512VNNI__
                 _sum00_12 = _mm256_hadd_epi32(_sum00_12, _sum10_02);
 
-                __m256i _perm_mask = _mm256_set_epi32(5, 1, 6, 2, 7, 3, 4, 0);
-                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
+                _sum00_12 = _mm256_permute4x64_epi64(_sum00_12, _MM_SHUFFLE(2, 1, 3, 0));
 #else
                 // transpose 4x8
                 {
@@ -940,8 +963,7 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                 {
                     __m128i _val = _mm_loadl_epi64((const __m128i*)tmpptr);
                     __m128i _extval = _mm_cmpgt_epi8(_mm_setzero_si128(), _val);
-                    __m128i _val0 = _mm_unpacklo_epi8(_val, _extval);
-                    __m128i _val1 = _mm_unpacklo_epi8(_val, _extval);
+                    __m128i _val01 = _mm_unpacklo_epi8(_val, _extval);
 
                     __m128i _w0123 = _mm_loadl_epi64((const __m128i*)kptr0);
 #if __SSE4_1__
@@ -950,14 +972,13 @@ static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const
                     __m128i _extw = _mm_cmpgt_epi8(_mm_setzero_si128(), _w0123);
                     __m128i _w = _mm_unpacklo_epi8(_w0123, _extw);
 #endif
+                    _w = _mm_shuffle_epi32(_w, _MM_SHUFFLE(1, 0, 1, 0));
 
-                    __m128i _sl0 = _mm_mullo_epi16(_val0, _w);
-                    __m128i _sh0 = _mm_mulhi_epi16(_val0, _w);
-                    __m128i _sl1 = _mm_mullo_epi16(_val1, _w);
-                    __m128i _sh1 = _mm_mulhi_epi16(_val1, _w);
+                    __m128i _sl01 = _mm_mullo_epi16(_val01, _w);
+                    __m128i _sh01 = _mm_mulhi_epi16(_val01, _w);
 
-                    _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl0, _sh0));
-                    _sum1 = _mm_add_epi32(_sum1, _mm_unpacklo_epi16(_sl1, _sh1));
+                    _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl01, _sh01));
+                    _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl01, _sh01));
 
                     tmpptr += 8;
                     kptr0 += 4;

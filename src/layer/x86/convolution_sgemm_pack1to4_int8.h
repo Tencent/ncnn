@@ -12,33 +12,58 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+void im2col_sgemm_pack1to4_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+void im2col_sgemm_pack1to4_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+void im2col_sgemm_pack1to4_int8_sse_avx2(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
+void im2col_sgemm_pack1to4_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+#endif
+
 static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
-#if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        extern void im2col_sgemm_pack1to4_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_pack1to4_int8_sse_avx512vnni(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
 
-#if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        extern void im2col_sgemm_pack1to4_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_pack1to4_int8_sse_avxvnni(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
 
-#if NCNN_XOP && __SSE2__ && !__XOP__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        im2col_sgemm_pack1to4_int8_sse_avx2(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
     if (ncnn::cpu_support_x86_xop())
     {
-        extern void im2col_sgemm_pack1to4_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_pack1to4_int8_sse_xop(bottom_im2col, top_blob, kernel, opt);
         return;
     }
+#endif
 #endif
 
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
@@ -266,7 +291,7 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
         for (; i + 3 < size; i += 4)
         {
             const signed char* tmpptr = tmp.channel(i / 4);
-            const signed char* kptr0 = kernel.channel(p / 4);
+            const signed char* kptr0 = kernel.channel(p);
 
             int nn4 = (inch / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
@@ -336,9 +361,8 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 _sum00_12 = _mm256_hadd_epi32(_sum00_12, _sum10_02);
                 _sum20_32 = _mm256_hadd_epi32(_sum20_32, _sum30_22);
 
-                __m256i _perm_mask = _mm256_set_epi32(5, 1, 6, 2, 7, 3, 4, 0);
-                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
-                _sum20_32 = _mm256_permutevar8x32_epi32(_sum20_32, _perm_mask);
+                _sum00_12 = _mm256_permute4x64_epi64(_sum00_12, _MM_SHUFFLE(2, 1, 3, 0));
+                _sum20_32 = _mm256_permute4x64_epi64(_sum20_32, _MM_SHUFFLE(2, 1, 3, 0));
 #else
                 // transpose 4x8
                 {
@@ -534,8 +558,7 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 #if __AVXVNNI__ || __AVX512VNNI__
                 _sum00_12 = _mm256_hadd_epi32(_sum00_12, _sum10_02);
 
-                __m256i _perm_mask = _mm256_set_epi32(5, 1, 6, 2, 7, 3, 4, 0);
-                _sum00_12 = _mm256_permutevar8x32_epi32(_sum00_12, _perm_mask);
+                _sum00_12 = _mm256_permute4x64_epi64(_sum00_12, _MM_SHUFFLE(2, 1, 3, 0));
 #else
                 // transpose 4x8
                 {

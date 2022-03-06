@@ -20,7 +20,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x = F.interpolate(x, size=16)
         x = F.interpolate(x, scale_factor=2, mode='nearest')
         x = F.interpolate(x, size=(20), mode='nearest')
@@ -53,7 +53,7 @@ class Model(nn.Module):
         y = F.interpolate(y, size=(16,24), mode='bicubic', align_corners=True)
         y = F.interpolate(y, scale_factor=(2,3), mode='bicubic', align_corners=True)
 
-        y = F.interpolate(y, scale_factor=(1.7,2), mode='nearest', recompute_scale_factor=True)
+        y = F.interpolate(y, scale_factor=(1.6,2), mode='nearest', recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(2,1.2), mode='bilinear', align_corners=False, recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(0.5,0.4), mode='bilinear', align_corners=True, recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(0.8,0.9), mode='bicubic', align_corners=False, recompute_scale_factor=True)
@@ -76,7 +76,8 @@ class Model(nn.Module):
         z = F.interpolate(z, scale_factor=(0.7,0.5,1), mode='trilinear', align_corners=False, recompute_scale_factor=True)
         z = F.interpolate(z, scale_factor=(0.9,0.8,1.2), mode='trilinear', align_corners=True, recompute_scale_factor=True)
 
-        return x, y, z
+        w = F.interpolate(w, scale_factor=(2.976744,2.976744), mode='nearest', recompute_scale_factor=False)
+        return x, y, z, w
 
 def test():
     net = Model()
@@ -86,22 +87,26 @@ def test():
     x = torch.rand(1, 3, 32)
     y = torch.rand(1, 3, 32, 32)
     z = torch.rand(1, 3, 32, 32, 32)
+    w = torch.rand(1, 8, 86, 86)
 
-    a0, a1, a2 = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_interpolate.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_interpolate.pt inputshape=[1,3,32],[1,3,32,32],[1,3,32,32,32]")
+    os.system("../src/pnnx test_F_interpolate.pt inputshape=[1,3,32],[1,3,32,32],[1,3,32,32,32],[1,8,86,86]")
 
     # pnnx inference
     import test_F_interpolate_pnnx
-    b0, b1, b2 = test_F_interpolate_pnnx.test_inference()
+    b = test_F_interpolate_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    for a0, b0 in zip(a, b):
+        if not torch.equal(a0, b0):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

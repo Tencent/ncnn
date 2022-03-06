@@ -31,7 +31,7 @@ jobs:
   linux-gcc-riscv64:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
@@ -41,7 +41,7 @@ jobs:
         key: qemu-riscv64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -74,7 +74,7 @@ jobs:
   linux-gcc-riscv64-rvv:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
@@ -91,7 +91,7 @@ jobs:
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: sifive/qemu
         path: qemu
@@ -128,7 +128,7 @@ jobs:
 
     - name: checkout-riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain

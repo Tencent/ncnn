@@ -73,6 +73,8 @@ static int unary_op_inplace(Mat& a, const Option& opt)
     return 0;
 }
 
+namespace UnaryOp_riscv_functor {
+
 struct unary_op_abs
 {
     vfloat32m8_t operator()(const vfloat32m8_t& x, const word_type& vl) const
@@ -246,6 +248,8 @@ struct unary_op_tanh
         return tanh_ps(x, vl);
     }
 };
+
+} // namespace UnaryOp_riscv_functor
 #endif // __riscv_vector
 
 int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -258,6 +262,8 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #endif
 
 #if __riscv_vector
+    using namespace UnaryOp_riscv_functor;
+
     if (op_type == Operation_ABS)
         return unary_op_inplace<unary_op_abs>(bottom_top_blob, opt);
 
@@ -349,6 +355,8 @@ static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_riscv_functor {
 
 struct unary_op_abs_fp16s
 {
@@ -524,8 +532,12 @@ struct unary_op_tanh_fp16s
     }
 };
 
+} // namespace UnaryOp_riscv_functor
+
 int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace UnaryOp_riscv_functor;
+
     if (op_type == Operation_ABS)
         return unary_op_inplace_fp16s<unary_op_abs_fp16s>(bottom_top_blob, opt);
 
