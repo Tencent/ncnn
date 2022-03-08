@@ -139,7 +139,6 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         output_crop->create_pipeline(opt);
     }
 
-
     if (opt.use_sgemm_convolution)
     {
         Mat out_shape_col;
@@ -659,12 +658,12 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
             constants[1].i = bottom_blob.w;
             constants[2].i = bottom_blob.h;
             constants[3].i = bottom_blob.c;
-            constants[4].i = 0;//bottom_blob.cstep;
+            constants[4].i = 0; //bottom_blob.cstep;
             constants[5].i = top_blob_col.dims;
             constants[6].i = top_blob_col.w;
             constants[7].i = top_blob_col.h;
             constants[8].i = top_blob_col.c;
-            constants[9].i = 0;//top_blob_col.cstep;
+            constants[9].i = 0; //top_blob_col.cstep;
 
             VkImageMat dispatcher;
             dispatcher.w = (top_blob_col.w + 3) / 4;
@@ -697,12 +696,12 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
             constants[1].i = w;
             constants[2].i = h;
             constants[3].i = top_blob_col.c;
-            constants[4].i = 0;//top_blob_col.cstep;
+            constants[4].i = 0; //top_blob_col.cstep;
             constants[5].i = top_blob_bordered.dims;
             constants[6].i = top_blob_bordered.w;
             constants[7].i = top_blob_bordered.h;
             constants[8].i = top_blob_bordered.c;
-            constants[9].i = 0;//top_blob_bordered.cstep;
+            constants[9].i = 0; //top_blob_bordered.cstep;
 
             cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered);
         }
