@@ -1614,6 +1614,18 @@ jobs:
         cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
+    - name: build-arm
+      run: |
+        mkdir build-arm; cd build-arm
+        cmake -T v142,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . --config Release -j 2
+        cmake --build . --config Release --target install
+    - name: build-arm64
+      run: |
+        mkdir build-arm64; cd build-arm64
+        cmake -T v142,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . --config Release -j 2
+        cmake --build . --config Release --target install
     - name: package
       run: |
         mkdir ${{ env.PACKAGENAME }}
@@ -1621,6 +1633,8 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}/x64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
+        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
+        Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
@@ -1639,6 +1653,20 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
@@ -1697,6 +1725,18 @@ jobs:
         cmake -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DProtobuf_INCLUDE_DIR="$env:GITHUB_WORKSPACE\protobuf-install\x64\include" -DProtobuf_LIBRARIES="$env:GITHUB_WORKSPACE\protobuf-install\x64\lib\libprotobuf.lib" -DProtobuf_PROTOC_EXECUTABLE="$env:GITHUB_WORKSPACE\protobuf-install\x64\bin\protoc.exe" -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
         cmake --build . --config Release --target install
+    - name: build-arm
+      run: |
+        mkdir build-arm; cd build-arm
+        cmake -T v142,host=x64 -A arm -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 2
+        cmake --build . --config Release --target install
+    - name: build-arm64
+      run: |
+        mkdir build-arm64; cd build-arm64
+        cmake -T v142,host=x64 -A arm64 -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 2
+        cmake --build . --config Release --target install
     - name: package
       run: |
         mkdir ${{ env.PACKAGENAME }}
@@ -1704,6 +1744,8 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}/x64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
+        Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
+        Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
         Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
         Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
@@ -1722,6 +1764,20 @@ jobs:
         Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
+        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v2
