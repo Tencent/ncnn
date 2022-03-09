@@ -134,21 +134,40 @@ struct unary_op_floor
 #if __SSE4_1__
         return (__m128)_mm_floor_ps(x);
 #endif // __SSE4_1__
+
+        // The sign bit mask.
         const __m128 magic_sign_bit = _mm_set_ps1(-0.0f);
-        const __m128 magic_one = _mm_set_ps1(1.0f);
-        const __m128 magic_no_fraction = _mm_set_ps1(8388608.0f); // 2^23
 
-        __m128 v1 = _mm_andnot_ps(magic_sign_bit, x);
-        __m128 v2 = _mm_cmplt_ps(magic_no_fraction, v1);
-        __m128 v3 = _mm_or_ps(
-                        _mm_cvtepi32_ps(_mm_cvttps_epi32(v1)),
-                        _mm_and_ps(magic_sign_bit, x));
+        // The smallest float number that have no fractional part. (2^23)
+        const __m128 magic_smallest_no_fraction = _mm_set_ps1(8388608.0f);
 
+        // absolute = abs(x);
+        __m128 absolute = _mm_andnot_ps(magic_sign_bit, x);
+
+        // negative_mask = magic_sign_bit && x;
+        __m128 negative_mask = _mm_and_ps(magic_sign_bit, x);
+
+        // no_fraction = (magic_smallest_no_fraction < absolute);
+        __m128 no_fraction = _mm_cmplt_ps(magic_smallest_no_fraction, absolute);
+
+        // truncated = static_cast<float>(static_cast<uint32_t>(absolute));
+        __m128 truncated = _mm_cvtepi32_ps(_mm_cvttps_epi32(absolute));
+
+        // truncated_with_sign = (truncated || negative_mask);
+        __m128 truncated_with_sign = _mm_or_ps(truncated, negative_mask);
+
+        // negative_fix = ((x < truncated_with_sign) ? 1.0f : 0.0f);
+        __m128 negative_fix = _mm_and_ps(
+                                  _mm_cmplt_ps(x, truncated_with_sign),
+                                  _mm_set_ps1(1.0f));
+
+        // fixed_result = truncated_with_sign - negative_fix;
+        __m128 fixed_result = _mm_sub_ps(truncated_with_sign, negative_fix);
+
+        // return ((x && no_fraction) || (!no_fraction && negative_fix));
         return _mm_or_ps(
-                   _mm_and_ps(x, v2),
-                   _mm_andnot_ps(
-                       v2,
-                       _mm_sub_ps(v3, _mm_and_ps(_mm_cmplt_ps(x, v3), magic_one))));
+                   _mm_and_ps(x, no_fraction),
+                   _mm_andnot_ps(no_fraction, fixed_result));
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
