@@ -705,12 +705,12 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         weight_data_tm.create(6 * 6, num_input, num_output);
 
         const float ktm[6][3] = {
-            {1.0f / 4, 0.0f, 0.0f},
-            {-1.0f / 6, -1.0f / 6, -1.0f / 6},
-            {-1.0f / 6, 1.0f / 6, -1.0f / 6},
-            {1.0f / 24, 1.0f / 12, 1.0f / 6},
-            {1.0f / 24, -1.0f / 12, 1.0f / 6},
-            {0.0f, 0.0f, 1.0f}
+            {1.0f, 0.0f, 0.0f},
+            {-2.0f / 3, -2.0f / 3, -2.0f / 3},
+            {-2.0f / 3, 2.0f / 3, -2.0f / 3},
+            {1.0f / 6, 1.0f / 3, 2.0f / 3},
+            {1.0f / 6, -1.0f / 3, 2.0f / 3},
+            {0.0f, 0.0f, 4.0f}
         };
 
         #pragma omp parallel for num_threads(opt.num_threads)
