@@ -135,17 +135,17 @@ struct unary_op_floor
         return (__m128)_mm_floor_ps(x);
 #endif // __SSE4_1__
 
-        // The sign bit mask.
-        const __m128 magic_sign_bit = _mm_set_ps1(-0.0f);
+        // Use negative zero as the sign bit mask.
+        const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
 
         // The smallest float number that have no fractional part. (2^23)
         const __m128 magic_smallest_no_fraction = _mm_set_ps1(8388608.0f);
 
         // absolute = abs(x);
-        __m128 absolute = _mm_andnot_ps(magic_sign_bit, x);
+        __m128 absolute = _mm_andnot_ps(magic_negative_zero, x);
 
-        // negative_mask = magic_sign_bit && x;
-        __m128 negative_mask = _mm_and_ps(magic_sign_bit, x);
+        // negative_mask = magic_negative_zero && x;
+        __m128 negative_mask = _mm_and_ps(magic_negative_zero, x);
 
         // no_fraction = (magic_smallest_no_fraction < absolute);
         __m128 no_fraction = _mm_cmplt_ps(magic_smallest_no_fraction, absolute);
@@ -164,7 +164,7 @@ struct unary_op_floor
         // fixed_result = truncated_with_sign - negative_fix;
         __m128 fixed_result = _mm_sub_ps(truncated_with_sign, negative_fix);
 
-        // return ((x && no_fraction) || (!no_fraction && negative_fix));
+        // return ((x && no_fraction) || (!no_fraction && fixed_result));
         return _mm_or_ps(
                    _mm_and_ps(x, no_fraction),
                    _mm_andnot_ps(no_fraction, fixed_result));
