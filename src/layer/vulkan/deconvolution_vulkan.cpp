@@ -472,7 +472,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             dispatcher.h = top_blob_col.h;
             dispatcher.c = top_blob_col.c;
 
-            cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, top_blob_col);
+            cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
         }
 
         // col2im
@@ -670,7 +670,7 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
             dispatcher.h = top_blob_col.h;
             dispatcher.c = top_blob_col.c;
 
-            cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, top_blob_col);
+            cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
         }
 
         // col2im
