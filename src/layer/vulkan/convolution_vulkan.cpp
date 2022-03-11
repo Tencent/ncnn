@@ -29,6 +29,9 @@ Convolution_vulkan::Convolution_vulkan()
     pipeline_convolution = 0;
     pipeline_convolution_1x1s1d1 = 0;
 
+    pipeline_convolution_im2col = 0;
+    pipeline_convolution_gemm = 0;
+
     winograd_padding = 0;
     winograd_crop = 0;
     pipeline_convolution_3x3s1d1_winograd23_transform_input = 0;
@@ -150,6 +153,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
+    Mat shape_col;
+    Mat shape_col_packed;
+
     int block_x = 0;
     int block_y = 0;
     Mat shape_winograd_bordered;
@@ -258,6 +264,23 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (vkdev->info.vendor_id() == 0x5143 && vkdev->info.api_version() < VK_MAKE_VERSION(1, 0, 66))
         {
             // FIXME workaround qcom adreno image shader produce wrong result on old drivers
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+    }
+    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input >= 16 && num_output >= 16)
+    {
+        // im2col + gemm
+        if (shape.dims != 0 && out_shape.dims != 0)
+        {
+            shape_col = Mat(out_shape.w * out_shape.h, kernel_w * kernel_h, shape.c, (void*)0);
+        }
+
+        Mat shape_col_packed = Mat(shape_col.w, shape_col.h, shape_col.c / elempack, (void*)0, elemsize, elempack);
+
+        // check blob shape
+        if (!vkdev->shape_support_image_storage(shape_col_packed))
+        {
             support_image_storage = false;
             opt.use_image_storage = false;
         }
@@ -555,6 +578,88 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolution_3x3s1d1_winograd23_transform_output->create(shader_type_index, opt, specializations);
         }
     }
+    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && num_input >= 16 && num_output >= 16)
+    {
+        {
+            std::vector<vk_specialization_type> specializations(6 + 10);
+            specializations[0].i = kernel_w;
+            specializations[1].i = kernel_h;
+            specializations[2].i = dilation_w;
+            specializations[3].i = dilation_h;
+            specializations[4].i = stride_w;
+            specializations[5].i = stride_h;
+            specializations[6 + 0].i = shape_bordered_packed.dims;
+            specializations[6 + 1].i = shape_bordered_packed.w;
+            specializations[6 + 2].i = shape_bordered_packed.h;
+            specializations[6 + 3].i = shape_bordered_packed.c;
+            specializations[6 + 4].i = shape_bordered_packed.cstep;
+            specializations[6 + 5].i = shape_col_packed.dims;
+            specializations[6 + 6].i = out_shape_packed.w;
+            specializations[6 + 7].i = out_shape_packed.h;
+            specializations[6 + 8].i = shape_col_packed.c;
+            specializations[6 + 9].i = shape_col_packed.cstep;
+
+            Mat local_size_xyz(8, 1, std::min(4, num_input / elempack), (void*)0);
+            if (shape_col_packed.dims != 0)
+            {
+                local_size_xyz.w = std::min(8, shape_col_packed.w);
+                local_size_xyz.h = std::min(1, shape_col_packed.h);
+                local_size_xyz.c = std::min(4, shape_col_packed.c);
+            }
+
+            int shader_type_index = -1;
+            if (elempack == 1) shader_type_index = LayerShaderType::convolution_im2col;
+            if (elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_im2col;
+            if (elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_im2col;
+
+            pipeline_convolution_im2col = new Pipeline(vkdev);
+            pipeline_convolution_im2col->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_im2col->create(shader_type_index, opt, specializations);
+        }
+
+        {
+            std::vector<vk_specialization_type> specializations(6 + 10);
+            specializations[0].i = kernel_w;
+            specializations[1].i = kernel_h;
+            specializations[2].i = bias_term;
+            specializations[3].i = activation_type;
+            specializations[4].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations[5].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations[6 + 0].i = shape_col_packed.dims;
+            specializations[6 + 1].i = out_shape_packed.w;
+            specializations[6 + 2].i = out_shape_packed.h;
+            specializations[6 + 3].i = shape_col_packed.c;
+            specializations[6 + 4].i = shape_col_packed.cstep;
+            specializations[6 + 5].i = out_shape_packed.dims;
+            specializations[6 + 6].i = out_shape_packed.w;
+            specializations[6 + 7].i = out_shape_packed.h;
+            specializations[6 + 8].i = out_shape_packed.c;
+            specializations[6 + 9].i = out_shape_packed.cstep;
+
+            Mat local_size_xyz(16, 1, std::min(4, num_output / out_elempack), (void*)0);
+            if (out_shape_packed.dims != 0)
+            {
+                local_size_xyz.w = std::min(16, out_shape_packed.w);
+                local_size_xyz.h = std::min(1, out_shape_packed.h);
+                local_size_xyz.c = std::min(4, out_shape_packed.c);
+            }
+
+            int shader_type_index = -1;
+            if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_gemm;
+            if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_gemm;
+            if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_gemm;
+            if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_gemm;
+            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_gemm;
+            if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_gemm;
+            if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_gemm;
+            if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_gemm;
+            if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_gemm;
+
+            pipeline_convolution_gemm = new Pipeline(vkdev);
+            pipeline_convolution_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_convolution_gemm->create(shader_type_index, opt, specializations);
+        }
+    }
     else
     {
         int shader_type_index = -1;
@@ -590,6 +695,12 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_convolution_1x1s1d1;
     pipeline_convolution_1x1s1d1 = 0;
+
+    delete pipeline_convolution_im2col;
+    pipeline_convolution_im2col = 0;
+
+    delete pipeline_convolution_gemm;
+    pipeline_convolution_gemm = 0;
 
     if (winograd_padding)
     {
@@ -1292,6 +1403,70 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         return 0;
     }
+    if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && channels * elempack >= 16 && num_output >= 16)
+    {
+        const int maxk = kernel_w * kernel_h;
+
+        // im2col
+        VkMat bottom_blob_col;
+        {
+            bottom_blob_col.create(outw * outh, maxk, channels, elemsize, elempack, opt.workspace_vkallocator);
+            if (bottom_blob_col.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(2);
+            bindings[0] = bottom_blob_bordered;
+            bindings[1] = bottom_blob_col;
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = bottom_blob_bordered.dims;
+            constants[1].i = bottom_blob_bordered.w;
+            constants[2].i = bottom_blob_bordered.h;
+            constants[3].i = bottom_blob_bordered.c;
+            constants[4].i = bottom_blob_bordered.cstep;
+            constants[5].i = bottom_blob_col.dims;
+            constants[6].i = outw;
+            constants[7].i = outh;
+            constants[8].i = bottom_blob_col.c;
+            constants[9].i = bottom_blob_col.cstep;
+
+            cmd.record_pipeline(pipeline_convolution_im2col, bindings, constants, bottom_blob_col);
+        }
+
+        // gemm
+        {
+            top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(4);
+            bindings[0] = bottom_blob_col;
+            bindings[1] = top_blob;
+            bindings[2] = weight_data_gpu;
+            bindings[3] = bias_data_gpu;
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = bottom_blob_col.dims;
+            constants[1].i = outw;
+            constants[2].i = outh;
+            constants[3].i = bottom_blob_col.c;
+            constants[4].i = bottom_blob_col.cstep;
+            constants[5].i = top_blob.dims;
+            constants[6].i = top_blob.w;
+            constants[7].i = top_blob.h;
+            constants[8].i = top_blob.c;
+            constants[9].i = top_blob.cstep;
+
+            VkMat dispatcher;
+            dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
+            dispatcher.h = 1;
+            dispatcher.c = top_blob.c;
+
+            cmd.record_pipeline(pipeline_convolution_gemm, bindings, constants, dispatcher);
+        }
+
+        return 0;
+    }
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
     if (top_blob.empty())
@@ -1719,6 +1894,70 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             std::vector<VkImageMat> crop_outputs(1);
             winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
             top_blob = crop_outputs[0];
+        }
+
+        return 0;
+    }
+    if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && channels * elempack >= 16 && num_output >= 16)
+    {
+        const int maxk = kernel_w * kernel_h;
+
+        // im2col
+        VkImageMat bottom_blob_col;
+        {
+            bottom_blob_col.create(outw * outh, maxk, channels, elemsize, elempack, opt.workspace_vkallocator);
+            if (bottom_blob_col.empty())
+                return -100;
+
+            std::vector<VkImageMat> bindings(2);
+            bindings[0] = bottom_blob_bordered;
+            bindings[1] = bottom_blob_col;
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = bottom_blob_bordered.dims;
+            constants[1].i = bottom_blob_bordered.w;
+            constants[2].i = bottom_blob_bordered.h;
+            constants[3].i = bottom_blob_bordered.c;
+            constants[4].i = 0;// bottom_blob_bordered.cstep;
+            constants[5].i = bottom_blob_col.dims;
+            constants[6].i = outw;
+            constants[7].i = outh;
+            constants[8].i = bottom_blob_col.c;
+            constants[9].i = 0;// bottom_blob_col.cstep;
+
+            cmd.record_pipeline(pipeline_convolution_im2col, bindings, constants, bottom_blob_col);
+        }
+
+        // gemm
+        {
+            top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+            std::vector<VkImageMat> bindings(4);
+            bindings[0] = bottom_blob_col;
+            bindings[1] = top_blob;
+            bindings[2] = weight_data_gpu_image;
+            bindings[3] = bias_data_gpu_image;
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = bottom_blob_col.dims;
+            constants[1].i = outw;
+            constants[2].i = outh;
+            constants[3].i = bottom_blob_col.c;
+            constants[4].i = 0;// bottom_blob_col.cstep;
+            constants[5].i = top_blob.dims;
+            constants[6].i = top_blob.w;
+            constants[7].i = top_blob.h;
+            constants[8].i = top_blob.c;
+            constants[9].i = 0;// top_blob.cstep;
+
+            VkImageMat dispatcher;
+            dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
+            dispatcher.h = 1;
+            dispatcher.c = top_blob.c;
+
+            cmd.record_pipeline(pipeline_convolution_gemm, bindings, constants, dispatcher);
         }
 
         return 0;
