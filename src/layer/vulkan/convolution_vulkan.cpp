@@ -268,7 +268,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             opt.use_image_storage = false;
         }
     }
-    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && (num_input >= 16 || num_output >= 16))
+    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && (num_input >= 16 && num_output >= 16))
     {
         // im2col + gemm
         if (shape.dims != 0 && out_shape.dims != 0)
@@ -578,7 +578,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             pipeline_convolution_3x3s1d1_winograd23_transform_output->create(shader_type_index, opt, specializations);
         }
     }
-    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && (num_input >= 16 || num_output >= 16))
+    else if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && (num_input >= 16 && num_output >= 16))
     {
         {
             std::vector<vk_specialization_type> specializations(6 + 10);
@@ -1403,7 +1403,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
 
         return 0;
     }
-    if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && (channels * elempack >= 16 || num_output >= 16))
+    if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && (channels * elempack >= 16 && num_output >= 16))
     {
         const int maxk = kernel_w * kernel_h;
 
@@ -1898,7 +1898,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
 
         return 0;
     }
-    if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && (channels * elempack >= 16 || num_output >= 16))
+    if (opt.use_sgemm_convolution && !is_conv1x1s1d1 && (channels * elempack >= 16 && num_output >= 16))
     {
         const int maxk = kernel_w * kernel_h;
 
