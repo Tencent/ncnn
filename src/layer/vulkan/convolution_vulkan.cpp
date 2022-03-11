@@ -1918,12 +1918,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             constants[1].i = bottom_blob_bordered.w;
             constants[2].i = bottom_blob_bordered.h;
             constants[3].i = bottom_blob_bordered.c;
-            constants[4].i = 0;// bottom_blob_bordered.cstep;
+            constants[4].i = 0; // bottom_blob_bordered.cstep;
             constants[5].i = bottom_blob_col.dims;
             constants[6].i = outw;
             constants[7].i = outh;
             constants[8].i = bottom_blob_col.c;
-            constants[9].i = 0;// bottom_blob_col.cstep;
+            constants[9].i = 0; // bottom_blob_col.cstep;
 
             cmd.record_pipeline(pipeline_convolution_im2col, bindings, constants, bottom_blob_col);
         }
@@ -1945,12 +1945,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             constants[1].i = outw;
             constants[2].i = outh;
             constants[3].i = bottom_blob_col.c;
-            constants[4].i = 0;// bottom_blob_col.cstep;
+            constants[4].i = 0; // bottom_blob_col.cstep;
             constants[5].i = top_blob.dims;
             constants[6].i = top_blob.w;
             constants[7].i = top_blob.h;
             constants[8].i = top_blob.c;
-            constants[9].i = 0;// top_blob.cstep;
+            constants[9].i = 0; // top_blob.cstep;
 
             VkImageMat dispatcher;
             dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
