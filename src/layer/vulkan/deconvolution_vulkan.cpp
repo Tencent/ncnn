@@ -28,14 +28,9 @@ Deconvolution_vulkan::Deconvolution_vulkan()
     output_crop = 0;
 
     pipeline_deconvolution = 0;
-    pipeline_deconvolution_pack4 = 0;
-    pipeline_deconvolution_pack1to4 = 0;
-    pipeline_deconvolution_pack4to1 = 0;
-    pipeline_deconvolution_pack8 = 0;
-    pipeline_deconvolution_pack1to8 = 0;
-    pipeline_deconvolution_pack4to8 = 0;
-    pipeline_deconvolution_pack8to4 = 0;
-    pipeline_deconvolution_pack8to1 = 0;
+
+    pipeline_deconvolution_gemm = 0;
+    pipeline_deconvolution_col2im = 0;
 }
 
 int Deconvolution_vulkan::create_pipeline(const Option& _opt)
@@ -144,6 +139,106 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         output_crop->create_pipeline(opt);
     }
 
+    if (opt.use_sgemm_convolution)
+    {
+        Mat out_shape_col;
+        if (shape.dims != 0 && out_shape.dims != 0)
+        {
+            out_shape_col = Mat(shape.w * shape.h, kernel_w * kernel_h, out_shape.c, (void*)0);
+        }
+
+        Mat out_shape_col_packed = Mat(out_shape_col.w, out_shape_col.h, out_shape_col.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+
+        // check blob shape
+        if (!vkdev->shape_support_image_storage(out_shape_col_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+
+        {
+            std::vector<vk_specialization_type> specializations(2 + 10);
+            specializations[0].i = kernel_w;
+            specializations[1].i = kernel_h;
+            specializations[2 + 0].i = shape_packed.dims;
+            specializations[2 + 1].i = shape_packed.w;
+            specializations[2 + 2].i = shape_packed.h;
+            specializations[2 + 3].i = shape_packed.c;
+            specializations[2 + 4].i = shape_packed.cstep;
+            specializations[2 + 5].i = out_shape_col_packed.dims;
+            specializations[2 + 6].i = out_shape_col_packed.w;
+            specializations[2 + 7].i = out_shape_col_packed.h;
+            specializations[2 + 8].i = out_shape_col_packed.c;
+            specializations[2 + 9].i = out_shape_col_packed.cstep;
+
+            Mat local_size_xyz(8, 4, std::min(4, num_output / out_elempack), (void*)0);
+            if (out_shape_col_packed.dims != 0)
+            {
+                local_size_xyz.w = std::min(8, out_shape_col_packed.w);
+                local_size_xyz.h = std::min(4, out_shape_col_packed.h);
+                local_size_xyz.c = std::min(4, out_shape_col_packed.c);
+            }
+
+            int shader_type_index = -1;
+            if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_gemm;
+            if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack4_gemm;
+            if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack1to4_gemm;
+            if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack4to1_gemm;
+            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack8_gemm;
+            if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack1to8_gemm;
+            if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack8to1_gemm;
+            if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack4to8_gemm;
+            if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack8to4_gemm;
+
+            pipeline_deconvolution_gemm = new Pipeline(vkdev);
+            pipeline_deconvolution_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_deconvolution_gemm->create(shader_type_index, opt, specializations);
+        }
+
+        {
+            std::vector<vk_specialization_type> specializations(10 + 10);
+            specializations[0].i = kernel_w;
+            specializations[1].i = kernel_h;
+            specializations[2].i = dilation_w;
+            specializations[3].i = dilation_h;
+            specializations[4].i = stride_w;
+            specializations[5].i = stride_h;
+            specializations[6].i = bias_term;
+            specializations[7].i = activation_type;
+            specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations[10 + 0].i = out_shape_col_packed.dims;
+            specializations[10 + 1].i = shape_packed.w;
+            specializations[10 + 2].i = shape_packed.h;
+            specializations[10 + 3].i = out_shape_col_packed.c;
+            specializations[10 + 4].i = out_shape_col_packed.cstep;
+            specializations[10 + 5].i = out_shape_bordered_packed.dims;
+            specializations[10 + 6].i = out_shape_bordered_packed.w;
+            specializations[10 + 7].i = out_shape_bordered_packed.h;
+            specializations[10 + 8].i = out_shape_bordered_packed.c;
+            specializations[10 + 9].i = out_shape_bordered_packed.cstep;
+
+            Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
+            if (out_shape_bordered_packed.dims != 0)
+            {
+                local_size_xyz.w = std::min(8, out_shape_bordered_packed.w);
+                local_size_xyz.h = std::min(8, out_shape_bordered_packed.h);
+                local_size_xyz.c = std::min(4, out_shape_bordered_packed.c);
+            }
+
+            int shader_type_index = -1;
+            if (out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_col2im;
+            if (out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack4_col2im;
+            if (out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack8_col2im;
+
+            pipeline_deconvolution_col2im = new Pipeline(vkdev);
+            pipeline_deconvolution_col2im->set_optimal_local_size_xyz(local_size_xyz);
+            pipeline_deconvolution_col2im->create(shader_type_index, opt, specializations);
+        }
+
+        return 0;
+    }
+
     std::vector<vk_specialization_type> specializations(10 + 10);
     specializations[0].i = kernel_w;
     specializations[1].i = kernel_h;
@@ -174,77 +269,20 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         local_size_xyz.c = std::min(4, out_shape_bordered_packed.c);
     }
 
-    // pack1
-    if (elempack == 1 && out_elempack == 1)
-    {
-        pipeline_deconvolution = new Pipeline(vkdev);
-        pipeline_deconvolution->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution->create(LayerShaderType::deconvolution, opt, specializations);
-    }
+    int shader_type_index = -1;
+    if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution;
+    if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack4;
+    if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack1to4;
+    if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack4to1;
+    if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack8;
+    if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack1to8;
+    if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::deconvolution_pack8to1;
+    if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::deconvolution_pack4to8;
+    if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack8to4;
 
-    // pack4
-    if (elempack == 4 && out_elempack == 4)
-    {
-        pipeline_deconvolution_pack4 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack4->create(LayerShaderType::deconvolution_pack4, opt, specializations);
-    }
-
-    // pack1to4
-    if (elempack == 1 && out_elempack == 4)
-    {
-        pipeline_deconvolution_pack1to4 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack1to4->create(LayerShaderType::deconvolution_pack1to4, opt, specializations);
-    }
-
-    // pack4to1
-    if (elempack == 4 && out_elempack == 1)
-    {
-        pipeline_deconvolution_pack4to1 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack4to1->create(LayerShaderType::deconvolution_pack4to1, opt, specializations);
-    }
-
-    // pack8
-    if (elempack == 8 && out_elempack == 8)
-    {
-        pipeline_deconvolution_pack8 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack8->create(LayerShaderType::deconvolution_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline_deconvolution_pack1to8 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack1to8->create(LayerShaderType::deconvolution_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if (elempack == 4 && out_elempack == 8)
-    {
-        pipeline_deconvolution_pack4to8 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack4to8->create(LayerShaderType::deconvolution_pack4to8, opt, specializations);
-    }
-
-    // pack8to4
-    if (elempack == 8 && out_elempack == 4)
-    {
-        pipeline_deconvolution_pack8to4 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack8to4->create(LayerShaderType::deconvolution_pack8to4, opt, specializations);
-    }
-
-    // pack8to1
-    if (elempack == 8 && out_elempack == 1)
-    {
-        pipeline_deconvolution_pack8to1 = new Pipeline(vkdev);
-        pipeline_deconvolution_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_deconvolution_pack8to1->create(LayerShaderType::deconvolution_pack8to1, opt, specializations);
-    }
+    pipeline_deconvolution = new Pipeline(vkdev);
+    pipeline_deconvolution->set_optimal_local_size_xyz(local_size_xyz);
+    pipeline_deconvolution->create(shader_type_index, opt, specializations);
 
     return 0;
 }
@@ -268,29 +306,11 @@ int Deconvolution_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_deconvolution;
     pipeline_deconvolution = 0;
 
-    delete pipeline_deconvolution_pack4;
-    pipeline_deconvolution_pack4 = 0;
+    delete pipeline_deconvolution_gemm;
+    pipeline_deconvolution_gemm = 0;
 
-    delete pipeline_deconvolution_pack1to4;
-    pipeline_deconvolution_pack1to4 = 0;
-
-    delete pipeline_deconvolution_pack4to1;
-    pipeline_deconvolution_pack4to1 = 0;
-
-    delete pipeline_deconvolution_pack8;
-    pipeline_deconvolution_pack8 = 0;
-
-    delete pipeline_deconvolution_pack1to8;
-    pipeline_deconvolution_pack1to8 = 0;
-
-    delete pipeline_deconvolution_pack4to8;
-    pipeline_deconvolution_pack4to8 = 0;
-
-    delete pipeline_deconvolution_pack8to4;
-    pipeline_deconvolution_pack8to4 = 0;
-
-    delete pipeline_deconvolution_pack8to1;
-    pipeline_deconvolution_pack8to1 = 0;
+    delete pipeline_deconvolution_col2im;
+    pipeline_deconvolution_col2im = 0;
 
     return 0;
 }
@@ -314,6 +334,11 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     int out_elempack = opt.use_shader_pack8 && num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 
     Mat weight_data_transposed(weight_data.w);
+    if (opt.use_sgemm_convolution)
+    {
+        weight_data_transposed = weight_data;
+    }
+    else
     {
         float* pt = weight_data_transposed;
         const float* p = weight_data;
@@ -414,74 +439,108 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
     }
 
     VkMat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (opt.use_sgemm_convolution)
     {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+        const int maxk = kernel_w * kernel_h;
+
+        // gemm
+        VkMat top_blob_col;
+        {
+            top_blob_col.create(w * h, maxk, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            if (top_blob_col.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(3);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob_col;
+            bindings[2] = weight_data_gpu;
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = bottom_blob.cstep;
+            constants[5].i = top_blob_col.dims;
+            constants[6].i = top_blob_col.w;
+            constants[7].i = top_blob_col.h;
+            constants[8].i = top_blob_col.c;
+            constants[9].i = top_blob_col.cstep;
+
+            VkMat dispatcher;
+            dispatcher.w = (top_blob_col.w + 3) / 4;
+            dispatcher.h = top_blob_col.h;
+            dispatcher.c = top_blob_col.c;
+
+            cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
+        }
+
+        // col2im
+        {
+            if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+            {
+                top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            }
+            else
+            {
+                top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            }
+            if (top_blob_bordered.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(3);
+            bindings[0] = top_blob_col;
+            bindings[1] = top_blob_bordered;
+            bindings[2] = bias_data_gpu;
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = top_blob_col.dims;
+            constants[1].i = w;
+            constants[2].i = h;
+            constants[3].i = top_blob_col.c;
+            constants[4].i = top_blob_col.cstep;
+            constants[5].i = top_blob_bordered.dims;
+            constants[6].i = top_blob_bordered.w;
+            constants[7].i = top_blob_bordered.h;
+            constants[8].i = top_blob_bordered.c;
+            constants[9].i = top_blob_bordered.cstep;
+
+            cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered);
+        }
     }
     else
     {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-    }
-    if (top_blob_bordered.empty())
-        return -100;
+        if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+        {
+            top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+        }
+        else
+        {
+            top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (top_blob_bordered.empty())
+            return -100;
 
-    std::vector<VkMat> bindings(4);
-    bindings[0] = bottom_blob;
-    bindings[1] = top_blob_bordered;
-    bindings[2] = weight_data_gpu;
-    bindings[3] = bias_data_gpu;
+        std::vector<VkMat> bindings(4);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob_bordered;
+        bindings[2] = weight_data_gpu;
+        bindings[3] = bias_data_gpu;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = bottom_blob.cstep;
-    constants[5].i = top_blob_bordered.dims;
-    constants[6].i = top_blob_bordered.w;
-    constants[7].i = top_blob_bordered.h;
-    constants[8].i = top_blob_bordered.c;
-    constants[9].i = top_blob_bordered.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = bottom_blob.cstep;
+        constants[5].i = top_blob_bordered.dims;
+        constants[6].i = top_blob_bordered.w;
+        constants[7].i = top_blob_bordered.h;
+        constants[8].i = top_blob_bordered.c;
+        constants[9].i = top_blob_bordered.cstep;
 
-    const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1)
-    {
-        pipeline = pipeline_deconvolution;
+        cmd.record_pipeline(pipeline_deconvolution, bindings, constants, top_blob_bordered);
     }
-    else if (elempack == 4 && out_elempack == 4)
-    {
-        pipeline = pipeline_deconvolution_pack4;
-    }
-    else if (elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_deconvolution_pack1to4;
-    }
-    else if (elempack == 4 && out_elempack == 1)
-    {
-        pipeline = pipeline_deconvolution_pack4to1;
-    }
-    else if (elempack == 8 && out_elempack == 8)
-    {
-        pipeline = pipeline_deconvolution_pack8;
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_deconvolution_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_deconvolution_pack4to8;
-    }
-    else if (elempack == 8 && out_elempack == 4)
-    {
-        pipeline = pipeline_deconvolution_pack8to4;
-    }
-    else if (elempack == 8 && out_elempack == 1)
-    {
-        pipeline = pipeline_deconvolution_pack8to1;
-    }
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
 
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
@@ -578,74 +637,108 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
     }
 
     VkImageMat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (opt.use_sgemm_convolution)
     {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+        const int maxk = kernel_w * kernel_h;
+
+        // gemm
+        VkImageMat top_blob_col;
+        {
+            top_blob_col.create(w * h, maxk, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            if (top_blob_col.empty())
+                return -100;
+
+            std::vector<VkImageMat> bindings(3);
+            bindings[0] = bottom_blob;
+            bindings[1] = top_blob_col;
+            bindings[2] = weight_data_gpu_image;
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = bottom_blob.dims;
+            constants[1].i = bottom_blob.w;
+            constants[2].i = bottom_blob.h;
+            constants[3].i = bottom_blob.c;
+            constants[4].i = 0; //bottom_blob.cstep;
+            constants[5].i = top_blob_col.dims;
+            constants[6].i = top_blob_col.w;
+            constants[7].i = top_blob_col.h;
+            constants[8].i = top_blob_col.c;
+            constants[9].i = 0; //top_blob_col.cstep;
+
+            VkImageMat dispatcher;
+            dispatcher.w = (top_blob_col.w + 3) / 4;
+            dispatcher.h = top_blob_col.h;
+            dispatcher.c = top_blob_col.c;
+
+            cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
+        }
+
+        // col2im
+        {
+            if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+            {
+                top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            }
+            else
+            {
+                top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            }
+            if (top_blob_bordered.empty())
+                return -100;
+
+            std::vector<VkImageMat> bindings(3);
+            bindings[0] = top_blob_col;
+            bindings[1] = top_blob_bordered;
+            bindings[2] = bias_data_gpu_image;
+
+            std::vector<vk_constant_type> constants(10);
+            constants[0].i = top_blob_col.dims;
+            constants[1].i = w;
+            constants[2].i = h;
+            constants[3].i = top_blob_col.c;
+            constants[4].i = 0; //top_blob_col.cstep;
+            constants[5].i = top_blob_bordered.dims;
+            constants[6].i = top_blob_bordered.w;
+            constants[7].i = top_blob_bordered.h;
+            constants[8].i = top_blob_bordered.c;
+            constants[9].i = 0; //top_blob_bordered.cstep;
+
+            cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered);
+        }
     }
     else
     {
-        top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-    }
-    if (top_blob_bordered.empty())
-        return -100;
+        if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
+        {
+            top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+        }
+        else
+        {
+            top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        }
+        if (top_blob_bordered.empty())
+            return -100;
 
-    std::vector<VkImageMat> bindings(4);
-    bindings[0] = bottom_blob;
-    bindings[1] = top_blob_bordered;
-    bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_data_gpu_image;
+        std::vector<VkImageMat> bindings(4);
+        bindings[0] = bottom_blob;
+        bindings[1] = top_blob_bordered;
+        bindings[2] = weight_data_gpu_image;
+        bindings[3] = bias_data_gpu_image;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob.dims;
-    constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
-    constants[3].i = bottom_blob.c;
-    constants[4].i = 0; //bottom_blob.cstep;
-    constants[5].i = top_blob_bordered.dims;
-    constants[6].i = top_blob_bordered.w;
-    constants[7].i = top_blob_bordered.h;
-    constants[8].i = top_blob_bordered.c;
-    constants[9].i = 0; //top_blob_bordered.cstep;
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob.dims;
+        constants[1].i = bottom_blob.w;
+        constants[2].i = bottom_blob.h;
+        constants[3].i = bottom_blob.c;
+        constants[4].i = 0; //bottom_blob.cstep;
+        constants[5].i = top_blob_bordered.dims;
+        constants[6].i = top_blob_bordered.w;
+        constants[7].i = top_blob_bordered.h;
+        constants[8].i = top_blob_bordered.c;
+        constants[9].i = 0; //top_blob_bordered.cstep;
 
-    const Pipeline* pipeline = 0;
-    if (elempack == 1 && out_elempack == 1)
-    {
-        pipeline = pipeline_deconvolution;
+        cmd.record_pipeline(pipeline_deconvolution, bindings, constants, top_blob_bordered);
     }
-    else if (elempack == 4 && out_elempack == 4)
-    {
-        pipeline = pipeline_deconvolution_pack4;
-    }
-    else if (elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_deconvolution_pack1to4;
-    }
-    else if (elempack == 4 && out_elempack == 1)
-    {
-        pipeline = pipeline_deconvolution_pack4to1;
-    }
-    else if (elempack == 8 && out_elempack == 8)
-    {
-        pipeline = pipeline_deconvolution_pack8;
-    }
-    else if (elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_deconvolution_pack1to8;
-    }
-    else if (elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_deconvolution_pack4to8;
-    }
-    else if (elempack == 8 && out_elempack == 4)
-    {
-        pipeline = pipeline_deconvolution_pack8to4;
-    }
-    else if (elempack == 8 && out_elempack == 1)
-    {
-        pipeline = pipeline_deconvolution_pack8to1;
-    }
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob_bordered);
 
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
