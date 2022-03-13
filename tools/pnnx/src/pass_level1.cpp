@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include <torch/csrc/jit/passes/quantization/helper.h>
+#include <torch/csrc/api/include/torch/version.h>
 
 #include "pass_level1.h"
 
@@ -242,7 +243,11 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
                 op->name = wrapped_name;
 
+#if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
+                ow->write(op, toGraphFunction(function).graph(), sub_mod);
+#else
                 ow->write(op, function.graph(), sub_mod);
+#endif
 
                 break;
             }
