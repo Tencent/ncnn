@@ -21,6 +21,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
 layout (constant_id = 0) const int kernel_w = 1;
 layout (constant_id = 1) const int kernel_h = 1;
 layout (constant_id = 2) const int bias_term = 0;
@@ -60,13 +62,20 @@ layout (push_constant) uniform parameter
     int outcstep;
 } p;
 
+#if NCNN_shader_local_memory
+shared afpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared afpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
+#endif
+
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
 
+#if !NCNN_shader_local_memory
     if (gx >= psc(w) || gy >= psc(outc))
         return;
+#endif
 
     afpvec4 sum0;
     afpvec4 sum1;
@@ -120,6 +129,100 @@ void main()
     int v_offset = gx;
     int w_offset = gy * psc(h) * 4;
 
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int z = 0;
+    for (; z + (LOCAL_MEMORY_UNROLL_INCH - 1) < psc(h); z += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_v[lx][z4][ly] = buffer_ld4(col_blob_data, v_offset + z4 * psc(w) + ly);
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_k[ly][z4][lx] = buffer_ld4(weight_data, w_offset + z4 * 4 + lx);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        {
+            afpvec4 v0 = tmp_v[lx][z4][0];
+            afpvec4 v1 = tmp_v[lx][z4][1];
+            afpvec4 v2 = tmp_v[lx][z4][2];
+            afpvec4 v3 = tmp_v[lx][z4][3];
+
+            afpvec4 k0 = tmp_k[ly][z4][0];
+            afpvec4 k1 = tmp_k[ly][z4][1];
+            afpvec4 k2 = tmp_k[ly][z4][2];
+            afpvec4 k3 = tmp_k[ly][z4][3];
+
+            afpmat4 k = afpmat4(k0, k1, k2, k3);
+
+            sum0 += v0 * k;
+            sum1 += v1 * k;
+            sum2 += v2 * k;
+            sum3 += v3 * k;
+        }
+
+        v_offset += LOCAL_MEMORY_UNROLL_INCH * psc(w);
+        w_offset += LOCAL_MEMORY_UNROLL_INCH * 4;
+
+        barrier();
+    }
+
+    if (z < psc(h))
+    {
+        const int remain = psc(h) - z;
+
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_v[lx][z4][ly] = buffer_ld4(col_blob_data, v_offset + z4 * psc(w) + ly);
+            }
+        }
+
+        if (lx < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_k[ly][z4][lx] = buffer_ld4(weight_data, w_offset + z4 * 4 + lx);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < remain; z4++)
+        {
+            afpvec4 v0 = tmp_v[lx][z4][0];
+            afpvec4 v1 = tmp_v[lx][z4][1];
+            afpvec4 v2 = tmp_v[lx][z4][2];
+            afpvec4 v3 = tmp_v[lx][z4][3];
+
+            afpvec4 k0 = tmp_k[ly][z4][0];
+            afpvec4 k1 = tmp_k[ly][z4][1];
+            afpvec4 k2 = tmp_k[ly][z4][2];
+            afpvec4 k3 = tmp_k[ly][z4][3];
+
+            afpmat4 k = afpmat4(k0, k1, k2, k3);
+
+            sum0 += v0 * k;
+            sum1 += v1 * k;
+            sum2 += v2 * k;
+            sum3 += v3 * k;
+        }
+    }
+#else
     for (int z = 0; z < psc(h); z++)
     {
         afpvec4 v0 = buffer_ld4(col_blob_data, v_offset + 0);
@@ -142,6 +245,12 @@ void main()
         v_offset += psc(w);
         w_offset += 4;
     }
+#endif
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= psc(w) || gy >= psc(outc))
+        return;
 #endif
 
     if (activation_type == 1)

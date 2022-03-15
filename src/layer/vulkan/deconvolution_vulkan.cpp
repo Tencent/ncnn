@@ -185,7 +185,14 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack8to4_gemm;
 
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
-            pipeline_deconvolution_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            if (opt.use_shader_local_memory)
+            {
+                pipeline_deconvolution_gemm->set_local_size_xyz(8, 8, 1);
+            }
+            else
+            {
+                pipeline_deconvolution_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            }
             pipeline_deconvolution_gemm->create(shader_type_index, opt, specializations);
         }
 
