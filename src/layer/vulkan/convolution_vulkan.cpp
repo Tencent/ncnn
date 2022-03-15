@@ -986,19 +986,19 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
                 {
                     for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
                     {
-                            for (int i = 0; i < out_elempack; i++)
+                        for (int i = 0; i < out_elempack; i++)
+                        {
+                            const Mat k0 = weight_data_tm.channel(q + i);
+
+                            for (int j = 0; j < elempack; j++)
                             {
-                                const Mat k0 = weight_data_tm.channel(q + i);
+                                const float* k00 = k0.row(p + j);
 
-                                for (int j = 0; j < elempack; j++)
-                                {
-                                    const float* k00 = k0.row(p + j);
+                                g00[0] = k00[k];
 
-                                    g00[0] = k00[k];
-
-                                    g00++;
-                                }
+                                g00++;
                             }
+                        }
                     }
                 }
             }
