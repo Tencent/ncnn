@@ -66,100 +66,6 @@ static void deconv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                 {
                     float32x4_t _v = vld1q_f32(r0);
 
-#if 0 // bad compiler generate slow instructions :( \
-// 0
-                    float32x4_t _out00 = vld1q_f32(outptr0 + 0);
-                    _out00 = vmlaq_lane_f32(_out00, _v, vget_low_f32(_k0), 0);
-
-                    float32x4_t _out01 = vmulq_lane_f32(_v, vget_low_f32(_k0), 1);
-
-                    // ext
-                    float32x4_t _zero_out01 = vdupq_n_f32(0.f);
-                    _zero_out01 = vextq_f32(_zero_out01, _out01, 3);
-                    _out00 = vaddq_f32(_out00, _zero_out01);
-
-                    //
-                    float32x2_t _out00low = vget_low_f32(_out00);
-                    float32x2_t _out00high = vget_high_f32(_out00);
-
-                    _out00high = vmla_lane_f32(_out00high, vget_low_f32(_v), vget_high_f32(_k0), 0);
-
-                    _out00 = vcombine_f32(_out00low, _out00high);
-
-                    vst1q_f32(outptr0 + 0, _out00);
-
-                    //
-                    float32x2_t _out02high = vld1_f32(outptr0 + 4);
-
-                    float32x2_t _out01_zero = vext_f32(vget_high_f32(_out01), vget_low_f32(_zero_out01), 1);
-                    _out02high = vadd_f32(_out02high, _out01_zero);
-
-                    _out02high = vmla_lane_f32(_out02high, vget_high_f32(_v), vget_high_f32(_k0), 0);
-
-                    vst1_f32(outptr0 + 4, _out02high);
-
-                    // 1
-                    float32x4_t _out10 = vld1q_f32(outptr1 + 0);
-                    _out10 = vmlaq_lane_f32(_out10, _v, vget_low_f32(_k1), 0);
-
-                    float32x4_t _out11 = vmulq_lane_f32(_v, vget_low_f32(_k1), 1);
-
-                    // ext
-                    float32x4_t _zero_out11 = vdupq_n_f32(0.f);
-                    _zero_out11 = vextq_f32(_zero_out11, _out11, 3);
-                    _out10 = vaddq_f32(_out10, _zero_out11);
-
-                    //
-                    float32x2_t _out10low = vget_low_f32(_out10);
-                    float32x2_t _out10high = vget_high_f32(_out10);
-
-                    _out10high = vmla_lane_f32(_out10high, vget_low_f32(_v), vget_high_f32(_k1), 0);
-
-                    _out10 = vcombine_f32(_out10low, _out10high);
-
-                    vst1q_f32(outptr1 + 0, _out10);
-
-                    //
-                    float32x2_t _out12high = vld1_f32(outptr1 + 4);
-
-                    float32x2_t _out11_zero = vext_f32(vget_high_f32(_out11), vget_low_f32(_zero_out11), 1);
-                    _out12high = vadd_f32(_out12high, _out11_zero);
-
-                    _out12high = vmla_lane_f32(_out12high, vget_high_f32(_v), vget_high_f32(_k1), 0);
-
-                    vst1_f32(outptr1 + 4, _out12high);
-
-                    // 2
-                    float32x4_t _out20 = vld1q_f32(outptr2 + 0);
-                    _out20 = vmlaq_lane_f32(_out20, _v, vget_low_f32(_k2), 0);
-
-                    float32x4_t _out21 = vmulq_lane_f32(_v, vget_low_f32(_k2), 1);
-
-                    // ext
-                    float32x4_t _zero_out21 = vdupq_n_f32(0.f);
-                    _zero_out21 = vextq_f32(_zero_out21, _out21, 3);
-                    _out20 = vaddq_f32(_out20, _zero_out21);
-
-                    //
-                    float32x2_t _out20low = vget_low_f32(_out20);
-                    float32x2_t _out20high = vget_high_f32(_out20);
-
-                    _out20high = vmla_lane_f32(_out20high, vget_low_f32(_v), vget_high_f32(_k2), 0);
-
-                    _out20 = vcombine_f32(_out20low, _out20high);
-
-                    vst1q_f32(outptr2 + 0, _out20);
-
-                    //
-                    float32x2_t _out22high = vld1_f32(outptr2 + 4);
-
-                    float32x2_t _out21_zero = vext_f32(vget_high_f32(_out21), vget_low_f32(_zero_out21), 1);
-                    _out22high = vadd_f32(_out22high, _out21_zero);
-
-                    _out22high = vmla_lane_f32(_out22high, vget_high_f32(_v), vget_high_f32(_k2), 0);
-
-                    vst1_f32(outptr2 + 4, _out22high);
-#else
                     //
                     float32x4_t _out00 = vld1q_f32(outptr0 + 0);
                     _out00 = vmlaq_lane_f32(_out00, _v, vget_low_f32(_k0), 0);
@@ -198,7 +104,6 @@ static void deconv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _
                     float32x4_t _out22 = vld1q_f32(outptr2 + 2);
                     _out22 = vmlaq_lane_f32(_out22, _v, vget_high_f32(_k2), 0);
                     vst1q_f32(outptr2 + 2, _out22);
-#endif
 
                     r0 += 4;
                     outptr0 += 4;
