@@ -3546,6 +3546,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         }
     }
 
+    if (opt.use_shader_local_memory)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_shader_local_memory", "1"));
+    }
+
     std::string preamble;
     std::vector<std::string> processes;
 

@@ -180,16 +180,16 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             block_y = outh_bordered / 4;
 
             shape_winograd_bordered = Mat(w_bordered, h_bordered, shape.c, (void*)0);
-            shape_winograd_input_transformed = Mat(36, block_x * block_y, shape.c, (void*)0);
-            shape_winograd_gemm = Mat(36, block_x * block_y, out_shape.c, (void*)0);
+            shape_winograd_input_transformed = Mat(block_x * block_y, shape.c, 36, (void*)0);
+            shape_winograd_gemm = Mat(block_x * block_y, out_shape.c, 36, (void*)0);
             shape_winograd_out_bordered = Mat(outw_bordered, outh_bordered, out_shape.c, (void*)0);
         }
 
         if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
 
-        if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h, shape_winograd_input_transformed.c / elempack, (void*)0, elemsize, elempack);
+        if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h / elempack, 36, (void*)0, elemsize, elempack);
 
-        if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h, shape_winograd_gemm.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+        if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h / out_elempack, 36, (void*)0, out_elemsize, out_elempack);
 
         if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
@@ -203,7 +203,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             opt.use_image_storage = false;
         }
 
-        Mat weight_data_packed_tm(36, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+        Mat weight_data_packed_tm(num_input / elempack, num_output / out_elempack, 36, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
         if (!vkdev->shape_support_image_storage(weight_data_packed_tm))
         {
             support_image_storage = false;
@@ -231,16 +231,16 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             block_y = outh_bordered / 2;
 
             shape_winograd_bordered = Mat(w_bordered, h_bordered, shape.c, (void*)0);
-            shape_winograd_input_transformed = Mat(16, block_x * block_y, shape.c, (void*)0);
-            shape_winograd_gemm = Mat(16, block_x * block_y, out_shape.c, (void*)0);
+            shape_winograd_input_transformed = Mat(block_x * block_y, shape.c, 16, (void*)0);
+            shape_winograd_gemm = Mat(block_x * block_y, out_shape.c, 16, (void*)0);
             shape_winograd_out_bordered = Mat(outw_bordered, outh_bordered, out_shape.c, (void*)0);
         }
 
         if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
 
-        if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h, shape_winograd_input_transformed.c / elempack, (void*)0, elemsize, elempack);
+        if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h / elempack, 16, (void*)0, elemsize, elempack);
 
-        if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h, shape_winograd_gemm.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+        if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h / out_elempack, 16, (void*)0, out_elemsize, out_elempack);
 
         if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
@@ -254,7 +254,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             opt.use_image_storage = false;
         }
 
-        Mat weight_data_packed_tm(16, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+        Mat weight_data_packed_tm(num_input / elempack, num_output / out_elempack, 16, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
         if (!vkdev->shape_support_image_storage(weight_data_packed_tm))
         {
             support_image_storage = false;
@@ -363,7 +363,14 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_1x1s1d1;
 
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
-        pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / out_elempack));
+        if (opt.use_shader_local_memory)
+        {
+            pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 1, 8);
+        }
+        else
+        {
+            pipeline_convolution_1x1s1d1->set_local_size_xyz(8, 1, std::min(8, num_output / out_elempack));
+        }
         pipeline_convolution_1x1s1d1->create(shader_type_index, opt, specializations);
     }
     else if (opt.use_winograd_convolution && is_conv3x3s1d1 && num_input >= 32 && num_output >= 32 && ((elempack == 4 && out_elempack == 4) || (elempack == 8 && out_elempack == 8)))
@@ -433,19 +440,27 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         {
-            std::vector<vk_specialization_type> specializations(0 + 5);
-            specializations[0 + 0].i = shape_winograd_input_transformed_packed.c;
-            specializations[0 + 1].i = shape_winograd_input_transformed_packed.cstep;
-            specializations[0 + 2].i = shape_winograd_gemm_packed.h;
-            specializations[0 + 3].i = shape_winograd_gemm_packed.c;
-            specializations[0 + 4].i = shape_winograd_gemm_packed.cstep;
+            std::vector<vk_specialization_type> specializations(1 + 5);
+            specializations[0].i = 36;
+            specializations[1 + 0].i = shape_winograd_input_transformed_packed.h;
+            specializations[1 + 1].i = shape_winograd_input_transformed_packed.cstep;
+            specializations[1 + 2].i = shape_winograd_gemm_packed.w;
+            specializations[1 + 3].i = shape_winograd_gemm_packed.h;
+            specializations[1 + 4].i = shape_winograd_gemm_packed.cstep;
 
             int shader_type_index = -1;
-            if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_gemm;
-            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd43_gemm;
+            if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm;
+            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd_gemm;
 
             pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
-            pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(4, 4, std::min(4, num_output / out_elempack));
+            if (opt.use_shader_local_memory)
+            {
+                pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(8, 8, 1);
+            }
+            else
+            {
+                pipeline_convolution_3x3s1d1_winograd43_gemm->set_local_size_xyz(4, std::min(4, num_output / out_elempack), 4);
+            }
             pipeline_convolution_3x3s1d1_winograd43_gemm->create(shader_type_index, opt, specializations);
         }
 
@@ -539,19 +554,27 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         {
-            std::vector<vk_specialization_type> specializations(0 + 5);
-            specializations[0 + 0].i = shape_winograd_input_transformed_packed.c;
-            specializations[0 + 1].i = shape_winograd_input_transformed_packed.cstep;
-            specializations[0 + 2].i = shape_winograd_gemm_packed.h;
-            specializations[0 + 3].i = shape_winograd_gemm_packed.c;
-            specializations[0 + 4].i = shape_winograd_gemm_packed.cstep;
+            std::vector<vk_specialization_type> specializations(1 + 5);
+            specializations[0].i = 16;
+            specializations[1 + 0].i = shape_winograd_input_transformed_packed.h;
+            specializations[1 + 1].i = shape_winograd_input_transformed_packed.cstep;
+            specializations[1 + 2].i = shape_winograd_gemm_packed.w;
+            specializations[1 + 3].i = shape_winograd_gemm_packed.h;
+            specializations[1 + 4].i = shape_winograd_gemm_packed.cstep;
 
             int shader_type_index = -1;
-            if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd23_gemm;
-            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd23_gemm;
+            if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm;
+            if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd_gemm;
 
             pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
-            pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, 4, std::min(4, num_output / out_elempack));
+            if (opt.use_shader_local_memory)
+            {
+                pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(8, 8, 1);
+            }
+            else
+            {
+                pipeline_convolution_3x3s1d1_winograd23_gemm->set_local_size_xyz(4, std::min(4, num_output / out_elempack), 4);
+            }
             pipeline_convolution_3x3s1d1_winograd23_gemm->create(shader_type_index, opt, specializations);
         }
 
@@ -561,7 +584,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             specializations[1].i = activation_type;
             specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-            specializations[4 + 0].i = shape_winograd_gemm_packed.c;
+            specializations[4 + 0].i = shape_winograd_gemm_packed.h;
             specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
             specializations[4 + 2].i = block_x;
             specializations[4 + 3].i = block_y;
@@ -860,18 +883,18 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
 
         // src = 36-inch-outch
-        // dst = 8a-8b-36-inch/8a-outch/8b
+        // dst = 8a-8b-inch/8a-outch/8b-36
         Mat weight_data_tm_packed;
         {
-            weight_data_tm_packed.create(36, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+            weight_data_tm_packed.create(num_input / elempack, num_output / out_elempack, 36, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
 
-            for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+            for (int k = 0; k < 36; k++)
             {
-                float* g00 = weight_data_tm_packed.channel(q / out_elempack);
+                float* g00 = weight_data_tm_packed.channel(k);
 
-                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
                 {
-                    for (int k = 0; k < 36; k++)
+                    for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
                     {
                         for (int i = 0; i < out_elempack; i++)
                         {
@@ -950,32 +973,32 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
 
         // src = 16-inch-outch
-        // dst = 8a-8b-16-inch/8a-outch/8b
+        // dst = 8a-8b-inch/8a-outch/8b-16
         Mat weight_data_tm_packed;
         {
-            weight_data_tm_packed.create(16, num_input / elempack, num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+            weight_data_tm_packed.create(num_input / elempack, num_output / out_elempack, 16, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
 
-            for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+            for (int k = 0; k < 16; k++)
             {
-                float* g00 = weight_data_tm_packed.channel(q / out_elempack);
+                float* g00 = weight_data_tm_packed.channel(k);
 
-                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
                 {
-                    for (int k = 0; k < 16; k++)
+                    for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
                     {
-                        for (int i = 0; i < out_elempack; i++)
-                        {
-                            const Mat k0 = weight_data_tm.channel(q + i);
-
-                            for (int j = 0; j < elempack; j++)
+                            for (int i = 0; i < out_elempack; i++)
                             {
-                                const float* k00 = k0.row(p + j);
+                                const Mat k0 = weight_data_tm.channel(q + i);
 
-                                g00[0] = k00[k];
+                                for (int j = 0; j < elempack; j++)
+                                {
+                                    const float* k00 = k0.row(p + j);
 
-                                g00++;
+                                    g00[0] = k00[k];
+
+                                    g00++;
+                                }
                             }
-                        }
                     }
                 }
             }
@@ -1156,7 +1179,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // transform input
         VkMat bottom_tm_blob;
         {
-            bottom_tm_blob.create(36, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator);
+            bottom_tm_blob.create(block_x * block_y, channels, 36, elemsize, elempack, opt.workspace_vkallocator);
             if (bottom_tm_blob.empty())
                 return -100;
 
@@ -1176,7 +1199,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             VkMat dispatcher;
             dispatcher.w = block_x;
             dispatcher.h = block_y;
-            dispatcher.c = bottom_tm_blob.c;
+            dispatcher.c = bottom_tm_blob.h;
 
             cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_input, bindings, constants, dispatcher);
         }
@@ -1184,7 +1207,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // gemm
         VkMat top_tm_blob;
         {
-            top_tm_blob.create(36, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            top_tm_blob.create(block_x * block_y, num_output / out_elempack, 36, out_elemsize, out_elempack, opt.workspace_vkallocator);
             if (top_tm_blob.empty())
                 return -100;
 
@@ -1194,16 +1217,16 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             bindings[2] = weight_data_gpu_tm;
 
             std::vector<vk_constant_type> constants(5);
-            constants[0].i = bottom_tm_blob.c;
+            constants[0].i = bottom_tm_blob.h;
             constants[1].i = bottom_tm_blob.cstep;
-            constants[2].i = top_tm_blob.h;
-            constants[3].i = top_tm_blob.c;
+            constants[2].i = top_tm_blob.w;
+            constants[3].i = top_tm_blob.h;
             constants[4].i = top_tm_blob.cstep;
 
             VkMat dispatcher;
-            dispatcher.w = top_tm_blob.w;
-            dispatcher.h = (top_tm_blob.h + 3) / 4;
-            dispatcher.c = top_tm_blob.c;
+            dispatcher.w = (top_tm_blob.w + 3) / 4;
+            dispatcher.h = top_tm_blob.h;
+            dispatcher.c = 36;
 
             cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_gemm, bindings, constants, dispatcher);
         }
@@ -1221,7 +1244,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             bindings[2] = bias_data_gpu;
 
             std::vector<vk_constant_type> constants(7);
-            constants[0].i = top_tm_blob.c;
+            constants[0].i = top_tm_blob.h;
             constants[1].i = top_tm_blob.cstep;
             constants[2].i = block_x;
             constants[3].i = block_y;
@@ -1299,7 +1322,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // transform input
         VkMat bottom_tm_blob;
         {
-            bottom_tm_blob.create(16, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator);
+            bottom_tm_blob.create(block_x * block_y, channels, 16, elemsize, elempack, opt.workspace_vkallocator);
             if (bottom_tm_blob.empty())
                 return -100;
 
@@ -1319,7 +1342,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             VkMat dispatcher;
             dispatcher.w = block_x;
             dispatcher.h = block_y;
-            dispatcher.c = bottom_tm_blob.c;
+            dispatcher.c = bottom_tm_blob.h;
 
             cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_input, bindings, constants, dispatcher);
         }
@@ -1327,7 +1350,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         // gemm
         VkMat top_tm_blob;
         {
-            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            top_tm_blob.create(block_x * block_y, num_output / out_elempack, 16, out_elemsize, out_elempack, opt.workspace_vkallocator);
             if (top_tm_blob.empty())
                 return -100;
 
@@ -1337,16 +1360,16 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             bindings[2] = weight_data_gpu_tm;
 
             std::vector<vk_constant_type> constants(5);
-            constants[0].i = bottom_tm_blob.c;
+            constants[0].i = bottom_tm_blob.h;
             constants[1].i = bottom_tm_blob.cstep;
-            constants[2].i = top_tm_blob.h;
-            constants[3].i = top_tm_blob.c;
+            constants[2].i = top_tm_blob.w;
+            constants[3].i = top_tm_blob.h;
             constants[4].i = top_tm_blob.cstep;
 
             VkMat dispatcher;
-            dispatcher.w = top_tm_blob.w;
-            dispatcher.h = (top_tm_blob.h + 3) / 4;
-            dispatcher.c = top_tm_blob.c;
+            dispatcher.w = (top_tm_blob.w + 3) / 4;
+            dispatcher.h = top_tm_blob.h;
+            dispatcher.c = 16;
 
             cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher);
         }
@@ -1364,7 +1387,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             bindings[2] = bias_data_gpu;
 
             std::vector<vk_constant_type> constants(7);
-            constants[0].i = top_tm_blob.c;
+            constants[0].i = top_tm_blob.h;
             constants[1].i = top_tm_blob.cstep;
             constants[2].i = block_x;
             constants[3].i = block_y;
@@ -1651,7 +1674,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
         // transform input
         VkImageMat bottom_tm_blob;
         {
-            bottom_tm_blob.create(36, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator);
+            bottom_tm_blob.create(block_x * block_y, channels, 36, elemsize, elempack, opt.workspace_vkallocator);
             if (bottom_tm_blob.empty())
                 return -100;
 
@@ -1671,7 +1694,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             VkImageMat dispatcher;
             dispatcher.w = block_x;
             dispatcher.h = block_y;
-            dispatcher.c = bottom_tm_blob.c;
+            dispatcher.c = bottom_tm_blob.h;
 
             cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_input, bindings, constants, dispatcher);
         }
@@ -1679,7 +1702,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
         // gemm
         VkImageMat top_tm_blob;
         {
-            top_tm_blob.create(36, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            top_tm_blob.create(block_x * block_y, num_output / out_elempack, 36, out_elemsize, out_elempack, opt.workspace_vkallocator);
             if (top_tm_blob.empty())
                 return -100;
 
@@ -1689,16 +1712,16 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             bindings[2] = weight_data_gpu_tm_image;
 
             std::vector<vk_constant_type> constants(5);
-            constants[0].i = bottom_tm_blob.c;
+            constants[0].i = bottom_tm_blob.h;
             constants[1].i = 0; //bottom_tm_blob.cstep;
-            constants[2].i = top_tm_blob.h;
-            constants[3].i = top_tm_blob.c;
+            constants[2].i = top_tm_blob.w;
+            constants[3].i = top_tm_blob.h;
             constants[4].i = 0; //top_tm_blob.cstep;
 
             VkImageMat dispatcher;
-            dispatcher.w = top_tm_blob.w;
-            dispatcher.h = (top_tm_blob.h + 3) / 4;
-            dispatcher.c = top_tm_blob.c;
+            dispatcher.w = (top_tm_blob.w + 3) / 4;
+            dispatcher.h = top_tm_blob.h;
+            dispatcher.c = 36;
 
             cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_gemm, bindings, constants, dispatcher);
         }
@@ -1716,7 +1739,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             bindings[2] = bias_data_gpu_image;
 
             std::vector<vk_constant_type> constants(7);
-            constants[0].i = top_tm_blob.c;
+            constants[0].i = top_tm_blob.h;
             constants[1].i = 0; //top_tm_blob.cstep;
             constants[2].i = block_x;
             constants[3].i = block_y;
@@ -1794,7 +1817,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
         // transform input
         VkImageMat bottom_tm_blob;
         {
-            bottom_tm_blob.create(16, block_x * block_y, channels, elemsize, elempack, opt.workspace_vkallocator);
+            bottom_tm_blob.create(block_x * block_y, channels, 16, elemsize, elempack, opt.workspace_vkallocator);
             if (bottom_tm_blob.empty())
                 return -100;
 
@@ -1814,7 +1837,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             VkImageMat dispatcher;
             dispatcher.w = block_x;
             dispatcher.h = block_y;
-            dispatcher.c = bottom_tm_blob.c;
+            dispatcher.c = bottom_tm_blob.h;
 
             cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_input, bindings, constants, dispatcher);
         }
@@ -1822,7 +1845,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
         // gemm
         VkImageMat top_tm_blob;
         {
-            top_tm_blob.create(16, block_x * block_y, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            top_tm_blob.create(block_x * block_y, num_output / out_elempack, 16, out_elemsize, out_elempack, opt.workspace_vkallocator);
             if (top_tm_blob.empty())
                 return -100;
 
@@ -1834,14 +1857,14 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             std::vector<vk_constant_type> constants(5);
             constants[0].i = bottom_tm_blob.c;
             constants[1].i = 0; //bottom_tm_blob.cstep;
-            constants[2].i = top_tm_blob.h;
-            constants[3].i = top_tm_blob.c;
+            constants[2].i = top_tm_blob.w;
+            constants[3].i = top_tm_blob.h;
             constants[4].i = 0; //top_tm_blob.cstep;
 
             VkImageMat dispatcher;
-            dispatcher.w = top_tm_blob.w;
-            dispatcher.h = (top_tm_blob.h + 3) / 4;
-            dispatcher.c = top_tm_blob.c;
+            dispatcher.w = (top_tm_blob.w + 3) / 4;
+            dispatcher.h = top_tm_blob.h;
+            dispatcher.c = 16;
 
             cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_gemm, bindings, constants, dispatcher);
         }
@@ -1859,7 +1882,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             bindings[2] = bias_data_gpu_image;
 
             std::vector<vk_constant_type> constants(7);
-            constants[0].i = top_tm_blob.c;
+            constants[0].i = top_tm_blob.h;
             constants[1].i = 0; //top_tm_blob.cstep;
             constants[2].i = block_x;
             constants[3].i = block_y;

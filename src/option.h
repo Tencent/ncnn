@@ -129,7 +129,9 @@ public:
 
     bool use_local_pool_allocator;
 
-    bool use_reserved_1;
+    // enable local memory optimization for gpu inference
+    bool use_shader_local_memory;
+
     bool use_reserved_2;
     bool use_reserved_3;
     bool use_reserved_4;
