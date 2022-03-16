@@ -75,8 +75,8 @@ layout (push_constant) uniform parameter
 } p;
 
 #if NCNN_shader_local_memory
-shared afpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
-shared afpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH][4];
 #endif
 
 void main()
@@ -160,7 +160,7 @@ void main()
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_v[lx][z4][lz] = buffer_ld4(bottom_blob_data, v_offset + z4 * psc(cstep) + lz);
+                tmp_v[lx][z4][lz] = sfp2lfpvec4(bottom_blob_data[v_offset + z4 * psc(cstep) + lz]);
             }
         }
 
@@ -168,7 +168,7 @@ void main()
         {
             for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
             {
-                tmp_k[lz][z4][lx] = buffer_ld4(weight_data, w_offset + z4 * 4 + lx);
+                tmp_k[lz][z4][lx] = sfp2lfpvec4(weight_data[w_offset + z4 * 4 + lx]);
             }
         }
 
@@ -176,15 +176,15 @@ void main()
 
         for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
         {
-            afpvec4 v0 = tmp_v[lx][z4][0];
-            afpvec4 v1 = tmp_v[lx][z4][1];
-            afpvec4 v2 = tmp_v[lx][z4][2];
-            afpvec4 v3 = tmp_v[lx][z4][3];
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
 
-            afpvec4 k0 = tmp_k[lz][z4][0];
-            afpvec4 k1 = tmp_k[lz][z4][1];
-            afpvec4 k2 = tmp_k[lz][z4][2];
-            afpvec4 k3 = tmp_k[lz][z4][3];
+            afpvec4 k0 = lfp2afpvec4(tmp_k[lz][z4][0]);
+            afpvec4 k1 = lfp2afpvec4(tmp_k[lz][z4][1]);
+            afpvec4 k2 = lfp2afpvec4(tmp_k[lz][z4][2]);
+            afpvec4 k3 = lfp2afpvec4(tmp_k[lz][z4][3]);
 
             afpmat4 k = afpmat4(k0, k1, k2, k3);
 
@@ -208,7 +208,7 @@ void main()
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_v[lx][z4][lz] = buffer_ld4(bottom_blob_data, v_offset + z4 * psc(cstep) + lz);
+                tmp_v[lx][z4][lz] = sfp2lfpvec4(bottom_blob_data[v_offset + z4 * psc(cstep) + lz]);
             }
         }
 
@@ -216,7 +216,7 @@ void main()
         {
             for (int z4 = 0; z4 < remain; z4++)
             {
-                tmp_k[lz][z4][lx] = buffer_ld4(weight_data, w_offset + z4 * 4 + lx);
+                tmp_k[lz][z4][lx] = sfp2lfpvec4(weight_data[w_offset + z4 * 4 + lx]);
             }
         }
 
@@ -224,15 +224,15 @@ void main()
 
         for (int z4 = 0; z4 < remain; z4++)
         {
-            afpvec4 v0 = tmp_v[lx][z4][0];
-            afpvec4 v1 = tmp_v[lx][z4][1];
-            afpvec4 v2 = tmp_v[lx][z4][2];
-            afpvec4 v3 = tmp_v[lx][z4][3];
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
 
-            afpvec4 k0 = tmp_k[lz][z4][0];
-            afpvec4 k1 = tmp_k[lz][z4][1];
-            afpvec4 k2 = tmp_k[lz][z4][2];
-            afpvec4 k3 = tmp_k[lz][z4][3];
+            afpvec4 k0 = lfp2afpvec4(tmp_k[lz][z4][0]);
+            afpvec4 k1 = lfp2afpvec4(tmp_k[lz][z4][1]);
+            afpvec4 k2 = lfp2afpvec4(tmp_k[lz][z4][2]);
+            afpvec4 k3 = lfp2afpvec4(tmp_k[lz][z4][3]);
 
             afpmat4 k = afpmat4(k0, k1, k2, k3);
 
