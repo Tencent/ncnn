@@ -34,17 +34,13 @@ layout (constant_id = 8) const float activation_param_0 = 0;
 layout (constant_id = 9) const float activation_param_1 = 0;
 
 #define shape_constant_id_offset 10
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D col_blob;
@@ -58,13 +54,9 @@ layout (binding = 2) readonly buffer bias_blob { sfpvec8 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
     int w;
     int h;
-    int c;
-    int cstep;
 
-    int outdims;
     int outw;
     int outh;
     int outc;
@@ -95,6 +87,8 @@ void main()
         sum = afpvec8(afpvec4(0.f), afpvec4(0.f));
     }
 
+    const int maxk = kernel_w * kernel_h;
+
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
@@ -117,9 +111,9 @@ void main()
                 w_k /= dilation_w;
 
 #if NCNN_image_shader
-                sum += image3d_ld8(col_blob, ivec3(sy * psc(w) + sx, h_k * kernel_w + w_k, gz));
+                sum += image3d_ld8(col_blob, ivec3(sy * psc(w) + sx, gz * maxk + h_k * kernel_w + w_k, 0));
 #else
-                const int gi = gz * psc(cstep) + (h_k * kernel_w + w_k) * psc(w) * psc(h) + sy * psc(w) + sx;
+                const int gi = (gz * maxk + h_k * kernel_w + w_k) * psc(w) * psc(h) + sy * psc(w) + sx;
 
                 sum += buffer_ld8(col_blob_data, gi);
 #endif

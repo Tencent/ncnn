@@ -30,17 +30,13 @@ layout (constant_id = 4) const float activation_param_0 = 0;
 layout (constant_id = 5) const float activation_param_1 = 0;
 
 #define shape_constant_id_offset 6
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D col_blob;
@@ -56,13 +52,9 @@ layout (binding = 3) readonly buffer bias_blob { sfpvec8 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
     int w;
     int h;
-    int c;
-    int cstep;
 
-    int outdims;
     int outw;
     int outh;
     int outc;
@@ -73,9 +65,8 @@ void main()
 {
     int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) * psc(outh) || gy >= 1 || gz >= psc(outc))
+    if (gx >= psc(w) || gy >= psc(outc))
         return;
 
     afpvec8 sum0;
@@ -86,9 +77,9 @@ void main()
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        sum0 = image3d_ld8(bias_blob, ivec3(gz, 0, 0));
+        sum0 = image3d_ld8(bias_blob, ivec3(gy, 0, 0));
 #else
-        sum0 = buffer_ld8(bias_data, gz);
+        sum0 = buffer_ld8(bias_data, gy);
 #endif
         sum1 = sum0;
         sum2 = sum0;
@@ -107,125 +98,118 @@ void main()
 #if NCNN_image_shader
     ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
 
-    for (int z = 0; z < psc(c); z++)
+    for (int z = 0; z < psc(h); z++)
     {
-        for (int kk = 0; kk < maxk; kk++)
-        {
-            afpvec4 v0 = image3d_ld4(col_blob, ivec3(gx4.r, kk, z));
-            afpvec4 v1 = image3d_ld4(col_blob, ivec3(gx4.g, kk, z));
-            afpvec4 v2 = image3d_ld4(col_blob, ivec3(gx4.b, kk, z));
-            afpvec4 v3 = image3d_ld4(col_blob, ivec3(gx4.a, kk, z));
+        afpvec4 v0 = image3d_ld4(col_blob, ivec3(gx4.r, z, 0));
+        afpvec4 v1 = image3d_ld4(col_blob, ivec3(gx4.g, z, 0));
+        afpvec4 v2 = image3d_ld4(col_blob, ivec3(gx4.b, z, 0));
+        afpvec4 v3 = image3d_ld4(col_blob, ivec3(gx4.a, z, 0));
 
-            afpvec4 k0 = image3d_ld4(weight_blob, ivec3(kk * 8 + 0, z, gz));
-            afpvec4 k1 = image3d_ld4(weight_blob, ivec3(kk * 8 + 1, z, gz));
-            afpvec4 k2 = image3d_ld4(weight_blob, ivec3(kk * 8 + 2, z, gz));
-            afpvec4 k3 = image3d_ld4(weight_blob, ivec3(kk * 8 + 3, z, gz));
-            afpvec4 k4 = image3d_ld4(weight_blob, ivec3(kk * 8 + 4, z, gz));
-            afpvec4 k5 = image3d_ld4(weight_blob, ivec3(kk * 8 + 5, z, gz));
-            afpvec4 k6 = image3d_ld4(weight_blob, ivec3(kk * 8 + 6, z, gz));
-            afpvec4 k7 = image3d_ld4(weight_blob, ivec3(kk * 8 + 7, z, gz));
+        afpvec4 k0 = image3d_ld4(weight_blob, ivec3(z * 8 + 0, gy, 0));
+        afpvec4 k1 = image3d_ld4(weight_blob, ivec3(z * 8 + 1, gy, 0));
+        afpvec4 k2 = image3d_ld4(weight_blob, ivec3(z * 8 + 2, gy, 0));
+        afpvec4 k3 = image3d_ld4(weight_blob, ivec3(z * 8 + 3, gy, 0));
+        afpvec4 k4 = image3d_ld4(weight_blob, ivec3(z * 8 + 4, gy, 0));
+        afpvec4 k5 = image3d_ld4(weight_blob, ivec3(z * 8 + 5, gy, 0));
+        afpvec4 k6 = image3d_ld4(weight_blob, ivec3(z * 8 + 6, gy, 0));
+        afpvec4 k7 = image3d_ld4(weight_blob, ivec3(z * 8 + 7, gy, 0));
 
-            // sum += v * k;
-            sum0[0].r += dot(v0, k0);
-            sum0[0].g += dot(v0, k1);
-            sum0[0].b += dot(v0, k2);
-            sum0[0].a += dot(v0, k3);
-            sum0[1].r += dot(v0, k4);
-            sum0[1].g += dot(v0, k5);
-            sum0[1].b += dot(v0, k6);
-            sum0[1].a += dot(v0, k7);
+        // sum += v * k;
+        sum0[0].r += dot(v0, k0);
+        sum0[0].g += dot(v0, k1);
+        sum0[0].b += dot(v0, k2);
+        sum0[0].a += dot(v0, k3);
+        sum0[1].r += dot(v0, k4);
+        sum0[1].g += dot(v0, k5);
+        sum0[1].b += dot(v0, k6);
+        sum0[1].a += dot(v0, k7);
 
-            sum1[0].r += dot(v1, k0);
-            sum1[0].g += dot(v1, k1);
-            sum1[0].b += dot(v1, k2);
-            sum1[0].a += dot(v1, k3);
-            sum1[1].r += dot(v1, k4);
-            sum1[1].g += dot(v1, k5);
-            sum1[1].b += dot(v1, k6);
-            sum1[1].a += dot(v1, k7);
+        sum1[0].r += dot(v1, k0);
+        sum1[0].g += dot(v1, k1);
+        sum1[0].b += dot(v1, k2);
+        sum1[0].a += dot(v1, k3);
+        sum1[1].r += dot(v1, k4);
+        sum1[1].g += dot(v1, k5);
+        sum1[1].b += dot(v1, k6);
+        sum1[1].a += dot(v1, k7);
 
-            sum2[0].r += dot(v2, k0);
-            sum2[0].g += dot(v2, k1);
-            sum2[0].b += dot(v2, k2);
-            sum2[0].a += dot(v2, k3);
-            sum2[1].r += dot(v2, k4);
-            sum2[1].g += dot(v2, k5);
-            sum2[1].b += dot(v2, k6);
-            sum2[1].a += dot(v2, k7);
+        sum2[0].r += dot(v2, k0);
+        sum2[0].g += dot(v2, k1);
+        sum2[0].b += dot(v2, k2);
+        sum2[0].a += dot(v2, k3);
+        sum2[1].r += dot(v2, k4);
+        sum2[1].g += dot(v2, k5);
+        sum2[1].b += dot(v2, k6);
+        sum2[1].a += dot(v2, k7);
 
-            sum3[0].r += dot(v3, k0);
-            sum3[0].g += dot(v3, k1);
-            sum3[0].b += dot(v3, k2);
-            sum3[0].a += dot(v3, k3);
-            sum3[1].r += dot(v3, k4);
-            sum3[1].g += dot(v3, k5);
-            sum3[1].b += dot(v3, k6);
-            sum3[1].a += dot(v3, k7);
-        }
+        sum3[0].r += dot(v3, k0);
+        sum3[0].g += dot(v3, k1);
+        sum3[0].b += dot(v3, k2);
+        sum3[0].a += dot(v3, k3);
+        sum3[1].r += dot(v3, k4);
+        sum3[1].g += dot(v3, k5);
+        sum3[1].b += dot(v3, k6);
+        sum3[1].a += dot(v3, k7);
     }
 #else
-    int w_offset = gz * psc(c) * maxk;
+    int v_offset = gx;
+    int w_offset = gy * psc(h) * 8;
 
-    for (int z = 0; z < psc(c); z++)
+    for (int z = 0; z < psc(h); z++)
     {
-        int v_offset = gx + z * psc(cstep);
+        afpvec4 v0 = buffer_ld4(col_blob_data, v_offset + 0);
+        afpvec4 v1 = buffer_ld4(col_blob_data, v_offset + 1);
+        afpvec4 v2 = buffer_ld4(col_blob_data, v_offset + 2);
+        afpvec4 v3 = buffer_ld4(col_blob_data, v_offset + 3);
 
-        for (int kk = 0; kk < maxk; kk++)
-        {
-            afpvec4 v0 = buffer_ld4(col_blob_data, v_offset + 0);
-            afpvec4 v1 = buffer_ld4(col_blob_data, v_offset + 1);
-            afpvec4 v2 = buffer_ld4(col_blob_data, v_offset + 2);
-            afpvec4 v3 = buffer_ld4(col_blob_data, v_offset + 3);
+        afpvec4 k0 = buffer_ld4(weight_data, w_offset + 0);
+        afpvec4 k1 = buffer_ld4(weight_data, w_offset + 1);
+        afpvec4 k2 = buffer_ld4(weight_data, w_offset + 2);
+        afpvec4 k3 = buffer_ld4(weight_data, w_offset + 3);
+        afpvec4 k4 = buffer_ld4(weight_data, w_offset + 4);
+        afpvec4 k5 = buffer_ld4(weight_data, w_offset + 5);
+        afpvec4 k6 = buffer_ld4(weight_data, w_offset + 6);
+        afpvec4 k7 = buffer_ld4(weight_data, w_offset + 7);
 
-            afpvec4 k0 = buffer_ld4(weight_data, w_offset * 8 + 0);
-            afpvec4 k1 = buffer_ld4(weight_data, w_offset * 8 + 1);
-            afpvec4 k2 = buffer_ld4(weight_data, w_offset * 8 + 2);
-            afpvec4 k3 = buffer_ld4(weight_data, w_offset * 8 + 3);
-            afpvec4 k4 = buffer_ld4(weight_data, w_offset * 8 + 4);
-            afpvec4 k5 = buffer_ld4(weight_data, w_offset * 8 + 5);
-            afpvec4 k6 = buffer_ld4(weight_data, w_offset * 8 + 6);
-            afpvec4 k7 = buffer_ld4(weight_data, w_offset * 8 + 7);
+        // sum += v * k;
+        sum0[0].r += dot(v0, k0);
+        sum0[0].g += dot(v0, k1);
+        sum0[0].b += dot(v0, k2);
+        sum0[0].a += dot(v0, k3);
+        sum0[1].r += dot(v0, k4);
+        sum0[1].g += dot(v0, k5);
+        sum0[1].b += dot(v0, k6);
+        sum0[1].a += dot(v0, k7);
 
-            // sum += v * k;
-            sum0[0].r += dot(v0, k0);
-            sum0[0].g += dot(v0, k1);
-            sum0[0].b += dot(v0, k2);
-            sum0[0].a += dot(v0, k3);
-            sum0[1].r += dot(v0, k4);
-            sum0[1].g += dot(v0, k5);
-            sum0[1].b += dot(v0, k6);
-            sum0[1].a += dot(v0, k7);
+        sum1[0].r += dot(v1, k0);
+        sum1[0].g += dot(v1, k1);
+        sum1[0].b += dot(v1, k2);
+        sum1[0].a += dot(v1, k3);
+        sum1[1].r += dot(v1, k4);
+        sum1[1].g += dot(v1, k5);
+        sum1[1].b += dot(v1, k6);
+        sum1[1].a += dot(v1, k7);
 
-            sum1[0].r += dot(v1, k0);
-            sum1[0].g += dot(v1, k1);
-            sum1[0].b += dot(v1, k2);
-            sum1[0].a += dot(v1, k3);
-            sum1[1].r += dot(v1, k4);
-            sum1[1].g += dot(v1, k5);
-            sum1[1].b += dot(v1, k6);
-            sum1[1].a += dot(v1, k7);
+        sum2[0].r += dot(v2, k0);
+        sum2[0].g += dot(v2, k1);
+        sum2[0].b += dot(v2, k2);
+        sum2[0].a += dot(v2, k3);
+        sum2[1].r += dot(v2, k4);
+        sum2[1].g += dot(v2, k5);
+        sum2[1].b += dot(v2, k6);
+        sum2[1].a += dot(v2, k7);
 
-            sum2[0].r += dot(v2, k0);
-            sum2[0].g += dot(v2, k1);
-            sum2[0].b += dot(v2, k2);
-            sum2[0].a += dot(v2, k3);
-            sum2[1].r += dot(v2, k4);
-            sum2[1].g += dot(v2, k5);
-            sum2[1].b += dot(v2, k6);
-            sum2[1].a += dot(v2, k7);
+        sum3[0].r += dot(v3, k0);
+        sum3[0].g += dot(v3, k1);
+        sum3[0].b += dot(v3, k2);
+        sum3[0].a += dot(v3, k3);
+        sum3[1].r += dot(v3, k4);
+        sum3[1].g += dot(v3, k5);
+        sum3[1].b += dot(v3, k6);
+        sum3[1].a += dot(v3, k7);
 
-            sum3[0].r += dot(v3, k0);
-            sum3[0].g += dot(v3, k1);
-            sum3[0].b += dot(v3, k2);
-            sum3[0].a += dot(v3, k3);
-            sum3[1].r += dot(v3, k4);
-            sum3[1].g += dot(v3, k5);
-            sum3[1].b += dot(v3, k6);
-            sum3[1].a += dot(v3, k7);
-
-            v_offset += psc(outw) * psc(outh);
-            w_offset += 1;
-        }
+        v_offset += psc(w);
+        w_offset += 8;
     }
 #endif
 
@@ -305,16 +289,16 @@ void main()
     ivec4 sy4 = gx4 / psc(outw);
     ivec4 sx4 = gx4 % psc(outw);
 
-    image3d_st8(top_blob, ivec3(sx4.r, sy4.r, gz), sum0);
-    image3d_st8(top_blob, ivec3(sx4.g, sy4.g, gz), sum1);
-    image3d_st8(top_blob, ivec3(sx4.b, sy4.b, gz), sum2);
-    image3d_st8(top_blob, ivec3(sx4.a, sy4.a, gz), sum3);
+    image3d_st8(top_blob, ivec3(sx4.r, sy4.r, gy), sum0);
+    image3d_st8(top_blob, ivec3(sx4.g, sy4.g, gy), sum1);
+    image3d_st8(top_blob, ivec3(sx4.b, sy4.b, gy), sum2);
+    image3d_st8(top_blob, ivec3(sx4.a, sy4.a, gy), sum3);
 #else
-    const int gi = gz * psc(outcstep) + gx;
+    const int gi = gy * psc(outcstep) + gx;
 
     buffer_st8(top_blob_data, gi, sum0);
-    if (gx + 1 < psc(outw) * psc(outh)) buffer_st8(top_blob_data, gi + 1, sum1);
-    if (gx + 2 < psc(outw) * psc(outh)) buffer_st8(top_blob_data, gi + 2, sum2);
-    if (gx + 3 < psc(outw) * psc(outh)) buffer_st8(top_blob_data, gi + 3, sum3);
+    if (gx + 1 < psc(w)) buffer_st8(top_blob_data, gi + 1, sum1);
+    if (gx + 2 < psc(w)) buffer_st8(top_blob_data, gi + 2, sum2);
+    if (gx + 3 < psc(w)) buffer_st8(top_blob_data, gi + 3, sum3);
 #endif
 }

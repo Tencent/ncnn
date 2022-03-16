@@ -144,10 +144,11 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         Mat out_shape_col;
         if (shape.dims != 0 && out_shape.dims != 0)
         {
-            out_shape_col = Mat(shape.w * shape.h, kernel_w * kernel_h, out_shape.c, (void*)0);
+            out_shape_col = Mat(shape.w * shape.h, kernel_w * kernel_h * out_shape.c, (void*)0);
         }
 
-        Mat out_shape_col_packed = Mat(out_shape_col.w, out_shape_col.h, out_shape_col.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+        Mat out_shape_col_packed;
+        if (out_shape_col.dims == 2) out_shape_col_packed = Mat(out_shape_col.w, out_shape_col.h / out_elempack, (void*)0, out_elemsize, out_elempack);
 
         // check blob shape
         if (!vkdev->shape_support_image_storage(out_shape_col_packed))
@@ -157,26 +158,19 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         {
-            std::vector<vk_specialization_type> specializations(2 + 10);
-            specializations[0].i = kernel_w;
-            specializations[1].i = kernel_h;
-            specializations[2 + 0].i = shape_packed.dims;
-            specializations[2 + 1].i = shape_packed.w;
-            specializations[2 + 2].i = shape_packed.h;
-            specializations[2 + 3].i = shape_packed.c;
-            specializations[2 + 4].i = shape_packed.cstep;
-            specializations[2 + 5].i = out_shape_col_packed.dims;
-            specializations[2 + 6].i = out_shape_col_packed.w;
-            specializations[2 + 7].i = out_shape_col_packed.h;
-            specializations[2 + 8].i = out_shape_col_packed.c;
-            specializations[2 + 9].i = out_shape_col_packed.cstep;
+            std::vector<vk_specialization_type> specializations(0 + 6);
+            specializations[0 + 0].i = shape_packed.w;
+            specializations[0 + 1].i = shape_packed.h;
+            specializations[0 + 2].i = shape_packed.c;
+            specializations[0 + 3].i = shape_packed.cstep;
+            specializations[0 + 4].i = out_shape_col_packed.w;
+            specializations[0 + 5].i = out_shape_col_packed.h;
 
-            Mat local_size_xyz(8, 4, std::min(4, num_output / out_elempack), (void*)0);
+            Mat local_size_xyz(8, std::min(4, num_output / out_elempack), 1, (void*)0);
             if (out_shape_col_packed.dims != 0)
             {
                 local_size_xyz.w = std::min(8, out_shape_col_packed.w);
                 local_size_xyz.h = std::min(4, out_shape_col_packed.h);
-                local_size_xyz.c = std::min(4, out_shape_col_packed.c);
             }
 
             int shader_type_index = -1;
@@ -191,12 +185,19 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::deconvolution_pack8to4_gemm;
 
             pipeline_deconvolution_gemm = new Pipeline(vkdev);
-            pipeline_deconvolution_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            if (opt.use_shader_local_memory)
+            {
+                pipeline_deconvolution_gemm->set_local_size_xyz(8, 8, 1);
+            }
+            else
+            {
+                pipeline_deconvolution_gemm->set_optimal_local_size_xyz(local_size_xyz);
+            }
             pipeline_deconvolution_gemm->create(shader_type_index, opt, specializations);
         }
 
         {
-            std::vector<vk_specialization_type> specializations(10 + 10);
+            std::vector<vk_specialization_type> specializations(10 + 6);
             specializations[0].i = kernel_w;
             specializations[1].i = kernel_h;
             specializations[2].i = dilation_w;
@@ -207,16 +208,12 @@ int Deconvolution_vulkan::create_pipeline(const Option& _opt)
             specializations[7].i = activation_type;
             specializations[8].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
             specializations[9].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-            specializations[10 + 0].i = out_shape_col_packed.dims;
-            specializations[10 + 1].i = shape_packed.w;
-            specializations[10 + 2].i = shape_packed.h;
-            specializations[10 + 3].i = out_shape_col_packed.c;
-            specializations[10 + 4].i = out_shape_col_packed.cstep;
-            specializations[10 + 5].i = out_shape_bordered_packed.dims;
-            specializations[10 + 6].i = out_shape_bordered_packed.w;
-            specializations[10 + 7].i = out_shape_bordered_packed.h;
-            specializations[10 + 8].i = out_shape_bordered_packed.c;
-            specializations[10 + 9].i = out_shape_bordered_packed.cstep;
+            specializations[10 + 0].i = shape_packed.w;
+            specializations[10 + 1].i = shape_packed.h;
+            specializations[10 + 2].i = out_shape_bordered_packed.w;
+            specializations[10 + 3].i = out_shape_bordered_packed.h;
+            specializations[10 + 4].i = out_shape_bordered_packed.c;
+            specializations[10 + 5].i = out_shape_bordered_packed.cstep;
 
             Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
             if (out_shape_bordered_packed.dims != 0)
@@ -357,7 +354,40 @@ int Deconvolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     // src = kw-kh-inch-outch
     // dst = pa-pb-kw-kh-inch/pa-outch/pb
+    // dst = pa-pb-inch/pa-kw-kh-outch/pb (sgemm)
     Mat weight_data_packed;
+    if (opt.use_sgemm_convolution)
+    {
+        Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
+
+        weight_data_packed.create(num_input / elempack, maxk * num_output / out_elempack, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                float* g00 = weight_data_packed.row(q / out_elempack * maxk + k);
+
+                for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+                {
+                    for (int i = 0; i < out_elempack; i++)
+                    {
+                        const Mat k0 = weight_data_r2.channel(q + i);
+
+                        for (int j = 0; j < elempack; j++)
+                        {
+                            const float* k00 = k0.row(p + j);
+
+                            g00[0] = k00[k];
+
+                            g00++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    else
     {
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
@@ -446,7 +476,7 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
         // gemm
         VkMat top_blob_col;
         {
-            top_blob_col.create(w * h, maxk, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            top_blob_col.create(w * h, maxk * num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
             if (top_blob_col.empty())
                 return -100;
 
@@ -455,22 +485,18 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             bindings[1] = top_blob_col;
             bindings[2] = weight_data_gpu;
 
-            std::vector<vk_constant_type> constants(10);
-            constants[0].i = bottom_blob.dims;
-            constants[1].i = bottom_blob.w;
-            constants[2].i = bottom_blob.h;
-            constants[3].i = bottom_blob.c;
-            constants[4].i = bottom_blob.cstep;
-            constants[5].i = top_blob_col.dims;
-            constants[6].i = top_blob_col.w;
-            constants[7].i = top_blob_col.h;
-            constants[8].i = top_blob_col.c;
-            constants[9].i = top_blob_col.cstep;
+            std::vector<vk_constant_type> constants(6);
+            constants[0].i = bottom_blob.w;
+            constants[1].i = bottom_blob.h;
+            constants[2].i = bottom_blob.c;
+            constants[3].i = bottom_blob.cstep;
+            constants[4].i = top_blob_col.w;
+            constants[5].i = top_blob_col.h;
 
             VkMat dispatcher;
             dispatcher.w = (top_blob_col.w + 3) / 4;
             dispatcher.h = top_blob_col.h;
-            dispatcher.c = top_blob_col.c;
+            dispatcher.c = 1;
 
             cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
         }
@@ -493,17 +519,13 @@ int Deconvolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkC
             bindings[1] = top_blob_bordered;
             bindings[2] = bias_data_gpu;
 
-            std::vector<vk_constant_type> constants(10);
-            constants[0].i = top_blob_col.dims;
-            constants[1].i = w;
-            constants[2].i = h;
-            constants[3].i = top_blob_col.c;
-            constants[4].i = top_blob_col.cstep;
-            constants[5].i = top_blob_bordered.dims;
-            constants[6].i = top_blob_bordered.w;
-            constants[7].i = top_blob_bordered.h;
-            constants[8].i = top_blob_bordered.c;
-            constants[9].i = top_blob_bordered.cstep;
+            std::vector<vk_constant_type> constants(6);
+            constants[0].i = w;
+            constants[1].i = h;
+            constants[2].i = top_blob_bordered.w;
+            constants[3].i = top_blob_bordered.h;
+            constants[4].i = top_blob_bordered.c;
+            constants[5].i = top_blob_bordered.cstep;
 
             cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered);
         }
@@ -644,7 +666,7 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
         // gemm
         VkImageMat top_blob_col;
         {
-            top_blob_col.create(w * h, maxk, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
+            top_blob_col.create(w * h, maxk * num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_vkallocator);
             if (top_blob_col.empty())
                 return -100;
 
@@ -653,22 +675,18 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
             bindings[1] = top_blob_col;
             bindings[2] = weight_data_gpu_image;
 
-            std::vector<vk_constant_type> constants(10);
-            constants[0].i = bottom_blob.dims;
-            constants[1].i = bottom_blob.w;
-            constants[2].i = bottom_blob.h;
-            constants[3].i = bottom_blob.c;
-            constants[4].i = 0; //bottom_blob.cstep;
-            constants[5].i = top_blob_col.dims;
-            constants[6].i = top_blob_col.w;
-            constants[7].i = top_blob_col.h;
-            constants[8].i = top_blob_col.c;
-            constants[9].i = 0; //top_blob_col.cstep;
+            std::vector<vk_constant_type> constants(6);
+            constants[0].i = bottom_blob.w;
+            constants[1].i = bottom_blob.h;
+            constants[2].i = bottom_blob.c;
+            constants[3].i = 0; // bottom_blob.cstep;
+            constants[4].i = top_blob_col.w;
+            constants[5].i = top_blob_col.h;
 
             VkImageMat dispatcher;
             dispatcher.w = (top_blob_col.w + 3) / 4;
             dispatcher.h = top_blob_col.h;
-            dispatcher.c = top_blob_col.c;
+            dispatcher.c = 1;
 
             cmd.record_pipeline(pipeline_deconvolution_gemm, bindings, constants, dispatcher);
         }
@@ -691,17 +709,13 @@ int Deconvolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top
             bindings[1] = top_blob_bordered;
             bindings[2] = bias_data_gpu_image;
 
-            std::vector<vk_constant_type> constants(10);
-            constants[0].i = top_blob_col.dims;
-            constants[1].i = w;
-            constants[2].i = h;
-            constants[3].i = top_blob_col.c;
-            constants[4].i = 0; //top_blob_col.cstep;
-            constants[5].i = top_blob_bordered.dims;
-            constants[6].i = top_blob_bordered.w;
-            constants[7].i = top_blob_bordered.h;
-            constants[8].i = top_blob_bordered.c;
-            constants[9].i = 0; //top_blob_bordered.cstep;
+            std::vector<vk_constant_type> constants(6);
+            constants[0].i = w;
+            constants[1].i = h;
+            constants[2].i = top_blob_bordered.w;
+            constants[3].i = top_blob_bordered.h;
+            constants[4].i = top_blob_bordered.c;
+            constants[5].i = 0; //top_blob_bordered.cstep;
 
             cmd.record_pipeline(pipeline_deconvolution_col2im, bindings, constants, top_blob_bordered);
         }

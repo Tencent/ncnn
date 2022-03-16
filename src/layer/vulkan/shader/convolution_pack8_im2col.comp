@@ -30,17 +30,13 @@ layout (constant_id = 4) const int stride_w = 1;
 layout (constant_id = 5) const int stride_h = 1;
 
 #define shape_constant_id_offset 6
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
@@ -52,42 +48,40 @@ layout (binding = 1) writeonly buffer col_blob { sfpvec8 col_blob_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
     int w;
     int h;
     int c;
     int cstep;
 
-    int outdims;
     int outw;
     int outh;
-    int outc;
-    int outcstep;
 } p;
 
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
     int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
 
     const int maxk = kernel_w * kernel_h;
 
-    if (gx >= psc(outw) * psc(outh) || gy >= maxk || gz >= psc(outc))
+    if (gx >= psc(outw) * psc(outh) || gy >= maxk * psc(c))
         return;
 
-    int sy = gx / psc(outw);
-    int sx = gx % psc(outw);
+    const int sy = gx / psc(outw);
+    const int sx = gx % psc(outw);
 
-    int ky = gy / kernel_w;
-    int kx = gy % kernel_w;
+    const int sz = gy / maxk;
+    const int k = gy % maxk;
+
+    const int ky = k / kernel_w;
+    const int kx = k % kernel_w;
 
 #if NCNN_image_shader
-    image3d_cp8(col_blob, ivec3(gx, gy, gz), bottom_blob, ivec3(sx * stride_w + kx * dilation_w, sy * stride_h + ky * dilation_h, gz));
+    image3d_cp8(col_blob, ivec3(gx, gy, 0), bottom_blob, ivec3(sx * stride_w + kx * dilation_w, sy * stride_h + ky * dilation_h, sz));
 #else
-    const int v_offset = gz * psc(cstep) + (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
+    const int v_offset = sz * psc(cstep) + (sy * stride_h + ky * dilation_h) * psc(w) + sx * stride_w + kx * dilation_w;
 
-    const int gi = gz * psc(outcstep) + gy * psc(outw) * psc(outh) + gx;
+    const int gi = gy * psc(outw) * psc(outh) + gx;
 
     buffer_cp8(col_blob_data, gi, bottom_blob_data, v_offset);
 #endif

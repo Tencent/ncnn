@@ -21,6 +21,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#define LOCAL_MEMORY_UNROLL_INCH 8
+
 layout (constant_id = 0) const int kernel_w = 1;
 layout (constant_id = 1) const int kernel_h = 1;
 layout (constant_id = 2) const int bias_term = 0;
@@ -29,17 +31,13 @@ layout (constant_id = 4) const float activation_param_0 = 0;
 layout (constant_id = 5) const float activation_param_1 = 0;
 
 #define shape_constant_id_offset 6
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D col_blob;
@@ -55,27 +53,29 @@ layout (binding = 3) readonly buffer bias_blob { sfp bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
     int w;
     int h;
-    int c;
-    int cstep;
 
-    int outdims;
     int outw;
     int outh;
     int outc;
     int outcstep;
 } p;
 
+#if NCNN_shader_local_memory
+shared lfpvec4 tmp_v[8][LOCAL_MEMORY_UNROLL_INCH][4];
+shared lfpvec4 tmp_k[8][LOCAL_MEMORY_UNROLL_INCH];
+#endif
+
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) * psc(outh) || gy >= 1 || gz >= psc(outc))
+#if !NCNN_shader_local_memory
+    if (gx >= psc(w) || gy >= psc(outc))
         return;
+#endif
 
     afp sum0;
     afp sum1;
@@ -85,9 +85,9 @@ void main()
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        sum0 = image3d_ld1(bias_blob, ivec3(gz, 0, 0));
+        sum0 = image3d_ld1(bias_blob, ivec3(gy, 0, 0));
 #else
-        sum0 = buffer_ld1(bias_data, gz);
+        sum0 = buffer_ld1(bias_data, gy);
 #endif
         sum1 = sum0;
         sum2 = sum0;
@@ -106,16 +106,100 @@ void main()
 #if NCNN_image_shader
     ivec4 gx4 = gx + ivec4(0, 1, 2, 3);
 
-    for (int z = 0; z < psc(c); z++)
+    for (int z = 0; z < psc(h); z++)
     {
-        for (int kk = 0; kk < maxk; kk++)
-        {
-            afpvec4 v0 = image3d_ld4(col_blob, ivec3(gx4.r, kk, z));
-            afpvec4 v1 = image3d_ld4(col_blob, ivec3(gx4.g, kk, z));
-            afpvec4 v2 = image3d_ld4(col_blob, ivec3(gx4.b, kk, z));
-            afpvec4 v3 = image3d_ld4(col_blob, ivec3(gx4.a, kk, z));
+        afpvec4 v0 = image3d_ld4(col_blob, ivec3(gx4.r, z, 0));
+        afpvec4 v1 = image3d_ld4(col_blob, ivec3(gx4.g, z, 0));
+        afpvec4 v2 = image3d_ld4(col_blob, ivec3(gx4.b, z, 0));
+        afpvec4 v3 = image3d_ld4(col_blob, ivec3(gx4.a, z, 0));
 
-            afpvec4 k = image3d_ld4(weight_blob, ivec3(kk, z, gz));
+        afpvec4 k = image3d_ld4(weight_blob, ivec3(z, gy, 0));
+
+        sum0 += dot(v0, k);
+        sum1 += dot(v1, k);
+        sum2 += dot(v2, k);
+        sum3 += dot(v3, k);
+    }
+#else
+    int v_offset = gx;
+    int w_offset = gy * psc(h);
+
+#if NCNN_shader_local_memory
+    const int lx = int(gl_LocalInvocationID.x);
+    const int ly = int(gl_LocalInvocationID.y);
+
+    int z = 0;
+    for (; z + (LOCAL_MEMORY_UNROLL_INCH - 1) < psc(h); z += LOCAL_MEMORY_UNROLL_INCH)
+    {
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_v[lx][z4][ly] = sfp2lfpvec4(col_blob_data[v_offset + z4 * psc(w) + ly]);
+            }
+        }
+
+        if (lx == 0)
+        {
+            for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+            {
+                tmp_k[ly][z4] = sfp2lfpvec4(weight_data[w_offset + z4]);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < LOCAL_MEMORY_UNROLL_INCH; z4++)
+        {
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
+
+            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
+
+            sum0 += dot(v0, k);
+            sum1 += dot(v1, k);
+            sum2 += dot(v2, k);
+            sum3 += dot(v3, k);
+        }
+
+        v_offset += LOCAL_MEMORY_UNROLL_INCH * psc(w);
+        w_offset += LOCAL_MEMORY_UNROLL_INCH;
+
+        barrier();
+    }
+
+    if (z < psc(h))
+    {
+        const int remain = psc(h) - z;
+
+        if (ly < 4)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_v[lx][z4][ly] = sfp2lfpvec4(col_blob_data[v_offset + z4 * psc(w) + ly]);
+            }
+        }
+
+        if (lx == 0)
+        {
+            for (int z4 = 0; z4 < remain; z4++)
+            {
+                tmp_k[ly][z4] = sfp2lfpvec4(weight_data[w_offset + z4]);
+            }
+        }
+
+        barrier();
+
+        for (int z4 = 0; z4 < remain; z4++)
+        {
+            afpvec4 v0 = lfp2afpvec4(tmp_v[lx][z4][0]);
+            afpvec4 v1 = lfp2afpvec4(tmp_v[lx][z4][1]);
+            afpvec4 v2 = lfp2afpvec4(tmp_v[lx][z4][2]);
+            afpvec4 v3 = lfp2afpvec4(tmp_v[lx][z4][3]);
+
+            afpvec4 k = lfp2afpvec4(tmp_k[ly][z4]);
 
             sum0 += dot(v0, k);
             sum1 += dot(v1, k);
@@ -124,30 +208,29 @@ void main()
         }
     }
 #else
-    int w_offset = gz * psc(c) * maxk;
-
-    for (int z = 0; z < psc(c); z++)
+    for (int z = 0; z < psc(h); z++)
     {
-        int v_offset = gx + z * psc(cstep);
+        afpvec4 v0 = buffer_ld4(col_blob_data, v_offset + 0);
+        afpvec4 v1 = buffer_ld4(col_blob_data, v_offset + 1);
+        afpvec4 v2 = buffer_ld4(col_blob_data, v_offset + 2);
+        afpvec4 v3 = buffer_ld4(col_blob_data, v_offset + 3);
 
-        for (int kk = 0; kk < maxk; kk++)
-        {
-            afpvec4 v0 = buffer_ld4(col_blob_data, v_offset + 0);
-            afpvec4 v1 = buffer_ld4(col_blob_data, v_offset + 1);
-            afpvec4 v2 = buffer_ld4(col_blob_data, v_offset + 2);
-            afpvec4 v3 = buffer_ld4(col_blob_data, v_offset + 3);
+        afpvec4 k = buffer_ld4(weight_data, w_offset);
 
-            afpvec4 k = buffer_ld4(weight_data, w_offset);
+        sum0 += dot(v0, k);
+        sum1 += dot(v1, k);
+        sum2 += dot(v2, k);
+        sum3 += dot(v3, k);
 
-            sum0 += dot(v0, k);
-            sum1 += dot(v1, k);
-            sum2 += dot(v2, k);
-            sum3 += dot(v3, k);
-
-            v_offset += psc(outw) * psc(outh);
-            w_offset += 1;
-        }
+        v_offset += psc(w);
+        w_offset += 1;
     }
+#endif
+#endif
+
+#if NCNN_shader_local_memory
+    if (gx >= psc(w) || gy >= psc(outc))
+        return;
 #endif
 
     if (activation_type == 1)
@@ -202,16 +285,16 @@ void main()
     ivec4 sy4 = gx4 / psc(outw);
     ivec4 sx4 = gx4 % psc(outw);
 
-    image3d_st1(top_blob, ivec3(sx4.r, sy4.r, gz), sum0);
-    image3d_st1(top_blob, ivec3(sx4.g, sy4.g, gz), sum1);
-    image3d_st1(top_blob, ivec3(sx4.b, sy4.b, gz), sum2);
-    image3d_st1(top_blob, ivec3(sx4.a, sy4.a, gz), sum3);
+    image3d_st1(top_blob, ivec3(sx4.r, sy4.r, gy), sum0);
+    image3d_st1(top_blob, ivec3(sx4.g, sy4.g, gy), sum1);
+    image3d_st1(top_blob, ivec3(sx4.b, sy4.b, gy), sum2);
+    image3d_st1(top_blob, ivec3(sx4.a, sy4.a, gy), sum3);
 #else
-    const int gi = gz * psc(outcstep) + gx;
+    const int gi = gy * psc(outcstep) + gx;
 
     buffer_st1(top_blob_data, gi, sum0);
-    if (gx + 1 < psc(outw) * psc(outh)) buffer_st1(top_blob_data, gi + 1, sum1);
-    if (gx + 2 < psc(outw) * psc(outh)) buffer_st1(top_blob_data, gi + 2, sum2);
-    if (gx + 3 < psc(outw) * psc(outh)) buffer_st1(top_blob_data, gi + 3, sum3);
+    if (gx + 1 < psc(w)) buffer_st1(top_blob_data, gi + 1, sum1);
+    if (gx + 2 < psc(w)) buffer_st1(top_blob_data, gi + 2, sum2);
+    if (gx + 3 < psc(w)) buffer_st1(top_blob_data, gi + 3, sum3);
 #endif
 }

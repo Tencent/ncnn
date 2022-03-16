@@ -3210,6 +3210,63 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("afpmat4", "mat4"));
     }
 
+    if (opt.use_fp16_arithmetic)
+    {
+        custom_defines.push_back(std::make_pair("lfp", "float16_t"));
+        custom_defines.push_back(std::make_pair("lfpvec4", "f16vec4"));
+    }
+    else if (opt.use_fp16_storage || opt.use_fp16_packed)
+    {
+        custom_defines.push_back(std::make_pair("lfp", "float"));
+        custom_defines.push_back(std::make_pair("lfpvec4", "uvec2"));
+    }
+    else
+    {
+        custom_defines.push_back(std::make_pair("lfp", "float"));
+        custom_defines.push_back(std::make_pair("lfpvec4", "vec4"));
+    }
+
+    if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
+    {
+        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
+        custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "v"));
+
+        custom_defines.push_back(std::make_pair("lfp2afp(v)", "v"));
+        custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "v"));
+    }
+    else if (opt.use_fp16_packed && opt.use_fp16_arithmetic)
+    {
+        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
+        custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "v"));
+
+        custom_defines.push_back(std::make_pair("lfp2afp(v)", "float16_t(v)"));
+        custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "f16vec4(vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y)))"));
+    }
+    else if (opt.use_fp16_storage)
+    {
+        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
+        custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "uvec2(packHalf2x16(vec4(v).rg),packHalf2x16(vec4(v).ba))"));
+
+        custom_defines.push_back(std::make_pair("lfp2afp(v)", "v"));
+        custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))"));
+    }
+    else if (opt.use_fp16_packed)
+    {
+        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
+        custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "v"));
+
+        custom_defines.push_back(std::make_pair("lfp2afp(v)", "v"));
+        custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "vec4(unpackHalf2x16(v.x),unpackHalf2x16(v.y))"));
+    }
+    else
+    {
+        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
+        custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "v"));
+
+        custom_defines.push_back(std::make_pair("lfp2afp(v)", "v"));
+        custom_defines.push_back(std::make_pair("lfp2afpvec4(v)", "v"));
+    }
+
     if (opt.use_fp16_storage && opt.use_fp16_arithmetic)
     {
         custom_defines.push_back(std::make_pair("buffer_ld1(buf,i)", "buf[i]"));
@@ -3544,6 +3601,11 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         {
             custom_defines.push_back(std::make_pair("NCNN_subgroup_shuffle", "1"));
         }
+    }
+
+    if (opt.use_shader_local_memory)
+    {
+        custom_defines.push_back(std::make_pair("NCNN_shader_local_memory", "1"));
     }
 
     std::string preamble;

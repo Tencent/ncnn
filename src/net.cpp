@@ -1416,6 +1416,9 @@ int Net::load_param(const DataReader& dr)
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
 
+        // enable local memory optimization on discrete gpu only
+        if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
+
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
     }
@@ -1628,6 +1631,9 @@ int Net::load_param_bin(const DataReader& dr)
         if (!d->vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
 
         if (d->vkdev->info.bug_buffer_image_load_zero()) opt.use_image_storage = false;
+
+        // enable local memory optimization on discrete gpu only
+        if (d->vkdev->info.type() != 0) opt.use_shader_local_memory = false;
 
         // fp16a makes no sense when fp16 storage disabled
         if (!opt.use_fp16_packed && !opt.use_fp16_storage) opt.use_fp16_arithmetic = false;
