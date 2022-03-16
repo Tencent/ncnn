@@ -68,12 +68,9 @@ int DeconvolutionDepthWise::load_model(const ModelBin& mb)
 
 static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int stride_w, int stride_h, int dilation_w, int dilation_h, int group, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
     const int inch = bottom_blob.c;
 
     const int outw = top_blob.w;
-    const int outh = top_blob.h;
     const int outch = top_blob.c;
 
     const int bias_term = bias_data.empty() ? 0 : 1;
