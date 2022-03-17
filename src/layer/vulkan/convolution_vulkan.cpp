@@ -326,14 +326,6 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     specializations[10 + 8].i = out_shape_packed.c;
     specializations[10 + 9].i = out_shape_packed.cstep;
 
-    Mat local_size_xyz(8, 8, std::min(4, num_output / out_elempack), (void*)0);
-    if (out_shape_packed.dims != 0)
-    {
-        local_size_xyz.w = std::min(8, out_shape_packed.w);
-        local_size_xyz.h = std::min(8, out_shape_packed.h);
-        local_size_xyz.c = std::min(4, out_shape_packed.c);
-    }
-
     if (is_conv1x1s1d1 && elempack == out_elempack)
     {
         int shader_type_index = -1;
@@ -635,6 +627,14 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     else
     {
+        Mat local_size_xyz(8, 8, std::min(4, (num_output / out_elempack + 1) / 2), (void*)0);
+        if (out_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(8, out_shape_packed.w);
+            local_size_xyz.h = std::min(8, out_shape_packed.h);
+            local_size_xyz.c = std::min(4, (out_shape_packed.c + 1) / 2);
+        }
+
         int shader_type_index = -1;
         if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution;
         if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4;
