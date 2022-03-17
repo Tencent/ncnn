@@ -1476,7 +1476,12 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     }
     else
     {
-        cmd.record_pipeline(pipeline_convolution, bindings, constants, top_blob);
+        VkMat dispatcher;
+        dispatcher.w = (top_blob.w + 1) / 2;
+        dispatcher.h = (top_blob.h + 1) / 2;
+        dispatcher.c = (top_blob.c + 1) / 2;
+
+        cmd.record_pipeline(pipeline_convolution, bindings, constants, dispatcher);
     }
 
     return 0;
@@ -1941,7 +1946,12 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     }
     else
     {
-        cmd.record_pipeline(pipeline_convolution, bindings, constants, top_blob);
+        VkImageMat dispatcher;
+        dispatcher.w = (top_blob.w + 1) / 2;
+        dispatcher.h = (top_blob.h + 1) / 2;
+        dispatcher.c = (top_blob.c + 1) / 2;
+
+        cmd.record_pipeline(pipeline_convolution, bindings, constants, dispatcher);
     }
 
     return 0;

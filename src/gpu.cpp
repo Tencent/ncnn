@@ -3244,7 +3244,7 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     }
     else if (opt.use_fp16_storage)
     {
-        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "v"));
+        custom_defines.push_back(std::make_pair("sfp2lfp(v)", "float(v)"));
         custom_defines.push_back(std::make_pair("sfp2lfpvec4(v)", "uvec2(packHalf2x16(vec4(v).rg),packHalf2x16(vec4(v).ba))"));
 
         custom_defines.push_back(std::make_pair("lfp2afp(v)", "v"));
