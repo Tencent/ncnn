@@ -104,6 +104,11 @@ int Gemm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_bl
             // auto broadcast from h to w is the ncnn-style convention
             broadcast_type_C = 1;
         }
+        if (C.dims == 1 && C.w == N)
+        {
+            // N
+            broadcast_type_C = 4;
+        }
         if (C.dims == 2 && C.w == 1 && C.h == M)
         {
             // Mx1

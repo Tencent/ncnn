@@ -125,6 +125,7 @@ pnnx_ncnn_add_test(Tensor_reshape)
 pnnx_ncnn_add_test(Tensor_slice)
 pnnx_ncnn_add_test(Tensor_view)
 
+pnnx_ncnn_add_test(torch_addmm)
 pnnx_ncnn_add_test(torch_amax)
 pnnx_ncnn_add_test(torch_amin)
 pnnx_ncnn_add_test(torch_cat)
