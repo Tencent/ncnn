@@ -175,6 +175,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_select.cpp
     pass_level2/Tensor_slice.cpp
     pass_level2/Tensor_view.cpp
+    pass_level2/torch_addmm.cpp
     pass_level2/torch_amax.cpp
     pass_level2/torch_amin.cpp
     pass_level2/torch_arange.cpp
@@ -402,6 +403,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_slice.cpp
     pass_ncnn/Tensor_view.cpp
+    pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
     pass_ncnn/torch_clamp.cpp

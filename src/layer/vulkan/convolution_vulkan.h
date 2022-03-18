@@ -45,7 +45,6 @@ public:
     Pipeline* pipeline_convolution;
     Pipeline* pipeline_convolution_1x1s1d1;
 
-    Pipeline* pipeline_convolution_im2col;
     Pipeline* pipeline_convolution_gemm;
 
     // winograd23 and winograd43
