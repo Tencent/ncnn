@@ -27,14 +27,6 @@ InnerProduct_vulkan::InnerProduct_vulkan()
     flatten = 0;
 
     pipeline_innerproduct = 0;
-    pipeline_innerproduct_pack4 = 0;
-    pipeline_innerproduct_pack1to4 = 0;
-    pipeline_innerproduct_pack4to1 = 0;
-    pipeline_innerproduct_pack8 = 0;
-    pipeline_innerproduct_pack1to8 = 0;
-    pipeline_innerproduct_pack4to8 = 0;
-    pipeline_innerproduct_pack8to4 = 0;
-    pipeline_innerproduct_pack8to1 = 0;
 
     pipeline_innerproduct_gemm = 0;
 }
@@ -110,64 +102,20 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
             local_size_xyz.c = 1;
         }
 
-        {
-            pipeline_innerproduct_gemm = new Pipeline(vkdev);
-            pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
+        int shader_type_index = -1;
+        if (in_elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm;
+        if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp4;
+        if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp1to4;
+        if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm_wp4to1;
+        if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp8;
+        if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp1to8;
+        if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm_wp8to1;
+        if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp4to8;
+        if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp8to4;
 
-            // pack1
-            if (in_elempack == 1 && out_elempack == 1)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm, opt, specializations);
-            }
-
-            // pack4
-            if (in_elempack == 4 && out_elempack == 4)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp4, opt, specializations);
-            }
-
-            // pack1to4
-            if (in_elempack == 1 && out_elempack == 4)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp1to4, opt, specializations);
-            }
-
-            // pack4to1
-            if (in_elempack == 4 && out_elempack == 1)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp4to1, opt, specializations);
-            }
-
-            // pack8
-            if (in_elempack == 8 && out_elempack == 8)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp8, opt, specializations);
-            }
-
-            // pack1to8
-            if (in_elempack == 1 && out_elempack == 8)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp1to8, opt, specializations);
-            }
-
-            // pack4to8
-            if (in_elempack == 4 && out_elempack == 8)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp4to8, opt, specializations);
-            }
-
-            // pack8to4
-            if (in_elempack == 8 && out_elempack == 4)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp8to4, opt, specializations);
-            }
-
-            // pack8to1
-            if (in_elempack == 8 && out_elempack == 1)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp8to1, opt, specializations);
-            }
-        }
+        pipeline_innerproduct_gemm = new Pipeline(vkdev);
+        pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_gemm->create(shader_type_index, opt, specializations);
 
         return 0;
     }
@@ -268,77 +216,20 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         local_size_xyz.c = 1;
     }
 
-    // pack1
-    if (in_elempack == 1 && out_elempack == 1)
-    {
-        pipeline_innerproduct = new Pipeline(vkdev);
-        pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct->create(LayerShaderType::innerproduct, opt, specializations);
-    }
+    int shader_type_index = -1;
+    if (in_elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct;
+    if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack4;
+    if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack1to4;
+    if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_pack4to1;
+    if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack8;
+    if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack1to8;
+    if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_pack8to1;
+    if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack4to8;
+    if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack8to4;
 
-    // pack4
-    if (in_elempack == 4 && out_elempack == 4)
-    {
-        pipeline_innerproduct_pack4 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack4->create(LayerShaderType::innerproduct_pack4, opt, specializations);
-    }
-
-    // pack1to4
-    if (in_elempack == 1 && out_elempack == 4)
-    {
-        pipeline_innerproduct_pack1to4 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack1to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack1to4->create(LayerShaderType::innerproduct_pack1to4, opt, specializations);
-    }
-
-    // pack4to1
-    if (in_elempack == 4 && out_elempack == 1)
-    {
-        pipeline_innerproduct_pack4to1 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack4to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack4to1->create(LayerShaderType::innerproduct_pack4to1, opt, specializations);
-    }
-
-    // pack8
-    if (in_elempack == 8 && out_elempack == 8)
-    {
-        pipeline_innerproduct_pack8 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack8->create(LayerShaderType::innerproduct_pack8, opt, specializations);
-    }
-
-    // pack1to8
-    if (in_elempack == 1 && out_elempack == 8)
-    {
-        pipeline_innerproduct_pack1to8 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack1to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack1to8->create(LayerShaderType::innerproduct_pack1to8, opt, specializations);
-    }
-
-    // pack4to8
-    if (in_elempack == 4 && out_elempack == 8)
-    {
-        pipeline_innerproduct_pack4to8 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack4to8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack4to8->create(LayerShaderType::innerproduct_pack4to8, opt, specializations);
-    }
-
-    // pack8to4
-    if (in_elempack == 8 && out_elempack == 4)
-    {
-        pipeline_innerproduct_pack8to4 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack8to4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack8to4->create(LayerShaderType::innerproduct_pack8to4, opt, specializations);
-    }
-
-    // pack8to1
-    if (in_elempack == 8 && out_elempack == 1)
-    {
-        pipeline_innerproduct_pack8to1 = new Pipeline(vkdev);
-        pipeline_innerproduct_pack8to1->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_innerproduct_pack8to1->create(LayerShaderType::innerproduct_pack8to1, opt, specializations);
-    }
+    pipeline_innerproduct = new Pipeline(vkdev);
+    pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
+    pipeline_innerproduct->create(shader_type_index, opt, specializations);
 
     // gemm for no shape hint
     if (shape.dims == 0)
@@ -361,64 +252,20 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
 
         Mat local_size_xyz(std::min(16, num_output / out_elempack), 4, 1, (void*)0);
 
-        {
-            pipeline_innerproduct_gemm = new Pipeline(vkdev);
-            pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
+        int shader_type_index = -1;
+        if (in_elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm;
+        if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp4;
+        if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp1to4;
+        if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm_wp4to1;
+        if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp8;
+        if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp1to8;
+        if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_gemm_wp8to1;
+        if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_gemm_wp4to8;
+        if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_gemm_wp8to4;
 
-            // pack1
-            if (in_elempack == 1 && out_elempack == 1)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm, opt, specializations);
-            }
-
-            // pack4
-            if (in_elempack == 4 && out_elempack == 4)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp4, opt, specializations);
-            }
-
-            // pack1to4
-            if (in_elempack == 1 && out_elempack == 4)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp1to4, opt, specializations);
-            }
-
-            // pack4to1
-            if (in_elempack == 4 && out_elempack == 1)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp4to1, opt, specializations);
-            }
-
-            // pack8
-            if (in_elempack == 8 && out_elempack == 8)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp8, opt, specializations);
-            }
-
-            // pack1to8
-            if (in_elempack == 1 && out_elempack == 8)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp1to8, opt, specializations);
-            }
-
-            // pack4to8
-            if (in_elempack == 4 && out_elempack == 8)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp4to8, opt, specializations);
-            }
-
-            // pack8to4
-            if (in_elempack == 8 && out_elempack == 4)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp8to4, opt, specializations);
-            }
-
-            // pack8to1
-            if (in_elempack == 8 && out_elempack == 1)
-            {
-                pipeline_innerproduct_gemm->create(LayerShaderType::innerproduct_gemm_wp8to1, opt, specializations);
-            }
-        }
+        pipeline_innerproduct_gemm = new Pipeline(vkdev);
+        pipeline_innerproduct_gemm->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct_gemm->create(shader_type_index, opt, specializations);
 
         return 0;
     }
@@ -437,30 +284,6 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_innerproduct;
     pipeline_innerproduct = 0;
-
-    delete pipeline_innerproduct_pack4;
-    pipeline_innerproduct_pack4 = 0;
-
-    delete pipeline_innerproduct_pack1to4;
-    pipeline_innerproduct_pack1to4 = 0;
-
-    delete pipeline_innerproduct_pack4to1;
-    pipeline_innerproduct_pack4to1 = 0;
-
-    delete pipeline_innerproduct_pack8;
-    pipeline_innerproduct_pack8 = 0;
-
-    delete pipeline_innerproduct_pack1to8;
-    pipeline_innerproduct_pack1to8 = 0;
-
-    delete pipeline_innerproduct_pack4to8;
-    pipeline_innerproduct_pack4to8 = 0;
-
-    delete pipeline_innerproduct_pack8to4;
-    pipeline_innerproduct_pack8to4 = 0;
-
-    delete pipeline_innerproduct_pack8to1;
-    pipeline_innerproduct_pack8to1 = 0;
 
     delete pipeline_innerproduct_gemm;
     pipeline_innerproduct_gemm = 0;
@@ -586,14 +409,12 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
         constants[8].i = top_blob_unpacked.c;
         constants[9].i = top_blob_unpacked.cstep;
 
-        const Pipeline* pipeline = pipeline_innerproduct_gemm;
-
         VkMat dispatcher;
         dispatcher.w = top_blob_unpacked.w / out_elempack;
         dispatcher.h = top_blob_unpacked.h;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_innerproduct_gemm, bindings, constants, dispatcher);
 
         // packing
         if (elempack > 1)
@@ -645,45 +466,7 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = 0;
-    if (in_elempack == 1 && out_elempack == 1)
-    {
-        pipeline = pipeline_innerproduct;
-    }
-    else if (in_elempack == 4 && out_elempack == 4)
-    {
-        pipeline = pipeline_innerproduct_pack4;
-    }
-    else if (in_elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_innerproduct_pack1to4;
-    }
-    else if (in_elempack == 4 && out_elempack == 1)
-    {
-        pipeline = pipeline_innerproduct_pack4to1;
-    }
-    else if (in_elempack == 8 && out_elempack == 8)
-    {
-        pipeline = pipeline_innerproduct_pack8;
-    }
-    else if (in_elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_innerproduct_pack1to8;
-    }
-    else if (in_elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_innerproduct_pack4to8;
-    }
-    else if (in_elempack == 8 && out_elempack == 4)
-    {
-        pipeline = pipeline_innerproduct_pack8to4;
-    }
-    else if (in_elempack == 8 && out_elempack == 1)
-    {
-        pipeline = pipeline_innerproduct_pack8to1;
-    }
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
 
     return 0;
 }
@@ -742,14 +525,12 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
         constants[8].i = top_blob_unpacked.c;
         constants[9].i = 0; //top_blob_unpacked.cstep;
 
-        const Pipeline* pipeline = pipeline_innerproduct_gemm;
-
         VkImageMat dispatcher;
         dispatcher.w = top_blob_unpacked.w / out_elempack;
         dispatcher.h = top_blob_unpacked.h;
         dispatcher.c = 1;
 
-        cmd.record_pipeline(pipeline, bindings, constants, dispatcher);
+        cmd.record_pipeline(pipeline_innerproduct_gemm, bindings, constants, dispatcher);
 
         // packing
         if (elempack > 1)
@@ -801,45 +582,7 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
     constants[8].i = top_blob.c;
     constants[9].i = 0; //top_blob.cstep;
 
-    const Pipeline* pipeline = 0;
-    if (in_elempack == 1 && out_elempack == 1)
-    {
-        pipeline = pipeline_innerproduct;
-    }
-    else if (in_elempack == 4 && out_elempack == 4)
-    {
-        pipeline = pipeline_innerproduct_pack4;
-    }
-    else if (in_elempack == 1 && out_elempack == 4)
-    {
-        pipeline = pipeline_innerproduct_pack1to4;
-    }
-    else if (in_elempack == 4 && out_elempack == 1)
-    {
-        pipeline = pipeline_innerproduct_pack4to1;
-    }
-    else if (in_elempack == 8 && out_elempack == 8)
-    {
-        pipeline = pipeline_innerproduct_pack8;
-    }
-    else if (in_elempack == 1 && out_elempack == 8)
-    {
-        pipeline = pipeline_innerproduct_pack1to8;
-    }
-    else if (in_elempack == 4 && out_elempack == 8)
-    {
-        pipeline = pipeline_innerproduct_pack4to8;
-    }
-    else if (in_elempack == 8 && out_elempack == 4)
-    {
-        pipeline = pipeline_innerproduct_pack8to4;
-    }
-    else if (in_elempack == 8 && out_elempack == 1)
-    {
-        pipeline = pipeline_innerproduct_pack8to1;
-    }
-
-    cmd.record_pipeline(pipeline, bindings, constants, top_blob);
+    cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
 
     return 0;
 }

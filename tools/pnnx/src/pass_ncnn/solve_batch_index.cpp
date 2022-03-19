@@ -160,6 +160,28 @@ static void solve_batch_index_forward(Operand* operand)
                 solve_batch_index_backward(r);
             }
         }
+        else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+        {
+            const std::vector<int>& shape = op->params.at("shape").ai;
+
+            if (shape[batch_index] == 1)
+            {
+                for (Operand* r : op->outputs)
+                {
+                    if (r->params.find("__batch_index") != r->params.end())
+                        continue;
+
+                    r->params["__batch_index"] = batch_index;
+
+                    solve_batch_index_forward(r);
+                    solve_batch_index_backward(r);
+                }
+            }
+            else
+            {
+                // give up reshape across batch index
+            }
+        }
         else
         {
             for (Operand* r : op->outputs)
@@ -205,6 +227,28 @@ static void solve_batch_index_backward(Operand* operand)
 
             solve_batch_index_backward(r);
             solve_batch_index_forward(r);
+        }
+    }
+    else if (op->type == "Tensor.reshape" || op->type == "Tensor.view")
+    {
+        const std::vector<int>& shape = op->params.at("shape").ai;
+
+        if (shape[batch_index] == 1)
+        {
+            for (Operand* r : op->inputs)
+            {
+                if (r->params.find("__batch_index") != r->params.end())
+                    continue;
+
+                r->params["__batch_index"] = batch_index;
+
+                solve_batch_index_backward(r);
+                solve_batch_index_forward(r);
+            }
+        }
+        else
+        {
+            // give up reshape across batch index
         }
     }
     else

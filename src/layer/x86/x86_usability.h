@@ -20,6 +20,13 @@
 #include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
+#if __XOP__
+#ifdef _MSC_VER
+#include <ammintrin.h>
+#else
+#include <x86intrin.h>
+#endif
+#endif
 #endif
 #endif // __SSE2__
 
@@ -66,10 +73,11 @@ static NCNN_FORCEINLINE int32_t float2int8_sse(const __m128& _v0)
 
     __m128i _v8 = _mm_packs_epi16(_v0_s16, _v0_s16);
 
-    // TODO use _mm_cvtsi128_si64 on 64bit target
-    int32_t v8[4];
-    _mm_storeu_si128((__m128i*)v8, _v8);
-    return v8[0];
+#if defined(__x86_64__) || defined(_M_X64)
+    return (int32_t)_mm_cvtsi128_si64(_v8);
+#else
+    return _mm_cvtsi128_si32(_v8);
+#endif
 }
 
 static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& _v1)
@@ -94,10 +102,13 @@ static NCNN_FORCEINLINE int64_t float2int8_sse(const __m128& _v0, const __m128& 
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16, _v01_s16);
 
-    // TODO use _mm_cvtsi128_si64 on 64bit target
+#if defined(__x86_64__) || defined(_M_X64)
+    return _mm_cvtsi128_si64(_v8);
+#else
     int64_t v8[2];
     _mm_storeu_si128((__m128i*)v8, _v8);
     return v8[0];
+#endif
 }
 
 static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& _v1, const __m128& _v2, const __m128& _v3)
@@ -136,34 +147,46 @@ static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& 
     return _v8;
 }
 
-#ifndef __AVX2__
-
+#ifndef __FMA__
 static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
 {
     return _mm_add_ps(_mm_mul_ps(_a, _b), _c);
 }
-#endif
-
-#if __AVX__
-#ifndef __AVX2__
-static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
 {
-    return _mm256_add_ps(_mm256_mul_ps(_a, _b), _c);
+    return _mm_sub_ps(_c, _mm_mul_ps(_a, _b));
 }
-#ifndef __SSE2__
-static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
-{
-    return _mm_add_ps(_mm_mul_ps(_a, _b), _c);
-}
-#endif
 #else
 static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
 {
     return _mm_fmadd_ps(_a, _b, _c);
 }
+static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
+{
+    // return -a * b + c
+    return _mm_fnmadd_ps(_a, _b, _c);
+}
+#endif // !__FMA__
+
+#if __AVX__
+#ifndef __FMA__
+static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+{
+    return _mm256_add_ps(_mm256_mul_ps(_a, _b), _c);
+}
+static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+{
+    return _mm256_sub_ps(_c, _mm256_mul_ps(_a, _b));
+}
+#else
 static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
 {
     return _mm256_fmadd_ps(_a, _b, _c);
+}
+static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+{
+    // return -a * b + c
+    return _mm256_fnmadd_ps(_a, _b, _c);
 }
 #endif
 
@@ -181,7 +204,8 @@ static NCNN_FORCEINLINE __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
 
 static NCNN_FORCEINLINE __m256 _mm256_fmrsub_1_ps(__m256 a, __m256 b, float c)
 {
-    return _mm256_sub_ps(a, _mm256_mul_ps(b, _mm256_set1_ps(c)));
+    // return a - b * c
+    return _mm256_comp_fnmadd_ps(b, _mm256_set1_ps(c), a);
 }
 // From: https://stackoverflow.com/a/25627536
 static NCNN_FORCEINLINE void transpose8_ps(__m256& row0, __m256& row1, __m256& row2, __m256& row3, __m256& row4, __m256& row5, __m256& row6, __m256& row7)
@@ -291,10 +315,13 @@ static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
 
     __m128i _v8 = _mm_packs_epi16(_v01_s16low, _v01_s16low);
 
-    // TODO use _mm_cvtsi128_si64 on 64bit target
+#if defined(__x86_64__) || defined(_M_X64)
+    return _mm_cvtsi128_si64(_v8);
+#else
     int64_t v8[2];
     _mm_storeu_si128((__m128i*)v8, _v8);
     return v8[0];
+#endif
 }
 
 static NCNN_FORCEINLINE __m128i float2int8_avx(const __m256& _v0, const __m256& _v1)

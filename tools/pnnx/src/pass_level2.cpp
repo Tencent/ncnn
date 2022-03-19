@@ -235,6 +235,10 @@ static bool match(const Operator* anchor, const Operator* pattern, std::unordere
             {
                 matched_inputs[pattern->inputs[i]->name] = anchor->inputs[i];
             }
+            else if (matched_inputs[pattern->inputs[i]->name] != anchor->inputs[i])
+            {
+                return false;
+            }
             continue;
         }
 

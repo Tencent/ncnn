@@ -12,24 +12,62 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_avx512vnni(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd42_pack8to1_int8_sse_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_avxvnni(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd42_pack8to1_int8_sse_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_avx2(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd42_pack8to1_int8_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
+void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_xop(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd42_pack8to1_int8_sse_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+#endif
+
 static void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt)
 {
-#if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        extern void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_avx512vnni(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt);
         conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_avx512vnni(kernel, kernel_tm_pack8to1, inch, outch, opt);
         return;
     }
 #endif
 
-#if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        extern void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_avxvnni(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt);
         conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_avxvnni(kernel, kernel_tm_pack8to1, inch, outch, opt);
         return;
     }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_avx2(kernel, kernel_tm_pack8to1, inch, outch, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
+    if (ncnn::cpu_support_x86_xop())
+    {
+        conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_xop(kernel, kernel_tm_pack8to1, inch, outch, opt);
+        return;
+    }
+#endif
 #endif
 
     // winograd42 transform kernel
@@ -100,7 +138,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(const Mat& k
 
             for (int q = 0; q + 7 < inch; q += 8)
             {
-#if __AVXVNNI__ || __AVX512VNNI__
+#if __AVXVNNI__ || __AVX512VNNI__ || __XOP__
                 for (int i = 0; i < 4; i++)
                 {
                     const short* k00 = k0.row<const short>(q + i * 2);
@@ -163,22 +201,38 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(const Mat& k
 
 static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
 {
-#if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        extern void conv3x3s1_winograd42_pack8to1_int8_sse_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
         conv3x3s1_winograd42_pack8to1_int8_sse_avx512vnni(bottom_blob, top_blob, kernel_tm, opt);
         return;
     }
 #endif
 
-#if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        extern void conv3x3s1_winograd42_pack8to1_int8_sse_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
         conv3x3s1_winograd42_pack8to1_int8_sse_avxvnni(bottom_blob, top_blob, kernel_tm, opt);
         return;
     }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+    if (ncnn::cpu_support_x86_avx2())
+    {
+        conv3x3s1_winograd42_pack8to1_int8_sse_avx2(bottom_blob, top_blob, kernel_tm, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
+    if (ncnn::cpu_support_x86_xop())
+    {
+        conv3x3s1_winograd42_pack8to1_int8_sse_xop(bottom_blob, top_blob, kernel_tm, opt);
+        return;
+    }
+#endif
 #endif
 
     int w = bottom_blob.w;
@@ -662,6 +716,25 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         __m128i _w2 = _mm_loadu_si128((const __m128i*)(k0 + 16));
                         __m128i _w3 = _mm_loadu_si128((const __m128i*)(k0 + 24));
 
+#if __XOP__
+                        __m128i _val0_01 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(0, 0, 0, 0));
+                        __m128i _val0_23 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(1, 1, 1, 1));
+                        __m128i _val0_45 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(2, 2, 2, 2));
+                        __m128i _val0_67 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(3, 3, 3, 3));
+                        __m128i _val1_01 = _mm_shuffle_epi32(_val1, _MM_SHUFFLE(0, 0, 0, 0));
+                        __m128i _val1_23 = _mm_shuffle_epi32(_val1, _MM_SHUFFLE(1, 1, 1, 1));
+                        __m128i _val1_45 = _mm_shuffle_epi32(_val1, _MM_SHUFFLE(2, 2, 2, 2));
+                        __m128i _val1_67 = _mm_shuffle_epi32(_val1, _MM_SHUFFLE(3, 3, 3, 3));
+
+                        _sum0 = _mm_maddd_epi16(_val0_01, _w0, _sum0);
+                        _sum1 = _mm_maddd_epi16(_val0_23, _w1, _sum1);
+                        _sum2 = _mm_maddd_epi16(_val1_01, _w0, _sum2);
+                        _sum3 = _mm_maddd_epi16(_val1_23, _w1, _sum3);
+                        _sum0 = _mm_maddd_epi16(_val0_45, _w2, _sum0);
+                        _sum1 = _mm_maddd_epi16(_val0_67, _w3, _sum1);
+                        _sum2 = _mm_maddd_epi16(_val1_45, _w2, _sum2);
+                        _sum3 = _mm_maddd_epi16(_val1_67, _w3, _sum3);
+#else
                         // 0 0 1 1 2 2 3 3
                         // 4 4 5 5 6 6 7 7
                         __m128i _val0_0123 = _mm_unpacklo_epi16(_val0, _val0);
@@ -713,6 +786,7 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl03, _sh03));
                         _sum2 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl13, _sh13));
                         _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl13, _sh13));
+#endif
 #endif
 
                         r0 += 16;
@@ -813,6 +887,17 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         __m128i _w2 = _mm_loadu_si128((const __m128i*)(k0 + 16));
                         __m128i _w3 = _mm_loadu_si128((const __m128i*)(k0 + 24));
 
+#if __XOP__
+                        __m128i _val01 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(0, 0, 0, 0));
+                        __m128i _val23 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(1, 1, 1, 1));
+                        __m128i _val45 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(2, 2, 2, 2));
+                        __m128i _val67 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(3, 3, 3, 3));
+
+                        _sum0 = _mm_maddd_epi16(_val01, _w0, _sum0);
+                        _sum1 = _mm_maddd_epi16(_val23, _w1, _sum1);
+                        _sum0 = _mm_maddd_epi16(_val45, _w2, _sum0);
+                        _sum1 = _mm_maddd_epi16(_val67, _w3, _sum1);
+#else
                         // 0 0 1 1 2 2 3 3
                         // 4 4 5 5 6 6 7 7
                         __m128i _val_0123 = _mm_unpacklo_epi16(_val, _val);
@@ -840,6 +925,7 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl2, _sh2));
                         _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl3, _sh3));
                         _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl3, _sh3));
+#endif
 #endif
 
                         r0 += 8;
@@ -918,13 +1004,13 @@ static void conv3x3s1_winograd42_pack8to1_int8_sse(const Mat& bottom_blob, Mat& 
                         _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl0, _sh0));
                         _sum2 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl1, _sh1));
                         _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl1, _sh1));
-                        _sum4 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl2, _sh2));
-                        _sum5 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl2, _sh2));
-                        _sum6 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl3, _sh3));
-                        _sum7 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl3, _sh3));
+                        _sum4 = _mm_add_epi32(_sum4, _mm_unpacklo_epi16(_sl2, _sh2));
+                        _sum5 = _mm_add_epi32(_sum5, _mm_unpackhi_epi16(_sl2, _sh2));
+                        _sum6 = _mm_add_epi32(_sum6, _mm_unpacklo_epi16(_sl3, _sh3));
+                        _sum7 = _mm_add_epi32(_sum7, _mm_unpackhi_epi16(_sl3, _sh3));
 
                         k0 += 8;
-                        r0 += 16;
+                        r0 += 32;
                     }
 
                     _sum0 = _mm_add_epi32(_sum0, _sum1);

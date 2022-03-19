@@ -140,8 +140,6 @@ int Crop_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-    int elembits = bottom_blob.elembits();
-
 #if __ARM_NEON
     if (elempack == 8)
     {
@@ -460,8 +458,6 @@ int Crop_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-
-    int elembits = bottom_blob.elembits();
 
     int ref_elempack = reference_blob.elempack;
 
