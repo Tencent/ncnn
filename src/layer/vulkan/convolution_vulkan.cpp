@@ -225,14 +225,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
             if (out_shape.dims != 0)
             {
-                int outw_bordered = (out_shape.w + 3) / 4 * 4;
-                int outh_bordered = (out_shape.h + 3) / 4 * 4;
-
-                int w_bordered = outw_bordered + 2;
-                int h_bordered = outh_bordered + 2;
-
-                block_x = outw_bordered / 4;
-                block_y = outh_bordered / 4;
+                int block_x = (out_shape.w + 3) / 4;
+                int block_y = (out_shape.h + 3) / 4;
 
                 shape_winograd_input_transformed = Mat(block_x * block_y, shape.c, 36, (void*)0);
                 shape_winograd_gemm = Mat(block_x * block_y, out_shape.c, 36, (void*)0);
@@ -342,14 +336,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
             if (out_shape.dims != 0)
             {
-                int outw_bordered = (out_shape.w + 1) / 2 * 2;
-                int outh_bordered = (out_shape.h + 1) / 2 * 2;
-
-                int w_bordered = outw_bordered + 2;
-                int h_bordered = outh_bordered + 2;
-
-                block_x = outw_bordered / 2;
-                block_y = outh_bordered / 2;
+                int block_x = (out_shape.w + 1) / 2;
+                int block_y = (out_shape.h + 1) / 2;
 
                 shape_winograd_input_transformed = Mat(block_x * block_y, shape.c, 16, (void*)0);
                 shape_winograd_gemm = Mat(block_x * block_y, out_shape.c, 16, (void*)0);
@@ -1001,14 +989,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         if (pre_winograd43)
         {
             // winograd43
-            int outw_bordered = (outw + 3) / 4 * 4;
-            int outh_bordered = (outh + 3) / 4 * 4;
-
-            int w_bordered = outw_bordered + 2;
-            int h_bordered = outh_bordered + 2;
-
-            int block_x = outw_bordered / 4;
-            int block_y = outh_bordered / 4;
+            int block_x = (outw + 3) / 4;
+            int block_y = (outh + 3) / 4;
 
             // transform input
             VkMat bottom_tm_blob;
@@ -1096,14 +1078,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         else
         {
             // winograd23
-            int outw_bordered = (outw + 1) / 2 * 2;
-            int outh_bordered = (outh + 1) / 2 * 2;
-
-            int w_bordered = outw_bordered + 2;
-            int h_bordered = outh_bordered + 2;
-
-            int block_x = outw_bordered / 2;
-            int block_y = outh_bordered / 2;
+            int block_x = (outw + 1) / 2;
+            int block_y = (outh + 1) / 2;
 
             // transform input
             VkMat bottom_tm_blob;
@@ -1386,14 +1362,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
         if (pre_winograd43)
         {
             // winograd43
-            int outw_bordered = (outw + 3) / 4 * 4;
-            int outh_bordered = (outh + 3) / 4 * 4;
-
-            int w_bordered = outw_bordered + 2;
-            int h_bordered = outh_bordered + 2;
-
-            int block_x = outw_bordered / 4;
-            int block_y = outh_bordered / 4;
+            int block_x = (outw + 3) / 4;
+            int block_y = (outh + 3) / 4;
 
             // transform input
             VkImageMat bottom_tm_blob;
@@ -1481,14 +1451,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
         else
         {
             // winograd23
-            int outw_bordered = (outw + 1) / 2 * 2;
-            int outh_bordered = (outh + 1) / 2 * 2;
-
-            int w_bordered = outw_bordered + 2;
-            int h_bordered = outh_bordered + 2;
-
-            int block_x = outw_bordered / 2;
-            int block_y = outh_bordered / 2;
+            int block_x = (outw + 1) / 2;
+            int block_y = (outh + 1) / 2;
 
             // transform input
             VkImageMat bottom_tm_blob;
