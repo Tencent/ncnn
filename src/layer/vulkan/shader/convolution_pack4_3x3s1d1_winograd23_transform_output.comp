@@ -198,21 +198,21 @@ void main()
     }
 
     // store 2x2
-#if NCNN_image_shader
     int x = gx * 2;
     int y = gy * 2;
 
+#if NCNN_image_shader
     image3d_st4(top_blob, ivec3(x, y, gz), v00);
     image3d_st4(top_blob, ivec3(x + 1, y, gz), v01);
     image3d_st4(top_blob, ivec3(x, y + 1, gz), v10);
     image3d_st4(top_blob, ivec3(x + 1, y + 1, gz), v11);
 #else
-    int v_offset_0 = gz * psc(outcstep) + gy * 2 * psc(outw) + gx * 2;
+    int v_offset_0 = gz * psc(outcstep) + y * psc(outw) + x;
     int v_offset_1 = v_offset_0 + psc(outw);
 
     buffer_st4(top_blob_data, v_offset_0 + 0, v00);
-    buffer_st4(top_blob_data, v_offset_0 + 1, v01);
-    buffer_st4(top_blob_data, v_offset_1 + 0, v10);
-    buffer_st4(top_blob_data, v_offset_1 + 1, v11);
+    if (x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_0 + 1, v01);
+    if (y + 1 < psc(outh)) buffer_st4(top_blob_data, v_offset_1 + 0, v10);
+    if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st4(top_blob_data, v_offset_1 + 1, v11);
 #endif
 }

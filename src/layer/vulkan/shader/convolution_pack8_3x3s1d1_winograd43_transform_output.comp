@@ -455,10 +455,10 @@ void main()
     }
 
     // store 4x4
-#if NCNN_image_shader
     int x = gx * 4;
     int y = gy * 4;
 
+#if NCNN_image_shader
     image3d_st8(top_blob, ivec3(x, y, gz), v00);
     image3d_st8(top_blob, ivec3(x + 1, y, gz), v01);
     image3d_st8(top_blob, ivec3(x + 2, y, gz), v02);
@@ -476,23 +476,23 @@ void main()
     image3d_st8(top_blob, ivec3(x + 2, y + 3, gz), v32);
     image3d_st8(top_blob, ivec3(x + 3, y + 3, gz), v33);
 #else
-    ivec4 v_offset = gz * psc(outcstep) + gy * 4 * psc(outw) + gx * 4 + ivec4(0, 1, 2, 3) * psc(outw);
+    ivec4 v_offset = gz * psc(outcstep) + y * psc(outw) + x + ivec4(0, 1, 2, 3) * psc(outw);
 
     buffer_st8(top_blob_data, v_offset.r + 0, v00);
-    buffer_st8(top_blob_data, v_offset.r + 1, v01);
-    buffer_st8(top_blob_data, v_offset.r + 2, v02);
-    buffer_st8(top_blob_data, v_offset.r + 3, v03);
-    buffer_st8(top_blob_data, v_offset.g + 0, v10);
-    buffer_st8(top_blob_data, v_offset.g + 1, v11);
-    buffer_st8(top_blob_data, v_offset.g + 2, v12);
-    buffer_st8(top_blob_data, v_offset.g + 3, v13);
-    buffer_st8(top_blob_data, v_offset.b + 0, v20);
-    buffer_st8(top_blob_data, v_offset.b + 1, v21);
-    buffer_st8(top_blob_data, v_offset.b + 2, v22);
-    buffer_st8(top_blob_data, v_offset.b + 3, v23);
-    buffer_st8(top_blob_data, v_offset.a + 0, v30);
-    buffer_st8(top_blob_data, v_offset.a + 1, v31);
-    buffer_st8(top_blob_data, v_offset.a + 2, v32);
-    buffer_st8(top_blob_data, v_offset.a + 3, v33);
+    if (x + 1 < psc(outw)) buffer_st8(top_blob_data, v_offset.r + 1, v01);
+    if (x + 2 < psc(outw)) buffer_st8(top_blob_data, v_offset.r + 2, v02);
+    if (x + 3 < psc(outw)) buffer_st8(top_blob_data, v_offset.r + 3, v03);
+    if (y + 1 < psc(outh)) buffer_st8(top_blob_data, v_offset.g + 0, v10);
+    if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st8(top_blob_data, v_offset.g + 1, v11);
+    if (y + 1 < psc(outh) && x + 2 < psc(outw)) buffer_st8(top_blob_data, v_offset.g + 2, v12);
+    if (y + 1 < psc(outh) && x + 3 < psc(outw)) buffer_st8(top_blob_data, v_offset.g + 3, v13);
+    if (y + 2 < psc(outh)) buffer_st8(top_blob_data, v_offset.b + 0, v20);
+    if (y + 2 < psc(outh) && x + 1 < psc(outw)) buffer_st8(top_blob_data, v_offset.b + 1, v21);
+    if (y + 2 < psc(outh) && x + 2 < psc(outw)) buffer_st8(top_blob_data, v_offset.b + 2, v22);
+    if (y + 2 < psc(outh) && x + 3 < psc(outw)) buffer_st8(top_blob_data, v_offset.b + 3, v23);
+    if (y + 3 < psc(outh)) buffer_st8(top_blob_data, v_offset.a + 0, v30);
+    if (y + 3 < psc(outh) && x + 1 < psc(outw)) buffer_st8(top_blob_data, v_offset.a + 1, v31);
+    if (y + 3 < psc(outh) && x + 2 < psc(outw)) buffer_st8(top_blob_data, v_offset.a + 2, v32);
+    if (y + 3 < psc(outh) && x + 3 < psc(outw)) buffer_st8(top_blob_data, v_offset.a + 3, v33);
 #endif
 }

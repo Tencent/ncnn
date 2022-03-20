@@ -31,8 +31,6 @@ Convolution_vulkan::Convolution_vulkan()
 
     pipeline_convolution_gemm = 0;
 
-    winograd_padding = 0;
-    winograd_crop = 0;
     pipeline_convolution_3x3s1d1_winograd23_transform_input = 0;
     pipeline_convolution_3x3s1d1_winograd23_gemm = 0;
     pipeline_convolution_3x3s1d1_winograd23_transform_output = 0;
@@ -216,83 +214,30 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     }
     if (opt.use_winograd_convolution && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16 && ((elempack == 4 && out_elempack == 4) || (elempack == 8 && out_elempack == 8)))
     {
-        {
-            winograd_padding = ncnn::create_layer(ncnn::LayerType::Padding);
-            winograd_padding->vkdev = vkdev;
-
-            ncnn::ParamDict pd;
-            pd.set(0, -233);
-            pd.set(1, -233);
-            pd.set(2, -233);
-            pd.set(3, -233);
-            pd.set(4, 0);
-            pd.set(5, 0.f);
-
-            winograd_padding->load_param(pd);
-
-            winograd_padding->create_pipeline(opt);
-        }
-
-        {
-            winograd_crop = ncnn::create_layer(ncnn::LayerType::Crop);
-            winograd_crop->vkdev = vkdev;
-
-            ncnn::ParamDict pd;
-            pd.set(0, -233);
-            pd.set(1, -233);
-            pd.set(2, -233);
-            pd.set(3, 0);
-            pd.set(4, 0);
-            pd.set(5, 0);
-
-            winograd_crop->load_param(pd);
-
-            winograd_crop->create_pipeline(opt);
-        }
-
         // winograd43
         {
             int block_x = 0;
             int block_y = 0;
-            Mat shape_winograd_bordered;
             Mat shape_winograd_input_transformed;
             Mat shape_winograd_gemm;
-            Mat shape_winograd_out_bordered;
-            Mat shape_winograd_bordered_packed;
             Mat shape_winograd_input_transformed_packed;
             Mat shape_winograd_gemm_packed;
-            Mat shape_winograd_out_bordered_packed;
 
             if (out_shape.dims != 0)
             {
-                int outw_bordered = (out_shape.w + 3) / 4 * 4;
-                int outh_bordered = (out_shape.h + 3) / 4 * 4;
+                int block_x = (out_shape.w + 3) / 4;
+                int block_y = (out_shape.h + 3) / 4;
 
-                int w_bordered = outw_bordered + 2;
-                int h_bordered = outh_bordered + 2;
-
-                block_x = outw_bordered / 4;
-                block_y = outh_bordered / 4;
-
-                shape_winograd_bordered = Mat(w_bordered, h_bordered, shape.c, (void*)0);
                 shape_winograd_input_transformed = Mat(block_x * block_y, shape.c, 36, (void*)0);
                 shape_winograd_gemm = Mat(block_x * block_y, out_shape.c, 36, (void*)0);
-                shape_winograd_out_bordered = Mat(outw_bordered, outh_bordered, out_shape.c, (void*)0);
             }
-
-            if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
 
             if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h / elempack, 36, (void*)0, elemsize, elempack);
 
             if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h / out_elempack, 36, (void*)0, out_elemsize, out_elempack);
 
-            if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
             // check blob shape
-            if (!vkdev->shape_support_image_storage(shape_winograd_bordered_packed)
-                    || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
-                    || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
-                    || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
+            if (!vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed) || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed))
             {
                 support_image_storage = false;
                 opt.use_image_storage = false;
@@ -314,10 +259,10 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
             {
                 std::vector<vk_specialization_type> specializations(0 + 7);
-                specializations[0 + 0].i = shape_winograd_bordered_packed.w;
-                specializations[0 + 1].i = shape_winograd_bordered_packed.h;
-                specializations[0 + 2].i = shape_winograd_bordered_packed.c;
-                specializations[0 + 3].i = shape_winograd_bordered_packed.cstep;
+                specializations[0 + 0].i = shape_bordered_packed.w;
+                specializations[0 + 1].i = shape_bordered_packed.h;
+                specializations[0 + 2].i = shape_bordered_packed.c;
+                specializations[0 + 3].i = shape_bordered_packed.cstep;
                 specializations[0 + 4].i = shape_winograd_input_transformed_packed.cstep;
                 specializations[0 + 5].i = block_x;
                 specializations[0 + 6].i = block_y;
@@ -366,9 +311,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
                 specializations[4 + 2].i = block_x;
                 specializations[4 + 3].i = block_y;
-                specializations[4 + 4].i = shape_winograd_out_bordered_packed.w;
-                specializations[4 + 5].i = shape_winograd_out_bordered_packed.h;
-                specializations[4 + 6].i = shape_winograd_out_bordered_packed.cstep;
+                specializations[4 + 4].i = out_shape_packed.w;
+                specializations[4 + 5].i = out_shape_packed.h;
+                specializations[4 + 6].i = out_shape_packed.cstep;
 
                 int shader_type_index = -1;
                 if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd43_transform_output;
@@ -384,45 +329,26 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         {
             int block_x = 0;
             int block_y = 0;
-            Mat shape_winograd_bordered;
             Mat shape_winograd_input_transformed;
             Mat shape_winograd_gemm;
-            Mat shape_winograd_out_bordered;
-            Mat shape_winograd_bordered_packed;
             Mat shape_winograd_input_transformed_packed;
             Mat shape_winograd_gemm_packed;
-            Mat shape_winograd_out_bordered_packed;
 
             if (out_shape.dims != 0)
             {
-                int outw_bordered = (out_shape.w + 1) / 2 * 2;
-                int outh_bordered = (out_shape.h + 1) / 2 * 2;
+                int block_x = (out_shape.w + 1) / 2;
+                int block_y = (out_shape.h + 1) / 2;
 
-                int w_bordered = outw_bordered + 2;
-                int h_bordered = outh_bordered + 2;
-
-                block_x = outw_bordered / 2;
-                block_y = outh_bordered / 2;
-
-                shape_winograd_bordered = Mat(w_bordered, h_bordered, shape.c, (void*)0);
                 shape_winograd_input_transformed = Mat(block_x * block_y, shape.c, 16, (void*)0);
                 shape_winograd_gemm = Mat(block_x * block_y, out_shape.c, 16, (void*)0);
-                shape_winograd_out_bordered = Mat(outw_bordered, outh_bordered, out_shape.c, (void*)0);
             }
-
-            if (shape_winograd_bordered.dims == 3) shape_winograd_bordered_packed = Mat(shape_winograd_bordered.w, shape_winograd_bordered.h, shape_winograd_bordered.c / elempack, (void*)0, elemsize, elempack);
 
             if (shape_winograd_input_transformed.dims == 3) shape_winograd_input_transformed_packed = Mat(shape_winograd_input_transformed.w, shape_winograd_input_transformed.h / elempack, 16, (void*)0, elemsize, elempack);
 
             if (shape_winograd_gemm.dims == 3) shape_winograd_gemm_packed = Mat(shape_winograd_gemm.w, shape_winograd_gemm.h / out_elempack, 16, (void*)0, out_elemsize, out_elempack);
 
-            if (shape_winograd_out_bordered.dims == 3) shape_winograd_out_bordered_packed = Mat(shape_winograd_out_bordered.w, shape_winograd_out_bordered.h, shape_winograd_out_bordered.c / out_elempack, (void*)0, out_elemsize, out_elempack);
-
             // check blob shape
-            if (!vkdev->shape_support_image_storage(shape_winograd_bordered_packed)
-                    || !vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed)
-                    || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed)
-                    || !vkdev->shape_support_image_storage(shape_winograd_out_bordered_packed))
+            if (!vkdev->shape_support_image_storage(shape_winograd_input_transformed_packed) || !vkdev->shape_support_image_storage(shape_winograd_gemm_packed))
             {
                 support_image_storage = false;
                 opt.use_image_storage = false;
@@ -444,10 +370,10 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
 
             {
                 std::vector<vk_specialization_type> specializations(0 + 7);
-                specializations[0 + 0].i = shape_winograd_bordered_packed.w;
-                specializations[0 + 1].i = shape_winograd_bordered_packed.h;
-                specializations[0 + 2].i = shape_winograd_bordered_packed.c;
-                specializations[0 + 3].i = shape_winograd_bordered_packed.cstep;
+                specializations[0 + 0].i = shape_bordered_packed.w;
+                specializations[0 + 1].i = shape_bordered_packed.h;
+                specializations[0 + 2].i = shape_bordered_packed.c;
+                specializations[0 + 3].i = shape_bordered_packed.cstep;
                 specializations[0 + 4].i = shape_winograd_input_transformed_packed.cstep;
                 specializations[0 + 5].i = block_x;
                 specializations[0 + 6].i = block_y;
@@ -496,9 +422,9 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 specializations[4 + 1].i = shape_winograd_gemm_packed.cstep;
                 specializations[4 + 2].i = block_x;
                 specializations[4 + 3].i = block_y;
-                specializations[4 + 4].i = shape_winograd_out_bordered_packed.w;
-                specializations[4 + 5].i = shape_winograd_out_bordered_packed.h;
-                specializations[4 + 6].i = shape_winograd_out_bordered_packed.cstep;
+                specializations[4 + 4].i = out_shape_packed.w;
+                specializations[4 + 5].i = out_shape_packed.h;
+                specializations[4 + 6].i = out_shape_packed.cstep;
 
                 int shader_type_index = -1;
                 if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd23_transform_output;
@@ -625,20 +551,6 @@ int Convolution_vulkan::destroy_pipeline(const Option& opt)
     delete pipeline_convolution_gemm;
     pipeline_convolution_gemm = 0;
 
-    if (winograd_padding)
-    {
-        winograd_padding->destroy_pipeline(opt);
-        delete winograd_padding;
-        winograd_padding = 0;
-    }
-
-    if (winograd_crop)
-    {
-        winograd_crop->destroy_pipeline(opt);
-        delete winograd_crop;
-        winograd_crop = 0;
-    }
-
     delete pipeline_convolution_3x3s1d1_winograd23_transform_input;
     delete pipeline_convolution_3x3s1d1_winograd23_gemm;
     delete pipeline_convolution_3x3s1d1_winograd23_transform_output;
@@ -669,16 +581,6 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     if (padding)
     {
         padding->upload_model(cmd, opt);
-    }
-
-    if (winograd_padding)
-    {
-        winograd_padding->upload_model(cmd, opt);
-    }
-
-    if (winograd_crop)
-    {
-        winograd_crop->upload_model(cmd, opt);
     }
 
     const int maxk = kernel_w * kernel_h;
@@ -1087,38 +989,8 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
         if (pre_winograd43)
         {
             // winograd43
-            int outw_bordered = (outw + 3) / 4 * 4;
-            int outh_bordered = (outh + 3) / 4 * 4;
-
-            int w_bordered = outw_bordered + 2;
-            int h_bordered = outh_bordered + 2;
-
-            int block_x = outw_bordered / 4;
-            int block_y = outh_bordered / 4;
-
-            // pad to 4n+2
-            {
-                Option opt_pad = opt;
-                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-                VkMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-                int* padding_params = padding_param_blob.mapped();
-
-                padding_params[0] = 0;
-                padding_params[1] = h_bordered - bottom_blob_bordered.h;
-                padding_params[2] = 0;
-                padding_params[3] = w_bordered - bottom_blob_bordered.w;
-                padding_params[4] = 0;
-                padding_params[5] = 0;
-
-                std::vector<VkMat> padding_inputs(2);
-                padding_inputs[0] = bottom_blob_bordered;
-                padding_inputs[1] = padding_param_blob;
-
-                std::vector<VkMat> padding_outputs(1);
-                winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
-                bottom_blob_bordered = padding_outputs[0];
-            }
+            int block_x = (outw + 3) / 4;
+            int block_y = (outh + 3) / 4;
 
             // transform input
             VkMat bottom_tm_blob;
@@ -1176,15 +1048,14 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             }
 
             // transform output
-            VkMat top_blob_bordered;
             {
-                top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-                if (top_blob_bordered.empty())
+                top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+                if (top_blob.empty())
                     return -100;
 
                 std::vector<VkMat> bindings(3);
                 bindings[0] = top_tm_blob;
-                bindings[1] = top_blob_bordered;
+                bindings[1] = top_blob;
                 bindings[2] = bias_data_gpu;
 
                 std::vector<vk_constant_type> constants(7);
@@ -1192,74 +1063,23 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 constants[1].i = top_tm_blob.cstep;
                 constants[2].i = block_x;
                 constants[3].i = block_y;
-                constants[4].i = top_blob_bordered.w;
-                constants[5].i = top_blob_bordered.h;
-                constants[6].i = top_blob_bordered.cstep;
+                constants[4].i = top_blob.w;
+                constants[5].i = top_blob.h;
+                constants[6].i = top_blob.cstep;
 
                 VkMat dispatcher;
                 dispatcher.w = block_x;
                 dispatcher.h = block_y;
-                dispatcher.c = top_blob_bordered.c;
+                dispatcher.c = top_blob.c;
 
                 cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_output, bindings, constants, dispatcher);
-            }
-
-            // crop top_blob
-            {
-                VkMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-                int* crop_params = crop_param_blob.mapped();
-
-                crop_params[0] = 0;
-                crop_params[1] = 0;
-                crop_params[2] = 0;
-                crop_params[3] = outw;
-                crop_params[4] = outh;
-                crop_params[5] = num_output;
-
-                std::vector<VkMat> crop_inputs(2);
-                crop_inputs[0] = top_blob_bordered;
-                crop_inputs[1] = crop_param_blob;
-
-                std::vector<VkMat> crop_outputs(1);
-                winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
-                top_blob = crop_outputs[0];
             }
         }
         else
         {
             // winograd23
-            int outw_bordered = (outw + 1) / 2 * 2;
-            int outh_bordered = (outh + 1) / 2 * 2;
-
-            int w_bordered = outw_bordered + 2;
-            int h_bordered = outh_bordered + 2;
-
-            int block_x = outw_bordered / 2;
-            int block_y = outh_bordered / 2;
-
-            // pad to 2n+2
-            {
-                Option opt_pad = opt;
-                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-                VkMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-                int* padding_params = padding_param_blob.mapped();
-
-                padding_params[0] = 0;
-                padding_params[1] = h_bordered - bottom_blob_bordered.h;
-                padding_params[2] = 0;
-                padding_params[3] = w_bordered - bottom_blob_bordered.w;
-                padding_params[4] = 0;
-                padding_params[5] = 0;
-
-                std::vector<VkMat> padding_inputs(2);
-                padding_inputs[0] = bottom_blob_bordered;
-                padding_inputs[1] = padding_param_blob;
-
-                std::vector<VkMat> padding_outputs(1);
-                winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
-                bottom_blob_bordered = padding_outputs[0];
-            }
+            int block_x = (outw + 1) / 2;
+            int block_y = (outh + 1) / 2;
 
             // transform input
             VkMat bottom_tm_blob;
@@ -1317,15 +1137,14 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
             }
 
             // transform output
-            VkMat top_blob_bordered;
             {
-                top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-                if (top_blob_bordered.empty())
+                top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+                if (top_blob.empty())
                     return -100;
 
                 std::vector<VkMat> bindings(3);
                 bindings[0] = top_tm_blob;
-                bindings[1] = top_blob_bordered;
+                bindings[1] = top_blob;
                 bindings[2] = bias_data_gpu;
 
                 std::vector<vk_constant_type> constants(7);
@@ -1333,37 +1152,16 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
                 constants[1].i = top_tm_blob.cstep;
                 constants[2].i = block_x;
                 constants[3].i = block_y;
-                constants[4].i = top_blob_bordered.w;
-                constants[5].i = top_blob_bordered.h;
-                constants[6].i = top_blob_bordered.cstep;
+                constants[4].i = top_blob.w;
+                constants[5].i = top_blob.h;
+                constants[6].i = top_blob.cstep;
 
                 VkMat dispatcher;
                 dispatcher.w = block_x;
                 dispatcher.h = block_y;
-                dispatcher.c = top_blob_bordered.c;
+                dispatcher.c = top_blob.c;
 
                 cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_output, bindings, constants, dispatcher);
-            }
-
-            // crop top_blob
-            {
-                VkMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-                int* crop_params = crop_param_blob.mapped();
-
-                crop_params[0] = 0;
-                crop_params[1] = 0;
-                crop_params[2] = 0;
-                crop_params[3] = outw;
-                crop_params[4] = outh;
-                crop_params[5] = num_output;
-
-                std::vector<VkMat> crop_inputs(2);
-                crop_inputs[0] = top_blob_bordered;
-                crop_inputs[1] = crop_param_blob;
-
-                std::vector<VkMat> crop_outputs(1);
-                winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
-                top_blob = crop_outputs[0];
             }
         }
 
@@ -1564,38 +1362,8 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
         if (pre_winograd43)
         {
             // winograd43
-            int outw_bordered = (outw + 3) / 4 * 4;
-            int outh_bordered = (outh + 3) / 4 * 4;
-
-            int w_bordered = outw_bordered + 2;
-            int h_bordered = outh_bordered + 2;
-
-            int block_x = outw_bordered / 4;
-            int block_y = outh_bordered / 4;
-
-            // pad to 4n+2
-            {
-                Option opt_pad = opt;
-                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-                VkImageMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-                int* padding_params = padding_param_blob.mapped();
-
-                padding_params[0] = 0;
-                padding_params[1] = h_bordered - bottom_blob_bordered.h;
-                padding_params[2] = 0;
-                padding_params[3] = w_bordered - bottom_blob_bordered.w;
-                padding_params[4] = 0;
-                padding_params[5] = 0;
-
-                std::vector<VkImageMat> padding_inputs(2);
-                padding_inputs[0] = bottom_blob_bordered;
-                padding_inputs[1] = padding_param_blob;
-
-                std::vector<VkImageMat> padding_outputs(1);
-                winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
-                bottom_blob_bordered = padding_outputs[0];
-            }
+            int block_x = (outw + 3) / 4;
+            int block_y = (outh + 3) / 4;
 
             // transform input
             VkImageMat bottom_tm_blob;
@@ -1653,15 +1421,14 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             }
 
             // transform output
-            VkImageMat top_blob_bordered;
             {
-                top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-                if (top_blob_bordered.empty())
+                top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+                if (top_blob.empty())
                     return -100;
 
                 std::vector<VkImageMat> bindings(3);
                 bindings[0] = top_tm_blob;
-                bindings[1] = top_blob_bordered;
+                bindings[1] = top_blob;
                 bindings[2] = bias_data_gpu_image;
 
                 std::vector<vk_constant_type> constants(7);
@@ -1669,74 +1436,23 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
                 constants[1].i = 0; //top_tm_blob.cstep;
                 constants[2].i = block_x;
                 constants[3].i = block_y;
-                constants[4].i = top_blob_bordered.w;
-                constants[5].i = top_blob_bordered.h;
-                constants[6].i = 0; //top_blob_bordered.cstep;
+                constants[4].i = top_blob.w;
+                constants[5].i = top_blob.h;
+                constants[6].i = 0; //top_blob.cstep;
 
                 VkImageMat dispatcher;
                 dispatcher.w = block_x;
                 dispatcher.h = block_y;
-                dispatcher.c = top_blob_bordered.c;
+                dispatcher.c = top_blob.c;
 
                 cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd43_transform_output, bindings, constants, dispatcher);
-            }
-
-            // crop top_blob
-            {
-                VkImageMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-                int* crop_params = crop_param_blob.mapped();
-
-                crop_params[0] = 0;
-                crop_params[1] = 0;
-                crop_params[2] = 0;
-                crop_params[3] = outw;
-                crop_params[4] = outh;
-                crop_params[5] = num_output;
-
-                std::vector<VkImageMat> crop_inputs(2);
-                crop_inputs[0] = top_blob_bordered;
-                crop_inputs[1] = crop_param_blob;
-
-                std::vector<VkImageMat> crop_outputs(1);
-                winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
-                top_blob = crop_outputs[0];
             }
         }
         else
         {
             // winograd23
-            int outw_bordered = (outw + 1) / 2 * 2;
-            int outh_bordered = (outh + 1) / 2 * 2;
-
-            int w_bordered = outw_bordered + 2;
-            int h_bordered = outh_bordered + 2;
-
-            int block_x = outw_bordered / 2;
-            int block_y = outh_bordered / 2;
-
-            // pad to 2n+2
-            {
-                Option opt_pad = opt;
-                opt_pad.blob_vkallocator = opt.workspace_vkallocator;
-
-                VkImageMat padding_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-                int* padding_params = padding_param_blob.mapped();
-
-                padding_params[0] = 0;
-                padding_params[1] = h_bordered - bottom_blob_bordered.h;
-                padding_params[2] = 0;
-                padding_params[3] = w_bordered - bottom_blob_bordered.w;
-                padding_params[4] = 0;
-                padding_params[5] = 0;
-
-                std::vector<VkImageMat> padding_inputs(2);
-                padding_inputs[0] = bottom_blob_bordered;
-                padding_inputs[1] = padding_param_blob;
-
-                std::vector<VkImageMat> padding_outputs(1);
-                winograd_padding->forward(padding_inputs, padding_outputs, cmd, opt_pad);
-                bottom_blob_bordered = padding_outputs[0];
-            }
+            int block_x = (outw + 1) / 2;
+            int block_y = (outh + 1) / 2;
 
             // transform input
             VkImageMat bottom_tm_blob;
@@ -1794,15 +1510,14 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
             }
 
             // transform output
-            VkImageMat top_blob_bordered;
             {
-                top_blob_bordered.create(outw_bordered, outh_bordered, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-                if (top_blob_bordered.empty())
+                top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+                if (top_blob.empty())
                     return -100;
 
                 std::vector<VkImageMat> bindings(3);
                 bindings[0] = top_tm_blob;
-                bindings[1] = top_blob_bordered;
+                bindings[1] = top_blob;
                 bindings[2] = bias_data_gpu_image;
 
                 std::vector<vk_constant_type> constants(7);
@@ -1810,37 +1525,16 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
                 constants[1].i = 0; //top_tm_blob.cstep;
                 constants[2].i = block_x;
                 constants[3].i = block_y;
-                constants[4].i = top_blob_bordered.w;
-                constants[5].i = top_blob_bordered.h;
-                constants[6].i = 0; //top_blob_bordered.cstep;
+                constants[4].i = top_blob.w;
+                constants[5].i = top_blob.h;
+                constants[6].i = 0; //top_blob.cstep;
 
                 VkImageMat dispatcher;
                 dispatcher.w = block_x;
                 dispatcher.h = block_y;
-                dispatcher.c = top_blob_bordered.c;
+                dispatcher.c = top_blob.c;
 
                 cmd.record_pipeline(pipeline_convolution_3x3s1d1_winograd23_transform_output, bindings, constants, dispatcher);
-            }
-
-            // crop top_blob
-            {
-                VkImageMat crop_param_blob(6, (size_t)4u, 1, opt.staging_vkallocator);
-                int* crop_params = crop_param_blob.mapped();
-
-                crop_params[0] = 0;
-                crop_params[1] = 0;
-                crop_params[2] = 0;
-                crop_params[3] = outw;
-                crop_params[4] = outh;
-                crop_params[5] = num_output;
-
-                std::vector<VkImageMat> crop_inputs(2);
-                crop_inputs[0] = top_blob_bordered;
-                crop_inputs[1] = crop_param_blob;
-
-                std::vector<VkImageMat> crop_outputs(1);
-                winograd_crop->forward(crop_inputs, crop_outputs, cmd, opt);
-                top_blob = crop_outputs[0];
             }
         }
 

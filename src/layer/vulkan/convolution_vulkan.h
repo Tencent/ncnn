@@ -48,8 +48,6 @@ public:
     Pipeline* pipeline_convolution_gemm;
 
     // winograd23 and winograd43
-    ncnn::Layer* winograd_padding;
-    ncnn::Layer* winograd_crop;
     VkMat weight_data_gpu_tm_winograd23;
     VkImageMat weight_data_gpu_tm_winograd23_image;
     Pipeline* pipeline_convolution_3x3s1d1_winograd23_transform_input;
