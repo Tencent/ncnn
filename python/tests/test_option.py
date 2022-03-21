@@ -137,8 +137,3 @@ def test_option():
     assert opt.use_tensor_storage == True
     opt.use_tensor_storage = False
     assert opt.use_tensor_storage == False
-
-    opt.use_weight_fp16_storage = True
-    assert opt.use_weight_fp16_storage == True
-    opt.use_weight_fp16_storage = False
-    assert opt.use_weight_fp16_storage == False

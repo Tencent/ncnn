@@ -20,7 +20,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y):
+    def forward(self, x, y, w):
         x = F.upsample(x, size=16)
         x = F.upsample(x, scale_factor=2, mode='nearest')
         x = F.upsample(x, size=(20), mode='nearest')
@@ -49,7 +49,9 @@ class Model(nn.Module):
         y = F.upsample(y, size=(16,24), mode='bicubic', align_corners=True)
         y = F.upsample(y, scale_factor=(2,3), mode='bicubic', align_corners=True)
 
-        return x, y
+        w = F.upsample(w, scale_factor=(1.499,1.499), mode='nearest')
+
+        return x, y, w
 
 def test():
     net = Model()
@@ -58,16 +60,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 3, 32)
     y = torch.rand(1, 3, 32, 32)
+    w = torch.rand(1, 8, 12, 12)
 
-    a = net(x, y)
+    a = net(x, y, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, w))
     mod.save("test_F_upsample.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_upsample.pt inputshape=[1,3,32],[1,3,32,32]")
+    os.system("../../src/pnnx test_F_upsample.pt inputshape=[1,3,32],[1,3,32,32],[1,8,12,12]")
 
     # ncnn inference
     import test_F_upsample_ncnn

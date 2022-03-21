@@ -268,6 +268,38 @@ Parameter::Parameter(const torch::jit::Value* value)
 {
 }
 
+bool operator==(const Parameter& lhs, const Parameter& rhs)
+{
+    if (lhs.type != rhs.type)
+        return false;
+
+    if (lhs.type == 0)
+        return true;
+
+    if (lhs.type == 1 && lhs.b == rhs.b)
+        return true;
+
+    if (lhs.type == 2 && lhs.i == rhs.i)
+        return true;
+
+    if (lhs.type == 3 && lhs.f == rhs.f)
+        return true;
+
+    if (lhs.type == 4 && lhs.s == rhs.s)
+        return true;
+
+    if (lhs.type == 5 && lhs.ai == rhs.ai)
+        return true;
+
+    if (lhs.type == 6 && lhs.af == rhs.af)
+        return true;
+
+    if (lhs.type == 7 && lhs.as == rhs.as)
+        return true;
+
+    return false;
+}
+
 Attribute::Attribute(const at::Tensor& t)
 {
     type = get_at_tensor_type(t.scalar_type());
@@ -341,6 +373,23 @@ Attribute::Attribute(const std::initializer_list<int>& _shape, const std::vector
         data.resize(size * type_to_elemsize(type));
         memcpy((void*)data.data(), (const void*)t.data(), data.size());
     }
+}
+
+bool operator==(const Attribute& lhs, const Attribute& rhs)
+{
+    if (lhs.type != rhs.type)
+        return false;
+
+    if (lhs.type == 0)
+        return true;
+
+    if (lhs.shape != rhs.shape)
+        return false;
+
+    if (lhs.data != rhs.data)
+        return false;
+
+    return true;
 }
 
 Parameter Parameter::parse_from_string(const std::string& value)
@@ -1343,7 +1392,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         fprintf(pyfp, ",");
                 }
 
-                fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+                if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+                {
+                    fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+                }
+                else
+                {
+                    fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
+                }
             }
         }
 
@@ -1373,11 +1429,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
             if (is_running_mean_var)
             {
-                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
             }
             else
             {
-                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
             }
 
             for (size_t i = 0; i < attr.shape.size(); i++)
@@ -1387,7 +1443,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     fprintf(pyfp, ",");
             }
 
-            fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+            if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+            {
+                fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+            }
+            else
+            {
+                fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
+            }
         }
 
         fprintf(pyfp, "        archive.close()\n");
@@ -1452,7 +1515,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             else if (op->type == "pnnx.Attribute")
             {
                 const std::string& key = op->attrs.begin()->first;
-                fprintf(pyfp, "v_%s = self.%s_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+                fprintf(pyfp, "v_%s = self.%s_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
             }
             else if (op->type == "Tensor.slice")
             {
@@ -1463,8 +1526,16 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             else if (op->type == "Tensor.index")
             {
                 // index expr
-                std::string index_expr = make_index_expression(op);
-                fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
+                if (op->inputs.size() == 2)
+                {
+                    std::string expanded_expr = expand_expression(op->inputs[1]->producer);
+                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), expanded_expr.c_str());
+                }
+                else
+                {
+                    std::string index_expr = make_index_expression(op);
+                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
+                }
             }
             else if (op->type == "Tensor.view" || op->type == "Tensor.reshape")
             {
@@ -1661,6 +1732,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 for (const auto& it : op->params)
                 {
                     if (op->type.substr(0, 7) == "Tensor." && i == 0)
+                    {
+                        fprintf(pyfp, "%s=", it.first.c_str());
+                    }
+                    else if (op->inputs.empty() && i == 0)
                     {
                         fprintf(pyfp, "%s=", it.first.c_str());
                     }
@@ -2345,6 +2420,15 @@ Operator* Graph::new_operator_before(const std::string& type, const std::string&
     op->type = type;
     op->name = name;
     ops.insert(std::find(ops.begin(), ops.end(), cur), op);
+    return op;
+}
+
+Operator* Graph::new_operator_after(const std::string& type, const std::string& name, const Operator* cur)
+{
+    Operator* op = new Operator;
+    op->type = type;
+    op->name = name;
+    ops.insert(std::find(ops.begin(), ops.end(), cur) + 1, op);
     return op;
 }
 

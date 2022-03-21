@@ -19,7 +19,7 @@
 
 namespace pnnx {
 
-void pass_level5(Graph& g);
+void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_constants);
 
 } // namespace pnnx
 

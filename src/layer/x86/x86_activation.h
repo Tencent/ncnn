@@ -58,7 +58,11 @@ static NCNN_FORCEINLINE __m128 hardswish_sse(__m128 inputs, __m128 a, __m128 b)
 
 static NCNN_FORCEINLINE __m128 abs_sse(__m128 inputs)
 {
-    return _mm_max_ps(_mm_sub_ps(_mm_setzero_ps(), inputs), inputs);
+    // Use negative zero as the sign bit mask.
+    const __m128 magic_negative_zero = _mm_set_ps1(-0.0f);
+
+    // return (!magic_negative_zero && x);
+    return _mm_andnot_ps(magic_negative_zero, inputs);
 }
 
 static NCNN_FORCEINLINE __m128 lrelu_sse(__m128 inputs, float slope)
@@ -131,7 +135,7 @@ static NCNN_FORCEINLINE __m256 tanh_avx(__m256 inputs)
 {
     const __m256 one = _mm256_set1_ps(1.0f);
     const __m256 two = _mm256_set1_ps(2.0f);
-#if __AVX2__
+#if __FMA__
     return _mm256_fmsub_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two, one);
 #else
     return _mm256_sub_ps(_mm256_mul_ps(sigmoid_avx(_mm256_mul_ps(inputs, two)), two), one);

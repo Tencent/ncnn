@@ -95,15 +95,15 @@ void chain_multi_output(Graph& graph)
 
                 op->inputs = new_inputs;
 
-                op0->inputs.clear();
-                op0->outputs.clear();
-
                 Operand* op0_out = op0->outputs[0];
                 op0_out->producer = 0;
                 op0_out->consumers.clear();
 
                 graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), op0_out));
                 delete op0_out;
+
+                op0->inputs.clear();
+                op0->outputs.clear();
 
                 graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op0));
                 delete op0;
