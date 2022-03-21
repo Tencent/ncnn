@@ -44,6 +44,9 @@ public:
 
     Pipeline* pipeline_innerproduct;
 
+    Pipeline* pipeline_innerproduct_sum8;
+    Pipeline* pipeline_innerproduct_reduce_sum8;
+
     Pipeline* pipeline_innerproduct_gemm;
 };
 
