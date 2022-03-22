@@ -35,7 +35,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-mipsel-install-1
@@ -78,7 +78,7 @@ jobs:
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-mipsel-install-1
