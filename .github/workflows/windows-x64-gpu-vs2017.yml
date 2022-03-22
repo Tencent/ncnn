@@ -40,7 +40,7 @@ jobs:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x64-install3
@@ -60,7 +60,7 @@ jobs:
         $installer.WaitForExit();
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: swiftshader-install
         key: swiftshader-vs2017-x64-install-20220211
