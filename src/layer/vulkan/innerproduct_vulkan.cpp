@@ -28,6 +28,9 @@ InnerProduct_vulkan::InnerProduct_vulkan()
 
     pipeline_innerproduct = 0;
 
+    pipeline_innerproduct_sum8 = 0;
+    pipeline_innerproduct_reduce_sum8 = 0;
+
     pipeline_innerproduct_gemm = 0;
 }
 
@@ -192,44 +195,101 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
         flatten->create_pipeline(opt);
     }
 
-    std::vector<vk_specialization_type> specializations(4 + 10);
-    specializations[0].i = bias_term;
-    specializations[1].i = activation_type;
-    specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
-    specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
-    specializations[4 + 0].i = shape_flatten_packed.dims;
-    specializations[4 + 1].i = shape_flatten_packed.w;
-    specializations[4 + 2].i = shape_flatten_packed.h;
-    specializations[4 + 3].i = shape_flatten_packed.c;
-    specializations[4 + 4].i = shape_flatten_packed.cstep;
-    specializations[4 + 5].i = out_shape_packed.dims;
-    specializations[4 + 6].i = out_shape_packed.w;
-    specializations[4 + 7].i = out_shape_packed.h;
-    specializations[4 + 8].i = out_shape_packed.c;
-    specializations[4 + 9].i = out_shape_packed.cstep;
-
-    Mat local_size_xyz(std::min(64, num_output / out_elempack), 1, 1, (void*)0);
-    if (out_shape_packed.dims != 0)
+    if (num_input / in_elempack >= 32)
     {
-        local_size_xyz.w = std::min(64, out_shape_packed.w);
-        local_size_xyz.h = 1;
-        local_size_xyz.c = 1;
+        Mat out_sum8_shape((num_input / in_elempack + 7) / 8, num_output, (void*)0);
+        Mat out_sum8_shape_packed = Mat(out_sum8_shape.w, out_sum8_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
+        if (!vkdev->shape_support_image_storage(out_sum8_shape_packed))
+        {
+            support_image_storage = false;
+            opt.use_image_storage = false;
+        }
+
+        // sum8
+        {
+            std::vector<vk_specialization_type> specializations(0 + 3);
+            specializations[0 + 0].i = shape_flatten_packed.w;
+            specializations[0 + 1].i = out_sum8_shape_packed.w;
+            specializations[0 + 2].i = out_sum8_shape_packed.h;
+
+            int shader_type_index = -1;
+            if (in_elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_sum8;
+            if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_sum8_pack4;
+            if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_sum8_pack1to4;
+            if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_sum8_pack4to1;
+            if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_sum8_pack8;
+            if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_sum8_pack1to8;
+            if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_sum8_pack8to1;
+            if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_sum8_pack4to8;
+            if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_sum8_pack8to4;
+
+            pipeline_innerproduct_sum8 = new Pipeline(vkdev);
+            pipeline_innerproduct_sum8->set_local_size_xyz(8, std::min(8, num_output / out_elempack), 1);
+            pipeline_innerproduct_sum8->create(shader_type_index, opt, specializations);
+        }
+
+        // reduce sum8
+        {
+            std::vector<vk_specialization_type> specializations(4 + 3);
+            specializations[0].i = bias_term;
+            specializations[1].i = activation_type;
+            specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+            specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+            specializations[4 + 0].i = out_sum8_shape_packed.w;
+            specializations[4 + 1].i = out_sum8_shape_packed.h;
+            specializations[4 + 2].i = out_shape_packed.w;
+
+            int shader_type_index = -1;
+            if (out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_reduce_sum8;
+            if (out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_reduce_sum8_pack4;
+            if (out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_reduce_sum8_pack8;
+
+            pipeline_innerproduct_reduce_sum8 = new Pipeline(vkdev);
+            pipeline_innerproduct_reduce_sum8->set_local_size_xyz(std::min(64, num_output / out_elempack), 1, 1);
+            pipeline_innerproduct_reduce_sum8->create(shader_type_index, opt, specializations);
+        }
     }
+    else
+    {
+        std::vector<vk_specialization_type> specializations(4 + 10);
+        specializations[0].i = bias_term;
+        specializations[1].i = activation_type;
+        specializations[2].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+        specializations[3].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+        specializations[4 + 0].i = shape_flatten_packed.dims;
+        specializations[4 + 1].i = shape_flatten_packed.w;
+        specializations[4 + 2].i = shape_flatten_packed.h;
+        specializations[4 + 3].i = shape_flatten_packed.c;
+        specializations[4 + 4].i = shape_flatten_packed.cstep;
+        specializations[4 + 5].i = out_shape_packed.dims;
+        specializations[4 + 6].i = out_shape_packed.w;
+        specializations[4 + 7].i = out_shape_packed.h;
+        specializations[4 + 8].i = out_shape_packed.c;
+        specializations[4 + 9].i = out_shape_packed.cstep;
 
-    int shader_type_index = -1;
-    if (in_elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct;
-    if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack4;
-    if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack1to4;
-    if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_pack4to1;
-    if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack8;
-    if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack1to8;
-    if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_pack8to1;
-    if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack4to8;
-    if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack8to4;
+        Mat local_size_xyz(std::min(64, num_output / out_elempack), 1, 1, (void*)0);
+        if (out_shape_packed.dims != 0)
+        {
+            local_size_xyz.w = std::min(64, out_shape_packed.w);
+            local_size_xyz.h = 1;
+            local_size_xyz.c = 1;
+        }
 
-    pipeline_innerproduct = new Pipeline(vkdev);
-    pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
-    pipeline_innerproduct->create(shader_type_index, opt, specializations);
+        int shader_type_index = -1;
+        if (in_elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct;
+        if (in_elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack4;
+        if (in_elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack1to4;
+        if (in_elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_pack4to1;
+        if (in_elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack8;
+        if (in_elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack1to8;
+        if (in_elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_pack8to1;
+        if (in_elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::innerproduct_pack4to8;
+        if (in_elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::innerproduct_pack8to4;
+
+        pipeline_innerproduct = new Pipeline(vkdev);
+        pipeline_innerproduct->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_innerproduct->create(shader_type_index, opt, specializations);
+    }
 
     // gemm for no shape hint
     if (shape.dims == 0)
@@ -284,6 +344,11 @@ int InnerProduct_vulkan::destroy_pipeline(const Option& opt)
 
     delete pipeline_innerproduct;
     pipeline_innerproduct = 0;
+
+    delete pipeline_innerproduct_sum8;
+    delete pipeline_innerproduct_reduce_sum8;
+    pipeline_innerproduct_sum8 = 0;
+    pipeline_innerproduct_reduce_sum8 = 0;
 
     delete pipeline_innerproduct_gemm;
     pipeline_innerproduct_gemm = 0;
@@ -444,29 +509,73 @@ int InnerProduct_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCo
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-    if (top_blob.empty())
-        return -100;
+    if (num_input / in_elempack >= 32)
+    {
+        // sum8
+        VkMat top_blob_sum8;
+        {
+            top_blob_sum8.create((num_input / in_elempack + 7) / 8, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob_sum8.empty())
+                return -100;
 
-    std::vector<VkMat> bindings(4);
-    bindings[0] = bottom_blob_flattened;
-    bindings[1] = top_blob;
-    bindings[2] = weight_data_gpu;
-    bindings[3] = bias_data_gpu;
+            std::vector<VkMat> bindings(3);
+            bindings[0] = bottom_blob_flattened;
+            bindings[1] = top_blob_sum8;
+            bindings[2] = weight_data_gpu;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob_flattened.dims;
-    constants[1].i = bottom_blob_flattened.w;
-    constants[2].i = bottom_blob_flattened.h;
-    constants[3].i = bottom_blob_flattened.c;
-    constants[4].i = bottom_blob_flattened.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = top_blob.cstep;
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = bottom_blob_flattened.w;
+            constants[1].i = top_blob_sum8.w;
+            constants[2].i = top_blob_sum8.h;
 
-    cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
+            cmd.record_pipeline(pipeline_innerproduct_sum8, bindings, constants, top_blob_sum8);
+        }
+
+        // reduce sum8
+        {
+            top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+            std::vector<VkMat> bindings(3);
+            bindings[0] = top_blob_sum8;
+            bindings[1] = top_blob;
+            bindings[2] = bias_data_gpu;
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = top_blob_sum8.w;
+            constants[1].i = top_blob_sum8.h;
+            constants[2].i = top_blob.w;
+
+            cmd.record_pipeline(pipeline_innerproduct_reduce_sum8, bindings, constants, top_blob);
+        }
+    }
+    else
+    {
+        top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkMat> bindings(4);
+        bindings[0] = bottom_blob_flattened;
+        bindings[1] = top_blob;
+        bindings[2] = weight_data_gpu;
+        bindings[3] = bias_data_gpu;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob_flattened.dims;
+        constants[1].i = bottom_blob_flattened.w;
+        constants[2].i = bottom_blob_flattened.h;
+        constants[3].i = bottom_blob_flattened.c;
+        constants[4].i = bottom_blob_flattened.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = top_blob.cstep;
+
+        cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
+    }
 
     return 0;
 }
@@ -560,29 +669,73 @@ int InnerProduct_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_
         if (out_elempack == 1) out_elemsize = 4u;
     }
 
-    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
-    if (top_blob.empty())
-        return -100;
+    if (num_input / in_elempack >= 32)
+    {
+        // sum8
+        VkImageMat top_blob_sum8;
+        {
+            top_blob_sum8.create((num_input / in_elempack + 7) / 8, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob_sum8.empty())
+                return -100;
 
-    std::vector<VkImageMat> bindings(4);
-    bindings[0] = bottom_blob_flattened;
-    bindings[1] = top_blob;
-    bindings[2] = weight_data_gpu_image;
-    bindings[3] = bias_data_gpu_image;
+            std::vector<VkImageMat> bindings(3);
+            bindings[0] = bottom_blob_flattened;
+            bindings[1] = top_blob_sum8;
+            bindings[2] = weight_data_gpu_image;
 
-    std::vector<vk_constant_type> constants(10);
-    constants[0].i = bottom_blob_flattened.dims;
-    constants[1].i = bottom_blob_flattened.w;
-    constants[2].i = bottom_blob_flattened.h;
-    constants[3].i = bottom_blob_flattened.c;
-    constants[4].i = 0; //bottom_blob_flattened.cstep;
-    constants[5].i = top_blob.dims;
-    constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
-    constants[8].i = top_blob.c;
-    constants[9].i = 0; //top_blob.cstep;
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = bottom_blob_flattened.w;
+            constants[1].i = top_blob_sum8.w;
+            constants[2].i = top_blob_sum8.h;
 
-    cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
+            cmd.record_pipeline(pipeline_innerproduct_sum8, bindings, constants, top_blob_sum8);
+        }
+
+        // reduce sum8
+        {
+            top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+            if (top_blob.empty())
+                return -100;
+
+            std::vector<VkImageMat> bindings(3);
+            bindings[0] = top_blob_sum8;
+            bindings[1] = top_blob;
+            bindings[2] = bias_data_gpu_image;
+
+            std::vector<vk_constant_type> constants(3);
+            constants[0].i = top_blob_sum8.w;
+            constants[1].i = top_blob_sum8.h;
+            constants[2].i = top_blob.w;
+
+            cmd.record_pipeline(pipeline_innerproduct_reduce_sum8, bindings, constants, top_blob);
+        }
+    }
+    else
+    {
+        top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_vkallocator);
+        if (top_blob.empty())
+            return -100;
+
+        std::vector<VkImageMat> bindings(4);
+        bindings[0] = bottom_blob_flattened;
+        bindings[1] = top_blob;
+        bindings[2] = weight_data_gpu_image;
+        bindings[3] = bias_data_gpu_image;
+
+        std::vector<vk_constant_type> constants(10);
+        constants[0].i = bottom_blob_flattened.dims;
+        constants[1].i = bottom_blob_flattened.w;
+        constants[2].i = bottom_blob_flattened.h;
+        constants[3].i = bottom_blob_flattened.c;
+        constants[4].i = 0; //bottom_blob_flattened.cstep;
+        constants[5].i = top_blob.dims;
+        constants[6].i = top_blob.w;
+        constants[7].i = top_blob.h;
+        constants[8].i = top_blob.c;
+        constants[9].i = 0; //top_blob.cstep;
+
+        cmd.record_pipeline(pipeline_innerproduct, bindings, constants, top_blob);
+    }
 
     return 0;
 }
