@@ -212,7 +212,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
         pipeline_convolution_1x1s1d1->create(shader_type_index, opt, specializations);
     }
-    if (opt.use_winograd_convolution && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16 && (elempack == out_elempack))
+    if (opt.use_winograd_convolution && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
         // winograd43
         {
@@ -289,7 +289,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 int shader_type_index = -1;
                 if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd_gemm;
                 if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm;
+                if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_3x3s1d1_winograd_gemm;
+                if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_3x3s1d1_winograd_gemm;
                 if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd_gemm;
+                if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_3x3s1d1_winograd_gemm;
+                if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_3x3s1d1_winograd_gemm;
+                if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_3x3s1d1_winograd_gemm;
+                if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_3x3s1d1_winograd_gemm;
 
                 pipeline_convolution_3x3s1d1_winograd43_gemm = new Pipeline(vkdev);
                 if (opt.use_shader_local_memory)
@@ -403,7 +409,13 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
                 int shader_type_index = -1;
                 if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_3x3s1d1_winograd_gemm;
                 if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_3x3s1d1_winograd_gemm;
+                if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_3x3s1d1_winograd_gemm;
+                if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_3x3s1d1_winograd_gemm;
                 if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_3x3s1d1_winograd_gemm;
+                if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_3x3s1d1_winograd_gemm;
+                if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_3x3s1d1_winograd_gemm;
+                if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_3x3s1d1_winograd_gemm;
+                if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_3x3s1d1_winograd_gemm;
 
                 pipeline_convolution_3x3s1d1_winograd23_gemm = new Pipeline(vkdev);
                 if (opt.use_shader_local_memory)
@@ -674,7 +686,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16 && (elempack == out_elempack))
+    if (opt.use_winograd_convolution && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
         // winograd43 transform kernel
         {
@@ -984,7 +996,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16 && (elempack == out_elempack))
+    if (opt.use_winograd_convolution && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
     {
         bool pre_winograd43 = true;
         if (vkdev->info.type() == 0 && (w <= 24 && h <= 24 && (w != 22 && h != 22)))
@@ -1357,7 +1369,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16 && (elempack == out_elempack))
+    if (opt.use_winograd_convolution && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
     {
         bool pre_winograd43 = true;
         if (vkdev->info.type() == 0 && (w <= 24 && h <= 24 && (w != 22 && h != 22)))
