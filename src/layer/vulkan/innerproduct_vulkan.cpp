@@ -213,7 +213,7 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
             specializations[0 + 1].i = out_sum8_shape_packed.w;
             specializations[0 + 2].i = out_sum8_shape_packed.h;
 
-        // fprintf(stdout, "******** partB in_elempack %d out_elempack %d \n ", in_elempack, out_elempack);
+            // fprintf(stdout, "******** partB in_elempack %d out_elempack %d \n ", in_elempack, out_elempack);
 
             int shader_type_index = -1;
             if (in_elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::innerproduct_sum8;
@@ -277,7 +277,6 @@ int InnerProduct_vulkan::create_pipeline(const Option& _opt)
             local_size_xyz.h = 1;
             local_size_xyz.c = 1;
         }
-
 
         // fprintf(stdout, "******** partC in_elempack %d out_elempack %d \n ", in_elempack, out_elempack);
 
