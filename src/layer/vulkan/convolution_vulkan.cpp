@@ -194,12 +194,18 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
     specializations[10 + 8].i = out_shape_packed.c;
     specializations[10 + 9].i = out_shape_packed.cstep;
 
-    if (is_conv1x1s1d1 && elempack == out_elempack)
+    if (is_conv1x1s1d1)
     {
         int shader_type_index = -1;
         if (elempack == 1 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_1x1s1d1;
         if (elempack == 4 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack4_1x1s1d1;
+        if (elempack == 1 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack1to4_1x1s1d1;
+        if (elempack == 4 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack4to1_1x1s1d1;
         if (elempack == 8 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack8_1x1s1d1;
+        if (elempack == 1 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack1to8_1x1s1d1;
+        if (elempack == 8 && out_elempack == 1) shader_type_index = LayerShaderType::convolution_pack8to1_1x1s1d1;
+        if (elempack == 4 && out_elempack == 8) shader_type_index = LayerShaderType::convolution_pack4to8_1x1s1d1;
+        if (elempack == 8 && out_elempack == 4) shader_type_index = LayerShaderType::convolution_pack8to4_1x1s1d1;
 
         pipeline_convolution_1x1s1d1 = new Pipeline(vkdev);
         if (opt.use_shader_local_memory)
@@ -1243,7 +1249,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     constants[9].i = top_blob.cstep;
 
     // record
-    if (is_conv1x1s1d1 && elempack == out_elempack)
+    if (is_conv1x1s1d1)
     {
         VkMat dispatcher;
         dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
@@ -1616,7 +1622,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     constants[9].i = 0; //top_blob.cstep;
 
     // record
-    if (is_conv1x1s1d1 && elempack == out_elempack)
+    if (is_conv1x1s1d1)
     {
         VkImageMat dispatcher;
         dispatcher.w = (top_blob.w * top_blob.h + 3) / 4;
