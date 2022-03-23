@@ -14,7 +14,6 @@
 
 #version 450
 #pragma use_vulkan_memory_model
-#extension GL_EXT_control_flow_attributes : enable
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
 #endif
@@ -97,6 +96,8 @@ void main()
     }
 
 #if NCNN_image_shader
+    int wx=0;
+
     for (int i = 0; i < psc(w); i++)
     {
         afpvec4 v = image3d_ld4(bottom_blob, ivec3(i, 0, 0));
