@@ -13,7 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #version 450
-
+#pragma use_vulkan_memory_model
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
 #endif

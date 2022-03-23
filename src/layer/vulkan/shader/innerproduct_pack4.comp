@@ -13,7 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #version 450
-
+#pragma use_vulkan_memory_model
+#extension GL_EXT_control_flow_attributes : enable
 #if NCNN_fp16_storage
 #extension GL_EXT_shader_16bit_storage: require
 #endif
@@ -96,8 +97,6 @@ void main()
     }
 
 #if NCNN_image_shader
-    int wx = 0;
-
     for (int i = 0; i < psc(w); i++)
     {
         afpvec4 v = image3d_ld4(bottom_blob, ivec3(i, 0, 0));
@@ -135,34 +134,26 @@ void main()
     }
 #endif
 
-    if (activation_type == 1)
+    switch(activation_type)
     {
-        sum = max(sum, afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        sum = mix(sum, sum * afp(slope), lessThan(sum, afpvec4(0.f)));
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        sum = clamp(sum, const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        sum = afp(1.f) / (afp(1.f) + exp(-sum));
-    }
-    if (activation_type == 5)
-    {
-        sum = sum * tanh(log(exp(sum) + afp(1.f)));
-    }
-    if (activation_type == 6)
-    {
-        const afp alpha = afp(activation_param_0);
-        const afp beta = afp(activation_param_1);
-        sum = sum * clamp(sum * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        case 1:
+            sum = max(sum, afp(0.f));
+            break;
+        case 2:
+            sum = mix(sum, sum * afp(activation_param_0), lessThan(sum, afpvec4(0.f)));
+            break;
+        case 3:
+            sum = clamp(sum, afp(activation_param_0), afp(activation_param_1));
+            break;
+        case 4:
+            sum = afp(1.f) / (afp(1.f) + exp(-sum));
+            break;
+        case 5:
+            sum = sum * tanh(log(exp(sum) + afp(1.f)));
+            break;
+        case 6:
+            sum = sum * clamp(sum * afp(activation_param_0) + afp(activation_param_1), afp(0.f), afp(1.f));
+            break;
     }
 
 #if NCNN_image_shader
