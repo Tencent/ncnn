@@ -96,7 +96,7 @@ void main()
     }
 
 #if NCNN_image_shader
-    int wx=0;
+    int wx = 0;
 
     for (int i = 0; i < psc(w); i++)
     {
