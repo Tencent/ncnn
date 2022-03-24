@@ -1005,7 +1005,7 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     if (opt.use_winograd_convolution && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
     {
         bool pre_winograd43 = true;
-        if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || (w >= 23 && w <= 24) && (h >= 23 && h <= 24)))
+        if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || ((w >= 23 && w <= 24) && (h >= 23 && h <= 24))))
             pre_winograd43 = false;
         if (vkdev->info.type() != 0 && (w <= 12 && h <= 12))
             pre_winograd43 = false;
@@ -1378,7 +1378,7 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     if (opt.use_winograd_convolution && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
     {
         bool pre_winograd43 = true;
-        if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || (w >= 23 && w <= 24) && (h >= 23 && h <= 24)))
+        if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || ((w >= 23 && w <= 24) && (h >= 23 && h <= 24))))
             pre_winograd43 = false;
         if (vkdev->info.type() != 0 && (w <= 12 && h <= 12))
             pre_winograd43 = false;
