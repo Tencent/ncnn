@@ -1631,6 +1631,8 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
+        mkdir ${{ env.PACKAGENAME }}/arm
+        mkdir ${{ env.PACKAGENAME }}/arm64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
@@ -1742,6 +1744,8 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}
         mkdir ${{ env.PACKAGENAME }}/x86
         mkdir ${{ env.PACKAGENAME }}/x64
+        mkdir ${{ env.PACKAGENAME }}/arm
+        mkdir ${{ env.PACKAGENAME }}/arm64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
