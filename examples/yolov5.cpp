@@ -212,7 +212,7 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
             {
                 const float* featptr = feat.row(i * num_grid_x + j);
                 float box_confidence = sigmoid(featptr[4]);
-                if(box_confidence >= prob_threshold)
+                if (box_confidence >= prob_threshold)
                 {
                     // find class index with max class score
                     int class_index = 0;
