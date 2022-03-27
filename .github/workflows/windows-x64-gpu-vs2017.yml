@@ -35,12 +35,12 @@ jobs:
   windows-vs2017-gpu:
     runs-on: windows-2019
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: "protobuf-install"
         key: protobuf-vs2017-x64-install3
@@ -60,13 +60,13 @@ jobs:
         $installer.WaitForExit();
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: swiftshader-install
         key: swiftshader-vs2017-x64-install-20220211
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: google/swiftshader
         path: swiftshader

@@ -983,7 +983,7 @@ static void conv3x3s1_winograd42_pack4_sse(const Mat& bottom_blob, Mat& top_blob
 
         bottom_blob_tm.create(tiles, 36, inch, 4u * elempack, elempack, opt.workspace_allocator);
 
-        // const float itm[4][4] = {
+        // const float itm[6][6] = {
         //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
         //     {0.0f,-4.0f, -4.0f, 1.0f, 1.0f, 0.0f},
         //     {0.0f, 4.0f, -4.0f,-1.0f, 1.0f, 0.0f},

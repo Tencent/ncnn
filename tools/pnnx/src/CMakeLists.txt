@@ -175,6 +175,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_select.cpp
     pass_level2/Tensor_slice.cpp
     pass_level2/Tensor_view.cpp
+    pass_level2/torch_addmm.cpp
     pass_level2/torch_amax.cpp
     pass_level2/torch_amin.cpp
     pass_level2/torch_arange.cpp
@@ -185,16 +186,23 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clamp.cpp
     pass_level2/torch_clone.cpp
     pass_level2/torch_dequantize.cpp
+    pass_level2/torch_empty.cpp
+    pass_level2/torch_empty_like.cpp
     pass_level2/torch_flatten.cpp
     pass_level2/torch_flip.cpp
+    pass_level2/torch_full.cpp
+    pass_level2/torch_full_like.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_matmul.cpp
     pass_level2/torch_mean.cpp
     pass_level2/torch_norm.cpp
     pass_level2/torch_normal.cpp
+    pass_level2/torch_ones.cpp
+    pass_level2/torch_ones_like.cpp
     pass_level2/torch_prod.cpp
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp
+    pass_level2/torch_randn_like.cpp
     pass_level2/torch_roll.cpp
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
@@ -263,6 +271,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_cat.cpp
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_split.cpp
+    pass_ncnn/convert_torch_unbind.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/insert_split.cpp
@@ -291,7 +300,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_avg_pool2d.cpp
     pass_ncnn/F_avg_pool3d.cpp
     pass_ncnn/F_batch_norm.cpp
+    pass_ncnn/F_conv_transpose1d.cpp
     pass_ncnn/F_conv_transpose2d.cpp
+    pass_ncnn/F_conv_transpose3d.cpp
     pass_ncnn/F_conv1d.cpp
     pass_ncnn/F_conv2d.cpp
     pass_ncnn/F_conv3d.cpp
@@ -346,7 +357,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Conv1d.cpp
     pass_ncnn/nn_Conv2d.cpp
     pass_ncnn/nn_Conv3d.cpp
+    pass_ncnn/nn_ConvTranspose1d.cpp
     pass_ncnn/nn_ConvTranspose2d.cpp
+    pass_ncnn/nn_ConvTranspose3d.cpp
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_Embedding.cpp
     pass_ncnn/nn_GELU.cpp
@@ -390,6 +403,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/Tensor_repeat.cpp
     pass_ncnn/Tensor_slice.cpp
     pass_ncnn/Tensor_view.cpp
+    pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
     pass_ncnn/torch_clamp.cpp

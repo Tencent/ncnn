@@ -33,10 +33,10 @@ jobs:
   windows-vs2019:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: cache-protobuf
       id: cache-protobuf
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: "protobuf-install"
         key: protobuf-windows-install

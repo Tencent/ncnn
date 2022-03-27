@@ -34,7 +34,7 @@ Install required build dependencies:
 
 Generally if you have Intel, AMD or Nvidia GPU from last 10 years, Vulkan can be easily used.
 
-On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best expirience.
+On some systems there are no Vulkan drivers easily available at the moment (October 2020), so you might need to disable use of Vulkan on them. This applies to Raspberry Pi 3 (but there is experimental open source Vulkan driver in the works, which is not ready yet). Nvidia Tegra series devices (like Nvidia Jetson) should support Vulkan. Ensure you have most recent software installed for best experience.
 
 On Debian, Ubuntu or Raspberry Pi OS, you can install all required dependencies using: 
 ```shell
@@ -50,9 +50,21 @@ export VULKAN_SDK=$(pwd)/1.2.189.0/x86_64
 
 To use Vulkan after building ncnn later, you will also need to have Vulkan driver for your GPU. For AMD and Intel GPUs these can be found in Mesa graphics driver, which usually is installed by default on all distros (i.e. `sudo apt install mesa-vulkan-drivers` on Debian/Ubuntu). For Nvidia GPUs the proprietary Nvidia driver must be downloaded and installed (some distros will allow easier installation in some way). After installing Vulkan driver, confirm Vulkan libraries and driver are working, by using `vulkaninfo` or `vulkaninfo | grep deviceType`, it should list GPU device type. If there are more than one GPU installed (including the case of integrated GPU and discrete GPU, commonly found in laptops), you might need to note the order of devices to use later on.
 
-Nvidia Jetson devices the Vulkan support should be present in Nvidia provided SDK (Jetpack) or prebuild OS images.
+#### Nvidia Jetson
 
-Raspberry Pi Vulkan drivers do exists, but are not mature. You are free to experiment at your own discretion, and report results and performance.
+The Vulkan driver is a default component of the Linux For Tegra BSP release, check [the device list](https://developer.nvidia.com/embedded/vulkan).
+
+```shell
+cd ncnn
+mkdir -p build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=../toolchains/jetson.toolchain.cmake -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
+make -j$(nproc)
+```
+
+#### Raspberry Pi
+
+Vulkan drivers do exists, but are not mature. You are free to experiment at your own discretion, and report results and performance.
 
 ```shell
 cd ncnn
@@ -64,9 +76,9 @@ make -j$(nproc)
 
 You can add `-GNinja` to `cmake` above to use Ninja build system (invoke build using `ninja` or `cmake --build .`).
 
-For Nvidia Jetson devices, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/jetson.toolchain.cmake` to cmake.
-
 For Rasberry Pi 3, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake -DPI3=ON` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Rasberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
+
+#### Verification
 
 Verify build by running some examples:
 

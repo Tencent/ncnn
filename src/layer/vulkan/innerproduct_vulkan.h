@@ -43,14 +43,9 @@ public:
     VkImageMat bias_data_gpu_image;
 
     Pipeline* pipeline_innerproduct;
-    Pipeline* pipeline_innerproduct_pack4;
-    Pipeline* pipeline_innerproduct_pack1to4;
-    Pipeline* pipeline_innerproduct_pack4to1;
-    Pipeline* pipeline_innerproduct_pack8;
-    Pipeline* pipeline_innerproduct_pack1to8;
-    Pipeline* pipeline_innerproduct_pack4to8;
-    Pipeline* pipeline_innerproduct_pack8to4;
-    Pipeline* pipeline_innerproduct_pack8to1;
+
+    Pipeline* pipeline_innerproduct_sum8;
+    Pipeline* pipeline_innerproduct_reduce_sum8;
 
     Pipeline* pipeline_innerproduct_gemm;
 };

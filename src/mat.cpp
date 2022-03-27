@@ -1402,6 +1402,36 @@ void copy_cut_border(const Mat& src, Mat& dst, int top, int bottom, int left, in
     delete crop;
 }
 
+void copy_cut_border_3d(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int front, int behind, const Option& opt)
+{
+    if (left + right > src.w || top + bottom > src.h || front + behind > src.d)
+    {
+        NCNN_LOGE("copy_cut_border_3d parameter error, top: %d, bottom: %d, left: %d, right: %d, front: %d, behind: %d, src.w: %d, src.h: %d, src.d: %d", top, bottom, left, right, front, behind, src.w, src.h, src.d);
+        return;
+    }
+    Layer* crop = create_layer(LayerType::Crop);
+
+    ParamDict pd;
+    pd.set(0, left);
+    pd.set(1, top);
+    pd.set(13, front);
+    pd.set(2, 0);
+    pd.set(3, src.w - left - right);
+    pd.set(4, src.h - top - bottom);
+    pd.set(14, src.d - front - behind);
+    pd.set(5, -233);
+
+    crop->load_param(pd);
+
+    crop->create_pipeline(opt);
+
+    crop->forward(src, dst, opt);
+
+    crop->destroy_pipeline(opt);
+
+    delete crop;
+}
+
 void resize_nearest(const Mat& src, Mat& dst, int w, int h, const Option& opt)
 {
     Layer* interp = create_layer(LayerType::Interp);
