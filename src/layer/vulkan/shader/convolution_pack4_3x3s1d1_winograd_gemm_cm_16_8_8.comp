@@ -61,8 +61,8 @@ shared uvec2 tmp_k[LOCAL_SIZE_Y * UNROLL_INCH * 8*2];
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x) / 32 * 4;
-    int gy = int(gl_GlobalInvocationID.y);
+    int gx = int(gl_GlobalInvocationID.x) / 32 * 4 * 16;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
     int gz = int(gl_GlobalInvocationID.z);
 
     fcoopmatNV<32, gl_ScopeSubgroup, 16, 8> sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(0.f);
@@ -86,12 +86,12 @@ void main()
     {
         {
             int tmp_vi = ly*16*2 + lxm16*2+lxd16;
-            int v_offset = gz * psc(cstep) + (z + ly) * 2 * psc(outw) + gx * 16 + lxd16 * psc(outw) + lxm16;
+            int v_offset = gz * psc(cstep) + (z + ly) * 2 * psc(outw) + gx + lxd16 * psc(outw) + lxm16;
 
-            tmp_v0[tmp_vi] = (gx * 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset] : uvec2(0);
-            tmp_v1[tmp_vi] = ((gx + 1) * 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 16] : uvec2(0);
-            tmp_v2[tmp_vi] = ((gx + 2) * 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 32] : uvec2(0);
-            tmp_v3[tmp_vi] = ((gx + 3) * 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 48] : uvec2(0);
+            tmp_v0[tmp_vi] = (gx + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset] : uvec2(0);
+            tmp_v1[tmp_vi] = (gx + 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 16] : uvec2(0);
+            tmp_v2[tmp_vi] = (gx + 32 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 32] : uvec2(0);
+            tmp_v3[tmp_vi] = (gx + 48 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 48] : uvec2(0);
         }
 
         if (lx < 16)
@@ -99,7 +99,7 @@ void main()
             for (int z4 = 0; z4 < UNROLL_INCH; z4++)
             {
                 int tmp_ki = ly*UNROLL_INCH*8*2 + z4*8*2 + lxm8*2+lxd8;
-                int w_offset = gz * psc(c) * psc(outc) * 4 + gy * psc(c) * 8 + (z + z4) * 16 + lxm8 * 2 + lxd8;
+                int w_offset = gz * psc(c) * psc(outc) * 4 + gy * psc(c) * 4 + (z + z4) * 16 + lxm8 * 2 + lxd8;
 
                 tmp_k[tmp_ki] = weight_tm_data[w_offset];
             }
@@ -138,12 +138,12 @@ void main()
         if (ly < remain)
         {
             int tmp_vi = ly*16*2 + lxm16*2+lxd16;
-            int v_offset = gz * psc(cstep) + (z + ly) * 2 * psc(outw) + gx * 16 + lxd16 * psc(outw) + lxm16;
+            int v_offset = gz * psc(cstep) + (z + ly) * 2 * psc(outw) + gx + lxd16 * psc(outw) + lxm16;
 
-            tmp_v0[tmp_vi] = (gx * 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset] : uvec2(0);
-            tmp_v1[tmp_vi] = ((gx + 1) * 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 16] : uvec2(0);
-            tmp_v2[tmp_vi] = ((gx + 2) * 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 32] : uvec2(0);
-            tmp_v3[tmp_vi] = ((gx + 3) * 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 48] : uvec2(0);
+            tmp_v0[tmp_vi] = (gx + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset] : uvec2(0);
+            tmp_v1[tmp_vi] = (gx + 16 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 16] : uvec2(0);
+            tmp_v2[tmp_vi] = (gx + 32 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 32] : uvec2(0);
+            tmp_v3[tmp_vi] = (gx + 48 + lxm16) < psc(outw) ? bottom_tm_blob_data[v_offset + 48] : uvec2(0);
         }
 
         if (lx < 16)
@@ -151,7 +151,7 @@ void main()
             for (int z4 = 0; z4 < remain; z4++)
             {
                 int tmp_ki = ly*UNROLL_INCH*8*2 + z4*8*2 + lxm8*2+lxd8;
-                int w_offset = gz * psc(c) * psc(outc) * 4 + gy * psc(c) * 8 + (z + z4) * 16 + lxm8 * 2 + lxd8;
+                int w_offset = gz * psc(c) * psc(outc) * 4 + gy * psc(c) * 4 + (z + z4) * 16 + lxm8 * 2 + lxd8;
 
                 tmp_k[tmp_ki] = weight_tm_data[w_offset];
             }
@@ -183,7 +183,7 @@ void main()
         barrier();
     }
 
-    if (gx * 16 >= psc(outw) || gy * 2 >= psc(outc) || gz >= batch)
+    if (gx >= psc(outw) || gy >= psc(outc) || gz >= batch)
         return;
 
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum0_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(sum0);
@@ -200,11 +200,11 @@ void main()
 
     {
         int tmp_vi = ly*16*2 + lxm16*2+lxd16;
-        int gi = gz * psc(outcstep) + gy * 2 * psc(outw) + gx * 16 + lxd16 * psc(outw) + lxm16;
+        int gi = gz * psc(outcstep) + gy * psc(outw) + gx + lxd16 * psc(outw) + lxm16;
 
-        if (gx * 16 + lxm16 < psc(outw)) top_tm_blob_data[gi] = tmp_v0[tmp_vi];
-        if ((gx + 1) * 16 + lxm16 < psc(outw)) top_tm_blob_data[gi + 16] = tmp_v1[tmp_vi];
-        if ((gx + 2) * 16 + lxm16 < psc(outw)) top_tm_blob_data[gi + 32] = tmp_v2[tmp_vi];
-        if ((gx + 3) * 16 + lxm16 < psc(outw)) top_tm_blob_data[gi + 48] = tmp_v3[tmp_vi];
+        if (gx + lxm16 < psc(outw)) top_tm_blob_data[gi] = tmp_v0[tmp_vi];
+        if (gx + 16 + lxm16 < psc(outw)) top_tm_blob_data[gi + 16] = tmp_v1[tmp_vi];
+        if (gx + 32 + lxm16 < psc(outw)) top_tm_blob_data[gi + 32] = tmp_v2[tmp_vi];
+        if (gx + 48 + lxm16 < psc(outw)) top_tm_blob_data[gi + 48] = tmp_v3[tmp_vi];
     }
 }

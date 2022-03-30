@@ -77,8 +77,8 @@ shared uvec2 tmp_k[LOCAL_SIZE_Y * UNROLL_INCH * 8*2];
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x) / 32 * 4;
-    int gy = int(gl_GlobalInvocationID.y);
+    int gx = int(gl_GlobalInvocationID.x) / 32 * 4 * 16;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
 
     const int outsize = psc(outw) * psc(outh);
 
@@ -100,7 +100,7 @@ void main()
     {
         fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> bias;
 
-        coopMatLoadNV(bias, bias_data, gy * 2, 0, false);
+        coopMatLoadNV(bias, bias_data, gy, 0, false);
 
         sum0 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(bias);
         sum1 = fcoopmatNV<32, gl_ScopeSubgroup, 16, 8>(bias);
@@ -128,7 +128,7 @@ void main()
             const int ky = kk / kernel_w;
             const int kx = kk % kernel_w;
 
-            const ivec4 gx16 = (gx + ivec4(0, 1, 2, 3)) * 16 + lxm16;
+            const ivec4 gx16 = gx + ivec4(0, 16, 32, 48) + lxm16;
 
             const ivec4 sy16 = gx16 / psc(outw);
             const ivec4 sx16 = gx16 % psc(outw);
@@ -150,7 +150,7 @@ void main()
             for (int z4 = 0; z4 < UNROLL_INCH; z4++)
             {
                 int tmp_ki = ly*UNROLL_INCH*8*2 + z4*8*2 + lxm8*2+lxd8;
-                int w_offset = gy * psc(c) * maxk * 8 + (z + z4) * 16 + lxm8* 2 + lxd8;
+                int w_offset = gy * psc(c) * maxk * 4 + (z + z4) * 16 + lxm8* 2 + lxd8;
 
                 tmp_k[tmp_ki] = weight_data[w_offset];
             }
@@ -194,7 +194,7 @@ void main()
             const int ky = kk / kernel_w;
             const int kx = kk % kernel_w;
 
-            const ivec4 gx16 = (gx + ivec4(0, 1, 2, 3)) * 16 + lxm16;
+            const ivec4 gx16 = gx + ivec4(0, 16, 32, 48) + lxm16;
 
             const ivec4 sy16 = gx16 / psc(outw);
             const ivec4 sx16 = gx16 % psc(outw);
@@ -216,7 +216,7 @@ void main()
             for (int z4 = 0; z4 < remain; z4++)
             {
                 int tmp_ki = ly*UNROLL_INCH*8*2 + z4*8*2 + lxm8*2+lxd8;
-                int w_offset = gy * psc(c) * maxk * 8 + (z + z4) * 16 + lxm8* 2 + lxd8;
+                int w_offset = gy * psc(c) * maxk * 4 + (z + z4) * 16 + lxm8* 2 + lxd8;
 
                 tmp_k[tmp_ki] = weight_data[w_offset];
             }
@@ -248,7 +248,7 @@ void main()
         barrier();
     }
 
-    if (gx * 16 >= outsize || gy * 2 >= psc(outc))
+    if (gx >= outsize || gy >= psc(outc))
         return;
 
     fcoopmatNV<16, gl_ScopeSubgroup, 16, 8> sum0_fp16 = fcoopmatNV<16, gl_ScopeSubgroup, 16, 8>(sum0);
@@ -323,12 +323,12 @@ void main()
             sum3 = sum3 * clamp(sum3 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
         }
 
-        int gi = gy * 2 * psc(outcstep) + gx * 16 + lxd16 * psc(outcstep) + lxm16;
+        int gi = gy * psc(outcstep) + gx + lxd16 * psc(outcstep) + lxm16;
         {
-            if (gx * 16 + lxm16 < outsize) buffer_st4(top_blob_data, gi, sum0);
-            if ((gx + 1) * 16 + lxm16 < outsize) buffer_st4(top_blob_data, gi + 16, sum1);
-            if ((gx + 2) * 16 + lxm16 < outsize) buffer_st4(top_blob_data, gi + 32, sum2);
-            if ((gx + 3) * 16 + lxm16 < outsize) buffer_st4(top_blob_data, gi + 48, sum3);
+            if (gx + lxm16 < outsize) buffer_st4(top_blob_data, gi, sum0);
+            if (gx + 16 + lxm16 < outsize) buffer_st4(top_blob_data, gi + 16, sum1);
+            if (gx + 32 + lxm16 < outsize) buffer_st4(top_blob_data, gi + 32, sum2);
+            if (gx + 48 + lxm16 < outsize) buffer_st4(top_blob_data, gi + 48, sum3);
         }
     }
 }
