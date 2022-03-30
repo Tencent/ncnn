@@ -161,6 +161,7 @@ public:
 
     // cooperative matrix feature
     bool support_cooperative_matrix() const;
+    bool support_cooperative_matrix_16_8_8() const;
 
     // extension capability
     int support_VK_KHR_8bit_storage() const;

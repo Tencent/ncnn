@@ -211,7 +211,9 @@ public:
     // ycbcr conversion feature
     bool support_ycbcr_conversion;
 
+    // cooperative matrix
     bool support_cooperative_matrix;
+    bool support_cooperative_matrix_16_8_8;
 
     // extension capability
     int support_VK_KHR_8bit_storage;
@@ -504,6 +506,11 @@ bool GpuInfo::support_ycbcr_conversion() const
 bool GpuInfo::support_cooperative_matrix() const
 {
     return d->support_cooperative_matrix;
+}
+
+bool GpuInfo::support_cooperative_matrix_16_8_8() const
+{
+    return d->support_cooperative_matrix_16_8_8;
 }
 
 int GpuInfo::support_VK_KHR_8bit_storage() const
@@ -1377,6 +1384,7 @@ int create_gpu_instance()
         gpu_info.support_int8_arithmetic = false;
         gpu_info.support_ycbcr_conversion = false;
         gpu_info.support_cooperative_matrix = false;
+        gpu_info.support_cooperative_matrix_16_8_8 = false;
         if (support_VK_KHR_get_physical_device_properties2)
         {
             void* queryExtensionFeatures = 0;
@@ -1505,7 +1513,15 @@ int create_gpu_instance()
             for (uint32_t j = 0; j < properties.size(); j++)
             {
                 const VkCooperativeMatrixPropertiesNV& cmp = properties[j];
-                NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
+                // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
+
+                if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 8
+                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
+                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
+                    && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+                {
+                    gpu_info.support_cooperative_matrix_16_8_8 = true;
+                }
             }
         }
 
@@ -3710,9 +3726,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         s.setEnvInput(glslang::EShSourceGlsl, EShLangCompute, glslang::EShClientVulkan, 1);
 
-        if (opt.use_subgroup_basic)
+        if (opt.use_subgroup_basic || opt.use_cooperative_matrix)
         {
-            // subgroup need vulkan-1.1 and spirv-1.3
+            // subgroup / cooperative_matrix need vulkan-1.1 and spirv-1.3
             s.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_1);
             s.setEnvTarget(glslang::EshTargetSpv, glslang::EShTargetSpv_1_3);
         }
