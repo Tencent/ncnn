@@ -1516,9 +1516,9 @@ int create_gpu_instance()
                 // NCNN_LOGE("cpm %2d %2d %2d  %d %d %d %d  %d", cmp.MSize, cmp.NSize, cmp.KSize, cmp.AType, cmp.BType, cmp.CType, cmp.DType, cmp.scope);
 
                 if (cmp.MSize == 16 && cmp.NSize == 8 && cmp.KSize == 8
-                    && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
-                    && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
-                    && cmp.scope == VK_SCOPE_SUBGROUP_NV)
+                        && cmp.AType == VK_COMPONENT_TYPE_FLOAT16_NV && cmp.BType == VK_COMPONENT_TYPE_FLOAT16_NV
+                        && cmp.CType == VK_COMPONENT_TYPE_FLOAT32_NV && cmp.DType == VK_COMPONENT_TYPE_FLOAT32_NV
+                        && cmp.scope == VK_SCOPE_SUBGROUP_NV)
                 {
                     gpu_info.support_cooperative_matrix_16_8_8 = true;
                 }
