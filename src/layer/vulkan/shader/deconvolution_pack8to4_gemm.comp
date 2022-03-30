@@ -22,7 +22,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-#define shape_constant_id_offset 0
+layout (constant_id = 0) const int maxk = 1;
+
+#define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int c = 0;

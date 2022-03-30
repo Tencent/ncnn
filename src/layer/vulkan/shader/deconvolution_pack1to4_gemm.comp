@@ -23,7 +23,9 @@
 
 #define LOCAL_MEMORY_UNROLL_INCH 8
 
-#define shape_constant_id_offset 0
+layout (constant_id = 0) const int maxk = 1;
+
+#define shape_constant_id_offset 1
 layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int c = 0;

@@ -132,7 +132,9 @@ public:
     // enable local memory optimization for gpu inference
     bool use_shader_local_memory;
 
-    bool use_reserved_2;
+    // enable cooperative matrix optimization for gpu inference
+    bool use_cooperative_matrix;
+
     bool use_reserved_3;
     bool use_reserved_4;
     bool use_reserved_5;
