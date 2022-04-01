@@ -74,4 +74,42 @@ static inline void __msa_ctcmsa_msacsr(int v)
 }
 #endif // __mips_msa
 
+#if __mips_mxu2
+static inline int __mxu_cfcmxu_mxuir()
+{
+    int v;
+    asm volatile("cfcmxu %0, $0 \n"
+                 : "=r"(v)
+                 :
+                 :);
+    return v;
+}
+
+static inline void __mxu_ctcmxu_mxuir(int v)
+{
+    asm volatile("ctcmxu $0, %0 \n"
+                 :
+                 : "r"(v)
+                 :);
+}
+
+static inline int __mxu_cfcmxu_mxucsr()
+{
+    int v;
+    asm volatile("cfcmxu %0, $31 \n"
+                 : "=r"(v)
+                 :
+                 :);
+    return v;
+}
+
+static inline void __mxu_ctcmxu_mxucsr(int v)
+{
+    asm volatile("ctcmxu $31, %0 \n"
+                 :
+                 : "r"(v)
+                 :);
+}
+#endif // __mips_mxu2
+
 #endif // MIPS_USABILITY_H
