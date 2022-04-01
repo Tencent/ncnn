@@ -17,6 +17,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -24,9 +27,9 @@ namespace ncnn {
 
 PReLU_mips::PReLU_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int PReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -34,7 +37,7 @@ int PReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4)
     {
         v4f32 _zero = (v4f32)__msa_fill_w(0);
@@ -132,7 +135,7 @@ int PReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     if (dims == 1)
     {
@@ -179,7 +182,7 @@ int PReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             const float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
 
             int j = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             v4f32 _zero = (v4f32)__msa_fill_w(0);
             v4f32 _slope = (v4f32)__msa_fill_w_f32(slope);
 
@@ -194,7 +197,7 @@ int PReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 ptr += 4;
             }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
             for (; j < w; j++)
             {
                 float v = *ptr;
@@ -222,7 +225,7 @@ int PReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             float slope = num_slope > 1 ? slope_data_ptr[q] : slope_data_ptr[0];
 
             int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             v4f32 _zero = (v4f32)__msa_fill_w(0);
             v4f32 _slope = (v4f32)__msa_fill_w_f32(slope);
 
@@ -237,7 +240,7 @@ int PReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 ptr += 4;
             }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
             for (; i < size; i++)
             {
                 if (*ptr < 0)

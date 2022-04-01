@@ -20,17 +20,21 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
 namespace ncnn {
 
 UnaryOp_mips::UnaryOp_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 template<typename Op>
 static int unary_op_inplace_pack4(Mat& a, const Option& opt)
 {
@@ -265,11 +269,11 @@ struct unary_op_tanh_pack4
 };
 
 } // namespace UnaryOp_mips_functor
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     using namespace UnaryOp_mips_functor;
 
     int elempack = bottom_top_blob.elempack;
@@ -327,7 +331,7 @@ int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (op_type == Operation_TANH)
             return unary_op_inplace_pack4<unary_op_tanh_pack4>(bottom_top_blob, opt);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     return UnaryOp::forward_inplace(bottom_top_blob, opt);
 }

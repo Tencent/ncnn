@@ -18,9 +18,9 @@ namespace ncnn {
 
 Slice_mips::Slice_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -46,7 +46,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
 
             int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             if (opt.use_packing_layout)
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
@@ -81,7 +81,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
 
             int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             if (opt.use_packing_layout)
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif
@@ -206,7 +206,7 @@ int Slice_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             }
 
             int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             if (opt.use_packing_layout)
                 out_elempack = slice % 4 == 0 ? 4 : 1;
 #endif

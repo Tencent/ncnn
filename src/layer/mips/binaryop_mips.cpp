@@ -20,17 +20,21 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
 namespace ncnn {
 
 BinaryOp_mips::BinaryOp_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 // broadcasting rule
 // https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
 
@@ -1038,7 +1042,7 @@ MAKE_FUNCTION(binary_op_rdiv_pack4, __msa_fdiv_w(y, x))
 #undef MAKE_FUNCTION
 
 } // namespace BinaryOp_mips_functor
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
@@ -1046,7 +1050,7 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     const Mat& bottom_blob1 = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     using namespace BinaryOp_mips_functor;
 
     int elempack = bottom_blob.elempack;
@@ -1081,14 +1085,14 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
         if (op_type == Operation_RDIV)
             return binary_op_pack4<binary_op_div_pack4>(bottom_blob1, bottom_blob, top_blob, opt);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     return BinaryOp::forward(bottom_blobs, top_blobs, opt);
 }
 
 int BinaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     using namespace BinaryOp_mips_functor;
 
     int elempack = bottom_top_blob.elempack;
@@ -1122,7 +1126,7 @@ int BinaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         if (op_type == Operation_RDIV)
             return binary_op_scalar_inplace_pack4<binary_op_rdiv_pack4>(bottom_top_blob, b, opt);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     return BinaryOp::forward_inplace(bottom_top_blob, opt);
 }

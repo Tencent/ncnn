@@ -20,7 +20,13 @@
 #if __mips_msa
 #include <msa.h>
 #include "msa_mathfun.h"
+#endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
+#if __mips_msa || __mips_mxu2
 static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     if (activation_type == 1)
@@ -65,6 +71,6 @@ static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat
 
     return _v;
 }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 #endif // MIPS_ACTIVATION_H

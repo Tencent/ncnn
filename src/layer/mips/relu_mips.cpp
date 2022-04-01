@@ -17,6 +17,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -24,7 +27,7 @@ namespace ncnn {
 
 ReLU_mips::ReLU_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
 #endif
 }
@@ -38,7 +41,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int size = w * h * d;
     int elempack = bottom_top_blob.elempack;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -81,7 +84,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         return 0;
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -91,7 +94,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         if (slope == 0.f)
         {
             int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             v4f32 _zero = (v4f32)__msa_fill_w(0);
 
             for (; i + 3 < size; i += 4)
@@ -103,7 +106,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 ptr += 4;
             }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
             for (; i < size; i++)
             {
                 if (*ptr < 0)
@@ -114,7 +117,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         else
         {
             int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             v4f32 _zero = (v4f32)__msa_fill_w(0);
             v4f32 _slope = (v4f32)__msa_fill_w_f32(slope);
 
@@ -129,7 +132,7 @@ int ReLU_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                 ptr += 4;
             }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
             for (; i < size; i++)
             {
                 if (*ptr < 0)

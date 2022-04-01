@@ -17,17 +17,20 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 namespace ncnn {
 
 Crop_mips::Crop_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 static void crop_pack4_msa(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -51,7 +54,7 @@ static void crop_pack4_msa(const Mat& src, Mat& dst, int top, int left)
         ptr += (left + right) * 4;
     }
 }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
@@ -63,7 +66,7 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4)
     {
         int _woffset, _hoffset, _doffset, _coffset;
@@ -197,7 +200,7 @@ int Crop_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             }
         }
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
@@ -228,7 +231,7 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
 
     Mat& top_blob = top_blobs[0];
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4)
     {
         int _woffset, _hoffset, _doffset, _coffset;
@@ -369,7 +372,7 @@ int Crop_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
             }
         }
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)

@@ -225,6 +225,10 @@ macro(ncnn_add_layer class)
         ncnn_add_arch_opt_layer(${class} msa "-mmsa")
     endif()
 
+    if(NCNN_RUNTIME_CPU AND NCNN_MXU2 AND NCNN_TARGET_ARCH STREQUAL "mips")
+        ncnn_add_arch_opt_layer(${class} mxu2 "-mmxu2")
+    endif()
+
     if(NCNN_RUNTIME_CPU AND NCNN_MMI AND NCNN_TARGET_ARCH STREQUAL "mips")
         ncnn_add_arch_opt_layer(${class} mmi "-mmsa -mloongson-mmi")
     endif()

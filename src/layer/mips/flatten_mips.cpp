@@ -18,14 +18,18 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
 namespace ncnn {
 
 Flatten_mips::Flatten_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -54,7 +58,7 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     int total = size * channels * elempack;
 
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         out_elempack = total % 4 == 0 ? 4 : 1;
@@ -85,7 +89,7 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 
     if (dims == 2)
     {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         if (elempack == 4) // out_elempack == 4
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -137,12 +141,12 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
             }
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
     }
 
     if (dims == 3 || dims == 4)
     {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         if (elempack == 4) // out_elempack == 4
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -194,7 +198,7 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 }
             }
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         if (elempack == 1) // out_elempack == 4
         {
@@ -205,14 +209,14 @@ int Flatten_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
                 float* outptr = (float*)top_blob + size * q;
 
                 int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
                 for (; i + 3 < size; i += 4)
                 {
                     __msa_st_w(__msa_ld_w(ptr, 0), outptr, 0);
                     ptr += 4;
                     outptr += 4;
                 }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
                 for (; i < size; i++)
                 {
                     *outptr++ = *ptr++;
@@ -245,7 +249,7 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
     int total = size * channels * elempack;
 
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         out_elempack = total % 8 == 0 ? 8 : 1;
@@ -276,7 +280,7 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     if (dims == 2)
     {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         if (elempack == 8) // out_elempack == 8
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -308,12 +312,12 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 }
             }
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
     }
 
     if (dims == 3 || dims == 4)
     {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         if (elempack == 8) // out_elempack == 8
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -345,7 +349,7 @@ int Flatten_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
                 }
             }
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         if (elempack == 1) // out_elempack == 8
         {

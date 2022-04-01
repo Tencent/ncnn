@@ -20,6 +20,10 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
 #include "mips_activation.h"
 
@@ -27,16 +31,16 @@ namespace ncnn {
 
 InnerProduct_mips::InnerProduct_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 
     flatten = 0;
 }
 
 int InnerProduct_mips::create_pipeline(const Option& opt)
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout || opt.use_int8_inference)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
@@ -47,7 +51,7 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     return 0;
 }
@@ -109,7 +113,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int j = 0; j < h; j++)
         {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             if (elempack == 4)
             {
                 float* outptr = top_blob.row(j);
@@ -144,7 +148,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     outptr += 4;
                 }
             }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
             if (elempack == 1)
             {
@@ -185,7 +189,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     int elempack = bottom_blob.elempack;
     int size = w * h;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4)
     {
         // flatten
@@ -242,12 +246,12 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         const float* w2 = weight_data_ptr + size * channels * (p + 2);
         const float* w3 = weight_data_ptr + size * channels * (p + 3);
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         v4f32 _sum0 = (v4f32)__msa_fill_w(0);
         v4f32 _sum1 = (v4f32)__msa_fill_w(0);
         v4f32 _sum2 = (v4f32)__msa_fill_w(0);
         v4f32 _sum3 = (v4f32)__msa_fill_w(0);
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         // channels
         for (int q = 0; q < channels; q++)
@@ -255,7 +259,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             const float* m = bottom_blob.channel(q);
 
             int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(m + 32);
@@ -283,7 +287,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 w2 += 4;
                 w3 += 4;
             }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
             for (; i < size; i++)
             {
                 sum0 += *m * *w0;
@@ -299,12 +303,12 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         sum0 += __msa_fhadd_w(_sum0);
         sum1 += __msa_fhadd_w(_sum1);
         sum2 += __msa_fhadd_w(_sum2);
         sum3 += __msa_fhadd_w(_sum3);
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         sum0 = activation_ss(sum0, activation_type, activation_params);
         sum1 = activation_ss(sum1, activation_type, activation_params);

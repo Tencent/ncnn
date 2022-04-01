@@ -412,6 +412,8 @@ if(NCNN_TARGET_ARCH STREQUAL "mips")
         if(NCNN_MMI)
             target_compile_options(ncnn PRIVATE -mloongson-mmi)
         endif()
+    elseif(NOT NCNN_RUNTIME_CPU AND NCNN_MXU2)
+        target_compile_options(ncnn PRIVATE -mmxu2)
     endif()
 endif()
 
