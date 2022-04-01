@@ -34,6 +34,12 @@ static const layer_registry_entry layer_registry_msa[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_MSA
 
+#if NCNN_RUNTIME_CPU && NCNN_MXU2
+static const layer_registry_entry layer_registry_mxu2[] = {
+@layer_registry_mxu2@
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_MXU2
+
 #if NCNN_RUNTIME_CPU && NCNN_MMI
 static const layer_registry_entry layer_registry_mmi[] = {
 @layer_registry_mmi@
