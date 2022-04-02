@@ -58,13 +58,12 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         Mat xk(embed_dim_per_head, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
         Mat xv(seqlen, embed_dim_per_head, num_head, elemsize, elempack, opt.workspace_allocator);
 
-        Mat xqk(seqlen*elempack, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
+        Mat xqk(seqlen * elempack, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
 
         Mat xqkv(embed_dim_per_head, num_head, seqlen, elemsize, elempack, opt.workspace_allocator);
-    
+
         for (int q = 0; q < num_head; q++)
         {
-
             // xq = affine(q) * inv_sqrt_embed_dim_per_head
             {
                 Mat outm = xq.channel(q);
@@ -95,9 +94,8 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                         outptr += 4;
                     }
                 }
-
             }
-            
+
             // xk = affine(k)
             {
                 Mat outm = xk.channel(q);
@@ -110,7 +108,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                     {
                         const float* ptr = k_blob.row(i);
                         const float* kptr = (const float*)k_weight_data + embed_dim * (q * embed_dim_per_head + j);
-                        
+
                         float32x4_t _sum = vdupq_n_f32(k_bias_data[q * embed_dim_per_head + j]);
                         for (int k = 0; k < embed_dim; k++)
                         {
@@ -164,10 +162,10 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                 const Mat xkm = xk.channel(q);
 
                 Mat outm = xqk.channel(q);
-                
+
                 Mat upxkm;
                 convert_packing(xkm, upxkm, 1);
-                
+
                 for (int i = 0; i < seqlen; i++)
                 {
                     float* outptr = outm.row(i);
@@ -226,7 +224,6 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 #endif
                         vst1q_f32(ptr + j * 4, _p);
                     }
-
                 }
             }
 
@@ -263,7 +260,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                 }
             }
         }
-    
+
         // out = affine(xqkv)
         // xqkv  (embed_dim, seqlen)
         #pragma omp parallel for num_threads(opt.num_threads)

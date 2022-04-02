@@ -25,7 +25,6 @@ public:
     MultiHeadAttention_arm();
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-    
 };
 
 } // namespace ncnn
