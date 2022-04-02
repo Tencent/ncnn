@@ -20,9 +20,9 @@
 
 #if __ARM_NEON
 #include "neon_mathfun.h"
+
 #include <arm_neon.h>
 #endif // __ARM_NEON
-
 
 namespace ncnn {
 
@@ -58,11 +58,10 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         Mat xk(embed_dim_per_head, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
         Mat xv(seqlen, embed_dim_per_head, num_head, elemsize, elempack, opt.workspace_allocator);
 
-        Mat xqk(seqlen, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
+        Mat xqk(seqlen*elempack, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
 
         Mat xqkv(embed_dim_per_head, num_head, seqlen, elemsize, elempack, opt.workspace_allocator);
     
-        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; q++)
         {
 
@@ -96,6 +95,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                         outptr += 4;
                     }
                 }
+
             }
             
             // xk = affine(k)
@@ -164,24 +164,27 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                 const Mat xkm = xk.channel(q);
 
                 Mat outm = xqk.channel(q);
-
+                
+                Mat upxkm;
+                convert_packing(xkm, upxkm, 1);
+                
                 for (int i = 0; i < seqlen; i++)
                 {
                     float* outptr = outm.row(i);
 
-                    for (int j = 0; j < seqlen; j++)
+                    for (int j = 0; j < seqlen * elempack; j++)
                     {
                         const float* qptr = xqm.row(i);
-                        const float* kptr = xkm.row(j);
+                        const float* kptr = upxkm.row(j);
 
                         float32x4_t _sum = vdupq_n_f32(0.f);
                         for (int k = 0; k < embed_dim_per_head; k++)
                         {
                             float32x4_t _q = vld1q_f32(qptr);
-                            float32x4_t _k = vld1q_f32(kptr);
+                            float32x4_t _k = vdupq_n_f32(kptr[0]);
                             _sum = vmlaq_f32(_sum, _q, _k);
                             qptr += 4;
-                            kptr += 4;
+                            kptr += 1;
                         }
 
                         vst1q_f32(outptr, _sum);
@@ -198,14 +201,14 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                     float* ptr = outm.row(i);
 
                     float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                    for (int j = 0; j < seqlen; j++)
+                    for (int j = 0; j < seqlen * elempack; j++)
                     {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
                         _max = vmaxq_f32(_max, _p);
                     }
 
                     float32x4_t _sum = vdupq_n_f32(0.f);
-                    for (int j = 0; j < seqlen; j++)
+                    for (int j = 0; j < seqlen * elempack; j++)
                     {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
                         _p = exp_ps(vsubq_f32(_p, _max));
@@ -213,7 +216,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                         _sum = vaddq_f32(_sum, _p);
                     }
 
-                    for (int j = 0; j < seqlen; j++)
+                    for (int j = 0; j < seqlen * elempack; j++)
                     {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
 #if __aarch64__
@@ -245,13 +248,13 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                         const float* vptr = xvm.row(j);
 
                         float32x4_t _sum = vdupq_n_f32(0.f);
-                        for (int k = 0; k < seqlen; k++)
+                        for (int k = 0; k < seqlen * elempack; k++)
                         {
                             float32x4_t _qk = vld1q_f32(qkptr);
-                            float32x4_t _v = vld1q_f32(vptr);
+                            float32x4_t _v = vdupq_n_f32(vptr[0]);
                             _sum = vmlaq_f32(_sum, _qk, _v);
                             qkptr += 4;
-                            vptr += 4;
+                            vptr += 1;
                         }
 
                         vst1q_f32(outptr, _sum);
@@ -306,7 +309,6 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
     Mat xqkv(embed_dim_per_head, num_head, seqlen, elemsize, elempack, opt.workspace_allocator);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_head; q++)
     {
         // xq = affine(q) * inv_sqrt_embed_dim_per_head
