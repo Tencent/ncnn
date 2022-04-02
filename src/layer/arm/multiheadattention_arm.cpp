@@ -62,6 +62,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
         Mat xqkv(embed_dim_per_head, num_head, seqlen, elemsize, elempack, opt.workspace_allocator);
 
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; q++)
         {
             // xq = affine(q) * inv_sqrt_embed_dim_per_head
@@ -306,6 +307,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 
     Mat xqkv(embed_dim_per_head, num_head, seqlen, elemsize, elempack, opt.workspace_allocator);
 
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_head; q++)
     {
         // xq = affine(q) * inv_sqrt_embed_dim_per_head
