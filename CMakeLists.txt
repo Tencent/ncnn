@@ -241,12 +241,12 @@ else()
         check_cxx_compiler_flag("-mxop" NCNN_COMPILER_SUPPORT_X86_XOP)
         check_cxx_compiler_flag("-mf16c" NCNN_COMPILER_SUPPORT_X86_F16C)
         check_cxx_compiler_flag("-mfma -mf16c -mavx2" NCNN_COMPILER_SUPPORT_X86_AVX2)
-        check_cxx_compiler_flag("-mfma -mf16c -mavx512f -mavx512vl" NCNN_COMPILER_SUPPORT_X86_AVX512)
+        check_cxx_compiler_flag("-mfma -mf16c -mavx512f -mavx512bw -mavx512vl" NCNN_COMPILER_SUPPORT_X86_AVX512)
 
         set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c -mavx2 -mavxvnni")
         check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256i _s, _a, _b; _s = _mm256_dpwssd_epi32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX_VNNI)
 
-        set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c -mavx512f -mavx512vl -mavx512vnni")
+        set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c -mavx512f -mavx512bw -mavx512vl -mavx512vnni")
         check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256i _s, _a, _b; _s = _mm256_dpwssd_epi32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI)
 
         unset(CMAKE_REQUIRED_FLAGS)
