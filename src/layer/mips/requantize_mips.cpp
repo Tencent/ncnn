@@ -81,7 +81,8 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);;
+                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);
+                    ;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -149,7 +150,8 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);;
+                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);
+                    ;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -221,7 +223,8 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);;
+                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);
+                    ;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -293,7 +296,8 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);;
+                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);
+                    ;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -545,7 +549,8 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);;
+                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);
+                    ;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -611,7 +616,8 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);;
+                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);
+                    ;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -679,7 +685,8 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);;
+                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);
+                    ;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -746,7 +753,8 @@ int Requantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);;
+                    v4f32 _bias = (v4f32)__msa_fill_w_f32(bias_data[0]);
+                    ;
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
