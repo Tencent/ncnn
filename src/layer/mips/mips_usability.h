@@ -90,10 +90,10 @@ static inline v16i8 float2int8(v4f32 _v)
     v4i32 _v32 = __msa_ftrunc_s_w(_v5);
 
     v8i16 _v32_16 = (v8i16)__msa_sat_s_w(_v32, 15);
-    v8i16 _v16 = __msa_pckod_h(_v32_16, _v32_16);
+    v8i16 _v16 = __msa_pckev_h(_v32_16, _v32_16);
     _v16 = __msa_max_s_h(_v16, __msa_fill_h(-127));
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
-    v16i8 _v8 = __msa_pckod_b(_v16_8, _v16_8);
+    v16i8 _v8 = __msa_pckev_b(_v16_8, _v16_8);
 
     return _v8;
 }
@@ -115,10 +115,10 @@ static inline int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
 
     v8i16 _vlow32_16 = (v8i16)__msa_sat_s_w(_vlow32, 15);
     v8i16 _vhigh32_16 = (v8i16)__msa_sat_s_w(_vhigh32, 15);
-    v8i16 _v16 = __msa_pckod_h(_vlow32_16, _vhigh32_16);
+    v8i16 _v16 = __msa_pckev_h(_vhigh32_16, _vlow32_16);
     _v16 = __msa_max_s_h(_v16, __msa_fill_h(-127));
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
-    v2i64 _v8 = (v2i64)__msa_pckod_b(_v16_8, _v16_8);
+    v2i64 _v8 = (v2i64)__msa_pckev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }
@@ -135,10 +135,10 @@ static inline v16i8 float2int8relu(v4f32 _v)
     v4i32 _v32 = __msa_ftrunc_s_w(_v5);
 
     v8i16 _v32_16 = (v8i16)__msa_sat_s_w(_v32, 15);
-    v8i16 _v16 = __msa_pckod_h(_v32_16, _v32_16);
+    v8i16 _v16 = __msa_pckev_h(_v32_16, _v32_16);
     _v16 = __msa_maxi_s_h(_v16, 0);
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
-    v16i8 _v8 = __msa_pckod_b(_v16_8, _v16_8);
+    v16i8 _v8 = __msa_pckev_b(_v16_8, _v16_8);
 
     return _v8;
 }
@@ -160,10 +160,10 @@ static inline int64_t float2int8relu(v4f32 _vlow, v4f32 _vhigh)
 
     v8i16 _vlow32_16 = (v8i16)__msa_sat_s_w(_vlow32, 15);
     v8i16 _vhigh32_16 = (v8i16)__msa_sat_s_w(_vhigh32, 15);
-    v8i16 _v16 = __msa_pckod_h(_vlow32_16, _vhigh32_16);
+    v8i16 _v16 = __msa_pckev_h(_vhigh32_16, _vlow32_16);
     _v16 = __msa_maxi_s_h(_v16, 0);
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
-    v2i64 _v8 = (v2i64)__msa_pckod_b(_v16_8, _v16_8);
+    v2i64 _v8 = (v2i64)__msa_pckev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }
@@ -187,14 +187,14 @@ static inline v16i8 float2int8leakyrelu(v4f32 _v, v4f32 _slope)
     v4i32 _v32_leaky = __msa_ftrunc_s_w(_v5_leaky);
 
     v8i16 _v32_16 = (v8i16)__msa_sat_s_w(_v32, 15);
-    v8i16 _v16 = __msa_pckod_h(_v32_16, _v32_16);
+    v8i16 _v16 = __msa_pckev_h(_v32_16, _v32_16);
 
     v8i16 _v32_16_leaky = (v8i16)__msa_sat_s_w(_v32_leaky, 15);
-    v8i16 _v16_leaky = __msa_pckod_h(_v32_16_leaky, _v32_16_leaky);
+    v8i16 _v16_leaky = __msa_pckev_h(_v32_16_leaky, _v32_16_leaky);
 
     _v16 = __msa_max_s_h(_v16, _v16_leaky);
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
-    v16i8 _v8 = __msa_pckod_b(_v16_8, _v16_8);
+    v16i8 _v8 = __msa_pckev_b(_v16_8, _v16_8);
 
     return _v8;
 }
@@ -228,15 +228,15 @@ static inline int64_t float2int8leakyrelu(v4f32 _vlow, v4f32 _vhigh, v4f32 _slop
 
     v8i16 _vlow32_16 = (v8i16)__msa_sat_s_w(_vlow32, 15);
     v8i16 _vhigh32_16 = (v8i16)__msa_sat_s_w(_vhigh32, 15);
-    v8i16 _v16 = __msa_pckod_h(_vlow32_16, _vhigh32_16);
+    v8i16 _v16 = __msa_pckev_h(_vhigh32_16, _vlow32_16);
 
     v8i16 _vlow32_16_leaky = (v8i16)__msa_sat_s_w(_vlow32_leaky, 15);
     v8i16 _vhigh32_16_leaky = (v8i16)__msa_sat_s_w(_vhigh32_leaky, 15);
-    v8i16 _v16_leaky = __msa_pckod_h(_vlow32_16_leaky, _vhigh32_16_leaky);
+    v8i16 _v16_leaky = __msa_pckev_h(_vhigh32_16_leaky, _vlow32_16_leaky);
 
     _v16 = __msa_max_s_h(_v16, _v16_leaky);
     v16i8 _v16_8 = (v16i8)__msa_sat_s_h(_v16, 7);
-    v2i64 _v8 = (v2i64)__msa_pckod_b(_v16_8, _v16_8);
+    v2i64 _v8 = (v2i64)__msa_pckev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }

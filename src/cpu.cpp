@@ -156,7 +156,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
         return 0;
     }
 
-#if __aarch64__ || __riscv_xlen == 64
+#if __aarch64__ || __mips64 || __riscv_xlen == 64
     struct
     {
         uint64_t tag;

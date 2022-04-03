@@ -249,8 +249,8 @@ int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                             _v1 = __msa_fmul_w(_v1, _scale);
                             _v2 = __msa_fmul_w(_v2, _scale);
                             _v3 = __msa_fmul_w(_v3, _scale);
-                            *((int64_t*)outptr) = float2int8(_v0, _v1);
-                            *((int64_t*)(outptr + 8)) = float2int8(_v2, _v3);
+                            *((int64_t*)outptr) = float2int8(_v0, _v2);
+                            *((int64_t*)(outptr + 8)) = float2int8(_v1, _v3);
 
                             ptr0 += 8;
                             ptr1 += 8;

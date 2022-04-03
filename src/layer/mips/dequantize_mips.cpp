@@ -193,8 +193,8 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                     v4f32 _scale0 = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(scale_data[0]) : (v4f32)__msa_ld_w((const float*)scale_data + i * 8, 0);
                     v4f32 _scale1 = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(scale_data[0]) : (v4f32)__msa_ld_w((const float*)scale_data + i * 8 + 4, 0);
-                    v4f32 _bias0 = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + i * 8, 0);
-                    v4f32 _bias1 = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + i * 8 + 4, 0);
+                    v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + i * 8, 0);
+                    v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + i * 8 + 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
@@ -283,8 +283,8 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                     v4f32 _scale0 = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(scale_data[0]) : (v4f32)__msa_ld_w((const float*)scale_data + q * 8, 0);
                     v4f32 _scale1 = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(scale_data[0]) : (v4f32)__msa_ld_w((const float*)scale_data + q * 8 + 4, 0);
-                    v4f32 _bias0 = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + q * 8, 0);
-                    v4f32 _bias1 = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + q * 8 + 4, 0);
+                    v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + q * 8, 0);
+                    v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + q * 8 + 4, 0);
 
                     int i = 0;
                     for (; i + 1 < size; i += 2)
@@ -472,7 +472,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     float* ptr = top_blob.row(i);
 
                     v4f32 _scale = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(scale_data[0]) : (v4f32)__msa_ld_w((const float*)scale_data + i * 4, 0);
-                    v4f32 _bias = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + i * 4, 0);
+                    v4f32 _bias = bias_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + i * 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
@@ -541,7 +541,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     float* ptr = top_blob.channel(q);
 
                     v4f32 _scale = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(scale_data[0]) : (v4f32)__msa_ld_w((const float*)scale_data + q * 4, 0);
-                    v4f32 _bias = scale_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + q * 4, 0);
+                    v4f32 _bias = bias_data_size == 1 ? (v4f32)__msa_fill_w_f32(bias_data[0]) : (v4f32)__msa_ld_w((const float*)bias_data + q * 4, 0);
 
                     int i = 0;
                     for (; i + 1 < size; i += 2)
