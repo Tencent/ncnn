@@ -42,9 +42,11 @@ public:
 
     Mat weight_sgemm_data;
 
+    Mat weight_3x3_winograd42_data;
+    Mat weight_3x3_winograd64_data;
+
     // pack4
     Mat weight_data_packed;
-    Mat weight_3x3_winograd42_data_packed;
 
 #if NCNN_INT8
     // int8
