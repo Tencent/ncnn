@@ -78,9 +78,7 @@ static void convolution_pack8to1_int8_msa(const Mat& bottom_blob, Mat& top_blob,
                     }
                 }
 
-                int sum = _sum[0] + _sum[1] + _sum[2] + _sum[3];
-
-                outptr[j] = sum;
+                outptr[j] = __msa_reduce_add_w(_sum);
             }
 
             outptr += outw;

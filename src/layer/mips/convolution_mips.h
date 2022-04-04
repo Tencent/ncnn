@@ -40,6 +40,8 @@ protected:
 public:
     Layer* activation;
 
+    Mat weight_sgemm_data;
+
     // pack4
     Mat weight_data_packed;
     Mat weight_3x3_winograd42_data_packed;

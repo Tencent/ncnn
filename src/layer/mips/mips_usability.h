@@ -38,19 +38,25 @@ typedef union
     static const ncnn::FloatInt Name = {.f = Val}
 
 /* float type data load instructions */
-static inline v4f32 __msa_fill_w_f32(float val)
+static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
 {
     ncnn::FloatInt fi_tmpval = {.f = val};
     return (v4f32)__msa_fill_w(fi_tmpval.i);
 }
 
-static inline float __msa_fhadd_w(v4f32 _v)
+static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
 {
     // TODO find a more efficient way
     return _v[0] + _v[1] + _v[2] + _v[3];
 }
 
-static inline int __msa_cfcmsa_msacsr()
+static NCNN_FORCEINLINE int __msa_reduce_add_w(v4i32 _v)
+{
+    // TODO find a more efficient way
+    return _v[0] + _v[1] + _v[2] + _v[3];
+}
+
+static NCNN_FORCEINLINE int __msa_cfcmsa_msacsr()
 {
     int v;
     asm volatile("cfcmsa %0, $1 \n"
@@ -60,7 +66,7 @@ static inline int __msa_cfcmsa_msacsr()
     return v;
 }
 
-static inline void __msa_ctcmsa_msacsr(int v)
+static NCNN_FORCEINLINE void __msa_ctcmsa_msacsr(int v)
 {
     asm volatile("ctcmsa $1, %0 \n"
                  :
@@ -69,7 +75,7 @@ static inline void __msa_ctcmsa_msacsr(int v)
 }
 #endif // __mips_msa
 
-static inline signed char float2int8(float v)
+static NCNN_FORCEINLINE signed char float2int8(float v)
 {
     int int32 = round(v);
     if (int32 > 127) return 127;
@@ -78,7 +84,7 @@ static inline signed char float2int8(float v)
 }
 
 #if __mips_msa
-static inline v16i8 float2int8(v4f32 _v)
+static NCNN_FORCEINLINE v16i8 float2int8(v4f32 _v)
 {
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__msa_fill_w_f32(0.5f);
@@ -98,7 +104,7 @@ static inline v16i8 float2int8(v4f32 _v)
     return _v8;
 }
 
-static inline int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
+static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
 {
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__msa_fill_w_f32(0.5f);
@@ -123,7 +129,7 @@ static inline int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
     return _v8[0];
 }
 
-static inline v16i8 float2int8relu(v4f32 _v)
+static NCNN_FORCEINLINE v16i8 float2int8relu(v4f32 _v)
 {
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__msa_fill_w_f32(0.5f);
@@ -143,7 +149,7 @@ static inline v16i8 float2int8relu(v4f32 _v)
     return _v8;
 }
 
-static inline int64_t float2int8relu(v4f32 _vlow, v4f32 _vhigh)
+static NCNN_FORCEINLINE int64_t float2int8relu(v4f32 _vlow, v4f32 _vhigh)
 {
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__msa_fill_w_f32(0.5f);
@@ -168,7 +174,7 @@ static inline int64_t float2int8relu(v4f32 _vlow, v4f32 _vhigh)
     return _v8[0];
 }
 
-static inline v16i8 float2int8leakyrelu(v4f32 _v, v4f32 _slope)
+static NCNN_FORCEINLINE v16i8 float2int8leakyrelu(v4f32 _v, v4f32 _slope)
 {
     v4f32 _v_leaky = __msa_fmul_w(_v, _slope);
 
@@ -199,7 +205,7 @@ static inline v16i8 float2int8leakyrelu(v4f32 _v, v4f32 _slope)
     return _v8;
 }
 
-static inline int64_t float2int8leakyrelu(v4f32 _vlow, v4f32 _vhigh, v4f32 _slope)
+static NCNN_FORCEINLINE int64_t float2int8leakyrelu(v4f32 _vlow, v4f32 _vhigh, v4f32 _slope)
 {
     v4f32 _vlow_leaky = __msa_fmul_w(_vlow, _slope);
     v4f32 _vhigh_leaky = __msa_fmul_w(_vhigh, _slope);

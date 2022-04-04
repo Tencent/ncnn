@@ -300,10 +300,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         }
 
 #if __mips_msa
-        sum0 += __msa_fhadd_w(_sum0);
-        sum1 += __msa_fhadd_w(_sum1);
-        sum2 += __msa_fhadd_w(_sum2);
-        sum3 += __msa_fhadd_w(_sum3);
+        sum0 += __msa_reduce_fadd_w(_sum0);
+        sum1 += __msa_reduce_fadd_w(_sum1);
+        sum2 += __msa_reduce_fadd_w(_sum2);
+        sum3 += __msa_reduce_fadd_w(_sum3);
 #endif // __mips_msa
 
         sum0 = activation_ss(sum0, activation_type, activation_params);
