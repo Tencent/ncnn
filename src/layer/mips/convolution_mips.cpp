@@ -32,6 +32,12 @@ namespace ncnn {
 #include "convolution_sgemm.h"
 #include "convolution_1x1.h"
 
+#if NCNN_INT8
+#include "convolution_sgemm_int8.h"
+#include "convolution_1x1_int8.h"
+#include "convolution_int8.h"
+#endif // NCNN_INT8
+
 #if __mips_msa
 #include "convolution_pack4.h"
 #include "convolution_pack1to4.h"
@@ -44,6 +50,20 @@ namespace ncnn {
 #include "convolution_3x3_pack4.h"
 #include "convolution_3x3_pack1to4.h"
 #include "convolution_7x7_pack1to4.h"
+
+#if NCNN_INT8
+#include "convolution_pack8to4_int8.h"
+#include "convolution_pack1to4_int8.h"
+#include "convolution_pack8to1_int8.h"
+#include "convolution_sgemm_pack8to4_int8.h"
+#include "convolution_sgemm_pack1to4_int8.h"
+#include "convolution_sgemm_pack8to1_int8.h"
+#include "convolution_1x1_pack8to4_int8.h"
+#include "convolution_1x1_pack1to4_int8.h"
+#include "convolution_1x1_pack8to1_int8.h"
+#include "convolution_3x3_pack8to4_int8.h"
+#include "convolution_3x3_pack8to1_int8.h"
+#endif // NCNN_INT8
 #endif // __mips_msa
 
 Convolution_mips::Convolution_mips()
@@ -98,6 +118,13 @@ int Convolution_mips::create_pipeline(const Option& opt)
 
     activation = create_activation_layer(activation_type, activation_params, opt);
 
+#if NCNN_INT8
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
+        return create_pipeline_int8_mips(opt);
+    }
+#endif
+
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
@@ -117,8 +144,8 @@ int Convolution_mips::create_pipeline(const Option& opt)
     {
         if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
-            conv3x3s1_winograd64_transform_kernel_pack4_msa(weight_data, weight_data_packed, num_input, num_output, opt);
-            conv3x3s1_winograd42_transform_kernel_pack4_msa(weight_data, weight_3x3_winograd42_data_packed, num_input, num_output, opt);
+            conv3x3s1_winograd64_transform_kernel_pack4_msa(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
+            conv3x3s1_winograd42_transform_kernel_pack4_msa(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
         }
         else
         {
@@ -187,27 +214,7 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        Mat bottom_blob_unpacked = bottom_blob;
-        if (bottom_blob.elempack != 1)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-        }
-
-        Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
-        if (bottom_blob_unpacked.elembits() == 16)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
-        }
-
-        Option opt_unpacked = opt;
-        opt_unpacked.use_packing_layout = false;
-        return Convolution::forward_int8(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
+        return forward_int8_mips(bottom_blob, top_blob, opt);
     }
 #endif
 
@@ -278,11 +285,11 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             // we need more proper conditions
             if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
             {
-                conv3x3s1_winograd42_pack4_msa(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data_packed, bias_data, opt);
+                conv3x3s1_winograd42_pack4_msa(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data, bias_data, opt);
             }
             else
             {
-                conv3x3s1_winograd64_pack4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+                conv3x3s1_winograd64_pack4_msa(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
             }
 
             if (activation)
@@ -541,5 +548,409 @@ int Convolution_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 
     return 0;
 }
+
+#if NCNN_INT8
+static void convolution_transform_kernel_packed_int8_msa(const Mat& weight_data, Mat& weight_data_int8, int num_input, int num_output, int kernel_w, int kernel_h, int elempack, int out_elempack)
+{
+    const int maxk = kernel_w * kernel_h;
+
+    // src = kw-kh-inch-outch
+    // dst = pa-pb-kw-kh-inch/pa-outch/pb
+    {
+        Mat weight_data_r2 = weight_data.reshape(maxk, num_input, num_output);
+
+        weight_data_int8.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)elempack * out_elempack, elempack * out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            signed char* g00 = weight_data_int8.channel(q / out_elempack);
+
+            for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
+            {
+                for (int k = 0; k < maxk; k++)
+                {
+                    for (int i = 0; i < out_elempack; i++)
+                    {
+                        for (int j = 0; j < elempack; j++)
+                        {
+                            const signed char* k00 = weight_data_r2.channel(q + i).row<const signed char>(p + j);
+
+                            g00[0] = k00[k];
+
+                            g00++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+int Convolution_mips::create_pipeline_int8_mips(const Option& opt)
+{
+    const int maxk = kernel_w * kernel_h;
+    const int num_input = weight_data_size / maxk / num_output;
+
+    int elempack = 1;
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        elempack = num_input % 8 == 0 ? 8 : 1;
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __mips_msa
+
+#if __mips_msa
+    if (elempack == 8 && out_elempack == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack8to4_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack8to4_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_transform_kernel_pack8to4_int8_msa(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+        }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack8to4_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else
+        {
+            convolution_transform_kernel_packed_int8_msa(weight_data, weight_data_int8, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+    if (elempack == 1 && out_elempack == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack1to4_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack1to4_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack1to4_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else
+        {
+            convolution_transform_kernel_packed_int8_msa(weight_data, weight_data_int8, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+    if (elempack == 8 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack8to1_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack8to1_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_transform_kernel_pack8to1_int8_msa(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+        }
+        else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
+        {
+            convolution_im2col_sgemm_transform_kernel_pack8to1_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else
+        {
+            convolution_transform_kernel_packed_int8_msa(weight_data, weight_data_int8, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+#endif // __mips_msa
+
+    if (elempack == 1 && out_elempack == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            convolution_im2col_sgemm_transform_kernel_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            convolution_im2col_sgemm_transform_kernel_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_transform_kernel_int8_msa(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+    }
+
+    return 0;
+}
+
+int Convolution_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    int elembits = bottom_blob.elembits();
+
+    Mat bottom_blob_int8 = bottom_blob;
+    if (elembits != 8)
+    {
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+    }
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob_int8, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    int w = bottom_blob_bordered.w;
+    int h = bottom_blob_bordered.h;
+    int channels = bottom_blob_bordered.c;
+    int elempack = bottom_blob_bordered.elempack;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    int outw = (w - kernel_extent_w) / stride_w + 1;
+    int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    bool use_int8_requantize = int8_scale_term > 100;
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        if (use_int8_requantize)
+            out_elempack = num_output % 8 == 0 ? 8 : 1;
+        else
+            out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __mips_msa
+    size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
+
+    top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    const int num_input = channels * elempack;
+
+    int out_elempack_int32 = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        out_elempack_int32 = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif // __mips_msa
+
+    Mat top_blob_int32;
+    top_blob_int32.create(outw, outh, num_output / out_elempack_int32, (size_t)(4u * out_elempack_int32), out_elempack_int32, opt.workspace_allocator);
+    if (top_blob_int32.empty())
+        return -100;
+
+#if __mips_msa
+    if (elempack == 8 && out_elempack_int32 == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack8to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_sgemm_pack8to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_pack8to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd42_data, opt);
+        }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_pack8to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
+        else
+        {
+            convolution_pack8to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
+
+        Mat scale_in_data(num_output);
+        for (int p = 0; p < num_output; p++)
+        {
+            // requantize and relu
+            float scale_in;
+            if (weight_data_int8_scales[p] == 0)
+                scale_in = 0;
+            else
+                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+            scale_in_data[p] = scale_in;
+        }
+
+        if (use_int8_requantize)
+        {
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+        }
+        else
+        {
+            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+    }
+
+    if (elempack == 1 && out_elempack_int32 == 4)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack1to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_sgemm_pack1to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
+        {
+            convolution_im2col_sgemm_pack1to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
+        else
+        {
+            convolution_pack1to4_int8_msa(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
+
+        Mat scale_in_data(num_output);
+        for (int p = 0; p < num_output; p++)
+        {
+            // requantize and relu
+            float scale_in;
+            if (weight_data_int8_scales[p] == 0)
+                scale_in = 0;
+            else
+                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+            scale_in_data[p] = scale_in;
+        }
+
+        if (use_int8_requantize)
+        {
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+        }
+        else
+        {
+            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+    }
+
+    if (elempack == 8 && out_elempack_int32 == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_pack8to1_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_sgemm_pack8to1_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv3x3s1_winograd42_pack8to1_int8_msa(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd42_data, opt);
+        }
+        else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
+        {
+            convolution_im2col_sgemm_pack8to1_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
+        else
+        {
+            convolution_pack8to1_int8_msa(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
+
+        Mat scale_in_data(num_output);
+        for (int p = 0; p < num_output; p++)
+        {
+            // requantize and relu
+            float scale_in;
+            if (weight_data_int8_scales[p] == 0)
+                scale_in = 0;
+            else
+                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+            scale_in_data[p] = scale_in;
+        }
+
+        if (use_int8_requantize)
+        {
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+        }
+        else
+        {
+            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+    }
+#endif // __mips_msa
+
+    if (elempack == 1 && out_elempack_int32 == 1)
+    {
+        if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            conv1x1s1_sgemm_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+        {
+            conv1x1s2_sgemm_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, opt);
+        }
+        else if (opt.use_sgemm_convolution)
+        {
+            convolution_im2col_sgemm_int8_msa(bottom_blob_bordered, top_blob_int32, weight_sgemm_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
+        else
+        {
+            //         convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_int8, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+            convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
+        }
+
+        Mat scale_in_data(num_output);
+        for (int p = 0; p < num_output; p++)
+        {
+            // requantize and relu
+            float scale_in;
+            if (weight_data_int8_scales[p] == 0)
+                scale_in = 0;
+            else
+                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+            scale_in_data[p] = scale_in;
+        }
+
+        if (use_int8_requantize)
+        {
+            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+        }
+        else
+        {
+            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
 
 } // namespace ncnn

@@ -550,7 +550,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
                 kptr0 += 4;
             }
 
-            sum0 += __msa_fhadd_w(_sum0);
+            sum0 += __msa_reduce_fadd_w(_sum0);
 
             outptr0[0] = sum0;
 
