@@ -109,6 +109,8 @@ static void im2col_sgemm_pack8to1_int8_msa(const Mat& bottom_im2col, Mat& top_bl
             int j = 0;
             for (; j < nn; j++)
             {
+                __builtin_prefetch(tmpptr + 64);
+                __builtin_prefetch(kptr + 128);
                 v16i8 _val01 = __msa_ld_b(tmpptr, 0);
                 v16i8 _extval01 = __msa_clti_s_b(_val01, 0);
                 v8i16 _val0 = (v8i16)__msa_ilvr_b(_extval01, _val01);
@@ -209,6 +211,8 @@ static void im2col_sgemm_pack8to1_int8_msa(const Mat& bottom_im2col, Mat& top_bl
             int j = 0;
             for (; j < nn; j++)
             {
+                __builtin_prefetch(tmpptr + 32);
+                __builtin_prefetch(kptr + 128);
                 v16i8 _val = __msa_ld_b(tmpptr, 0);
                 v8i16 _val16 = (v8i16)__msa_ilvr_b(__msa_clti_s_b(_val, 0), _val);
 
@@ -288,6 +292,8 @@ static void im2col_sgemm_pack8to1_int8_msa(const Mat& bottom_im2col, Mat& top_bl
             int j = 0;
             for (; j < nn; j++)
             {
+                __builtin_prefetch(tmpptr + 64);
+                __builtin_prefetch(kptr + 32);
                 v16i8 _val01 = __msa_ld_b(tmpptr, 0);
                 v16i8 _extval01 = __msa_clti_s_b(_val01, 0);
                 v8i16 _val0 = (v8i16)__msa_ilvr_b(_extval01, _val01);
@@ -322,6 +328,8 @@ static void im2col_sgemm_pack8to1_int8_msa(const Mat& bottom_im2col, Mat& top_bl
             int j = 0;
             for (; j < nn; j++)
             {
+                __builtin_prefetch(tmpptr + 32);
+                __builtin_prefetch(kptr + 32);
                 v16i8 _val = __msa_ld_b(tmpptr, 0);
                 v8i16 _val16 = (v8i16)__msa_ilvr_b(__msa_clti_s_b(_val, 0), _val);
 

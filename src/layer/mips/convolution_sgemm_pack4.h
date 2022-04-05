@@ -294,8 +294,8 @@ static void im2col_sgemm_pack4_msa(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 96);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 48);
+                __builtin_prefetch(kptr0 + 16);
                 v4i32 _val0123 = __msa_ld_w(tmpptr, 0);
                 v4i32 _val4567 = __msa_ld_w(tmpptr + 4, 0);
                 v4i32 _val89ab = __msa_ld_w(tmpptr + 8, 0);
@@ -350,8 +350,8 @@ static void im2col_sgemm_pack4_msa(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 64);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 32);
+                __builtin_prefetch(kptr0 + 16);
                 v4i32 _val0123 = __msa_ld_w(tmpptr, 0);
                 v4i32 _val4567 = __msa_ld_w(tmpptr + 4, 0);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
@@ -393,8 +393,8 @@ static void im2col_sgemm_pack4_msa(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 32);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr0 + 16);
                 v4i32 _val0123 = __msa_ld_w(tmpptr, 0);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
                 _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val0123, 0), _w0);
@@ -425,8 +425,8 @@ static void im2col_sgemm_pack4_msa(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 16);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 8);
+                __builtin_prefetch(kptr0 + 16);
                 v4f32 _val0 = __msa_fill_w_f32(*tmpptr++);
                 v4f32 _val1 = __msa_fill_w_f32(*tmpptr++);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
@@ -452,8 +452,8 @@ static void im2col_sgemm_pack4_msa(const Mat& bottom_im2col, Mat& top_blob, cons
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 8);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 4);
+                __builtin_prefetch(kptr0 + 16);
                 v4f32 _val0 = __msa_fill_w_f32(*tmpptr++);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
                 _sum = __msa_fmadd_w(_sum, _val0, _w0);

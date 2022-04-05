@@ -226,7 +226,7 @@ macro(ncnn_add_layer class)
             ncnn_add_arch_opt_layer(${class} msa "-mmsa")
         endif()
         if(NCNN_MMI)
-            ncnn_add_arch_opt_source(${class} mmi "-mmsa -mloongson-mmi")
+            ncnn_add_arch_opt_source(${class} mmi "-mloongson-mmi")
         endif()
     endif()
 

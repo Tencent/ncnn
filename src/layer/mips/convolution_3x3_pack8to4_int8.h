@@ -334,6 +334,8 @@ static void conv3x3s1_winograd42_pack8to4_int8_msa(const Mat& bottom_blob, Mat& 
 
                     for (int j = 0; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 64);
+                        __builtin_prefetch(k0 + 128);
                         v8i16 _w0 = __msa_ld_h(k0, 0);
                         v8i16 _w1 = __msa_ld_h(k0 + 8, 0);
                         v8i16 _w2 = __msa_ld_h(k0 + 16, 0);
@@ -411,6 +413,8 @@ static void conv3x3s1_winograd42_pack8to4_int8_msa(const Mat& bottom_blob, Mat& 
 
                     for (int j = 0; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 32);
+                        __builtin_prefetch(k0 + 128);
                         v8i16 _w0 = __msa_ld_h(k0, 0);
                         v8i16 _w1 = __msa_ld_h(k0 + 8, 0);
                         v8i16 _w2 = __msa_ld_h(k0 + 16, 0);

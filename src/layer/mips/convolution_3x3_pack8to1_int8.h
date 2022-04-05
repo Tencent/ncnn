@@ -360,6 +360,8 @@ static void conv3x3s1_winograd42_pack8to1_int8_msa(const Mat& bottom_blob, Mat& 
 
                     for (int j = 0; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 64);
+                        __builtin_prefetch(k0 + 128);
                         v8i16 _w0 = __msa_ld_h(k0, 0);
                         v8i16 _w1 = __msa_ld_h(k0 + 8, 0);
                         v8i16 _w2 = __msa_ld_h(k0 + 16, 0);
@@ -449,6 +451,8 @@ static void conv3x3s1_winograd42_pack8to1_int8_msa(const Mat& bottom_blob, Mat& 
 
                     for (int j = 0; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 32);
+                        __builtin_prefetch(k0 + 128);
                         v8i16 _w0 = __msa_ld_h(k0, 0);
                         v8i16 _w1 = __msa_ld_h(k0 + 8, 0);
                         v8i16 _w2 = __msa_ld_h(k0 + 16, 0);
@@ -533,6 +537,8 @@ static void conv3x3s1_winograd42_pack8to1_int8_msa(const Mat& bottom_blob, Mat& 
 
                     for (int q = 0; q < inch; q++)
                     {
+                        __builtin_prefetch(r0 + 32);
+                        __builtin_prefetch(k0 + 64);
                         v8i16 _val0 = __msa_ld_h(r0, 0);
                         v8i16 _val1 = __msa_ld_h(r0 + 8, 0);
 
@@ -575,6 +581,8 @@ static void conv3x3s1_winograd42_pack8to1_int8_msa(const Mat& bottom_blob, Mat& 
 
                     for (int q = 0; q < inch; q++)
                     {
+                        __builtin_prefetch(r0 + 32);
+                        __builtin_prefetch(k0 + 32);
                         v8i16 _val = __msa_ld_h(r0, 0);
 
                         v8i16 _extval = __msa_clti_s_h(_val, 0);

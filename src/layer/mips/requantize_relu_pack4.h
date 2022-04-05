@@ -53,6 +53,8 @@ static void requantize_relu_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
                 int i = 0;
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(intptr0 + 64);
+                    __builtin_prefetch(intptr1 + 64);
                     v4f32 _v00 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0, 0));
                     v4f32 _v01 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0 + 4, 0));
                     v4f32 _v02 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0 + 8, 0));
@@ -80,6 +82,8 @@ static void requantize_relu_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
                 }
                 for (; i < size; i++)
                 {
+                    __builtin_prefetch(intptr0 + 16);
+                    __builtin_prefetch(intptr1 + 16);
                     v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0, 0));
                     v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr1, 0));
                     _v0 = __msa_fmul_w(_v0, _scale0);
@@ -116,6 +120,8 @@ static void requantize_relu_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
                 int i = 0;
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(intptr0 + 64);
+                    __builtin_prefetch(intptr1 + 64);
                     v4f32 _v00 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0, 0));
                     v4f32 _v01 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0 + 4, 0));
                     v4f32 _v02 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0 + 8, 0));
@@ -143,6 +149,8 @@ static void requantize_relu_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
                 }
                 for (; i + 1 < size; i += 2)
                 {
+                    __builtin_prefetch(intptr0 + 32);
+                    __builtin_prefetch(intptr1 + 32);
                     v4f32 _v00 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0, 0));
                     v4f32 _v01 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0 + 4, 0));
                     v4f32 _v10 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr1, 0));
@@ -160,6 +168,8 @@ static void requantize_relu_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
                 }
                 for (; i < size; i++)
                 {
+                    __builtin_prefetch(intptr0 + 16);
+                    __builtin_prefetch(intptr1 + 16);
                     v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr0, 0));
                     v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr1, 0));
                     _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
@@ -194,6 +204,7 @@ static void requantize_relu_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
                 int i = 0;
                 for (; i < size; i++)
                 {
+                    __builtin_prefetch(intptr + 16);
                     v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                     _v = __msa_fmul_w(_v, _scale);
                     v16i8 v = float2int8relu(_v);
@@ -231,6 +242,7 @@ static void requantize_relu_pack4_msa(const Mat& bottom_blob, Mat& top_blob, con
                 int i = 0;
                 for (; i < size; i++)
                 {
+                    __builtin_prefetch(intptr + 16);
                     v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                     _v = __msa_fmadd_w(_bias, _v, _scale);
                     v16i8 v = float2int8relu(_v);

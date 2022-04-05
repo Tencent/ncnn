@@ -128,8 +128,8 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                     for (int i = 0; i < num_input; i++)
                     {
-                        __builtin_prefetch(m + 32);
-                        __builtin_prefetch(kptr + 8);
+                        __builtin_prefetch(m + 16);
+                        __builtin_prefetch(kptr + 4);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _k = __msa_fill_w_f32(kptr[0]);
                         _sum = __msa_fmadd_w(_sum, _val, _k);
@@ -258,11 +258,11 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
-                __builtin_prefetch(m + 32);
-                __builtin_prefetch(w0 + 32);
-                __builtin_prefetch(w1 + 32);
-                __builtin_prefetch(w2 + 32);
-                __builtin_prefetch(w3 + 32);
+                __builtin_prefetch(m + 16);
+                __builtin_prefetch(w0 + 16);
+                __builtin_prefetch(w1 + 16);
+                __builtin_prefetch(w2 + 16);
+                __builtin_prefetch(w3 + 16);
                 v4f32 _m = (v4f32)__msa_ld_w(m, 0);
 
                 v4f32 _w0 = (v4f32)__msa_ld_w(w0, 0);
