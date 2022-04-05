@@ -33,8 +33,6 @@ Quantize_mips::Quantize_mips()
 
 int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    int elembits = bottom_blob.elembits();
-
     int dims = bottom_blob.dims;
     int elempack = bottom_blob.elempack;
 
@@ -109,6 +107,8 @@ int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
                         for (int j = 0; j < w; j++)
                         {
+                            __builtin_prefetch(ptr0 + 16);
+                            __builtin_prefetch(ptr1 + 16);
                             v4f32 _vlow = (v4f32)__msa_ld_w(ptr0, 0);
                             v4f32 _vhigh = (v4f32)__msa_ld_w(ptr1, 0);
                             _vlow = __msa_fmul_w(_vlow, _scale);
@@ -135,6 +135,8 @@ int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
                         for (int j = 0; j < w; j++)
                         {
+                            __builtin_prefetch(ptr0 + 16);
+                            __builtin_prefetch(ptr1 + 16);
                             v4f32 _vlow = (v4f32)__msa_ld_w(ptr0, 0);
                             v4f32 _vhigh = (v4f32)__msa_ld_w(ptr1, 0);
                             _vlow = __msa_fmul_w(_vlow, _scale0);
@@ -241,6 +243,8 @@ int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                         int i = 0;
                         for (; i + 1 < size; i += 2)
                         {
+                            __builtin_prefetch(ptr0 + 32);
+                            __builtin_prefetch(ptr1 + 32);
                             v4f32 _v0 = (v4f32)__msa_ld_w(ptr0, 0);
                             v4f32 _v1 = (v4f32)__msa_ld_w(ptr0 + 4, 0);
                             v4f32 _v2 = (v4f32)__msa_ld_w(ptr1, 0);
@@ -258,6 +262,8 @@ int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                         }
                         for (; i < size; i++)
                         {
+                            __builtin_prefetch(ptr0 + 16);
+                            __builtin_prefetch(ptr1 + 16);
                             v4f32 _vlow = (v4f32)__msa_ld_w(ptr0, 0);
                             v4f32 _vhigh = (v4f32)__msa_ld_w(ptr1, 0);
                             _vlow = __msa_fmul_w(_vlow, _scale);
@@ -285,6 +291,8 @@ int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                         int i = 0;
                         for (; i < size; i++)
                         {
+                            __builtin_prefetch(ptr0 + 16);
+                            __builtin_prefetch(ptr1 + 16);
                             v4f32 _vlow = (v4f32)__msa_ld_w(ptr0, 0);
                             v4f32 _vhigh = (v4f32)__msa_ld_w(ptr1, 0);
                             _vlow = __msa_fmul_w(_vlow, _scale0);
@@ -445,6 +453,7 @@ int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             v4f32 _scale = (v4f32)__msa_fill_w_f32(scale);
             for (; i + 15 < size; i += 16)
             {
+                __builtin_prefetch(ptr + 64);
                 v4f32 _v0 = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _v1 = (v4f32)__msa_ld_w(ptr + 4, 0);
                 v4f32 _v2 = (v4f32)__msa_ld_w(ptr + 8, 0);
@@ -461,6 +470,7 @@ int Quantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
             }
             for (; i + 7 < size; i += 8)
             {
+                __builtin_prefetch(ptr + 32);
                 v4f32 _v0 = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _v1 = (v4f32)__msa_ld_w(ptr + 4, 0);
                 _v0 = __msa_fmul_w(_v0, _scale);

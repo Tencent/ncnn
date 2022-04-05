@@ -49,6 +49,7 @@ static void requantize_leakyrelu_pack8_msa(const Mat& bottom_blob, Mat& top_blob
             int i = 0;
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(intptr + 128);
                 v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                 v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                 v4f32 _v2 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 8, 0));
@@ -75,6 +76,7 @@ static void requantize_leakyrelu_pack8_msa(const Mat& bottom_blob, Mat& top_blob
             }
             for (; i + 1 < size; i += 2)
             {
+                __builtin_prefetch(intptr + 64);
                 v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                 v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                 v4f32 _v2 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 8, 0));
@@ -91,6 +93,7 @@ static void requantize_leakyrelu_pack8_msa(const Mat& bottom_blob, Mat& top_blob
             }
             for (; i < size; i++)
             {
+                __builtin_prefetch(intptr + 32);
                 v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                 v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                 _v0 = __msa_fmul_w(_v0, _scale0);
@@ -126,6 +129,7 @@ static void requantize_leakyrelu_pack8_msa(const Mat& bottom_blob, Mat& top_blob
             int i = 0;
             for (; i + 3 < size; i += 4)
             {
+                __builtin_prefetch(intptr + 128);
                 v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                 v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                 v4f32 _v2 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 8, 0));
@@ -152,6 +156,7 @@ static void requantize_leakyrelu_pack8_msa(const Mat& bottom_blob, Mat& top_blob
             }
             for (; i + 1 < size; i += 2)
             {
+                __builtin_prefetch(intptr + 64);
                 v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                 v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                 v4f32 _v2 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 8, 0));
@@ -168,6 +173,7 @@ static void requantize_leakyrelu_pack8_msa(const Mat& bottom_blob, Mat& top_blob
             }
             for (; i < size; i++)
             {
+                __builtin_prefetch(intptr + 32);
                 v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                 v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                 _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);

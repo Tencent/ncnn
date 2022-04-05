@@ -169,6 +169,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(intptr + 32);
                         v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                         _v0 = __msa_fmul_w(_v0, _scale0);
@@ -198,6 +199,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(intptr + 32);
                         v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                         _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
@@ -240,6 +242,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     int i = 0;
                     for (; i + 1 < size; i += 2)
                     {
+                        __builtin_prefetch(intptr + 64);
                         v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                         v4f32 _v2 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 8, 0));
@@ -259,6 +262,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     }
                     for (; i < size; i++)
                     {
+                        __builtin_prefetch(intptr + 32);
                         v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                         _v0 = __msa_fmul_w(_v0, _scale0);
@@ -289,6 +293,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     int i = 0;
                     for (; i + 1 < size; i += 2)
                     {
+                        __builtin_prefetch(intptr + 64);
                         v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                         v4f32 _v2 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 8, 0));
@@ -308,6 +313,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     }
                     for (; i < size; i++)
                     {
+                        __builtin_prefetch(intptr + 32);
                         v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                         _v0 = __msa_fmadd_w(_bias0, _v0, _scale0);
@@ -454,6 +460,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(intptr + 16);
                         v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         _v = __msa_fmul_w(_v, _scale);
                         __msa_st_w((v4i32)_v, ptr, 0);
@@ -476,6 +483,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
                     for (int j = 0; j < w; j++)
                     {
+                        __builtin_prefetch(intptr + 16);
                         v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         _v = __msa_fmadd_w(_bias, _v, _scale);
                         __msa_st_w((v4i32)_v, ptr, 0);
@@ -511,6 +519,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     int i = 0;
                     for (; i + 1 < size; i += 2)
                     {
+                        __builtin_prefetch(intptr + 32);
                         v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                         _v0 = __msa_fmul_w(_v0, _scale);
@@ -523,6 +532,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     }
                     for (; i < size; i++)
                     {
+                        __builtin_prefetch(intptr + 16);
                         v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         _v = __msa_fmul_w(_v, _scale);
                         __msa_st_w((v4i32)_v, ptr, 0);
@@ -546,6 +556,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     int i = 0;
                     for (; i + 1 < size; i += 2)
                     {
+                        __builtin_prefetch(intptr + 32);
                         v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                         _v0 = __msa_fmadd_w(_bias, _v0, _scale);
@@ -558,6 +569,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                     }
                     for (; i < size; i++)
                     {
+                        __builtin_prefetch(intptr + 16);
                         v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                         _v = __msa_fmadd_w(_bias, _v, _scale);
                         __msa_st_w((v4i32)_v, ptr, 0);
@@ -670,6 +682,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 v4f32 _scale = (v4f32)__msa_fill_w_f32(scale);
                 for (; j + 3 < w; j += 4)
                 {
+                    __builtin_prefetch(intptr + 16);
                     v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                     _v = __msa_fmul_w(_v, _scale);
                     __msa_st_w((v4i32)_v, ptr, 0);
@@ -701,6 +714,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
                 for (; j + 3 < w; j += 4)
                 {
+                    __builtin_prefetch(intptr + 16);
                     v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                     _v = __msa_fmadd_w(_bias, _v, _scale);
                     __msa_st_w((v4i32)_v, ptr, 0);
@@ -743,6 +757,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 v4f32 _scale = (v4f32)__msa_fill_w_f32(scale);
                 for (; i + 7 < size; i += 8)
                 {
+                    __builtin_prefetch(intptr + 32);
                     v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                     v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                     _v0 = __msa_fmul_w(_v0, _scale);
@@ -755,6 +770,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(intptr + 16);
                     v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                     _v = __msa_fmul_w(_v, _scale);
                     __msa_st_w((v4i32)_v, ptr, 0);
@@ -786,6 +802,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
                 for (; i + 7 < size; i += 8)
                 {
+                    __builtin_prefetch(intptr + 32);
                     v4f32 _v0 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                     v4f32 _v1 = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr + 4, 0));
                     _v0 = __msa_fmadd_w(_bias, _v0, _scale);
@@ -798,6 +815,7 @@ int Dequantize_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 }
                 for (; i + 3 < size; i += 4)
                 {
+                    __builtin_prefetch(intptr + 16);
                     v4f32 _v = (v4f32)__msa_ffint_s_w(__msa_ld_w(intptr, 0));
                     _v = __msa_fmadd_w(_bias, _v, _scale);
                     __msa_st_w((v4i32)_v, ptr, 0);
