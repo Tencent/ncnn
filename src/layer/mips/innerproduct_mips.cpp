@@ -37,8 +37,6 @@ InnerProduct_mips::InnerProduct_mips()
 
 int InnerProduct_mips::create_pipeline(const Option& opt)
 {
-#if __mips_msa
-    if (opt.use_packing_layout || opt.use_int8_inference)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -48,7 +46,6 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-#endif // __mips_msa
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
