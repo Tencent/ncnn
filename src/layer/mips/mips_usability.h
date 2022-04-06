@@ -41,7 +41,13 @@ typedef union
 #define _MIPS_FLOAT_CONST(Name, Val) \
     static const ncnn::FloatInt Name = {.f = Val}
 
-static inline float __msa_fhadd_w(v4f32 _v)
+static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
+{
+    // TODO find a more efficient way
+    return _v[0] + _v[1] + _v[2] + _v[3];
+}
+
+static NCNN_FORCEINLINE int __msa_reduce_add_w(v4i32 _v)
 {
     // TODO find a more efficient way
     return _v[0] + _v[1] + _v[2] + _v[3];
@@ -54,18 +60,6 @@ static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
 {
     ncnn::FloatInt fi_tmpval = {.f = val};
     return (v4f32)__msa_fill_w(fi_tmpval.i);
-}
-
-static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
-{
-    // TODO find a more efficient way
-    return _v[0] + _v[1] + _v[2] + _v[3];
-}
-
-static NCNN_FORCEINLINE int __msa_reduce_add_w(v4i32 _v)
-{
-    // TODO find a more efficient way
-    return _v[0] + _v[1] + _v[2] + _v[3];
 }
 
 static NCNN_FORCEINLINE int __msa_cfcmsa_msacsr()
@@ -86,44 +80,6 @@ static NCNN_FORCEINLINE void __msa_ctcmsa_msacsr(int v)
                  :);
 }
 #endif // __mips_msa
-
-#if __mips_mxu2
-static inline int __mxu_cfcmxu_mxuir()
-{
-    int v;
-    asm volatile("cfcmxu %0, $0 \n"
-                 : "=r"(v)
-                 :
-                 :);
-    return v;
-}
-
-static inline void __mxu_ctcmxu_mxuir(int v)
-{
-    asm volatile("ctcmxu $0, %0 \n"
-                 :
-                 : "r"(v)
-                 :);
-}
-
-static inline int __mxu_cfcmxu_mxucsr()
-{
-    int v;
-    asm volatile("cfcmxu %0, $31 \n"
-                 : "=r"(v)
-                 :
-                 :);
-    return v;
-}
-
-static inline void __mxu_ctcmxu_mxucsr(int v)
-{
-    asm volatile("ctcmxu $31, %0 \n"
-                 :
-                 : "r"(v)
-                 :);
-}
-#endif // __mips_mxu2
 
 static NCNN_FORCEINLINE signed char float2int8(float v)
 {
