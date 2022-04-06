@@ -14,6 +14,13 @@
 
 #include "relu_x86.h"
 
+#if __SSE2__
+#include <emmintrin.h>
+#if __AVX__
+#include <immintrin.h>
+#endif // __AVX__
+#endif // __SSE2__
+
 namespace ncnn {
 
 ReLU_x86::ReLU_x86()
@@ -75,7 +82,6 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (; i < size; i++)
             {
                 *ptr = std::max(*ptr, 0.f);
-
                 ptr++;
             }
         }
@@ -130,7 +136,6 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 if (*ptr < 0)
                     *ptr *= slope;
-
                 ptr++;
             }
         }
