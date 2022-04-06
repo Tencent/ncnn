@@ -44,12 +44,35 @@ int ReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __AVX512F__
     if (elempack == 16)
     {
-        Mat tmp;
-        convert_packing(bottom_top_blob, tmp, 8, opt);
-
-        forward_inplace(tmp, opt);
-
-        convert_packing(tmp, bottom_top_blob, 16, opt);
+        if (slope == 0.f)
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                __m512 _zero = _mm512_set1_ps(0.f);
+                for (int i = 0; i < size; i++)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _mm512_storeu_ps(ptr, _mm512_max_ps(_zero, _p));
+                    ptr += 16;
+                }
+            }
+        }
+        else
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                for (int i = 0; i < size; i++)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _mm512_storeu_ps(ptr, lrelu_avx512(_p, slope));
+                    ptr += 16;
+                }
+            }
+        }
 
         return 0;
     }

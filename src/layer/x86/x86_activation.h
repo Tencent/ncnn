@@ -221,6 +221,14 @@ static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, co
 
     return _v;
 }
+
+#if __AVX512F__
+static NCNN_FORCEINLINE __m512 lrelu_avx512(__m512 inputs, float slope)
+{
+    __mmask16 _is_negative = _mm512_cmp_ps_mask(inputs, _mm512_setzero_ps(), _CMP_LT_OQ);
+    return _mm512_mask_mul_ps(inputs, _is_negative, inputs, _mm512_set1_ps(slope));
+}
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 
