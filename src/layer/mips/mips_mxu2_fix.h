@@ -20,9 +20,9 @@
 
 #define v4i32_w v4i32
 
-#define __msa_ld_b(p, i)    (v16i8) _mx128_lu1q((void*)(p), i)
-#define __msa_ld_h(p, i)    (v8i16) _mx128_lu1q((void*)(p), i)
-#define __msa_ld_w(p, i)    (v4i32) _mx128_lu1q((void*)(p), i)
+#define __msa_ld_b(p, i) (v16i8) _mx128_lu1q((void*)(p), i)
+#define __msa_ld_h(p, i) (v8i16) _mx128_lu1q((void*)(p), i)
+#define __msa_ld_w(p, i) (v4i32) _mx128_lu1q((void*)(p), i)
 
 #define __msa_st_b(a, p, i) _mx128_su1q((v16i8)(a), p, i)
 #define __msa_st_h(a, p, i) _mx128_su1q((v16i8)(a), p, i)
@@ -42,7 +42,7 @@
 #define __msa_maddv_w _mx128_madd_w
 
 // only a==b supported
-#define __msa_hadd_s_w(a, b) _mx128_dotps_w(a, (v8i16){1,1,1,1,1,1,1,1})
+#define __msa_hadd_s_w(a, b) _mx128_dotps_w(a, (v8i16){1, 1, 1, 1, 1, 1, 1, 1})
 
 #define __msa_and_v(a, b) _mx128_andv((v16i8)(a), (v16i8)(b))
 #define __msa_or_v(a, b)  _mx128_orv((v16i8)(a), (v16i8)(b))
@@ -87,23 +87,23 @@
 #define __msa_bnegi_w(a, i)     _mx128_bselv((v16i8)(a), _mx128_norv((v16i8)(a), (v16i8)(a)), (v16i8)_mx128_mfcpu_w(1u << i))
 #define __msa_binsli_w(a, b, i) _mx128_bselv((v16i8)(a), (v16i8)(b), (v16i8)_mx128_mfcpu_w(1u << i))
 
-#define __msa_ilvev_b(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0,1,4,5,8,9,12,13,16,17,20,21,24,25,28,29})
-#define __msa_ilvev_h(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0,2,1,3,8,10,9,11,16,18,17,19,24,26,25,27})
-#define __msa_ilvev_w(a, b) (v4i32) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0,2,4,6,1,3,5,7,16,18,20,22,17,19,21,23})
-#define __msa_ilvev_d(a, b) (v2i64) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0,2,4,6,8,10,12,14,1,3,5,7,9,11,13,15})
-#define __msa_ilvod_b(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){2,3,6,7,10,11,14,15,18,19,22,23,26,27,30,31})
-#define __msa_ilvod_h(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){4,6,5,7,12,14,13,15,20,22,21,23,28,30,29,31})
-#define __msa_ilvod_w(a, b) (v4i32) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){8,10,12,14,9,11,13,15,24,26,28,30,25,27,29,31})
-#define __msa_ilvod_d(a, b) (v2i64) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16,18,20,22,24,26,28,30,17,19,21,23,25,27,29,31})
+#define __msa_ilvev_b(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0, 1, 4, 5, 8, 9, 12, 13, 16, 17, 20, 21, 24, 25, 28, 29})
+#define __msa_ilvev_h(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0, 2, 1, 3, 8, 10, 9, 11, 16, 18, 17, 19, 24, 26, 25, 27})
+#define __msa_ilvev_w(a, b) (v4i32) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0, 2, 4, 6, 1, 3, 5, 7, 16, 18, 20, 22, 17, 19, 21, 23})
+#define __msa_ilvev_d(a, b) (v2i64) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15})
+#define __msa_ilvod_b(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){2, 3, 6, 7, 10, 11, 14, 15, 18, 19, 22, 23, 26, 27, 30, 31})
+#define __msa_ilvod_h(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){4, 6, 5, 7, 12, 14, 13, 15, 20, 22, 21, 23, 28, 30, 29, 31})
+#define __msa_ilvod_w(a, b) (v4i32) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){8, 10, 12, 14, 9, 11, 13, 15, 24, 26, 28, 30, 25, 27, 29, 31})
+#define __msa_ilvod_d(a, b) (v2i64) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16, 18, 20, 22, 24, 26, 28, 30, 17, 19, 21, 23, 25, 27, 29, 31})
 
-#define __msa_ilvl_b(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15})
-#define __msa_ilvl_h(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0,2,1,3,4,6,5,7,8,10,9,11,12,14,13,15})
-#define __msa_ilvl_w(a, b) (v4i32) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0,2,4,6,1,3,5,7,8,10,12,14,9,11,13,15})
-#define __msa_ilvl_d(a, b) (v2i64) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0,2,4,6,8,10,12,14,1,3,5,7,9,11,13,15})
-#define __msa_ilvr_b(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31})
-#define __msa_ilvr_h(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16,18,17,19,20,22,21,23,24,26,25,27,28,30,29,31})
-#define __msa_ilvr_w(a, b) (v4i32) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16,18,20,22,17,19,21,23,24,26,28,30,25,27,29,31})
-#define __msa_ilvr_d(a, b) (v2i64) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16,18,20,22,24,26,28,30,17,19,21,23,25,27,29,31})
+#define __msa_ilvl_b(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+#define __msa_ilvl_h(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0, 2, 1, 3, 4, 6, 5, 7, 8, 10, 9, 11, 12, 14, 13, 15})
+#define __msa_ilvl_w(a, b) (v4i32) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0, 2, 4, 6, 1, 3, 5, 7, 8, 10, 12, 14, 9, 11, 13, 15})
+#define __msa_ilvl_d(a, b) (v2i64) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){0, 2, 4, 6, 8, 10, 12, 14, 1, 3, 5, 7, 9, 11, 13, 15})
+#define __msa_ilvr_b(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31})
+#define __msa_ilvr_h(a, b) (v8i16) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16, 18, 17, 19, 20, 22, 21, 23, 24, 26, 25, 27, 28, 30, 29, 31})
+#define __msa_ilvr_w(a, b) (v4i32) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16, 18, 20, 22, 17, 19, 21, 23, 24, 26, 28, 30, 25, 27, 29, 31})
+#define __msa_ilvr_d(a, b) (v2i64) _mx128_shufv((v16i8)(a), (v16i8)(b), (v16i8){16, 18, 20, 22, 24, 26, 28, 30, 17, 19, 21, 23, 25, 27, 29, 31})
 
 #define __msa_splati_w _mx128_repi_w
 
