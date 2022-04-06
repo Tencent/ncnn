@@ -66,7 +66,7 @@ struct compare_score_index
     }
 };
 
-static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.001)
+static int check_top2(const std::vector<float>& cls_scores, float epsilon = 0.001)
 {
     // partial sort topk with index
     int size = cls_scores.size();
@@ -77,12 +77,12 @@ static int check_top3(const std::vector<float>& cls_scores, float epsilon = 0.00
         vec[i] = std::make_pair(cls_scores[i], i);
     }
 
-    std::partial_sort(vec.begin(), vec.begin() + 3, vec.end(), compare_score_index());
+    std::partial_sort(vec.begin(), vec.begin() + 2, vec.end(), compare_score_index());
 
-    int expect_indexes[3] = {532, 920, 716};
-    float expect_scores[3] = {0.189459f, 0.082801f, 0.034684f};
+    int expect_indexes[2] = {532, 920};
+    float expect_scores[2] = {0.189459f, 0.082801f};
 
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 2; i++)
     {
         int index = vec[i].second;
         float score = vec[i].first;
@@ -228,7 +228,7 @@ static int test_squeezenet(const ncnn::Option& opt, int load_model_type, float e
         cls_scores[j] = out[j];
     }
 
-    return check_top3(cls_scores, epsilon);
+    return check_top2(cls_scores, epsilon);
 }
 
 int main()

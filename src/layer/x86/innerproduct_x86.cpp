@@ -109,6 +109,13 @@ int InnerProduct_x86::destroy_pipeline(const Option& opt)
         flatten = 0;
     }
 
+    if (activation)
+    {
+        activation->destroy_pipeline(opt);
+        delete activation;
+        activation = 0;
+    }
+
     return 0;
 }
 

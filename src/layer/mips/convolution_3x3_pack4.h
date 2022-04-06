@@ -551,8 +551,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 96);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 48);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4i32 _val4567 = __msa_ld_w(r0 + 4, 0);
                         v4i32 _val89ab = __msa_ld_w(r0 + 8, 0);
@@ -607,8 +607,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 64);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 32);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4i32 _val4567 = __msa_ld_w(r0 + 4, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
@@ -650,8 +650,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 32);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
                         _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val0123, 0), _w0);
@@ -682,8 +682,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 16);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 8);
+                        __builtin_prefetch(k0 + 16);
                         v4f32 _val0 = __msa_fill_w_f32(*r0++);
                         v4f32 _val1 = __msa_fill_w_f32(*r0++);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
@@ -709,8 +709,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 8);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 4);
+                        __builtin_prefetch(k0 + 16);
                         v4f32 _val0 = __msa_fill_w_f32(*r0++);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
                         _sum = __msa_fmadd_w(_sum, _val0, _w0);
@@ -1365,8 +1365,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 96);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 48);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4i32 _val4567 = __msa_ld_w(r0 + 4, 0);
                         v4i32 _val89ab = __msa_ld_w(r0 + 8, 0);
@@ -1421,8 +1421,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 64);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 32);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4i32 _val4567 = __msa_ld_w(r0 + 4, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
@@ -1464,8 +1464,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 32);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
                         _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val0123, 0), _w0);
@@ -1496,8 +1496,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 16);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 8);
+                        __builtin_prefetch(k0 + 16);
                         v4f32 _val0 = __msa_fill_w_f32(*r0++);
                         v4f32 _val1 = __msa_fill_w_f32(*r0++);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
@@ -1523,8 +1523,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 8);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 4);
+                        __builtin_prefetch(k0 + 16);
                         v4f32 _val0 = __msa_fill_w_f32(*r0++);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
                         _sum = __msa_fmadd_w(_sum, _val0, _w0);

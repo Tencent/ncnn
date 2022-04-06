@@ -129,8 +129,12 @@ public:
 
     bool use_local_pool_allocator;
 
-    bool use_reserved_1;
-    bool use_reserved_2;
+    // enable local memory optimization for gpu inference
+    bool use_shader_local_memory;
+
+    // enable cooperative matrix optimization for gpu inference
+    bool use_cooperative_matrix;
+
     bool use_reserved_3;
     bool use_reserved_4;
     bool use_reserved_5;

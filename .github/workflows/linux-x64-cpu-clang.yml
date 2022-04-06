@@ -35,7 +35,7 @@ jobs:
   linux-clang:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: update
       run: sudo apt-get update
     - name: protobuf
@@ -102,7 +102,7 @@ jobs:
   linux-clang-simplestl:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: build-simplestl
       env:
         CC: clang

@@ -34,12 +34,6 @@ static const layer_registry_entry layer_registry_msa[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_MSA
 
-#if NCNN_RUNTIME_CPU && NCNN_MMI
-static const layer_registry_entry layer_registry_mmi[] = {
-@layer_registry_mmi@
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_MMI
-
 #if NCNN_RUNTIME_CPU && NCNN_RVV
 static const layer_registry_entry layer_registry_rvv[] = {
 @layer_registry_rvv@
