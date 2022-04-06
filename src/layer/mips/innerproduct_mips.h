@@ -29,8 +29,21 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+protected:
+#if NCNN_INT8
+    int create_pipeline_int8_mips(const Option& opt);
+    int forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
+
 public:
     Layer* flatten;
+    Layer* activation;
+
+#if NCNN_INT8
+    // int8
+    Mat weight_data_int8;
+    Mat scales_in;
+#endif
 };
 
 } // namespace ncnn

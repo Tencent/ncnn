@@ -463,7 +463,7 @@ endif()
 if(WIN32)
     target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES})
 else()
-    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} dl)
+    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} pthread dl)
 endif()
 
 #set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
