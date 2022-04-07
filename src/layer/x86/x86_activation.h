@@ -223,6 +223,21 @@ static NCNN_FORCEINLINE __m256 activation_avx(__m256 _v, int activation_type, co
 }
 
 #if __AVX512F__
+#include "avx512_mathfun.h"
+
+static NCNN_FORCEINLINE __m512 sigmoid_avx512(__m512 inputs)
+{
+    const __m512 one = _mm512_set1_ps(1.0f);
+    return _mm512_div_ps(one, _mm512_add_ps(one, exp512_ps(_mm512_sub_ps(_mm512_setzero_ps(), inputs))));
+}
+
+static NCNN_FORCEINLINE __m512 tanh_avx512(__m512 inputs)
+{
+    const __m512 one = _mm512_set1_ps(1.0f);
+    const __m512 two = _mm512_set1_ps(2.0f);
+    return _mm512_fmsub_ps(sigmoid_avx512(_mm512_mul_ps(inputs, two)), two, one);
+}
+
 static NCNN_FORCEINLINE __m512 lrelu_avx512(__m512 inputs, float slope)
 {
     __mmask16 _is_negative = _mm512_cmp_ps_mask(inputs, _mm512_setzero_ps(), _CMP_LT_OQ);
