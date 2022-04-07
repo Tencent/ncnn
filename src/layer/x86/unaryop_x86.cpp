@@ -205,7 +205,7 @@ struct unary_op_floor
 #if __AVX512F__
     __m512 operator()(const __m512& x) const
     {
-        return _mm512_floor_ps(x);
+        return _mm512_roundscale_ps(x, _MM_FROUND_TO_NEG_INF);
     }
 #endif // __AVX512F__
 #endif // __AVX__
@@ -269,7 +269,7 @@ struct unary_op_ceil
 #if __AVX512F__
     __m512 operator()(const __m512& x) const
     {
-        return _mm512_ceil_ps(x);
+        return _mm512_roundscale_ps(x, _MM_FROUND_TO_POS_INF);
     }
 #endif // __AVX512F__
 #endif // __AVX__

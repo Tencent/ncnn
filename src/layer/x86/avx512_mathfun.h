@@ -151,7 +151,7 @@ static NCNN_FORCEINLINE __m512 exp512_ps(__m512 x)
     /* express exp(x) as exp(g + n*log(2)) */
     fx = _mm512_fmadd_ps(x, *(__m512*)_ps512_cephes_LOG2EF, *(__m512*)_ps512_0p5);
 
-    tmp = _mm512_floor_ps(fx);
+    tmp = _mm512_roundscale_ps(fx, _MM_FROUND_TO_NEG_INF);
 
     /* if greater, subtract 1 */
     __mmask16 mask = _mm512_cmp_ps_mask(tmp, fx, _CMP_GT_OQ);
