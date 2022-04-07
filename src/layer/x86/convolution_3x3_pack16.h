@@ -931,15 +931,15 @@ static void conv3x3s1_winograd64_pack16_avx512(const Mat& bottom_blob, Mat& top_
                         __m512 _out02 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_mm512_set1_ps(8.f), _tmp024c, _mm512_fmadd_ps(_mm512_set1_ps(4.f), _tmp024b, _tmp024a)));
                         __m512 _out04 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_mm512_set1_ps(2.f), _tmp024c, _mm512_fmadd_ps(_mm512_set1_ps(16.f), _tmp024b, _tmp024a)));
                         _mm512_store_ps(output0, _out00);
-                        _mm512_store_ps(output0 + 16, _out02);
-                        _mm512_store_ps(output0 + 32, _out04);
+                        _mm512_store_ps(output0 + 32, _out02);
+                        _mm512_store_ps(output0 + 64, _out04);
 
                         __m512 _out01 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_mm512_set1_ps(16.f), _tmp135c, _mm512_fmadd_ps(_mm512_set1_ps(2.f), _tmp135b, _tmp135a)));
                         __m512 _out03 = _mm512_add_ps(_bias0, _mm512_fmadd_ps(_mm512_set1_ps(4.f), _tmp135c, _mm512_fmadd_ps(_mm512_set1_ps(8.f), _tmp135b, _tmp135a)));
                         __m512 _out05 = _mm512_add_ps(_bias0, _mm512_add_ps(_mm512_add_ps(_tmp07, _tmp135a), _mm512_fmadd_ps(_mm512_set1_ps(32.f), _tmp135b, _tmp135c)));
-                        _mm512_store_ps(output0 + 8, _out01);
-                        _mm512_store_ps(output0 + 24, _out03);
-                        _mm512_store_ps(output0 + 40, _out05);
+                        _mm512_store_ps(output0 + 16, _out01);
+                        _mm512_store_ps(output0 + 48, _out03);
+                        _mm512_store_ps(output0 + 80, _out05);
 
                         output0 += outw * 16;
                     }
