@@ -456,6 +456,10 @@ if(PNNX_COVERAGE)
     target_link_libraries(pnnx PUBLIC -coverage -lgcov)
 endif()
 
+if(WIN32)
+    target_compile_definitions(pnnx PUBLIC NOMINMAX)
+endif()
+
 if(TorchVision_FOUND)
     target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)
 endif()

@@ -16,7 +16,6 @@
 
 #if _WIN32
 #include <windows.h>
-#include <c10/util/win32-headers.h>
 #else
 #include <dlfcn.h>
 #endif
