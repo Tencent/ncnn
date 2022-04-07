@@ -172,7 +172,7 @@ static void conv3x3s1_winograd64_pack16_avx512(const Mat& bottom_blob, Mat& top_
             {
                 for (int j = 0; j < w_tm / 8; j++)
                 {
-                    const float* r0 = img0.row(i * 6) + (j * 6) * 8;
+                    const float* r0 = img0.row(i * 6) + (j * 6) * 16;
 
                     for (int m = 0; m < 8; m++)
                     {
@@ -835,7 +835,7 @@ static void conv3x3s1_winograd64_pack16_avx512(const Mat& bottom_blob, Mat& top_
             Mat out0 = top_blob_bordered.channel(p);
 
             //             const float bias0 = bias ? bias[p] : 0.f;
-            __m512 _bias0 = bias ? _mm512_loadu_ps((const float*)bias + p * 8) : _mm512_setzero_ps();
+            __m512 _bias0 = bias ? _mm512_loadu_ps((const float*)bias + p * 16) : _mm512_setzero_ps();
 
 #ifdef _MSC_VER
             __declspec(align(64))
