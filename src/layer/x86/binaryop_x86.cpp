@@ -2924,13 +2924,13 @@ namespace BinaryOp_x86_functor {
         }                                                         \
     };
 #else
-#define MAKE_FUNCTION(NAME, IMPL, IMPL4, IMPL8, IMPL16)           \
-    struct NAME                                                   \
-    {                                                             \
-        float operator()(const float& x, const float& y) const    \
-        {                                                         \
-            return IMPL;                                          \
-        }                                                         \
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4, IMPL8, IMPL16)        \
+    struct NAME                                                \
+    {                                                          \
+        float operator()(const float& x, const float& y) const \
+        {                                                      \
+            return IMPL;                                       \
+        }                                                      \
     };
 #endif
 
