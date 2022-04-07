@@ -446,7 +446,7 @@ static NCNN_FORCEINLINE void sincos512_ps(__m512 x, __m512* s, __m512* c)
     *c = _mm512_xor_ps(xmm2, sign_bit_cos);
 }
 
-static NCNN_FORCEINLINE __m512 pow_ps(__m512 a, __m512 b)
+static NCNN_FORCEINLINE __m512 pow512_ps(__m512 a, __m512 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp512_ps(_mm512_mul_ps(b, log512_ps(a)));
