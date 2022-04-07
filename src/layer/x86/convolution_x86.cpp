@@ -96,7 +96,17 @@ namespace ncnn {
 #include "convolution_3x3_pack8to1.h"
 #include "convolution_3x3_pack8.h"
 #include "convolution_2x2_pack8.h"
-#endif
+
+#if __AVX512F__
+#include "convolution_pack16.h"
+#include "convolution_pack8to16.h"
+#include "convolution_pack4to16.h"
+#include "convolution_pack1to16.h"
+#include "convolution_pack16to8.h"
+#include "convolution_pack16to4.h"
+#include "convolution_pack16to1.h"
+#endif // __AVX512F__
+#endif // __AVX__
 #endif // __SSE2__
 
 Convolution_x86::Convolution_x86()
@@ -210,7 +220,10 @@ int Convolution_x86::create_pipeline(const Option& opt)
 #if __SSE2__
     if (opt.use_packing_layout)
     {
-#if __AVX__
+#if __AVX512F__
+        elempack = num_input % 16 == 0 ? 16 : num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#elif __AVX__
         elempack = num_input % 8 == 0 ? 8 : num_input % 4 == 0 ? 4 : 1;
         out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
@@ -222,6 +235,58 @@ int Convolution_x86::create_pipeline(const Option& opt)
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+    if (elempack == 16 && out_elempack == 16)
+    {
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+    if (elempack == 8 && out_elempack == 16)
+    {
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+    if (elempack == 16 && out_elempack == 8)
+    {
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+    if (elempack == 4 && out_elempack == 16)
+    {
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+    if (elempack == 16 && out_elempack == 4)
+    {
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+    if (elempack == 1 && out_elempack == 16)
+    {
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+    if (elempack == 16 && out_elempack == 1)
+    {
+        {
+            convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+        }
+    }
+
+#endif // __AVX512F__
+
     // pack8
     if (elempack == 8 && out_elempack == 8)
     {
@@ -361,7 +426,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
     }
-#endif
+#endif // __AVX__
 
     // pack4
     if (elempack == 4 && out_elempack == 4)
@@ -463,7 +528,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
             }
         }
     }
-#endif
+#endif // __SSE2__
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
@@ -529,21 +594,6 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __AVX512F__
-    if (elempack == 16)
-    {
-        Mat tmp;
-        convert_packing(bottom_blob, tmp, 8, opt);
-
-        Mat tmpout;
-        forward(tmp, tmpout, opt);
-
-        convert_packing(tmpout, top_blob, 16, opt);
-
-        return 0;
-    }
-#endif // __AVX512F__
-
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
@@ -561,7 +611,9 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 #if __SSE2__
     if (opt.use_packing_layout)
     {
-#if __AVX__
+#if __AVX512F__
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#elif __AVX__
         out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
 #else
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -586,6 +638,58 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+    if (elempack == 16 && out_elempack == 16)
+    {
+        {
+            convolution_pack16_avx512(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        }
+    }
+
+    if (elempack == 8 && out_elempack == 16)
+    {
+        {
+            convolution_pack8to16_avx512(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        }
+    }
+
+    if (elempack == 16 && out_elempack == 8)
+    {
+        {
+            convolution_pack16to8_avx512(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        }
+    }
+
+    if (elempack == 4 && out_elempack == 16)
+    {
+        {
+            convolution_pack4to16_avx512(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        }
+    }
+
+    if (elempack == 16 && out_elempack == 4)
+    {
+        {
+            convolution_pack16to4_avx512(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        }
+    }
+
+    if (elempack == 1 && out_elempack == 16)
+    {
+        {
+            convolution_pack1to16_avx512(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        }
+    }
+
+    if (elempack == 16 && out_elempack == 1)
+    {
+        {
+            convolution_pack16to1_avx512(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+        }
+    }
+
+#endif // __AVX512F__
+
     if (elempack == 8 && out_elempack == 8)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -828,7 +932,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             convolution_pack8to4_avx(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
-#endif
+#endif // __AVX__
 
     if (elempack == 4 && out_elempack == 4)
     {
