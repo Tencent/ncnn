@@ -108,6 +108,7 @@ namespace ncnn {
 
 #include "convolution_sgemm_pack16.h"
 #include "convolution_1x1_pack16.h"
+#include "convolution_3x3_pack16.h"
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
@@ -248,6 +249,18 @@ int Convolution_x86::create_pipeline(const Option& opt)
         else if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
             convolution_im2col_sgemm_transform_kernel_pack16_avx512(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            if (num_input >= 32 && num_output >= 32)
+            {
+                conv3x3s1_winograd64_transform_kernel_pack16_avx512(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
+                conv3x3s1_winograd42_transform_kernel_pack16_avx512(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+            }
+            else
+            {
+                convolution_transform_kernel_packed_sse(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
+            }
         }
         else if (opt.use_sgemm_convolution)
         {
@@ -673,6 +686,30 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             if (activation)
             {
                 activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            if (num_input >= 32 && num_output >= 32)
+            {
+                // we need more proper conditions
+                if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
+                {
+                    conv3x3s1_winograd42_pack16_avx512(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data, bias_data, opt);
+                }
+                else
+                {
+                    conv3x3s1_winograd64_pack16_avx512(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                }
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else
+            {
+                convolution_pack16_avx512(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
             }
         }
         else if (opt.use_sgemm_convolution)
