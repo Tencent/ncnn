@@ -16,6 +16,9 @@
 
 #if __SSE2__
 #include <emmintrin.h>
+#if __AVX__
+#include <immintrin.h>
+#endif
 #endif // __SSE2__
 
 #include "x86_usability.h"
