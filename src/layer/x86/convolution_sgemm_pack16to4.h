@@ -373,7 +373,7 @@ static void im2col_sgemm_pack16to4_avx512(const Mat& bottom_im2col, Mat& top_blo
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
-        int p = pp * 2;
+        int p = remain_outch_start + pp * 2;
 
         float* outptr0 = top_blob.channel(p);
         float* outptr1 = top_blob.channel(p + 1);
@@ -660,9 +660,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack16to4_avx512(const Mat
                     for (int j = 0; j < 16; j++)
                     {
                         const float* k00 = kernel.channel(q + j).row(p + i);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
@@ -682,9 +680,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack16to4_avx512(const Mat
                     for (int j = 0; j < 8; j++)
                     {
                         const float* k00 = kernel.channel(q + j).row(p + i);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
@@ -704,9 +700,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack16to4_avx512(const Mat
                     for (int j = 0; j < 4; j++)
                     {
                         const float* k00 = kernel.channel(q + j).row(p + i);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
