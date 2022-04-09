@@ -100,8 +100,8 @@ static int test_slice_1()
            || test_slice(a, IntArrayMat(3, 16, -233), 0)
            || test_slice(a, IntArrayMat(3, 16, -233), -3)
 
-           || test_slice(b, IntArrayMat(4, 32, -233), 0)
-           || test_slice(b, IntArrayMat(4, 32, -233), -3)
+           || test_slice(b, IntArrayMat(8, 32), 0)
+           || test_slice(b, IntArrayMat(8, 32), -3)
 
            || test_slice(c, IntArrayMat(4, -233), 0)
            || test_slice(c, IntArrayMat(4, -233), -3);
