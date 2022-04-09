@@ -56,6 +56,7 @@ namespace ncnn {
 #include "convolution_sgemm_pack4.h"
 #include "convolution_sgemm_pack1to4.h"
 #include "convolution_sgemm_pack4to1.h"
+#include "convolution_winograd_transform_pack4.h"
 #include "convolution_1x1_pack4.h"
 #include "convolution_1x1_pack1to4.h"
 #include "convolution_1x1_pack4to1.h"
