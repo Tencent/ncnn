@@ -33,6 +33,7 @@
 namespace ncnn {
 
 #include "convolution_sgemm.h"
+#include "convolution_winograd_transform.h"
 #include "convolution_1x1.h"
 #include "convolution_3x3.h"
 #include "convolution_5x5.h"
@@ -52,6 +53,7 @@ namespace ncnn {
 #include "convolution_sgemm_pack4.h"
 #include "convolution_sgemm_pack1to4.h"
 #include "convolution_sgemm_pack4to1.h"
+#include "convolution_winograd_transform_pack4.h"
 #include "convolution_1x1_pack4.h"
 #include "convolution_1x1_pack1to4.h"
 #include "convolution_1x1_pack4to1.h"
@@ -87,6 +89,7 @@ namespace ncnn {
 #include "convolution_sgemm_pack1to8.h"
 #include "convolution_sgemm_pack8to4.h"
 #include "convolution_sgemm_pack8to1.h"
+#include "convolution_winograd_transform_pack8.h"
 #include "convolution_1x1_pack8.h"
 #include "convolution_1x1_pack4to8.h"
 #include "convolution_1x1_pack1to8.h"
@@ -111,6 +114,7 @@ namespace ncnn {
 #include "convolution_sgemm_pack1to16.h"
 #include "convolution_sgemm_pack16to8.h"
 #include "convolution_sgemm_pack16to4.h"
+#include "convolution_winograd_transform_pack16.h"
 #include "convolution_1x1_pack16.h"
 #include "convolution_1x1_pack8to16.h"
 #include "convolution_1x1_pack1to16.h"
