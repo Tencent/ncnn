@@ -271,7 +271,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: download-openmp-macos
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: openmp-macos
         path: openmp-macos
@@ -341,7 +341,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-macos
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: openmp-macos
         path: openmp-macos
@@ -492,7 +492,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: download-openmp-ios
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: openmp-ios
         path: openmp-ios
@@ -566,7 +566,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: openmp-ios
         path: openmp-ios
@@ -720,7 +720,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: openmp-ios-bitcode
         path: openmp-ios-bitcode
@@ -794,7 +794,7 @@ jobs:
       with:
         submodules: true
     - name: download-openmp-ios-bitcode
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         name: openmp-ios-bitcode
         path: openmp-ios-bitcode
@@ -1794,7 +1794,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: download
-      uses: actions/download-artifact@v2
+      uses: actions/download-artifact@v3
       with:
         path: artifacts
 

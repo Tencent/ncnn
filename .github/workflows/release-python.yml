@@ -117,7 +117,7 @@ jobs:
     steps:
     - uses: actions/setup-python@v3
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: artifact
         path: dist
