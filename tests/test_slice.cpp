@@ -92,63 +92,83 @@ static int test_slice_0()
 
 static int test_slice_1()
 {
-    ncnn::Mat a = RandomMat(7, 3, 32);
-    ncnn::Mat b = RandomMat(5, 4, 20);
+    ncnn::Mat a = RandomMat(17, 13, 32);
+    ncnn::Mat b = RandomMat(16, 15, 40);
+    ncnn::Mat c = RandomMat(15, 14, 20);
 
     return 0
            || test_slice(a, IntArrayMat(3, 16, -233), 0)
            || test_slice(a, IntArrayMat(3, 16, -233), -3)
 
-           || test_slice(b, IntArrayMat(4, -233), 0)
-           || test_slice(b, IntArrayMat(4, -233), -3);
+           || test_slice(b, IntArrayMat(4, 32, -233), 0)
+           || test_slice(b, IntArrayMat(4, 32, -233), -3)
+
+           || test_slice(c, IntArrayMat(4, -233), 0)
+           || test_slice(c, IntArrayMat(4, -233), -3);
 }
 
 static int test_slice_2()
 {
-    ncnn::Mat a = RandomMat(7, 32, 2);
-    ncnn::Mat b = RandomMat(7, 32, 48);
+    ncnn::Mat a = RandomMat(17, 32, 11);
+    ncnn::Mat b = RandomMat(17, 32, 24);
+    ncnn::Mat c = RandomMat(17, 32, 48);
 
     return 0
            || test_slice(a, IntArrayMat(3, 16, -233), 1)
            || test_slice(a, IntArrayMat(3, 16, -233), -2)
 
-           || test_slice(b, IntArrayMat(3, 16, 5), 1)
-           || test_slice(b, IntArrayMat(3, 16, 5), -2);
+           || test_slice(b, IntArrayMat(8, 3, -233), 1)
+           || test_slice(b, IntArrayMat(8, 3, -233), -2)
+
+           || test_slice(c, IntArrayMat(3, 16, 5), 1)
+           || test_slice(c, IntArrayMat(3, 16, 5), -2);
 }
 
 static int test_slice_3()
 {
-    ncnn::Mat a = RandomMat(16, 7, 2);
-    ncnn::Mat b = RandomMat(16, 7, 16);
+    ncnn::Mat a = RandomMat(16, 17, 11);
+    ncnn::Mat b = RandomMat(16, 17, 24);
+    ncnn::Mat c = RandomMat(16, 17, 16);
 
     return 0
            || test_slice(a, IntArrayMat(5, 4, 7), 2)
            || test_slice(a, IntArrayMat(5, 4, 7), -1)
 
            || test_slice(b, IntArrayMat(5, 4, 7), 2)
-           || test_slice(b, IntArrayMat(5, 4, 7), -1);
+           || test_slice(b, IntArrayMat(5, 4, 7), -1)
+
+           || test_slice(c, IntArrayMat(5, 4, 7), 2)
+           || test_slice(c, IntArrayMat(5, 4, 7), -1);
 }
 
 static int test_slice_4()
 {
-    ncnn::Mat a = RandomMat(7, 32);
-    ncnn::Mat b = RandomMat(5, 20);
+    ncnn::Mat a = RandomMat(37, 32);
+    ncnn::Mat b = RandomMat(36, 40);
+    ncnn::Mat c = RandomMat(35, 20);
 
-    ncnn::Mat c = RandomMat(15, 2);
-    ncnn::Mat d = RandomMat(32, 8);
+    ncnn::Mat d = RandomMat(15, 11);
+    ncnn::Mat e = RandomMat(32, 64);
+    ncnn::Mat f = RandomMat(32, 24);
 
     return 0
            || test_slice(a, IntArrayMat(3, 16, 5), 0)
            || test_slice(a, IntArrayMat(3, 16, 5), -2)
 
-           || test_slice(b, IntArrayMat(4, -233), 0)
-           || test_slice(b, IntArrayMat(4, -233), -2)
+           || test_slice(b, IntArrayMat(32, -233), 0)
+           || test_slice(b, IntArrayMat(32, -233), -2)
 
-           || test_slice(c, IntArrayMat(3, -233, -233), 1)
-           || test_slice(c, IntArrayMat(3, -233, -233), -1)
+           || test_slice(c, IntArrayMat(4, -233), 0)
+           || test_slice(c, IntArrayMat(4, -233), -2)
 
-           || test_slice(d, IntArrayMat(3, 16, 5), 1)
-           || test_slice(d, IntArrayMat(3, 16, 5), -1);
+           || test_slice(d, IntArrayMat(3, -233, -233), 1)
+           || test_slice(d, IntArrayMat(3, -233, -233), -1)
+
+           || test_slice(e, IntArrayMat(5, 8, -233), 1)
+           || test_slice(e, IntArrayMat(5, 8, -233), -1)
+
+           || test_slice(f, IntArrayMat(3, 16, 5), 1)
+           || test_slice(f, IntArrayMat(3, 16, 5), -1);
 }
 
 static int test_slice_5()
