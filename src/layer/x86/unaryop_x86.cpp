@@ -17,13 +17,16 @@
 #include <math.h>
 
 #if __SSE2__
-#include "sse_mathfun.h"
 #include <emmintrin.h>
+#include "sse_mathfun.h"
 #if __SSE4_1__
 #include <smmintrin.h>
 #if __AVX__
-#include "avx_mathfun.h"
 #include <immintrin.h>
+#include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE4_1__
 #endif // __SSE2__
@@ -43,39 +46,52 @@ template<typename Op>
 static int unary_op_inplace(Mat& a, const Option& opt)
 {
     Op op;
-    float* ptr = (float*)a;
-    int size = static_cast<int>(a.total()) * a.elempack;
-    int nn = size;
-    int remain = size;
 
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        float* ptr = a.channel(q);
+
+        int i = 0;
 #if __SSE2__
 #if __AVX__
-    nn = size >> 3;
-    remain = size & 7;
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < nn; i++)
-    {
-        __m256 _p = _mm256_loadu_ps(ptr + i * 8);
-        _p = op(_p);
-        _mm256_storeu_ps(ptr + i * 8, _p);
-    }
-#else
-    nn = size >> 2;
-    remain = size & 3;
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < nn; i++)
-    {
-        __m128 _p = _mm_loadu_ps(ptr + i * 4);
-        _p = op(_p);
-        _mm_storeu_ps(ptr + i * 4, _p);
-    }
+#if __AVX512F__
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _p = _mm512_loadu_ps(ptr);
+            _p = op(_p);
+            _mm512_storeu_ps(ptr, _p);
+            ptr += 16;
+        }
+#endif // __AVX512F__
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = _mm256_loadu_ps(ptr);
+            _p = op(_p);
+            _mm256_storeu_ps(ptr, _p);
+            ptr += 8;
+        }
 #endif // __AVX__
-
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = _mm_load_ps(ptr);
+            _p = op(_p);
+            _mm_store_ps(ptr, _p);
+            ptr += 4;
+        }
 #endif // __SSE2__
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = size - remain; i < size; i++)
-    {
-        ptr[i] = op(a[i]);
+        for (; i < size; i++)
+        {
+            *ptr = op(*ptr);
+            ptr++;
+        }
     }
 
     return 0;
@@ -98,6 +114,12 @@ struct unary_op_abs
     {
         return (__m256)abs_avx(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return _mm512_abs_ps(x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -111,13 +133,19 @@ struct unary_op_neg
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)_mm_sub_ps(_mm_setzero_ps(), x);
+        return _mm_sub_ps(_mm_setzero_ps(), x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)_mm256_sub_ps(_mm256_setzero_ps(), x);
+        return _mm256_sub_ps(_mm256_setzero_ps(), x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return _mm512_sub_ps(_mm512_setzero_ps(), x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -132,7 +160,7 @@ struct unary_op_floor
     __m128 operator()(const __m128& x) const
     {
 #if __SSE4_1__
-        return (__m128)_mm_floor_ps(x);
+        return _mm_floor_ps(x);
 #endif // __SSE4_1__
 
         // Use negative zero as the sign bit mask.
@@ -172,8 +200,14 @@ struct unary_op_floor
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)_mm256_floor_ps(x);
+        return _mm256_floor_ps(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return _mm512_roundscale_ps(x, _MM_FROUND_TO_NEG_INF);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -188,7 +222,7 @@ struct unary_op_ceil
     __m128 operator()(const __m128& x) const
     {
 #if __SSE4_1__
-        return (__m128)_mm_ceil_ps(x);
+        return _mm_ceil_ps(x);
 #endif // __SSE4_1__
 
         // Use negative zero as the sign bit mask.
@@ -230,8 +264,14 @@ struct unary_op_ceil
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)_mm256_ceil_ps(x);
+        return _mm256_ceil_ps(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return _mm512_roundscale_ps(x, _MM_FROUND_TO_POS_INF);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -245,13 +285,19 @@ struct unary_op_square
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)_mm_mul_ps(x, x);
+        return _mm_mul_ps(x, x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)_mm256_mul_ps(x, x);
+        return _mm256_mul_ps(x, x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return _mm512_mul_ps(x, x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -265,13 +311,19 @@ struct unary_op_sqrt
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)_mm_sqrt_ps(x);
+        return _mm_sqrt_ps(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)_mm256_sqrt_ps(x);
+        return _mm256_sqrt_ps(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return _mm512_sqrt_ps(x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -285,13 +337,23 @@ struct unary_op_rsqrt
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)_mm_rsqrt_ps(x);
+        return _mm_rsqrt_ps(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)_mm256_rsqrt_ps(x);
+        return _mm256_rsqrt_ps(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        __m256 _x0 = _mm512_extractf32x8_ps(x, 0);
+        __m256 _x1 = _mm512_extractf32x8_ps(x, 1);
+        _x0 = _mm256_rsqrt_ps(_x0);
+        _x1 = _mm256_rsqrt_ps(_x1);
+        return _mm512_insertf32x8(_mm512_castps256_ps512(_x0), _x1, 1);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -305,13 +367,19 @@ struct unary_op_exp
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)exp_ps(x);
+        return exp_ps(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)exp256_ps(x);
+        return exp256_ps(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return exp512_ps(x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -325,13 +393,19 @@ struct unary_op_log
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)log_ps(x);
+        return log_ps(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)log256_ps(x);
+        return log256_ps(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return log512_ps(x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -345,13 +419,19 @@ struct unary_op_sin
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)sin_ps(x);
+        return sin_ps(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)sin256_ps(x);
+        return sin256_ps(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return sin512_ps(x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -365,13 +445,19 @@ struct unary_op_cos
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)cos_ps(x);
+        return cos_ps(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)cos256_ps(x);
+        return cos256_ps(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return cos512_ps(x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -410,6 +496,17 @@ struct unary_op_tan
         tmp[7] = tan(tmp[7]);
         return _mm256_loadu_ps(tmp);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        //TODO avx512 optimize
+        float tmp[16];
+        _mm512_storeu_ps(tmp, x);
+        for (int i = 0; i < 16; i++)
+            tmp[i] = tan(tmp[i]);
+        return _mm512_loadu_ps(tmp);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -448,6 +545,17 @@ struct unary_op_asin
         tmp[7] = asin(tmp[7]);
         return _mm256_loadu_ps(tmp);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        //TODO avx512 optimize
+        float tmp[16];
+        _mm512_storeu_ps(tmp, x);
+        for (int i = 0; i < 16; i++)
+            tmp[i] = asin(tmp[i]);
+        return _mm512_loadu_ps(tmp);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -486,6 +594,17 @@ struct unary_op_acos
         tmp[7] = acos(tmp[7]);
         return _mm256_loadu_ps(tmp);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        //TODO avx512 optimize
+        float tmp[16];
+        _mm512_storeu_ps(tmp, x);
+        for (int i = 0; i < 16; i++)
+            tmp[i] = acos(tmp[i]);
+        return _mm512_loadu_ps(tmp);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -524,6 +643,17 @@ struct unary_op_atan
         tmp[7] = atan(tmp[7]);
         return _mm256_loadu_ps(tmp);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        //TODO avx512 optimize
+        float tmp[16];
+        _mm512_storeu_ps(tmp, x);
+        for (int i = 0; i < 16; i++)
+            tmp[i] = atan(tmp[i]);
+        return _mm512_loadu_ps(tmp);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -544,6 +674,12 @@ struct unary_op_reciprocal
     {
         return _mm256_div_ps(*(__m256*)_ps256_1, x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return _mm512_div_ps(*(__m512*)_ps512_1, x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };
@@ -557,13 +693,19 @@ struct unary_op_tanh
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)tanh_sse(x);
+        return tanh_sse(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)tanh_avx(x);
+        return tanh_avx(x);
     }
+#if __AVX512F__
+    __m512 operator()(const __m512& x) const
+    {
+        return tanh_avx512(x);
+    }
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 };

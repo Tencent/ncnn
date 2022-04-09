@@ -679,4 +679,10 @@ static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
     *c = _mm_xor_ps(xmm2, sign_bit_cos);
 }
 
+static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
+{
+    // pow(x, m) = exp(m * log(x))
+    return exp_ps(_mm_mul_ps(b, log_ps(a)));
+}
+
 #endif // SSE_MATHFUN_H

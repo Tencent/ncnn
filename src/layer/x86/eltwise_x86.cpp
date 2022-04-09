@@ -47,6 +47,25 @@ int Eltwise_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        const size_t bottom_blob_count = bottom_blobs.size();
+        std::vector<Mat> tmp(bottom_blob_count);
+        for (size_t i = 0; i < bottom_blob_count; i++)
+        {
+            convert_packing(bottom_blobs[i], tmp[i], 8, opt);
+        }
+
+        std::vector<Mat> tmpout(1);
+        forward(tmp, tmpout, opt);
+
+        convert_packing(tmpout[0], top_blob, 16, opt);
+
+        return 0;
+    }
+#endif // __AVX512F__
+
     if (elempack == 8)
     {
         if (op_type == Operation_PROD)
