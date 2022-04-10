@@ -41,7 +41,7 @@ static void conv3x3s1_winograd64_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
         int h_tiles = outh / 6;
         const int tiles = w_tiles * h_tiles;
 
-        bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
+        bottom_blob_tm.create(tiles, 64, inch, 16u, elempack, opt.workspace_allocator);
         conv3x3s1_winograd64_transform_input_pack4_bf16s_neon(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
@@ -1485,7 +1485,7 @@ static void conv3x3s1_winograd42_pack4_bf16s_neon(const Mat& bottom_blob, Mat& t
         int h_tiles = outh / 4;
         const int tiles = w_tiles * h_tiles;
 
-        bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
+        bottom_blob_tm.create(tiles, 36, inch, 16u, elempack, opt.workspace_allocator);
         conv3x3s1_winograd42_transform_input_pack4_bf16s_neon(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
