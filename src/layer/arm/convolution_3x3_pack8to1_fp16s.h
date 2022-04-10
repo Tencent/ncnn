@@ -128,7 +128,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8to1_fp16sa_neon(const Mat
     }
 }
 
-static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -149,8 +149,6 @@ static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Ma
     w = outw + 2;
     h = outh + 2;
     copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
-
-    const __fp16* bias = _bias;
 
     // BEGIN transform input
     Mat bottom_blob_tm;
@@ -817,111 +815,7 @@ static void conv3x3s1_winograd64_pack8to1_fp16sa_neon(const Mat& bottom_blob, Ma
         top_blob_bordered.create(outw, outh, outch, 2u, 1, opt.workspace_allocator);
     }
     {
-        //         const float otm[6][8] = {
-        //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,   2.0f,  -2.0f,  16.0f,-16.0f, 0.0f},
-        //             {0.0f,  1.0f,   1.0f,   4.0f,   4.0f,   8.0f,  8.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,   8.0f,  -8.0f,   4.0f, -4.0f, 0.0f},
-        //             {0.0f,  1.0f,   1.0f,  16.0f,  16.0f,   2.0f,  2.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,  32.0f, -32.0f,   1.0f, -1.0f, 1.0f}
-        //         };
-
-        // 0 = r0 + (r1 + r2) + (r3 + r4)     + (r5 + r6) * 32
-        // 1 =      (r1 - r2) + (r3 - r4) * 2 + (r5 - r6) * 16
-        // 2 =      (r1 + r2) + (r3 + r4) * 4 + (r5 + r6) * 8
-        // 3 =      (r1 - r2) + (r3 - r4) * 8 + (r5 - r6) * 4
-        // 4 =      (r1 + r2) + (r3 + r4) * 16+ (r5 + r6) * 2
-        // 5 = r7 + (r1 - r2) + (r3 - r4) * 32+ (r5 - r6)
-
-        int w_tm = outw / 6 * 8;
-        int h_tm = outh / 6 * 8;
-        const int tiles = w_tm / 8 * h_tm / 8;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++)
-        {
-            const Mat out0_tm = top_blob_tm.channel(p);
-            Mat out0 = top_blob_bordered.channel(p);
-
-            const __fp16 bias0 = bias ? bias[p] : 0.f;
-            // float32x2_t _bias0 = vdup_n_f32(bias0);
-
-            __fp16 tmp[6][8];
-
-            // tile
-            for (int i = 0; i < outh / 6; i++)
-            {
-                for (int j = 0; j < outw / 6; j++)
-                {
-                    //                     top_blob_tm.create(tiles, 64, outch, 4u, 1, opt.workspace_allocator);
-
-                    const __fp16* output0_tm_0 = (const __fp16*)out0_tm + (i * w_tm / 8 + j) * 1;
-                    const __fp16* output0_tm_1 = output0_tm_0 + tiles * 1;
-                    const __fp16* output0_tm_2 = output0_tm_0 + tiles * 2;
-                    const __fp16* output0_tm_3 = output0_tm_0 + tiles * 3;
-                    const __fp16* output0_tm_4 = output0_tm_0 + tiles * 4;
-                    const __fp16* output0_tm_5 = output0_tm_0 + tiles * 5;
-                    const __fp16* output0_tm_6 = output0_tm_0 + tiles * 6;
-                    const __fp16* output0_tm_7 = output0_tm_0 + tiles * 7;
-
-                    // TODO neon optimize
-                    for (int m = 0; m < 8; m++)
-                    {
-                        __fp16 tmp024a = output0_tm_1[0] + output0_tm_2[0];
-                        __fp16 tmp135a = output0_tm_1[0] - output0_tm_2[0];
-
-                        __fp16 tmp024b = output0_tm_3[0] + output0_tm_4[0];
-                        __fp16 tmp135b = output0_tm_3[0] - output0_tm_4[0];
-
-                        __fp16 tmp024c = output0_tm_5[0] + output0_tm_6[0];
-                        __fp16 tmp135c = output0_tm_5[0] - output0_tm_6[0];
-
-                        tmp[0][m] = output0_tm_0[0] + tmp024a + tmp024b + tmp024c * 32;
-                        tmp[2][m] = tmp024a + tmp024b * 4 + tmp024c * 8;
-                        tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
-
-                        tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
-                        tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
-                        tmp[5][m] = output0_tm_7[0] + tmp135a + tmp135b * 32 + tmp135c;
-
-                        output0_tm_0 += tiles * 8;
-                        output0_tm_1 += tiles * 8;
-                        output0_tm_2 += tiles * 8;
-                        output0_tm_3 += tiles * 8;
-                        output0_tm_4 += tiles * 8;
-                        output0_tm_5 += tiles * 8;
-                        output0_tm_6 += tiles * 8;
-                        output0_tm_7 += tiles * 8;
-                    }
-
-                    __fp16* output0 = out0.row<__fp16>(i * 6) + j * 6;
-
-                    for (int m = 0; m < 6; m++)
-                    {
-                        const __fp16* tmp0 = tmp[m];
-
-                        __fp16 tmp024a = tmp0[1] + tmp0[2];
-                        __fp16 tmp135a = tmp0[1] - tmp0[2];
-
-                        __fp16 tmp024b = tmp0[3] + tmp0[4];
-                        __fp16 tmp135b = tmp0[3] - tmp0[4];
-
-                        __fp16 tmp024c = tmp0[5] + tmp0[6];
-                        __fp16 tmp135c = tmp0[5] - tmp0[6];
-
-                        output0[0] = bias0 + tmp0[0] + tmp024a + tmp024b + tmp024c * 32;
-                        output0[2] = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
-                        output0[4] = bias0 + tmp024a + tmp024b * 16 + tmp024c + tmp024c;
-
-                        output0[1] = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
-                        output0[3] = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;
-                        output0[5] = bias0 + tmp0[7] + tmp135a + tmp135b * 32 + tmp135c;
-
-                        output0 += outw;
-                    }
-                }
-            }
-        }
+        conv3x3s1_winograd64_transform_output_fp16sa_neon(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 
