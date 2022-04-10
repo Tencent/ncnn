@@ -470,7 +470,7 @@ static void conv3x3s1_winograd42_transform_output_pack4_msa(const Mat& top_blob_
     for (int p = 0; p < outch; p++)
     {
         const Mat out0_tm = top_blob_tm.channel(p);
-        Mat out0 = top_blob_bordered.channel(p);
+        Mat out0 = top_blob.channel(p);
 
         v4f32 _bias0 = biasptr ? (v4f32)__msa_ld_w(biasptr + p * 4, 0) : (v4f32)__msa_fill_w(0);
 
