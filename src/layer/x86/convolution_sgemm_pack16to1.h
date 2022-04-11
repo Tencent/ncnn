@@ -25,7 +25,7 @@ static void im2col_sgemm_pack16to1_avx512(const Mat& bottom_im2col, Mat& top_blo
     const float* bias = _bias;
 
     Mat tmp;
-    if (size >= 8)
+    if (size >= 16)
         tmp.create(16 * maxk, inch, size / 16 + (size % 16) / 8 + size % 8, 64u, 16, opt.workspace_allocator);
     else if (size >= 8)
         tmp.create(8 * maxk, inch, size / 8 + size % 8, 64u, 16, opt.workspace_allocator);
