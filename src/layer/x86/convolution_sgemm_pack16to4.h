@@ -404,20 +404,20 @@ static void im2col_sgemm_pack16to4_avx512(const Mat& bottom_im2col, Mat& top_blo
 
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
                 __m256 _val1 = _mm256_broadcast_ss(tmpptr + 1);
-                _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
-                _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                _sum0 = _mm256_fmadd_ps(_val0, _w0, _sum0);
+                _sum1 = _mm256_fmadd_ps(_val1, _w0, _sum1);
                 __m256 _val2 = _mm256_broadcast_ss(tmpptr + 2);
                 __m256 _val3 = _mm256_broadcast_ss(tmpptr + 3);
-                _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
-                _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
+                _sum2 = _mm256_fmadd_ps(_val2, _w0, _sum2);
+                _sum3 = _mm256_fmadd_ps(_val3, _w0, _sum3);
                 __m256 _val4 = _mm256_broadcast_ss(tmpptr + 4);
                 __m256 _val5 = _mm256_broadcast_ss(tmpptr + 5);
-                _sum4 = _mm256_comp_fmadd_ps(_val4, _w0, _sum4);
-                _sum5 = _mm256_comp_fmadd_ps(_val5, _w0, _sum5);
+                _sum4 = _mm256_fmadd_ps(_val4, _w0, _sum4);
+                _sum5 = _mm256_fmadd_ps(_val5, _w0, _sum5);
                 __m256 _val6 = _mm256_broadcast_ss(tmpptr + 6);
                 __m256 _val7 = _mm256_broadcast_ss(tmpptr + 7);
-                _sum6 = _mm256_comp_fmadd_ps(_val6, _w0, _sum6);
-                _sum7 = _mm256_comp_fmadd_ps(_val7, _w0, _sum7);
+                _sum6 = _mm256_fmadd_ps(_val6, _w0, _sum6);
+                _sum7 = _mm256_fmadd_ps(_val7, _w0, _sum7);
 
                 tmpptr += 8;
                 kptr += 8;
@@ -461,12 +461,12 @@ static void im2col_sgemm_pack16to4_avx512(const Mat& bottom_im2col, Mat& top_blo
 
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
                 __m256 _val1 = _mm256_broadcast_ss(tmpptr + 1);
-                _sum0 = _mm256_comp_fmadd_ps(_val0, _w0, _sum0);
-                _sum1 = _mm256_comp_fmadd_ps(_val1, _w0, _sum1);
+                _sum0 = _mm256_fmadd_ps(_val0, _w0, _sum0);
+                _sum1 = _mm256_fmadd_ps(_val1, _w0, _sum1);
                 __m256 _val2 = _mm256_broadcast_ss(tmpptr + 2);
                 __m256 _val3 = _mm256_broadcast_ss(tmpptr + 3);
-                _sum2 = _mm256_comp_fmadd_ps(_val2, _w0, _sum2);
-                _sum3 = _mm256_comp_fmadd_ps(_val3, _w0, _sum3);
+                _sum2 = _mm256_fmadd_ps(_val2, _w0, _sum2);
+                _sum3 = _mm256_fmadd_ps(_val3, _w0, _sum3);
 
                 tmpptr += 4;
                 kptr += 8;
@@ -497,7 +497,7 @@ static void im2col_sgemm_pack16to4_avx512(const Mat& bottom_im2col, Mat& top_blo
             {
                 __m256 _w0 = _mm256_load_ps(kptr);
                 __m256 _val0 = _mm256_broadcast_ss(tmpptr);
-                _sum = _mm256_comp_fmadd_ps(_val0, _w0, _sum);
+                _sum = _mm256_fmadd_ps(_val0, _w0, _sum);
 
                 tmpptr += 1;
                 kptr += 8;
