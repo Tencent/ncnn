@@ -505,7 +505,7 @@ int DeconvolutionDepthWise_x86::forward(const Mat& bottom_blob, Mat& top_blob, c
         int g_elempack = 1;
         int out_g_elempack = 1;
 #if __SSE2__
-    if (opt.use_packing_layout)
+        if (opt.use_packing_layout)
         {
 #if __AVX512F__
             g_elempack = channels_g % 16 == 0 ? 16 : channels_g % 8 == 0 ? 8 : channels_g % 4 == 0 ? 4 : 1;
