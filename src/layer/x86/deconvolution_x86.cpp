@@ -130,83 +130,10 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
         }
     }
 
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-    if (elempack == 16 && out_elempack == 16)
-    {
-    }
-
-    if (elempack == 8 && out_elempack == 16)
-    {
-    }
-
-    if (elempack == 16 && out_elempack == 8)
-    {
-    }
-
-    if (elempack == 4 && out_elempack == 16)
-    {
-    }
-
-    if (elempack == 16 && out_elempack == 4)
-    {
-    }
-
-    if (elempack == 1 && out_elempack == 16)
-    {
-    }
-
-    if (elempack == 16 && out_elempack == 1)
-    {
-    }
-#endif // __AVX512F__
-
-    if (elempack == 8 && out_elempack == 8)
-    {
-    }
-
-    if (elempack == 4 && out_elempack == 8)
-    {
-    }
-
-    if (elempack == 8 && out_elempack == 4)
-    {
-    }
-
-    if (elempack == 1 && out_elempack == 8)
-    {
-    }
-
-    if (elempack == 8 && out_elempack == 1)
-    {
-    }
-#endif // __AVX__
-    // pack4
-    if (elempack == 4 && out_elempack == 4)
-    {
-    }
-
-    // pack1to4
-    if (elempack == 1 && out_elempack == 4)
-    {
-    }
-
-    // pack4to1
-    if (elempack == 4 && out_elempack == 1)
-    {
-    }
-#endif // __SSE2__
-
-    // pack1
-    if (elempack == 1 && out_elempack == 1)
-    {
-    }
-
     return 0;
 }
 
-int Deconvolution_x86::destroy_pipeline(const Option& opt)
+int Deconvolution_x86::destroy_pipeline(const Option& /*opt*/)
 {
     return 0;
 }
