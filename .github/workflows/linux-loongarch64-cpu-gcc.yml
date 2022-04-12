@@ -59,6 +59,6 @@ jobs:
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE:$PATH
-        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr/lib64:$LD_LIBRARY_PATH
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr" ctest --output-on-failure -j 2
