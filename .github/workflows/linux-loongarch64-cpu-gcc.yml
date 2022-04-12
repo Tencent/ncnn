@@ -37,7 +37,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: install-deps
-      run: dnf -y install cmake
+      run: dnf -y install cmake wget
 
     - name: loongarch64-toolchain
       run: |
