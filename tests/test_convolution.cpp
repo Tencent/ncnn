@@ -43,7 +43,11 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     float epsilon = 0.001;
     // larget epsilon for winograd optimization
     if (kernel == 3 && dilation == 1 && stride == 1 && c >= 16 && outch >= 16)
+    {
+        Randomize(a, -1, 1);
+        Randomize(weights[0], -1, 1);
         epsilon = 0.002;
+    }
 
     int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, epsilon);
     if (ret != 0)
