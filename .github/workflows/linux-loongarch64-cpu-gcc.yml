@@ -43,8 +43,9 @@ jobs:
       run: |
         wget https://github.com/loongson/build-tools/releases/download/2021.12.21/loongarch64-clfs-2022-03-03-cross-tools-gcc-glibc.tar.xz
         tar -xf loongarch64-clfs-2022-03-03-cross-tools-gcc-glibc.tar.xz
-        wget https://github.com/loongson/build-tools/releases/download/2021.12.21/qemu-loongarch64
-        chmod +x qemu-loongarch64
+        wget https://github.com/loongson/build-tools/releases/download/2021.12.21/qemu-loongarch-2022-4-01.tar.gz
+        tar -xf qemu-loongarch-2022-4-01.tar.gz
+        chmod +x 4-1/new-world/qemu-loongarch64
 
     - name: configure
       run: |
@@ -58,7 +59,7 @@ jobs:
 
     - name: test
       run: |
-        export PATH=$GITHUB_WORKSPACE:$PATH
+        export PATH=$GITHUB_WORKSPACE/4-1/new-world:$PATH
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr/lib64:$LD_LIBRARY_PATH
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr" ctest --output-on-failure -j 2
