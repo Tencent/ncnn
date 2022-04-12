@@ -33,15 +33,15 @@ jobs:
 
     - name: loongarch64-toolchain
       run: |
-        wget https://github.com/loongson/build-tools/releases/download/2021.12.21/loongarch64-clfs-20211202-cross-tools.tar.xz
-        tar -xf loongarch64-clfs-20211202-cross-tools.tar.xz
+        wget https://github.com/loongson/build-tools/releases/download/2021.12.21/loongarch64-clfs-2022-03-03-cross-tools-gcc-glibc.tar.xz
+        tar -xf loongarch64-clfs-2022-03-03-cross-tools-gcc-glibc.tar.xz
         wget https://github.com/loongson/build-tools/releases/download/2021.12.21/qemu-loongarch64
         chmod +x qemu-loongarch64
 
     - name: configure
       run: |
-        export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools
-        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
+        export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr/lib64:$LD_LIBRARY_PATH
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
 
