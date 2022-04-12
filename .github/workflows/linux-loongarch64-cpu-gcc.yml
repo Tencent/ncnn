@@ -30,7 +30,7 @@ jobs:
     runs-on: ubuntu-20.04
 
     container:
-      image: quay.io/fedora/fedora:35-x86_64
+      image: quay.io/fedora/fedora:36-x86_64
       options: --security-opt seccomp=unconfined
 
     steps:
