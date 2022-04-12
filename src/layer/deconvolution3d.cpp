@@ -74,10 +74,14 @@ int Deconvolution3D::load_model(const ModelBin& mb)
 
 static int deconvolution3d(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int kernel_d, int stride_w, int stride_h, int stride_d, int dilation_w, int dilation_h, int dilation_d, int activation_type, const Mat& activation_params, const Option& opt)
 {
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int d = bottom_blob.d;
     const int inch = bottom_blob.c;
 
     const int outw = top_blob.w;
     const int outh = top_blob.h;
+    const int outd = top_blob.d;
     const int outch = top_blob.c;
 
     const int bias_term = bias_data.empty() ? 0 : 1;
@@ -116,14 +120,6 @@ static int deconvolution3d(const Mat& bottom_blob, Mat& top_blob, const Mat& wei
         const float bias = bias_term ? bias_data[p] : 0.f;
 
         out.fill(bias);
-
-        // shadowed variable for less openmp task args
-        const int w = bottom_blob.w;
-        const int h = bottom_blob.h;
-        const int d = bottom_blob.d;
-        const int outw = top_blob.w;
-        const int outh = top_blob.h;
-        const int outd = top_blob.d;
 
         for (int z = 0; z < d; z++)
         {
