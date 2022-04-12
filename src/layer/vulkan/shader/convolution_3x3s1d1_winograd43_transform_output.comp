@@ -1,0 +1,401 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#version 450
+
+#if NCNN_fp16_storage
+#extension GL_EXT_shader_16bit_storage: require
+#endif
+#if NCNN_fp16_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_float16: require
+#endif
+
+layout (constant_id = 0) const int bias_term = 0;
+layout (constant_id = 1) const int activation_type = 0;
+layout (constant_id = 2) const float activation_param_0 = 0;
+layout (constant_id = 3) const float activation_param_1 = 0;
+
+#define shape_constant_id_offset 4
+layout (constant_id = shape_constant_id_offset + 0) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 2) const int block_x = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int block_y = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outcstep = 0;
+
+#if NCNN_image_shader
+layout (binding = 0) uniform unfp sampler3D top_tm_blob;
+layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob;
+layout (binding = 2) uniform unfp sampler3D bias_blob;
+#else
+layout (binding = 0) readonly buffer top_tm_blob { sfp top_tm_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
+layout (binding = 2) readonly buffer bias_blob { sfp bias_data[]; };
+#endif
+
+layout (push_constant) uniform parameter
+{
+    int c;
+    int cstep;
+
+    int block_x;
+    int block_y;
+
+    int outw;
+    int outh;
+    int outcstep;
+} p;
+
+void main()
+{
+    int gx = int(gl_GlobalInvocationID.x);
+    int gy = int(gl_GlobalInvocationID.y);
+    int gz = int(gl_GlobalInvocationID.z);
+
+    if (gx >= psc(block_x) || gy >= psc(block_y) || gz >= psc(c))
+        return;
+
+    // load 36
+#if NCNN_image_shader
+    int sx = gy * psc(block_x) + gx;
+
+    afp v00 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 0));
+    afp v01 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 1));
+    afp v02 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 2));
+    afp v03 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 3));
+    afp v04 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 4));
+    afp v05 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 5));
+    afp v10 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 6));
+    afp v11 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 7));
+    afp v12 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 8));
+    afp v13 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 9));
+    afp v14 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 10));
+    afp v15 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 11));
+    afp v20 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 12));
+    afp v21 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 13));
+    afp v22 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 14));
+    afp v23 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 15));
+    afp v24 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 16));
+    afp v25 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 17));
+    afp v30 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 18));
+    afp v31 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 19));
+    afp v32 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 20));
+    afp v33 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 21));
+    afp v34 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 22));
+    afp v35 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 23));
+    afp v40 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 24));
+    afp v41 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 25));
+    afp v42 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 26));
+    afp v43 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 27));
+    afp v44 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 28));
+    afp v45 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 29));
+    afp v50 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 30));
+    afp v51 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 31));
+    afp v52 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 32));
+    afp v53 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 33));
+    afp v54 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 34));
+    afp v55 = image3d_ld1(top_tm_blob, ivec3(sx, gz, 35));
+#else
+    int v_tm_offset = gz * psc(block_x) * psc(block_y) + gy * psc(block_x) + gx;
+
+    afp v00 = buffer_ld1(top_tm_blob_data, v_tm_offset + 0 * psc(cstep));
+    afp v01 = buffer_ld1(top_tm_blob_data, v_tm_offset + 1 * psc(cstep));
+    afp v02 = buffer_ld1(top_tm_blob_data, v_tm_offset + 2 * psc(cstep));
+    afp v03 = buffer_ld1(top_tm_blob_data, v_tm_offset + 3 * psc(cstep));
+    afp v04 = buffer_ld1(top_tm_blob_data, v_tm_offset + 4 * psc(cstep));
+    afp v05 = buffer_ld1(top_tm_blob_data, v_tm_offset + 5 * psc(cstep));
+    afp v10 = buffer_ld1(top_tm_blob_data, v_tm_offset + 6 * psc(cstep));
+    afp v11 = buffer_ld1(top_tm_blob_data, v_tm_offset + 7 * psc(cstep));
+    afp v12 = buffer_ld1(top_tm_blob_data, v_tm_offset + 8 * psc(cstep));
+    afp v13 = buffer_ld1(top_tm_blob_data, v_tm_offset + 9 * psc(cstep));
+    afp v14 = buffer_ld1(top_tm_blob_data, v_tm_offset + 10 * psc(cstep));
+    afp v15 = buffer_ld1(top_tm_blob_data, v_tm_offset + 11 * psc(cstep));
+    afp v20 = buffer_ld1(top_tm_blob_data, v_tm_offset + 12 * psc(cstep));
+    afp v21 = buffer_ld1(top_tm_blob_data, v_tm_offset + 13 * psc(cstep));
+    afp v22 = buffer_ld1(top_tm_blob_data, v_tm_offset + 14 * psc(cstep));
+    afp v23 = buffer_ld1(top_tm_blob_data, v_tm_offset + 15 * psc(cstep));
+    afp v24 = buffer_ld1(top_tm_blob_data, v_tm_offset + 16 * psc(cstep));
+    afp v25 = buffer_ld1(top_tm_blob_data, v_tm_offset + 17 * psc(cstep));
+    afp v30 = buffer_ld1(top_tm_blob_data, v_tm_offset + 18 * psc(cstep));
+    afp v31 = buffer_ld1(top_tm_blob_data, v_tm_offset + 19 * psc(cstep));
+    afp v32 = buffer_ld1(top_tm_blob_data, v_tm_offset + 20 * psc(cstep));
+    afp v33 = buffer_ld1(top_tm_blob_data, v_tm_offset + 21 * psc(cstep));
+    afp v34 = buffer_ld1(top_tm_blob_data, v_tm_offset + 22 * psc(cstep));
+    afp v35 = buffer_ld1(top_tm_blob_data, v_tm_offset + 23 * psc(cstep));
+    afp v40 = buffer_ld1(top_tm_blob_data, v_tm_offset + 24 * psc(cstep));
+    afp v41 = buffer_ld1(top_tm_blob_data, v_tm_offset + 25 * psc(cstep));
+    afp v42 = buffer_ld1(top_tm_blob_data, v_tm_offset + 26 * psc(cstep));
+    afp v43 = buffer_ld1(top_tm_blob_data, v_tm_offset + 27 * psc(cstep));
+    afp v44 = buffer_ld1(top_tm_blob_data, v_tm_offset + 28 * psc(cstep));
+    afp v45 = buffer_ld1(top_tm_blob_data, v_tm_offset + 29 * psc(cstep));
+    afp v50 = buffer_ld1(top_tm_blob_data, v_tm_offset + 30 * psc(cstep));
+    afp v51 = buffer_ld1(top_tm_blob_data, v_tm_offset + 31 * psc(cstep));
+    afp v52 = buffer_ld1(top_tm_blob_data, v_tm_offset + 32 * psc(cstep));
+    afp v53 = buffer_ld1(top_tm_blob_data, v_tm_offset + 33 * psc(cstep));
+    afp v54 = buffer_ld1(top_tm_blob_data, v_tm_offset + 34 * psc(cstep));
+    afp v55 = buffer_ld1(top_tm_blob_data, v_tm_offset + 35 * psc(cstep));
+#endif
+
+    // const float otm[4][6] = {
+    //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
+    //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
+    //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
+    //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
+    // };
+
+    // 0 = r00 + (r01 + r02) + (r03 + r04)
+    // 1 =       (r01 - r02) + (r03 - r04) * 2
+    // 2 =       (r01 + r02) + (r03 + r04) * 4
+    // 3 = r05 + (r01 - r02) + (r03 - r04) * 8
+
+    // implicit transpose
+    afp m00 = v00 + (v01 + v02) + (v03 + v04);
+    afp m01 = v10 + (v11 + v12) + (v13 + v14);
+    afp m02 = v20 + (v21 + v22) + (v23 + v24);
+    afp m03 = v30 + (v31 + v32) + (v33 + v34);
+    afp m04 = v40 + (v41 + v42) + (v43 + v44);
+    afp m05 = v50 + (v51 + v52) + (v53 + v54);
+
+    afp m10 = (v01 - v02) + (v03 - v04) * afp(2);
+    afp m11 = (v11 - v12) + (v13 - v14) * afp(2);
+    afp m12 = (v21 - v22) + (v23 - v24) * afp(2);
+    afp m13 = (v31 - v32) + (v33 - v34) * afp(2);
+    afp m14 = (v41 - v42) + (v43 - v44) * afp(2);
+    afp m15 = (v51 - v52) + (v53 - v54) * afp(2);
+
+    afp m20 = (v01 + v02) + (v03 + v04) * afp(4);
+    afp m21 = (v11 + v12) + (v13 + v14) * afp(4);
+    afp m22 = (v21 + v22) + (v23 + v24) * afp(4);
+    afp m23 = (v31 + v32) + (v33 + v34) * afp(4);
+    afp m24 = (v41 + v42) + (v43 + v44) * afp(4);
+    afp m25 = (v51 + v52) + (v53 + v54) * afp(4);
+
+    afp m30 = v05 + (v01 - v02) + (v03 - v04) * afp(8);
+    afp m31 = v15 + (v11 - v12) + (v13 - v14) * afp(8);
+    afp m32 = v25 + (v21 - v22) + (v23 - v24) * afp(8);
+    afp m33 = v35 + (v31 - v32) + (v33 - v34) * afp(8);
+    afp m34 = v45 + (v41 - v42) + (v43 - v44) * afp(8);
+    afp m35 = v55 + (v51 - v52) + (v53 - v54) * afp(8);
+
+    v00 = m00 + (m01 + m02) + (m03 + m04);
+    v10 = m10 + (m11 + m12) + (m13 + m14);
+    v20 = m20 + (m21 + m22) + (m23 + m24);
+    v30 = m30 + (m31 + m32) + (m33 + m34);
+
+    v01 = (m01 - m02) + (m03 - m04) * afp(2);
+    v11 = (m11 - m12) + (m13 - m14) * afp(2);
+    v21 = (m21 - m22) + (m23 - m24) * afp(2);
+    v31 = (m31 - m32) + (m33 - m34) * afp(2);
+
+    v02 = (m01 + m02) + (m03 + m04) * afp(4);
+    v12 = (m11 + m12) + (m13 + m14) * afp(4);
+    v22 = (m21 + m22) + (m23 + m24) * afp(4);
+    v32 = (m31 + m32) + (m33 + m34) * afp(4);
+
+    v03 = m05 + (m01 - m02) + (m03 - m04) * afp(8);
+    v13 = m15 + (m11 - m12) + (m13 - m14) * afp(8);
+    v23 = m25 + (m21 - m22) + (m23 - m24) * afp(8);
+    v33 = m35 + (m31 - m32) + (m33 - m34) * afp(8);
+
+    if (bias_term == 1)
+    {
+#if NCNN_image_shader
+        const afp bias_value = image3d_ld1(bias_blob, ivec3(gz, 0, 0));
+#else
+        const afp bias_value = buffer_ld1(bias_data, gz);
+#endif
+
+        v00 = bias_value + v00;
+        v01 = bias_value + v01;
+        v02 = bias_value + v02;
+        v03 = bias_value + v03;
+        v10 = bias_value + v10;
+        v11 = bias_value + v11;
+        v12 = bias_value + v12;
+        v13 = bias_value + v13;
+        v20 = bias_value + v20;
+        v21 = bias_value + v21;
+        v22 = bias_value + v22;
+        v23 = bias_value + v23;
+        v30 = bias_value + v30;
+        v31 = bias_value + v31;
+        v32 = bias_value + v32;
+        v33 = bias_value + v33;
+    }
+
+    if (activation_type == 1)
+    {
+        v00 = max(v00, afp(0.f));
+        v01 = max(v01, afp(0.f));
+        v02 = max(v02, afp(0.f));
+        v03 = max(v03, afp(0.f));
+        v10 = max(v10, afp(0.f));
+        v11 = max(v11, afp(0.f));
+        v12 = max(v12, afp(0.f));
+        v13 = max(v13, afp(0.f));
+        v20 = max(v20, afp(0.f));
+        v21 = max(v21, afp(0.f));
+        v22 = max(v22, afp(0.f));
+        v23 = max(v23, afp(0.f));
+        v30 = max(v30, afp(0.f));
+        v31 = max(v31, afp(0.f));
+        v32 = max(v32, afp(0.f));
+        v33 = max(v33, afp(0.f));
+    }
+    if (activation_type == 2)
+    {
+        const afp slope = afp(activation_param_0);
+        v00 = v00 < afp(0.f) ? v00 * slope : v00;
+        v01 = v01 < afp(0.f) ? v01 * slope : v01;
+        v02 = v02 < afp(0.f) ? v02 * slope : v02;
+        v03 = v03 < afp(0.f) ? v03 * slope : v03;
+        v10 = v10 < afp(0.f) ? v10 * slope : v10;
+        v11 = v11 < afp(0.f) ? v11 * slope : v11;
+        v12 = v12 < afp(0.f) ? v12 * slope : v12;
+        v13 = v13 < afp(0.f) ? v13 * slope : v13;
+        v20 = v20 < afp(0.f) ? v20 * slope : v20;
+        v21 = v21 < afp(0.f) ? v21 * slope : v21;
+        v22 = v22 < afp(0.f) ? v22 * slope : v22;
+        v23 = v23 < afp(0.f) ? v23 * slope : v23;
+        v30 = v30 < afp(0.f) ? v30 * slope : v30;
+        v31 = v31 < afp(0.f) ? v31 * slope : v31;
+        v32 = v32 < afp(0.f) ? v32 * slope : v32;
+        v33 = v33 < afp(0.f) ? v33 * slope : v33;
+    }
+    if (activation_type == 3)
+    {
+        const afp const_min = afp(activation_param_0);
+        const afp const_max = afp(activation_param_1);
+        v00 = clamp(v00, const_min, const_max);
+        v01 = clamp(v01, const_min, const_max);
+        v02 = clamp(v02, const_min, const_max);
+        v03 = clamp(v03, const_min, const_max);
+        v10 = clamp(v10, const_min, const_max);
+        v11 = clamp(v11, const_min, const_max);
+        v12 = clamp(v12, const_min, const_max);
+        v13 = clamp(v13, const_min, const_max);
+        v20 = clamp(v20, const_min, const_max);
+        v21 = clamp(v21, const_min, const_max);
+        v22 = clamp(v22, const_min, const_max);
+        v23 = clamp(v23, const_min, const_max);
+        v30 = clamp(v30, const_min, const_max);
+        v31 = clamp(v31, const_min, const_max);
+        v32 = clamp(v32, const_min, const_max);
+        v33 = clamp(v33, const_min, const_max);
+    }
+    if (activation_type == 4)
+    {
+        v00 = afp(1.f) / (afp(1.f) + exp(-v00));
+        v01 = afp(1.f) / (afp(1.f) + exp(-v01));
+        v02 = afp(1.f) / (afp(1.f) + exp(-v02));
+        v03 = afp(1.f) / (afp(1.f) + exp(-v03));
+        v10 = afp(1.f) / (afp(1.f) + exp(-v10));
+        v11 = afp(1.f) / (afp(1.f) + exp(-v11));
+        v12 = afp(1.f) / (afp(1.f) + exp(-v12));
+        v13 = afp(1.f) / (afp(1.f) + exp(-v13));
+        v20 = afp(1.f) / (afp(1.f) + exp(-v20));
+        v21 = afp(1.f) / (afp(1.f) + exp(-v21));
+        v22 = afp(1.f) / (afp(1.f) + exp(-v22));
+        v23 = afp(1.f) / (afp(1.f) + exp(-v23));
+        v30 = afp(1.f) / (afp(1.f) + exp(-v30));
+        v31 = afp(1.f) / (afp(1.f) + exp(-v31));
+        v32 = afp(1.f) / (afp(1.f) + exp(-v32));
+        v33 = afp(1.f) / (afp(1.f) + exp(-v33));
+    }
+    if (activation_type == 5)
+    {
+        v00 = v00 * tanh(log(exp(v00) + afp(1.f)));
+        v01 = v01 * tanh(log(exp(v01) + afp(1.f)));
+        v02 = v02 * tanh(log(exp(v02) + afp(1.f)));
+        v03 = v03 * tanh(log(exp(v03) + afp(1.f)));
+        v10 = v10 * tanh(log(exp(v10) + afp(1.f)));
+        v11 = v11 * tanh(log(exp(v11) + afp(1.f)));
+        v12 = v12 * tanh(log(exp(v12) + afp(1.f)));
+        v13 = v13 * tanh(log(exp(v13) + afp(1.f)));
+        v20 = v20 * tanh(log(exp(v20) + afp(1.f)));
+        v21 = v21 * tanh(log(exp(v21) + afp(1.f)));
+        v22 = v22 * tanh(log(exp(v22) + afp(1.f)));
+        v23 = v23 * tanh(log(exp(v23) + afp(1.f)));
+        v30 = v30 * tanh(log(exp(v30) + afp(1.f)));
+        v31 = v31 * tanh(log(exp(v31) + afp(1.f)));
+        v32 = v32 * tanh(log(exp(v32) + afp(1.f)));
+        v33 = v33 * tanh(log(exp(v33) + afp(1.f)));
+    }
+    if (activation_type == 6)
+    {
+        const afp alpha = afp(activation_param_0);
+        const afp beta = afp(activation_param_1);
+        v00 = v00 * clamp(v00 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v01 = v01 * clamp(v01 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v02 = v02 * clamp(v02 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v03 = v03 * clamp(v03 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v10 = v10 * clamp(v10 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v11 = v11 * clamp(v11 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v12 = v12 * clamp(v12 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v13 = v13 * clamp(v13 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v20 = v20 * clamp(v20 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v21 = v21 * clamp(v21 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v22 = v22 * clamp(v22 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v23 = v23 * clamp(v23 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v30 = v30 * clamp(v30 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v31 = v31 * clamp(v31 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v32 = v32 * clamp(v32 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v33 = v33 * clamp(v33 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
+
+    // store 4x4
+    int x = gx * 4;
+    int y = gy * 4;
+
+#if NCNN_image_shader
+    image3d_st1(top_blob, ivec3(x, y, gz), v00);
+    image3d_st1(top_blob, ivec3(x + 1, y, gz), v01);
+    image3d_st1(top_blob, ivec3(x + 2, y, gz), v02);
+    image3d_st1(top_blob, ivec3(x + 3, y, gz), v03);
+    image3d_st1(top_blob, ivec3(x, y + 1, gz), v10);
+    image3d_st1(top_blob, ivec3(x + 1, y + 1, gz), v11);
+    image3d_st1(top_blob, ivec3(x + 2, y + 1, gz), v12);
+    image3d_st1(top_blob, ivec3(x + 3, y + 1, gz), v13);
+    image3d_st1(top_blob, ivec3(x, y + 2, gz), v20);
+    image3d_st1(top_blob, ivec3(x + 1, y + 2, gz), v21);
+    image3d_st1(top_blob, ivec3(x + 2, y + 2, gz), v22);
+    image3d_st1(top_blob, ivec3(x + 3, y + 2, gz), v23);
+    image3d_st1(top_blob, ivec3(x, y + 3, gz), v30);
+    image3d_st1(top_blob, ivec3(x + 1, y + 3, gz), v31);
+    image3d_st1(top_blob, ivec3(x + 2, y + 3, gz), v32);
+    image3d_st1(top_blob, ivec3(x + 3, y + 3, gz), v33);
+#else
+    ivec4 v_offset = gz * psc(outcstep) + y * psc(outw) + x + ivec4(0, 1, 2, 3) * psc(outw);
+
+    buffer_st1(top_blob_data, v_offset.r + 0, v00);
+    if (x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset.r + 1, v01);
+    if (x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.r + 2, v02);
+    if (x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.r + 3, v03);
+    if (y + 1 < psc(outh)) buffer_st1(top_blob_data, v_offset.g + 0, v10);
+    if (y + 1 < psc(outh) && x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset.g + 1, v11);
+    if (y + 1 < psc(outh) && x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.g + 2, v12);
+    if (y + 1 < psc(outh) && x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.g + 3, v13);
+    if (y + 2 < psc(outh)) buffer_st1(top_blob_data, v_offset.b + 0, v20);
+    if (y + 2 < psc(outh) && x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset.b + 1, v21);
+    if (y + 2 < psc(outh) && x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.b + 2, v22);
+    if (y + 2 < psc(outh) && x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.b + 3, v23);
+    if (y + 3 < psc(outh)) buffer_st1(top_blob_data, v_offset.a + 0, v30);
+    if (y + 3 < psc(outh) && x + 1 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 1, v31);
+    if (y + 3 < psc(outh) && x + 2 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 2, v32);
+    if (y + 3 < psc(outh) && x + 3 < psc(outw)) buffer_st1(top_blob_data, v_offset.a + 3, v33);
+#endif
+}

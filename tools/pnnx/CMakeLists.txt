@@ -25,6 +25,8 @@ set(TorchVision_INSTALL_DIR "/home/nihui/osd/vision/build/install" CACHE STRING 
 #set(Torch_DIR "${Torch_INSTALL_DIR}/share/cmake/Torch")
 set(TorchVision_DIR "${TorchVision_INSTALL_DIR}/share/cmake/TorchVision")
 
+find_package(Python3 COMPONENTS Interpreter Development)
+
 PNNXProbeForPyTorchInstall()
 find_package(Torch REQUIRED)
 
@@ -41,6 +43,7 @@ endif()
 
 if(TorchVision_FOUND)
     message(STATUS "Building with TorchVision")
+    add_definitions(-DPNNX_TORCHVISION)
 else()
     message(WARNING "Building without TorchVision")
 endif()

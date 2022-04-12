@@ -34,6 +34,7 @@
 
 #include <immintrin.h>
 #include <emmintrin.h>
+#include <x86_usability.h>
 
 /* yes I know, the top of this file is quite ugly */
 
@@ -92,6 +93,28 @@ _PS256_CONST(cephes_log_q1, -2.12194440e-4f);
 _PS256_CONST(cephes_log_q2, 0.693359375f);
 
 #ifndef __AVX2__
+typedef union imm_xmm_union
+{
+    __m256i imm;
+    __m128i xmm[2];
+} imm_xmm_union;
+
+#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)      \
+    {                                            \
+        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
+        u.imm = imm_;                            \
+        xmm0_ = u.xmm[0];                        \
+        xmm1_ = u.xmm[1];                        \
+    }
+
+#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)      \
+    {                                            \
+        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
+        u.xmm[0] = xmm0_;                        \
+        u.xmm[1] = xmm1_;                        \
+        imm_ = u.imm;                            \
+    }
+
 #define AVX2_BITOP_USING_SSE2(fn)                                      \
     static NCNN_FORCEINLINE __m256i _mm256_comp_##fn(__m256i x, int a) \
     {                                                                  \
@@ -130,43 +153,14 @@ _PS256_CONST(cephes_log_q2, 0.693359375f);
         return _mm256_##fn(x, y);                                          \
     }
 #endif
-#ifndef __AVX2__
 
-typedef union imm_xmm_union
-{
-    __m256i imm;
-    __m128i xmm[2];
-} imm_xmm_union;
-
-#define COPY_IMM_TO_XMM(imm_, xmm0_, xmm1_)      \
-    {                                            \
-        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
-        u.imm = imm_;                            \
-        xmm0_ = u.xmm[0];                        \
-        xmm1_ = u.xmm[1];                        \
-    }
-
-#define COPY_XMM_TO_IMM(xmm0_, xmm1_, imm_)      \
-    {                                            \
-        ALIGN32_BEG imm_xmm_union u ALIGN32_END; \
-        u.xmm[0] = xmm0_;                        \
-        u.xmm[1] = xmm1_;                        \
-        imm_ = u.imm;                            \
-    }
-
-#if _MSC_VER
-#pragma message("Using SSE2 to perform AVX2 bitshift ops")
-#else
-#warning "Using SSE2 to perform AVX2 bitshift ops"
-#endif
-
-#endif /* __AVX2__ */
 AVX2_BITOP_USING_SSE2(slli_epi32)
 AVX2_BITOP_USING_SSE2(srli_epi32)
 AVX2_INTOP_USING_SSE2(cmpeq_epi32)
 AVX2_INTOP_USING_SSE2(sub_epi32)
 AVX2_INTOP_USING_SSE2(add_epi32)
 
+// Replace 256 bit operations with 128 bit ones when AVX2 is disabled
 #ifndef __AVX2__
 AVX2_INTOP_USING_SSE2(and_si128)
 AVX2_INTOP_USING_SSE2(andnot_si128)
@@ -214,35 +208,25 @@ static NCNN_FORCEINLINE __m256 log256_ps(__m256 x)
     __m256 z = _mm256_mul_ps(x, x);
 
     __m256 y = *(__m256*)_ps256_cephes_log_p0;
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_log_p1);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_log_p2);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_log_p3);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_log_p4);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_log_p5);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_log_p6);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_log_p7);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_log_p8);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_log_p1);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_log_p2);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_log_p3);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_log_p4);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_log_p5);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_log_p6);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_log_p7);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_log_p8);
     y = _mm256_mul_ps(y, x);
 
     y = _mm256_mul_ps(y, z);
 
-    tmp = _mm256_mul_ps(e, *(__m256*)_ps256_cephes_log_q1);
-    y = _mm256_add_ps(y, tmp);
+    y = _mm256_comp_fmadd_ps(e, *(__m256*)_ps256_cephes_log_q1, y);
 
-    tmp = _mm256_mul_ps(z, *(__m256*)_ps256_0p5);
-    y = _mm256_sub_ps(y, tmp);
+    //y = -z * 0.5 + y
+    y = _mm256_comp_fnmadd_ps(z, *(__m256*)_ps256_0p5, y);
 
-    tmp = _mm256_mul_ps(e, *(__m256*)_ps256_cephes_log_q2);
     x = _mm256_add_ps(x, y);
-    x = _mm256_add_ps(x, tmp);
+    x = _mm256_comp_fmadd_ps(e, *(__m256*)_ps256_cephes_log_q2, x);
     y = _mm256_or_ps(x, invalid_mask); // negative arg will be NAN
     return y;
 }
@@ -271,8 +255,7 @@ static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
     x = _mm256_max_ps(x, *(__m256*)_ps256_exp_lo);
 
     /* express exp(x) as exp(g + n*log(2)) */
-    fx = _mm256_mul_ps(x, *(__m256*)_ps256_cephes_LOG2EF);
-    fx = _mm256_add_ps(fx, *(__m256*)_ps256_0p5);
+    fx = _mm256_comp_fmadd_ps(x, *(__m256*)_ps256_cephes_LOG2EF, *(__m256*)_ps256_0p5);
 
     /* how to perform a floorf with SSE: just below */
     //imm0 = _mm256_cvttps_epi32(fx);
@@ -286,26 +269,20 @@ static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
     mask = _mm256_and_ps(mask, one);
     fx = _mm256_sub_ps(tmp, mask);
 
-    tmp = _mm256_mul_ps(fx, *(__m256*)_ps256_cephes_exp_C1);
-    __m256 z = _mm256_mul_ps(fx, *(__m256*)_ps256_cephes_exp_C2);
-    x = _mm256_sub_ps(x, tmp);
-    x = _mm256_sub_ps(x, z);
+    // x = x - fx * exp_C1
+    x = _mm256_comp_fnmadd_ps(fx, *(__m256*)_ps256_cephes_exp_C1, x);
+    // x = x - fx * exp_C2
+    x = _mm256_comp_fnmadd_ps(fx, *(__m256*)_ps256_cephes_exp_C2, x);
 
-    z = _mm256_mul_ps(x, x);
+    tmp = _mm256_mul_ps(x, x);
 
     __m256 y = *(__m256*)_ps256_cephes_exp_p0;
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_exp_p1);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_exp_p2);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_exp_p3);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_exp_p4);
-    y = _mm256_mul_ps(y, x);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_cephes_exp_p5);
-    y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, x);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_exp_p1);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_exp_p2);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_exp_p3);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_exp_p4);
+    y = _mm256_comp_fmadd_ps(y, x, *(__m256*)_ps256_cephes_exp_p5);
+    y = _mm256_comp_fmadd_ps(y, tmp, x);
     y = _mm256_add_ps(y, one);
 
     /* build 2^n */
@@ -425,37 +402,29 @@ static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_mul_ps(y, xmm1);
-    xmm2 = _mm256_mul_ps(y, xmm2);
-    xmm3 = _mm256_mul_ps(y, xmm3);
-    x = _mm256_add_ps(x, xmm1);
-    x = _mm256_add_ps(x, xmm2);
-    x = _mm256_add_ps(x, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(__m256*)_ps256_coscof_p0;
     __m256 z = _mm256_mul_ps(x, x);
 
-    y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_coscof_p1);
-    y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_coscof_p2);
+    y = _mm256_comp_fmadd_ps(y, z, *(__m256*)_ps256_coscof_p1);
+    y = _mm256_comp_fmadd_ps(y, z, *(__m256*)_ps256_coscof_p2);
     y = _mm256_mul_ps(y, z);
     y = _mm256_mul_ps(y, z);
-    __m256 tmp = _mm256_mul_ps(z, *(__m256*)_ps256_0p5);
-    y = _mm256_sub_ps(y, tmp);
+    // y = y - z * 0.5
+    y = _mm256_comp_fnmadd_ps(z, *(__m256*)_ps256_0p5, y);
     y = _mm256_add_ps(y, *(__m256*)_ps256_1);
 
     /* Evaluate the second polynom  (Pi/4 <= x <= 0) */
 
     __m256 y2 = *(__m256*)_ps256_sincof_p0;
+    y2 = _mm256_comp_fmadd_ps(y2, z, *(__m256*)_ps256_sincof_p1);
+    y2 = _mm256_comp_fmadd_ps(y2, z, *(__m256*)_ps256_sincof_p2);
     y2 = _mm256_mul_ps(y2, z);
-    y2 = _mm256_add_ps(y2, *(__m256*)_ps256_sincof_p1);
-    y2 = _mm256_mul_ps(y2, z);
-    y2 = _mm256_add_ps(y2, *(__m256*)_ps256_sincof_p2);
-    y2 = _mm256_mul_ps(y2, z);
-    y2 = _mm256_mul_ps(y2, x);
-    y2 = _mm256_add_ps(y2, x);
+    y2 = _mm256_comp_fmadd_ps(y2, x, x);
 
     /* select the correct result from the two polynoms */
     xmm3 = poly_mask;
@@ -542,25 +511,20 @@ static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_mul_ps(y, xmm1);
-    xmm2 = _mm256_mul_ps(y, xmm2);
-    xmm3 = _mm256_mul_ps(y, xmm3);
-    x = _mm256_add_ps(x, xmm1);
-    x = _mm256_add_ps(x, xmm2);
-    x = _mm256_add_ps(x, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(__m256*)_ps256_coscof_p0;
     __m256 z = _mm256_mul_ps(x, x);
 
-    y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_coscof_p1);
-    y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_coscof_p2);
+    y = _mm256_comp_fmadd_ps(y, z, *(__m256*)_ps256_coscof_p1);
+    y = _mm256_comp_fmadd_ps(y, z, *(__m256*)_ps256_coscof_p2);
     y = _mm256_mul_ps(y, z);
     y = _mm256_mul_ps(y, z);
-    __m256 tmp = _mm256_mul_ps(z, *(__m256*)_ps256_0p5);
-    y = _mm256_sub_ps(y, tmp);
+    // y = y - z * 0.5
+    y = _mm256_comp_fnmadd_ps(z, *(__m256*)_ps256_0p5, y);
     y = _mm256_add_ps(y, *(__m256*)_ps256_1);
 
     /* Evaluate the second polynom  (Pi/4 <= x <= 0) */
@@ -667,12 +631,9 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_mul_ps(y, xmm1);
-    xmm2 = _mm256_mul_ps(y, xmm2);
-    xmm3 = _mm256_mul_ps(y, xmm3);
-    x = _mm256_add_ps(x, xmm1);
-    x = _mm256_add_ps(x, xmm2);
-    x = _mm256_add_ps(x, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
 #ifdef __AVX2__
     imm4 = _mm256_comp_sub_epi32(imm4, *(__m256i*)_pi32_256_2);
@@ -699,26 +660,21 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     __m256 z = _mm256_mul_ps(x, x);
     y = *(__m256*)_ps256_coscof_p0;
 
-    y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_coscof_p1);
-    y = _mm256_mul_ps(y, z);
-    y = _mm256_add_ps(y, *(__m256*)_ps256_coscof_p2);
+    y = _mm256_comp_fmadd_ps(y, z, *(__m256*)_ps256_coscof_p1);
+    y = _mm256_comp_fmadd_ps(y, z, *(__m256*)_ps256_coscof_p2);
     y = _mm256_mul_ps(y, z);
     y = _mm256_mul_ps(y, z);
-    __m256 tmp = _mm256_mul_ps(z, *(__m256*)_ps256_0p5);
-    y = _mm256_sub_ps(y, tmp);
+    // y = y - z * 0.5
+    y = _mm256_comp_fnmadd_ps(z, *(__m256*)_ps256_0p5, y);
     y = _mm256_add_ps(y, *(__m256*)_ps256_1);
 
     /* Evaluate the second polynom  (Pi/4 <= x <= 0) */
 
     __m256 y2 = *(__m256*)_ps256_sincof_p0;
+    y2 = _mm256_comp_fmadd_ps(y2, z, *(__m256*)_ps256_sincof_p1);
+    y2 = _mm256_comp_fmadd_ps(y2, z, *(__m256*)_ps256_sincof_p2);
     y2 = _mm256_mul_ps(y2, z);
-    y2 = _mm256_add_ps(y2, *(__m256*)_ps256_sincof_p1);
-    y2 = _mm256_mul_ps(y2, z);
-    y2 = _mm256_add_ps(y2, *(__m256*)_ps256_sincof_p2);
-    y2 = _mm256_mul_ps(y2, z);
-    y2 = _mm256_mul_ps(y2, x);
-    y2 = _mm256_add_ps(y2, x);
+    y2 = _mm256_comp_fmadd_ps(y2, x, x);
 
     /* select the correct result from the two polynoms */
     xmm3 = poly_mask;
@@ -735,7 +691,7 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     *c = _mm256_xor_ps(xmm2, sign_bit_cos);
 }
 
-static NCNN_FORCEINLINE __m256 pow_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));

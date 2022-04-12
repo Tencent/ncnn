@@ -50,7 +50,7 @@ static int test_binaryop(const ncnn::Mat& _a, const ncnn::Mat& _b)
     int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, ab);
     if (ret != 0)
     {
-        fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d) b.dims=%d b=(%d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.c, b.dims, b.w, b.h, b.c, op_type);
+        fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b.dims=%d b=(%d %d %d %d) op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b.dims, b.w, b.h, b.d, b.c, op_type);
     }
 
     return ret;
@@ -76,7 +76,7 @@ static int test_binaryop(const ncnn::Mat& _a, float b)
     int ret = test_layer<ncnn::BinaryOp>("BinaryOp", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.c, b, op_type);
+        fprintf(stderr, "test_binaryop failed a.dims=%d a=(%d %d %d %d) b=%f op_type=%d\n", a.dims, a.w, a.h, a.d, a.c, b, op_type);
     }
 
     return ret;
@@ -234,6 +234,86 @@ static int test_binaryop_19()
            || test_binaryop(RandomMat(11, 6, 16), RandomMat(11, 6, 16));
 }
 
+static int test_binaryop_20()
+{
+    return 0
+           || test_binaryop(RandomMat(1), RandomMat(11, 3, 4, 2))
+           || test_binaryop(RandomMat(1), RandomMat(11, 3, 4, 4))
+           || test_binaryop(RandomMat(1), RandomMat(11, 3, 4, 16));
+}
+
+static int test_binaryop_21()
+{
+    return 0
+           || test_binaryop(RandomMat(2), RandomMat(11, 3, 4, 2))
+           || test_binaryop(RandomMat(4), RandomMat(11, 3, 4, 4))
+           || test_binaryop(RandomMat(16), RandomMat(11, 3, 4, 16));
+}
+
+static int test_binaryop_22()
+{
+    return 0
+           || test_binaryop(RandomMat(4, 2), RandomMat(11, 3, 4, 2))
+           || test_binaryop(RandomMat(4, 4), RandomMat(11, 3, 4, 4))
+           || test_binaryop(RandomMat(4, 16), RandomMat(11, 3, 4, 16));
+}
+
+static int test_binaryop_23()
+{
+    return 0
+           || test_binaryop(RandomMat(3, 4, 2), RandomMat(11, 3, 4, 2))
+           || test_binaryop(RandomMat(3, 4, 4), RandomMat(11, 3, 4, 4))
+           || test_binaryop(RandomMat(3, 4, 16), RandomMat(11, 3, 4, 16));
+}
+
+static int test_binaryop_24()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 3, 4, 2), 1.f)
+           || test_binaryop(RandomMat(11, 3, 4, 4), 1.f)
+           || test_binaryop(RandomMat(11, 3, 4, 16), 1.f);
+}
+
+static int test_binaryop_25()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 3, 4, 2), RandomMat(1))
+           || test_binaryop(RandomMat(11, 3, 4, 4), RandomMat(1))
+           || test_binaryop(RandomMat(11, 3, 4, 16), RandomMat(1));
+}
+
+static int test_binaryop_26()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 3, 4, 2), RandomMat(2))
+           || test_binaryop(RandomMat(11, 3, 4, 4), RandomMat(4))
+           || test_binaryop(RandomMat(11, 3, 4, 16), RandomMat(16));
+}
+
+static int test_binaryop_27()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 3, 4, 2), RandomMat(4, 2))
+           || test_binaryop(RandomMat(11, 3, 4, 4), RandomMat(4, 4))
+           || test_binaryop(RandomMat(11, 3, 4, 16), RandomMat(4, 16));
+}
+
+static int test_binaryop_28()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 3, 4, 2), RandomMat(3, 4, 2))
+           || test_binaryop(RandomMat(11, 3, 4, 4), RandomMat(3, 4, 4))
+           || test_binaryop(RandomMat(11, 3, 4, 16), RandomMat(3, 4, 16));
+}
+
+static int test_binaryop_29()
+{
+    return 0
+           || test_binaryop(RandomMat(11, 3, 4, 2), RandomMat(11, 3, 4, 2))
+           || test_binaryop(RandomMat(11, 3, 4, 4), RandomMat(11, 3, 4, 4))
+           || test_binaryop(RandomMat(11, 3, 4, 16), RandomMat(11, 3, 4, 16));
+}
+
 static int test_binaryop_s1()
 {
     return 0
@@ -324,6 +404,16 @@ int main()
                   || test_binaryop_17()
                   || test_binaryop_18()
                   || test_binaryop_19()
+                  || test_binaryop_20()
+                  || test_binaryop_21()
+                  || test_binaryop_22()
+                  || test_binaryop_23()
+                  || test_binaryop_24()
+                  || test_binaryop_25()
+                  || test_binaryop_26()
+                  || test_binaryop_27()
+                  || test_binaryop_28()
+                  || test_binaryop_29()
                   || test_binaryop_s1()
                   || test_binaryop_s2()
                   || test_binaryop_s3()

@@ -29,11 +29,11 @@ jobs:
   newlib-rv32imc-gcc:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: rv32imc-install
         key: rv32imc-newlib-install-20210425
@@ -46,7 +46,7 @@ jobs:
 
     - name: checkout-riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain
@@ -70,7 +70,7 @@ jobs:
 
     - name: checkout-riscv-pk
       if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: riscv/riscv-pk
         path: riscv-pk
@@ -88,7 +88,7 @@ jobs:
 
     - name: checkout-riscv-isa-sim
       if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: riscv/riscv-isa-sim
         path: riscv-isa-sim

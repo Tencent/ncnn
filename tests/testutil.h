@@ -249,8 +249,8 @@ static int Compare(const ncnn::Mat& a, const ncnn::Mat& b, float epsilon = 0.001
         const ncnn::Mat mb = b.channel(q);
         for (int z = 0; z < a.d; z++)
         {
-            const ncnn::Mat da = a.depth(z);
-            const ncnn::Mat db = b.depth(z);
+            const ncnn::Mat da = ma.depth(z);
+            const ncnn::Mat db = mb.depth(z);
             for (int i = 0; i < a.h; i++)
             {
                 const float* pa = da.row(i);
@@ -371,7 +371,6 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
     opt.use_image_storage = false;
     opt.use_bf16_storage = false;
     opt.use_vulkan_compute = false;
-    opt.use_weight_fp16_storage = false;
 
     op->create_pipeline(opt);
 
@@ -457,7 +456,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             int elemcount = 0;
             if (dims == 1) elemcount = a4[i].elempack * a4[i].w;
             if (dims == 2) elemcount = a4[i].elempack * a4[i].h;
-            if (dims == 3) elemcount = a4[i].elempack * a4[i].c;
+            if (dims == 3 || dims == 4) elemcount = a4[i].elempack * a4[i].c;
 
             int elembits = a4[i].elembits();
 
@@ -465,8 +464,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
             if (elembits == 32)
             {
-#if (NCNN_AVX2 || NCNN_AVX)
-                if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
+#if NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    dst_elempack = 16;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -809,7 +815,6 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
     opt.use_image_storage = false;
     opt.use_bf16_storage = false;
     opt.use_vulkan_compute = false;
-    opt.use_weight_fp16_storage = false;
 
     op->create_pipeline(opt);
 
@@ -882,7 +887,7 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         int elemcount = 0;
         if (dims == 1) elemcount = a4.elempack * a4.w;
         if (dims == 2) elemcount = a4.elempack * a4.h;
-        if (dims == 3) elemcount = a4.elempack * a4.c;
+        if (dims == 3 || dims == 4) elemcount = a4.elempack * a4.c;
 
         int elembits = a4.elembits();
 
@@ -890,8 +895,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
         if (elembits == 32)
         {
-#if (NCNN_AVX2 || NCNN_AVX)
-            if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
+#if NCNN_AVX512
+            if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                dst_elempack = 16;
+            else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_AVX
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -1191,7 +1203,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
-    opts[0].use_weight_fp16_storage = false;
 
     opts[1].use_packing_layout = false;
     opts[1].use_fp16_packed = true;
@@ -1199,8 +1210,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_fp16_arithmetic = true;
     opts[1].use_bf16_storage = true;
     opts[1].use_shader_pack8 = false;
-    opts[1].use_image_storage = true;
-    opts[1].use_weight_fp16_storage = false;
+    opts[1].use_image_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
@@ -1209,7 +1219,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = false;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = false;
-    opts[2].use_weight_fp16_storage = false;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
@@ -1218,7 +1227,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_bf16_storage = true;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
-    opts[3].use_weight_fp16_storage = true;
 
     opts[4].use_packing_layout = true;
     opts[4].use_fp16_packed = true;
@@ -1227,7 +1235,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[4].use_bf16_storage = true;
     opts[4].use_shader_pack8 = true;
     opts[4].use_image_storage = true;
-    opts[4].use_weight_fp16_storage = true;
 
     opts[5].use_packing_layout = true;
     opts[5].use_fp16_packed = false;
@@ -1236,7 +1243,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[5].use_bf16_storage = false;
     opts[5].use_shader_pack8 = false;
     opts[5].use_image_storage = false;
-    opts[5].use_weight_fp16_storage = false;
     opts[5].use_sgemm_convolution = false;
     opts[5].use_winograd_convolution = false;
 
@@ -1247,7 +1253,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[6].use_bf16_storage = true;
     opts[6].use_shader_pack8 = true;
     opts[6].use_image_storage = true;
-    opts[6].use_weight_fp16_storage = true;
     opts[6].use_sgemm_convolution = false;
     opts[6].use_winograd_convolution = false;
 
@@ -1346,7 +1351,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
-    opts[0].use_weight_fp16_storage = false;
 
     opts[1].use_packing_layout = false;
     opts[1].use_fp16_packed = true;
@@ -1354,8 +1358,7 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_fp16_arithmetic = true;
     opts[1].use_bf16_storage = true;
     opts[1].use_shader_pack8 = false;
-    opts[1].use_image_storage = true;
-    opts[1].use_weight_fp16_storage = false;
+    opts[1].use_image_storage = false;
 
     opts[2].use_packing_layout = true;
     opts[2].use_fp16_packed = true;
@@ -1364,7 +1367,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_bf16_storage = false;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = false;
-    opts[2].use_weight_fp16_storage = false;
 
     opts[3].use_packing_layout = true;
     opts[3].use_fp16_packed = true;
@@ -1373,7 +1375,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_bf16_storage = true;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
-    opts[3].use_weight_fp16_storage = true;
 
     opts[4].use_packing_layout = true;
     opts[4].use_fp16_packed = true;
@@ -1382,7 +1383,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[4].use_bf16_storage = true;
     opts[4].use_shader_pack8 = true;
     opts[4].use_image_storage = true;
-    opts[4].use_weight_fp16_storage = true;
 
     opts[5].use_packing_layout = true;
     opts[5].use_fp16_packed = false;
@@ -1391,7 +1391,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[5].use_bf16_storage = false;
     opts[5].use_shader_pack8 = false;
     opts[5].use_image_storage = false;
-    opts[5].use_weight_fp16_storage = false;
     opts[5].use_sgemm_convolution = false;
     opts[5].use_winograd_convolution = false;
 
@@ -1402,7 +1401,6 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[6].use_bf16_storage = true;
     opts[6].use_shader_pack8 = true;
     opts[6].use_image_storage = true;
-    opts[6].use_weight_fp16_storage = true;
     opts[6].use_sgemm_convolution = false;
     opts[6].use_winograd_convolution = false;
 

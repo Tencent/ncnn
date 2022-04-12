@@ -53,7 +53,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = img0[l];
@@ -102,7 +102,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = img0[l];
@@ -143,7 +143,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if RVV_SPEC_0_7
+#if C906
                     for (int l = 0; l < packn; l++)
                     {
                         tmpptr[0] = img0[l];
@@ -240,7 +240,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
-#if RVV_SPEC_0_7
+#if C906
             vsse16_v_f16m1(outptr0, top_blob.cstep * sizeof(__fp16), _sum0, vl);
             vsse16_v_f16m1(outptr0 + 1, top_blob.cstep * sizeof(__fp16), _sum1, vl);
             vsse16_v_f16m1(outptr0 + 2, top_blob.cstep * sizeof(__fp16), _sum2, vl);
@@ -281,7 +281,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
-#if RVV_SPEC_0_7
+#if C906
             vsse16_v_f16m1(outptr0, top_blob.cstep * sizeof(__fp16), _sum0, vl);
             vsse16_v_f16m1(outptr0 + 1, top_blob.cstep * sizeof(__fp16), _sum1, vl);
             vsse16_v_f16m1(outptr0 + 2, top_blob.cstep * sizeof(__fp16), _sum2, vl);
@@ -312,7 +312,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
-#if RVV_SPEC_0_7
+#if C906
             vsse16_v_f16m1(outptr0, top_blob.cstep * sizeof(__fp16), _sum0, vl);
             vsse16_v_f16m1(outptr0 + 1, top_blob.cstep * sizeof(__fp16), _sum1, vl);
 #else
@@ -393,7 +393,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
-#ifdef RVV_SPEC_0_7
+#if C906
             // TODO
             std::vector<__fp16> ss0(packn);
             std::vector<__fp16> ss1(packn);
@@ -473,7 +473,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
-#ifdef RVV_SPEC_0_7
+#if C906
             // TODO
             std::vector<__fp16> ss0(packn);
             std::vector<__fp16> ss1(packn);
@@ -527,7 +527,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
-#ifdef RVV_SPEC_0_7
+#if C906
             // TODO
             std::vector<__fp16> ss0(packn);
             std::vector<__fp16> ss1(packn);
@@ -568,7 +568,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 kptr0 += packn;
             }
 
-#ifdef RVV_SPEC_0_7
+#if C906
             // TODO
             std::vector<__fp16> ss0(packn);
             vse16_v_f16m1((__fp16*)ss0.data(), _sum0, vl);

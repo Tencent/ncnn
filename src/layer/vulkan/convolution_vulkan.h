@@ -44,32 +44,21 @@ public:
 
     Pipeline* pipeline_convolution;
     Pipeline* pipeline_convolution_1x1s1d1;
-    Pipeline* pipeline_convolution_pack4;
-    Pipeline* pipeline_convolution_pack4_1x1s1d1;
-    Pipeline* pipeline_convolution_pack1to4;
-    Pipeline* pipeline_convolution_pack4to1;
-    Pipeline* pipeline_convolution_pack8;
-    Pipeline* pipeline_convolution_pack8_1x1s1d1;
-    Pipeline* pipeline_convolution_pack1to8;
-    Pipeline* pipeline_convolution_pack4to8;
-    Pipeline* pipeline_convolution_pack8to1;
-    Pipeline* pipeline_convolution_pack8to4;
 
-    // pack4 winograd23
-    ncnn::Layer* winograd_padding;
-    ncnn::Layer* winograd_crop;
-    VkMat weight_data_gpu_pack4_tm;
-    VkImageMat weight_data_gpu_pack4_tm_image;
-    Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_transform_input;
-    Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_gemm;
-    Pipeline* pipeline_convolution_pack4_3x3s1d1_winograd23_transform_output;
+    Pipeline* pipeline_convolution_gemm;
 
-    // pack8 winograd23
-    VkMat weight_data_gpu_pack8_tm;
-    VkImageMat weight_data_gpu_pack8_tm_image;
-    Pipeline* pipeline_convolution_pack8_3x3s1d1_winograd23_transform_input;
-    Pipeline* pipeline_convolution_pack8_3x3s1d1_winograd23_gemm;
-    Pipeline* pipeline_convolution_pack8_3x3s1d1_winograd23_transform_output;
+    // winograd23 and winograd43
+    VkMat weight_data_gpu_tm_winograd23;
+    VkImageMat weight_data_gpu_tm_winograd23_image;
+    Pipeline* pipeline_convolution_3x3s1d1_winograd23_transform_input;
+    Pipeline* pipeline_convolution_3x3s1d1_winograd23_gemm;
+    Pipeline* pipeline_convolution_3x3s1d1_winograd23_transform_output;
+
+    VkMat weight_data_gpu_tm_winograd43;
+    VkImageMat weight_data_gpu_tm_winograd43_image;
+    Pipeline* pipeline_convolution_3x3s1d1_winograd43_transform_input;
+    Pipeline* pipeline_convolution_3x3s1d1_winograd43_gemm;
+    Pipeline* pipeline_convolution_3x3s1d1_winograd43_transform_output;
 
     // convolution as fc
     ncnn::Layer* innerproduct;

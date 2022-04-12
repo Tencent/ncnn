@@ -48,7 +48,9 @@ class Model(nn.Module):
         self.up_2d_2_4 = nn.Upsample(size=(16,24), mode='bicubic', align_corners=True)
         self.up_2d_2_5 = nn.Upsample(scale_factor=(2,3), mode='bicubic', align_corners=True)
 
-    def forward(self, x, y):
+        self.up_w = nn.Upsample(scale_factor=(1.499,1.499), mode='nearest')
+
+    def forward(self, x, y, w):
         x = self.up_1d_0_0(x)
         x = self.up_1d_0_1(x)
         x = self.up_1d_0_2(x)
@@ -77,7 +79,9 @@ class Model(nn.Module):
         y = self.up_2d_2_4(y)
         y = self.up_2d_2_5(y)
 
-        return x, y
+        w = self.up_w(w)
+
+        return x, y, w
 
 def test():
     net = Model()
@@ -86,16 +90,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 3, 32)
     y = torch.rand(1, 3, 32, 32)
+    w = torch.rand(1, 8, 12, 12)
 
-    a = net(x, y)
+    a = net(x, y, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, w))
     mod.save("test_nn_Upsample.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Upsample.pt inputshape=[1,3,32],[1,3,32,32]")
+    os.system("../../src/pnnx test_nn_Upsample.pt inputshape=[1,3,32],[1,3,32,32],[1,8,12,12]")
 
     # ncnn inference
     import test_nn_Upsample_ncnn

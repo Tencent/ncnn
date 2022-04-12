@@ -186,4 +186,66 @@ typedef struct VkPhysicalDeviceMemoryBudgetPropertiesEXT
 } VkPhysicalDeviceMemoryBudgetPropertiesEXT;
 #endif // VK_HEADER_VERSION < 97
 
+#if VK_HEADER_VERSION < 101
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV   (VkStructureType)1000249000
+#define VK_STRUCTURE_TYPE_COOPERATIVE_MATRIX_PROPERTIES_NV                 (VkStructureType)1000249001
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_PROPERTIES_NV (VkStructureType)1000249002
+typedef enum VkComponentTypeNV
+{
+    VK_COMPONENT_TYPE_FLOAT16_NV = 0,
+    VK_COMPONENT_TYPE_FLOAT32_NV = 1,
+    VK_COMPONENT_TYPE_FLOAT64_NV = 2,
+    VK_COMPONENT_TYPE_SINT8_NV = 3,
+    VK_COMPONENT_TYPE_SINT16_NV = 4,
+    VK_COMPONENT_TYPE_SINT32_NV = 5,
+    VK_COMPONENT_TYPE_SINT64_NV = 6,
+    VK_COMPONENT_TYPE_UINT8_NV = 7,
+    VK_COMPONENT_TYPE_UINT16_NV = 8,
+    VK_COMPONENT_TYPE_UINT32_NV = 9,
+    VK_COMPONENT_TYPE_UINT64_NV = 10,
+    VK_COMPONENT_TYPE_BEGIN_RANGE_NV = VK_COMPONENT_TYPE_FLOAT16_NV,
+    VK_COMPONENT_TYPE_END_RANGE_NV = VK_COMPONENT_TYPE_UINT64_NV,
+    VK_COMPONENT_TYPE_RANGE_SIZE_NV = (VK_COMPONENT_TYPE_UINT64_NV - VK_COMPONENT_TYPE_FLOAT16_NV + 1),
+    VK_COMPONENT_TYPE_MAX_ENUM_NV = 0x7FFFFFFF
+} VkComponentTypeNV;
+typedef enum VkScopeNV
+{
+    VK_SCOPE_DEVICE_NV = 1,
+    VK_SCOPE_WORKGROUP_NV = 2,
+    VK_SCOPE_SUBGROUP_NV = 3,
+    VK_SCOPE_QUEUE_FAMILY_NV = 5,
+    VK_SCOPE_BEGIN_RANGE_NV = VK_SCOPE_DEVICE_NV,
+    VK_SCOPE_END_RANGE_NV = VK_SCOPE_QUEUE_FAMILY_NV,
+    VK_SCOPE_RANGE_SIZE_NV = (VK_SCOPE_QUEUE_FAMILY_NV - VK_SCOPE_DEVICE_NV + 1),
+    VK_SCOPE_MAX_ENUM_NV = 0x7FFFFFFF
+} VkScopeNV;
+typedef struct VkCooperativeMatrixPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    uint32_t MSize;
+    uint32_t NSize;
+    uint32_t KSize;
+    VkComponentTypeNV AType;
+    VkComponentTypeNV BType;
+    VkComponentTypeNV CType;
+    VkComponentTypeNV DType;
+    VkScopeNV scope;
+} VkCooperativeMatrixPropertiesNV;
+typedef struct VkPhysicalDeviceCooperativeMatrixFeaturesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 cooperativeMatrix;
+    VkBool32 cooperativeMatrixRobustBufferAccess;
+} VkPhysicalDeviceCooperativeMatrixFeaturesNV;
+typedef struct VkPhysicalDeviceCooperativeMatrixPropertiesNV
+{
+    VkStructureType sType;
+    void* pNext;
+    VkShaderStageFlags cooperativeMatrixSupportedStages;
+} VkPhysicalDeviceCooperativeMatrixPropertiesNV;
+typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesNV* pProperties);
+#endif // VK_HEADER_VERSION < 101
+
 #endif // NCNN_VULKAN_HEADER_FIX_H

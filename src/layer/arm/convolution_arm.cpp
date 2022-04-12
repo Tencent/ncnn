@@ -28,6 +28,7 @@
 namespace ncnn {
 
 #include "convolution_sgemm.h"
+#include "convolution_winograd_transform.h"
 
 #include "convolution_1x1.h"
 #include "convolution_2x2.h"
@@ -39,6 +40,7 @@ namespace ncnn {
 #if NCNN_BF16
 #include "convolution_bf16s.h"
 #include "convolution_sgemm_bf16s.h"
+#include "convolution_winograd_transform_bf16s.h"
 #include "convolution_1x1_bf16s.h"
 #endif // NCNN_BF16
 
@@ -56,6 +58,7 @@ namespace ncnn {
 #include "convolution_sgemm_pack4.h"
 #include "convolution_sgemm_pack1to4.h"
 #include "convolution_sgemm_pack4to1.h"
+#include "convolution_winograd_transform_pack4.h"
 #include "convolution_1x1_pack4.h"
 #include "convolution_1x1_pack1to4.h"
 #include "convolution_1x1_pack4to1.h"
@@ -72,6 +75,7 @@ namespace ncnn {
 #include "convolution_sgemm_pack4_bf16s.h"
 #include "convolution_sgemm_pack1to4_bf16s.h"
 #include "convolution_sgemm_pack4to1_bf16s.h"
+#include "convolution_winograd_transform_pack4_bf16s.h"
 #include "convolution_1x1_pack4_bf16s.h"
 #include "convolution_1x1_pack1to4_bf16s.h"
 #include "convolution_1x1_pack4to1_bf16s.h"
@@ -115,6 +119,9 @@ namespace ncnn {
 #include "convolution_sgemm_pack8_fp16s.h"
 #include "convolution_sgemm_pack8to4_fp16s.h"
 #include "convolution_sgemm_pack8to1_fp16s.h"
+#include "convolution_winograd_transform_fp16s.h"
+#include "convolution_winograd_transform_pack4_fp16s.h"
+#include "convolution_winograd_transform_pack8_fp16s.h"
 #include "convolution_1x1_fp16s.h"
 #include "convolution_1x1_pack4_fp16s.h"
 #include "convolution_1x1_pack1to4_fp16s.h"
@@ -223,8 +230,15 @@ int Convolution_arm::create_pipeline(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int elempack = 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        elempack = num_input % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
 
 #if __ARM_NEON
     // pack4
@@ -501,7 +515,13 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1088,12 +1108,10 @@ static void convolution_transform_kernel_packed_fp16s_neon(const Mat& weight_dat
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_fp16.channel(q / out_elempack);
+            __fp16* g00 = weight_data_fp16.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                __fp16* g00 = g0.row<__fp16>(p / elempack);
-
                 for (int k = 0; k < maxk; k++)
                 {
                     for (int i = 0; i < elempack; i++)
@@ -1384,7 +1402,7 @@ int Convolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const 
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = (opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -1908,8 +1926,15 @@ int Convolution_arm::create_pipeline_bf16s(const Option& opt)
     const int maxk = kernel_w * kernel_h;
     const int num_input = weight_data_size / maxk / num_output;
 
-    int elempack = (support_packing && opt.use_packing_layout && num_input % 4 == 0) ? 4 : 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int elempack = 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        elempack = num_input % 4 == 0 ? 4 : 1;
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
 
 #if __ARM_NEON
     // pack4
@@ -2055,7 +2080,13 @@ int Convolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const 
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
-    int out_elempack = (support_packing && opt.use_packing_layout && num_output % 4 == 0) ? 4 : 1;
+    int out_elempack = 1;
+#if __ARM_NEON
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 4 == 0 ? 4 : 1;
+    }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     top_blob.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
@@ -2311,12 +2342,10 @@ static void convolution_transform_kernel_packed_int8_neon(const Mat& weight_data
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_int8.channel(q / out_elempack);
+            signed char* g00 = weight_data_int8.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                signed char* g00 = g0.row<signed char>(p / elempack);
-
                 for (int k = 0; k < maxk; k++)
                 {
                     for (int i = 0; i < out_elempack; i++)

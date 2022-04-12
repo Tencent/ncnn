@@ -25,14 +25,14 @@ jobs:
   linux-gcc-gpu:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: lcov
       run: sudo apt-get install lcov
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: "1.2.189.0"
         key: vulkansdk-linux-x86_64-1.2.189.0
@@ -45,17 +45,17 @@ jobs:
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: swiftshader-install
-        key: swiftshader-linux-install-20211002
+        key: swiftshader-linux-install-20220211
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: f43b9df4c8a9959047e2e1d7e111554ab3f9a3bf
+        ref: 0863290dc7f6cc1649bab1858790e812b8aef02a
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
@@ -71,7 +71,7 @@ jobs:
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
     - name: configure
-      run: export VULKAN_SDK=`pwd`/1.2.189.0/x86_64 && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: export VULKAN_SDK=`pwd`/1.2.189.0/x86_64 && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
@@ -87,7 +87,41 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+
+  linux-gcc-gpu-t4:
+    runs-on: [self-hosted, linux]
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: build
+      env:
+        CC: gcc
+        CXX: g++
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: |
+        export VULKAN_SDK=/data/action/osd/1.2.189.0/x86_64
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_VULKAN=ON -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 4
+    - name: test
+      env:
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: cd build && ctest --output-on-failure -j 4
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/install/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -95,7 +129,7 @@ jobs:
   linux-gcc-gpu-lavapipe:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: lcov
@@ -108,13 +142,13 @@ jobs:
 
     - name: cache-lavapipe
       id: cache-lavapipe
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: lavapipe-install
         key: lavapipe-linux-install-20211127
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: mesa3d/mesa
         path: mesa
@@ -135,7 +169,7 @@ jobs:
         ninja install
 
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
     - name: test
@@ -151,7 +185,7 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -159,13 +193,13 @@ jobs:
   linux-gcc-x64:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: lcov
       run: sudo apt-get install lcov
     - name: build-sse2
       run: |
         mkdir build-sse2 && cd build-sse2
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-sse2
       run: cd build-sse2 && ctest --output-on-failure -j 2
@@ -177,7 +211,7 @@ jobs:
         lcov -r lcov.info '*/build-sse2/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-sse2
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-sse2/lcov.info
@@ -185,7 +219,7 @@ jobs:
     - name: build-avx
       run: |
         mkdir build-avx && cd build-avx
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-avx
       run: cd build-avx && ctest --output-on-failure -j 2
@@ -197,7 +231,7 @@ jobs:
         lcov -r lcov.info '*/build-avx/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-avx
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-avx/lcov.info
@@ -205,7 +239,7 @@ jobs:
     - name: build-avx2
       run: |
         mkdir build-avx2 && cd build-avx2
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test-avx2
       run: cd build-avx2 && ctest --output-on-failure -j 2
@@ -217,27 +251,58 @@ jobs:
         lcov -r lcov.info '*/build-avx2/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-avx2
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-avx2/lcov.info
 
+  linux-gcc-x64-avx512:
+    runs-on: [self-hosted, linux]
+    steps:
+    - uses: actions/checkout@v3
+    - name: build
+      env:
+        CC: gcc
+        CXX: g++
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 4
+    - name: test
+      env:
+        LD_LIBRARY_PATH: /data/action/install/lib64
+      run: cd build && ctest --output-on-failure -j 4
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/install/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+
   linux-gcc-arm:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: lcov
       run: sudo apt-get install lcov
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-arm-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -275,7 +340,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -283,19 +348,19 @@ jobs:
   linux-gcc-aarch64:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: lcov
       run: sudo apt-get install lcov
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-aarch64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -333,7 +398,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -341,19 +406,19 @@ jobs:
   linux-gcc-arm82:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-aarch64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -390,10 +455,44 @@ jobs:
         lcov -r lcov.info '*/build-arm82/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-arm82/lcov.info
+
+  linux-gcc-arm82-omp:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v3
+      with:
+        path: qemu-install
+        key: qemu-aarch64-install-1
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=install --target-list=aarch64-linux-user --disable-system
+        make -j2
+        make install
+        cp -r aarch64-linux-user/install $GITHUB_WORKSPACE/qemu-install
+
+    - name: aarch64-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-aarch64-linux-gnu
 
     - name: build-arm82-omp
       run: |
@@ -413,10 +512,44 @@ jobs:
         lcov -r lcov.info '*/build-arm82-omp/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-arm82-omp/lcov.info
+
+  linux-gcc-arm82dot-omp:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v3
+      with:
+        path: qemu-install
+        key: qemu-aarch64-install-1
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=install --target-list=aarch64-linux-user --disable-system
+        make -j2
+        make install
+        cp -r aarch64-linux-user/install $GITHUB_WORKSPACE/qemu-install
+
+    - name: aarch64-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-aarch64-linux-gnu
 
     - name: build-arm82dot-omp
       run: |
@@ -436,7 +569,7 @@ jobs:
         lcov -r lcov.info '*/build-arm82dot-omp/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-arm82dot-omp/lcov.info
@@ -444,19 +577,19 @@ jobs:
   linux-gcc-mipsisa32r6el:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-mipsel-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -494,7 +627,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -502,19 +635,19 @@ jobs:
   linux-gcc-mipsisa64r6el:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-mips64el-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -552,7 +685,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -560,20 +693,20 @@ jobs:
   linux-gcc-riscv64:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-riscv64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -611,7 +744,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -619,14 +752,14 @@ jobs:
   linux-gcc-riscv64-rvv:
     runs-on: ubuntu-20.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: lcov
       run: sudo apt-get install lcov
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-riscv64-rvv-install-20210610
@@ -639,7 +772,7 @@ jobs:
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: sifive/qemu
         path: qemu
@@ -663,7 +796,7 @@ jobs:
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: rv64gcv-install
         key: rv64gcv-linux-install-20210504
@@ -676,7 +809,7 @@ jobs:
 
     - name: checkout-riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain
@@ -723,7 +856,7 @@ jobs:
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen128
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
@@ -743,7 +876,7 @@ jobs:
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen256
-      uses: codecov/codecov-action@v2.1.0
+      uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info

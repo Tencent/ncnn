@@ -48,8 +48,9 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -67,6 +68,8 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_arm_functor {
 
 struct unary_op_abs_pack4
 {
@@ -256,6 +259,8 @@ struct unary_op_tanh_pack4
         return tanh_ps(x);
     }
 };
+
+} // namespace UnaryOp_arm_functor
 #endif // __ARM_NEON
 
 int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -275,6 +280,8 @@ int UnaryOp_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON
+    using namespace UnaryOp_arm_functor;
+
     if (elempack == 4)
     {
         if (op_type == Operation_ABS)
@@ -341,8 +348,9 @@ static int unary_op_inplace_pack8_fp16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -360,6 +368,8 @@ static int unary_op_inplace_pack8_fp16s(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_arm_functor {
 
 struct unary_op_abs_pack8_fp16s
 {
@@ -547,6 +557,8 @@ struct unary_op_tanh_pack8_fp16s
     }
 };
 
+} // namespace UnaryOp_arm_functor
+
 template<typename Op>
 static int unary_op_inplace_pack4_fp16s(Mat& a, const Option& opt)
 {
@@ -554,8 +566,9 @@ static int unary_op_inplace_pack4_fp16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -573,6 +586,8 @@ static int unary_op_inplace_pack4_fp16s(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_arm_functor {
 
 struct unary_op_abs_pack4_fp16s
 {
@@ -744,6 +759,8 @@ struct unary_op_tanh_pack4_fp16s
     }
 };
 
+} // namespace UnaryOp_arm_functor
+
 template<typename Op>
 static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
 {
@@ -751,8 +768,9 @@ static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -767,6 +785,8 @@ static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_arm_functor {
 
 struct unary_op_abs_fp16s
 {
@@ -904,8 +924,12 @@ struct unary_op_tanh_fp16s
     }
 };
 
+} // namespace UnaryOp_arm_functor
+
 int UnaryOp_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace UnaryOp_arm_functor;
+
     int elempack = bottom_top_blob.elempack;
 
     if (elempack == 8)
@@ -1082,8 +1106,9 @@ static int unary_op_inplace_pack4_bf16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -1111,8 +1136,9 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -1127,6 +1153,8 @@ static int unary_op_inplace_bf16s(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_arm_functor {
 
 struct unary_op_abs
 {
@@ -1264,8 +1292,12 @@ struct unary_op_tanh
     }
 };
 
+} // namespace UnaryOp_arm_functor
+
 int UnaryOp_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace UnaryOp_arm_functor;
+
     int elempack = bottom_top_blob.elempack;
 
 #if __ARM_NEON

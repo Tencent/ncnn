@@ -32,25 +32,22 @@
 
 namespace ncnn {
 
-#ifdef _WIN32
 double get_current_time()
 {
+#ifdef _WIN32
     LARGE_INTEGER freq;
     LARGE_INTEGER pc;
     QueryPerformanceFrequency(&freq);
     QueryPerformanceCounter(&pc);
 
     return pc.QuadPart * 1000.0 / freq.QuadPart;
-}
 #else  // _WIN32
-double get_current_time()
-{
     struct timeval tv;
     gettimeofday(&tv, NULL);
 
     return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
-}
 #endif // _WIN32
+}
 
 #if NCNN_BENCHMARK
 

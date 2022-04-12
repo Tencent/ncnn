@@ -265,6 +265,13 @@ void expand_expression(Graph& graph)
             Operand* old_output_operand = op->outputs[0];
             Operand* new_output_operand = graph.get_operand(op->name + "_" + outname);
 
+            if (!new_output_operand)
+            {
+                // not supported expr
+                nonsupported_expr_ops.insert(op);
+                break;
+            }
+
             for (auto r : op->inputs)
             {
                 r->remove_consumer(op);

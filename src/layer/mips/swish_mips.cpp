@@ -50,7 +50,7 @@ int Swish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i = 0; i < size; i++)
             {
-                __builtin_prefetch(ptr + 32);
+                __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 _p = __msa_fdiv_w(_p, __msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_p, 31))));
                 __msa_st_w((v4i32)_p, ptr, 0);
@@ -74,7 +74,7 @@ int Swish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(ptr + 32);
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = __msa_fdiv_w(_p, __msa_fadd_w(_one, exp_ps((v4f32)__msa_bnegi_w((v4u32)_p, 31))));
             __msa_st_w((v4i32)_p, ptr, 0);

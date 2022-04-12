@@ -26,7 +26,7 @@ GELU::GELU()
 
 int GELU::load_param(const ParamDict& pd)
 {
-    fast_gelu = pd.get(0, 0) != 0;
+    fast_gelu = pd.get(0, 0);
 
     return 0;
 }

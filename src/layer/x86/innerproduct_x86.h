@@ -33,7 +33,6 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-    int forward_fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #if NCNN_INT8
     int create_pipeline_int8_x86(const Option& opt);
     int forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
@@ -44,9 +43,6 @@ public:
     Layer* activation;
 
     Mat weight_data_packed;
-
-    // fp16 weight data
-    Mat weight_data_fp16;
 
 #if NCNN_INT8
     // int8

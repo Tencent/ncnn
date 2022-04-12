@@ -29,7 +29,7 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 public:
-    bool fast_gelu;
+    int fast_gelu;
 };
 
 } // namespace ncnn

@@ -192,7 +192,15 @@ static int test_innerproduct_4()
            || test_innerproduct_gemm(RandomMat(19, 16), 16, 1)
            || test_innerproduct_gemm(RandomMat(14, 15), 8, 1)
            || test_innerproduct_gemm(RandomMat(17, 15), 12, 1)
-           || test_innerproduct_gemm(RandomMat(12, 16), 7, 1);
+           || test_innerproduct_gemm(RandomMat(12, 16), 7, 1)
+           || test_innerproduct_gemm(RandomMat(11, 32), 32, 1)
+           || test_innerproduct_gemm(RandomMat(12, 32), 24, 1)
+           || test_innerproduct_gemm(RandomMat(13, 32), 12, 1)
+           || test_innerproduct_gemm(RandomMat(14, 32), 14, 1)
+           || test_innerproduct_gemm(RandomMat(15, 32), 32, 1)
+           || test_innerproduct_gemm(RandomMat(16, 24), 32, 1)
+           || test_innerproduct_gemm(RandomMat(17, 12), 32, 1)
+           || test_innerproduct_gemm(RandomMat(18, 14), 32, 1);
 }
 
 #if NCNN_INT8
