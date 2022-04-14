@@ -61,7 +61,7 @@ int BatchNorm::load_model(const ModelBin& mb)
     {
         float sqrt_var = static_cast<float>(sqrt(var_data[i] + eps));
         if (sqrt_var == 0.f)
-            sqrt_var = 0.0001f;// sanitize divide by zero
+            sqrt_var = 0.0001f; // sanitize divide by zero
         a_data[i] = bias_data[i] - slope_data[i] * mean_data[i] / sqrt_var;
         b_data[i] = slope_data[i] / sqrt_var;
     }
