@@ -775,6 +775,7 @@ enum BorderType
 {
     BORDER_CONSTANT = 0,
     BORDER_REPLICATE = 1,
+    BORDER_REFLECT = 2,
     BORDER_TRANSPARENT = -233,
 };
 NCNN_EXPORT void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt = Option());
