@@ -1,3 +1,9 @@
+
+if(NOT CMAKE_VERSION VERSION_LESS "3.15")
+    # enable CMAKE_MSVC_RUNTIME_LIBRARY
+    cmake_policy(SET CMP0091 NEW)
+endif()
+
 project(pnnx)
 cmake_minimum_required(VERSION 3.12)
 
@@ -5,13 +11,8 @@ if(POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
 endif()
 
-if(NOT CMAKE_VERSION VERSION_LESS "3.15")
-    # enable CMAKE_MSVC_RUNTIME_LIBRARY
-    cmake_policy(SET CMP0091 NEW)
-endif()
-
 if(MSVC AND NOT CMAKE_VERSION VERSION_LESS "3.15")
-    option(PNNX_BUILD_WITH_STATIC_CRT "Enables use of statically linked CRT for statically linked ncnn" OFF)
+    option(PNNX_BUILD_WITH_STATIC_CRT "Enables use of statically linked CRT for statically linked pnnx" OFF)
     if(PNNX_BUILD_WITH_STATIC_CRT)
         # cmake before version 3.15 not work
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
