@@ -464,6 +464,15 @@ static NCNN_FORCEINLINE void transpose16_ps(__m512& _r0, __m512& _r1, __m512& _r
     _re = _mm512_shuffle_f32x4(_tmpc, _tmpd, _MM_SHUFFLE(3, 1, 3, 1));
     _rf = _mm512_shuffle_f32x4(_tmpe, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
 }
+
+static NCNN_FORCEINLINE float _mm512_comp_reduce_add_ps(__m512 x)
+{
+    const __m256 x256 = _mm256_add_ps(_mm512_castps512_ps256(x), _mm512_extractf32x8_ps(x, 1));
+    const __m128 x128 = _mm_add_ps(_mm256_castps256_ps128(x256), _mm256_extractf128_ps(x256, 1));
+    const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
+    const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
+    return _mm_cvtss_f32(x32);
+}
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__

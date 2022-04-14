@@ -86,7 +86,7 @@ static void conv3x3s1_pack16to1_avx512(const Mat& bottom_blob, Mat& top_blob, co
 
                     __m512 _sum = _mm512_add_ps(_sum0, _mm512_add_ps(_sum1, _sum2));
 
-                    *outptr0 += _mm512_reduce_add_ps(_sum);
+                    *outptr0 += _mm512_comp_reduce_add_ps(_sum);
                     outptr0++;
                     r0 += 16;
                     r1 += 16;
@@ -671,7 +671,7 @@ static void conv3x3s1_winograd64_pack16to1_avx512(const Mat& bottom_blob, Mat& t
                         kptr += 16;
                     }
 
-                    float sum0 = _mm512_reduce_add_ps(_sum0);
+                    float sum0 = _mm512_comp_reduce_add_ps(_sum0);
 
                     outptr0_tm[0] = sum0;
                     outptr0_tm++;

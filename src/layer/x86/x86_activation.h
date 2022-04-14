@@ -257,6 +257,11 @@ static NCNN_FORCEINLINE __m512 hardswish_avx512(__m512 inputs, __m512 a, __m512 
     return _mm512_mul_ps(b, inputs);
 }
 
+static NCNN_FORCEINLINE __m512 abs_avx512(__m512 inputs)
+{
+    return _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(inputs), _mm512_set1_epi32(0x7fffffff)));
+}
+
 static NCNN_FORCEINLINE __m512 lrelu_avx512(__m512 inputs, float slope)
 {
     __mmask16 _is_negative = _mm512_cmp_ps_mask(inputs, _mm512_setzero_ps(), _CMP_LT_OQ);

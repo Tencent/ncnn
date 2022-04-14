@@ -88,7 +88,7 @@ static void deconvolution_pack16to1_avx512(const Mat& bottom_blob, Mat& top_blob
                     kptr += maxk * 16;
                 }
 
-                sum += _mm512_reduce_add_ps(_sum);
+                sum += _mm512_comp_reduce_add_ps(_sum);
 
                 sum = activation_ss(sum, activation_type, activation_params);
 

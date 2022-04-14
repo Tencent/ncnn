@@ -212,7 +212,7 @@ static NCNN_FORCEINLINE __m512 sin512_ps(__m512 x)
 
     sign_bit = x;
     /* take the absolute value */
-    x = _mm512_abs_ps(x);
+    x = _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(x), _mm512_set1_epi32(0x7fffffff)));
     /* extract the sign bit (upper one) */
     sign_bit = _mm512_and_ps(sign_bit, *(__m512*)_ps512_sign_mask);
 
@@ -289,7 +289,7 @@ static NCNN_FORCEINLINE __m512 cos512_ps(__m512 x)
     __m512i imm0, imm2;
 
     /* take the absolute value */
-    x = _mm512_abs_ps(x);
+    x = _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(x), _mm512_set1_epi32(0x7fffffff)));
 
     /* scale by 4/Pi */
     y = _mm512_mul_ps(x, *(__m512*)_ps512_cephes_FOPI);
@@ -364,7 +364,7 @@ static NCNN_FORCEINLINE void sincos512_ps(__m512 x, __m512* s, __m512* c)
 
     sign_bit_sin = x;
     /* take the absolute value */
-    x = _mm512_abs_ps(x);
+    x = _mm512_castsi512_ps(_mm512_and_epi32(_mm512_castps_si512(x), _mm512_set1_epi32(0x7fffffff)));
     /* extract the sign bit (upper one) */
     sign_bit_sin = _mm512_and_ps(sign_bit_sin, *(__m512*)_ps512_sign_mask);
 
