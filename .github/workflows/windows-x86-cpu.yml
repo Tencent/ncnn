@@ -25,7 +25,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   windows-x86:
-    name: windows-x86-cpu-${{ matrix.vs-version }}
+    name: ${{ matrix.vs-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
