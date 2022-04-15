@@ -204,7 +204,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack8to1_avx(const Mat& kernel
     }
 }
 
-static void conv3x3s1_winograd64_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd64_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -226,172 +226,15 @@ static void conv3x3s1_winograd64_pack8to1_avx(const Mat& bottom_blob, Mat& top_b
     h = outh + 2;
     copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
 
-    const float* bias = _bias;
-
     // BEGIN transform input
     Mat bottom_blob_tm;
     {
-        int w_tm = outw / 6 * 8;
-        int h_tm = outh / 6 * 8;
-
-        const int tiles = w_tm / 8 * h_tm / 8;
+        int w_tiles = outw / 6;
+        int h_tiles = outh / 6;
+        const int tiles = w_tiles * h_tiles;
 
         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
-
-        //         const float itm[8][8] = {
-        //             {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
-        //
-        //             {0.0f,  1.0f,  1.00f, -4.25f, -4.25f,  1.00f,  1.0f, 0.0f},
-        //             {0.0f, -1.0f,  1.00f,  4.25f, -4.25f, -1.00f,  1.0f, 0.0f},
-        //
-        //             {0.0f,  0.5f,  0.25f, -2.50f, -1.25f,  2.00f,  1.0f, 0.0f},
-        //             {0.0f, -0.5f,  0.25f,  2.50f, -1.25f, -2.00f,  1.0f, 0.0f},
-        //
-        //             {0.0f,  2.0f,  4.00f, -2.50f, -5.00f,  0.50f,  1.0f, 0.0f},
-        //             {0.0f, -2.0f,  4.00f,  2.50f, -5.00f, -0.50f,  1.0f, 0.0f},
-        //
-        //             {0.0f, -1.0f,  0.00f,  5.25f,  0.00f, -5.25f,  0.0f, 1.0f}
-        //         };
-
-        // 0 = r00 - r06 + (r04 - r02) * 5.25
-        // 7 = r07 - r01 + (r03 - r05) * 5.25
-
-        // 1 = (r02 + r06 - r04 * 4.25) + (r01 - r03 * 4.25 + r05)
-        // 2 = (r02 + r06 - r04 * 4.25) - (r01 - r03 * 4.25 + r05)
-
-        // 3 = (r06 + r02 * 0.25 - r04 * 1.25) + (r01 * 0.5 - r03 * 2.5 + r05 * 2)
-        // 4 = (r06 + r02 * 0.25 - r04 * 1.25) - (r01 * 0.5 - r03 * 2.5 + r05 * 2)
-
-        // reuse r04 * 1.25
-        // reuse r03 * 2.5
-        // 5 = (r06 + (r02 - r04 * 1.25) * 4) + (r01 * 2 - r03 * 2.5 + r05 * 0.5)
-        // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++)
-        {
-            const Mat img0 = bottom_blob_bordered.channel(q);
-            Mat img0_tm = bottom_blob_tm.channel(q);
-
-#ifdef _MSC_VER
-            __declspec(align(32))
-#else
-            __attribute__((aligned(32)))
-#endif
-            float tmp[8][8][8];
-
-            // tile
-            for (int i = 0; i < h_tm / 8; i++)
-            {
-                for (int j = 0; j < w_tm / 8; j++)
-                {
-                    const float* r0 = img0.row(i * 6) + (j * 6) * 8;
-
-                    for (int m = 0; m < 8; m++)
-                    {
-                        __m256 _r00 = _mm256_load_ps(r0);
-                        __m256 _r01 = _mm256_load_ps(r0 + 8);
-                        __m256 _r02 = _mm256_load_ps(r0 + 16);
-                        __m256 _r03 = _mm256_load_ps(r0 + 24);
-                        __m256 _r04 = _mm256_load_ps(r0 + 32);
-                        __m256 _r05 = _mm256_load_ps(r0 + 40);
-                        __m256 _r06 = _mm256_load_ps(r0 + 48);
-                        __m256 _r07 = _mm256_load_ps(r0 + 56);
-
-                        __m256 _tmp0m = _mm256_comp_fmadd_ps(_mm256_set1_ps(5.25f), _mm256_sub_ps(_r04, _r02), _mm256_sub_ps(_r00, _r06));
-                        __m256 _tmp7m = _mm256_comp_fmadd_ps(_mm256_set1_ps(5.25f), _mm256_sub_ps(_r03, _r05), _mm256_sub_ps(_r07, _r01));
-                        _mm256_store_ps(tmp[0][m], _tmp0m);
-                        _mm256_store_ps(tmp[7][m], _tmp7m);
-
-                        __m256 _tmp12a = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.25f), _r04, _mm256_add_ps(_r02, _r06));
-                        __m256 _tmp12b = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.25f), _r03, _mm256_add_ps(_r01, _r05));
-
-                        __m256 _tmp1m = _mm256_add_ps(_tmp12a, _tmp12b);
-                        __m256 _tmp2m = _mm256_sub_ps(_tmp12a, _tmp12b);
-                        _mm256_store_ps(tmp[1][m], _tmp1m);
-                        _mm256_store_ps(tmp[2][m], _tmp2m);
-
-                        __m256 _tmp34a = _mm256_comp_fmadd_ps(_mm256_set1_ps(-1.25f), _r04, _mm256_comp_fmadd_ps(_mm256_set1_ps(0.25f), _r02, _r06));
-                        __m256 _tmp34b = _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _r05, _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.5f), _r03, _mm256_mul_ps(_r01, _mm256_set1_ps(0.5f))));
-
-                        __m256 _tmp3m = _mm256_add_ps(_tmp34a, _tmp34b);
-                        __m256 _tmp4m = _mm256_sub_ps(_tmp34a, _tmp34b);
-                        _mm256_store_ps(tmp[3][m], _tmp3m);
-                        _mm256_store_ps(tmp[4][m], _tmp4m);
-
-                        __m256 _tmp56a = _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _mm256_comp_fmadd_ps(_mm256_set1_ps(-1.25f), _r04, _r02), _r06);
-                        __m256 _tmp56b = _mm256_comp_fmadd_ps(_mm256_set1_ps(0.5f), _r05, _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.5f), _r03, _mm256_mul_ps(_r01, _mm256_set1_ps(2.f))));
-
-                        __m256 _tmp5m = _mm256_add_ps(_tmp56a, _tmp56b);
-                        __m256 _tmp6m = _mm256_sub_ps(_tmp56a, _tmp56b);
-                        _mm256_store_ps(tmp[5][m], _tmp5m);
-                        _mm256_store_ps(tmp[6][m], _tmp6m);
-
-                        r0 += w * 8;
-                    }
-
-                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm / 8 + j) * 8;
-                    float* r0_tm_1 = r0_tm_0 + tiles * 8;
-                    float* r0_tm_2 = r0_tm_0 + tiles * 16;
-                    float* r0_tm_3 = r0_tm_0 + tiles * 24;
-                    float* r0_tm_4 = r0_tm_0 + tiles * 32;
-                    float* r0_tm_5 = r0_tm_0 + tiles * 40;
-                    float* r0_tm_6 = r0_tm_0 + tiles * 48;
-                    float* r0_tm_7 = r0_tm_0 + tiles * 56;
-
-                    for (int m = 0; m < 8; m++)
-                    {
-                        __m256 _tmp00 = _mm256_load_ps(tmp[m][0]);
-                        __m256 _tmp01 = _mm256_load_ps(tmp[m][1]);
-                        __m256 _tmp02 = _mm256_load_ps(tmp[m][2]);
-                        __m256 _tmp03 = _mm256_load_ps(tmp[m][3]);
-                        __m256 _tmp04 = _mm256_load_ps(tmp[m][4]);
-                        __m256 _tmp05 = _mm256_load_ps(tmp[m][5]);
-                        __m256 _tmp06 = _mm256_load_ps(tmp[m][6]);
-                        __m256 _tmp07 = _mm256_load_ps(tmp[m][7]);
-
-                        __m256 _r0tm0 = _mm256_comp_fmadd_ps(_mm256_set1_ps(5.25f), _mm256_sub_ps(_tmp04, _tmp02), _mm256_sub_ps(_tmp00, _tmp06));
-                        __m256 _r0tm7 = _mm256_comp_fmadd_ps(_mm256_set1_ps(5.25f), _mm256_sub_ps(_tmp03, _tmp05), _mm256_sub_ps(_tmp07, _tmp01));
-
-                        __m256 _tmp12a = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.25f), _tmp04, _mm256_add_ps(_tmp02, _tmp06));
-                        __m256 _tmp12b = _mm256_comp_fmadd_ps(_mm256_set1_ps(-4.25f), _tmp03, _mm256_add_ps(_tmp01, _tmp05));
-
-                        __m256 _r0tm1 = _mm256_add_ps(_tmp12a, _tmp12b);
-                        __m256 _r0tm2 = _mm256_sub_ps(_tmp12a, _tmp12b);
-
-                        __m256 _tmp34a = _mm256_comp_fmadd_ps(_mm256_set1_ps(-1.25f), _tmp04, _mm256_comp_fmadd_ps(_mm256_set1_ps(0.25f), _tmp02, _tmp06));
-                        __m256 _tmp34b = _mm256_comp_fmadd_ps(_mm256_set1_ps(2.f), _tmp05, _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.5f), _tmp03, _mm256_mul_ps(_tmp01, _mm256_set1_ps(0.5f))));
-
-                        __m256 _r0tm3 = _mm256_add_ps(_tmp34a, _tmp34b);
-                        __m256 _r0tm4 = _mm256_sub_ps(_tmp34a, _tmp34b);
-
-                        __m256 _tmp56a = _mm256_comp_fmadd_ps(_mm256_set1_ps(4.f), _mm256_comp_fmadd_ps(_mm256_set1_ps(-1.25f), _tmp04, _tmp02), _tmp06);
-                        __m256 _tmp56b = _mm256_comp_fmadd_ps(_mm256_set1_ps(0.5f), _tmp05, _mm256_comp_fmadd_ps(_mm256_set1_ps(-2.5f), _tmp03, _mm256_mul_ps(_tmp01, _mm256_set1_ps(2.f))));
-
-                        __m256 _r0tm5 = _mm256_add_ps(_tmp56a, _tmp56b);
-                        __m256 _r0tm6 = _mm256_sub_ps(_tmp56a, _tmp56b);
-
-                        _mm256_store_ps(r0_tm_0, _r0tm0);
-                        _mm256_store_ps(r0_tm_1, _r0tm1);
-                        _mm256_store_ps(r0_tm_2, _r0tm2);
-                        _mm256_store_ps(r0_tm_3, _r0tm3);
-                        _mm256_store_ps(r0_tm_4, _r0tm4);
-                        _mm256_store_ps(r0_tm_5, _r0tm5);
-                        _mm256_store_ps(r0_tm_6, _r0tm6);
-                        _mm256_store_ps(r0_tm_7, _r0tm7);
-
-                        r0_tm_0 += tiles * 64;
-                        r0_tm_1 += tiles * 64;
-                        r0_tm_2 += tiles * 64;
-                        r0_tm_3 += tiles * 64;
-                        r0_tm_4 += tiles * 64;
-                        r0_tm_5 += tiles * 64;
-                        r0_tm_6 += tiles * 64;
-                        r0_tm_7 += tiles * 64;
-                    }
-                }
-            }
-        }
+        conv3x3s1_winograd64_transform_input_pack8_avx(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -705,110 +548,7 @@ static void conv3x3s1_winograd64_pack8to1_avx(const Mat& bottom_blob, Mat& top_b
         top_blob_bordered.create(outw, outh, outch, 4u, 1, opt.workspace_allocator);
     }
     {
-        //         const float otm[6][8] = {
-        //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,   2.0f,  -2.0f,  16.0f,-16.0f, 0.0f},
-        //             {0.0f,  1.0f,   1.0f,   4.0f,   4.0f,   8.0f,  8.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,   8.0f,  -8.0f,   4.0f, -4.0f, 0.0f},
-        //             {0.0f,  1.0f,   1.0f,  16.0f,  16.0f,   2.0f,  2.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,  32.0f, -32.0f,   1.0f, -1.0f, 1.0f}
-        //         };
-
-        // 0 = r0 + (r1 + r2) + (r3 + r4)     + (r5 + r6) * 32
-        // 1 =      (r1 - r2) + (r3 - r4) * 2 + (r5 - r6) * 16
-        // 2 =      (r1 + r2) + (r3 + r4) * 4 + (r5 + r6) * 8
-        // 3 =      (r1 - r2) + (r3 - r4) * 8 + (r5 - r6) * 4
-        // 4 =      (r1 + r2) + (r3 + r4) * 16+ (r5 + r6) * 2
-        // 5 = r7 + (r1 - r2) + (r3 - r4) * 32+ (r5 - r6)
-
-        int w_tm = outw / 6 * 8;
-        int h_tm = outh / 6 * 8;
-        const int tiles = w_tm / 8 * h_tm / 8;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++)
-        {
-            const Mat out0_tm = top_blob_tm.channel(p);
-            Mat out0 = top_blob_bordered.channel(p);
-
-            const float bias0 = bias ? bias[p] : 0.f;
-
-            float tmp[6][8];
-
-            // tile
-            for (int i = 0; i < outh / 6; i++)
-            {
-                for (int j = 0; j < outw / 6; j++)
-                {
-                    // top_blob_tm.create(tiles, 64, outch, 4u, 1, opt.workspace_allocator);
-
-                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm / 8 + j) * 1;
-                    const float* output0_tm_1 = output0_tm_0 + tiles * 1;
-                    const float* output0_tm_2 = output0_tm_0 + tiles * 2;
-                    const float* output0_tm_3 = output0_tm_0 + tiles * 3;
-                    const float* output0_tm_4 = output0_tm_0 + tiles * 4;
-                    const float* output0_tm_5 = output0_tm_0 + tiles * 5;
-                    const float* output0_tm_6 = output0_tm_0 + tiles * 6;
-                    const float* output0_tm_7 = output0_tm_0 + tiles * 7;
-
-                    // TODO sse optimize
-                    for (int m = 0; m < 8; m++)
-                    {
-                        float tmp024a = output0_tm_1[0] + output0_tm_2[0];
-                        float tmp135a = output0_tm_1[0] - output0_tm_2[0];
-
-                        float tmp024b = output0_tm_3[0] + output0_tm_4[0];
-                        float tmp135b = output0_tm_3[0] - output0_tm_4[0];
-
-                        float tmp024c = output0_tm_5[0] + output0_tm_6[0];
-                        float tmp135c = output0_tm_5[0] - output0_tm_6[0];
-
-                        tmp[0][m] = output0_tm_0[0] + tmp024a + tmp024b + tmp024c * 32;
-                        tmp[2][m] = tmp024a + tmp024b * 4 + tmp024c * 8;
-                        tmp[4][m] = tmp024a + tmp024b * 16 + tmp024c + tmp024c;
-
-                        tmp[1][m] = tmp135a + tmp135b + tmp135b + tmp135c * 16;
-                        tmp[3][m] = tmp135a + tmp135b * 8 + tmp135c * 4;
-                        tmp[5][m] = output0_tm_7[0] + tmp135a + tmp135b * 32 + tmp135c;
-
-                        output0_tm_0 += tiles * 8;
-                        output0_tm_1 += tiles * 8;
-                        output0_tm_2 += tiles * 8;
-                        output0_tm_3 += tiles * 8;
-                        output0_tm_4 += tiles * 8;
-                        output0_tm_5 += tiles * 8;
-                        output0_tm_6 += tiles * 8;
-                        output0_tm_7 += tiles * 8;
-                    }
-
-                    float* output0 = out0.row(i * 6) + j * 6;
-
-                    for (int m = 0; m < 6; m++)
-                    {
-                        const float* tmp0 = tmp[m];
-
-                        float tmp024a = tmp0[1] + tmp0[2];
-                        float tmp135a = tmp0[1] - tmp0[2];
-
-                        float tmp024b = tmp0[3] + tmp0[4];
-                        float tmp135b = tmp0[3] - tmp0[4];
-
-                        float tmp024c = tmp0[5] + tmp0[6];
-                        float tmp135c = tmp0[5] - tmp0[6];
-
-                        output0[0] = bias0 + tmp0[0] + tmp024a + tmp024b + tmp024c * 32;
-                        output0[2] = bias0 + tmp024a + tmp024b * 4 + tmp024c * 8;
-                        output0[4] = bias0 + tmp024a + tmp024b * 16 + tmp024c + tmp024c;
-
-                        output0[1] = bias0 + tmp135a + tmp135b + tmp135b + tmp135c * 16;
-                        output0[3] = bias0 + tmp135a + tmp135b * 8 + tmp135c * 4;
-                        output0[5] = bias0 + tmp0[7] + tmp135a + tmp135b * 32 + tmp135c;
-
-                        output0 += outw;
-                    }
-                }
-            }
-        }
+        conv3x3s1_winograd64_transform_output_sse(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 

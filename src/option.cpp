@@ -67,6 +67,7 @@ Option::Option()
     use_local_pool_allocator = true;
 
     use_shader_local_memory = true;
+    use_cooperative_matrix = true;
 }
 
 } // namespace ncnn

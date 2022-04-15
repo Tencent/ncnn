@@ -43,7 +43,18 @@ pnnx.Output             output      1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["0"] = captured_params.at("negative_slope");
+        float negative_slope = 0.f;
+
+        if (captured_params.at("negative_slope").type == 2)
+        {
+            negative_slope = captured_params.at("negative_slope").i;
+        }
+        if (captured_params.at("negative_slope").type == 3)
+        {
+            negative_slope = captured_params.at("negative_slope").f;
+        }
+
+        op->params["0"] = negative_slope;
     }
 };
 

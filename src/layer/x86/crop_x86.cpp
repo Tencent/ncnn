@@ -32,6 +32,31 @@ Crop_x86::Crop_x86()
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+static void crop_pack16_avx512(const Mat& src, Mat& dst, int top, int left)
+{
+    int w = dst.w;
+    int h = dst.h;
+    int right = src.w - dst.w - left;
+
+    const float* ptr = src.row(top) + left * 16;
+    float* outptr = dst;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            __m512 _p = _mm512_loadu_ps(ptr);
+            _mm512_storeu_ps(outptr, _p);
+            ptr += 16;
+            outptr += 16;
+        }
+
+        ptr += (left + right) * 16;
+    }
+}
+#endif // __AVX512F__
+
 static void crop_pack8_avx(const Mat& src, Mat& dst, int top, int left)
 {
     int w = dst.w;
@@ -92,6 +117,140 @@ int Crop_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        int _woffset, _hoffset, _doffset, _coffset;
+        int _outw, _outh, _outd, _outc;
+        resolve_crop_roi(bottom_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+
+        if (dims == 1)
+        {
+            int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w && out_elempack == 16)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_woffset % 16 == 0 && out_elempack == 16)
+            {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 16 == 0 ? 16 : _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 16)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_hoffset % 16 == 0 && out_elempack == 16)
+            {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 16)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 16 == 0 && out_elempack == 16)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const Mat m = bottom_blob_sliced.channel(q);
+                    Mat borderm = top_blob.channel(q);
+                    crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 16)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 16 == 0 && out_elempack == 16)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                    }
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __AVX512F__
+
     if (elempack == 8)
     {
         int _woffset, _hoffset, _doffset, _coffset;
@@ -391,6 +550,147 @@ int Crop_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        int _woffset, _hoffset, _doffset, _coffset;
+        int _outw, _outh, _outd, _outc;
+        if (woffset == -233)
+        {
+            resolve_crop_roi(bottom_blob.shape(), (const int*)reference_blob, _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+        }
+        else
+        {
+            resolve_crop_roi(bottom_blob.shape(), reference_blob.shape(), _woffset, _hoffset, _doffset, _coffset, _outw, _outh, _outd, _outc);
+        }
+
+        if (dims == 1)
+        {
+            int out_elempack = _outw % 16 == 0 ? 16 : _outw % 8 == 0 ? 8 : _outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw / out_elempack == w && out_elempack == 16)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_woffset % 16 == 0 && out_elempack == 16)
+            {
+                top_blob.create(_outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack16_avx512(bottom_blob, top_blob, 0, _woffset / elempack);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int out_elempack = _outh % 16 == 0 ? 16 : _outh % 8 == 0 ? 8 : _outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh / out_elempack == h && out_elempack == 16)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_hoffset % 16 == 0 && out_elempack == 16)
+            {
+                top_blob.create(_outw, _outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                crop_pack16_avx512(bottom_blob, top_blob, _hoffset / elempack, _woffset);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outc / out_elempack == channels && out_elempack == 16)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 16 == 0 && out_elempack == 16)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    const Mat m = bottom_blob_sliced.channel(q);
+                    Mat borderm = top_blob.channel(q);
+                    crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int out_elempack = _outc % 16 == 0 ? 16 : _outc % 8 == 0 ? 8 : _outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (_outw == w && _outh == h && _outd == d && _outc / out_elempack == channels && out_elempack == 16)
+            {
+                top_blob = bottom_blob;
+                return 0;
+            }
+
+            if (_coffset % 16 == 0 && out_elempack == 16)
+            {
+                const Mat bottom_blob_sliced = bottom_blob.channel_range(_coffset / out_elempack, _outc / out_elempack);
+
+                if (_outw == w && _outh == h && _outd == d)
+                {
+                    top_blob = bottom_blob_sliced.clone();
+                    if (top_blob.empty())
+                        return -100;
+                }
+
+                top_blob.create(_outw, _outh, _outd, _outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < top_blob.c; q++)
+                {
+                    for (int z = 0; z < _outd; z++)
+                    {
+                        const Mat m = bottom_blob_sliced.channel(q).depth(z + _doffset);
+                        Mat borderm = top_blob.channel(q).depth(z);
+                        crop_pack16_avx512(m, borderm, _hoffset, _woffset);
+                    }
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __AVX512F__
+
     if (elempack == 8)
     {
         int _woffset, _hoffset, _doffset, _coffset;

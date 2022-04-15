@@ -34,76 +34,59 @@ int Clip_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
-#if __SSE2__
     int elempack = bottom_top_blob.elempack;
-
-#if __AVX__
-    if (elempack == 8)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            __m256 _max = _mm256_set1_ps(max);
-            __m256 _min = _mm256_set1_ps(min);
-
-            for (int i = 0; i < size; i++)
-            {
-                __m256 _ptr = _mm256_loadu_ps(ptr);
-                _ptr = _mm256_max_ps(_ptr, _min);
-                _ptr = _mm256_min_ps(_ptr, _max);
-                _mm256_storeu_ps(ptr, _ptr);
-
-                ptr += 8;
-            }
-        }
-
-        return 0;
-    }
-#endif // __AVX__
-
-    if (elempack == 4)
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            float* ptr = bottom_top_blob.channel(q);
-
-            __m128 _max = _mm_set1_ps(max);
-            __m128 _min = _mm_set1_ps(min);
-
-            for (int i = 0; i < size; i++)
-            {
-                __m128 _ptr = _mm_loadu_ps(ptr);
-                _ptr = _mm_max_ps(_ptr, _min);
-                _ptr = _mm_min_ps(_ptr, _max);
-                _mm_storeu_ps(ptr, _ptr);
-
-                ptr += 4;
-            }
-        }
-
-        return 0;
-    }
-#endif // __SSE2__
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 
-        int remain = size;
-        for (; remain > 0; remain--)
+        int i = 0;
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        __m512 _min_avx512 = _mm512_set1_ps(min);
+        __m512 _max_avx512 = _mm512_set1_ps(max);
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _p = _mm512_loadu_ps(ptr);
+            _p = _mm512_max_ps(_p, _min_avx512);
+            _p = _mm512_min_ps(_p, _max_avx512);
+            _mm512_storeu_ps(ptr, _p);
+            ptr += 16;
+        }
+#endif // __AVX512F__
+        __m256 _min_avx = _mm256_set1_ps(min);
+        __m256 _max_avx = _mm256_set1_ps(max);
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _p = _mm256_loadu_ps(ptr);
+            _p = _mm256_max_ps(_p, _min_avx);
+            _p = _mm256_min_ps(_p, _max_avx);
+            _mm256_storeu_ps(ptr, _p);
+            ptr += 8;
+        }
+#endif // __AVX__
+        __m128 _min = _mm_set1_ps(min);
+        __m128 _max = _mm_set1_ps(max);
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _p = _mm_load_ps(ptr);
+            _p = _mm_max_ps(_p, _min);
+            _p = _mm_min_ps(_p, _max);
+            _mm_store_ps(ptr, _p);
+            ptr += 4;
+        }
+#endif // __SSE2__
+        for (; i < size; i++)
         {
             if (*ptr < min)
                 *ptr = min;
-
             if (*ptr > max)
                 *ptr = max;
-
             ptr++;
         }
     }

@@ -46,7 +46,7 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i = 0; i < size; i++)
             {
-                __builtin_prefetch(ptr + 32);
+                __builtin_prefetch(ptr + 16);
                 v4u32 _p = (v4u32)__msa_ld_w(ptr, 0);
                 v4f32 _outp = (v4f32)__msa_bclri_w(_p, 31);
                 __msa_st_w((v4i32)_outp, ptr, 0);
@@ -68,7 +68,7 @@ int AbsVal_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __mips_msa
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(ptr + 32);
+            __builtin_prefetch(ptr + 16);
             v4u32 _p = (v4u32)__msa_ld_w(ptr, 0);
             v4f32 _outp = (v4f32)__msa_bclri_w(_p, 31);
             __msa_st_w((v4i32)_outp, ptr, 0);

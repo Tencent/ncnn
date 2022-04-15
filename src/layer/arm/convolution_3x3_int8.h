@@ -1734,6 +1734,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "r"(inch) // %20
                         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16");
 #else
+                    int nn = inch;
                     asm volatile(
                         // inch loop
                         "vmov.s32    q0, #0           \n"
@@ -1744,7 +1745,6 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "vmov.s32    q5, #0           \n"
                         "vmov.s32    q6, #0           \n"
                         "vmov.s32    q7, #0           \n"
-                        "mov         r4, %20          \n"
 
                         "0:                           \n" // for (int q=0; q<inch; q++)
                         "vld1.s16    {d16}, [%8]!     \n" // _r0 = vld1_s16(r0);  // input inch0
@@ -1766,7 +1766,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "vmlal.s16   q6, d16, d24     \n" // sum6 += (a00-a03) * (k60-k63)
                         "vmlal.s16   q7, d16, d25     \n" // sum7 += (a00-a03) * (k70-k73)
 
-                        "subs        r4, r4, #1       \n"
+                        "subs        %10, %10, #1     \n"
                         "bne         0b               \n" // end for
 
                         "vst1.s32    {d0-d1}, [%0]    \n" // store the result to memory
@@ -1787,7 +1787,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "=r"(output6_tm), // %6
                         "=r"(output7_tm), // %7
                         "=r"(r0),         // %8
-                        "=r"(kptr)        // %9
+                        "=r"(kptr),       // %9
+                        "=r"(nn)          // %10
                         : "0"(output0_tm),
                         "1"(output1_tm),
                         "2"(output2_tm),
@@ -1798,8 +1799,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "7"(output7_tm),
                         "8"(r0),
                         "9"(kptr),
-                        "r"(inch) // %20
-                        : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
+                        "10"(nn)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
 #endif // __aarch64__
 #else
                     int sum0[4] = {0};

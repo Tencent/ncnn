@@ -156,7 +156,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
         return 0;
     }
 
-#if __aarch64__ || __riscv_xlen == 64
+#if __aarch64__ || __mips64 || __riscv_xlen == 64
     struct
     {
         uint64_t tag;
@@ -645,7 +645,7 @@ static int get_cpu_support_x86_avx512()
         return 0;
 
     x86_cpuid_sublevel(7, 0, cpu_info);
-    return (cpu_info[1] & (1u << 16)) && (cpu_info[1] & (1u << 31));
+    return (cpu_info[1] & (1u << 16)) && (cpu_info[1] & (1u << 17)) && (cpu_info[1] & (1u << 28)) && (cpu_info[1] & (1u << 30)) && (cpu_info[1] & (1u << 31));
 }
 
 static int get_cpu_support_x86_avx512_vnni()

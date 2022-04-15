@@ -691,7 +691,7 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     *c = _mm256_xor_ps(xmm2, sign_bit_cos);
 }
 
-static NCNN_FORCEINLINE __m256 pow_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));
