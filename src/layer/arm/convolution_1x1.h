@@ -857,15 +857,15 @@ static void conv1x1s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
                     "vst1.f32   {d22-d23}, [%5 :128]!   \n"
 
                     : "=r"(outptr0), // %0
-                    "=r"(outptr1),   // %1
-                    "=r"(outptr2),   // %2
-                    "=r"(outptr3),   // %3
-                    "=r"(outptr4),   // %4
-                    "=r"(outptr5),   // %5
-                    "=r"(r0),        // %6
-                    "=r"(r1),        // %7
-                    "=r"(r2),        // %8
-                    "=r"(r3)         // %9
+                    "=r"(outptr1), // %1
+                    "=r"(outptr2), // %2
+                    "=r"(outptr3), // %3
+                    "=r"(outptr4), // %4
+                    "=r"(outptr5), // %5
+                    "=r"(r0),      // %6
+                    "=r"(r1),      // %7
+                    "=r"(r2),      // %8
+                    "=r"(r3)       // %9
                     : "0"(outptr0),
                     "1"(outptr1),
                     "2"(outptr2),

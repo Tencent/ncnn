@@ -7604,7 +7604,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
 
                         "vst1.f32   {d30-d31}, [%1]     \n"
 
-                        : "=r"(t0),          // %0
+                        : "=r"(t0),            // %0
                         "=r"(t1),            // %1
                         "=r"(output0_tm0_0), // %2
                         "=r"(output0_tm1_0), // %3
