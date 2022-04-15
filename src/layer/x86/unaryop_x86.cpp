@@ -107,17 +107,17 @@ struct unary_op_abs
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        return (__m128)abs_sse(x);
+        return abs_sse(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        return (__m256)abs_avx(x);
+        return abs_avx(x);
     }
 #if __AVX512F__
     __m512 operator()(const __m512& x) const
     {
-        return _mm512_abs_ps(x);
+        return abs_avx512(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__

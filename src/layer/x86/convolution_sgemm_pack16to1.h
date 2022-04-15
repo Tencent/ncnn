@@ -445,7 +445,7 @@ static void im2col_sgemm_pack16to1_avx512(const Mat& bottom_im2col, Mat& top_blo
                 kptr += 16;
             }
 
-            sum0 += _mm512_reduce_add_ps(_sum0);
+            sum0 += _mm512_comp_reduce_add_ps(_sum0);
 
             outptr0[0] = sum0;
             outptr0 += 1;
