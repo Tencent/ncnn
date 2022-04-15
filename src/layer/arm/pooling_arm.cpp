@@ -457,6 +457,32 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (pooling_type == PoolMethod_AVE)
         {
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const __fp16* ptr = bottom_blob.channel(q);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    for (int i = 0; i < size; i++)
+                    {
+                        float16x8_t _val = vld1q_f16(ptr);
+                        _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(vget_low_f16(_val)));
+                        _sum1 = vaddq_f32(_sum1, vcvt_f32_f16(vget_high_f16(_val)));
+                        ptr += 8;
+                    }
+
+                    float32x4_t _inv_size = vdupq_n_f32(1.f / size);
+                    float32x4_t _avg0 = vmulq_f32(_sum0, _inv_size);
+                    float32x4_t _avg1 = vmulq_f32(_sum1, _inv_size);
+
+                    __fp16* outptr = top_blob;
+                    vst1q_f16(outptr + q * 8, vcombine_f16(vcvt_f16_f32(_avg0), vcvt_f16_f32(_avg1)));
+                }
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
