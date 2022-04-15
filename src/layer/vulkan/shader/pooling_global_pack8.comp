@@ -101,7 +101,7 @@ void main()
     }
     if (pooling_type == 1)
     {
-        res = afpvec8(afpvec4(0.f), afpvec4(0.f));
+        mat2x4 sum = mat2x4(0.f);
 
 #if NCNN_image_shader
         for (int y = 0; y < psc(h); y++)
@@ -109,22 +109,21 @@ void main()
             for (int x = 0; x < psc(w); x++)
             {
                 afpvec8 v = image3d_ld8(bottom_blob, ivec3(x, y, gx));
-                res[0] += v[0];
-                res[1] += v[1];
+                sum[0] += vec4(v[0]);
+                sum[1] += vec4(v[1]);
             }
         }
 #else
         for (int i = 0; i < size; i++)
         {
             afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + i);
-            res[0] += v[0];
-            res[1] += v[1];
+            sum[0] += vec4(v[0]);
+            sum[1] += vec4(v[1]);
         }
 #endif
 
-        afp area = afp(size);
-        res[0] /= area;
-        res[1] /= area;
+        res[0] = afpvec4(sum[0] / size);
+        res[1] = afpvec4(sum[1] / size);
     }
 
 #if NCNN_image_shader
