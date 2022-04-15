@@ -33,6 +33,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   windows-gpu:
+    name: windows-x64-gpu-${{ matrix.vs-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
