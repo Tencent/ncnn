@@ -98,24 +98,24 @@ void main()
     }
     if (pooling_type == 1)
     {
-        res = afpvec4(0.f);
+        vec4 sum = vec4(0.f);
 
 #if NCNN_image_shader
         for (int y = 0; y < psc(h); y++)
         {
             for (int x = 0; x < psc(w); x++)
             {
-                res += image3d_ld4(bottom_blob, ivec3(x, y, gx));
+                sum += vec4(image3d_ld4(bottom_blob, ivec3(x, y, gx)));
             }
         }
 #else
         for (int i = 0; i < size; i++)
         {
-            res += buffer_ld4(bottom_blob_data, v_offset + i);
+            sum += vec4(buffer_ld4(bottom_blob_data, v_offset + i));
         }
 #endif
 
-        res /= afp(size);
+        res = afpvec4(sum / size);
     }
 
 #if NCNN_image_shader
