@@ -1,9 +1,9 @@
-name: windows-arm-cpu-vs2019
+name: windows-arm64-cpu
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/windows-arm-cpu-vs2019.yml'
+    - '.github/workflows/windows-arm64-cpu.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
@@ -13,7 +13,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/windows-arm-cpu-vs2019.yml'
+    - '.github/workflows/windows-arm64-cpu.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
@@ -21,20 +21,29 @@ on:
     - 'src/layer/arm/**'
     - 'tests/**'
 concurrency:
-  group: windows-arm-cpu-vs2019-${{ github.ref }}
+  group: windows-arm64-cpu-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  windows-vs2019:
+  windows:
     runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - vs-version: vs2019
+            toolset-version: v142
+
+          - vs-version: vs2022
+            toolset-version: v143
+
     steps:
     - uses: actions/checkout@v3
     - name: build
       run: |
         mkdir build; cd build
-        cmake -T v142,host=x64 -A arm -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.torch-version }},host=x64 -A arm64 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 2
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
-        cmake -T v142,host=x64 -A arm -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T ${{ matrix.torch-version }},host=x64 -A arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2

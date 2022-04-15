@@ -1,9 +1,9 @@
-name: windows-x86-cpu-vs2017
+name: windows-x86-cpu
 on:
   push:
     branches: [master]
     paths:
-    - '.github/workflows/windows-x86-cpu-vs2017.yml'
+    - '.github/workflows/windows-x86-cpu.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
@@ -13,7 +13,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-    - '.github/workflows/windows-x86-cpu-vs2017.yml'
+    - '.github/workflows/windows-x86-cpu.yml'
     - 'CMakeLists.txt'
     - 'cmake/**'
     - 'src/*'
@@ -21,22 +21,37 @@ on:
     - 'src/layer/x86/**'
     - 'tests/**'
 concurrency:
-  group: windows-x86-cpu-vs2017-${{ github.ref }}
+  group: windows-x86-cpu-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  windows-vs2017:
+  windows-x86:
     runs-on: windows-2019
+    strategy:
+      matrix:
+        include:
+          - vs-version: vs2015
+            toolset-version: v140
+
+          - vs-version: vs2017
+            toolset-version: v141
+
+          - vs-version: vs2019
+            toolset-version: v142
+
+          - vs-version: vs2022
+            toolset-version: v143
+
     steps:
     - uses: actions/checkout@v3
     - name: build
       run: |
         mkdir build; cd build
-        cmake -T v141,host=x64 -A Win32 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake -T ${{ matrix.torch-version }},host=x64 -A Win32 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . --config Release -j 2
     - name: test
       run: cd build; ctest -C Release --output-on-failure -j 2
     - name: build-shared
       run: |
         mkdir build-shared; cd build-shared
-        cmake -T v141,host=x64 -A Win32 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake -T ${{ matrix.torch-version }},host=x64 -A Win32 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . --config Release -j 2
