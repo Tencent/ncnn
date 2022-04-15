@@ -25,15 +25,17 @@ concurrency:
   cancel-in-progress: true
 jobs:
   windows:
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - vs-version: vs2019
             toolset-version: v142
+            os: windows-2022
 
           - vs-version: vs2022
             toolset-version: v143
+            os: windows-2022
 
     steps:
     - uses: actions/checkout@v3
