@@ -22,6 +22,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
 layout (constant_id = 0) const int bias_term = 0;
 layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
@@ -238,221 +241,22 @@ void main()
         v33 = bias_value + v33;
     }
 
-    if (activation_type == 1)
-    {
-        v00[0] = max(v00[0], afp(0.f));
-        v00[1] = max(v00[1], afp(0.f));
-        v01[0] = max(v01[0], afp(0.f));
-        v01[1] = max(v01[1], afp(0.f));
-        v02[0] = max(v02[0], afp(0.f));
-        v02[1] = max(v02[1], afp(0.f));
-        v03[0] = max(v03[0], afp(0.f));
-        v03[1] = max(v03[1], afp(0.f));
-        v10[0] = max(v10[0], afp(0.f));
-        v10[1] = max(v10[1], afp(0.f));
-        v11[0] = max(v11[0], afp(0.f));
-        v11[1] = max(v11[1], afp(0.f));
-        v12[0] = max(v12[0], afp(0.f));
-        v12[1] = max(v12[1], afp(0.f));
-        v13[0] = max(v13[0], afp(0.f));
-        v13[1] = max(v13[1], afp(0.f));
-        v20[0] = max(v20[0], afp(0.f));
-        v20[1] = max(v20[1], afp(0.f));
-        v21[0] = max(v21[0], afp(0.f));
-        v21[1] = max(v21[1], afp(0.f));
-        v22[0] = max(v22[0], afp(0.f));
-        v22[1] = max(v22[1], afp(0.f));
-        v23[0] = max(v23[0], afp(0.f));
-        v23[1] = max(v23[1], afp(0.f));
-        v30[0] = max(v30[0], afp(0.f));
-        v30[1] = max(v30[1], afp(0.f));
-        v31[0] = max(v31[0], afp(0.f));
-        v31[1] = max(v31[1], afp(0.f));
-        v32[0] = max(v32[0], afp(0.f));
-        v32[1] = max(v32[1], afp(0.f));
-        v33[0] = max(v33[0], afp(0.f));
-        v33[1] = max(v33[1], afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        v00[0] = mix(v00[0], v00[0] * afp(slope), lessThan(v00[0], afpvec4(0.f)));
-        v00[1] = mix(v00[1], v00[1] * afp(slope), lessThan(v00[1], afpvec4(0.f)));
-        v01[0] = mix(v01[0], v01[0] * afp(slope), lessThan(v01[0], afpvec4(0.f)));
-        v01[1] = mix(v01[1], v01[1] * afp(slope), lessThan(v01[1], afpvec4(0.f)));
-        v02[0] = mix(v02[0], v02[0] * afp(slope), lessThan(v02[0], afpvec4(0.f)));
-        v02[1] = mix(v02[1], v02[1] * afp(slope), lessThan(v02[1], afpvec4(0.f)));
-        v03[0] = mix(v03[0], v03[0] * afp(slope), lessThan(v03[0], afpvec4(0.f)));
-        v03[1] = mix(v03[1], v03[1] * afp(slope), lessThan(v03[1], afpvec4(0.f)));
-        v10[0] = mix(v10[0], v10[0] * afp(slope), lessThan(v10[0], afpvec4(0.f)));
-        v10[1] = mix(v10[1], v10[1] * afp(slope), lessThan(v10[1], afpvec4(0.f)));
-        v11[0] = mix(v11[0], v11[0] * afp(slope), lessThan(v11[0], afpvec4(0.f)));
-        v11[1] = mix(v11[1], v11[1] * afp(slope), lessThan(v11[1], afpvec4(0.f)));
-        v12[0] = mix(v12[0], v12[0] * afp(slope), lessThan(v12[0], afpvec4(0.f)));
-        v12[1] = mix(v12[1], v12[1] * afp(slope), lessThan(v12[1], afpvec4(0.f)));
-        v13[0] = mix(v13[0], v13[0] * afp(slope), lessThan(v13[0], afpvec4(0.f)));
-        v13[1] = mix(v13[1], v13[1] * afp(slope), lessThan(v13[1], afpvec4(0.f)));
-        v20[0] = mix(v20[0], v20[0] * afp(slope), lessThan(v20[0], afpvec4(0.f)));
-        v20[1] = mix(v20[1], v20[1] * afp(slope), lessThan(v20[1], afpvec4(0.f)));
-        v21[0] = mix(v21[0], v21[0] * afp(slope), lessThan(v21[0], afpvec4(0.f)));
-        v21[1] = mix(v21[1], v21[1] * afp(slope), lessThan(v21[1], afpvec4(0.f)));
-        v22[0] = mix(v22[0], v22[0] * afp(slope), lessThan(v22[0], afpvec4(0.f)));
-        v22[1] = mix(v22[1], v22[1] * afp(slope), lessThan(v22[1], afpvec4(0.f)));
-        v23[0] = mix(v23[0], v23[0] * afp(slope), lessThan(v23[0], afpvec4(0.f)));
-        v23[1] = mix(v23[1], v23[1] * afp(slope), lessThan(v23[1], afpvec4(0.f)));
-        v30[0] = mix(v30[0], v30[0] * afp(slope), lessThan(v30[0], afpvec4(0.f)));
-        v30[1] = mix(v30[1], v30[1] * afp(slope), lessThan(v30[1], afpvec4(0.f)));
-        v31[0] = mix(v31[0], v31[0] * afp(slope), lessThan(v31[0], afpvec4(0.f)));
-        v31[1] = mix(v31[1], v31[1] * afp(slope), lessThan(v31[1], afpvec4(0.f)));
-        v32[0] = mix(v32[0], v32[0] * afp(slope), lessThan(v32[0], afpvec4(0.f)));
-        v32[1] = mix(v32[1], v32[1] * afp(slope), lessThan(v32[1], afpvec4(0.f)));
-        v33[0] = mix(v33[0], v33[0] * afp(slope), lessThan(v33[0], afpvec4(0.f)));
-        v33[1] = mix(v33[1], v33[1] * afp(slope), lessThan(v33[1], afpvec4(0.f)));
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        v00[0] = clamp(v00[0], const_min, const_max);
-        v00[1] = clamp(v00[1], const_min, const_max);
-        v01[0] = clamp(v01[0], const_min, const_max);
-        v01[1] = clamp(v01[1], const_min, const_max);
-        v02[0] = clamp(v02[0], const_min, const_max);
-        v02[1] = clamp(v02[1], const_min, const_max);
-        v03[0] = clamp(v03[0], const_min, const_max);
-        v03[1] = clamp(v03[1], const_min, const_max);
-        v10[0] = clamp(v10[0], const_min, const_max);
-        v10[1] = clamp(v10[1], const_min, const_max);
-        v11[0] = clamp(v11[0], const_min, const_max);
-        v11[1] = clamp(v11[1], const_min, const_max);
-        v12[0] = clamp(v12[0], const_min, const_max);
-        v12[1] = clamp(v12[1], const_min, const_max);
-        v13[0] = clamp(v13[0], const_min, const_max);
-        v13[1] = clamp(v13[1], const_min, const_max);
-        v20[0] = clamp(v20[0], const_min, const_max);
-        v20[1] = clamp(v20[1], const_min, const_max);
-        v21[0] = clamp(v21[0], const_min, const_max);
-        v21[1] = clamp(v21[1], const_min, const_max);
-        v22[0] = clamp(v22[0], const_min, const_max);
-        v22[1] = clamp(v22[1], const_min, const_max);
-        v23[0] = clamp(v23[0], const_min, const_max);
-        v23[1] = clamp(v23[1], const_min, const_max);
-        v30[0] = clamp(v30[0], const_min, const_max);
-        v30[1] = clamp(v30[1], const_min, const_max);
-        v31[0] = clamp(v31[0], const_min, const_max);
-        v31[1] = clamp(v31[1], const_min, const_max);
-        v32[0] = clamp(v32[0], const_min, const_max);
-        v32[1] = clamp(v32[1], const_min, const_max);
-        v33[0] = clamp(v33[0], const_min, const_max);
-        v33[1] = clamp(v33[1], const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        v00[0] = afp(1.f) / (afp(1.f) + exp(-v00[0]));
-        v00[1] = afp(1.f) / (afp(1.f) + exp(-v00[1]));
-        v01[0] = afp(1.f) / (afp(1.f) + exp(-v01[0]));
-        v01[1] = afp(1.f) / (afp(1.f) + exp(-v01[1]));
-        v02[0] = afp(1.f) / (afp(1.f) + exp(-v02[0]));
-        v02[1] = afp(1.f) / (afp(1.f) + exp(-v02[1]));
-        v03[0] = afp(1.f) / (afp(1.f) + exp(-v03[0]));
-        v03[1] = afp(1.f) / (afp(1.f) + exp(-v03[1]));
-        v10[0] = afp(1.f) / (afp(1.f) + exp(-v10[0]));
-        v10[1] = afp(1.f) / (afp(1.f) + exp(-v10[1]));
-        v11[0] = afp(1.f) / (afp(1.f) + exp(-v11[0]));
-        v11[1] = afp(1.f) / (afp(1.f) + exp(-v11[1]));
-        v12[0] = afp(1.f) / (afp(1.f) + exp(-v12[0]));
-        v12[1] = afp(1.f) / (afp(1.f) + exp(-v12[1]));
-        v13[0] = afp(1.f) / (afp(1.f) + exp(-v13[0]));
-        v13[1] = afp(1.f) / (afp(1.f) + exp(-v13[1]));
-        v20[0] = afp(1.f) / (afp(1.f) + exp(-v20[0]));
-        v20[1] = afp(1.f) / (afp(1.f) + exp(-v20[1]));
-        v21[0] = afp(1.f) / (afp(1.f) + exp(-v21[0]));
-        v21[1] = afp(1.f) / (afp(1.f) + exp(-v21[1]));
-        v22[0] = afp(1.f) / (afp(1.f) + exp(-v22[0]));
-        v22[1] = afp(1.f) / (afp(1.f) + exp(-v22[1]));
-        v23[0] = afp(1.f) / (afp(1.f) + exp(-v23[0]));
-        v23[1] = afp(1.f) / (afp(1.f) + exp(-v23[1]));
-        v30[0] = afp(1.f) / (afp(1.f) + exp(-v30[0]));
-        v30[1] = afp(1.f) / (afp(1.f) + exp(-v30[1]));
-        v31[0] = afp(1.f) / (afp(1.f) + exp(-v31[0]));
-        v31[1] = afp(1.f) / (afp(1.f) + exp(-v31[1]));
-        v32[0] = afp(1.f) / (afp(1.f) + exp(-v32[0]));
-        v32[1] = afp(1.f) / (afp(1.f) + exp(-v32[1]));
-        v33[0] = afp(1.f) / (afp(1.f) + exp(-v33[0]));
-        v33[1] = afp(1.f) / (afp(1.f) + exp(-v33[1]));
-    }
-    if (activation_type == 5)
-    {
-        v00[0] = v00[0] * tanh(log(exp(v00[0]) + afp(1.f)));
-        v00[1] = v00[1] * tanh(log(exp(v00[1]) + afp(1.f)));
-        v01[0] = v01[0] * tanh(log(exp(v01[0]) + afp(1.f)));
-        v01[1] = v01[1] * tanh(log(exp(v01[1]) + afp(1.f)));
-        v02[0] = v02[0] * tanh(log(exp(v02[0]) + afp(1.f)));
-        v02[1] = v02[1] * tanh(log(exp(v02[1]) + afp(1.f)));
-        v03[0] = v03[0] * tanh(log(exp(v03[0]) + afp(1.f)));
-        v03[1] = v03[1] * tanh(log(exp(v03[1]) + afp(1.f)));
-        v10[0] = v10[0] * tanh(log(exp(v10[0]) + afp(1.f)));
-        v10[1] = v10[1] * tanh(log(exp(v10[1]) + afp(1.f)));
-        v11[0] = v11[0] * tanh(log(exp(v11[0]) + afp(1.f)));
-        v11[1] = v11[1] * tanh(log(exp(v11[1]) + afp(1.f)));
-        v12[0] = v12[0] * tanh(log(exp(v12[0]) + afp(1.f)));
-        v12[1] = v12[1] * tanh(log(exp(v12[1]) + afp(1.f)));
-        v13[0] = v13[0] * tanh(log(exp(v13[0]) + afp(1.f)));
-        v13[1] = v13[1] * tanh(log(exp(v13[1]) + afp(1.f)));
-        v20[0] = v20[0] * tanh(log(exp(v20[0]) + afp(1.f)));
-        v20[1] = v20[1] * tanh(log(exp(v20[1]) + afp(1.f)));
-        v21[0] = v21[0] * tanh(log(exp(v21[0]) + afp(1.f)));
-        v21[1] = v21[1] * tanh(log(exp(v21[1]) + afp(1.f)));
-        v22[0] = v22[0] * tanh(log(exp(v22[0]) + afp(1.f)));
-        v22[1] = v22[1] * tanh(log(exp(v22[1]) + afp(1.f)));
-        v23[0] = v23[0] * tanh(log(exp(v23[0]) + afp(1.f)));
-        v23[1] = v23[1] * tanh(log(exp(v23[1]) + afp(1.f)));
-        v30[0] = v30[0] * tanh(log(exp(v30[0]) + afp(1.f)));
-        v30[1] = v30[1] * tanh(log(exp(v30[1]) + afp(1.f)));
-        v31[0] = v31[0] * tanh(log(exp(v31[0]) + afp(1.f)));
-        v31[1] = v31[1] * tanh(log(exp(v31[1]) + afp(1.f)));
-        v32[0] = v32[0] * tanh(log(exp(v32[0]) + afp(1.f)));
-        v32[1] = v32[1] * tanh(log(exp(v32[1]) + afp(1.f)));
-        v33[0] = v33[0] * tanh(log(exp(v33[0]) + afp(1.f)));
-        v33[1] = v33[1] * tanh(log(exp(v33[1]) + afp(1.f)));
-    }
-    if (activation_type == 6)
-    {
-        const afp alpha = afp(activation_param_0);
-        const afp beta = afp(activation_param_1);
-        v00[0] = v00[0] * clamp(v00[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v00[1] = v00[1] * clamp(v00[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v01[0] = v01[0] * clamp(v01[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v01[1] = v01[1] * clamp(v01[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v02[0] = v02[0] * clamp(v02[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v02[1] = v02[1] * clamp(v02[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v03[0] = v03[0] * clamp(v03[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v03[1] = v03[1] * clamp(v03[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v10[0] = v10[0] * clamp(v10[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v10[1] = v10[1] * clamp(v10[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v11[0] = v11[0] * clamp(v11[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v11[1] = v11[1] * clamp(v11[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v12[0] = v12[0] * clamp(v12[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v12[1] = v12[1] * clamp(v12[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v13[0] = v13[0] * clamp(v13[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v13[1] = v13[1] * clamp(v13[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v20[0] = v20[0] * clamp(v20[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v20[1] = v20[1] * clamp(v20[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v21[0] = v21[0] * clamp(v21[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v21[1] = v21[1] * clamp(v21[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v22[0] = v22[0] * clamp(v22[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v22[1] = v22[1] * clamp(v22[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v23[0] = v23[0] * clamp(v23[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v23[1] = v23[1] * clamp(v23[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v30[0] = v30[0] * clamp(v30[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v30[1] = v30[1] * clamp(v30[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v31[0] = v31[0] * clamp(v31[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v31[1] = v31[1] * clamp(v31[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v32[0] = v32[0] * clamp(v32[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v32[1] = v32[1] * clamp(v32[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v33[0] = v33[0] * clamp(v33[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v33[1] = v33[1] * clamp(v33[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-    }
+    v00 = activation_afpvec8(v00, activation_type, activation_param_0, activation_param_1);
+    v01 = activation_afpvec8(v01, activation_type, activation_param_0, activation_param_1);
+    v02 = activation_afpvec8(v02, activation_type, activation_param_0, activation_param_1);
+    v03 = activation_afpvec8(v03, activation_type, activation_param_0, activation_param_1);
+    v10 = activation_afpvec8(v10, activation_type, activation_param_0, activation_param_1);
+    v11 = activation_afpvec8(v11, activation_type, activation_param_0, activation_param_1);
+    v12 = activation_afpvec8(v12, activation_type, activation_param_0, activation_param_1);
+    v13 = activation_afpvec8(v13, activation_type, activation_param_0, activation_param_1);
+    v20 = activation_afpvec8(v20, activation_type, activation_param_0, activation_param_1);
+    v21 = activation_afpvec8(v21, activation_type, activation_param_0, activation_param_1);
+    v22 = activation_afpvec8(v22, activation_type, activation_param_0, activation_param_1);
+    v23 = activation_afpvec8(v23, activation_type, activation_param_0, activation_param_1);
+    v30 = activation_afpvec8(v30, activation_type, activation_param_0, activation_param_1);
+    v31 = activation_afpvec8(v31, activation_type, activation_param_0, activation_param_1);
+    v32 = activation_afpvec8(v32, activation_type, activation_param_0, activation_param_1);
+    v33 = activation_afpvec8(v33, activation_type, activation_param_0, activation_param_1);
 
     // store 4x4
     int x = gx * 4;

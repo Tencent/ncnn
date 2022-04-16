@@ -21,6 +21,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
 layout (constant_id = 0) const int bias_term = 0;
 layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
@@ -149,53 +152,10 @@ void main()
         v11 = m11 - m12 + m13;
     }
 
-    if (activation_type == 1)
-    {
-        v00 = max(v00, afp(0.f));
-        v10 = max(v10, afp(0.f));
-        v01 = max(v01, afp(0.f));
-        v11 = max(v11, afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        v00 = mix(v00, v00 * afp(slope), lessThan(v00, afpvec4(0.f)));
-        v10 = mix(v10, v10 * afp(slope), lessThan(v10, afpvec4(0.f)));
-        v01 = mix(v01, v01 * afp(slope), lessThan(v01, afpvec4(0.f)));
-        v11 = mix(v11, v11 * afp(slope), lessThan(v11, afpvec4(0.f)));
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        v00 = clamp(v00, const_min, const_max);
-        v10 = clamp(v10, const_min, const_max);
-        v01 = clamp(v01, const_min, const_max);
-        v11 = clamp(v11, const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        v00 = afp(1.f) / (afp(1.f) + exp(-v00));
-        v10 = afp(1.f) / (afp(1.f) + exp(-v10));
-        v01 = afp(1.f) / (afp(1.f) + exp(-v01));
-        v11 = afp(1.f) / (afp(1.f) + exp(-v11));
-    }
-    if (activation_type == 5)
-    {
-        v00 = v00 * tanh(log(exp(v00) + afp(1.f)));
-        v01 = v01 * tanh(log(exp(v01) + afp(1.f)));
-        v10 = v10 * tanh(log(exp(v10) + afp(1.f)));
-        v11 = v11 * tanh(log(exp(v11) + afp(1.f)));
-    }
-    if (activation_type == 6)
-    {
-        const afp alpha = afp(activation_param_0);
-        const afp beta = afp(activation_param_1);
-        v00 = v00 * clamp(v00 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v01 = v01 * clamp(v01 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v10 = v10 * clamp(v10 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v11 = v11 * clamp(v11 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-    }
+    v00 = activation_afpvec4(v00, activation_type, activation_param_0, activation_param_1);
+    v01 = activation_afpvec4(v01, activation_type, activation_param_0, activation_param_1);
+    v10 = activation_afpvec4(v10, activation_type, activation_param_0, activation_param_1);
+    v11 = activation_afpvec4(v11, activation_type, activation_param_0, activation_param_1);
 
     // store 2x2
     int x = gx * 2;
