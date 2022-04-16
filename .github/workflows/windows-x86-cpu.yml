@@ -1,0 +1,62 @@
+name: windows-x86-cpu
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-x86-cpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-x86-cpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/x86/**'
+    - 'tests/**'
+concurrency:
+  group: windows-x86-cpu-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-x86:
+    name: ${{ matrix.vs-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - vs-version: vs2015
+            toolset-version: v140
+            os: windows-2019
+
+          - vs-version: vs2017
+            toolset-version: v141
+            os: windows-2019
+
+          - vs-version: vs2019
+            toolset-version: v142
+            os: windows-2022
+
+          - vs-version: vs2022
+            toolset-version: v143
+            os: windows-2022
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . --config Release -j 2
+    - name: test
+      run: cd build; ctest -C Release --output-on-failure -j 2
+    - name: build-shared
+      run: |
+        mkdir build-shared; cd build-shared
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A Win32 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 2

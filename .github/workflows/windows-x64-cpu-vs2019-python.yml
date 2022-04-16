@@ -44,7 +44,7 @@ jobs:
     - name: build
       run: |
         mkdir build; cd build
-        cmake -DNCNN_PYTHON=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=OFF ..
+        cmake -T v142,host=x64 -A x64 -DNCNN_PYTHON=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=OFF ..
         cmake --build . --config Release -j 2
     - name: install python
       run: cd python && pip install .
