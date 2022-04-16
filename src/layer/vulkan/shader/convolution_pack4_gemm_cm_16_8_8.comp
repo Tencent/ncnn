@@ -21,6 +21,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
 #extension GL_KHR_memory_scope_semantics: require
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
@@ -275,53 +278,10 @@ void main()
         afpvec4 sum2 = afpvec4(unpackHalf2x16(sum2_u2.x), unpackHalf2x16(sum2_u2.y));
         afpvec4 sum3 = afpvec4(unpackHalf2x16(sum3_u2.x), unpackHalf2x16(sum3_u2.y));
 
-        if (activation_type == 1)
-        {
-            sum0 = max(sum0, afp(0.f));
-            sum1 = max(sum1, afp(0.f));
-            sum2 = max(sum2, afp(0.f));
-            sum3 = max(sum3, afp(0.f));
-        }
-        if (activation_type == 2)
-        {
-            const afp slope = afp(activation_param_0);
-            sum0 = mix(sum0, sum0 * afp(slope), lessThan(sum0, afpvec4(0.f)));
-            sum1 = mix(sum1, sum1 * afp(slope), lessThan(sum1, afpvec4(0.f)));
-            sum2 = mix(sum2, sum2 * afp(slope), lessThan(sum2, afpvec4(0.f)));
-            sum3 = mix(sum3, sum3 * afp(slope), lessThan(sum3, afpvec4(0.f)));
-        }
-        if (activation_type == 3)
-        {
-            const afp const_min = afp(activation_param_0);
-            const afp const_max = afp(activation_param_1);
-            sum0 = clamp(sum0, const_min, const_max);
-            sum1 = clamp(sum1, const_min, const_max);
-            sum2 = clamp(sum2, const_min, const_max);
-            sum3 = clamp(sum3, const_min, const_max);
-        }
-        if (activation_type == 4)
-        {
-            sum0 = afp(1.f) / (afp(1.f) + exp(-sum0));
-            sum1 = afp(1.f) / (afp(1.f) + exp(-sum1));
-            sum2 = afp(1.f) / (afp(1.f) + exp(-sum2));
-            sum3 = afp(1.f) / (afp(1.f) + exp(-sum3));
-        }
-        if (activation_type == 5)
-        {
-            sum0 = sum0 * tanh(log(exp(sum0) + afp(1.f)));
-            sum1 = sum1 * tanh(log(exp(sum1) + afp(1.f)));
-            sum2 = sum2 * tanh(log(exp(sum2) + afp(1.f)));
-            sum3 = sum3 * tanh(log(exp(sum3) + afp(1.f)));
-        }
-        if (activation_type == 6)
-        {
-            const afp alpha = afp(activation_param_0);
-            const afp beta = afp(activation_param_1);
-            sum0 = sum0 * clamp(sum0 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-            sum1 = sum1 * clamp(sum1 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-            sum2 = sum2 * clamp(sum2 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-            sum3 = sum3 * clamp(sum3 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        }
+        sum0 = activation_afpvec4(sum0, activation_type, activation_param_0, activation_param_1);
+        sum1 = activation_afpvec4(sum1, activation_type, activation_param_0, activation_param_1);
+        sum2 = activation_afpvec4(sum2, activation_type, activation_param_0, activation_param_1);
+        sum3 = activation_afpvec4(sum3, activation_type, activation_param_0, activation_param_1);
 
         int gi = gy * psc(outcstep) + gx + lxd16 * psc(outcstep) + lxm16;
         {

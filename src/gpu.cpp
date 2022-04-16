@@ -23,6 +23,8 @@
 #include "glslang/SPIRV/GlslangToSpv.h"
 #include "glslang/glslang/Public/ShaderLang.h"
 
+#include "vulkan_activation.comp.hex.h"
+
 #include "command.h"
 #include "layer.h"
 #include "layer/vulkan/packing_vulkan.h"
@@ -1725,7 +1727,7 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
     dummy_buffer.create(1, 4u, dummy_allocator);
     dummy_image.create(1, 4u, dummy_allocator);
 #if __APPLE__
-    if (vkdev->info.vendor_id() != 0x8086)
+    if (vkdev->info.type() == 0)
         dummy_image_readonly.create(1, 4u, dummy_allocator);
 #else
     dummy_image_readonly.create(1, 4u, dummy_allocator);
@@ -1736,7 +1738,7 @@ int VulkanDevicePrivate::create_dummy_buffer_image()
     cmd.record_dummy(dummy_buffer);
     cmd.record_dummy(dummy_image);
 #if __APPLE__
-    if (vkdev->info.vendor_id() != 0x8086)
+    if (vkdev->info.type() == 0)
         cmd.record_dummy_readonly(dummy_image_readonly);
 #else
     cmd.record_dummy_readonly(dummy_image_readonly);
@@ -1752,7 +1754,7 @@ void VulkanDevicePrivate::destroy_dummy_buffer_image()
     dummy_buffer.release();
     dummy_image.release();
 #if __APPLE__
-    if (vkdev->info.vendor_id() != 0x8086)
+    if (vkdev->info.type() == 0)
         dummy_image_readonly.release();
 #else
     dummy_image_readonly.release();
@@ -2818,7 +2820,7 @@ VkImageMat VulkanDevice::get_dummy_image() const
 VkImageMat VulkanDevice::get_dummy_image_readonly() const
 {
 #if __APPLE__
-    if (info.vendor_id() == 0x8086)
+    if (info.type() != 0)
         return d->dummy_image;
 #endif
     return d->dummy_image_readonly;
@@ -3244,6 +3246,28 @@ static TBuiltInResource get_default_TBuiltInResource()
 
     return resource;
 }
+
+class VulkanShaderIncluder : public glslang::TShader::Includer
+{
+public:
+    virtual glslang::TShader::Includer::IncludeResult* includeLocal(const char* headerName, const char* /*includerName*/, size_t /*inclusionDepth*/)
+    {
+        if (strcmp(headerName, "vulkan_activation.comp") == 0)
+        {
+            const char* const headerData = vulkan_activation_comp_data;
+            const size_t headerLength = sizeof(vulkan_activation_comp_data);
+            glslang::TShader::Includer::IncludeResult* r = new glslang::TShader::Includer::IncludeResult(headerName, headerData, headerLength, 0);
+            return r;
+        }
+
+        return 0;
+    }
+
+    virtual void releaseInclude(glslang::TShader::Includer::IncludeResult* r)
+    {
+        delete r;
+    }
+};
 
 int compile_spirv_module(const char* comp_string, const Option& opt, std::vector<uint32_t>& spirv)
 {
@@ -3699,6 +3723,10 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
         custom_defines.push_back(std::make_pair("NCNN_shader_local_memory", "1"));
     }
 
+#if __APPLE__
+    custom_defines.push_back(std::make_pair("NCNN_moltenvk", "1"));
+#endif
+
     std::string preamble;
     std::vector<std::string> processes;
 
@@ -3740,7 +3768,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
 
         TBuiltInResource resources = get_default_TBuiltInResource();
 
-        bool pr = s.parse(&resources, 100, false, EShMsgDefault);
+        VulkanShaderIncluder includer;
+
+        bool pr = s.parse(&resources, 100, ENoProfile, false, false, EShMsgDefault, includer);
         if (!pr)
         {
             NCNN_LOGE("compile spir-v module failed");
