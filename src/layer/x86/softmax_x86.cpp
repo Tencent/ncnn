@@ -1671,6 +1671,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+            for (; j + 15 < w; j += 16)
+            {
+                __m512 _p = _mm512_loadu_ps(ptr);
+                __m512 _max = _mm512_load_ps(pmax);
+                _max = _mm512_max_ps(_max, _p);
+                _mm512_store_ps(pmax, _max);
+
+                ptr += 16;
+                pmax += 16;
+            }
+#endif // __AVX512F__
             for (; j + 7 < w; j += 8)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
@@ -1717,6 +1729,22 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+            for (; j + 15 < w; j += 16)
+            {
+                __m512 _p = _mm512_loadu_ps(ptr);
+                __m512 _max = _mm512_load_ps(pmax);
+                __m512 _sum = _mm512_load_ps(psum);
+                _p = exp512_ps(_mm512_sub_ps(_p, _max));
+                _sum = _mm512_add_ps(_sum, _p);
+                _mm512_storeu_ps(ptr, _p);
+                _mm512_store_ps(psum, _sum);
+
+                ptr += 16;
+                pmax += 16;
+                psum += 16;
+            }
+#endif // __AVX512F__
             for (; j + 7 < w; j += 8)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
@@ -1766,6 +1794,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+            for (; j + 15 < w; j += 16)
+            {
+                __m512 _p = _mm512_loadu_ps(ptr);
+                __m512 _sum = _mm512_load_ps(psum);
+                _p = _mm512_div_ps(_p, _sum);
+                _mm512_storeu_ps(ptr, _p);
+
+                ptr += 16;
+                psum += 16;
+            }
+#endif // __AVX512F__
             for (; j + 7 < w; j += 8)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
@@ -1813,6 +1853,15 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                __m512 _max_avx512 = _mm512_set1_ps(-FLT_MAX);
+                for (; j + 15 < w; j += 16)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr + j);
+                    _max_avx512 = _mm512_max_ps(_max_avx512, _p);
+                }
+                max = std::max(max, _mm512_comp_reduce_max_ps(_max_avx512));
+#endif // __AVX512F__
                 __m256 _max_avx = _mm256_set1_ps(-FLT_MAX);
                 for (; j + 7 < w; j += 8)
                 {
@@ -1840,6 +1889,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                __m512 _sum_avx512 = _mm512_setzero_ps();
+                __m512 _max_avx512 = _mm512_set1_ps(max);
+                for (; j + 15 < w; j += 16)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr + j);
+                    _p = exp512_ps(_mm512_sub_ps(_p, _max_avx512));
+                    _mm512_storeu_ps(ptr + j, _p);
+                    _sum_avx512 = _mm512_add_ps(_sum_avx512, _p);
+                }
+                sum += _mm512_comp_reduce_add_ps(_sum_avx512);
+#endif // __AVX512F__
                 __m256 _sum_avx = _mm256_setzero_ps();
                 __m256 _max_avx = _mm256_set1_ps(max);
                 for (; j + 7 < w; j += 8)
@@ -1873,6 +1934,15 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                __m512 _sum_avx512 = _mm512_set1_ps(sum);
+                for (; j + 15 < w; j += 16)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr + j);
+                    _p = _mm512_div_ps(_p, _sum_avx512);
+                    _mm512_storeu_ps(ptr + j, _p);
+                }
+#endif // __AVX512F__
                 __m256 _sum_avx = _mm256_set1_ps(sum);
                 for (; j + 7 < w; j += 8)
                 {
@@ -1917,6 +1987,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int i = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+            for (; i + 15 < size; i += 16)
+            {
+                __m512 _p = _mm512_loadu_ps(ptr);
+                __m512 _max = _mm512_load_ps(maxptr);
+                _max = _mm512_max_ps(_max, _p);
+                _mm512_store_ps(maxptr, _max);
+
+                ptr += 16;
+                maxptr += 16;
+            }
+#endif // __AVX512F__
             for (; i + 7 < size; i += 8)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
@@ -1957,6 +2039,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int i = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+            for (; i + 15 < size; i += 16)
+            {
+                __m512 _p = _mm512_loadu_ps(ptr);
+                __m512 _max = _mm512_load_ps(maxptr);
+                _p = exp512_ps(_mm512_sub_ps(_p, _max));
+                _mm512_storeu_ps(ptr, _p);
+
+                ptr += 16;
+                maxptr += 16;
+            }
+#endif // __AVX512F__
             for (; i + 7 < size; i += 8)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
@@ -2001,6 +2095,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int i = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+            for (; i + 15 < size; i += 16)
+            {
+                __m512 _p = _mm512_loadu_ps(ptr);
+                __m512 _sum = _mm512_load_ps(sumptr);
+                _sum = _mm512_add_ps(_sum, _p);
+                _mm512_store_ps(sumptr, _sum);
+
+                ptr += 16;
+                sumptr += 16;
+            }
+#endif // __AVX512F__
             for (; i + 7 < size; i += 8)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
@@ -2041,6 +2147,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int i = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+            for (; i + 15 < size; i += 16)
+            {
+                __m512 _p = _mm512_loadu_ps(ptr);
+                __m512 _sum = _mm512_load_ps(sumptr);
+                _p = _mm512_div_ps(_p, _sum);
+                _mm512_storeu_ps(ptr, _p);
+
+                ptr += 16;
+                sumptr += 16;
+            }
+#endif // __AVX512F__
             for (; i + 7 < size; i += 8)
             {
                 __m256 _p = _mm256_loadu_ps(ptr);
@@ -2096,6 +2214,15 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                for (; j + 15 < w; j += 16)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr + j);
+                    __m512 _max = _mm512_loadu_ps(maxptr + j);
+                    _max = _mm512_max_ps(_max, _p);
+                    _mm512_storeu_ps(maxptr + j, _max);
+                }
+#endif // __AVX512F__
                 for (; j + 7 < w; j += 8)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr + j);
@@ -2139,6 +2266,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                for (; j + 15 < w; j += 16)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr + j);
+                    __m512 _max = _mm512_loadu_ps(maxptr + j);
+                    __m512 _sum = _mm512_loadu_ps(sumptr + j);
+                    _p = exp512_ps(_mm512_sub_ps(_p, _max));
+                    _sum = _mm512_add_ps(_sum, _p);
+                    _mm512_storeu_ps(ptr + j, _p);
+                    _mm512_storeu_ps(sumptr + j, _sum);
+                }
+#endif // __AVX512F__
                 for (; j + 7 < w; j += 8)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr + j);
@@ -2182,6 +2321,15 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                for (; j + 15 < w; j += 16)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr + j);
+                    __m512 _sum = _mm512_loadu_ps(sumptr + j);
+                    _p = _mm512_div_ps(_p, _sum);
+                    _mm512_storeu_ps(ptr + j, _p);
+                }
+#endif // __AVX512F__
                 for (; j + 7 < w; j += 8)
                 {
                     __m256 _p = _mm256_loadu_ps(ptr + j);
@@ -2226,6 +2374,15 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                    __m512 _max_avx512 = _mm512_set1_ps(-FLT_MAX);
+                    for (; j + 15 < w; j += 16)
+                    {
+                        __m512 _p = _mm512_loadu_ps(ptr + j);
+                        _max_avx512 = _mm512_max_ps(_max_avx512, _p);
+                    }
+                    max = std::max(max, _mm512_comp_reduce_max_ps(_max_avx512));
+#endif // __AVX512F__
                     __m256 _max_avx = _mm256_set1_ps(-FLT_MAX);
                     for (; j + 7 < w; j += 8)
                     {
@@ -2253,6 +2410,18 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                    __m512 _sum_avx512 = _mm512_setzero_ps();
+                    __m512 _max_avx512 = _mm512_set1_ps(max);
+                    for (; j + 15 < w; j += 16)
+                    {
+                        __m512 _p = _mm512_loadu_ps(ptr + j);
+                        _p = exp512_ps(_mm512_sub_ps(_p, _max_avx512));
+                        _mm512_storeu_ps(ptr + j, _p);
+                        _sum_avx512 = _mm512_add_ps(_sum_avx512, _p);
+                    }
+                    sum += _mm512_comp_reduce_add_ps(_sum_avx512);
+#endif // __AVX512F__
                     __m256 _sum_avx = _mm256_setzero_ps();
                     __m256 _max_avx = _mm256_set1_ps(max);
                     for (; j + 7 < w; j += 8)
@@ -2286,6 +2455,15 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     int j = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+                    __m512 _sum_avx512 = _mm512_set1_ps(sum);
+                    for (; j + 15 < w; j += 16)
+                    {
+                        __m512 _p = _mm512_loadu_ps(ptr + j);
+                        _p = _mm512_div_ps(_p, _sum_avx512);
+                        _mm512_storeu_ps(ptr + j, _p);
+                    }
+#endif // __AVX512F__
                     __m256 _sum_avx = _mm256_set1_ps(sum);
                     for (; j + 7 < w; j += 8)
                     {
