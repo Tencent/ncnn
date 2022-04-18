@@ -30,7 +30,7 @@ class Model(nn.Module):
         return a, b, c
 
 def test():
-    net = Model()
+    net = Model().half().float()
     net.eval()
 
     torch.manual_seed(0)
@@ -58,10 +58,6 @@ def test():
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
-            print(a0.shape)
-            print(b0.shape)
-            print(a0)
-            print(b0)
             return False
     return True
 

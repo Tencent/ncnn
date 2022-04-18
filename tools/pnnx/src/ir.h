@@ -155,6 +155,9 @@ public:
 
 bool operator==(const Attribute& lhs, const Attribute& rhs);
 
+// concat two attributes along the first axis
+Attribute operator+(const Attribute& a, const Attribute& b);
+
 class Operator;
 class Operand
 {

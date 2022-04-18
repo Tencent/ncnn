@@ -392,6 +392,42 @@ bool operator==(const Attribute& lhs, const Attribute& rhs)
     return true;
 }
 
+Attribute operator+(const Attribute& a, const Attribute& b)
+{
+    Attribute c;
+
+    if (a.type != b.type)
+    {
+        fprintf(stderr, "concat attribute type mismatch\n");
+        return c;
+    }
+
+    if (a.shape.size() != b.shape.size())
+    {
+        fprintf(stderr, "concat attribute shape rank mismatch\n");
+        return c;
+    }
+
+    for (int i = 1; i < (int)a.shape.size(); i++)
+    {
+        if (a.shape[i] != b.shape[i])
+        {
+            fprintf(stderr, "concat attribute shape mismatch\n");
+            return c;
+        }
+    }
+
+    c.type = a.type;
+    c.shape = a.shape;
+    c.shape[0] += b.shape[0]; // concat the first dim
+
+    c.data.resize(a.data.size() + b.data.size());
+    memcpy(c.data.data(), a.data.data(), a.data.size());
+    memcpy(c.data.data() + a.data.size(), b.data.data(), b.data.size());
+
+    return c;
+}
+
 Parameter Parameter::parse_from_string(const std::string& value)
 {
     Parameter p;
