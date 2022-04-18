@@ -54,7 +54,7 @@ class Model(nn.Module):
         return x2, x3, x4, y2, y3, y4
 
 def test():
-    net = Model()
+    net = Model().half().float()
     net.eval()
 
     torch.manual_seed(0)
@@ -76,7 +76,7 @@ def test():
     b = test_nn_LSTM_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+        if not torch.allclose(a0, b0, 1e-3, 1e-3):
             return False
     return True
 

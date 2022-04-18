@@ -638,7 +638,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
             _max = _mm256_max_ps(_max, _mm256_permute_ps(_max, _MM_SHUFFLE(2, 3, 0, 1)));
             _max = _mm256_max_ps(_max, _mm256_permute_ps(_max, _MM_SHUFFLE(1, 0, 3, 2)));
-            _max = _mm256_max_ps(_max, _mm256_permute2f128_ps(_max, _max, _MM_SHUFFLE(1, 0, 1, 0)));
+            _max = _mm256_max_ps(_max, _mm256_permute2f128_ps(_max, _max, _MM_SHUFFLE(0, 0, 0, 1)));
 
             __m256 _sum = _mm256_setzero_ps();
             for (int i = 0; i < w; i++)
@@ -650,7 +650,7 @@ int Softmax_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
             _sum = _mm256_add_ps(_sum, _mm256_permute_ps(_sum, _MM_SHUFFLE(2, 3, 0, 1)));
             _sum = _mm256_add_ps(_sum, _mm256_permute_ps(_sum, _MM_SHUFFLE(1, 0, 3, 2)));
-            _sum = _mm256_add_ps(_sum, _mm256_permute2f128_ps(_sum, _sum, _MM_SHUFFLE(1, 0, 1, 0)));
+            _sum = _mm256_add_ps(_sum, _mm256_permute2f128_ps(_sum, _sum, _MM_SHUFFLE(0, 0, 0, 1)));
 
             for (int i = 0; i < w; i++)
             {

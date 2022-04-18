@@ -46,7 +46,7 @@ class Model(nn.Module):
         return x
 
 def test():
-    net = Model()
+    net = Model().half().float()
     net.eval()
 
     torch.manual_seed(0)
