@@ -2212,7 +2212,7 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
                 continue;
             }
 
-            if (attr.type == 0 && attr.data == std::vector<char>{0, 0, 0, 0})
+            if (attr.type == 0 && attr.data == std::vector<char> {0, 0, 0, 0})
             {
                 // write fp16 flag
                 unsigned int fp16_flag = 0x01306B47;
