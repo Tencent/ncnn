@@ -46,6 +46,13 @@ static NCNN_FORCEINLINE float _mm_reduce_add_ps(__m128 x128)
     return _mm_cvtss_f32(x32);
 }
 
+static NCNN_FORCEINLINE float _mm_reduce_max_ps(__m128 x128)
+{
+    const __m128 x64 = _mm_max_ps(x128, _mm_movehl_ps(x128, x128));
+    const __m128 x32 = _mm_max_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
+    return _mm_cvtss_f32(x32);
+}
+
 static NCNN_FORCEINLINE int _mm_reduce_add_epi32(__m128i x)
 {
     __m128i hi64 = _mm_unpackhi_epi64(x, x);
@@ -287,6 +294,14 @@ static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)
     return _mm_cvtss_f32(x32);
 }
 
+static NCNN_FORCEINLINE float _mm256_reduce_max_ps(__m256 x)
+{
+    const __m128 x128 = _mm_max_ps(_mm256_extractf128_ps(x, 1), _mm256_castps256_ps128(x));
+    const __m128 x64 = _mm_max_ps(x128, _mm_movehl_ps(x128, x128));
+    const __m128 x32 = _mm_max_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
+    return _mm_cvtss_f32(x32);
+}
+
 static NCNN_FORCEINLINE int64_t float2int8_avx(const __m256& _v0)
 {
     // _MM_FROUND_TO_NEAREST_INT round to even
@@ -471,6 +486,15 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_add_ps(__m512 x)
     const __m128 x128 = _mm_add_ps(_mm256_castps256_ps128(x256), _mm256_extractf128_ps(x256, 1));
     const __m128 x64 = _mm_add_ps(x128, _mm_movehl_ps(x128, x128));
     const __m128 x32 = _mm_add_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
+    return _mm_cvtss_f32(x32);
+}
+
+static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
+{
+    const __m256 x256 = _mm256_max_ps(_mm512_castps512_ps256(x), _mm512_extractf32x8_ps(x, 1));
+    const __m128 x128 = _mm_max_ps(_mm256_castps256_ps128(x256), _mm256_extractf128_ps(x256, 1));
+    const __m128 x64 = _mm_max_ps(x128, _mm_movehl_ps(x128, x128));
+    const __m128 x32 = _mm_max_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
 }
 #endif // __AVX512F__

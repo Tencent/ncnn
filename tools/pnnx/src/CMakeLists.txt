@@ -473,7 +473,11 @@ endif()
 #set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
 #set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
 
-set_target_properties(pnnx PROPERTIES INSTALL_RPATH "$ORIGIN/")
+if(APPLE)
+    set_target_properties(pnnx PROPERTIES INSTALL_RPATH "@executable_path/")
+else()
+    set_target_properties(pnnx PROPERTIES INSTALL_RPATH "$ORIGIN/")
+endif()
 set_target_properties(pnnx PROPERTIES MACOSX_RPATH TRUE)
 
 install(TARGETS pnnx RUNTIME DESTINATION bin)

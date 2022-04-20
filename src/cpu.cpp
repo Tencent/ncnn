@@ -44,6 +44,9 @@
 
 #if defined __ANDROID__ || defined __linux__
 #if defined __ANDROID__
+#if __ANDROID_API__ >= 18
+#include <sys/auxv.h> // getauxval()
+#endif
 #include <dlfcn.h>
 #endif
 #include <stdint.h>
@@ -105,13 +108,7 @@ namespace ncnn {
 #if defined __ANDROID__
 // Probe the system's C library for a 'getauxval' function and call it if
 // it exits, or return 0 for failure. This function is available since API
-// level 20.
-//
-// This code does *NOT* check for '__ANDROID_API__ >= 20' to support the
-// edge case where some NDK developers use headers for a platform that is
-// newer than the one really targetted by their application.
-// This is typically done to use newer native APIs only when running on more
-// recent Android versions, and requires careful symbol management.
+// level 18.
 //
 // Note that getauxval() can't really be re-implemented here, because
 // its implementation does not parse /proc/self/auxv. Instead it depends
@@ -119,6 +116,12 @@ namespace ncnn {
 // C runtime initialization layer.
 static unsigned int get_elf_hwcap_from_getauxval()
 {
+#if __ANDROID_API__ >= 18
+    unsigned int hwcap = getauxval(AT_HWCAP);
+    if (hwcap)
+        return hwcap;
+#endif
+
     typedef unsigned long getauxval_func_t(unsigned long);
 
     dlerror();

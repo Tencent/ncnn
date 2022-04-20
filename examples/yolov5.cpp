@@ -211,56 +211,55 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
             for (int j = 0; j < num_grid_x; j++)
             {
                 const float* featptr = feat.row(i * num_grid_x + j);
-
-                // find class index with max class score
-                int class_index = 0;
-                float class_score = -FLT_MAX;
-                for (int k = 0; k < num_class; k++)
+                float box_confidence = sigmoid(featptr[4]);
+                if (box_confidence >= prob_threshold)
                 {
-                    float score = featptr[5 + k];
-                    if (score > class_score)
+                    // find class index with max class score
+                    int class_index = 0;
+                    float class_score = -FLT_MAX;
+                    for (int k = 0; k < num_class; k++)
                     {
-                        class_index = k;
-                        class_score = score;
+                        float score = featptr[5 + k];
+                        if (score > class_score)
+                        {
+                            class_index = k;
+                            class_score = score;
+                        }
                     }
-                }
+                    float confidence = box_confidence * sigmoid(class_score);
+                    if (confidence >= prob_threshold)
+                    {
+                        // yolov5/models/yolo.py Detect forward
+                        // y = x[i].sigmoid()
+                        // y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i].to(x[i].device)) * self.stride[i]  # xy
+                        // y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
 
-                float box_score = featptr[4];
+                        float dx = sigmoid(featptr[0]);
+                        float dy = sigmoid(featptr[1]);
+                        float dw = sigmoid(featptr[2]);
+                        float dh = sigmoid(featptr[3]);
 
-                float confidence = sigmoid(box_score) * sigmoid(class_score);
+                        float pb_cx = (dx * 2.f - 0.5f + j) * stride;
+                        float pb_cy = (dy * 2.f - 0.5f + i) * stride;
 
-                if (confidence >= prob_threshold)
-                {
-                    // yolov5/models/yolo.py Detect forward
-                    // y = x[i].sigmoid()
-                    // y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i].to(x[i].device)) * self.stride[i]  # xy
-                    // y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
+                        float pb_w = pow(dw * 2.f, 2) * anchor_w;
+                        float pb_h = pow(dh * 2.f, 2) * anchor_h;
 
-                    float dx = sigmoid(featptr[0]);
-                    float dy = sigmoid(featptr[1]);
-                    float dw = sigmoid(featptr[2]);
-                    float dh = sigmoid(featptr[3]);
+                        float x0 = pb_cx - pb_w * 0.5f;
+                        float y0 = pb_cy - pb_h * 0.5f;
+                        float x1 = pb_cx + pb_w * 0.5f;
+                        float y1 = pb_cy + pb_h * 0.5f;
 
-                    float pb_cx = (dx * 2.f - 0.5f + j) * stride;
-                    float pb_cy = (dy * 2.f - 0.5f + i) * stride;
+                        Object obj;
+                        obj.rect.x = x0;
+                        obj.rect.y = y0;
+                        obj.rect.width = x1 - x0;
+                        obj.rect.height = y1 - y0;
+                        obj.label = class_index;
+                        obj.prob = confidence;
 
-                    float pb_w = pow(dw * 2.f, 2) * anchor_w;
-                    float pb_h = pow(dh * 2.f, 2) * anchor_h;
-
-                    float x0 = pb_cx - pb_w * 0.5f;
-                    float y0 = pb_cy - pb_h * 0.5f;
-                    float x1 = pb_cx + pb_w * 0.5f;
-                    float y1 = pb_cy + pb_h * 0.5f;
-
-                    Object obj;
-                    obj.rect.x = x0;
-                    obj.rect.y = y0;
-                    obj.rect.width = x1 - x0;
-                    obj.rect.height = y1 - y0;
-                    obj.label = class_index;
-                    obj.prob = confidence;
-
-                    objects.push_back(obj);
+                        objects.push_back(obj);
+                    }
                 }
             }
         }

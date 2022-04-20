@@ -21,6 +21,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
 layout (constant_id = 0) const int bias_term = 0;
 layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
@@ -237,125 +240,22 @@ void main()
         v33 = bias_value + v33;
     }
 
-    if (activation_type == 1)
-    {
-        v00 = max(v00, afp(0.f));
-        v01 = max(v01, afp(0.f));
-        v02 = max(v02, afp(0.f));
-        v03 = max(v03, afp(0.f));
-        v10 = max(v10, afp(0.f));
-        v11 = max(v11, afp(0.f));
-        v12 = max(v12, afp(0.f));
-        v13 = max(v13, afp(0.f));
-        v20 = max(v20, afp(0.f));
-        v21 = max(v21, afp(0.f));
-        v22 = max(v22, afp(0.f));
-        v23 = max(v23, afp(0.f));
-        v30 = max(v30, afp(0.f));
-        v31 = max(v31, afp(0.f));
-        v32 = max(v32, afp(0.f));
-        v33 = max(v33, afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        v00 = v00 < afp(0.f) ? v00 * slope : v00;
-        v01 = v01 < afp(0.f) ? v01 * slope : v01;
-        v02 = v02 < afp(0.f) ? v02 * slope : v02;
-        v03 = v03 < afp(0.f) ? v03 * slope : v03;
-        v10 = v10 < afp(0.f) ? v10 * slope : v10;
-        v11 = v11 < afp(0.f) ? v11 * slope : v11;
-        v12 = v12 < afp(0.f) ? v12 * slope : v12;
-        v13 = v13 < afp(0.f) ? v13 * slope : v13;
-        v20 = v20 < afp(0.f) ? v20 * slope : v20;
-        v21 = v21 < afp(0.f) ? v21 * slope : v21;
-        v22 = v22 < afp(0.f) ? v22 * slope : v22;
-        v23 = v23 < afp(0.f) ? v23 * slope : v23;
-        v30 = v30 < afp(0.f) ? v30 * slope : v30;
-        v31 = v31 < afp(0.f) ? v31 * slope : v31;
-        v32 = v32 < afp(0.f) ? v32 * slope : v32;
-        v33 = v33 < afp(0.f) ? v33 * slope : v33;
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        v00 = clamp(v00, const_min, const_max);
-        v01 = clamp(v01, const_min, const_max);
-        v02 = clamp(v02, const_min, const_max);
-        v03 = clamp(v03, const_min, const_max);
-        v10 = clamp(v10, const_min, const_max);
-        v11 = clamp(v11, const_min, const_max);
-        v12 = clamp(v12, const_min, const_max);
-        v13 = clamp(v13, const_min, const_max);
-        v20 = clamp(v20, const_min, const_max);
-        v21 = clamp(v21, const_min, const_max);
-        v22 = clamp(v22, const_min, const_max);
-        v23 = clamp(v23, const_min, const_max);
-        v30 = clamp(v30, const_min, const_max);
-        v31 = clamp(v31, const_min, const_max);
-        v32 = clamp(v32, const_min, const_max);
-        v33 = clamp(v33, const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        v00 = afp(1.f) / (afp(1.f) + exp(-v00));
-        v01 = afp(1.f) / (afp(1.f) + exp(-v01));
-        v02 = afp(1.f) / (afp(1.f) + exp(-v02));
-        v03 = afp(1.f) / (afp(1.f) + exp(-v03));
-        v10 = afp(1.f) / (afp(1.f) + exp(-v10));
-        v11 = afp(1.f) / (afp(1.f) + exp(-v11));
-        v12 = afp(1.f) / (afp(1.f) + exp(-v12));
-        v13 = afp(1.f) / (afp(1.f) + exp(-v13));
-        v20 = afp(1.f) / (afp(1.f) + exp(-v20));
-        v21 = afp(1.f) / (afp(1.f) + exp(-v21));
-        v22 = afp(1.f) / (afp(1.f) + exp(-v22));
-        v23 = afp(1.f) / (afp(1.f) + exp(-v23));
-        v30 = afp(1.f) / (afp(1.f) + exp(-v30));
-        v31 = afp(1.f) / (afp(1.f) + exp(-v31));
-        v32 = afp(1.f) / (afp(1.f) + exp(-v32));
-        v33 = afp(1.f) / (afp(1.f) + exp(-v33));
-    }
-    if (activation_type == 5)
-    {
-        v00 = v00 * tanh(log(exp(v00) + afp(1.f)));
-        v01 = v01 * tanh(log(exp(v01) + afp(1.f)));
-        v02 = v02 * tanh(log(exp(v02) + afp(1.f)));
-        v03 = v03 * tanh(log(exp(v03) + afp(1.f)));
-        v10 = v10 * tanh(log(exp(v10) + afp(1.f)));
-        v11 = v11 * tanh(log(exp(v11) + afp(1.f)));
-        v12 = v12 * tanh(log(exp(v12) + afp(1.f)));
-        v13 = v13 * tanh(log(exp(v13) + afp(1.f)));
-        v20 = v20 * tanh(log(exp(v20) + afp(1.f)));
-        v21 = v21 * tanh(log(exp(v21) + afp(1.f)));
-        v22 = v22 * tanh(log(exp(v22) + afp(1.f)));
-        v23 = v23 * tanh(log(exp(v23) + afp(1.f)));
-        v30 = v30 * tanh(log(exp(v30) + afp(1.f)));
-        v31 = v31 * tanh(log(exp(v31) + afp(1.f)));
-        v32 = v32 * tanh(log(exp(v32) + afp(1.f)));
-        v33 = v33 * tanh(log(exp(v33) + afp(1.f)));
-    }
-    if (activation_type == 6)
-    {
-        const afp alpha = afp(activation_param_0);
-        const afp beta = afp(activation_param_1);
-        v00 = v00 * clamp(v00 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v01 = v01 * clamp(v01 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v02 = v02 * clamp(v02 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v03 = v03 * clamp(v03 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v10 = v10 * clamp(v10 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v11 = v11 * clamp(v11 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v12 = v12 * clamp(v12 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v13 = v13 * clamp(v13 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v20 = v20 * clamp(v20 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v21 = v21 * clamp(v21 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v22 = v22 * clamp(v22 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v23 = v23 * clamp(v23 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v30 = v30 * clamp(v30 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v31 = v31 * clamp(v31 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v32 = v32 * clamp(v32 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        v33 = v33 * clamp(v33 * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-    }
+    v00 = activation_afp(v00, activation_type, activation_param_0, activation_param_1);
+    v01 = activation_afp(v01, activation_type, activation_param_0, activation_param_1);
+    v02 = activation_afp(v02, activation_type, activation_param_0, activation_param_1);
+    v03 = activation_afp(v03, activation_type, activation_param_0, activation_param_1);
+    v10 = activation_afp(v10, activation_type, activation_param_0, activation_param_1);
+    v11 = activation_afp(v11, activation_type, activation_param_0, activation_param_1);
+    v12 = activation_afp(v12, activation_type, activation_param_0, activation_param_1);
+    v13 = activation_afp(v13, activation_type, activation_param_0, activation_param_1);
+    v20 = activation_afp(v20, activation_type, activation_param_0, activation_param_1);
+    v21 = activation_afp(v21, activation_type, activation_param_0, activation_param_1);
+    v22 = activation_afp(v22, activation_type, activation_param_0, activation_param_1);
+    v23 = activation_afp(v23, activation_type, activation_param_0, activation_param_1);
+    v30 = activation_afp(v30, activation_type, activation_param_0, activation_param_1);
+    v31 = activation_afp(v31, activation_type, activation_param_0, activation_param_1);
+    v32 = activation_afp(v32, activation_type, activation_param_0, activation_param_1);
+    v33 = activation_afp(v33, activation_type, activation_param_0, activation_param_1);
 
     // store 4x4
     int x = gx * 4;
