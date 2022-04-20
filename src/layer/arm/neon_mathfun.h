@@ -310,6 +310,14 @@ static inline float32x4_t div_ps(float32x4_t a, float32x4_t b)
 #endif
 }
 
+static inline float32x4_t tan_ps(float32x4_t x)
+{
+    float32x4_t ysin, ycos;
+    sincos_ps(x, &ysin, &ycos);
+    float32x4_t ytan = div_ps(ysin, ycos);
+    return ytan;
+}
+
 static inline float32x4_t pow_ps(float32x4_t a, float32x4_t b)
 {
     // pow(x, m) = exp(m * log(x))

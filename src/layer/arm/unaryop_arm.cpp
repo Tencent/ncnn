@@ -185,14 +185,7 @@ struct unary_op_tan_pack4
 {
     float32x4_t operator()(const float32x4_t& x) const
     {
-        // TODO neon optimize
-        float tmp[4];
-        vst1q_f32(tmp, x);
-        tmp[0] = tan(tmp[0]);
-        tmp[1] = tan(tmp[1]);
-        tmp[2] = tan(tmp[2]);
-        tmp[3] = tan(tmp[3]);
-        return vld1q_f32(tmp);
+        return tan_ps(x);
     }
 };
 
