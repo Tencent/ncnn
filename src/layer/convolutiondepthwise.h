@@ -32,8 +32,11 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 protected:
     void make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const;
+    void make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, int kernel_w, int kernel_h, const Option& opt) const;
 
 #if NCNN_INT8
     int forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
@@ -63,6 +66,8 @@ public:
     // 0=none 1=relu 2=leakyrelu 3=clip 4=sigmoid
     int activation_type;
     Mat activation_params;
+
+    int dynamic_weight;
 
     // model
     Mat weight_data;

@@ -39,12 +39,12 @@ int Cast_vulkan::create_pipeline(const Option& opt)
     int elempack = 1;
     if (shape.dims == 1) elempack = opt.use_shader_pack8 && shape.w % 8 == 0 ? 8 : shape.w % 4 == 0 ? 4 : 1;
     if (shape.dims == 2) elempack = opt.use_shader_pack8 && shape.h % 8 == 0 ? 8 : shape.h % 4 == 0 ? 4 : 1;
-    if (shape.dims == 3) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
+    if (shape.dims == 3 || shape.dims == 4) elempack = opt.use_shader_pack8 && shape.c % 8 == 0 ? 8 : shape.c % 4 == 0 ? 4 : 1;
 
     int out_elempack = 1;
     if (out_shape.dims == 1) out_elempack = opt.use_shader_pack8 && out_shape.w % 8 == 0 ? 8 : out_shape.w % 4 == 0 ? 4 : 1;
     if (out_shape.dims == 2) out_elempack = opt.use_shader_pack8 && out_shape.h % 8 == 0 ? 8 : out_shape.h % 4 == 0 ? 4 : 1;
-    if (out_shape.dims == 3) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
+    if (out_shape.dims == 3 || out_shape.dims == 4) out_elempack = opt.use_shader_pack8 && out_shape.c % 8 == 0 ? 8 : out_shape.c % 4 == 0 ? 4 : 1;
 
     size_t elemsize;
     size_t out_elemsize;
@@ -68,21 +68,23 @@ int Cast_vulkan::create_pipeline(const Option& opt)
     if (shape.dims == 1) shape_packed = Mat(shape.w / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 2) shape_packed = Mat(shape.w, shape.h / elempack, (void*)0, elemsize, elempack);
     if (shape.dims == 3) shape_packed = Mat(shape.w, shape.h, shape.c / elempack, (void*)0, elemsize, elempack);
+    if (shape.dims == 4) shape_packed = Mat(shape.w, shape.h, shape.d, shape.c / elempack, (void*)0, elemsize, elempack);
 
     Mat out_shape_packed;
     if (out_shape.dims == 1) out_shape_packed = Mat(out_shape.w / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 2) out_shape_packed = Mat(out_shape.w, out_shape.h / out_elempack, (void*)0, out_elemsize, out_elempack);
     if (out_shape.dims == 3) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
+    if (out_shape.dims == 4) out_shape_packed = Mat(out_shape.w, out_shape.h, out_shape.d, out_shape.c / out_elempack, (void*)0, out_elemsize, out_elempack);
 
     std::vector<vk_specialization_type> specializations(0 + 10);
     specializations[0 + 0].i = shape_packed.dims;
     specializations[0 + 1].i = shape_packed.w;
-    specializations[0 + 2].i = shape_packed.h;
+    specializations[0 + 2].i = shape_packed.h * shape_packed.d;
     specializations[0 + 3].i = shape_packed.c;
     specializations[0 + 4].i = shape_packed.cstep;
     specializations[0 + 5].i = out_shape_packed.dims;
     specializations[0 + 6].i = out_shape_packed.w;
-    specializations[0 + 7].i = out_shape_packed.h;
+    specializations[0 + 7].i = out_shape_packed.h * out_shape_packed.d;
     specializations[0 + 8].i = out_shape_packed.c;
     specializations[0 + 9].i = out_shape_packed.cstep;
 
@@ -103,6 +105,12 @@ int Cast_vulkan::create_pipeline(const Option& opt)
     {
         local_size_xyz.w = std::min(4, out_shape_packed.w);
         local_size_xyz.h = std::min(4, out_shape_packed.h);
+        local_size_xyz.c = std::min(4, out_shape_packed.c);
+    }
+    if (out_shape_packed.dims == 4)
+    {
+        local_size_xyz.w = std::min(4, out_shape_packed.w);
+        local_size_xyz.h = std::min(4, out_shape_packed.h * out_shape_packed.d);
         local_size_xyz.c = std::min(4, out_shape_packed.c);
     }
 
@@ -196,6 +204,7 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -243,6 +252,10 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     {
         top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_vkallocator);
     }
+    else if (dims == 4)
+    {
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_vkallocator);
+    }
     if (top_blob.empty())
         return -100;
 
@@ -253,12 +266,12 @@ int Cast_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& c
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
+    constants[2].i = bottom_blob.h * bottom_blob.d;
     constants[3].i = bottom_blob.c;
     constants[4].i = bottom_blob.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
+    constants[7].i = top_blob.h * top_blob.d;
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
@@ -294,6 +307,7 @@ int Cast_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -341,6 +355,10 @@ int Cast_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
     {
         top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_vkallocator);
     }
+    else if (dims == 4)
+    {
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_vkallocator);
+    }
     if (top_blob.empty())
         return -100;
 
@@ -351,12 +369,12 @@ int Cast_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, Vk
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
     constants[1].i = bottom_blob.w;
-    constants[2].i = bottom_blob.h;
+    constants[2].i = bottom_blob.h * bottom_blob.d;
     constants[3].i = bottom_blob.c;
     constants[4].i = 0; //bottom_blob.cstep;
     constants[5].i = top_blob.dims;
     constants[6].i = top_blob.w;
-    constants[7].i = top_blob.h;
+    constants[7].i = top_blob.h * top_blob.d;
     constants[8].i = top_blob.c;
     constants[9].i = 0; //top_blob.cstep;
 

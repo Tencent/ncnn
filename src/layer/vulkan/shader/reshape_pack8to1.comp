@@ -28,14 +28,16 @@ layout (constant_id = 0) const int ndim = 0;
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int d = 0;
+layout (constant_id = shape_constant_id_offset + 4) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int cstep = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outdims = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 8) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 9) const int outd = 0;
+layout (constant_id = shape_constant_id_offset + 10) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 11) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
@@ -50,12 +52,14 @@ layout (push_constant) uniform parameter
     int dims;
     int w;
     int h;
+    int d;
     int c;
     int cstep;
 
     int outdims;
     int outw;
     int outh;
+    int outd;
     int outc;
     int outcstep;
 } p;
@@ -66,23 +70,88 @@ void main()
     int gy = int(gl_GlobalInvocationID.y);
     int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(w) || gy >= psc(h) || gz >= psc(c))
+    if (gx >= psc(w) || gy >= psc(h) * psc(d) || gz >= psc(c))
         return;
 
-    ivec3 gxyz = ivec3(gx, gy, gz);
-
-    gxyz[psc(dims) - 1] *= 8;
-
-    int i4_0 = gxyz.z * psc(h) * psc(w) + gxyz.y * psc(w) + gxyz.x;
-
-    ivec3 gxyz4 = ivec3(1, psc(w), psc(h) * psc(w));
-
-    ivec4 i4 = i4_0 + ivec4(0, 1, 2, 3) * gxyz4[psc(dims) - 1];
-    ivec4 ii4 = i4 + 4 * gxyz4[psc(dims) - 1];
+    ivec4 i4;
+    ivec4 ii4;
+    if (psc(dims) == 1)
+    {
+        i4 = gx * 8 + ivec4(0, 1, 2, 3);
+        ii4 = i4 + 4;
+    }
+    else if (psc(dims) == 2)
+    {
+        i4 = (gy * 8) * psc(w) + gx + ivec4(0, 1, 2, 3) * psc(w);
+        ii4 = i4 + 4 * psc(w);
+    }
+    else if (psc(dims) == 3)
+    {
+        i4 = (gz * 8) * psc(h) * psc(w) + gy * psc(w) + gx + ivec4(0, 1, 2, 3) * psc(h) * psc(w);
+        ii4 = i4 + 4 * psc(h) * psc(w);
+    }
+    else // if (psc(dims) == 4)
+    {
+        i4 = (gz * 8) * psc(d) * psc(h) * psc(w) + gy * psc(w) + gx + ivec4(0, 1, 2, 3) * psc(d) * psc(h) * psc(w);
+        ii4 = i4 + 4 * psc(d) * psc(h) * psc(w);
+    }
 
 #if NCNN_image_shader
-    afpvec8 v;
+    ivec4 x4;
+    ivec4 xx4;
+    ivec4 y4;
+    ivec4 yy4;
+    ivec4 z4;
+    ivec4 zz4;
 
+    if (ndim == 1)
+    {
+        z4 = ivec4(0);
+        y4 = ivec4(0);
+        x4 = i4;
+        zz4 = ivec4(0);
+        yy4 = ivec4(0);
+        xx4 = ii4;
+    }
+    if (ndim == 2)
+    {
+        z4 = ivec4(0);
+        y4 = i4 / psc(outw);
+        x4 = i4 % psc(outw);
+        zz4 = ivec4(0);
+        yy4 = ii4 / psc(outw);
+        xx4 = ii4 % psc(outw);
+    }
+    if (ndim == 3)
+    {
+        int size = psc(outw) * psc(outh);
+
+        z4 = i4 / size;
+        y4 = i4 % size / psc(outw);
+        x4 = i4 % size % psc(outw);
+        zz4 = ii4 / size;
+        yy4 = ii4 % size / psc(outw);
+        xx4 = ii4 % size % psc(outw);
+    }
+    if (ndim == 4)
+    {
+        int size = psc(outw) * psc(outh) * psc(outd);
+        int dsize = psc(outw) * psc(outh);
+
+        z4 = i4 / size;
+        ivec4 yd4 = i4 % size / dsize;
+        ivec4 yh4 = i4 % size % dsize / psc(outw);
+        x4 = i4 % size % dsize % psc(outw);
+        zz4 = ii4 / size;
+        ivec4 yyd4 = ii4 % size / dsize;
+        ivec4 yyh4 = ii4 % size % dsize / psc(outw);
+        xx4 = ii4 % size % dsize % psc(outw);
+
+        y4 = yd4 * psc(outh) + yh4;
+        yy4 = yyd4 * psc(outh) + yyh4;
+    }
+
+    afpvec8 v;
     if (psc(dims) == 1)
     {
         v = image3d_ld8(bottom_blob_3d, ivec3(gx, 0, 0));
@@ -91,61 +160,19 @@ void main()
     {
         v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, 0));
     }
-    else // if (psc(dims) == 3)
+    else // if (psc(dims) == 3 || psc(dims) == 4)
     {
         v = image3d_ld8(bottom_blob_3d, ivec3(gx, gy, gz));
     }
 
-    if (ndim == 1)
-    {
-        ivec4 x4 = i4;
-        ivec4 xx4 = ii4;
-
-        image3d_st1(top_blob_3d, ivec3(x4.r, 0, 0), v[0].r);
-        image3d_st1(top_blob_3d, ivec3(x4.g, 0, 0), v[0].g);
-        image3d_st1(top_blob_3d, ivec3(x4.b, 0, 0), v[0].b);
-        image3d_st1(top_blob_3d, ivec3(x4.a, 0, 0), v[0].a);
-        image3d_st1(top_blob_3d, ivec3(xx4.r, 0, 0), v[1].r);
-        image3d_st1(top_blob_3d, ivec3(xx4.g, 0, 0), v[1].g);
-        image3d_st1(top_blob_3d, ivec3(xx4.b, 0, 0), v[1].b);
-        image3d_st1(top_blob_3d, ivec3(xx4.a, 0, 0), v[1].a);
-    }
-    if (ndim == 2)
-    {
-        ivec4 y4 = i4 / psc(outw);
-        ivec4 x4 = i4 % psc(outw);
-        ivec4 yy4 = ii4 / psc(outw);
-        ivec4 xx4 = ii4 % psc(outw);
-
-        image3d_st1(top_blob_3d, ivec3(x4.r, y4.r, 0), v[0].r);
-        image3d_st1(top_blob_3d, ivec3(x4.g, y4.g, 0), v[0].g);
-        image3d_st1(top_blob_3d, ivec3(x4.b, y4.b, 0), v[0].b);
-        image3d_st1(top_blob_3d, ivec3(x4.a, y4.a, 0), v[0].a);
-        image3d_st1(top_blob_3d, ivec3(xx4.r, yy4.r, 0), v[1].r);
-        image3d_st1(top_blob_3d, ivec3(xx4.g, yy4.g, 0), v[1].g);
-        image3d_st1(top_blob_3d, ivec3(xx4.b, yy4.b, 0), v[1].b);
-        image3d_st1(top_blob_3d, ivec3(xx4.a, yy4.a, 0), v[1].a);
-    }
-    if (ndim == 3)
-    {
-        int size = psc(outw) * psc(outh);
-
-        ivec4 z4 = i4 / size;
-        ivec4 y4 = i4 % size / psc(outw);
-        ivec4 x4 = i4 % size % psc(outw);
-        ivec4 zz4 = ii4 / size;
-        ivec4 yy4 = ii4 % size / psc(outw);
-        ivec4 xx4 = ii4 % size % psc(outw);
-
-        image3d_st1(top_blob_3d, ivec3(x4.r, y4.r, z4.r), v[0].r);
-        image3d_st1(top_blob_3d, ivec3(x4.g, y4.g, z4.g), v[0].g);
-        image3d_st1(top_blob_3d, ivec3(x4.b, y4.b, z4.b), v[0].b);
-        image3d_st1(top_blob_3d, ivec3(x4.a, y4.a, z4.a), v[0].a);
-        image3d_st1(top_blob_3d, ivec3(xx4.r, yy4.r, zz4.r), v[1].r);
-        image3d_st1(top_blob_3d, ivec3(xx4.g, yy4.g, zz4.g), v[1].g);
-        image3d_st1(top_blob_3d, ivec3(xx4.b, yy4.b, zz4.b), v[1].b);
-        image3d_st1(top_blob_3d, ivec3(xx4.a, yy4.a, zz4.a), v[1].a);
-    }
+    image3d_st1(top_blob_3d, ivec3(x4.r, y4.r, z4.r), v[0].r);
+    image3d_st1(top_blob_3d, ivec3(x4.g, y4.g, z4.g), v[0].g);
+    image3d_st1(top_blob_3d, ivec3(x4.b, y4.b, z4.b), v[0].b);
+    image3d_st1(top_blob_3d, ivec3(x4.a, y4.a, z4.a), v[0].a);
+    image3d_st1(top_blob_3d, ivec3(xx4.r, yy4.r, zz4.r), v[1].r);
+    image3d_st1(top_blob_3d, ivec3(xx4.g, yy4.g, zz4.g), v[1].g);
+    image3d_st1(top_blob_3d, ivec3(xx4.b, yy4.b, zz4.b), v[1].b);
+    image3d_st1(top_blob_3d, ivec3(xx4.a, yy4.a, zz4.a), v[1].a);
 #else
     ivec4 v_offset;
     ivec4 vv_offset;
@@ -175,6 +202,26 @@ void main()
         ivec4 zz4 = ii4 / size;
         ivec4 yy4 = ii4 % size / psc(outw);
         ivec4 xx4 = ii4 % size % psc(outw);
+
+        v_offset = z4 * psc(outcstep) + y4 * psc(outw) + x4;
+        vv_offset = zz4 * psc(outcstep) + yy4 * psc(outw) + xx4;
+    }
+    if (ndim == 4)
+    {
+        int size = psc(outw) * psc(outh) * psc(outd);
+        int dsize = psc(outw) * psc(outh);
+
+        ivec4 z4 = i4 / size;
+        ivec4 yd4 = i4 % size / dsize;
+        ivec4 yh4 = i4 % size % dsize / psc(outw);
+        ivec4 x4 = i4 % size % dsize % psc(outw);
+        ivec4 zz4 = ii4 / size;
+        ivec4 yyd4 = ii4 % size / dsize;
+        ivec4 yyh4 = ii4 % size % dsize / psc(outw);
+        ivec4 xx4 = ii4 % size % dsize % psc(outw);
+
+        ivec4 y4 = yd4 * psc(outh) + yh4;
+        ivec4 yy4 = yyd4 * psc(outh) + yyh4;
 
         v_offset = z4 * psc(outcstep) + y4 * psc(outw) + x4;
         vv_offset = zz4 * psc(outcstep) + yy4 * psc(outw) + xx4;

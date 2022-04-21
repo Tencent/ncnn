@@ -1,0 +1,52 @@
+name: windows-arm64-cpu
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-arm64-cpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/windows-arm64-cpu.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/arm/**'
+    - 'tests/**'
+concurrency:
+  group: windows-arm64-cpu-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    name: ${{ matrix.vs-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - vs-version: vs2019
+            toolset-version: v142
+            os: windows-2022
+
+          - vs-version: vs2022
+            toolset-version: v143
+            os: windows-2022
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: build
+      run: |
+        mkdir build; cd build
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . --config Release -j 2
+    - name: build-shared
+      run: |
+        mkdir build-shared; cd build-shared
+        cmake -T ${{ matrix.toolset-version }},host=x64 -A arm64 -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake --build . --config Release -j 2

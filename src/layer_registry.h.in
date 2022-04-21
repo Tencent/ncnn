@@ -6,11 +6,16 @@ static const layer_registry_entry layer_registry[] = {
 @layer_registry@
 };
 
-#if NCNN_RUNTIME_CPU && NCNN_AVX2
-static const layer_registry_entry layer_registry_avx2[] = {
-@layer_registry_avx2@
+#if NCNN_RUNTIME_CPU && NCNN_AVX512
+static const layer_registry_entry layer_registry_avx512[] = {
+@layer_registry_avx512@
 };
-#endif // NCNN_RUNTIME_CPU && NCNN_AVX2
+#endif // NCNN_RUNTIME_CPU && NCNN_AVX512
+#if NCNN_RUNTIME_CPU && NCNN_FMA
+static const layer_registry_entry layer_registry_fma[] = {
+@layer_registry_fma@
+};
+#endif // NCNN_RUNTIME_CPU && NCNN_FMA
 #if NCNN_RUNTIME_CPU && NCNN_AVX
 static const layer_registry_entry layer_registry_avx[] = {
 @layer_registry_avx@
@@ -23,23 +28,11 @@ static const layer_registry_entry layer_registry_arm82[] = {
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_ARM82
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-static const layer_registry_entry layer_registry_arm82dot[] = {
-@layer_registry_arm82dot@
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_ARM82DOT
-
 #if NCNN_RUNTIME_CPU && NCNN_MSA
 static const layer_registry_entry layer_registry_msa[] = {
 @layer_registry_msa@
 };
 #endif // NCNN_RUNTIME_CPU && NCNN_MSA
-
-#if NCNN_RUNTIME_CPU && NCNN_MMI
-static const layer_registry_entry layer_registry_mmi[] = {
-@layer_registry_mmi@
-};
-#endif // NCNN_RUNTIME_CPU && NCNN_MMI
 
 #if NCNN_RUNTIME_CPU && NCNN_RVV
 static const layer_registry_entry layer_registry_rvv[] = {

@@ -20,15 +20,14 @@ on:
     - 'src/layer/*'
     - 'src/layer/x86/**'
     - 'src/layer/vulkan/**'
+concurrency:
+  group: android-x86-gpu-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   android-x86-gpu:
     runs-on: ubuntu-latest
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: build
@@ -39,5 +38,5 @@ jobs:
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2

@@ -38,8 +38,9 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
 
     int w = a.w;
     int h = a.h;
+    int d = a.d;
     int channels = a.c;
-    int size = w * h;
+    int size = w * h * d;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -48,7 +49,7 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
 
         for (int i = 0; i < size; i++)
         {
-            __builtin_prefetch(ptr + 32);
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = op(_p);
             __msa_st_w((v4i32)_p, ptr, 0);
@@ -58,6 +59,8 @@ static int unary_op_inplace_pack4(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_mips_functor {
 
 struct unary_op_abs_pack4
 {
@@ -260,13 +263,17 @@ struct unary_op_tanh_pack4
         return tanh_ps(x);
     }
 };
+
+} // namespace UnaryOp_mips_functor
 #endif // __mips_msa
 
 int UnaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if __mips_msa
+    using namespace UnaryOp_mips_functor;
+
     int elempack = bottom_top_blob.elempack;
 
-#if __mips_msa
     if (elempack == 4)
     {
         if (op_type == Operation_ABS)

@@ -22,18 +22,6 @@
 #endif // __SSE2__
 
 #if __AVX__
-#include <stdint.h>
-typedef union m128i
-{
-    __m128i vec;
-    uint16_t m128i_u16[8];
-} m128;
-
-typedef union m256i
-{
-    __m256i vec;
-    uint32_t m256i_u32[8];
-} m256;
 static inline __m256 bfloat2float_avx(__m128i v0)
 {
     __m128i zero = _mm_set1_epi32(0);
@@ -45,7 +33,6 @@ static inline __m256 bfloat2float_avx(__m128i v0)
     return _mm256_castsi256_ps(ab);
 }
 #if __AVX2__
-
 static inline __m256i float2bfloat_avx(__m256 v0, __m256 v1)
 {
     __m256i a = _mm256_castps_si256(v0);
@@ -65,7 +52,11 @@ static inline __m128i float2bfloat_avx(__m256 v0)
 #endif
 #endif // __AVX__
 
+#include "cpu.h"
+
 namespace ncnn {
+
+#include "cast_fp16.h"
 
 Cast_x86::Cast_x86()
 {
@@ -74,7 +65,6 @@ Cast_x86::Cast_x86()
 
 int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if __AVX2__
     if (type_from == type_to)
     {
         top_blob = bottom_blob;
@@ -83,6 +73,7 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -127,74 +118,40 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     {
         top_blob.create(w, h, channels, out_elemsize, elempack, opt.blob_allocator);
     }
+    else if (dims == 4)
+    {
+        top_blob.create(w, h, d, channels, out_elemsize, elempack, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
-    int size = w * h * elempack;
+    int size = w * h * d * elempack;
+
     if (type_from == 1 && type_to == 2)
     {
-        int nn = size >> 3;
-        int remain = size - (nn << 3);
-        m256i mask = {_mm256_setzero_si256()};
-        for (int i = 0; i < remain; i++)
-            mask.m256i_u32[i] = 0x80000000;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < channels; q++)
-        {
-            const float* ptr = bottom_blob.channel(q);
-            unsigned short* outptr = top_blob.channel(q);
-
-            for (int i = 0; i < nn; i++)
-            {
-                __m256 fp32 = _mm256_loadu_ps(ptr);
-                __m128i fp16 = _mm256_cvtps_ph(fp32, _MM_FROUND_TRUNC);
-                _mm_store_si128((__m128i*)outptr, fp16);
-                ptr += 8;
-                outptr += 8;
-            }
-
-            if (remain > 0)
-            {
-                __m256 fp32 = _mm256_maskload_ps(ptr, mask.vec);
-                m128i fp16 = {_mm256_cvtps_ph(fp32, _MM_FROUND_TRUNC)};
-                memcpy(outptr, fp16.m128i_u16, remain * sizeof(unsigned short));
-            }
-        }
+        cast_fp32_to_fp16_sse(bottom_blob, top_blob, opt);
     }
 
     if (type_from == 2 && type_to == 1)
     {
-        int nn = size >> 3;
-        int remain = size - (nn << 3);
-        m256i mask = {_mm256_setzero_si256()};
-        for (int i = 0; i < remain; i++)
-            mask.m256i_u32[i] = 0x80000000;
+        cast_fp16_to_fp32_sse(bottom_blob, top_blob, opt);
+    }
 
+    if (type_from == 3 && type_to == 1)
+    {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
         {
-            const unsigned short* ptr = bottom_blob.channel(q);
+            const signed char* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            for (int i = 0; i < nn; i++)
+            for (int i = 0; i < size; i++)
             {
-                __m128i fp16 = _mm_lddqu_si128((__m128i const*)ptr);
-                __m256 fp32 = _mm256_cvtph_ps(fp16);
-                _mm256_storeu_ps(outptr, fp32);
-                ptr += 8;
-                outptr += 8;
-            }
-
-            if (remain > 0)
-            {
-                m128i fp16 = {_mm_setzero_si128()};
-                memcpy(fp16.m128i_u16, ptr, remain * sizeof(unsigned short));
-                __m256 fp32 = _mm256_cvtph_ps(fp16.vec);
-                _mm256_maskstore_ps(outptr, mask.vec, fp32);
+                outptr[i] = (float)ptr[i];
             }
         }
     }
+
     if (type_from == 4 && type_to == 1)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -203,16 +160,16 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             const unsigned short* ptr = bottom_blob.channel(q);
             float* outptr = top_blob.channel(q);
 
-            int nn = size >> 3;
-            int remain = size & 7;
-            for (; nn > 0; nn--)
+            int i = 0;
+#if __AVX__
+            for (; i + 7 < size; i += 8)
             {
                 _mm256_storeu_ps(outptr, bfloat2float_avx(_mm_lddqu_si128((__m128i const*)ptr)));
                 ptr += 8;
                 outptr += 8;
             }
-
-            for (; remain > 0; remain--)
+#endif
+            for (; i < size; i++)
             {
                 *outptr = bfloat16_to_float32(*ptr);
                 outptr++;
@@ -227,22 +184,23 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         {
             const float* ptr = bottom_blob.channel(q);
             unsigned short* outptr = top_blob.channel(q);
-            int nn = size >> 4;
-            int remain = size & 15;
-            for (; nn > 0; nn--)
+
+            int i = 0;
+#if __AVX2__
+            for (; i + 15 < size; i += 16)
             {
                 _mm256_storeu_si256((__m256i*)outptr, float2bfloat_avx(_mm256_loadu_ps(ptr), _mm256_loadu_ps(ptr + 8)));
                 ptr += 16;
                 outptr += 16;
             }
-            if (remain >= 8)
+            for (; i + 7 < size; i += 8)
             {
-                remain -= 8;
                 _mm_store_si128((__m128i*)outptr, float2bfloat_avx(_mm256_loadu_ps(ptr)));
                 ptr += 8;
                 outptr += 8;
             }
-            for (; remain > 0; remain--)
+#endif
+            for (; i < size; i++)
             {
                 *outptr = float32_to_bfloat16(*ptr);
                 outptr++;
@@ -252,11 +210,6 @@ int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     }
 
     return 0;
-#else // __AVX__
-
-    return Cast::forward(bottom_blob, top_blob, opt);
-
-#endif // __AVX__
 }
 
 } // namespace ncnn

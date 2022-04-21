@@ -197,8 +197,7 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("use_subgroup_ballot", &Option::use_subgroup_ballot)
     .def_readwrite("use_subgroup_shuffle", &Option::use_subgroup_shuffle)
     .def_readwrite("use_image_storage", &Option::use_image_storage)
-    .def_readwrite("use_tensor_storage", &Option::use_tensor_storage)
-    .def_readwrite("use_weight_fp16_storage", &Option::use_weight_fp16_storage);
+    .def_readwrite("use_tensor_storage", &Option::use_tensor_storage);
 
     py::class_<Mat> mat(m, "Mat", py::buffer_protocol());
     mat.def(py::init<>())
@@ -214,12 +213,14 @@ PYBIND11_MODULE(ncnn, m)
             mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
             break;
         case 3:
-            mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
-                          elemsize, elempack, allocator);
+            mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, allocator);
+            break;
+        case 4:
+            mat = new Mat(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, allocator);
             break;
         default:
             std::stringstream ss;
-            ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+            ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
             pybind11::pybind11_fail(ss.str());
         }
         return mat;
@@ -235,15 +236,18 @@ PYBIND11_MODULE(ncnn, m)
     .def(py::init<int, int, int, size_t, int, Allocator*>(),
          py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(),
          py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def(py::init<int, int, int, int, size_t, int, Allocator*>(),
+         py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(),
+         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
 
     .def(py::init<const Mat&>(), py::arg("m"))
 
     .def(py::init([](py::buffer const b) {
         py::buffer_info info = b.request();
-        if (info.ndim > 3)
+        if (info.ndim > 4)
         {
             std::stringstream ss;
-            ss << "convert numpy.ndarray to ncnn.Mat only dims <=3 support now, but given " << info.ndim;
+            ss << "convert numpy.ndarray to ncnn.Mat only dims <=4 support now, but given " << info.ndim;
             pybind11::pybind11_fail(ss.str());
         }
 
@@ -283,6 +287,15 @@ PYBIND11_MODULE(ncnn, m)
             // so we set the cstep as numpy's cstep
             v->cstep = (int)info.shape[2] * (int)info.shape[1];
         }
+        else if (info.ndim == 4)
+        {
+            v = new Mat((int)info.shape[3], (int)info.shape[2], (int)info.shape[1], (int)info.shape[0], info.ptr, elemsize);
+
+            // in ncnn, buffer to construct ncnn::Mat need align to ncnn::alignSize
+            // with (w * h * d elemsize, 16) / elemsize, but the buffer from numpy not
+            // so we set the cstep as numpy's cstep
+            v->cstep = (int)info.shape[3] * (int)info.shape[2] * (int)info.shape[1];
+        }
         return v;
     }),
     py::arg("array"))
@@ -300,8 +313,8 @@ PYBIND11_MODULE(ncnn, m)
             pybind11::pybind11_fail(ss.str());
         }
         std::string format = get_mat_format(m);
-        std::vector<ssize_t> shape;
-        std::vector<ssize_t> strides;
+        std::vector<py::ssize_t> shape;
+        std::vector<py::ssize_t> strides;
         if (m.dims == 1)
         {
             shape.push_back(m.w);
@@ -320,6 +333,17 @@ PYBIND11_MODULE(ncnn, m)
             shape.push_back(m.h);
             shape.push_back(m.w);
             strides.push_back(m.cstep * m.elemsize);
+            strides.push_back(m.w * m.elemsize);
+            strides.push_back(m.elemsize);
+        }
+        else if (m.dims == 4)
+        {
+            shape.push_back(m.c);
+            shape.push_back(m.d);
+            shape.push_back(m.h);
+            shape.push_back(m.w);
+            strides.push_back(m.cstep * m.elemsize);
+            strides.push_back(m.w * m.h * m.elemsize);
             strides.push_back(m.w * m.elemsize);
             strides.push_back(m.elemsize);
         }
@@ -347,9 +371,11 @@ PYBIND11_MODULE(ncnn, m)
             return mat.reshape(shape[0].cast<int>(), shape[1].cast<int>(), allocator);
         case 3:
             return mat.reshape(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), allocator);
+        case 4:
+            return mat.reshape(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), allocator);
         default:
             std::stringstream ss;
-            ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+            ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
             pybind11::pybind11_fail(ss.str());
         }
         return Mat();
@@ -361,6 +387,8 @@ PYBIND11_MODULE(ncnn, m)
          py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
     .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape,
          py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, int, int, int, Allocator*) const) & Mat::reshape,
+         py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
 
     .def(
         "create",
@@ -372,11 +400,12 @@ PYBIND11_MODULE(ncnn, m)
         case 2:
             return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), elemsize, elempack, allocator);
         case 3:
-            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(),
-                              elemsize, elempack, allocator);
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), elemsize, elempack, allocator);
+        case 4:
+            return mat.create(shape[0].cast<int>(), shape[1].cast<int>(), shape[2].cast<int>(), shape[3].cast<int>(), elemsize, elempack, allocator);
         default:
             std::stringstream ss;
-            ss << "shape must be 1, 2 or 3 dims, not " << shape.size();
+            ss << "shape must be 1, 2, 3 or 4 dims, not " << shape.size();
             pybind11::pybind11_fail(ss.str());
         }
         return;
@@ -393,6 +422,9 @@ PYBIND11_MODULE(ncnn, m)
     .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create,
          py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(),
          py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, Allocator*)) & Mat::create,
+         py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(),
+         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
     .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like,
          py::arg("m"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
@@ -403,6 +435,8 @@ PYBIND11_MODULE(ncnn, m)
     .def("shape", &Mat::shape)
     .def("channel", (Mat(Mat::*)(int)) & Mat::channel, py::arg("c"))
     //.def("channel", (const Mat (Mat::*)(int) const) & Mat::channel, py::arg("c"))
+    .def("depth", (Mat(Mat::*)(int)) & Mat::depth, py::arg("z"))
+    //.def("depth", (const Mat (Mat::*)(int) const) & Mat::depth, py::arg("z"))
     .def(
         "row",
     [](Mat& m, int y) {
@@ -431,6 +465,8 @@ PYBIND11_MODULE(ncnn, m)
     py::arg("y"))
     .def("channel_range", (Mat(Mat::*)(int, int)) & Mat::channel_range, py::arg("c"), py::arg("channels"))
     //.def("channel_range", (const Mat (Mat::*)(int, int) const) & Mat::channel_range, py::arg("c"), py::arg("channels"))
+    .def("depth_range", (Mat(Mat::*)(int, int)) & Mat::depth_range, py::arg("z"), py::arg("depths"))
+    //.def("depth_range", (const Mat (Mat::*)(int, int) const) & Mat::depth_range, py::arg("z"), py::arg("depths"))
     .def("row_range", (Mat(Mat::*)(int, int)) & Mat::row_range, py::arg("y"), py::arg("rows"))
     //.def("row_range", (const Mat (Mat::*)(int, int) const) & Mat::row_range, py::arg("y"), py::arg("rows"))
     .def("range", (Mat(Mat::*)(int, int)) & Mat::range, py::arg("x"), py::arg("n"))
@@ -508,11 +544,12 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("dims", &Mat::dims)
     .def_readwrite("w", &Mat::w)
     .def_readwrite("h", &Mat::h)
+    .def_readwrite("d", &Mat::d)
     .def_readwrite("c", &Mat::c)
     .def_readwrite("cstep", &Mat::cstep)
     .def("__repr__", [](const Mat& m) {
         std::stringstream ss;
-        ss << "<ncnn.Mat w=" << m.w << " h=" << m.h << " c=" << m.c << " dims=" << m.dims
+        ss << "<ncnn.Mat w=" << m.w << " h=" << m.h << " d=" << m.d << " c=" << m.c << " dims=" << m.dims
            << " cstep=" << m.cstep << " elemsize=" << m.elemsize << " elempack=" << m.elempack << "\n\t"
            << "refcount=" << (m.refcount ? *m.refcount : 0) << " data=0x" << static_cast<const void*>(m.data)
            << " allocator=0x" << static_cast<const void*>(m.allocator) << ">\n";
@@ -720,6 +757,119 @@ PYBIND11_MODULE(ncnn, m)
             } // for k
             ss << "]\n";
         }
+        else if (m.dims == 4)
+        {
+            bool dot_printed_c = false;
+            ss << "[";
+            for (int k = 0; k < m.c; k++)
+            {
+                bool dot_printed_d = false;
+                if (k < max_count / 2 || k >= m.c - max_count / 2)
+                {
+                    Mat channel = m.channel(k);
+                    if (k > 0)
+                    {
+                        ss << " ";
+                    }
+                    ss << "[";
+                    for (int z = 0; z < channel.d; z++)
+                    {
+                        bool dot_printed_h = false;
+                        if (z < max_count / 2 || z >= channel.d - max_count / 2)
+                        {
+                            if (z > 0)
+                            {
+                                ss << "  ";
+                            }
+                            ss << "[";
+                            for (int j = 0; j < channel.h; j++)
+                            {
+                                bool dot_printed_w = false;
+                                if (j < max_count / 2 || j >= channel.h - max_count / 2)
+                                {
+                                    if (j > 0)
+                                    {
+                                        ss << "  ";
+                                    }
+                                    ss << "[";
+                                    if (m.elemsize == 1)
+                                    {
+                                        const int8_t* row = channel.depth(z).row<int8_t>(j);
+                                        for (int i = 0; i < channel.w; i++)
+                                        {
+                                            if (i < max_count / 2 || i >= channel.w - max_count / 2)
+                                            {
+                                                if (i > 0)
+                                                {
+                                                    ss << ", ";
+                                                }
+                                                ss << static_cast<int>(row[i]);
+                                            }
+                                            else if (!dot_printed_w)
+                                            {
+                                                dot_printed_w = true;
+                                                ss << ", ...";
+                                            }
+                                        }
+                                    }
+                                    if (m.elemsize == 4)
+                                    {
+                                        const float* row = channel.depth(z).row<float>(j);
+                                        for (int i = 0; i < m.w; i++)
+                                        {
+                                            if (i < max_count / 2 || i >= m.w - max_count / 2)
+                                            {
+                                                if (i > 0)
+                                                {
+                                                    ss << ", ";
+                                                }
+                                                ss << row[i];
+                                            }
+                                            else if (!dot_printed_w)
+                                            {
+                                                dot_printed_w = true;
+                                                ss << ", ...";
+                                            }
+                                        }
+                                    }
+                                    ss << "]";
+                                    if (j < channel.h - 1)
+                                    {
+                                        ss << "\n";
+                                    }
+                                }
+                                else if (!dot_printed_h)
+                                {
+                                    dot_printed_h = true;
+                                    ss << "  ...\n";
+                                }
+                            } // for j
+                            ss << "]";
+                            if (z < channel.d - 1)
+                            {
+                                ss << "\n";
+                            }
+                        }
+                        else if (!dot_printed_d)
+                        {
+                            dot_printed_d = true;
+                            ss << " ...\n";
+                        }
+                    } // for z
+                    ss << "]";
+                    if (k < m.c - 1)
+                    {
+                        ss << "\n\n";
+                    }
+                }
+                else if (!dot_printed_c)
+                {
+                    dot_printed_c = true;
+                    ss << " ...\n";
+                }
+            } // for k
+            ss << "]\n";
+        }
         return ss.str();
     });
 
@@ -803,7 +953,6 @@ PYBIND11_MODULE(ncnn, m)
     .def_readwrite("support_bf16_storage", &Layer::support_bf16_storage)
     .def_readwrite("support_fp16_storage", &Layer::support_fp16_storage)
     .def_readwrite("support_image_storage", &Layer::support_image_storage)
-    .def_readwrite("support_weight_fp16_storage", &Layer::support_weight_fp16_storage)
     .def("forward", (int (Layer::*)(const std::vector<Mat>&, std::vector<Mat>&, const Option&) const) & Layer::forward,
          py::arg("bottom_blobs"), py::arg("top_blobs"), py::arg("opt"))
     .def("forward", (int (Layer::*)(const Mat&, Mat&, const Option&) const) & Layer::forward,
@@ -930,6 +1079,21 @@ PYBIND11_MODULE(ncnn, m)
     },
     py::arg("src"),
     py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"),
+    py::arg("type"), py::arg("v"), py::arg("opt") = Option());
+
+    m.def("copy_make_border_3d", &copy_make_border_3d,
+          py::arg("src"), py::arg("dst"),
+          py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"), py::arg("front"), py::arg("behind"),
+          py::arg("type"), py::arg("v"), py::arg("opt") = Option());
+    m.def(
+        "copy_make_border_3d",
+    [](const Mat& src, int top, int bottom, int left, int right, int front, int behind, int type, float v, const Option& opt) {
+        Mat dst;
+        copy_make_border_3d(src, dst, top, bottom, left, right, front, behind, type, v, opt);
+        return dst;
+    },
+    py::arg("src"),
+    py::arg("top"), py::arg("bottom"), py::arg("left"), py::arg("right"), py::arg("front"), py::arg("behind"),
     py::arg("type"), py::arg("v"), py::arg("opt") = Option());
 
     m.def("copy_cut_border", &copy_cut_border,

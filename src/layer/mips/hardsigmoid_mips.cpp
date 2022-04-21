@@ -52,7 +52,7 @@ int HardSigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 
             for (int i = 0; i < size; i++)
             {
-                __builtin_prefetch(ptr + 32);
+                __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 _p = __msa_fmadd_w(_beta, _p, _alpha);
                 _p = __msa_fmax_w(_p, _zero);
@@ -81,7 +81,7 @@ int HardSigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(ptr + 32);
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = __msa_fmadd_w(_beta, _p, _alpha);
             _p = __msa_fmax_w(_p, _zero);

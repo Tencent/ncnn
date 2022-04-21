@@ -16,8 +16,11 @@
 #ifndef NCNN_C_API_H
 #define NCNN_C_API_H
 
-#include <stddef.h>
 #include "platform.h"
+
+#if NCNN_C_API
+
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -54,18 +57,23 @@ NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_v
 /* mat api */
 typedef struct __ncnn_mat_t* ncnn_mat_t;
 
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create();
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_4d(int w, int h, int d, int c, void* data, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d_elem(int w, int h, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_external_4d_elem(int w, int h, int d, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator);
 NCNN_EXPORT void ncnn_mat_destroy(ncnn_mat_t mat);
 
 NCNN_EXPORT void ncnn_mat_fill_float(ncnn_mat_t mat, float v);
@@ -74,10 +82,12 @@ NCNN_EXPORT ncnn_mat_t ncnn_mat_clone(const ncnn_mat_t mat, ncnn_allocator_t all
 NCNN_EXPORT ncnn_mat_t ncnn_mat_reshape_1d(const ncnn_mat_t mat, int w, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_reshape_2d(const ncnn_mat_t mat, int w, int h, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c, ncnn_allocator_t allocator);
+NCNN_EXPORT ncnn_mat_t ncnn_mat_reshape_4d(const ncnn_mat_t mat, int w, int h, int d, int c, ncnn_allocator_t allocator);
 
 NCNN_EXPORT int ncnn_mat_get_dims(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_w(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_h(const ncnn_mat_t mat);
+NCNN_EXPORT int ncnn_mat_get_d(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_c(const ncnn_mat_t mat);
 NCNN_EXPORT size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat);
 NCNN_EXPORT int ncnn_mat_get_elempack(const ncnn_mat_t mat);
@@ -184,7 +194,7 @@ struct NCNN_EXPORT __ncnn_layer_t
     int (*destroy_pipeline)(ncnn_layer_t layer, const ncnn_option_t opt);
 
     int (*forward_1)(const ncnn_layer_t layer, const ncnn_mat_t bottom_blob, ncnn_mat_t* top_blob, const ncnn_option_t opt);
-    int (*forward_n)(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t** top_blobs, int n2, const ncnn_option_t opt);
+    int (*forward_n)(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t* top_blobs, int n2, const ncnn_option_t opt);
 
     int (*forward_inplace_1)(const ncnn_layer_t layer, ncnn_mat_t bottom_top_blob, const ncnn_option_t opt);
     int (*forward_inplace_n)(const ncnn_layer_t layer, ncnn_mat_t* bottom_top_blobs, int n, const ncnn_option_t opt);
@@ -304,5 +314,7 @@ NCNN_EXPORT int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncn
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
+
+#endif /* NCNN_C_API */
 
 #endif /* NCNN_C_API_H */

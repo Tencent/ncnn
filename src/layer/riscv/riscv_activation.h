@@ -15,37 +15,7 @@
 #ifndef RISCV_ACTIVATION_H
 #define RISCV_ACTIVATION_H
 
-static inline float activation_ss(float v, int activation_type, const ncnn::Mat& activation_params)
-{
-    if (activation_type == 1)
-    {
-        v = std::max(v, 0.f);
-    }
-    else if (activation_type == 2)
-    {
-        float slope = activation_params[0];
-        v = v > 0.f ? v : v * slope;
-    }
-    else if (activation_type == 3)
-    {
-        float min = activation_params[0];
-        float max = activation_params[1];
-        if (v < min)
-            v = min;
-        if (v > max)
-            v = max;
-    }
-    else if (activation_type == 4)
-    {
-        v = 1.f / (1.f + exp(-v));
-    }
-    else if (activation_type == 5)
-    {
-        v = v * tanh(log(exp(v) + 1.f));
-    }
-
-    return v;
-}
+#include "fused_activation.h"
 
 #if __riscv_vector
 #ifdef RVV_SPEC_0_7
@@ -80,6 +50,22 @@ static inline float activation_ss(float v, int activation_type, const ncnn::Mat&
         else if (activation_type == 5)                                                                                                                       \
         {                                                                                                                                                    \
             _v = vfmul_vv_f##SEW##m##LMUL(_v, tanh_ps(log_ps(vfadd_vf_f##SEW##m##LMUL(exp_ps(_v, vl), 1.f, vl), vl), vl), vl);                               \
+        }                                                                                                                                                    \
+        else if (activation_type == 6)                                                                                                                       \
+        {                                                                                                                                                    \
+            const float alpha = activation_params[0];                                                                                                        \
+            const float beta = activation_params[1];                                                                                                         \
+            const float lower = -beta / alpha;                                                                                                               \
+            const float upper = (1.f / alpha) + lower;                                                                                                       \
+            vbool##MLEN##_t _lower = vmflt_vf_f##SEW##m##LMUL##_b##MLEN(_v, lower, vl);                                                                      \
+            vbool##MLEN##_t _higher = vmfgt_vf_f##SEW##m##LMUL##_b##MLEN(_v, upper, vl);                                                                     \
+            vbool##MLEN##_t _apply = vmnor_mm_b##MLEN(_lower, _higher, vl);                                                                                  \
+            _v = vfmerge_vfm_f##SEW##m##LMUL(_lower, _v, .0f, vl);                                                                                           \
+                                                                                                                                                             \
+            vfloat##SEW##m##LMUL##_t _p0 = vfadd_vf_f##SEW##m##LMUL##_m(                                                                                     \
+                _apply, _v, /*op1*/ vfmul_vf_f##SEW##m##LMUL##_m(_apply, _v, _v, alpha, vl), beta,                                                           \
+                vl);                                                                                                                                         \
+            _v = vfmul_vv_f##SEW##m##LMUL##_m(_apply, _v, /*op1*/ _v, _p0, vl);                                                                              \
         }                                                                                                                                                    \
                                                                                                                                                              \
         return _v;                                                                                                                                           \

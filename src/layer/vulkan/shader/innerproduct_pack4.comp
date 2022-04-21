@@ -21,6 +21,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
 layout (constant_id = 0) const int bias_term = 0;
 layout (constant_id = 1) const int activation_type = 0;
 layout (constant_id = 2) const float activation_param_0 = 0;
@@ -135,29 +138,7 @@ void main()
     }
 #endif
 
-    if (activation_type == 1)
-    {
-        sum = max(sum, afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        sum = mix(sum, sum * afp(slope), lessThan(sum, afpvec4(0.f)));
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        sum = clamp(sum, const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        sum = afp(1.f) / (afp(1.f) + exp(-sum));
-    }
-    if (activation_type == 5)
-    {
-        sum = sum * tanh(log(exp(sum) + afp(1.f)));
-    }
+    sum = activation_afpvec4(sum, activation_type, activation_param_0, activation_param_1);
 
 #if NCNN_image_shader
     image3d_st4(top_blob, ivec3(gx, 0, 0), sum);

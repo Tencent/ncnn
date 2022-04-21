@@ -22,7 +22,7 @@ static void padding_constant_pack8_avx(const Mat& src, Mat& dst, int top, int bo
     // fill top
     for (int y = 0; y < top_size; y++)
     {
-        _mm256_storeu_ps(outptr, v);
+        _mm256_store_ps(outptr, v);
         outptr += 8;
     }
     // fill center
@@ -30,25 +30,25 @@ static void padding_constant_pack8_avx(const Mat& src, Mat& dst, int top, int bo
     {
         for (int x = 0; x < left; x++)
         {
-            _mm256_storeu_ps(outptr, v);
+            _mm256_store_ps(outptr, v);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            _mm256_storeu_ps(outptr, _mm256_loadu_ps(ptr));
+            _mm256_store_ps(outptr, _mm256_load_ps(ptr));
             ptr += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            _mm256_storeu_ps(outptr, v);
+            _mm256_store_ps(outptr, v);
             outptr += 8;
         }
     }
     // fill top
     for (int y = 0; y < bottom_size; y++)
     {
-        _mm256_storeu_ps(outptr, v);
+        _mm256_store_ps(outptr, v);
         outptr += 8;
     }
 }
@@ -62,44 +62,44 @@ static void padding_replicate_pack8_avx(const Mat& src, Mat& dst, int top, int b
     for (int y = 0; y < top; y++)
     {
         const float* ptr0 = ptr;
-        __m256 _p = _mm256_loadu_ps(ptr0);
+        __m256 _p = _mm256_load_ps(ptr0);
         for (int x = 0; x < left; x++)
         {
-            _mm256_storeu_ps(outptr, _p);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = _mm256_loadu_ps(ptr0);
-            _mm256_storeu_ps(outptr, _p);
+            _p = _mm256_load_ps(ptr0);
+            _mm256_store_ps(outptr, _p);
             ptr0 += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            _mm256_storeu_ps(outptr, _p);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
     }
     // fill center
     for (int y = 0; y < src.h; y++)
     {
-        __m256 _p = _mm256_loadu_ps(ptr);
+        __m256 _p = _mm256_load_ps(ptr);
         for (int x = 0; x < left; x++)
         {
-            _mm256_storeu_ps(outptr, _p);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = _mm256_loadu_ps(ptr);
-            _mm256_storeu_ps(outptr, _p);
+            _p = _mm256_load_ps(ptr);
+            _mm256_store_ps(outptr, _p);
             ptr += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            _mm256_storeu_ps(outptr, _p);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
     }
@@ -108,22 +108,22 @@ static void padding_replicate_pack8_avx(const Mat& src, Mat& dst, int top, int b
     for (int y = 0; y < bottom; y++)
     {
         const float* ptr0 = ptr;
-        __m256 _p = _mm256_loadu_ps(ptr0);
+        __m256 _p = _mm256_load_ps(ptr0);
         for (int x = 0; x < left; x++)
         {
-            _mm256_storeu_ps(outptr, _p);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = _mm256_loadu_ps(ptr0);
-            _mm256_storeu_ps(outptr, _p);
+            _p = _mm256_load_ps(ptr0);
+            _mm256_store_ps(outptr, _p);
             ptr0 += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            _mm256_storeu_ps(outptr, _p);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
     }
@@ -141,21 +141,21 @@ static void padding_reflect_pack8_avx(const Mat& src, Mat& dst, int top, int bot
         const float* ptr0 = ptr;
         for (int x = 0; x < left; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr0 + (left - x) * 8);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr0 + (left - x) * 8);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr0);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr0);
+            _mm256_store_ps(outptr, _p);
             ptr0 += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr0 - 16 - x * 8);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr0 - 16 - x * 8);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
         ptr -= src.w * 8;
@@ -165,21 +165,21 @@ static void padding_reflect_pack8_avx(const Mat& src, Mat& dst, int top, int bot
     {
         for (int x = 0; x < left; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr + (left - x) * 8);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr + (left - x) * 8);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr);
+            _mm256_store_ps(outptr, _p);
             ptr += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr - 16 - x * 8);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr - 16 - x * 8);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
     }
@@ -190,21 +190,21 @@ static void padding_reflect_pack8_avx(const Mat& src, Mat& dst, int top, int bot
         const float* ptr0 = ptr;
         for (int x = 0; x < left; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr0 + (left - x) * 8);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr0 + (left - x) * 8);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
         for (int x = 0; x < src.w; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr0);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr0);
+            _mm256_store_ps(outptr, _p);
             ptr0 += 8;
             outptr += 8;
         }
         for (int x = 0; x < right; x++)
         {
-            __m256 _p = _mm256_loadu_ps(ptr0 - 16 - x * 8);
-            _mm256_storeu_ps(outptr, _p);
+            __m256 _p = _mm256_load_ps(ptr0 - 16 - x * 8);
+            _mm256_store_ps(outptr, _p);
             outptr += 8;
         }
         ptr -= src.w * 8;

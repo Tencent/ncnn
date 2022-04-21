@@ -41,7 +41,6 @@ public:
     VkImageMat bias_data_gpu_image;
 
     ncnn::Layer* crop;
-    ncnn::Layer* output_pad;
     ncnn::Layer* output_crop;
 
     Pipeline* pipeline_deconvolutiondepthwise;

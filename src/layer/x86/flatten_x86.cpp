@@ -16,6 +16,9 @@
 
 #if __SSE2__
 #include <emmintrin.h>
+#if __AVX__
+#include <immintrin.h>
+#endif
 #endif // __SSE2__
 
 #include "x86_usability.h"
@@ -46,10 +49,11 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -57,7 +61,9 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #if __SSE2__
     if (opt.use_packing_layout)
     {
-#if __AVX__
+#if __AVX512F__
+        out_elempack = total % 16 == 0 ? 16 : total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+#elif __AVX__
         out_elempack = total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
 #else
         out_elempack = total % 4 == 0 ? 4 : 1;
@@ -71,7 +77,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         return Flatten::forward(bottom_blob, top_blob, opt);
     }
 
-    if (dims == 2 && elempack == 1) // out_elempack == 4 || out_elempack == 8
+    if (dims == 2 && elempack == 1) // out_elempack == 4 || out_elempack == 8 || out_elempack == 16
     {
         top_blob = bottom_blob;
         top_blob.dims = 1;
@@ -91,7 +97,113 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     {
 #if __SSE2__
 #if __AVX__
-        if (elempack == 8) // out_elempack == 8
+#if __AVX512F__
+        if (elempack == 16) // out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                const float* ptr = bottom_blob.row(i);
+                float* outptr0 = (float*)top_blob + w * i * 16;
+                float* outptr1 = (float*)top_blob + w * (i * 16 + 1);
+                float* outptr2 = (float*)top_blob + w * (i * 16 + 2);
+                float* outptr3 = (float*)top_blob + w * (i * 16 + 3);
+                float* outptr4 = (float*)top_blob + w * (i * 16 + 4);
+                float* outptr5 = (float*)top_blob + w * (i * 16 + 5);
+                float* outptr6 = (float*)top_blob + w * (i * 16 + 6);
+                float* outptr7 = (float*)top_blob + w * (i * 16 + 7);
+                float* outptr8 = (float*)top_blob + w * (i * 16 + 8);
+                float* outptr9 = (float*)top_blob + w * (i * 16 + 9);
+                float* outptra = (float*)top_blob + w * (i * 16 + 10);
+                float* outptrb = (float*)top_blob + w * (i * 16 + 11);
+                float* outptrc = (float*)top_blob + w * (i * 16 + 12);
+                float* outptrd = (float*)top_blob + w * (i * 16 + 13);
+                float* outptre = (float*)top_blob + w * (i * 16 + 14);
+                float* outptrf = (float*)top_blob + w * (i * 16 + 15);
+
+                int j = 0;
+                for (; j + 15 < w; j += 16)
+                {
+                    __m512 _r0 = _mm512_loadu_ps(ptr);
+                    __m512 _r1 = _mm512_loadu_ps(ptr + 16);
+                    __m512 _r2 = _mm512_loadu_ps(ptr + 16 * 2);
+                    __m512 _r3 = _mm512_loadu_ps(ptr + 16 * 3);
+                    __m512 _r4 = _mm512_loadu_ps(ptr + 16 * 4);
+                    __m512 _r5 = _mm512_loadu_ps(ptr + 16 * 5);
+                    __m512 _r6 = _mm512_loadu_ps(ptr + 16 * 6);
+                    __m512 _r7 = _mm512_loadu_ps(ptr + 16 * 7);
+                    __m512 _r8 = _mm512_loadu_ps(ptr + 16 * 8);
+                    __m512 _r9 = _mm512_loadu_ps(ptr + 16 * 9);
+                    __m512 _ra = _mm512_loadu_ps(ptr + 16 * 10);
+                    __m512 _rb = _mm512_loadu_ps(ptr + 16 * 11);
+                    __m512 _rc = _mm512_loadu_ps(ptr + 16 * 12);
+                    __m512 _rd = _mm512_loadu_ps(ptr + 16 * 13);
+                    __m512 _re = _mm512_loadu_ps(ptr + 16 * 14);
+                    __m512 _rf = _mm512_loadu_ps(ptr + 16 * 15);
+
+                    transpose16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+
+                    _mm512_storeu_ps(outptr0, _r0);
+                    _mm512_storeu_ps(outptr1, _r1);
+                    _mm512_storeu_ps(outptr2, _r2);
+                    _mm512_storeu_ps(outptr3, _r3);
+                    _mm512_storeu_ps(outptr4, _r4);
+                    _mm512_storeu_ps(outptr5, _r5);
+                    _mm512_storeu_ps(outptr6, _r6);
+                    _mm512_storeu_ps(outptr7, _r7);
+                    _mm512_storeu_ps(outptr8, _r8);
+                    _mm512_storeu_ps(outptr9, _r9);
+                    _mm512_storeu_ps(outptra, _ra);
+                    _mm512_storeu_ps(outptrb, _rb);
+                    _mm512_storeu_ps(outptrc, _rc);
+                    _mm512_storeu_ps(outptrd, _rd);
+                    _mm512_storeu_ps(outptre, _re);
+                    _mm512_storeu_ps(outptrf, _rf);
+
+                    outptr0 += 16;
+                    outptr1 += 16;
+                    outptr2 += 16;
+                    outptr3 += 16;
+                    outptr4 += 16;
+                    outptr5 += 16;
+                    outptr6 += 16;
+                    outptr7 += 16;
+                    outptr8 += 16;
+                    outptr9 += 16;
+                    outptra += 16;
+                    outptrb += 16;
+                    outptrc += 16;
+                    outptrd += 16;
+                    outptre += 16;
+                    outptrf += 16;
+                    ptr += 256;
+                }
+                for (; j < w; j++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    *outptr8++ = ptr[8];
+                    *outptr9++ = ptr[9];
+                    *outptra++ = ptr[10];
+                    *outptrb++ = ptr[11];
+                    *outptrc++ = ptr[12];
+                    *outptrd++ = ptr[13];
+                    *outptre++ = ptr[14];
+                    *outptrf++ = ptr[15];
+
+                    ptr += 16;
+                }
+            }
+        }
+#endif // __AVX512F__
+
+        if (elempack == 8) // out_elempack == 8 || out_elempack == 16
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
@@ -156,7 +268,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
 #endif // __AVX__
 
-        if (elempack == 4) // out_elempack == 4 || out_elempack == 8
+        if (elempack == 4) // out_elempack == 4 || out_elempack == 8 || out_elempack == 16
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
@@ -202,11 +314,117 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 #endif // __SSE2__
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
 #if __SSE2__
 #if __AVX__
-        if (elempack == 8) // out_elempack == 8
+#if __AVX512F__
+        if (elempack == 16) // out_elempack == 16
+        {
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr0 = (float*)top_blob + size * q * 16;
+                float* outptr1 = (float*)top_blob + size * (q * 16 + 1);
+                float* outptr2 = (float*)top_blob + size * (q * 16 + 2);
+                float* outptr3 = (float*)top_blob + size * (q * 16 + 3);
+                float* outptr4 = (float*)top_blob + size * (q * 16 + 4);
+                float* outptr5 = (float*)top_blob + size * (q * 16 + 5);
+                float* outptr6 = (float*)top_blob + size * (q * 16 + 6);
+                float* outptr7 = (float*)top_blob + size * (q * 16 + 7);
+                float* outptr8 = (float*)top_blob + size * (q * 16 + 8);
+                float* outptr9 = (float*)top_blob + size * (q * 16 + 9);
+                float* outptra = (float*)top_blob + size * (q * 16 + 10);
+                float* outptrb = (float*)top_blob + size * (q * 16 + 11);
+                float* outptrc = (float*)top_blob + size * (q * 16 + 12);
+                float* outptrd = (float*)top_blob + size * (q * 16 + 13);
+                float* outptre = (float*)top_blob + size * (q * 16 + 14);
+                float* outptrf = (float*)top_blob + size * (q * 16 + 15);
+
+                int i = 0;
+                for (; i + 15 < size; i += 16)
+                {
+                    __m512 _r0 = _mm512_loadu_ps(ptr);
+                    __m512 _r1 = _mm512_loadu_ps(ptr + 16);
+                    __m512 _r2 = _mm512_loadu_ps(ptr + 16 * 2);
+                    __m512 _r3 = _mm512_loadu_ps(ptr + 16 * 3);
+                    __m512 _r4 = _mm512_loadu_ps(ptr + 16 * 4);
+                    __m512 _r5 = _mm512_loadu_ps(ptr + 16 * 5);
+                    __m512 _r6 = _mm512_loadu_ps(ptr + 16 * 6);
+                    __m512 _r7 = _mm512_loadu_ps(ptr + 16 * 7);
+                    __m512 _r8 = _mm512_loadu_ps(ptr + 16 * 8);
+                    __m512 _r9 = _mm512_loadu_ps(ptr + 16 * 9);
+                    __m512 _ra = _mm512_loadu_ps(ptr + 16 * 10);
+                    __m512 _rb = _mm512_loadu_ps(ptr + 16 * 11);
+                    __m512 _rc = _mm512_loadu_ps(ptr + 16 * 12);
+                    __m512 _rd = _mm512_loadu_ps(ptr + 16 * 13);
+                    __m512 _re = _mm512_loadu_ps(ptr + 16 * 14);
+                    __m512 _rf = _mm512_loadu_ps(ptr + 16 * 15);
+
+                    transpose16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+
+                    _mm512_storeu_ps(outptr0, _r0);
+                    _mm512_storeu_ps(outptr1, _r1);
+                    _mm512_storeu_ps(outptr2, _r2);
+                    _mm512_storeu_ps(outptr3, _r3);
+                    _mm512_storeu_ps(outptr4, _r4);
+                    _mm512_storeu_ps(outptr5, _r5);
+                    _mm512_storeu_ps(outptr6, _r6);
+                    _mm512_storeu_ps(outptr7, _r7);
+                    _mm512_storeu_ps(outptr8, _r8);
+                    _mm512_storeu_ps(outptr9, _r9);
+                    _mm512_storeu_ps(outptra, _ra);
+                    _mm512_storeu_ps(outptrb, _rb);
+                    _mm512_storeu_ps(outptrc, _rc);
+                    _mm512_storeu_ps(outptrd, _rd);
+                    _mm512_storeu_ps(outptre, _re);
+                    _mm512_storeu_ps(outptrf, _rf);
+
+                    outptr0 += 16;
+                    outptr1 += 16;
+                    outptr2 += 16;
+                    outptr3 += 16;
+                    outptr4 += 16;
+                    outptr5 += 16;
+                    outptr6 += 16;
+                    outptr7 += 16;
+                    outptr8 += 16;
+                    outptr9 += 16;
+                    outptra += 16;
+                    outptrb += 16;
+                    outptrc += 16;
+                    outptrd += 16;
+                    outptre += 16;
+                    outptrf += 16;
+                    ptr += 256;
+                }
+                for (; i < size; i++)
+                {
+                    *outptr0++ = ptr[0];
+                    *outptr1++ = ptr[1];
+                    *outptr2++ = ptr[2];
+                    *outptr3++ = ptr[3];
+                    *outptr4++ = ptr[4];
+                    *outptr5++ = ptr[5];
+                    *outptr6++ = ptr[6];
+                    *outptr7++ = ptr[7];
+                    *outptr8++ = ptr[8];
+                    *outptr9++ = ptr[9];
+                    *outptra++ = ptr[10];
+                    *outptrb++ = ptr[11];
+                    *outptrc++ = ptr[12];
+                    *outptrd++ = ptr[13];
+                    *outptre++ = ptr[14];
+                    *outptrf++ = ptr[15];
+
+                    ptr += 16;
+                }
+            }
+        }
+#endif // __AVX512F__
+
+        if (elempack == 8) // out_elempack == 8 || out_elempack == 16
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -271,7 +489,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
 #endif // __AVX__
 
-        if (elempack == 4) // out_elempack == 4 || out_elempack == 8
+        if (elempack == 4) // out_elempack == 4 || out_elempack == 8 || out_elempack == 16
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -316,7 +534,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
 #endif // __SSE2__
 
-        if (elempack == 1) // out_elempack == 4 || out_elempack == 8
+        if (elempack == 1) // out_elempack == 4 || out_elempack == 8 || out_elempack == 16
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -357,10 +575,11 @@ int Flatten_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    int d = bottom_blob.d;
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    int size = w * h;
+    int size = w * h * d;
 
     int total = size * channels * elempack;
 
@@ -427,7 +646,7 @@ int Flatten_x86::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Optio
         }
     }
 
-    if (dims == 3)
+    if (dims == 3 || dims == 4)
     {
         if (elempack == 8) // out_elempack == 8
         {

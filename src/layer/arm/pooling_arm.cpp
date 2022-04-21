@@ -53,10 +53,7 @@ int Pooling_arm::create_pipeline(const Option& /*opt*/)
         support_bf16_storage = false;
         support_fp16_storage = false;
         support_int8_storage = false;
-        support_image_storage = false;
         support_tensor_storage = false;
-
-        support_weight_fp16_storage = false;
     }
     return 0;
 }
@@ -460,6 +457,32 @@ int Pooling_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 
         if (pooling_type == PoolMethod_AVE)
         {
+            if (elempack == 8)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    const __fp16* ptr = bottom_blob.channel(q);
+
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    for (int i = 0; i < size; i++)
+                    {
+                        float16x8_t _val = vld1q_f16(ptr);
+                        _sum0 = vaddq_f32(_sum0, vcvt_f32_f16(vget_low_f16(_val)));
+                        _sum1 = vaddq_f32(_sum1, vcvt_f32_f16(vget_high_f16(_val)));
+                        ptr += 8;
+                    }
+
+                    float32x4_t _inv_size = vdupq_n_f32(1.f / size);
+                    float32x4_t _avg0 = vmulq_f32(_sum0, _inv_size);
+                    float32x4_t _avg1 = vmulq_f32(_sum1, _inv_size);
+
+                    __fp16* outptr = top_blob;
+                    vst1q_f16(outptr + q * 8, vcombine_f16(vcvt_f16_f32(_avg0), vcvt_f16_f32(_avg1)));
+                }
+            }
+
             if (elempack == 4)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
@@ -831,7 +854,7 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
     // max value in NxN window
     // avg value in NxN window
 
-    if (pooling_type == PoolMethod_MAX)
+    if (pooling_type == PoolMethod_MAX || global_pooling)
     {
         return forward_fp16s(bottom_blob, top_blob, opt);
     }
@@ -843,84 +866,6 @@ int Pooling_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Opt
     int elempack = bottom_blob.elempack;
 
     //     NCNN_LOGE("Pooling     input %d x %d  pad = %d %d %d %d  ksize=%d %d  stride=%d %d", w, h, pad_left, pad_right, pad_top, pad_bottom, kernel_w, kernel_h, stride_w, stride_h);
-
-    if (global_pooling)
-    {
-        top_blob.create(channels, elemsize, elempack, opt.blob_allocator);
-        if (top_blob.empty())
-            return -100;
-
-        int size = w * h;
-
-        if (pooling_type == PoolMethod_AVE)
-        {
-            if (elempack == 8)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = bottom_blob.channel(q);
-
-                    float16x8_t _sum = vdupq_n_f16((__fp16)0.f);
-                    for (int i = 0; i < size; i++)
-                    {
-                        float16x8_t _val = vld1q_f16(ptr);
-                        _sum = vaddq_f16(_sum, _val);
-                        ptr += 8;
-                    }
-
-                    float16x8_t _inv_size = vdupq_n_f16((__fp16)(1.f / size));
-                    float16x8_t _avg = vmulq_f16(_sum, _inv_size);
-
-                    __fp16* outptr = top_blob;
-                    vst1q_f16(outptr + q * 8, _avg);
-                }
-            }
-
-            if (elempack == 4)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = bottom_blob.channel(q);
-
-                    float16x4_t _sum = vdup_n_f16((__fp16)0.f);
-                    for (int i = 0; i < size; i++)
-                    {
-                        float16x4_t _val = vld1_f16(ptr);
-                        _sum = vadd_f16(_sum, _val);
-                        ptr += 4;
-                    }
-
-                    float16x4_t _inv_size = vdup_n_f16((__fp16)(1.f / size));
-                    float16x4_t _avg = vmul_f16(_sum, _inv_size);
-
-                    __fp16* outptr = top_blob;
-                    vst1_f16(outptr + q * 4, _avg);
-                }
-            }
-
-            if (elempack == 1)
-            {
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = bottom_blob.channel(q);
-
-                    __fp16 sum = (__fp16)0.f;
-                    for (int i = 0; i < size; i++)
-                    {
-                        sum += ptr[i];
-                    }
-
-                    __fp16* outptr = top_blob;
-                    outptr[q] = sum / size;
-                }
-            }
-        }
-
-        return 0;
-    }
 
     Mat bottom_blob_bordered;
     make_padding(bottom_blob, bottom_blob_bordered, opt);

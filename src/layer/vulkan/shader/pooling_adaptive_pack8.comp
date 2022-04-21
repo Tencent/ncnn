@@ -74,10 +74,12 @@ void main()
     afpvec8 res;
 
     // calculate adaptive kernel size
-    const int kernel_w = max(psc(w) - psc(outw) + 1, 1);
-    const int kernel_h = max(psc(h) - psc(outh) + 1, 1);
-    const int sx = psc(outw) == 1 ? 0 : gx * (psc(w) - kernel_w) / (psc(outw) - 1);
-    const int sy = psc(outh) == 1 ? 0 : gy * (psc(h) - kernel_h) / (psc(outh) - 1);
+    const int sx = psc(w) * gx / psc(outw);
+    const int ex = (psc(w) * (gx + 1) + psc(outw) - 1) / psc(outw);
+    const int kernel_w = ex - sx;
+    const int sy = psc(h) * gy / psc(outh);
+    const int ey = (psc(h) * (gy + 1) + psc(outh) - 1) / psc(outh);
+    const int kernel_h = ey - sy;
 
     if (pooling_type == 0)
     {
@@ -113,7 +115,6 @@ void main()
     else if (pooling_type == 1)
     {
         mat2x4 res_fp32 = mat2x4(vec4(0.f), vec4(0.f));  // force accumulation in fp32
-        int area = 0;
         
 #if NCNN_image_shader
         for (int y = 0; y < kernel_h; y++)
@@ -123,7 +124,6 @@ void main()
                 afpvec8 v = image3d_ld8(bottom_blob, ivec3(sx + x, sy + y, gz));
                 res_fp32[0] += v[0];
                 res_fp32[1] += v[1];
-                area += 1;
             }
         }
 #else
@@ -136,13 +136,13 @@ void main()
                 afpvec8 v = buffer_ld8(bottom_blob_data, v_offset + x);
                 res_fp32[0] += v[0];
                 res_fp32[1] += v[1];
-                area += 1;
             }
 
             v_offset += psc(w);
         }
 #endif
 
+        int area = kernel_h * kernel_w;
         res_fp32[0] /= float(area);
         res_fp32[1] /= float(area);
         res = afpvec8(res_fp32);  // cast to fp16 if possible

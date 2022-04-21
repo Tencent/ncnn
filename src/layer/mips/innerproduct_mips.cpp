@@ -32,12 +32,11 @@ InnerProduct_mips::InnerProduct_mips()
 #endif // __mips_msa
 
     flatten = 0;
+    activation = 0;
 }
 
 int InnerProduct_mips::create_pipeline(const Option& opt)
 {
-#if __mips_msa
-    if (opt.use_packing_layout || opt.use_int8_inference)
     {
         flatten = ncnn::create_layer(ncnn::LayerType::Flatten);
 
@@ -47,7 +46,13 @@ int InnerProduct_mips::create_pipeline(const Option& opt)
 
         flatten->create_pipeline(opt);
     }
-#endif // __mips_msa
+
+#if NCNN_INT8
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
+        return create_pipeline_int8_mips(opt);
+    }
+#endif
 
     return 0;
 }
@@ -61,6 +66,13 @@ int InnerProduct_mips::destroy_pipeline(const Option& opt)
         flatten = 0;
     }
 
+    if (activation)
+    {
+        activation->destroy_pipeline(opt);
+        delete activation;
+        activation = 0;
+    }
+
     return 0;
 }
 
@@ -69,27 +81,7 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
-        Mat bottom_blob_unpacked = bottom_blob;
-        if (bottom_blob.elempack != 1)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_pack1);
-        }
-
-        Mat bottom_blob_unpacked_fp32 = bottom_blob_unpacked;
-        if (bottom_blob_unpacked.elembits() == 16)
-        {
-            Option opt_pack1 = opt;
-            opt_pack1.blob_allocator = opt.workspace_allocator;
-
-            cast_float16_to_float32(bottom_blob_unpacked, bottom_blob_unpacked_fp32, opt_pack1);
-        }
-
-        Option opt_unpacked = opt;
-        opt_unpacked.use_packing_layout = false;
-        return InnerProduct::forward_int8(bottom_blob_unpacked_fp32, top_blob, opt_unpacked);
+        return forward_int8_mips(bottom_blob, top_blob, opt);
     }
 #endif
 
@@ -128,8 +120,8 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
                     for (int i = 0; i < num_input; i++)
                     {
-                        __builtin_prefetch(m + 32);
-                        __builtin_prefetch(kptr + 8);
+                        __builtin_prefetch(m + 16);
+                        __builtin_prefetch(kptr + 4);
                         v4f32 _val = (v4f32)__msa_ld_w(m, 0);
                         v4f32 _k = __msa_fill_w_f32(kptr[0]);
                         _sum = __msa_fmadd_w(_sum, _val, _k);
@@ -258,11 +250,11 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __mips_msa
             for (; i + 3 < size; i += 4)
             {
-                __builtin_prefetch(m + 32);
-                __builtin_prefetch(w0 + 32);
-                __builtin_prefetch(w1 + 32);
-                __builtin_prefetch(w2 + 32);
-                __builtin_prefetch(w3 + 32);
+                __builtin_prefetch(m + 16);
+                __builtin_prefetch(w0 + 16);
+                __builtin_prefetch(w1 + 16);
+                __builtin_prefetch(w2 + 16);
+                __builtin_prefetch(w3 + 16);
                 v4f32 _m = (v4f32)__msa_ld_w(m, 0);
 
                 v4f32 _w0 = (v4f32)__msa_ld_w(w0, 0);
@@ -300,10 +292,10 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         }
 
 #if __mips_msa
-        sum0 += __msa_fhadd_w(_sum0);
-        sum1 += __msa_fhadd_w(_sum1);
-        sum2 += __msa_fhadd_w(_sum2);
-        sum3 += __msa_fhadd_w(_sum3);
+        sum0 += __msa_reduce_fadd_w(_sum0);
+        sum1 += __msa_reduce_fadd_w(_sum1);
+        sum2 += __msa_reduce_fadd_w(_sum2);
+        sum3 += __msa_reduce_fadd_w(_sum3);
 #endif // __mips_msa
 
         sum0 = activation_ss(sum0, activation_type, activation_params);
@@ -349,5 +341,190 @@ int InnerProduct_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     return 0;
 }
+
+#if NCNN_INT8
+int InnerProduct_mips::create_pipeline_int8_mips(const Option& opt)
+{
+    activation = create_activation_layer(activation_type, activation_params, opt);
+
+    const int num_input = weight_data_size / num_output;
+
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : 1;
+    }
+#endif // __mips_msa
+
+    // src = inch-outch
+    // dst = pb-inch-outch/pb
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_int8.create(num_input, num_output / out_elempack, (size_t)out_elempack, out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            signed char* g0 = weight_data_int8.row<signed char>(q / out_elempack);
+
+            for (int p = 0; p < num_input; p++)
+            {
+                for (int j = 0; j < out_elempack; j++)
+                {
+                    *g0++ = weight_data_r2.row<signed char>(q + j)[p];
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+int InnerProduct_mips::forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    {
+        // gemm
+        Mat bottom_blob_unpacked;
+        Option opt_unpack = opt;
+        opt_unpack.blob_allocator = opt.workspace_allocator;
+        convert_packing(bottom_blob, bottom_blob_unpacked, 1, opt_unpack);
+
+        return forward_int8(bottom_blob_unpacked, top_blob, opt);
+    }
+
+    int elembits = bottom_blob.elembits();
+
+    Mat bottom_blob_int8 = bottom_blob;
+    if (elembits != 8)
+    {
+        Option opt_q = opt;
+        opt_q.blob_allocator = opt.workspace_allocator;
+        quantize_to_int8(bottom_blob, bottom_blob_int8, bottom_blob_int8_scales, opt_q);
+    }
+
+    Mat bottom_blob_int8_flattened = bottom_blob_int8;
+    if (bottom_blob_int8.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+        flatten->forward(bottom_blob_int8, bottom_blob_int8_flattened, opt_flatten);
+    }
+
+    //     int elempack = bottom_blob_int8_flattened.elempack;
+
+    int out_elempack = 1;
+#if __mips_msa
+    if (opt.use_packing_layout)
+    {
+        out_elempack = num_output % 8 == 0 ? 8 : 1;
+    }
+#endif // __mips_msa
+    //     size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    Mat top_blob_int32;
+    top_blob_int32.create(num_output / out_elempack, (size_t)(4u * out_elempack), out_elempack, opt.workspace_allocator);
+    if (top_blob_int32.empty())
+        return -100;
+
+#if __mips_msa
+    if (out_elempack == 8)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < num_output / out_elempack; p++)
+        {
+            v4i32 _sum0 = __msa_fill_w(0);
+            v4i32 _sum1 = __msa_fill_w(0);
+
+            const signed char* kptr = weight_data_int8.row<const signed char>(p);
+            const signed char* sptr = bottom_blob_int8_flattened;
+
+            int i = 0;
+            for (; i < num_input; i++)
+            {
+                __builtin_prefetch(sptr + 4);
+                __builtin_prefetch(kptr + 32);
+                v8i16 _val = __msa_fill_h((short)sptr[0]);
+
+                v16i8 _w = __msa_ld_b(kptr, 0);
+                v8i16 _w16 = (v8i16)__msa_ilvr_b(__msa_clti_s_b(_w, 0), _w);
+
+                v8i16 _s0 = __msa_mulv_h(_val, _w16);
+                v8i16 _exts0 = __msa_clti_s_h(_s0, 0);
+                v4i32 _s0l = (v4i32)__msa_ilvr_h(_exts0, _s0);
+                v4i32 _s0h = (v4i32)__msa_ilvl_h(_exts0, _s0);
+
+                _sum0 = __msa_addv_w(_sum0, _s0l);
+                _sum1 = __msa_addv_w(_sum1, _s0h);
+
+                sptr += 1;
+                kptr += 8;
+            }
+
+            int* outptr = (int*)top_blob_int32;
+            __msa_st_w((v4i32)_sum0, outptr + p * 8, 0);
+            __msa_st_w((v4i32)_sum1, outptr + p * 8 + 4, 0);
+        }
+    }
+#endif // __mips_msa
+
+    if (out_elempack == 1)
+    {
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int p = 0; p < num_output / out_elempack; p++)
+        {
+            int sum = 0;
+
+            const signed char* kptr = weight_data_int8.row<const signed char>(p);
+            const signed char* sptr = bottom_blob_int8_flattened;
+
+            int i = 0;
+            for (; i < num_input; i++)
+            {
+                signed char val = sptr[0];
+
+                signed char w = kptr[0];
+
+                sum += val * w;
+
+                sptr += 1;
+                kptr += 1;
+            }
+
+            int* outptr = (int*)top_blob_int32;
+            outptr[p] = sum;
+        }
+    }
+
+    Mat scale_data(num_output);
+    for (int p = 0; p < num_output; p++)
+    {
+        // dequantize
+        float scale_in;
+        if (weight_data_int8_scales[p] == 0)
+            scale_in = 0;
+        else
+            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+        scale_data[p] = scale_in;
+    }
+
+    dequantize_from_int32(top_blob_int32, top_blob, scale_data, bias_data, opt);
+
+    if (activation)
+    {
+        activation->forward_inplace(top_blob, opt);
+    }
+
+    return 0;
+}
+#endif // NCNN_INT8
 
 } // namespace ncnn

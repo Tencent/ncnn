@@ -16,9 +16,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat>& kernel_tm2, int inch, int outch)
+static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat>& kernel_tm2, int inch, int outch, const Option& opt)
 {
-    Mat kernel_tm(4 * 4, inch, outch, 2ul);
+    Mat kernel_tm(4 * 4, inch, outch, (size_t)2u);
 
     // G
     const short ktm[4][3] = {
@@ -28,7 +28,7 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
         {0, 0, 2}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -65,7 +65,7 @@ static void conv3x3s1_winograd23_transform_kernel_int8_neon(const Mat& kernel, s
 
     for (int r = 0; r < 4; r++)
     {
-        Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, 2u);
+        Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)2u);
 
         int p = 0;
         for (; p + 7 < outch; p += 8)
@@ -1059,9 +1059,9 @@ static void conv3x3s1_winograd23_int8_neon(const Mat& bottom_blob, Mat& top_blob
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat>& kernel_tm2, int inch, int outch)
+static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, std::vector<Mat>& kernel_tm2, int inch, int outch, const Option& opt)
 {
-    Mat kernel_tm(6 * 6, inch, outch, 2ul);
+    Mat kernel_tm(6 * 6, inch, outch, (size_t)2u);
 
     // G
     // const float ktm[6][3] = {
@@ -1081,7 +1081,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
         {0, 0, 6}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -1118,7 +1118,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, s
 
     for (int r = 0; r < 9; r++)
     {
-        Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, 2u);
+        Mat kernel_tm_test(4 * 8, inch, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)2u);
 
         int p = 0;
         for (; p + 7 < outch; p += 8)
@@ -1734,6 +1734,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "r"(inch) // %20
                         : "cc", "memory", "x4", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16");
 #else
+                    int nn = inch;
                     asm volatile(
                         // inch loop
                         "vmov.s32    q0, #0           \n"
@@ -1744,7 +1745,6 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "vmov.s32    q5, #0           \n"
                         "vmov.s32    q6, #0           \n"
                         "vmov.s32    q7, #0           \n"
-                        "mov         r4, %20          \n"
 
                         "0:                           \n" // for (int q=0; q<inch; q++)
                         "vld1.s16    {d16}, [%8]!     \n" // _r0 = vld1_s16(r0);  // input inch0
@@ -1766,7 +1766,7 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "vmlal.s16   q6, d16, d24     \n" // sum6 += (a00-a03) * (k60-k63)
                         "vmlal.s16   q7, d16, d25     \n" // sum7 += (a00-a03) * (k70-k73)
 
-                        "subs        r4, r4, #1       \n"
+                        "subs        %10, %10, #1     \n"
                         "bne         0b               \n" // end for
 
                         "vst1.s32    {d0-d1}, [%0]    \n" // store the result to memory
@@ -1787,7 +1787,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "=r"(output6_tm), // %6
                         "=r"(output7_tm), // %7
                         "=r"(r0),         // %8
-                        "=r"(kptr)        // %9
+                        "=r"(kptr),       // %9
+                        "=r"(nn)          // %10
                         : "0"(output0_tm),
                         "1"(output1_tm),
                         "2"(output2_tm),
@@ -1798,8 +1799,8 @@ static void conv3x3s1_winograd43_int8_neon(const Mat& bottom_blob, Mat& top_blob
                         "7"(output7_tm),
                         "8"(r0),
                         "9"(kptr),
-                        "r"(inch) // %20
-                        : "cc", "memory", "r4", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
+                        "10"(nn)
+                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12");
 #endif // __aarch64__
 #else
                     int sum0[4] = {0};

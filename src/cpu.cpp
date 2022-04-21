@@ -28,9 +28,14 @@
 #endif
 #endif
 
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 #ifdef _MSC_VER
 #include <intrin.h>    // __cpuid()
 #include <immintrin.h> // _xgetbv()
+#endif
+#if defined(__clang__) || defined(__GNUC__)
+#include <cpuid.h> // __get_cpuid() and __cpuid_count()
+#endif
 #endif
 
 #ifdef __EMSCRIPTEN__
@@ -38,6 +43,12 @@
 #endif
 
 #if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__
+#if __ANDROID_API__ >= 18
+#include <sys/auxv.h> // getauxval()
+#endif
+#include <dlfcn.h>
+#endif
 #include <stdint.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -57,19 +68,31 @@
 #ifndef CPUFAMILY_ARM_HURRICANE
 #define CPUFAMILY_ARM_HURRICANE 0x67ceee93
 #endif
+// A11
 #ifndef CPUFAMILY_ARM_MONSOON_MISTRAL
 #define CPUFAMILY_ARM_MONSOON_MISTRAL 0xe81e7ef6
 #endif
+// A12
 #ifndef CPUFAMILY_ARM_VORTEX_TEMPEST
 #define CPUFAMILY_ARM_VORTEX_TEMPEST 0x07d34b9f
 #endif
+// A13
 #ifndef CPUFAMILY_ARM_LIGHTNING_THUNDER
 #define CPUFAMILY_ARM_LIGHTNING_THUNDER 0x462504d2
 #endif
+// A14
 #ifndef CPUFAMILY_ARM_FIRESTORM_ICESTORM
 #define CPUFAMILY_ARM_FIRESTORM_ICESTORM 0x1b588bb3
 #endif
+// A15
+#ifndef CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+#define CPUFAMILY_ARM_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
+// M1
+#ifndef CPUFAMILY_AARCH64_FIRESTORM_ICESTORM
+#define CPUFAMILY_AARCH64_FIRESTORM_ICESTORM 0x1b588bb3
+#endif
+#endif // __APPLE__
 
 #if defined(__SSE3__)
 #include <immintrin.h>
@@ -79,18 +102,64 @@ namespace ncnn {
 
 #if defined __ANDROID__ || defined __linux__
 
+#define AT_HWCAP  16
+#define AT_HWCAP2 26
+
+#if defined __ANDROID__
+// Probe the system's C library for a 'getauxval' function and call it if
+// it exits, or return 0 for failure. This function is available since API
+// level 18.
+//
+// Note that getauxval() can't really be re-implemented here, because
+// its implementation does not parse /proc/self/auxv. Instead it depends
+// on values  that are passed by the kernel at process-init time to the
+// C runtime initialization layer.
+static unsigned int get_elf_hwcap_from_getauxval()
+{
+#if __ANDROID_API__ >= 18
+    unsigned int hwcap = getauxval(AT_HWCAP);
+    if (hwcap)
+        return hwcap;
+#endif
+
+    typedef unsigned long getauxval_func_t(unsigned long);
+
+    dlerror();
+    void* libc_handle = dlopen("libc.so", RTLD_NOW);
+    if (!libc_handle)
+    {
+        NCNN_LOGE("dlopen libc.so failed %s", dlerror());
+        return 0;
+    }
+
+    unsigned int result = 0;
+    getauxval_func_t* func = (getauxval_func_t*)dlsym(libc_handle, "getauxval");
+    if (!func)
+    {
+        NCNN_LOGE("dlsym getauxval failed");
+    }
+    else
+    {
+        // Note: getauxval() returns 0 on failure. Doesn't touch errno.
+        result = (unsigned int)(*func)(AT_HWCAP);
+    }
+    dlclose(libc_handle);
+
+    return result;
+}
+#endif // defined __ANDROID__
+
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
 static unsigned int get_elf_hwcap_from_proc_self_auxv()
 {
     FILE* fp = fopen("/proc/self/auxv", "rb");
     if (!fp)
     {
+        NCNN_LOGE("fopen /proc/self/auxv failed");
         return 0;
     }
 
-#define AT_HWCAP  16
-#define AT_HWCAP2 26
-#if __aarch64__ || __riscv_xlen == 64
+#if __aarch64__ || __mips64 || __riscv_xlen == 64
     struct
     {
         uint64_t tag;
@@ -127,7 +196,18 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
     return result;
 }
 
-static unsigned int g_hwcaps = get_elf_hwcap_from_proc_self_auxv();
+static unsigned int get_elf_hwcap()
+{
+#if defined __ANDROID__
+    unsigned int hwcap = get_elf_hwcap_from_getauxval();
+    if (hwcap)
+        return hwcap;
+#endif
+
+    return get_elf_hwcap_from_proc_self_auxv();
+}
+
+static unsigned int g_hwcaps = get_elf_hwcap();
 
 #if __aarch64__
 // from arch/arm64/include/uapi/asm/hwcap.h
@@ -335,7 +415,7 @@ int cpu_support_arm_asimdhp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
+    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
 #else
     return 0;
 #endif
@@ -354,7 +434,7 @@ int cpu_support_arm_asimddp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM;
+    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
 #else
     return 0;
 #endif
@@ -363,90 +443,300 @@ int cpu_support_arm_asimddp()
 #endif
 }
 
-int cpu_support_x86_avx2()
+#if defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+static inline void x86_cpuid(int level, unsigned int out[4])
 {
-#if !NCNN_AVX2
-    return 0;
-#endif
-#if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
 #if defined(_MSC_VER)
-    // TODO move to init function
-    int cpu_info[4];
-    __cpuid(cpu_info, 0);
-
-    int nIds = cpu_info[0];
-    if (nIds < 7)
-        return 0;
-
-    __cpuid(cpu_info, 1);
-    // check AVX XSAVE OSXSAVE
-    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
-        return 0;
-
-    // check XSAVE enabled by kernel
-    if ((_xgetbv(0) & 6) != 6)
-        return 0;
-
-    __cpuid(cpu_info, 7);
-    return cpu_info[1] & 0x00000020;
-#elif defined(__clang__)
-#if __clang_major__ >= 6
-    __builtin_cpu_init();
-#endif
-    return __builtin_cpu_supports("avx2");
-#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
-    __builtin_cpu_init();
-    return __builtin_cpu_supports("avx2");
+    __cpuid((int*)out, level);
+#elif defined(__clang__) || defined(__GNUC__)
+    __get_cpuid(level, out, out + 1, out + 2, out + 3);
 #else
-    // TODO: other x86 compilers checking avx2 here
-    NCNN_LOGE("AVX2 detection method is unknown for current compiler");
-    return 0;
-#endif
-#else
-    return 0;
+    NCNN_LOGE("x86_cpuid is unknown for current compiler");
+    out[0] = 0;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
 #endif
 }
 
-int cpu_support_x86_avx()
+static inline void x86_cpuid_sublevel(int level, int sublevel, unsigned int out[4])
+{
+#if defined(_MSC_VER)
+    __cpuidex((int*)out, level, sublevel);
+#elif defined(__clang__) || defined(__GNUC__)
+    __cpuid_count(level, sublevel, out[0], out[1], out[2], out[3]);
+#else
+    NCNN_LOGE("x86_cpuid_sublevel is unknown for current compiler");
+    out[0] = 0;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+#endif
+}
+
+static inline int x86_get_xcr0()
+{
+#if defined(_MSC_FULL_VER) && (_MSC_FULL_VER >= 160040219)
+    return _xgetbv(0);
+#elif defined(__i386__) || defined(__x86_64__)
+    int xcr0 = 0;
+    asm(".byte 0x0f, 0x01, 0xd0"
+        : "=a"(xcr0)
+        : "c"(0)
+        : "%edx");
+    return xcr0;
+#else
+    NCNN_LOGE("x86_get_xcr0 is unknown for current compiler");
+    return 0xffffffff; // assume it will work
+#endif
+}
+
+static int get_cpu_support_x86_avx()
 {
 #if !NCNN_AVX
     return 0;
 #endif
-#if (_M_AMD64 || __x86_64__) || (_M_IX86 || __i386__)
-#if defined(_MSC_VER)
-    // TODO move to init function
-    int cpu_info[4];
-    __cpuid(cpu_info, 0);
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 1)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    return 1;
+}
+
+static int get_cpu_support_x86_fma()
+{
+#if !NCNN_FMA
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
 
     int nIds = cpu_info[0];
     if (nIds < 7)
         return 0;
 
-    __cpuid(cpu_info, 1);
+    x86_cpuid(1, cpu_info);
     // check AVX XSAVE OSXSAVE
-    if (!(cpu_info[2] & 0x10000000) || !(cpu_info[2] & 0x04000000) || !(cpu_info[2] & 0x08000000))
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
         return 0;
 
     // check XSAVE enabled by kernel
-    if ((_xgetbv(0) & 6) != 6)
+    if ((x86_get_xcr0() & 6) != 6)
         return 0;
-    return 1;
-#elif defined(__clang__)
-#if __clang_major__ >= 6
-    __builtin_cpu_init();
-#endif
-    return __builtin_cpu_supports("avx");
-#elif __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)
-    __builtin_cpu_init();
-    return __builtin_cpu_supports("avx");
-#else
-    // TODO: other x86 compilers checking avx here
-    NCNN_LOGE("AVX detection method is unknown for current compiler");
+
+    return cpu_info[2] & (1u << 12);
+}
+
+static int get_cpu_support_x86_xop()
+{
+#if !NCNN_XOP
     return 0;
 #endif
-#else
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0x80000000, cpu_info);
+
+    if (cpu_info[0] < 0x80000001)
+        return 0;
+
+    x86_cpuid(0x80000001, cpu_info);
+
+    return cpu_info[2] & (1u << 11);
+}
+
+static int get_cpu_support_x86_f16c()
+{
+#if !NCNN_F16C
     return 0;
 #endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 1)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+
+    return cpu_info[2] & (1u << 29);
+}
+
+static int get_cpu_support_x86_avx2()
+{
+#if !NCNN_AVX2
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 0, cpu_info);
+    return cpu_info[1] & (1u << 5);
+}
+
+static int get_cpu_support_x86_avx_vnni()
+{
+#if !NCNN_AVXVNNI
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[0] & (1u << 4);
+}
+
+static int get_cpu_support_x86_avx512()
+{
+#if !NCNN_AVX512
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    // check avx512 XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 0xe0) != 0xe0)
+        return 0;
+
+    x86_cpuid_sublevel(7, 0, cpu_info);
+    return (cpu_info[1] & (1u << 16)) && (cpu_info[1] & (1u << 17)) && (cpu_info[1] & (1u << 28)) && (cpu_info[1] & (1u << 30)) && (cpu_info[1] & (1u << 31));
+}
+
+static int get_cpu_support_x86_avx512_vnni()
+{
+#if !NCNN_AVX512VNNI
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    // check avx512 XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 0xe0) != 0xe0)
+        return 0;
+
+    x86_cpuid_sublevel(7, 0, cpu_info);
+    return cpu_info[2] & (1u << 11);
+}
+
+static int g_cpu_support_x86_avx = get_cpu_support_x86_avx();
+static int g_cpu_support_x86_fma = get_cpu_support_x86_fma();
+static int g_cpu_support_x86_xop = get_cpu_support_x86_xop();
+static int g_cpu_support_x86_f16c = get_cpu_support_x86_f16c();
+static int g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
+static int g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
+static int g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
+static int g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
+#else  // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+static const int g_cpu_support_x86_avx = 0;
+static const int g_cpu_support_x86_fma = 0;
+static const int g_cpu_support_x86_xop = 0;
+static const int g_cpu_support_x86_f16c = 0;
+static const int g_cpu_support_x86_avx2 = 0;
+static const int g_cpu_support_x86_avx_vnni = 0;
+static const int g_cpu_support_x86_avx512 = 0;
+static const int g_cpu_support_x86_avx512_vnni = 0;
+#endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
+
+int cpu_support_x86_avx()
+{
+    return g_cpu_support_x86_avx;
+}
+
+int cpu_support_x86_fma()
+{
+    return g_cpu_support_x86_fma;
+}
+
+int cpu_support_x86_xop()
+{
+    return g_cpu_support_x86_xop;
+}
+
+int cpu_support_x86_f16c()
+{
+    return g_cpu_support_x86_f16c;
+}
+
+int cpu_support_x86_avx2()
+{
+    return g_cpu_support_x86_avx2;
+}
+
+int cpu_support_x86_avx_vnni()
+{
+    return g_cpu_support_x86_avx_vnni;
+}
+
+int cpu_support_x86_avx512()
+{
+    return g_cpu_support_x86_avx512;
+}
+
+int cpu_support_x86_avx512_vnni()
+{
+    return g_cpu_support_x86_avx512_vnni;
 }
 
 int cpu_support_mips_msa()
@@ -663,14 +953,10 @@ static int get_max_freq_khz(int cpuid)
 static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 {
     // set affinity for thread
-#if defined(__GLIBC__) || defined(__OHOS__)
-    pid_t pid = syscall(SYS_gettid);
-#else
-#if defined(PI3) || (defined(__MUSL__) && __MUSL_MINOR__ <= 14)
-    pid_t pid = getpid();
-#else
+#if defined(__BIONIC__)
     pid_t pid = gettid();
-#endif
+#else
+    pid_t pid = syscall(SYS_gettid);
 #endif
 
     int syscallret = syscall(__NR_sched_setaffinity, pid, sizeof(cpu_set_t), &thread_affinity_mask.cpu_set);
@@ -799,7 +1085,7 @@ static int setup_thread_affinity_masks()
         g_thread_affinity_mask_little.enable(4);
         g_thread_affinity_mask_little.enable(5);
     }
-    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM)
+    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD)
     {
         // 2 + 4 or 4 + 4
         if (get_cpu_count() == 6)

@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_kernel_pack4_msa(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_pack4_msa(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
 {
     // winograd63 transform kernel
     Mat kernel_tm;
@@ -29,7 +29,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_msa(const Mat& kernel, M
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -93,7 +93,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_msa(const Mat& kernel, M
     }
 }
 
-static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -115,177 +115,15 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
     h = outh + 2;
     copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
 
-    const float* bias = _bias;
-
     // BEGIN transform input
     Mat bottom_blob_tm;
     {
-        int w_tm = outw / 6 * 8;
-        int h_tm = outh / 6 * 8;
+        int w_tiles = outw / 6;
+        int h_tiles = outh / 6;
+        const int tiles = w_tiles * h_tiles;
 
-        const int tiles = w_tm / 8 * h_tm / 8;
-
-        //         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
-        bottom_blob_tm.create(tiles, 64, inch, 4u * elempack, elempack, opt.workspace_allocator);
-
-        //         const float itm[8][8] = {
-        //             {1.0f,  0.0f, -5.25f,  0.00f,  5.25f,  0.00f, -1.0f, 0.0f},
-        //
-        //             {0.0f,  1.0f,  1.00f, -4.25f, -4.25f,  1.00f,  1.0f, 0.0f},
-        //             {0.0f, -1.0f,  1.00f,  4.25f, -4.25f, -1.00f,  1.0f, 0.0f},
-        //
-        //             {0.0f,  0.5f,  0.25f, -2.50f, -1.25f,  2.00f,  1.0f, 0.0f},
-        //             {0.0f, -0.5f,  0.25f,  2.50f, -1.25f, -2.00f,  1.0f, 0.0f},
-        //
-        //             {0.0f,  2.0f,  4.00f, -2.50f, -5.00f,  0.50f,  1.0f, 0.0f},
-        //             {0.0f, -2.0f,  4.00f,  2.50f, -5.00f, -0.50f,  1.0f, 0.0f},
-        //
-        //             {0.0f, -1.0f,  0.00f,  5.25f,  0.00f, -5.25f,  0.0f, 1.0f}
-        //         };
-
-        // 0 = r00 - r06 + (r04 - r02) * 5.25
-        // 7 = r07 - r01 + (r03 - r05) * 5.25
-
-        // 1 = (r02 + r06 - r04 * 4.25) + (r01 - r03 * 4.25 + r05)
-        // 2 = (r02 + r06 - r04 * 4.25) - (r01 - r03 * 4.25 + r05)
-
-        // 3 = (r06 + r02 * 0.25 - r04 * 1.25) + (r01 * 0.5 - r03 * 2.5 + r05 * 2)
-        // 4 = (r06 + r02 * 0.25 - r04 * 1.25) - (r01 * 0.5 - r03 * 2.5 + r05 * 2)
-
-        // reuse r04 * 1.25
-        // reuse r03 * 2.5
-        // 5 = (r06 + (r02 - r04 * 1.25) * 4) + (r01 * 2 - r03 * 2.5 + r05 * 0.5)
-        // 6 = (r06 + (r02 - r04 * 1.25) * 4) - (r01 * 2 - r03 * 2.5 + r05 * 0.5)
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++)
-        {
-            const Mat img0 = bottom_blob_bordered.channel(q);
-            Mat img0_tm = bottom_blob_tm.channel(q);
-
-            float tmp[8][8][4];
-
-            v4f32 _v5_25 = __msa_fill_w_f32(5.25f);
-            v4f32 _vm4_25 = __msa_fill_w_f32(-4.25f);
-            v4f32 _vm1_25 = __msa_fill_w_f32(-1.25f);
-            v4f32 _v0_25 = __msa_fill_w_f32(0.25f);
-            v4f32 _vm2_5 = __msa_fill_w_f32(-2.5f);
-            v4f32 _v0_5 = __msa_fill_w_f32(0.5f);
-            v4f32 _v2 = __msa_fill_w_f32(2.f);
-            v4f32 _v4 = __msa_fill_w_f32(4.f);
-
-            // tile
-            for (int i = 0; i < h_tm / 8; i++)
-            {
-                for (int j = 0; j < w_tm / 8; j++)
-                {
-                    const float* r0 = img0.row(i * 6) + (j * 6) * 4;
-
-                    for (int m = 0; m < 8; m++)
-                    {
-                        v4f32 _r00 = (v4f32)__msa_ld_w(r0, 0);
-                        v4f32 _r01 = (v4f32)__msa_ld_w(r0 + 4, 0);
-                        v4f32 _r02 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
-                        v4f32 _r03 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
-                        v4f32 _r04 = (v4f32)__msa_ld_w(r0 + 4 * 4, 0);
-                        v4f32 _r05 = (v4f32)__msa_ld_w(r0 + 4 * 5, 0);
-                        v4f32 _r06 = (v4f32)__msa_ld_w(r0 + 4 * 6, 0);
-                        v4f32 _r07 = (v4f32)__msa_ld_w(r0 + 4 * 7, 0);
-
-                        v4f32 _tmp0m = __msa_fmadd_w(__msa_fsub_w(_r00, _r06), _v5_25, __msa_fsub_w(_r04, _r02));
-                        v4f32 _tmp7m = __msa_fmadd_w(__msa_fsub_w(_r07, _r01), _v5_25, __msa_fsub_w(_r03, _r05));
-                        __msa_st_w((v4i32)_tmp0m, tmp[0][m], 0);
-                        __msa_st_w((v4i32)_tmp7m, tmp[7][m], 0);
-
-                        v4f32 _tmp12a = __msa_fmadd_w(__msa_fadd_w(_r02, _r06), _vm4_25, _r04);
-                        v4f32 _tmp12b = __msa_fmadd_w(__msa_fadd_w(_r01, _r05), _vm4_25, _r03);
-
-                        v4f32 _tmp1m = __msa_fadd_w(_tmp12a, _tmp12b);
-                        v4f32 _tmp2m = __msa_fsub_w(_tmp12a, _tmp12b);
-                        __msa_st_w((v4i32)_tmp1m, tmp[1][m], 0);
-                        __msa_st_w((v4i32)_tmp2m, tmp[2][m], 0);
-
-                        v4f32 _tmp34a = __msa_fmadd_w(__msa_fmadd_w(_r06, _v0_25, _r02), _vm1_25, _r04);
-                        v4f32 _tmp34b = __msa_fmadd_w(__msa_fmadd_w(__msa_fmul_w(_r01, _v0_5), _vm2_5, _r03), _v2, _r05);
-
-                        v4f32 _tmp3m = __msa_fadd_w(_tmp34a, _tmp34b);
-                        v4f32 _tmp4m = __msa_fsub_w(_tmp34a, _tmp34b);
-                        __msa_st_w((v4i32)_tmp3m, tmp[3][m], 0);
-                        __msa_st_w((v4i32)_tmp4m, tmp[4][m], 0);
-
-                        v4f32 _tmp56a = __msa_fmadd_w(_r06, _v4, __msa_fmadd_w(_r02, _vm1_25, _r04));
-                        v4f32 _tmp56b = __msa_fmadd_w(__msa_fmadd_w(__msa_fmul_w(_r01, _v2), _vm2_5, _r03), _v0_5, _r05);
-
-                        v4f32 _tmp5m = __msa_fadd_w(_tmp56a, _tmp56b);
-                        v4f32 _tmp6m = __msa_fsub_w(_tmp56a, _tmp56b);
-                        __msa_st_w((v4i32)_tmp5m, tmp[5][m], 0);
-                        __msa_st_w((v4i32)_tmp6m, tmp[6][m], 0);
-
-                        r0 += w * 4;
-                    }
-
-                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm / 8 + j) * 4;
-                    float* r0_tm_1 = r0_tm_0 + tiles * 4;
-                    float* r0_tm_2 = r0_tm_0 + tiles * 4 * 2;
-                    float* r0_tm_3 = r0_tm_0 + tiles * 4 * 3;
-                    float* r0_tm_4 = r0_tm_0 + tiles * 4 * 4;
-                    float* r0_tm_5 = r0_tm_0 + tiles * 4 * 5;
-                    float* r0_tm_6 = r0_tm_0 + tiles * 4 * 6;
-                    float* r0_tm_7 = r0_tm_0 + tiles * 4 * 7;
-
-                    for (int m = 0; m < 8; m++)
-                    {
-                        v4f32 _tmp00 = (v4f32)__msa_ld_w(tmp[m][0], 0);
-                        v4f32 _tmp01 = (v4f32)__msa_ld_w(tmp[m][1], 0);
-                        v4f32 _tmp02 = (v4f32)__msa_ld_w(tmp[m][2], 0);
-                        v4f32 _tmp03 = (v4f32)__msa_ld_w(tmp[m][3], 0);
-                        v4f32 _tmp04 = (v4f32)__msa_ld_w(tmp[m][4], 0);
-                        v4f32 _tmp05 = (v4f32)__msa_ld_w(tmp[m][5], 0);
-                        v4f32 _tmp06 = (v4f32)__msa_ld_w(tmp[m][6], 0);
-                        v4f32 _tmp07 = (v4f32)__msa_ld_w(tmp[m][7], 0);
-
-                        v4f32 _r0tm0 = __msa_fmadd_w(__msa_fsub_w(_tmp00, _tmp06), _v5_25, __msa_fsub_w(_tmp04, _tmp02));
-                        v4f32 _r0tm7 = __msa_fmadd_w(__msa_fsub_w(_tmp07, _tmp01), _v5_25, __msa_fsub_w(_tmp03, _tmp05));
-
-                        v4f32 _tmp12a = __msa_fmadd_w(__msa_fadd_w(_tmp02, _tmp06), _vm4_25, _tmp04);
-                        v4f32 _tmp12b = __msa_fmadd_w(__msa_fadd_w(_tmp01, _tmp05), _vm4_25, _tmp03);
-
-                        v4f32 _r0tm1 = __msa_fadd_w(_tmp12a, _tmp12b);
-                        v4f32 _r0tm2 = __msa_fsub_w(_tmp12a, _tmp12b);
-
-                        v4f32 _tmp34a = __msa_fmadd_w(__msa_fmadd_w(_tmp06, _v0_25, _tmp02), _vm1_25, _tmp04);
-                        v4f32 _tmp34b = __msa_fmadd_w(__msa_fmadd_w(__msa_fmul_w(_tmp01, _v0_5), _vm2_5, _tmp03), _v2, _tmp05);
-
-                        v4f32 _r0tm3 = __msa_fadd_w(_tmp34a, _tmp34b);
-                        v4f32 _r0tm4 = __msa_fsub_w(_tmp34a, _tmp34b);
-
-                        v4f32 _tmp56a = __msa_fmadd_w(_tmp06, _v4, __msa_fmadd_w(_tmp02, _vm1_25, _tmp04));
-                        v4f32 _tmp56b = __msa_fmadd_w(__msa_fmadd_w(__msa_fmul_w(_tmp01, _v2), _vm2_5, _tmp03), _v0_5, _tmp05);
-
-                        v4f32 _r0tm5 = __msa_fadd_w(_tmp56a, _tmp56b);
-                        v4f32 _r0tm6 = __msa_fsub_w(_tmp56a, _tmp56b);
-
-                        __msa_st_w((v4i32)_r0tm0, r0_tm_0, 0);
-                        __msa_st_w((v4i32)_r0tm1, r0_tm_1, 0);
-                        __msa_st_w((v4i32)_r0tm2, r0_tm_2, 0);
-                        __msa_st_w((v4i32)_r0tm3, r0_tm_3, 0);
-                        __msa_st_w((v4i32)_r0tm4, r0_tm_4, 0);
-                        __msa_st_w((v4i32)_r0tm5, r0_tm_5, 0);
-                        __msa_st_w((v4i32)_r0tm6, r0_tm_6, 0);
-                        __msa_st_w((v4i32)_r0tm7, r0_tm_7, 0);
-
-                        r0_tm_0 += tiles * 4 * 8;
-                        r0_tm_1 += tiles * 4 * 8;
-                        r0_tm_2 += tiles * 4 * 8;
-                        r0_tm_3 += tiles * 4 * 8;
-                        r0_tm_4 += tiles * 4 * 8;
-                        r0_tm_5 += tiles * 4 * 8;
-                        r0_tm_6 += tiles * 4 * 8;
-                        r0_tm_7 += tiles * 4 * 8;
-                    }
-                }
-            }
-        }
+        bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
+        conv3x3s1_winograd64_transform_input_pack4_msa(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -551,8 +389,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 96);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 48);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4i32 _val4567 = __msa_ld_w(r0 + 4, 0);
                         v4i32 _val89ab = __msa_ld_w(r0 + 8, 0);
@@ -607,8 +445,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 64);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 32);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4i32 _val4567 = __msa_ld_w(r0 + 4, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
@@ -650,8 +488,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 32);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
                         _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val0123, 0), _w0);
@@ -682,8 +520,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 16);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 8);
+                        __builtin_prefetch(k0 + 16);
                         v4f32 _val0 = __msa_fill_w_f32(*r0++);
                         v4f32 _val1 = __msa_fill_w_f32(*r0++);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
@@ -709,8 +547,8 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 8);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 4);
+                        __builtin_prefetch(k0 + 16);
                         v4f32 _val0 = __msa_fill_w_f32(*r0++);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
                         _sum = __msa_fmadd_w(_sum, _val0, _w0);
@@ -739,145 +577,7 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
         top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
     }
     {
-        //         const float otm[6][8] = {
-        //             {1.0f,  1.0f,   1.0f,   1.0f,   1.0f,  32.0f, 32.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,   2.0f,  -2.0f,  16.0f,-16.0f, 0.0f},
-        //             {0.0f,  1.0f,   1.0f,   4.0f,   4.0f,   8.0f,  8.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,   8.0f,  -8.0f,   4.0f, -4.0f, 0.0f},
-        //             {0.0f,  1.0f,   1.0f,  16.0f,  16.0f,   2.0f,  2.0f, 0.0f},
-        //             {0.0f,  1.0f,  -1.0f,  32.0f, -32.0f,   1.0f, -1.0f, 1.0f}
-        //         };
-
-        // 0 = r0 + (r1 + r2) + (r3 + r4)     + (r5 + r6) * 32
-        // 1 =      (r1 - r2) + (r3 - r4) * 2 + (r5 - r6) * 16
-        // 2 =      (r1 + r2) + (r3 + r4) * 4 + (r5 + r6) * 8
-        // 3 =      (r1 - r2) + (r3 - r4) * 8 + (r5 - r6) * 4
-        // 4 =      (r1 + r2) + (r3 + r4) * 16+ (r5 + r6) * 2
-        // 5 = r7 + (r1 - r2) + (r3 - r4) * 32+ (r5 - r6)
-
-        int w_tm = outw / 6 * 8;
-        int h_tm = outh / 6 * 8;
-        const int tiles = w_tm / 8 * h_tm / 8;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++)
-        {
-            const Mat out0_tm = top_blob_tm.channel(p);
-            Mat out0 = top_blob_bordered.channel(p);
-
-            //             const float bias0 = bias ? bias[p] : 0.f;
-            v4f32 _bias0 = bias ? (v4f32)__msa_ld_w((const float*)bias + p * 4, 0) : (v4f32)__msa_fill_w(0);
-
-            float tmp[6][8][4];
-
-            v4f32 _v32 = __msa_fill_w_f32(32.f);
-            v4f32 _v16 = __msa_fill_w_f32(16.f);
-            v4f32 _v8 = __msa_fill_w_f32(8.f);
-            v4f32 _v4 = __msa_fill_w_f32(4.f);
-            v4f32 _v2 = __msa_fill_w_f32(2.f);
-
-            // tile
-            for (int i = 0; i < outh / 6; i++)
-            {
-                for (int j = 0; j < outw / 6; j++)
-                {
-                    //                     top_blob_tm.create(tiles, 64, outch, elemsize, elempack);
-
-                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm / 8 + j) * 4;
-                    const float* output0_tm_1 = output0_tm_0 + tiles * 4;
-                    const float* output0_tm_2 = output0_tm_0 + tiles * 4 * 2;
-                    const float* output0_tm_3 = output0_tm_0 + tiles * 4 * 3;
-                    const float* output0_tm_4 = output0_tm_0 + tiles * 4 * 4;
-                    const float* output0_tm_5 = output0_tm_0 + tiles * 4 * 5;
-                    const float* output0_tm_6 = output0_tm_0 + tiles * 4 * 6;
-                    const float* output0_tm_7 = output0_tm_0 + tiles * 4 * 7;
-
-                    float* output0 = out0.row<float>(i * 6) + (j * 6) * 4;
-
-                    // TODO msa optimize
-                    for (int m = 0; m < 8; m++)
-                    {
-                        v4f32 _out0tm0 = (v4f32)__msa_ld_w(output0_tm_0, 0);
-                        v4f32 _out0tm1 = (v4f32)__msa_ld_w(output0_tm_1, 0);
-                        v4f32 _out0tm2 = (v4f32)__msa_ld_w(output0_tm_2, 0);
-                        v4f32 _out0tm3 = (v4f32)__msa_ld_w(output0_tm_3, 0);
-                        v4f32 _out0tm4 = (v4f32)__msa_ld_w(output0_tm_4, 0);
-                        v4f32 _out0tm5 = (v4f32)__msa_ld_w(output0_tm_5, 0);
-                        v4f32 _out0tm6 = (v4f32)__msa_ld_w(output0_tm_6, 0);
-                        v4f32 _out0tm7 = (v4f32)__msa_ld_w(output0_tm_7, 0);
-
-                        v4f32 _tmp024a = __msa_fadd_w(_out0tm1, _out0tm2);
-                        v4f32 _tmp135a = __msa_fsub_w(_out0tm1, _out0tm2);
-
-                        v4f32 _tmp024b = __msa_fadd_w(_out0tm3, _out0tm4);
-                        v4f32 _tmp135b = __msa_fsub_w(_out0tm3, _out0tm4);
-
-                        v4f32 _tmp024c = __msa_fadd_w(_out0tm5, _out0tm6);
-                        v4f32 _tmp135c = __msa_fsub_w(_out0tm5, _out0tm6);
-
-                        v4f32 _tmp0m = __msa_fadd_w(__msa_fadd_w(_out0tm0, _tmp024a), __msa_fmadd_w(_tmp024b, _v32, _tmp024c));
-                        v4f32 _tmp2m = __msa_fmadd_w(__msa_fmadd_w(_tmp024a, _v4, _tmp024b), _v8, _tmp024c);
-                        v4f32 _tmp4m = __msa_fmadd_w(__msa_fmadd_w(_tmp024a, _v16, _tmp024b), _v2, _tmp024c);
-                        __msa_st_w((v4i32)_tmp0m, tmp[0][m], 0);
-                        __msa_st_w((v4i32)_tmp2m, tmp[2][m], 0);
-                        __msa_st_w((v4i32)_tmp4m, tmp[4][m], 0);
-
-                        v4f32 _tmp1m = __msa_fmadd_w(__msa_fmadd_w(_tmp135a, _v2, _tmp135b), _v16, _tmp135c);
-                        v4f32 _tmp3m = __msa_fmadd_w(__msa_fmadd_w(_tmp135a, _v8, _tmp135b), _v4, _tmp135c);
-                        v4f32 _tmp5m = __msa_fadd_w(__msa_fadd_w(_out0tm7, _tmp135a), __msa_fmadd_w(_tmp135c, _v32, _tmp135b));
-                        __msa_st_w((v4i32)_tmp1m, tmp[1][m], 0);
-                        __msa_st_w((v4i32)_tmp3m, tmp[3][m], 0);
-                        __msa_st_w((v4i32)_tmp5m, tmp[5][m], 0);
-
-                        output0_tm_0 += tiles * 4 * 8;
-                        output0_tm_1 += tiles * 4 * 8;
-                        output0_tm_2 += tiles * 4 * 8;
-                        output0_tm_3 += tiles * 4 * 8;
-                        output0_tm_4 += tiles * 4 * 8;
-                        output0_tm_5 += tiles * 4 * 8;
-                        output0_tm_6 += tiles * 4 * 8;
-                        output0_tm_7 += tiles * 4 * 8;
-                    }
-
-                    for (int m = 0; m < 6; m++)
-                    {
-                        v4f32 _tmp00 = (v4f32)__msa_ld_w(tmp[m][0], 0);
-                        v4f32 _tmp01 = (v4f32)__msa_ld_w(tmp[m][1], 0);
-                        v4f32 _tmp02 = (v4f32)__msa_ld_w(tmp[m][2], 0);
-                        v4f32 _tmp03 = (v4f32)__msa_ld_w(tmp[m][3], 0);
-                        v4f32 _tmp04 = (v4f32)__msa_ld_w(tmp[m][4], 0);
-                        v4f32 _tmp05 = (v4f32)__msa_ld_w(tmp[m][5], 0);
-                        v4f32 _tmp06 = (v4f32)__msa_ld_w(tmp[m][6], 0);
-                        v4f32 _tmp07 = (v4f32)__msa_ld_w(tmp[m][7], 0);
-
-                        v4f32 _tmp024a = __msa_fadd_w(_tmp01, _tmp02);
-                        v4f32 _tmp135a = __msa_fsub_w(_tmp01, _tmp02);
-
-                        v4f32 _tmp024b = __msa_fadd_w(_tmp03, _tmp04);
-                        v4f32 _tmp135b = __msa_fsub_w(_tmp03, _tmp04);
-
-                        v4f32 _tmp024c = __msa_fadd_w(_tmp05, _tmp06);
-                        v4f32 _tmp135c = __msa_fsub_w(_tmp05, _tmp06);
-
-                        v4f32 _out00 = __msa_fadd_w(_bias0, __msa_fadd_w(__msa_fadd_w(_tmp00, _tmp024a), __msa_fmadd_w(_tmp024b, _v32, _tmp024c)));
-                        v4f32 _out02 = __msa_fadd_w(_bias0, __msa_fmadd_w(__msa_fmadd_w(_tmp024a, _v4, _tmp024b), _v8, _tmp024c));
-                        v4f32 _out04 = __msa_fadd_w(_bias0, __msa_fmadd_w(__msa_fmadd_w(_tmp024a, _v16, _tmp024b), _v2, _tmp024c));
-                        __msa_st_w((v4i32)_out00, output0, 0);
-                        __msa_st_w((v4i32)_out02, output0 + 4 * 2, 0);
-                        __msa_st_w((v4i32)_out04, output0 + 4 * 4, 0);
-
-                        v4f32 _out01 = __msa_fadd_w(_bias0, __msa_fmadd_w(__msa_fmadd_w(_tmp135a, _v2, _tmp135b), _v16, _tmp135c));
-                        v4f32 _out03 = __msa_fadd_w(_bias0, __msa_fmadd_w(__msa_fmadd_w(_tmp135a, _v8, _tmp135b), _v4, _tmp135c));
-                        v4f32 _out05 = __msa_fadd_w(_bias0, __msa_fadd_w(__msa_fadd_w(_tmp07, _tmp135a), __msa_fmadd_w(_tmp135c, _v32, _tmp135b)));
-                        __msa_st_w((v4i32)_out01, output0 + 4, 0);
-                        __msa_st_w((v4i32)_out03, output0 + 4 * 3, 0);
-                        __msa_st_w((v4i32)_out05, output0 + 4 * 5, 0);
-
-                        output0 += outw * 4;
-                    }
-                }
-            }
-        }
+        conv3x3s1_winograd64_transform_output_pack4_msa(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 
@@ -885,7 +585,7 @@ static void conv3x3s1_winograd64_pack4_msa(const Mat& bottom_blob, Mat& top_blob
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd42_transform_kernel_pack4_msa(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch)
+static void conv3x3s1_winograd42_transform_kernel_pack4_msa(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
 {
     // winograd42 transform kernel
     Mat kernel_tm(6 * 6, inch, outch);
@@ -899,7 +599,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack4_msa(const Mat& kernel, M
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -963,7 +663,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack4_msa(const Mat& kernel, M
     }
 }
 
-static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -985,121 +685,15 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
     h = outh + 2;
     copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
 
-    const float* bias = _bias;
-
     // BEGIN transform input
     Mat bottom_blob_tm;
     {
-        int w_tm = outw / 4 * 6;
-        int h_tm = outh / 4 * 6;
+        int w_tiles = outw / 4;
+        int h_tiles = outh / 4;
+        const int tiles = w_tiles * h_tiles;
 
-        const int tiles = w_tm / 6 * h_tm / 6;
-
-        bottom_blob_tm.create(tiles, 36, inch, 4u * elempack, elempack, opt.workspace_allocator);
-
-        // const float itm[4][4] = {
-        //     {4.0f, 0.0f, -5.0f, 0.0f, 1.0f, 0.0f},
-        //     {0.0f,-4.0f, -4.0f, 1.0f, 1.0f, 0.0f},
-        //     {0.0f, 4.0f, -4.0f,-1.0f, 1.0f, 0.0f},
-        //     {0.0f,-2.0f, -1.0f, 2.0f, 1.0f, 0.0f},
-        //     {0.0f, 2.0f, -1.0f,-2.0f, 1.0f, 0.0f},
-        //     {0.0f, 4.0f,  0.0f,-5.0f, 0.0f, 1.0f}
-        // };
-
-        // 0 =  4 * r00 - 5 * r02 + r04
-        // 1 = -4 * (r01 + r02) + r04 + r03
-        // 2 =  4 * (r01 - r02) + r04 - r03
-        // 3 = -2 * (r01 - r03) + r04 - r02
-        // 4 =  2 * (r01 - r03) + r04 - r02
-        // 5 =  4 * r01 - 5 * r03 + r05
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < inch; q++)
-        {
-            const Mat img0 = bottom_blob_bordered.channel(q);
-            Mat img0_tm = bottom_blob_tm.channel(q);
-
-            float tmp[6][6][4];
-
-            v4f32 _vm5 = __msa_fill_w_f32(-5.f);
-            v4f32 _vm4 = __msa_fill_w_f32(-4.f);
-            v4f32 _v4 = __msa_fill_w_f32(4.f);
-            v4f32 _vm2 = __msa_fill_w_f32(-2.f);
-            v4f32 _v2 = __msa_fill_w_f32(2.f);
-
-            // tile
-            for (int i = 0; i < h_tm / 6; i++)
-            {
-                for (int j = 0; j < w_tm / 6; j++)
-                {
-                    const float* r0 = img0.row(i * 4) + (j * 4) * 4;
-
-                    for (int m = 0; m < 6; m++)
-                    {
-                        v4f32 _r00 = (v4f32)__msa_ld_w(r0, 0);
-                        v4f32 _r01 = (v4f32)__msa_ld_w(r0 + 4, 0);
-                        v4f32 _r02 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
-                        v4f32 _r03 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
-                        v4f32 _r04 = (v4f32)__msa_ld_w(r0 + 4 * 4, 0);
-                        v4f32 _r05 = (v4f32)__msa_ld_w(r0 + 4 * 5, 0);
-
-                        v4f32 _tmp0m = __msa_fmadd_w(__msa_fmadd_w(_r04, _v4, _r00), _vm5, _r02);
-                        v4f32 _tmp1m = __msa_fmadd_w(__msa_fadd_w(_r04, _r03), _vm4, __msa_fadd_w(_r01, _r02));
-                        v4f32 _tmp2m = __msa_fmadd_w(__msa_fsub_w(_r04, _r03), _v4, __msa_fsub_w(_r01, _r02));
-                        v4f32 _tmp3m = __msa_fmadd_w(__msa_fsub_w(_r04, _r02), _vm2, __msa_fsub_w(_r01, _r03));
-                        v4f32 _tmp4m = __msa_fmadd_w(__msa_fsub_w(_r04, _r02), _v2, __msa_fsub_w(_r01, _r03));
-                        v4f32 _tmp5m = __msa_fmadd_w(__msa_fmadd_w(_r05, _v4, _r01), _vm5, _r03);
-
-                        __msa_st_w((v4i32)_tmp0m, tmp[0][m], 0);
-                        __msa_st_w((v4i32)_tmp1m, tmp[1][m], 0);
-                        __msa_st_w((v4i32)_tmp2m, tmp[2][m], 0);
-                        __msa_st_w((v4i32)_tmp3m, tmp[3][m], 0);
-                        __msa_st_w((v4i32)_tmp4m, tmp[4][m], 0);
-                        __msa_st_w((v4i32)_tmp5m, tmp[5][m], 0);
-
-                        r0 += w * 4;
-                    }
-
-                    float* r0_tm_0 = (float*)img0_tm + (i * w_tm / 6 + j) * 4;
-                    float* r0_tm_1 = r0_tm_0 + tiles * 4;
-                    float* r0_tm_2 = r0_tm_0 + tiles * 4 * 2;
-                    float* r0_tm_3 = r0_tm_0 + tiles * 4 * 3;
-                    float* r0_tm_4 = r0_tm_0 + tiles * 4 * 4;
-                    float* r0_tm_5 = r0_tm_0 + tiles * 4 * 5;
-
-                    for (int m = 0; m < 6; m++)
-                    {
-                        v4f32 _tmp00 = (v4f32)__msa_ld_w(tmp[m][0], 0);
-                        v4f32 _tmp01 = (v4f32)__msa_ld_w(tmp[m][1], 0);
-                        v4f32 _tmp02 = (v4f32)__msa_ld_w(tmp[m][2], 0);
-                        v4f32 _tmp03 = (v4f32)__msa_ld_w(tmp[m][3], 0);
-                        v4f32 _tmp04 = (v4f32)__msa_ld_w(tmp[m][4], 0);
-                        v4f32 _tmp05 = (v4f32)__msa_ld_w(tmp[m][5], 0);
-
-                        v4f32 _r0tm0 = __msa_fmadd_w(__msa_fmadd_w(_tmp04, _v4, _tmp00), _vm5, _tmp02);
-                        v4f32 _r0tm1 = __msa_fmadd_w(__msa_fadd_w(_tmp04, _tmp03), _vm4, __msa_fadd_w(_tmp01, _tmp02));
-                        v4f32 _r0tm2 = __msa_fmadd_w(__msa_fsub_w(_tmp04, _tmp03), _v4, __msa_fsub_w(_tmp01, _tmp02));
-                        v4f32 _r0tm3 = __msa_fmadd_w(__msa_fsub_w(_tmp04, _tmp02), _vm2, __msa_fsub_w(_tmp01, _tmp03));
-                        v4f32 _r0tm4 = __msa_fmadd_w(__msa_fsub_w(_tmp04, _tmp02), _v2, __msa_fsub_w(_tmp01, _tmp03));
-                        v4f32 _r0tm5 = __msa_fmadd_w(__msa_fmadd_w(_tmp05, _v4, _tmp01), _vm5, _tmp03);
-
-                        __msa_st_w((v4i32)_r0tm0, r0_tm_0, 0);
-                        __msa_st_w((v4i32)_r0tm1, r0_tm_1, 0);
-                        __msa_st_w((v4i32)_r0tm2, r0_tm_2, 0);
-                        __msa_st_w((v4i32)_r0tm3, r0_tm_3, 0);
-                        __msa_st_w((v4i32)_r0tm4, r0_tm_4, 0);
-                        __msa_st_w((v4i32)_r0tm5, r0_tm_5, 0);
-
-                        r0_tm_0 += tiles * 4 * 6;
-                        r0_tm_1 += tiles * 4 * 6;
-                        r0_tm_2 += tiles * 4 * 6;
-                        r0_tm_3 += tiles * 4 * 6;
-                        r0_tm_4 += tiles * 4 * 6;
-                        r0_tm_5 += tiles * 4 * 6;
-                    }
-                }
-            }
-        }
+        bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
+        conv3x3s1_winograd42_transform_input_pack4_msa(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -1365,8 +959,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 96);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 48);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4i32 _val4567 = __msa_ld_w(r0 + 4, 0);
                         v4i32 _val89ab = __msa_ld_w(r0 + 8, 0);
@@ -1421,8 +1015,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 64);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 32);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4i32 _val4567 = __msa_ld_w(r0 + 4, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
@@ -1464,8 +1058,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 32);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(k0 + 16);
                         v4i32 _val0123 = __msa_ld_w(r0, 0);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
                         _sum0 = __msa_fmadd_w(_sum0, (v4f32)__msa_splati_w(_val0123, 0), _w0);
@@ -1496,8 +1090,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 16);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 8);
+                        __builtin_prefetch(k0 + 16);
                         v4f32 _val0 = __msa_fill_w_f32(*r0++);
                         v4f32 _val1 = __msa_fill_w_f32(*r0++);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
@@ -1523,8 +1117,8 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
 
                     for (int j = 0; j < nn; j++)
                     {
-                        __builtin_prefetch(r0 + 8);
-                        __builtin_prefetch(k0 + 32);
+                        __builtin_prefetch(r0 + 4);
+                        __builtin_prefetch(k0 + 16);
                         v4f32 _val0 = __msa_fill_w_f32(*r0++);
                         v4f32 _w0 = (v4f32)__msa_ld_w(k0, 0);
                         _sum = __msa_fmadd_w(_sum, _val0, _w0);
@@ -1553,117 +1147,7 @@ static void conv3x3s1_winograd42_pack4_msa(const Mat& bottom_blob, Mat& top_blob
         top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
     }
     {
-        // const float otm[4][6] = {
-        //     {1.0f, 1.0f,  1.0f, 1.0f,  1.0f, 0.0f},
-        //     {0.0f, 1.0f, -1.0f, 2.0f, -2.0f, 0.0f},
-        //     {0.0f, 1.0f,  1.0f, 4.0f,  4.0f, 0.0f},
-        //     {0.0f, 1.0f, -1.0f, 8.0f, -8.0f, 1.0f}
-        // };
-
-        // 0 = r00 + (r01 + r02) + (r03 + r04)
-        // 1 =       (r01 - r02) + (r03 - r04) * 2
-        // 2 =       (r01 + r02) + (r03 + r04) * 4
-        // 3 = r05 + (r01 - r02) + (r03 - r04) * 8
-
-        int w_tm = outw / 4 * 6;
-        int h_tm = outh / 4 * 6;
-        const int tiles = w_tm / 6 * h_tm / 6;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < outch; p++)
-        {
-            const Mat out0_tm = top_blob_tm.channel(p);
-            Mat out0 = top_blob_bordered.channel(p);
-
-            // const float bias0 = bias ? bias[p] : 0.f;
-            v4f32 _bias0 = bias ? (v4f32)__msa_ld_w((const float*)bias + p * 4, 0) : (v4f32)__msa_fill_w(0);
-
-            float tmp[4][6][4];
-
-            v4f32 _v2 = __msa_fill_w_f32(2.f);
-            v4f32 _v4 = __msa_fill_w_f32(4.f);
-            v4f32 _v8 = __msa_fill_w_f32(8.f);
-
-            // tile
-            for (int i = 0; i < outh / 4; i++)
-            {
-                for (int j = 0; j < outw / 4; j++)
-                {
-                    // top_blob_tm.create(tiles, 36, outch, elemsize, elempack);
-
-                    const float* output0_tm_0 = (const float*)out0_tm + (i * w_tm / 6 + j) * 4;
-                    const float* output0_tm_1 = output0_tm_0 + tiles * 4;
-                    const float* output0_tm_2 = output0_tm_0 + tiles * 4 * 2;
-                    const float* output0_tm_3 = output0_tm_0 + tiles * 4 * 3;
-                    const float* output0_tm_4 = output0_tm_0 + tiles * 4 * 4;
-                    const float* output0_tm_5 = output0_tm_0 + tiles * 4 * 5;
-
-                    float* output0 = out0.row<float>(i * 4) + (j * 4) * 4;
-
-                    // TODO msa optimize
-                    for (int m = 0; m < 6; m++)
-                    {
-                        v4f32 _out0tm0 = (v4f32)__msa_ld_w(output0_tm_0, 0);
-                        v4f32 _out0tm1 = (v4f32)__msa_ld_w(output0_tm_1, 0);
-                        v4f32 _out0tm2 = (v4f32)__msa_ld_w(output0_tm_2, 0);
-                        v4f32 _out0tm3 = (v4f32)__msa_ld_w(output0_tm_3, 0);
-                        v4f32 _out0tm4 = (v4f32)__msa_ld_w(output0_tm_4, 0);
-                        v4f32 _out0tm5 = (v4f32)__msa_ld_w(output0_tm_5, 0);
-
-                        v4f32 _tmp02a = __msa_fadd_w(_out0tm1, _out0tm2);
-                        v4f32 _tmp13a = __msa_fsub_w(_out0tm1, _out0tm2);
-
-                        v4f32 _tmp02b = __msa_fadd_w(_out0tm3, _out0tm4);
-                        v4f32 _tmp13b = __msa_fsub_w(_out0tm3, _out0tm4);
-
-                        v4f32 _tmp0m = __msa_fadd_w(__msa_fadd_w(_out0tm0, _tmp02a), _tmp02b);
-                        v4f32 _tmp1m = __msa_fmadd_w(_tmp13a, _v2, _tmp13b);
-                        v4f32 _tmp2m = __msa_fmadd_w(_tmp02a, _v4, _tmp02b);
-                        v4f32 _tmp3m = __msa_fmadd_w(__msa_fadd_w(_out0tm5, _tmp13a), _v8, _tmp13b);
-
-                        __msa_st_w((v4i32)_tmp0m, tmp[0][m], 0);
-                        __msa_st_w((v4i32)_tmp1m, tmp[1][m], 0);
-                        __msa_st_w((v4i32)_tmp2m, tmp[2][m], 0);
-                        __msa_st_w((v4i32)_tmp3m, tmp[3][m], 0);
-
-                        output0_tm_0 += tiles * 4 * 6;
-                        output0_tm_1 += tiles * 4 * 6;
-                        output0_tm_2 += tiles * 4 * 6;
-                        output0_tm_3 += tiles * 4 * 6;
-                        output0_tm_4 += tiles * 4 * 6;
-                        output0_tm_5 += tiles * 4 * 6;
-                    }
-
-                    for (int m = 0; m < 4; m++)
-                    {
-                        v4f32 _tmp00 = (v4f32)__msa_ld_w(tmp[m][0], 0);
-                        v4f32 _tmp01 = (v4f32)__msa_ld_w(tmp[m][1], 0);
-                        v4f32 _tmp02 = (v4f32)__msa_ld_w(tmp[m][2], 0);
-                        v4f32 _tmp03 = (v4f32)__msa_ld_w(tmp[m][3], 0);
-                        v4f32 _tmp04 = (v4f32)__msa_ld_w(tmp[m][4], 0);
-                        v4f32 _tmp05 = (v4f32)__msa_ld_w(tmp[m][5], 0);
-
-                        v4f32 _tmp02a = __msa_fadd_w(_tmp01, _tmp02);
-                        v4f32 _tmp13a = __msa_fsub_w(_tmp01, _tmp02);
-
-                        v4f32 _tmp02b = __msa_fadd_w(_tmp03, _tmp04);
-                        v4f32 _tmp13b = __msa_fsub_w(_tmp03, _tmp04);
-
-                        v4f32 _out00 = __msa_fadd_w(_bias0, __msa_fadd_w(__msa_fadd_w(_tmp00, _tmp02a), _tmp02b));
-                        v4f32 _out01 = __msa_fadd_w(_bias0, __msa_fmadd_w(_tmp13a, _v2, _tmp13b));
-                        v4f32 _out02 = __msa_fadd_w(_bias0, __msa_fmadd_w(_tmp02a, _v4, _tmp02b));
-                        v4f32 _out03 = __msa_fadd_w(_bias0, __msa_fmadd_w(__msa_fadd_w(_tmp05, _tmp13a), _v8, _tmp13b));
-
-                        __msa_st_w((v4i32)_out00, output0, 0);
-                        __msa_st_w((v4i32)_out01, output0 + 4, 0);
-                        __msa_st_w((v4i32)_out02, output0 + 4 * 2, 0);
-                        __msa_st_w((v4i32)_out03, output0 + 4 * 3, 0);
-
-                        output0 += outw * 4;
-                    }
-                }
-            }
-        }
+        conv3x3s1_winograd42_transform_output_pack4_msa(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 

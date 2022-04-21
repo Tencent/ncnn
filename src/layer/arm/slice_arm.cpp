@@ -64,7 +64,13 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 slice = (w - q) / (top_blobs.size() - i);
             }
 
-            int out_elempack = opt.use_packing_layout && slice % 4 == 0 ? 4 : 1;
+            int out_elempack = 1;
+#if __ARM_NEON
+            if (opt.use_packing_layout)
+            {
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+            }
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -95,7 +101,13 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 slice = (h - q) / (top_blobs.size() - i);
             }
 
-            int out_elempack = opt.use_packing_layout && slice % 4 == 0 ? 4 : 1;
+            int out_elempack = 1;
+#if __ARM_NEON
+            if (opt.use_packing_layout)
+            {
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+            }
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -216,7 +228,13 @@ int Slice_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& t
                 slice = (channels - q) / (top_blobs.size() - i);
             }
 
-            int out_elempack = opt.use_packing_layout && slice % 4 == 0 ? 4 : 1;
+            int out_elempack = 1;
+#if __ARM_NEON
+            if (opt.use_packing_layout)
+            {
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+            }
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -398,10 +416,16 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
             }
 
             int out_elempack = 1;
+#if __ARM_NEON
             if (opt.use_packing_layout)
             {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
                 out_elempack = opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+#else
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
             }
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -433,10 +457,16 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
             }
 
             int out_elempack = 1;
+#if __ARM_NEON
             if (opt.use_packing_layout)
             {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
                 out_elempack = opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+#else
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
             }
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];
@@ -620,10 +650,16 @@ int Slice_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::ve
             }
 
             int out_elempack = 1;
+#if __ARM_NEON
             if (opt.use_packing_layout)
             {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
                 out_elempack = opt.use_fp16_arithmetic && slice % 8 == 0 ? 8 : slice % 4 == 0 ? 4 : 1;
+#else
+                out_elempack = slice % 4 == 0 ? 4 : 1;
+#endif
             }
+#endif
             size_t out_elemsize = elemsize / elempack * out_elempack;
 
             Mat& top_blob = top_blobs[i];

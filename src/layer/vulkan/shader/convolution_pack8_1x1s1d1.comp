@@ -22,29 +22,24 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const int kernel_w = 1;
-layout (constant_id = 1) const int kernel_h = 1;
-layout (constant_id = 2) const int dilation_w = 1;
-layout (constant_id = 3) const int dilation_h = 1;
-layout (constant_id = 4) const int stride_w = 1;
-layout (constant_id = 5) const int stride_h = 1;
-layout (constant_id = 6) const int bias_term = 0;
-layout (constant_id = 7) const int activation_type = 0;
-layout (constant_id = 8) const float activation_param_0 = 0;
-layout (constant_id = 9) const float activation_param_1 = 0;
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
 
-#define shape_constant_id_offset 10
-layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
-layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
-layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
-layout (constant_id = shape_constant_id_offset + 3) const int c = 0;
-layout (constant_id = shape_constant_id_offset + 4) const int cstep = 0;
+layout (constant_id = 0) const int bias_term = 0;
+layout (constant_id = 1) const int activation_type = 0;
+layout (constant_id = 2) const float activation_param_0 = 0;
+layout (constant_id = 3) const float activation_param_1 = 0;
 
-layout (constant_id = shape_constant_id_offset + 5) const int outdims = 0;
-layout (constant_id = shape_constant_id_offset + 6) const int outw = 0;
-layout (constant_id = shape_constant_id_offset + 7) const int outh = 0;
-layout (constant_id = shape_constant_id_offset + 8) const int outc = 0;
-layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
+#define shape_constant_id_offset 4
+layout (constant_id = shape_constant_id_offset + 0) const int w = 0;
+layout (constant_id = shape_constant_id_offset + 1) const int h = 0;
+layout (constant_id = shape_constant_id_offset + 2) const int c = 0;
+layout (constant_id = shape_constant_id_offset + 3) const int cstep = 0;
+
+layout (constant_id = shape_constant_id_offset + 4) const int outw = 0;
+layout (constant_id = shape_constant_id_offset + 5) const int outh = 0;
+layout (constant_id = shape_constant_id_offset + 6) const int outc = 0;
+layout (constant_id = shape_constant_id_offset + 7) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob;
@@ -60,13 +55,11 @@ layout (binding = 3) readonly buffer bias_blob { sfpvec8 bias_data[]; };
 
 layout (push_constant) uniform parameter
 {
-    int dims;
     int w;
     int h;
     int c;
     int cstep;
 
-    int outdims;
     int outw;
     int outh;
     int outc;
@@ -75,19 +68,14 @@ layout (push_constant) uniform parameter
 
 void main()
 {
-#if NCNN_image_shader
     int gx = int(gl_GlobalInvocationID.x) * 4;
     int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
 
-    if (gx >= psc(outw) * psc(outh) || gy >= 1 || gz >= psc(outc))
+#if NCNN_image_shader
+    if (gx >= psc(outw) * psc(outh) || gy >= psc(outc))
         return;
 #else
-    int gx = int(gl_GlobalInvocationID.x) * 4;
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
-
-    if (gx >= psc(outcstep) || gy >= 1 || gz >= psc(outc))
+    if (gx >= psc(outcstep) || gy >= psc(outc))
         return;
 #endif
 
@@ -99,9 +87,9 @@ void main()
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        afpvec8 b = image3d_ld8(bias_blob, ivec3(gz, 0, 0));
+        afpvec8 b = image3d_ld8(bias_blob, ivec3(gy, 0, 0));
 #else
-        afpvec8 b = buffer_ld8(bias_data, gz);
+        afpvec8 b = buffer_ld8(bias_data, gy);
 #endif
         sum0 = b;
         sum1 = b;
@@ -129,14 +117,14 @@ void main()
         afpvec8 v2 = image3d_ld8(bottom_blob, ivec3(sx4.b, sy4.b, z));
         afpvec8 v3 = image3d_ld8(bottom_blob, ivec3(sx4.a, sy4.a, z));
 
-        afpvec8 k0 = image3d_ld8(weight_blob, ivec3(0, z, gz));
-        afpvec8 k1 = image3d_ld8(weight_blob, ivec3(1, z, gz));
-        afpvec8 k2 = image3d_ld8(weight_blob, ivec3(2, z, gz));
-        afpvec8 k3 = image3d_ld8(weight_blob, ivec3(3, z, gz));
-        afpvec8 k4 = image3d_ld8(weight_blob, ivec3(4, z, gz));
-        afpvec8 k5 = image3d_ld8(weight_blob, ivec3(5, z, gz));
-        afpvec8 k6 = image3d_ld8(weight_blob, ivec3(6, z, gz));
-        afpvec8 k7 = image3d_ld8(weight_blob, ivec3(7, z, gz));
+        afpvec8 k0 = image3d_ld8(weight_blob, ivec3(0, z, gy));
+        afpvec8 k1 = image3d_ld8(weight_blob, ivec3(1, z, gy));
+        afpvec8 k2 = image3d_ld8(weight_blob, ivec3(2, z, gy));
+        afpvec8 k3 = image3d_ld8(weight_blob, ivec3(3, z, gy));
+        afpvec8 k4 = image3d_ld8(weight_blob, ivec3(4, z, gy));
+        afpvec8 k5 = image3d_ld8(weight_blob, ivec3(5, z, gy));
+        afpvec8 k6 = image3d_ld8(weight_blob, ivec3(6, z, gy));
+        afpvec8 k7 = image3d_ld8(weight_blob, ivec3(7, z, gy));
 
         // sum += v * k
         sum0[0].r += dot(v0[0], k0[0]) + dot(v0[1], k0[1]);
@@ -176,7 +164,7 @@ void main()
         sum3[1].a += dot(v3[0], k7[0]) + dot(v3[1], k7[1]);
     }
 #else
-    int w_offset = gz * psc(c) * 8;
+    int w_offset = gy * psc(c) * 8;
     int v_offset = gx;
 
     for (int z = 0; z < psc(c); z++)
@@ -237,72 +225,18 @@ void main()
     }
 #endif
 
-    if (activation_type == 1)
-    {
-        sum0[0] = max(sum0[0], afp(0.f));
-        sum0[1] = max(sum0[1], afp(0.f));
-        sum1[0] = max(sum1[0], afp(0.f));
-        sum1[1] = max(sum1[1], afp(0.f));
-        sum2[0] = max(sum2[0], afp(0.f));
-        sum2[1] = max(sum2[1], afp(0.f));
-        sum3[0] = max(sum3[0], afp(0.f));
-        sum3[1] = max(sum3[1], afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        sum0[0] = mix(sum0[0], sum0[0] * afp(slope), lessThan(sum0[0], afpvec4(0.f)));
-        sum0[1] = mix(sum0[1], sum0[1] * afp(slope), lessThan(sum0[1], afpvec4(0.f)));
-        sum1[0] = mix(sum1[0], sum1[0] * afp(slope), lessThan(sum1[0], afpvec4(0.f)));
-        sum1[1] = mix(sum1[1], sum1[1] * afp(slope), lessThan(sum1[1], afpvec4(0.f)));
-        sum2[0] = mix(sum2[0], sum2[0] * afp(slope), lessThan(sum2[0], afpvec4(0.f)));
-        sum2[1] = mix(sum2[1], sum2[1] * afp(slope), lessThan(sum2[1], afpvec4(0.f)));
-        sum3[0] = mix(sum3[0], sum3[0] * afp(slope), lessThan(sum3[0], afpvec4(0.f)));
-        sum3[1] = mix(sum3[1], sum3[1] * afp(slope), lessThan(sum3[1], afpvec4(0.f)));
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        sum0[0] = clamp(sum0[0], const_min, const_max);
-        sum0[1] = clamp(sum0[1], const_min, const_max);
-        sum1[0] = clamp(sum1[0], const_min, const_max);
-        sum1[1] = clamp(sum1[1], const_min, const_max);
-        sum2[0] = clamp(sum2[0], const_min, const_max);
-        sum2[1] = clamp(sum2[1], const_min, const_max);
-        sum3[0] = clamp(sum3[0], const_min, const_max);
-        sum3[1] = clamp(sum3[1], const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        sum0[0] = afp(1.f) / (afp(1.f) + exp(-sum0[0]));
-        sum0[1] = afp(1.f) / (afp(1.f) + exp(-sum0[1]));
-        sum1[0] = afp(1.f) / (afp(1.f) + exp(-sum1[0]));
-        sum1[1] = afp(1.f) / (afp(1.f) + exp(-sum1[1]));
-        sum2[0] = afp(1.f) / (afp(1.f) + exp(-sum2[0]));
-        sum2[1] = afp(1.f) / (afp(1.f) + exp(-sum2[1]));
-        sum3[0] = afp(1.f) / (afp(1.f) + exp(-sum3[0]));
-        sum3[1] = afp(1.f) / (afp(1.f) + exp(-sum3[1]));
-    }
-    if (activation_type == 5)
-    {
-        sum0[0] = sum0[0] * tanh(log(exp(sum0[0]) + afp(1.f)));
-        sum0[1] = sum0[1] * tanh(log(exp(sum0[1]) + afp(1.f)));
-        sum1[0] = sum1[0] * tanh(log(exp(sum1[0]) + afp(1.f)));
-        sum1[1] = sum1[1] * tanh(log(exp(sum1[1]) + afp(1.f)));
-        sum2[0] = sum2[0] * tanh(log(exp(sum2[0]) + afp(1.f)));
-        sum2[1] = sum2[1] * tanh(log(exp(sum2[1]) + afp(1.f)));
-        sum3[0] = sum3[0] * tanh(log(exp(sum3[0]) + afp(1.f)));
-        sum3[1] = sum3[1] * tanh(log(exp(sum3[1]) + afp(1.f)));
-    }
+    sum0 = activation_afpvec8(sum0, activation_type, activation_param_0, activation_param_1);
+    sum1 = activation_afpvec8(sum1, activation_type, activation_param_0, activation_param_1);
+    sum2 = activation_afpvec8(sum2, activation_type, activation_param_0, activation_param_1);
+    sum3 = activation_afpvec8(sum3, activation_type, activation_param_0, activation_param_1);
 
 #if NCNN_image_shader
-    image3d_st8(top_blob, ivec3(sx4.r, sy4.r, gz), sum0);
-    image3d_st8(top_blob, ivec3(sx4.g, sy4.g, gz), sum1);
-    image3d_st8(top_blob, ivec3(sx4.b, sy4.b, gz), sum2);
-    image3d_st8(top_blob, ivec3(sx4.a, sy4.a, gz), sum3);
+    image3d_st8(top_blob, ivec3(sx4.r, sy4.r, gy), sum0);
+    image3d_st8(top_blob, ivec3(sx4.g, sy4.g, gy), sum1);
+    image3d_st8(top_blob, ivec3(sx4.b, sy4.b, gy), sum2);
+    image3d_st8(top_blob, ivec3(sx4.a, sy4.a, gy), sum3);
 #else
-    int gi = gz * psc(outcstep) + gx;
+    int gi = gy * psc(outcstep) + gx;
 
     buffer_st8(top_blob_data, gi + 0, sum0);
     if (gx + 1 < psc(outcstep)) buffer_st8(top_blob_data, gi + 1, sum1);

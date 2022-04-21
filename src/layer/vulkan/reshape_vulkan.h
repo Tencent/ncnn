@@ -32,10 +32,12 @@ public:
     virtual int forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const;
 
 public:
-    ncnn::Layer* permute_hwc;
-    ncnn::Layer* permute_hc;
+    ncnn::Layer* permute_wh;
     ncnn::Layer* permute_hw;
+    ncnn::Layer* permute_hwc;
     ncnn::Layer* permute_chw;
+    ncnn::Layer* permute_dhwc;
+    ncnn::Layer* permute_cdhw;
 
     Pipeline* pipeline_reshape;
     Pipeline* pipeline_reshape_pack4;

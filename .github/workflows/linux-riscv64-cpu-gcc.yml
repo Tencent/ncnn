@@ -24,25 +24,24 @@ on:
     - 'src/layer/*'
     - 'src/layer/riscv/**'
     - 'tests/**'
+concurrency:
+  group: linux-riscv64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   linux-gcc-riscv64:
     runs-on: ubuntu-20.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-riscv64-install-1
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
@@ -75,15 +74,11 @@ jobs:
   linux-gcc-riscv64-rvv:
     runs-on: ubuntu-20.04
     steps:
-    - name: cancel-previous-runs
-      uses: styfle/cancel-workflow-action@0.9.1
-      with:
-        access_token: ${{ secrets.GITHUB_TOKEN }}
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: cache-qemu
       id: cache-qemu
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v3
       with:
         path: qemu-install
         key: qemu-riscv64-rvv-install-20210610
@@ -96,7 +91,7 @@ jobs:
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: sifive/qemu
         path: qemu
@@ -120,7 +115,7 @@ jobs:
 
     - name: cache-riscv
       id: cache-riscv
-      uses: actions/cache@v2.1.6
+      uses: actions/cache@v3
       with:
         path: rv64gcv-install
         key: rv64gcv-linux-install-20210504
@@ -133,7 +128,7 @@ jobs:
 
     - name: checkout-riscv-gnu-toolchain
       if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: riscv/riscv-gnu-toolchain
         path: riscv-gnu-toolchain

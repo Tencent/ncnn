@@ -52,7 +52,7 @@ int HardSwish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
             for (int i = 0; i < size; i++)
             {
-                __builtin_prefetch(ptr + 32);
+                __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _outp = __msa_fmadd_w(_beta, _p, _alpha);
                 _outp = __msa_fmax_w(_outp, _zero);
@@ -82,7 +82,7 @@ int HardSwish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
         for (; i + 3 < size; i += 4)
         {
-            __builtin_prefetch(ptr + 32);
+            __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             v4f32 _outp = __msa_fmadd_w(_beta, _p, _alpha);
             _outp = __msa_fmax_w(_outp, _zero);

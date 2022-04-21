@@ -29,6 +29,8 @@ public:
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
 protected:
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     int create_pipeline_fp16s(const Option& opt);
@@ -47,22 +49,18 @@ protected:
 
 public:
     Layer* activation;
-    bool use_winograd3x3;
-    bool use_sgemm1x1;
-    Mat weight_3x3_winograd64_data;
+
     Mat weight_3x3s2_data;
+
     Mat weight_sgemm_data;
+    Mat weight_3x3_winograd42_data;
+    Mat weight_3x3_winograd64_data;
 
     // forwardDilation
     Layer* convolution_dilation1;
 
     // pack4
-    Mat weight_data_pack4;
-    Mat weight_data_pack1to4;
-    Mat weight_data_pack4to1;
-
-    Mat weight_3x3_winograd42_data_pack4;
-    Mat weight_sgemm_data_pack4;
+    Mat weight_data_packed;
 
     // fp16
     Mat weight_data_fp16;

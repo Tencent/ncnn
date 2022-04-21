@@ -1,0 +1,65 @@
+name: linux-loongarch64-cpu-gcc
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/loongarch64/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-loongarch64-cpu-gcc.yml'
+    - 'toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/loongarch64/**'
+    - 'tests/**'
+concurrency:
+  group: linux-loongarch64-cpu-gcc-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  linux-gcc-loongarch64:
+    runs-on: ubuntu-20.04
+
+    container:
+      image: quay.io/fedora/fedora:34-x86_64
+      options: --security-opt seccomp=unconfined
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: install-deps
+      run: dnf -y install cmake wget xz
+
+    - name: loongarch64-toolchain
+      run: |
+        wget https://github.com/loongson/build-tools/releases/download/2021.12.21/loongarch64-clfs-2022-03-03-cross-tools-gcc-glibc.tar.xz
+        tar -xf loongarch64-clfs-2022-03-03-cross-tools-gcc-glibc.tar.xz
+        wget https://github.com/loongson/build-tools/releases/download/2021.12.21/qemu-loongarch-2022-4-01.tar.gz
+        tar -xf qemu-loongarch-2022-4-01.tar.gz
+        chmod +x 4-1/new-world/qemu-loongarch64
+
+    - name: configure
+      run: |
+        export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr/lib64:$LD_LIBRARY_PATH
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+
+    - name: build
+      run: cmake --build build -j 2
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/4-1/new-world:$PATH
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr/lib64:$LD_LIBRARY_PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr" ctest --output-on-failure -j 2

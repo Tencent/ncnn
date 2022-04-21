@@ -1,15 +1,17 @@
 
 if(NCNN_PIXEL)
-    find_package(OpenCV QUIET COMPONENTS opencv_world)
-    # for opencv 2.4 on ubuntu 16.04, there is no opencv_world but OpenCV_FOUND will be TRUE
-    if("${OpenCV_LIBS}" STREQUAL "")
-        set(OpenCV_FOUND FALSE)
-    endif()
-    if(NOT OpenCV_FOUND)
-        find_package(OpenCV QUIET COMPONENTS core highgui imgproc imgcodecs)
-    endif()
-    if(NOT OpenCV_FOUND)
-        find_package(OpenCV QUIET COMPONENTS core highgui imgproc)
+    if(NOT NCNN_SIMPLEOCV)
+        find_package(OpenCV QUIET COMPONENTS opencv_world)
+        # for opencv 2.4 on ubuntu 16.04, there is no opencv_world but OpenCV_FOUND will be TRUE
+        if("${OpenCV_LIBS}" STREQUAL "")
+            set(OpenCV_FOUND FALSE)
+        endif()
+        if(NOT OpenCV_FOUND)
+            find_package(OpenCV QUIET COMPONENTS core highgui imgproc imgcodecs)
+        endif()
+        if(NOT OpenCV_FOUND)
+            find_package(OpenCV QUIET COMPONENTS core highgui imgproc)
+        endif()
     endif()
 
     set(OpenCV_FOUND FALSE)
@@ -37,3 +39,5 @@ target_link_libraries(ncnn2int8 PRIVATE ncnn)
 
 # add ncnn2int8 tool to a virtual project group
 set_property(TARGET ncnn2int8 PROPERTY FOLDER "tools/optimization")
+ncnn_install_tool(ncnn2table)
+ncnn_install_tool(ncnn2int8)

@@ -22,6 +22,7 @@
 #cmakedefine01 NCNN_SIMPLESTL
 #cmakedefine01 NCNN_THREADS
 #cmakedefine01 NCNN_BENCHMARK
+#cmakedefine01 NCNN_C_API
 #cmakedefine01 NCNN_PLATFORM_API
 #cmakedefine01 NCNN_PIXEL
 #cmakedefine01 NCNN_PIXEL_ROTATE
@@ -29,8 +30,14 @@
 #cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
 #cmakedefine01 NCNN_RUNTIME_CPU
-#cmakedefine01 NCNN_AVX2
 #cmakedefine01 NCNN_AVX
+#cmakedefine01 NCNN_XOP
+#cmakedefine01 NCNN_FMA
+#cmakedefine01 NCNN_F16C
+#cmakedefine01 NCNN_AVX2
+#cmakedefine01 NCNN_AVXVNNI
+#cmakedefine01 NCNN_AVX512
+#cmakedefine01 NCNN_AVX512VNNI
 #cmakedefine01 NCNN_ARM82
 #cmakedefine01 NCNN_ARM82DOT
 #cmakedefine01 NCNN_MSA
@@ -38,6 +45,7 @@
 #cmakedefine01 NCNN_RVV
 #cmakedefine01 NCNN_INT8
 #cmakedefine01 NCNN_BF16
+#cmakedefine01 NCNN_FORCE_INLINE
 
 #cmakedefine NCNN_VERSION_STRING "@NCNN_VERSION_STRING@"
 
@@ -238,6 +246,25 @@ private:
 #endif // NCNN_PLATFORM_API && __ANDROID_API__ >= 8
 #else
 #define NCNN_LOGE(...)
+#endif
+
+
+#if NCNN_FORCE_INLINE
+#ifdef _MSC_VER
+    #define NCNN_FORCEINLINE __forceinline
+#elif defined(__GNUC__)
+    #define NCNN_FORCEINLINE inline __attribute__((__always_inline__))
+#elif defined(__CLANG__)
+    #if __has_attribute(__always_inline__)
+        #define NCNN_FORCEINLINE inline __attribute__((__always_inline__))
+    #else
+        #define NCNN_FORCEINLINE inline
+    #endif
+#else
+    #define NCNN_FORCEINLINE inline
+#endif
+#else
+    #define NCNN_FORCEINLINE inline
 #endif
 
 #endif // NCNN_PLATFORM_H

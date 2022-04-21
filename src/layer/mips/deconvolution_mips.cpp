@@ -79,12 +79,10 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            Mat g0 = weight_data_packed.channel(q / out_elempack);
+            float* g00 = weight_data_packed.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
-                float* g00 = g0.row(p / elempack);
-
                 for (int k = 0; k < maxk; k++)
                 {
                     for (int i = 0; i < elempack; i++)
@@ -149,8 +147,8 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
 
-    int outw = (w - 1) * stride_w + kernel_extent_w;
-    int outh = (h - 1) * stride_h + kernel_extent_h;
+    int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
+    int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = 1;
 #if __mips_msa
     if (opt.use_packing_layout)
@@ -161,7 +159,7 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     Mat top_blob_bordered;
-    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || output_pad_right > 0 || output_pad_bottom > 0 || (output_w > 0 && output_h > 0))
+    if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0 || (output_w > 0 && output_h > 0))
     {
         top_blob_bordered.create(outw, outh, num_output / out_elempack, out_elemsize, out_elempack, opt.workspace_allocator);
     }

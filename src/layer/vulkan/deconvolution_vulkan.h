@@ -41,18 +41,12 @@ public:
     VkImageMat bias_data_gpu_image;
 
     ncnn::Layer* crop;
-    ncnn::Layer* output_pad;
     ncnn::Layer* output_crop;
 
     Pipeline* pipeline_deconvolution;
-    Pipeline* pipeline_deconvolution_pack4;
-    Pipeline* pipeline_deconvolution_pack1to4;
-    Pipeline* pipeline_deconvolution_pack4to1;
-    Pipeline* pipeline_deconvolution_pack8;
-    Pipeline* pipeline_deconvolution_pack1to8;
-    Pipeline* pipeline_deconvolution_pack4to8;
-    Pipeline* pipeline_deconvolution_pack8to1;
-    Pipeline* pipeline_deconvolution_pack8to4;
+
+    Pipeline* pipeline_deconvolution_gemm;
+    Pipeline* pipeline_deconvolution_col2im;
 };
 
 } // namespace ncnn

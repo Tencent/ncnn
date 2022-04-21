@@ -1298,7 +1298,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     }
 }
 
-static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
     kernel_tm.create(8 * 8, inch, outch);
 
@@ -1313,7 +1313,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -1355,7 +1355,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
 
     Mat kernel_tm2(8 * 8 * inch * 4, 1, nn_outch + (outch % 4 + 3) / 4);
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
         int p = pp * 4;
@@ -1647,7 +1647,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
         }
     }
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         float* ktm2 = (float*)kernel_tm2.channel(nn_outch) + 8 * 8 * inch * (p - remain_outch_start);
@@ -1698,7 +1698,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
     kernel_tm = kernel_tm2;
 }
 
-static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& kernel_tm, int inch, int outch)
+static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
     kernel_tm.create(8 * 8, inch, outch);
 
@@ -1713,7 +1713,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
         {0.0f, 0.0f, 1.0f}
     };
 
-    #pragma omp parallel for
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < outch; p++)
     {
         for (int q = 0; q < inch; q++)
@@ -3025,7 +3025,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     "2:                                 \n"
 
                     // remain loop
-                    "and    w1, %w18, #3                \n" // w1 = remain = tiles & 3;
+                    "and    w1, %w18, #3                \n" // w1 = remain = tiles & 3
                     "cmp    w1, #0                      \n"
                     "beq    4f                          \n"
 
@@ -3326,7 +3326,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     "2:                                 \n"
 
                     // remain loop
-                    "and    w1, %w14, #3                \n" // w1 = remain = tiles & 3;
+                    "and    w1, %w14, #3                \n" // w1 = remain = tiles & 3
                     "cmp    w1, #0                      \n"
                     "beq    4f                          \n"
 
@@ -3591,7 +3591,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
                     "2:                                 \n"
 
                     // remain loop
-                    "and        r1, %14, #3             \n" // r1 = remain = tiles & 3;
+                    "and        r1, %14, #3             \n" // r1 = remain = tiles & 3
                     "cmp        r1, #0                  \n"
                     "beq        4f                      \n"
 
@@ -4681,10 +4681,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     const float* r2 = r0 + w * 2;
                     const float* r3 = r0 + w * 3;
 
-                    // the assembly block for armv7 input transform requires 13 general registers
-                    // old gcc may fail to allocate register on debug build without -fomit-frame-pointer
-                    // so, fallback to intrinsic version for armv7 debug build     --- nihui
-#if __aarch64__ || !defined(NDEBUG)
+#if __aarch64__
                     for (int m = 0; m + 3 < 8; m += 4)
                     {
                         float32x4_t _r0_0123 = vld1q_f32(r0);
@@ -4933,23 +4930,19 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float* t1 = tmp[1];
                     float* t2 = tmp[2];
                     float* t3 = tmp[3];
-                    float* t4 = tmp[4];
-                    float* t5 = tmp[5];
-                    float* t6 = tmp[6];
-                    float* t7 = tmp[7];
 
                     int stepw = w * 4 * 4;
 
                     asm volatile(
 
                         // loop0
-                        "vld1.f32   {d16-d19}, [%8], %26    \n"
-                        "vld1.f32   {d20-d23}, [%9], %26    \n"
-                        "vld1.f32   {d24-d27}, [%10], %26   \n"
+                        "vld1.f32   {d16-d19}, [%4], %18    \n"
+                        "vld1.f32   {d20-d23}, [%5], %18    \n"
+                        "vld1.f32   {d24-d27}, [%6], %18    \n"
 
                         "vtrn.32    q8, q10             \n"
 
-                        "vld1.f32   {d28-d31}, [%11], %26   \n"
+                        "vld1.f32   {d28-d31}, [%7], %18    \n"
 
                         "vtrn.32    q9, q11             \n"
                         "vtrn.32    q12, q14            \n"
@@ -4966,20 +4959,21 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vadd.f32   q4, q12, q13        \n"
                         "vadd.f32   q5, q10, q11        \n"
 
-                        "vmla.f32   q2, q3, %f25[1]     \n"
+                        "vmla.f32   q2, q3, %f17[1]     \n"
 
-                        "vmul.f32   q7, q14, %e25[0]    \n" // q7 = _r_3_x_c
-                        "vmul.f32   q6, q9, %f24[0]     \n" // q6 = _r_4_x_c
+                        "vmul.f32   q7, q14, %e17[0]    \n" // q7 = _r_3_x_c
+                        "vmul.f32   q6, q9, %f16[0]     \n" // q6 = _r_4_x_c
 
-                        "vmls.f32   q4, q9, %f25[0]     \n"
-                        "vmls.f32   q5, q14, %f25[0]    \n"
+                        "vmls.f32   q4, q9, %f17[0]     \n"
+                        "vmls.f32   q5, q14, %f17[0]    \n"
 
-                        "vst1.f32   {d4-d5}, [%0]!      \n" // tmp[0][m]
+                        "vst1.f32   {d4-d5}, [%0]       \n" // tmp[0][m]
+                        "add        %0, %0, #128        \n"
 
                         "vmov       q3, q7              \n" // use q7
 
                         "vadd.f32   q2, q13, q6         \n" // use q6
-                        "vmla.f32   q3, q10, %e24[1]    \n"
+                        "vmla.f32   q3, q10, %e16[1]    \n"
 
                         "vadd.f32   q8, q4, q5          \n"
                         "vsub.f32   q9, q4, q5          \n"
@@ -4987,19 +4981,21 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmov       q5, q7              \n" // use q7
 
                         "vadd.f32   q6, q12, q6         \n" // use q6
-                        "vmla.f32   q5, q10, %f24[1]    \n"
+                        "vmla.f32   q5, q10, %f16[1]    \n"
 
                         "vmov       q4, q13             \n"
 
-                        "vmla.f32   q2, q12, %e24[0]    \n"
-                        "vmla.f32   q3, q11, %f24[1]    \n"
+                        "vmla.f32   q2, q12, %e16[0]    \n"
+                        "vmla.f32   q3, q11, %f16[1]    \n"
 
-                        "vst1.f32   {d16-d17}, [%1]!    \n" // tmp[1][m]
+                        "vst1.f32   {d16-d17}, [%1]     \n" // tmp[1][m]
+                        "add        %1, %1, #128        \n"
 
-                        "vmla.f32   q4, q6, %e25[1]     \n"
-                        "vmla.f32   q5, q11, %e24[1]    \n"
+                        "vmla.f32   q4, q6, %e17[1]     \n"
+                        "vmla.f32   q5, q11, %e16[1]    \n"
 
-                        "vst1.f32   {d18-d19}, [%2]!    \n" // tmp[2][m]
+                        "vst1.f32   {d18-d19}, [%2]     \n" // tmp[2][m]
+                        "add        %2, %2, #128        \n"
 
                         "vadd.f32   q8, q2, q3          \n"
                         "vsub.f32   q9, q2, q3          \n"
@@ -5010,24 +5006,29 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vadd.f32   q2, q4, q5          \n"
                         "vsub.f32   q3, q4, q5          \n"
 
-                        "vst1.f32   {d16-d17}, [%3]!    \n" // tmp[3][m]
-                        "vst1.f32   {d18-d19}, [%4]!    \n" // tmp[4][m]
+                        "vst1.f32   {d16-d17}, [%3]     \n" // tmp[3][m]
+                        "add        %3, %3, #128        \n"
+                        "vst1.f32   {d18-d19}, [%0]     \n" // tmp[4][m]
+                        "sub        %0, %0, #112        \n"
 
-                        "vmla.f32   q6, q7, %f25[1]     \n"
+                        "vmla.f32   q6, q7, %f17[1]     \n"
 
-                        "vst1.f32   {d4-d5}, [%5]!      \n" // tmp[5][m]
-                        "vst1.f32   {d6-d7}, [%6]!      \n" // tmp[6][m]
+                        "vst1.f32   {d4-d5}, [%1]       \n" // tmp[5][m]
+                        "sub        %1, %1, #112        \n"
+                        "vst1.f32   {d6-d7}, [%2]       \n" // tmp[6][m]
+                        "sub        %2, %2, #112        \n"
 
-                        "vst1.f32   {d12-d13}, [%7]!    \n" // tmp[7][m]
+                        "vst1.f32   {d12-d13}, [%3]     \n" // tmp[7][m]
+                        "sub        %3, %3, #112        \n"
 
                         // loop1
-                        "vld1.f32   {d16-d19}, [%8]     \n"
-                        "vld1.f32   {d20-d23}, [%9]     \n"
-                        "vld1.f32   {d24-d27}, [%10]    \n"
+                        "vld1.f32   {d16-d19}, [%4]     \n"
+                        "vld1.f32   {d20-d23}, [%5]     \n"
+                        "vld1.f32   {d24-d27}, [%6]     \n"
 
                         "vtrn.32    q8, q10             \n"
 
-                        "vld1.f32   {d28-d31}, [%11]    \n"
+                        "vld1.f32   {d28-d31}, [%7]     \n"
 
                         "vtrn.32    q9, q11             \n"
                         "vtrn.32    q12, q14            \n"
@@ -5044,20 +5045,21 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vadd.f32   q4, q12, q13        \n"
                         "vadd.f32   q5, q10, q11        \n"
 
-                        "vmla.f32   q2, q3, %f25[1]     \n"
+                        "vmla.f32   q2, q3, %f17[1]     \n"
 
-                        "vmul.f32   q7, q14, %e25[0]    \n" // q7 = _r_3_x_c
-                        "vmul.f32   q6, q9, %f24[0]     \n" // q6 = _r_4_x_c
+                        "vmul.f32   q7, q14, %e17[0]    \n" // q7 = _r_3_x_c
+                        "vmul.f32   q6, q9, %f16[0]     \n" // q6 = _r_4_x_c
 
-                        "vmls.f32   q4, q9, %f25[0]     \n"
-                        "vmls.f32   q5, q14, %f25[0]    \n"
+                        "vmls.f32   q4, q9, %f17[0]     \n"
+                        "vmls.f32   q5, q14, %f17[0]    \n"
 
-                        "vst1.f32   {d4-d5}, [%0]!      \n" // tmp[0][m]
+                        "vst1.f32   {d4-d5}, [%0]       \n" // tmp[0][m]
+                        "add        %0, %0, #128        \n"
 
                         "vmov       q3, q7              \n" // use q7
 
                         "vadd.f32   q2, q13, q6         \n" // use q6
-                        "vmla.f32   q3, q10, %e24[1]    \n"
+                        "vmla.f32   q3, q10, %e16[1]    \n"
 
                         "vadd.f32   q8, q4, q5          \n"
                         "vsub.f32   q9, q4, q5          \n"
@@ -5065,19 +5067,21 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmov       q5, q7              \n" // use q7
 
                         "vadd.f32   q6, q12, q6         \n" // use q6
-                        "vmla.f32   q5, q10, %f24[1]    \n"
+                        "vmla.f32   q5, q10, %f16[1]    \n"
 
                         "vmov       q4, q13             \n"
 
-                        "vmla.f32   q2, q12, %e24[0]    \n"
-                        "vmla.f32   q3, q11, %f24[1]    \n"
+                        "vmla.f32   q2, q12, %e16[0]    \n"
+                        "vmla.f32   q3, q11, %f16[1]    \n"
 
-                        "vst1.f32   {d16-d17}, [%1]!    \n" // tmp[1][m]
+                        "vst1.f32   {d16-d17}, [%1]     \n" // tmp[1][m]
+                        "add        %1, %1, #128        \n"
 
-                        "vmla.f32   q4, q6, %e25[1]     \n"
-                        "vmla.f32   q5, q11, %e24[1]    \n"
+                        "vmla.f32   q4, q6, %e17[1]     \n"
+                        "vmla.f32   q5, q11, %e16[1]    \n"
 
-                        "vst1.f32   {d18-d19}, [%2]!    \n" // tmp[2][m]
+                        "vst1.f32   {d18-d19}, [%2]     \n" // tmp[2][m]
+                        "add        %2, %2, #128        \n"
 
                         "vadd.f32   q8, q2, q3          \n"
                         "vsub.f32   q9, q2, q3          \n"
@@ -5088,43 +5092,36 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vadd.f32   q2, q4, q5          \n"
                         "vsub.f32   q3, q4, q5          \n"
 
-                        "vst1.f32   {d16-d17}, [%3]!    \n" // tmp[3][m]
-                        "vst1.f32   {d18-d19}, [%4]!    \n" // tmp[4][m]
+                        "vst1.f32   {d16-d17}, [%3]     \n" // tmp[3][m]
+                        "add        %3, %3, #128        \n"
+                        "vst1.f32   {d18-d19}, [%0]     \n" // tmp[4][m]
 
-                        "vmla.f32   q6, q7, %f25[1]     \n"
+                        "vmla.f32   q6, q7, %f17[1]     \n"
 
-                        "vst1.f32   {d4-d5}, [%5]!      \n" // tmp[5][m]
-                        "vst1.f32   {d6-d7}, [%6]!      \n" // tmp[6][m]
+                        "vst1.f32   {d4-d5}, [%1]       \n" // tmp[5][m]
+                        "vst1.f32   {d6-d7}, [%2]       \n" // tmp[6][m]
 
-                        "vst1.f32   {d12-d13}, [%7]!    \n" // tmp[7][m]
+                        "vst1.f32   {d12-d13}, [%3]     \n" // tmp[7][m]
 
                         : "=r"(t0), // %0
                         "=r"(t1), // %1
                         "=r"(t2), // %2
                         "=r"(t3), // %3
-                        "=r"(t4), // %4
-                        "=r"(t5), // %5
-                        "=r"(t6), // %6
-                        "=r"(t7), // %7
-                        "=r"(r0), // %8
-                        "=r"(r1), // %9
-                        "=r"(r2), // %10
-                        "=r"(r3)  // %11
+                        "=r"(r0), // %4
+                        "=r"(r1), // %5
+                        "=r"(r2), // %6
+                        "=r"(r3)  // %7
                         : "0"(t0),
                         "1"(t1),
                         "2"(t2),
                         "3"(t3),
-                        "4"(t4),
-                        "5"(t5),
-                        "6"(t6),
-                        "7"(t7),
-                        "8"(r0),
-                        "9"(r1),
-                        "10"(r2),
-                        "11"(r3),
-                        "w"(_coeff0), // %24
-                        "w"(_coeff1), // %25
-                        "r"(stepw)    // %26
+                        "4"(r0),
+                        "5"(r1),
+                        "6"(r2),
+                        "7"(r3),
+                        "w"(_coeff0), // %16
+                        "w"(_coeff1), // %17
+                        "r"(stepw)    // %18
                         : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 
                     t0 = tmp[0];
@@ -5136,27 +5133,24 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     float* r0_tm1_0 = img0_tm.row(i * w_tm / 8 + j + tiles * 8);
                     float* r0_tm2_0 = img0_tm.row(i * w_tm / 8 + j + tiles * 16);
                     float* r0_tm3_0 = img0_tm.row(i * w_tm / 8 + j + tiles * 24);
-                    float* r0_tm0_4 = img0_tm.row(i * w_tm / 8 + j + tiles * 32);
-                    float* r0_tm1_4 = img0_tm.row(i * w_tm / 8 + j + tiles * 40);
-                    float* r0_tm2_4 = img0_tm.row(i * w_tm / 8 + j + tiles * 48);
-                    float* r0_tm3_4 = img0_tm.row(i * w_tm / 8 + j + tiles * 56);
 
                     int step = img0_tm.w * tiles * 4;
+                    int step2 = img0_tm.w * tiles * 25 * 4;
 
                     asm volatile(
 
                         // loop0
-                        "vld1.f32   {d16-d19}, [%8]     \n"
-                        "add        %8, %8, #128        \n"
-                        "vld1.f32   {d20-d23}, [%9]     \n"
-                        "add        %9, %9, #128        \n"
-                        "vld1.f32   {d24-d27}, [%10]    \n"
-                        "add        %10, %10, #128      \n"
+                        "vld1.f32   {d16-d19}, [%4]     \n"
+                        "add        %4, %4, #128        \n"
+                        "vld1.f32   {d20-d23}, [%5]     \n"
+                        "add        %5, %5, #128        \n"
+                        "vld1.f32   {d24-d27}, [%6]     \n"
+                        "add        %6, %6, #128        \n"
 
                         "vtrn.32    q8, q10             \n"
 
-                        "vld1.f32   {d28-d31}, [%11]    \n"
-                        "add        %11, %11, #128      \n"
+                        "vld1.f32   {d28-d31}, [%7]     \n"
+                        "add        %7, %7, #128        \n"
 
                         "vtrn.32    q9, q11             \n"
                         "vtrn.32    q12, q14            \n"
@@ -5173,24 +5167,24 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vadd.f32   q4, q12, q13        \n"
                         "vadd.f32   q5, q10, q11        \n"
 
-                        "vmla.f32   q2, q3, %f25[1]     \n"
+                        "vmla.f32   q2, q3, %f17[1]     \n"
 
-                        "vmul.f32   q7, q14, %e25[0]    \n" // q7 = _r_3_x_c
-                        "vmul.f32   q6, q9, %f24[0]     \n" // q6 = _r_4_x_c
+                        "vmul.f32   q7, q14, %e17[0]    \n" // q7 = _r_3_x_c
+                        "vmul.f32   q6, q9, %f16[0]     \n" // q6 = _r_4_x_c
 
-                        "vmls.f32   q4, q9, %f25[0]     \n"
-                        "vmls.f32   q5, q14, %f25[0]    \n"
+                        "vmls.f32   q4, q9, %f17[0]     \n"
+                        "vmls.f32   q5, q14, %f17[0]    \n"
 
-                        "vst1.f32   {d4[0]}, [%0], %26  \n"
-                        "vst1.f32   {d4[1]}, [%1], %26  \n"
+                        "vst1.f32   {d4[0]}, [%0], %18  \n"
+                        "vst1.f32   {d4[1]}, [%1], %18  \n"
 
                         "vmov       q3, q7              \n" // use q7
 
-                        "vst1.f32   {d5[0]}, [%2], %26  \n"
-                        "vst1.f32   {d5[1]}, [%3], %26  \n"
+                        "vst1.f32   {d5[0]}, [%2], %18  \n"
+                        "vst1.f32   {d5[1]}, [%3], %18  \n"
 
                         "vadd.f32   q2, q13, q6         \n" // use q6
-                        "vmla.f32   q3, q10, %e24[1]    \n"
+                        "vmla.f32   q3, q10, %e16[1]    \n"
 
                         "vadd.f32   q8, q4, q5          \n"
                         "vsub.f32   q9, q4, q5          \n"
@@ -5198,204 +5192,197 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "vmov       q5, q7              \n" // use q7
 
                         "vadd.f32   q6, q12, q6         \n" // use q6
-                        "vmla.f32   q5, q10, %f24[1]    \n"
+                        "vmla.f32   q5, q10, %f16[1]    \n"
 
                         "vmov       q4, q13             \n"
 
-                        "vmla.f32   q2, q12, %e24[0]    \n"
-                        "vmla.f32   q3, q11, %f24[1]    \n"
+                        "vmla.f32   q2, q12, %e16[0]    \n"
+                        "vmla.f32   q3, q11, %f16[1]    \n"
 
-                        "vst1.f32   {d16[0]}, [%0], %26 \n"
-                        "vst1.f32   {d16[1]}, [%1], %26 \n"
+                        "vst1.f32   {d16[0]}, [%0], %18 \n"
+                        "vst1.f32   {d16[1]}, [%1], %18 \n"
 
-                        "vmla.f32   q4, q6, %e25[1]     \n"
+                        "vmla.f32   q4, q6, %e17[1]     \n"
 
-                        "vst1.f32   {d17[0]}, [%2], %26 \n"
-                        "vst1.f32   {d17[1]}, [%3], %26 \n"
+                        "vst1.f32   {d17[0]}, [%2], %18 \n"
+                        "vst1.f32   {d17[1]}, [%3], %18 \n"
 
-                        "vmla.f32   q5, q11, %e24[1]    \n"
+                        "vmla.f32   q5, q11, %e16[1]    \n"
 
-                        "vst1.f32   {d18[0]}, [%0], %26 \n"
-                        "vst1.f32   {d18[1]}, [%1], %26 \n"
+                        "vst1.f32   {d18[0]}, [%0], %18 \n"
+                        "vst1.f32   {d18[1]}, [%1], %18 \n"
 
                         "vadd.f32   q8, q2, q3          \n"
 
-                        "vst1.f32   {d19[0]}, [%2], %26 \n"
-                        "vst1.f32   {d19[1]}, [%3], %26 \n"
+                        "vst1.f32   {d19[0]}, [%2], %18 \n"
+                        "vst1.f32   {d19[1]}, [%3], %18 \n"
 
                         "vsub.f32   q9, q2, q3          \n"
 
                         "vsub.f32   q6, q15, q10        \n"
                         "vsub.f32   q7, q14, q11        \n"
 
-                        "vst1.f32   {d16[0]}, [%0], %26 \n"
-                        "vst1.f32   {d16[1]}, [%1], %26 \n"
-                        "vst1.f32   {d17[0]}, [%2], %26 \n"
-                        "vst1.f32   {d17[1]}, [%3], %26 \n"
+                        "vst1.f32   {d16[0]}, [%0], %18 \n"
+                        "vst1.f32   {d16[1]}, [%1], %18 \n"
+                        "vst1.f32   {d17[0]}, [%2], %18 \n"
+                        "vst1.f32   {d17[1]}, [%3], %18 \n"
 
                         "vadd.f32   q2, q4, q5          \n"
 
-                        "vst1.f32   {d18[0]}, [%0], %26 \n"
-                        "vst1.f32   {d18[1]}, [%1], %26 \n"
-                        "vst1.f32   {d19[0]}, [%2], %26 \n"
-                        "vst1.f32   {d19[1]}, [%3], %26 \n"
+                        "vst1.f32   {d18[0]}, [%0], %18 \n"
+                        "vst1.f32   {d18[1]}, [%1], %18 \n"
+                        "vst1.f32   {d19[0]}, [%2], %18 \n"
+                        "vst1.f32   {d19[1]}, [%3], %18 \n"
 
                         "vsub.f32   q3, q4, q5          \n"
 
-                        "vst1.f32   {d4[0]}, [%0], %26  \n"
-                        "vst1.f32   {d4[1]}, [%1], %26  \n"
-                        "vst1.f32   {d5[0]}, [%2], %26  \n"
-                        "vst1.f32   {d5[1]}, [%3], %26  \n"
+                        "vst1.f32   {d4[0]}, [%0], %18  \n"
+                        "vst1.f32   {d4[1]}, [%1], %18  \n"
+                        "vst1.f32   {d5[0]}, [%2], %18  \n"
+                        "vst1.f32   {d5[1]}, [%3], %18  \n"
 
-                        "vmla.f32   q6, q7, %f25[1]     \n"
+                        "vmla.f32   q6, q7, %f17[1]     \n"
 
-                        "vst1.f32   {d6[0]}, [%0], %26  \n"
-                        "vst1.f32   {d6[1]}, [%1], %26  \n"
-                        "vst1.f32   {d7[0]}, [%2], %26  \n"
-                        "vst1.f32   {d7[1]}, [%3], %26  \n"
+                        "vst1.f32   {d6[0]}, [%0], %18  \n"
+                        "vst1.f32   {d6[1]}, [%1], %18  \n"
+                        "vst1.f32   {d7[0]}, [%2], %18  \n"
+                        "vst1.f32   {d7[1]}, [%3], %18  \n"
+
+                        "vst1.f32   {d12[0]}, [%0], %19 \n"
+                        "vst1.f32   {d12[1]}, [%1], %19 \n"
+                        "vst1.f32   {d13[0]}, [%2], %19 \n"
+                        "vst1.f32   {d13[1]}, [%3], %19 \n"
+
+                        // loop1
+                        "vld1.f32   {d16-d19}, [%4]     \n"
+                        "vld1.f32   {d20-d23}, [%5]     \n"
+                        "vld1.f32   {d24-d27}, [%6]     \n"
+
+                        "vtrn.32    q8, q10             \n"
+
+                        "vld1.f32   {d28-d31}, [%7]     \n"
+
+                        "vtrn.32    q9, q11             \n"
+                        "vtrn.32    q12, q14            \n"
+                        "vtrn.32    q13, q15            \n"
+
+                        "vswp       d17, d24            \n"
+                        "vswp       d19, d26            \n"
+                        "vswp       d21, d28            \n" //  q8 = 00   q9 = 44  q10 = 11  q11 = 55
+                        "vswp       d23, d30            \n" // q12 = 22  q13 = 66  q14 = 33  q15 = 77
+
+                        "vsub.f32   q2, q8, q13         \n"
+                        "vsub.f32   q3, q9, q12         \n"
+
+                        "vadd.f32   q4, q12, q13        \n"
+                        "vadd.f32   q5, q10, q11        \n"
+
+                        "vmla.f32   q2, q3, %f17[1]     \n"
+
+                        "vmul.f32   q7, q14, %e17[0]    \n" // q7 = _r_3_x_c
+                        "vmul.f32   q6, q9, %f16[0]     \n" // q6 = _r_4_x_c
+
+                        "vmls.f32   q4, q9, %f17[0]     \n"
+                        "vmls.f32   q5, q14, %f17[0]    \n"
+
+                        "vst1.f32   {d4[0]}, [%0], %18  \n"
+                        "vst1.f32   {d4[1]}, [%1], %18  \n"
+
+                        "vmov       q3, q7              \n" // use q7
+
+                        "vst1.f32   {d5[0]}, [%2], %18  \n"
+                        "vst1.f32   {d5[1]}, [%3], %18  \n"
+
+                        "vadd.f32   q2, q13, q6         \n" // use q6
+                        "vmla.f32   q3, q10, %e16[1]    \n"
+
+                        "vadd.f32   q8, q4, q5          \n"
+                        "vsub.f32   q9, q4, q5          \n"
+
+                        "vmov       q5, q7              \n" // use q7
+
+                        "vadd.f32   q6, q12, q6         \n" // use q6
+                        "vmla.f32   q5, q10, %f16[1]    \n"
+
+                        "vmov       q4, q13             \n"
+
+                        "vmla.f32   q2, q12, %e16[0]    \n"
+                        "vmla.f32   q3, q11, %f16[1]    \n"
+
+                        "vst1.f32   {d16[0]}, [%0], %18 \n"
+                        "vst1.f32   {d16[1]}, [%1], %18 \n"
+
+                        "vmla.f32   q4, q6, %e17[1]     \n"
+
+                        "vst1.f32   {d17[0]}, [%2], %18 \n"
+                        "vst1.f32   {d17[1]}, [%3], %18 \n"
+
+                        "vmla.f32   q5, q11, %e16[1]    \n"
+
+                        "vst1.f32   {d18[0]}, [%0], %18 \n"
+                        "vst1.f32   {d18[1]}, [%1], %18 \n"
+
+                        "vadd.f32   q8, q2, q3          \n"
+
+                        "vst1.f32   {d19[0]}, [%2], %18 \n"
+                        "vst1.f32   {d19[1]}, [%3], %18 \n"
+
+                        "vsub.f32   q9, q2, q3          \n"
+
+                        "vsub.f32   q6, q15, q10        \n"
+                        "vsub.f32   q7, q14, q11        \n"
+
+                        "vst1.f32   {d16[0]}, [%0], %18 \n"
+                        "vst1.f32   {d16[1]}, [%1], %18 \n"
+                        "vst1.f32   {d17[0]}, [%2], %18 \n"
+                        "vst1.f32   {d17[1]}, [%3], %18 \n"
+
+                        "vadd.f32   q2, q4, q5          \n"
+
+                        "vst1.f32   {d18[0]}, [%0], %18 \n"
+                        "vst1.f32   {d18[1]}, [%1], %18 \n"
+                        "vst1.f32   {d19[0]}, [%2], %18 \n"
+                        "vst1.f32   {d19[1]}, [%3], %18 \n"
+
+                        "vsub.f32   q3, q4, q5          \n"
+
+                        "vst1.f32   {d4[0]}, [%0], %18  \n"
+                        "vst1.f32   {d4[1]}, [%1], %18  \n"
+                        "vst1.f32   {d5[0]}, [%2], %18  \n"
+                        "vst1.f32   {d5[1]}, [%3], %18  \n"
+
+                        "vmla.f32   q6, q7, %f17[1]     \n"
+
+                        "vst1.f32   {d6[0]}, [%0], %18  \n"
+                        "vst1.f32   {d6[1]}, [%1], %18  \n"
+                        "vst1.f32   {d7[0]}, [%2], %18  \n"
+                        "vst1.f32   {d7[1]}, [%3], %18  \n"
 
                         "vst1.f32   {d12[0]}, [%0]      \n"
                         "vst1.f32   {d12[1]}, [%1]      \n"
                         "vst1.f32   {d13[0]}, [%2]      \n"
                         "vst1.f32   {d13[1]}, [%3]      \n"
 
-                        // loop1
-                        "vld1.f32   {d16-d19}, [%8]     \n"
-                        "vld1.f32   {d20-d23}, [%9]     \n"
-                        "vld1.f32   {d24-d27}, [%10]    \n"
-
-                        "vtrn.32    q8, q10             \n"
-
-                        "vld1.f32   {d28-d31}, [%11]    \n"
-
-                        "vtrn.32    q9, q11             \n"
-                        "vtrn.32    q12, q14            \n"
-                        "vtrn.32    q13, q15            \n"
-
-                        "vswp       d17, d24            \n"
-                        "vswp       d19, d26            \n"
-                        "vswp       d21, d28            \n" //  q8 = 00   q9 = 44  q10 = 11  q11 = 55
-                        "vswp       d23, d30            \n" // q12 = 22  q13 = 66  q14 = 33  q15 = 77
-
-                        "vsub.f32   q2, q8, q13         \n"
-                        "vsub.f32   q3, q9, q12         \n"
-
-                        "vadd.f32   q4, q12, q13        \n"
-                        "vadd.f32   q5, q10, q11        \n"
-
-                        "vmla.f32   q2, q3, %f25[1]     \n"
-
-                        "vmul.f32   q7, q14, %e25[0]    \n" // q7 = _r_3_x_c
-                        "vmul.f32   q6, q9, %f24[0]     \n" // q6 = _r_4_x_c
-
-                        "vmls.f32   q4, q9, %f25[0]     \n"
-                        "vmls.f32   q5, q14, %f25[0]    \n"
-
-                        "vst1.f32   {d4[0]}, [%4], %26  \n"
-                        "vst1.f32   {d4[1]}, [%5], %26  \n"
-
-                        "vmov       q3, q7              \n" // use q7
-
-                        "vst1.f32   {d5[0]}, [%6], %26  \n"
-                        "vst1.f32   {d5[1]}, [%7], %26  \n"
-
-                        "vadd.f32   q2, q13, q6         \n" // use q6
-                        "vmla.f32   q3, q10, %e24[1]    \n"
-
-                        "vadd.f32   q8, q4, q5          \n"
-                        "vsub.f32   q9, q4, q5          \n"
-
-                        "vmov       q5, q7              \n" // use q7
-
-                        "vadd.f32   q6, q12, q6         \n" // use q6
-                        "vmla.f32   q5, q10, %f24[1]    \n"
-
-                        "vmov       q4, q13             \n"
-
-                        "vmla.f32   q2, q12, %e24[0]    \n"
-                        "vmla.f32   q3, q11, %f24[1]    \n"
-
-                        "vst1.f32   {d16[0]}, [%4], %26 \n"
-                        "vst1.f32   {d16[1]}, [%5], %26 \n"
-
-                        "vmla.f32   q4, q6, %e25[1]     \n"
-
-                        "vst1.f32   {d17[0]}, [%6], %26 \n"
-                        "vst1.f32   {d17[1]}, [%7], %26 \n"
-
-                        "vmla.f32   q5, q11, %e24[1]    \n"
-
-                        "vst1.f32   {d18[0]}, [%4], %26 \n"
-                        "vst1.f32   {d18[1]}, [%5], %26 \n"
-
-                        "vadd.f32   q8, q2, q3          \n"
-
-                        "vst1.f32   {d19[0]}, [%6], %26 \n"
-                        "vst1.f32   {d19[1]}, [%7], %26 \n"
-
-                        "vsub.f32   q9, q2, q3          \n"
-
-                        "vsub.f32   q6, q15, q10        \n"
-                        "vsub.f32   q7, q14, q11        \n"
-
-                        "vst1.f32   {d16[0]}, [%4], %26 \n"
-                        "vst1.f32   {d16[1]}, [%5], %26 \n"
-                        "vst1.f32   {d17[0]}, [%6], %26 \n"
-                        "vst1.f32   {d17[1]}, [%7], %26 \n"
-
-                        "vadd.f32   q2, q4, q5          \n"
-
-                        "vst1.f32   {d18[0]}, [%4], %26 \n"
-                        "vst1.f32   {d18[1]}, [%5], %26 \n"
-                        "vst1.f32   {d19[0]}, [%6], %26 \n"
-                        "vst1.f32   {d19[1]}, [%7], %26 \n"
-
-                        "vsub.f32   q3, q4, q5          \n"
-
-                        "vst1.f32   {d4[0]}, [%4], %26  \n"
-                        "vst1.f32   {d4[1]}, [%5], %26  \n"
-                        "vst1.f32   {d5[0]}, [%6], %26  \n"
-                        "vst1.f32   {d5[1]}, [%7], %26  \n"
-
-                        "vmla.f32   q6, q7, %f25[1]     \n"
-
-                        "vst1.f32   {d6[0]}, [%4], %26  \n"
-                        "vst1.f32   {d6[1]}, [%5], %26  \n"
-                        "vst1.f32   {d7[0]}, [%6], %26  \n"
-                        "vst1.f32   {d7[1]}, [%7], %26  \n"
-
-                        "vst1.f32   {d12[0]}, [%4]      \n"
-                        "vst1.f32   {d12[1]}, [%5]      \n"
-                        "vst1.f32   {d13[0]}, [%6]      \n"
-                        "vst1.f32   {d13[1]}, [%7]      \n"
-
                         : "=r"(r0_tm0_0), // %0
                         "=r"(r0_tm1_0), // %1
                         "=r"(r0_tm2_0), // %2
                         "=r"(r0_tm3_0), // %3
-                        "=r"(r0_tm0_4), // %4
-                        "=r"(r0_tm1_4), // %5
-                        "=r"(r0_tm2_4), // %6
-                        "=r"(r0_tm3_4), // %7
-                        "=r"(t0),       // %8
-                        "=r"(t1),       // %9
-                        "=r"(t2),       // %10
-                        "=r"(t3)        // %11
+                        "=r"(t0),       // %4
+                        "=r"(t1),       // %5
+                        "=r"(t2),       // %6
+                        "=r"(t3)        // %7
                         : "0"(r0_tm0_0),
                         "1"(r0_tm1_0),
                         "2"(r0_tm2_0),
                         "3"(r0_tm3_0),
-                        "4"(r0_tm0_4),
-                        "5"(r0_tm1_4),
-                        "6"(r0_tm2_4),
-                        "7"(r0_tm3_4),
-                        "8"(t0),
-                        "9"(t1),
-                        "10"(t2),
-                        "11"(t3),
-                        "w"(_coeff0), // %24
-                        "w"(_coeff1), // %25
-                        "r"(step)     // %26
+                        "4"(t0),
+                        "5"(t1),
+                        "6"(t2),
+                        "7"(t3),
+                        "w"(_coeff0), // %16
+                        "w"(_coeff1), // %17
+                        "r"(step),    // %18
+                        "r"(step2)    // %19
                         : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 #endif // __aarch64__
 #else
@@ -5734,7 +5721,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w20, #3            \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w20, #3            \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -5877,7 +5864,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w20, #3            \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w20, #3            \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -6126,7 +6113,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w12, #3            \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w12, #3            \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -6247,7 +6234,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                         \n"
 
                         // remain loop
-                        "and        r4, %12, #3     \n" // r4 = remain = tiles & 3;
+                        "and        r4, %12, #3     \n" // r4 = remain = tiles & 3
                         "cmp        r4, #0          \n"
                         "beq        3f              \n"
 
@@ -6468,7 +6455,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w12, #3            \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w12, #3            \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -6560,7 +6547,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                         \n"
 
                         // remain loop
-                        "and        r4, %12, #3     \n" // r4 = remain = tiles & 3;
+                        "and        r4, %12, #3     \n" // r4 = remain = tiles & 3
                         "cmp        r4, #0          \n"
                         "beq        3f              \n"
 
@@ -6822,7 +6809,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w6, #3             \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w6, #3             \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -6894,7 +6881,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and        r4, %6, #3          \n" // r4 = remain = tiles & 3;
+                        "and        r4, %6, #3          \n" // r4 = remain = tiles & 3
                         "cmp        r4, #0              \n"
                         "beq        3f                  \n"
 
@@ -6997,7 +6984,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and    w4, %w6, #3             \n" // w4 = remain = tiles & 3;
+                        "and    w4, %w6, #3             \n" // w4 = remain = tiles & 3
                         "cmp    w4, #0                  \n"
                         "beq    3f                      \n"
 
@@ -7057,7 +7044,7 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "1:                             \n"
 
                         // remain loop
-                        "and        r4, %6, #3          \n" // r4 = remain = tiles & 3;
+                        "and        r4, %6, #3          \n" // r4 = remain = tiles & 3
                         "cmp        r4, #0              \n"
                         "beq        3f                  \n"
 
@@ -7432,105 +7419,83 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                     const float* output0_tm1_0 = out0_tm.row(i * w_tm / 8 + j + tiles * 8);
                     const float* output0_tm2_0 = out0_tm.row(i * w_tm / 8 + j + tiles * 16);
                     const float* output0_tm3_0 = out0_tm.row(i * w_tm / 8 + j + tiles * 24);
-                    const float* output0_tm0_4 = out0_tm.row(i * w_tm / 8 + j + tiles * 32);
-                    const float* output0_tm1_4 = out0_tm.row(i * w_tm / 8 + j + tiles * 40);
-                    const float* output0_tm2_4 = out0_tm.row(i * w_tm / 8 + j + tiles * 48);
-                    const float* output0_tm3_4 = out0_tm.row(i * w_tm / 8 + j + tiles * 56);
 
                     float* t0 = tmp[0];
                     float* t1 = tmp[1];
 
-                    //                     int step = out0_tm.w * tiles * 2*4 *4;
                     int step = out0_tm.w * tiles * 4;
+                    int step2 = out0_tm.w * tiles * 25 * 4;
 
                     asm volatile(
 
                         // loop0
-                        //                         "vld1.f32   {d16-d17}, [%2], %21 \n"
-                        //                         "vld1.f32   {d18-d19}, [%3], %21 \n"
-                        //                         "vld1.f32   {d20-d21}, [%4], %21 \n"
-                        //                         "vld1.f32   {d22-d23}, [%5], %21 \n"
-                        //                         "vld1.f32   {d24-d25}, [%6], %21 \n"
-                        //                         "vld1.f32   {d26-d27}, [%7], %21 \n"
-                        //                         "vld1.f32   {d28-d29}, [%8], %21 \n"
-                        //                         "vld1.f32   {d30-d31}, [%9], %21 \n"
+                        "vld1.f32   {d16[0]}, [%2], %13 \n"
+                        "vld1.f32   {d16[1]}, [%3], %13 \n"
+                        "vld1.f32   {d17[0]}, [%4], %13 \n"
+                        "vld1.f32   {d17[1]}, [%5], %13 \n"
 
-                        //                         "vtrn.32    q8, q10             \n"
-                        //                         "vtrn.32    q9, q11             \n"
-                        //                         "vtrn.32    q12, q14            \n"
-                        //                         "vtrn.32    q13, q15            \n"
+                        "vld1.f32   {d20[0]}, [%2], %13 \n"
+                        "vld1.f32   {d20[1]}, [%3], %13 \n"
+                        "vld1.f32   {d21[0]}, [%4], %13 \n"
+                        "vld1.f32   {d21[1]}, [%5], %13 \n"
 
-                        //                         "vswp       d17, d24            \n"
-                        //                         "vswp       d19, d26            \n"
-                        //                         "vswp       d21, d28            \n"//  q8 = 00   q9 = 44  q10 = 11  q11 = 55
-                        //                         "vswp       d23, d30            \n"// q12 = 22  q13 = 66  q14 = 33  q15 = 77
-                        "vld1.f32   {d16[0]}, [%2], %21 \n"
-                        "vld1.f32   {d16[1]}, [%3], %21 \n"
-                        "vld1.f32   {d17[0]}, [%4], %21 \n"
-                        "vld1.f32   {d17[1]}, [%5], %21 \n"
-
-                        "vld1.f32   {d20[0]}, [%2], %21 \n"
-                        "vld1.f32   {d20[1]}, [%3], %21 \n"
-                        "vld1.f32   {d21[0]}, [%4], %21 \n"
-                        "vld1.f32   {d21[1]}, [%5], %21 \n"
-
-                        "vld1.f32   {d24[0]}, [%2], %21 \n"
-                        "vld1.f32   {d24[1]}, [%3], %21 \n"
-                        "vld1.f32   {d25[0]}, [%4], %21 \n"
-                        "vld1.f32   {d25[1]}, [%5], %21 \n"
+                        "vld1.f32   {d24[0]}, [%2], %13 \n"
+                        "vld1.f32   {d24[1]}, [%3], %13 \n"
+                        "vld1.f32   {d25[0]}, [%4], %13 \n"
+                        "vld1.f32   {d25[1]}, [%5], %13 \n"
 
                         "vadd.f32   q2, q10, q12        \n"
                         "vsub.f32   q3, q10, q12        \n"
 
-                        "vld1.f32   {d28[0]}, [%2], %21 \n"
-                        "vld1.f32   {d28[1]}, [%3], %21 \n"
-                        "vld1.f32   {d29[0]}, [%4], %21 \n"
-                        "vld1.f32   {d29[1]}, [%5], %21 \n"
+                        "vld1.f32   {d28[0]}, [%2], %13 \n"
+                        "vld1.f32   {d28[1]}, [%3], %13 \n"
+                        "vld1.f32   {d29[0]}, [%4], %13 \n"
+                        "vld1.f32   {d29[1]}, [%5], %13 \n"
 
-                        "vld1.f32   {d18[0]}, [%2], %21 \n"
-                        "vld1.f32   {d18[1]}, [%3], %21 \n"
-                        "vld1.f32   {d19[0]}, [%4], %21 \n"
-                        "vld1.f32   {d19[1]}, [%5], %21 \n"
+                        "vld1.f32   {d18[0]}, [%2], %13 \n"
+                        "vld1.f32   {d18[1]}, [%3], %13 \n"
+                        "vld1.f32   {d19[0]}, [%4], %13 \n"
+                        "vld1.f32   {d19[1]}, [%5], %13 \n"
 
                         "vadd.f32   q4, q14, q9         \n"
                         "vsub.f32   q5, q14, q9         \n"
 
-                        "vld1.f32   {d22[0]}, [%2], %21 \n"
-                        "vld1.f32   {d22[1]}, [%3], %21 \n"
-                        "vld1.f32   {d23[0]}, [%4], %21 \n"
-                        "vld1.f32   {d23[1]}, [%5], %21 \n"
+                        "vld1.f32   {d22[0]}, [%2], %13 \n"
+                        "vld1.f32   {d22[1]}, [%3], %13 \n"
+                        "vld1.f32   {d23[0]}, [%4], %13 \n"
+                        "vld1.f32   {d23[1]}, [%5], %13 \n"
 
-                        "vld1.f32   {d26[0]}, [%2], %21 \n"
-                        "vld1.f32   {d26[1]}, [%3], %21 \n"
-                        "vld1.f32   {d27[0]}, [%4], %21 \n"
-                        "vld1.f32   {d27[1]}, [%5], %21 \n"
+                        "vld1.f32   {d26[0]}, [%2], %13 \n"
+                        "vld1.f32   {d26[1]}, [%3], %13 \n"
+                        "vld1.f32   {d27[0]}, [%4], %13 \n"
+                        "vld1.f32   {d27[1]}, [%5], %13 \n"
 
                         "vadd.f32   q6, q11, q13        \n"
                         "vsub.f32   q7, q11, q13        \n" // spare q9 q10 q11 q12 q13 q14
 
-                        "vld1.f32   {d30[0]}, [%2]      \n"
-                        "vld1.f32   {d30[1]}, [%3]      \n"
-                        "vld1.f32   {d31[0]}, [%4]      \n"
-                        "vld1.f32   {d31[1]}, [%5]      \n"
+                        "vld1.f32   {d30[0]}, [%2], %14 \n"
+                        "vld1.f32   {d30[1]}, [%3], %14 \n"
+                        "vld1.f32   {d31[0]}, [%4], %14 \n"
+                        "vld1.f32   {d31[1]}, [%5], %14 \n"
 
                         "vmov       q9, q3              \n"
                         "vadd.f32   q8, q8, q2          \n"
-                        "vmla.f32   q9, q7, %f20[0]     \n"
+                        "vmla.f32   q9, q7, %f12[0]     \n"
                         "vmov       q12, q2             \n"
                         "vmov       q10, q2             \n"
                         "vmov       q11, q3             \n"
-                        "vmla.f32   q12, q4, %f20[0]    \n"
+                        "vmla.f32   q12, q4, %f12[0]    \n"
                         "vadd.f32   q15, q15, q3        \n"
-                        "vmla.f32   q8, q6, %f20[1]     \n"
+                        "vmla.f32   q8, q6, %f12[1]     \n"
                         "vadd.f32   q9, q9, q5          \n"
-                        "vmla.f32   q10, q4, %e20[0]    \n"
-                        "vmla.f32   q11, q5, %e20[1]    \n"
+                        "vmla.f32   q10, q4, %e12[0]    \n"
+                        "vmla.f32   q11, q5, %e12[1]    \n"
                         "vadd.f32   q12, q12, q6        \n"
-                        "vmla.f32   q15, q5, %f20[1]    \n"
+                        "vmla.f32   q15, q5, %f12[1]    \n"
                         "vadd.f32   q8, q8, q4          \n"
                         "vadd.f32   q9, q9, q5          \n"
-                        "vmla.f32   q10, q6, %e20[1]    \n"
-                        "vmla.f32   q11, q7, %e20[0]    \n"
+                        "vmla.f32   q10, q6, %e12[1]    \n"
+                        "vmla.f32   q11, q7, %e12[0]    \n"
                         "vadd.f32   q12, q12, q6        \n"
                         "vadd.f32   q15, q15, q7        \n"
 
@@ -7553,91 +7518,73 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "sub        %1, %1, #112        \n"
 
                         // loop1
-                        //                         "vld1.f32   {d16-d17}, [%2]     \n"
-                        //                         "vld1.f32   {d18-d19}, [%3]     \n"
-                        //                         "vld1.f32   {d20-d21}, [%4]     \n"
-                        //                         "vld1.f32   {d22-d23}, [%5]     \n"
-                        //                         "vld1.f32   {d24-d25}, [%6]     \n"
-                        //                         "vld1.f32   {d26-d27}, [%7]     \n"
-                        //                         "vld1.f32   {d28-d29}, [%8]     \n"
-                        //                         "vld1.f32   {d30-d31}, [%9]     \n"
+                        "vld1.f32   {d16[0]}, [%2], %13 \n"
+                        "vld1.f32   {d16[1]}, [%3], %13 \n"
+                        "vld1.f32   {d17[0]}, [%4], %13 \n"
+                        "vld1.f32   {d17[1]}, [%5], %13 \n"
 
-                        //                         "vtrn.32    q8, q10             \n"
-                        //                         "vtrn.32    q9, q11             \n"
-                        //                         "vtrn.32    q12, q14            \n"
-                        //                         "vtrn.32    q13, q15            \n"
+                        "vld1.f32   {d20[0]}, [%2], %13 \n"
+                        "vld1.f32   {d20[1]}, [%3], %13 \n"
+                        "vld1.f32   {d21[0]}, [%4], %13 \n"
+                        "vld1.f32   {d21[1]}, [%5], %13 \n"
 
-                        //                         "vswp       d17, d24            \n"
-                        //                         "vswp       d19, d26            \n"
-                        //                         "vswp       d21, d28            \n"//  q8 = 00   q9 = 44  q10 = 11  q11 = 55
-                        //                         "vswp       d23, d30            \n"// q12 = 22  q13 = 66  q14 = 33  q15 = 77
-                        "vld1.f32   {d16[0]}, [%6], %21 \n"
-                        "vld1.f32   {d16[1]}, [%7], %21 \n"
-                        "vld1.f32   {d17[0]}, [%8], %21 \n"
-                        "vld1.f32   {d17[1]}, [%9], %21 \n"
-
-                        "vld1.f32   {d20[0]}, [%6], %21 \n"
-                        "vld1.f32   {d20[1]}, [%7], %21 \n"
-                        "vld1.f32   {d21[0]}, [%8], %21 \n"
-                        "vld1.f32   {d21[1]}, [%9], %21 \n"
-
-                        "vld1.f32   {d24[0]}, [%6], %21 \n"
-                        "vld1.f32   {d24[1]}, [%7], %21 \n"
-                        "vld1.f32   {d25[0]}, [%8], %21 \n"
-                        "vld1.f32   {d25[1]}, [%9], %21 \n"
+                        "vld1.f32   {d24[0]}, [%2], %13 \n"
+                        "vld1.f32   {d24[1]}, [%3], %13 \n"
+                        "vld1.f32   {d25[0]}, [%4], %13 \n"
+                        "vld1.f32   {d25[1]}, [%5], %13 \n"
 
                         "vadd.f32   q2, q10, q12        \n"
                         "vsub.f32   q3, q10, q12        \n"
 
-                        "vld1.f32   {d28[0]}, [%6], %21 \n"
-                        "vld1.f32   {d28[1]}, [%7], %21 \n"
-                        "vld1.f32   {d29[0]}, [%8], %21 \n"
-                        "vld1.f32   {d29[1]}, [%9], %21 \n"
+                        "vld1.f32   {d28[0]}, [%2], %13 \n"
+                        "vld1.f32   {d28[1]}, [%3], %13 \n"
+                        "vld1.f32   {d29[0]}, [%4], %13 \n"
+                        "vld1.f32   {d29[1]}, [%5], %13 \n"
 
-                        "vld1.f32   {d18[0]}, [%6], %21 \n"
-                        "vld1.f32   {d18[1]}, [%7], %21 \n"
-                        "vld1.f32   {d19[0]}, [%8], %21 \n"
-                        "vld1.f32   {d19[1]}, [%9], %21 \n"
+                        "vld1.f32   {d18[0]}, [%2], %13 \n"
+                        "vld1.f32   {d18[1]}, [%3], %13 \n"
+                        "vld1.f32   {d19[0]}, [%4], %13 \n"
+                        "vld1.f32   {d19[1]}, [%5], %13 \n"
 
                         "vadd.f32   q4, q14, q9         \n"
                         "vsub.f32   q5, q14, q9         \n"
 
-                        "vld1.f32   {d22[0]}, [%6], %21 \n"
-                        "vld1.f32   {d22[1]}, [%7], %21 \n"
-                        "vld1.f32   {d23[0]}, [%8], %21 \n"
-                        "vld1.f32   {d23[1]}, [%9], %21 \n"
+                        "vld1.f32   {d22[0]}, [%2], %13 \n"
+                        "vld1.f32   {d22[1]}, [%3], %13 \n"
+                        "vld1.f32   {d23[0]}, [%4], %13 \n"
+                        "vld1.f32   {d23[1]}, [%5], %13 \n"
 
-                        "vld1.f32   {d26[0]}, [%6], %21 \n"
-                        "vld1.f32   {d26[1]}, [%7], %21 \n"
-                        "vld1.f32   {d27[0]}, [%8], %21 \n"
-                        "vld1.f32   {d27[1]}, [%9], %21 \n"
+                        "vld1.f32   {d26[0]}, [%2], %13 \n"
+                        "vld1.f32   {d26[1]}, [%3], %13 \n"
+                        "vld1.f32   {d27[0]}, [%4], %13 \n"
+                        "vld1.f32   {d27[1]}, [%5], %13 \n"
 
                         "vadd.f32   q6, q11, q13        \n"
                         "vsub.f32   q7, q11, q13        \n" // spare q9 q10 q11 q12 q13 q14
 
-                        "vld1.f32   {d30[0]}, [%6]      \n"
-                        "vld1.f32   {d30[1]}, [%7]      \n"
-                        "vld1.f32   {d31[0]}, [%8]      \n"
-                        "vld1.f32   {d31[1]}, [%9]      \n"
+                        "vld1.f32   {d30[0]}, [%2]      \n"
+                        "vld1.f32   {d30[1]}, [%3]      \n"
+                        "vld1.f32   {d31[0]}, [%4]      \n"
+                        "vld1.f32   {d31[1]}, [%5]      \n"
 
                         "vmov       q9, q3              \n"
                         "vadd.f32   q8, q8, q2          \n"
-                        "vmla.f32   q9, q7, %f20[0]     \n"
+                        "vmla.f32   q9, q7, %f12[0]     \n"
                         "vmov       q12, q2             \n"
                         "vmov       q10, q2             \n"
                         "vmov       q11, q3             \n"
-                        "vmla.f32   q12, q4, %f20[0]    \n"
+                        "vmla.f32   q12, q4, %f12[0]    \n"
                         "vadd.f32   q15, q15, q3        \n"
-                        "vmla.f32   q8, q6, %f20[1]     \n"
+                        "vmla.f32   q8, q6, %f12[1]     \n"
                         "vadd.f32   q9, q9, q5          \n"
-                        "vmla.f32   q10, q4, %e20[0]    \n"
-                        "vmla.f32   q11, q5, %e20[1]    \n"
+                        "vmla.f32   q10, q4, %e12[0]    \n"
+                        "vmla.f32   q11, q5, %e12[1]    \n"
                         "vadd.f32   q12, q12, q6        \n"
-                        "vmla.f32   q15, q5, %f20[1]    \n"
+                        "vmla.f32   q15, q5, %f12[1]    \n"
                         "vadd.f32   q8, q8, q4          \n"
                         "vadd.f32   q9, q9, q5          \n"
-                        "vmla.f32   q10, q6, %e20[1]    \n"
-                        "vmla.f32   q11, q7, %e20[0]    \n"
+                        "vmla.f32   q10, q6, %e12[1]    \n"
+                        "vmla.f32   q11, q7, %e12[0]    \n"
                         "vadd.f32   q12, q12, q6        \n"
                         "vadd.f32   q15, q15, q7        \n"
 
@@ -7662,23 +7609,16 @@ static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, co
                         "=r"(output0_tm0_0), // %2
                         "=r"(output0_tm1_0), // %3
                         "=r"(output0_tm2_0), // %4
-                        "=r"(output0_tm3_0), // %5
-                        "=r"(output0_tm0_4), // %6
-                        "=r"(output0_tm1_4), // %7
-                        "=r"(output0_tm2_4), // %8
-                        "=r"(output0_tm3_4)  // %9
+                        "=r"(output0_tm3_0)  // %5
                         : "0"(t0),
                         "1"(t1),
                         "2"(output0_tm0_0),
                         "3"(output0_tm1_0),
                         "4"(output0_tm2_0),
                         "5"(output0_tm3_0),
-                        "6"(output0_tm0_4),
-                        "7"(output0_tm1_4),
-                        "8"(output0_tm2_4),
-                        "9"(output0_tm3_4),
-                        "w"(_coeff), // %20
-                        "r"(step)    // %21
+                        "w"(_coeff), // %12
+                        "r"(step),   // %13
+                        "r"(step2)   // %14
                         : "memory", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
 
                     t0 = tmp[0];
@@ -8876,52 +8816,50 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                         : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15");
                 }
 #else  // __aarch64__
-                if (nn > 0)
+                for (; nn > 0; nn--)
                 {
                     asm volatile(
-                        "0:                             \n"
-
+                        "pld        [%0, #128]          \n"
+                        "vld1.f32   {d16-d17}, [%0]     \n"
                         "pld        [%1, #128]          \n"
-                        "vld1.f32   {d16-d17}, [%1]     \n"
-                        "pld        [%2, #128]          \n"
-                        "vld1.f32   {d18-d19}, [%2]     \n"
+                        "vld1.f32   {d18-d19}, [%1]     \n"
 
+                        "pld        [%2, #128]          \n"
+                        "vld1.f32   {d20-d21}, [%2]     \n"
                         "pld        [%3, #128]          \n"
-                        "vld1.f32   {d20-d21}, [%3]     \n"
-                        "pld        [%4, #128]          \n"
-                        "vld1.f32   {d22-d23}, [%4]     \n"
+                        "vld1.f32   {d22-d23}, [%3]     \n"
 
                         ///
-                        "pld        [%9, #256]          \n"
-                        "vld2.f32   {d8-d11}, [%9]!     \n" // q4=00 q5=01
+                        "pld        [%8, #256]          \n"
+                        "vld2.f32   {d8-d11}, [%8]!     \n" // q4=00 q5=01
 
-                        "vld1.f32   {d0-d3}, [%12 :128]! \n"
+                        "vld1.f32   {d0-d3}, [%11 :128]! \n"
 
                         "vmla.f32   q8, q4, d0[0]       \n"
                         "vmla.f32   q9, q4, d0[1]       \n"
 
+                        "pld        [%4, #128]          \n"
+                        "vld1.f32   {d24-d25}, [%4]     \n"
                         "pld        [%5, #128]          \n"
-                        "vld1.f32   {d24-d25}, [%5]     \n"
-                        "pld        [%6, #128]          \n"
-                        "vld1.f32   {d26-d27}, [%6]     \n"
+                        "vld1.f32   {d26-d27}, [%5]     \n"
 
                         "vmla.f32   q10, q4, d1[0]      \n"
                         "vmla.f32   q11, q4, d1[1]      \n"
 
+                        "pld        [%6, #128]          \n"
+                        "vld1.f32   {d28-d29}, [%6]     \n"
                         "pld        [%7, #128]          \n"
-                        "vld1.f32   {d28-d29}, [%7]     \n"
-                        "pld        [%8, #128]          \n"
-                        "vld1.f32   {d30-d31}, [%8]     \n"
+                        "vld1.f32   {d30-d31}, [%7]     \n"
 
-                        "vld1.f32   {d4-d7}, [%12 :128]! \n"
+                        "vld1.f32   {d4-d7}, [%11 :128]! \n"
 
                         "vmla.f32   q12, q4, d2[0]      \n"
                         "vmla.f32   q13, q4, d2[1]      \n"
                         "vmla.f32   q14, q4, d3[0]      \n"
                         "vmla.f32   q15, q4, d3[1]      \n"
 
-                        "pld        [%9, #128]          \n"
-                        "vld2.f32   {d12-d13}, [%9]     \n" // q6
+                        "pld        [%8, #128]          \n"
+                        "vld2.f32   {d12-d13}, [%8]     \n" // q6
 
                         "vmla.f32   q8, q5, d4[0]       \n"
                         "vmla.f32   q9, q5, d4[1]       \n"
@@ -8930,7 +8868,7 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
                         "vext.f32   q6, q4, q6, #1      \n" // q6=02
 
-                        "vld1.f32   {d0-d3}, [%12 :128]! \n"
+                        "vld1.f32   {d0-d3}, [%11 :128]! \n"
 
                         "vmla.f32   q12, q5, d6[0]      \n"
                         "vmla.f32   q13, q5, d6[1]      \n"
@@ -8938,15 +8876,15 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                         "vmla.f32   q15, q5, d7[1]      \n"
 
                         ///
-                        "pld        [%10, #256]         \n"
-                        "vld2.f32   {d8-d11}, [%10]!    \n" // q4=10 q5=11
+                        "pld        [%9, #256]          \n"
+                        "vld2.f32   {d8-d11}, [%9]!     \n" // q4=10 q5=11
 
                         "vmla.f32   q8, q6, d0[0]       \n"
                         "vmla.f32   q9, q6, d0[1]       \n"
                         "vmla.f32   q10, q6, d1[0]      \n"
                         "vmla.f32   q11, q6, d1[1]      \n"
 
-                        "vld1.f32   {d4-d7}, [%12 :128]! \n"
+                        "vld1.f32   {d4-d7}, [%11 :128]! \n"
 
                         "vmla.f32   q12, q6, d2[0]      \n"
                         "vmla.f32   q13, q6, d2[1]      \n"
@@ -8958,22 +8896,22 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                         "vmla.f32   q10, q4, d5[0]      \n"
                         "vmla.f32   q11, q4, d5[1]      \n"
 
-                        "vld1.f32   {d0-d3}, [%12 :128]! \n"
+                        "vld1.f32   {d0-d3}, [%11 :128]! \n"
 
                         "vmla.f32   q12, q4, d6[0]      \n"
                         "vmla.f32   q13, q4, d6[1]      \n"
                         "vmla.f32   q14, q4, d7[0]      \n"
                         "vmla.f32   q15, q4, d7[1]      \n"
 
-                        "pld        [%10, #128]         \n"
-                        "vld2.f32   {d12-d13}, [%10]    \n" // q6
+                        "pld        [%9, #128]          \n"
+                        "vld2.f32   {d12-d13}, [%9]     \n" // q6
 
                         "vmla.f32   q8, q5, d0[0]       \n"
                         "vmla.f32   q9, q5, d0[1]       \n"
                         "vmla.f32   q10, q5, d1[0]      \n"
                         "vmla.f32   q11, q5, d1[1]      \n"
 
-                        "vld1.f32   {d4-d7}, [%12 :128]! \n"
+                        "vld1.f32   {d4-d7}, [%11 :128]! \n"
 
                         "vext.f32   q6, q4, q6, #1      \n" // q6=12
 
@@ -8983,15 +8921,15 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                         "vmla.f32   q15, q5, d3[1]      \n"
 
                         ///
-                        "pld        [%11, #256]         \n"
-                        "vld2.f32   {d8-d11}, [%11]!    \n" // q4=20 q5=21
+                        "pld        [%10, #256]         \n"
+                        "vld2.f32   {d8-d11}, [%10]!    \n" // q4=20 q5=21
 
                         "vmla.f32   q8, q6, d4[0]       \n"
                         "vmla.f32   q9, q6, d4[1]       \n"
                         "vmla.f32   q10, q6, d5[0]      \n"
                         "vmla.f32   q11, q6, d5[1]      \n"
 
-                        "vld1.f32   {d0-d3}, [%12 :128]! \n"
+                        "vld1.f32   {d0-d3}, [%11 :128]! \n"
 
                         "vmla.f32   q12, q6, d6[0]      \n"
                         "vmla.f32   q13, q6, d6[1]      \n"
@@ -9003,15 +8941,15 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                         "vmla.f32   q10, q4, d1[0]      \n"
                         "vmla.f32   q11, q4, d1[1]      \n"
 
-                        "vld1.f32   {d4-d7}, [%12 :128]! \n"
+                        "vld1.f32   {d4-d7}, [%11 :128]! \n"
 
                         "vmla.f32   q12, q4, d2[0]      \n"
                         "vmla.f32   q13, q4, d2[1]      \n"
                         "vmla.f32   q14, q4, d3[0]      \n"
                         "vmla.f32   q15, q4, d3[1]      \n"
 
-                        "pld        [%11, #128]         \n"
-                        "vld2.f32   {d12-d13}, [%11]    \n" // q6
+                        "pld        [%10, #128]         \n"
+                        "vld2.f32   {d12-d13}, [%10]    \n" // q6
 
                         "vmla.f32   q8, q5, d4[0]       \n"
                         "vmla.f32   q9, q5, d4[1]       \n"
@@ -9020,7 +8958,7 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
 
                         "vext.f32   q6, q4, q6, #1      \n" // q6=22
 
-                        "vld1.f32   {d0-d3}, [%12 :128]! \n"
+                        "vld1.f32   {d0-d3}, [%11 :128]! \n"
 
                         "vmla.f32   q12, q5, d6[0]      \n"
                         "vmla.f32   q13, q5, d6[1]      \n"
@@ -9035,53 +8973,46 @@ static void conv3x3s2_packed_neon(const Mat& bottom_blob, Mat& top_blob, const M
                         "vmla.f32   q12, q6, d2[0]      \n"
                         "vmla.f32   q13, q6, d2[1]      \n"
 
-                        "vst1.f32   {d16-d17}, [%1]!    \n"
-                        "vst1.f32   {d18-d19}, [%2]!    \n"
+                        "vst1.f32   {d16-d17}, [%0]!    \n"
+                        "vst1.f32   {d18-d19}, [%1]!    \n"
 
                         "vmla.f32   q14, q6, d3[0]      \n"
                         "vmla.f32   q15, q6, d3[1]      \n"
 
-                        "vst1.f32   {d20-d21}, [%3]!    \n"
-                        "vst1.f32   {d22-d23}, [%4]!    \n"
+                        "vst1.f32   {d20-d21}, [%2]!    \n"
+                        "vst1.f32   {d22-d23}, [%3]!    \n"
 
-                        "sub        %12, %12, #288      \n"
+                        "sub        %11, %11, #288      \n"
 
-                        "vst1.f32   {d24-d25}, [%5]!    \n"
-                        "vst1.f32   {d26-d27}, [%6]!    \n"
-
-                        "subs       %0, #1              \n"
-
-                        "vst1.f32   {d28-d29}, [%7]!    \n"
-                        "vst1.f32   {d30-d31}, [%8]!    \n"
-
-                        "bne        0b                  \n"
-                        : "=r"(nn),      // %0
-                        "=r"(outptr0), // %1
-                        "=r"(outptr1), // %2
-                        "=r"(outptr2), // %3
-                        "=r"(outptr3), // %4
-                        "=r"(outptr4), // %5
-                        "=r"(outptr5), // %6
-                        "=r"(outptr6), // %7
-                        "=r"(outptr7), // %8
-                        "=r"(r0),      // %9
-                        "=r"(r1),      // %10
-                        "=r"(r2),      // %11
-                        "=r"(ktmp)     // %12
-                        : "0"(nn),
-                        "1"(outptr0),
-                        "2"(outptr1),
-                        "3"(outptr2),
-                        "4"(outptr3),
-                        "5"(outptr4),
-                        "6"(outptr5),
-                        "7"(outptr6),
-                        "8"(outptr7),
-                        "9"(r0),
-                        "10"(r1),
-                        "11"(r2),
-                        "12"(ktmp)
-                        : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
+                        "vst1.f32   {d24-d25}, [%4]!    \n"
+                        "vst1.f32   {d26-d27}, [%5]!    \n"
+                        "vst1.f32   {d28-d29}, [%6]!    \n"
+                        "vst1.f32   {d30-d31}, [%7]!    \n"
+                        : "=r"(outptr0), // %0
+                        "=r"(outptr1), // %1
+                        "=r"(outptr2), // %2
+                        "=r"(outptr3), // %3
+                        "=r"(outptr4), // %4
+                        "=r"(outptr5), // %5
+                        "=r"(outptr6), // %6
+                        "=r"(outptr7), // %7
+                        "=r"(r0),      // %8
+                        "=r"(r1),      // %9
+                        "=r"(r2),      // %10
+                        "=r"(ktmp)     // %11
+                        : "0"(outptr0),
+                        "1"(outptr1),
+                        "2"(outptr2),
+                        "3"(outptr3),
+                        "4"(outptr4),
+                        "5"(outptr5),
+                        "6"(outptr6),
+                        "7"(outptr7),
+                        "8"(r0),
+                        "9"(r1),
+                        "10"(r2),
+                        "11"(ktmp)
+                        : "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15");
                 }
 #endif // __aarch64__
 #endif // __ARM_NEON

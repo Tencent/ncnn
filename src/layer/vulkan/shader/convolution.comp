@@ -21,6 +21,9 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
 layout (constant_id = 0) const int kernel_w = 1;
 layout (constant_id = 1) const int kernel_h = 1;
 layout (constant_id = 2) const int dilation_w = 1;
@@ -74,41 +77,82 @@ layout (push_constant) uniform parameter
 
 void main()
 {
-    int gx = int(gl_GlobalInvocationID.x);
-    int gy = int(gl_GlobalInvocationID.y);
-    int gz = int(gl_GlobalInvocationID.z);
+    int gx = int(gl_GlobalInvocationID.x) * 2;
+    int gy = int(gl_GlobalInvocationID.y) * 2;
+    int gz = int(gl_GlobalInvocationID.z) * 2;
 
     if (gx >= psc(outw) || gy >= psc(outh) || gz >= psc(outc))
         return;
 
-    afp sum;
+    const ivec2 gx2 = gx + ivec2(0, 1);
+    const ivec2 gy2 = gy + ivec2(0, 1);
+    const ivec2 gz2 = gz + ivec2(0, 1);
+
+    afp sum0;
+    afp sum1;
+    afp sum2;
+    afp sum3;
+    afp sum4;
+    afp sum5;
+    afp sum6;
+    afp sum7;
 
     if (bias_term == 1)
     {
 #if NCNN_image_shader
-        sum = image3d_ld1(bias_blob, ivec3(gz, 0, 0));
+        sum0 = image3d_ld1(bias_blob, ivec3(gz2.x, 0, 0));
+        sum4 = image3d_ld1(bias_blob, ivec3(gz2.y, 0, 0));
 #else
-        sum = buffer_ld1(bias_data, gz);
+        sum0 = buffer_ld1(bias_data, gz2.x);
+        sum4 = buffer_ld1(bias_data, gz2.y);
 #endif
+        sum1 = sum0;
+        sum2 = sum0;
+        sum3 = sum0;
+        sum5 = sum4;
+        sum6 = sum4;
+        sum7 = sum4;
     }
     else
     {
-        sum = afp(0.f);
+        sum0 = afp(0.f);
+        sum1 = afp(0.f);
+        sum2 = afp(0.f);
+        sum3 = afp(0.f);
+        sum4 = afp(0.f);
+        sum5 = afp(0.f);
+        sum6 = afp(0.f);
+        sum7 = afp(0.f);
     }
 
 #if NCNN_image_shader
     for (int z = 0; z < psc(c); z++)
     {
-        int sy = gy * stride_h;
+        ivec2 sy = gy2 * stride_h;
         int wx = 0;
 
         for (int y = 0; y < kernel_h; y++)
         {
-            int sx = gx * stride_w;
+            ivec2 sx = gx2 * stride_w;
 
             for (int x = 0; x < kernel_w; x++)
             {
-                sum += image3d_ld1(weight_blob, ivec3(wx, z, gz)) * image3d_ld1(bottom_blob, ivec3(sx, sy, z));
+                afp v0 = image3d_ld1(bottom_blob, ivec3(sx.x, sy.x, z));
+                afp v1 = image3d_ld1(bottom_blob, ivec3(sx.y, sy.x, z));
+                afp v2 = image3d_ld1(bottom_blob, ivec3(sx.x, sy.y, z));
+                afp v3 = image3d_ld1(bottom_blob, ivec3(sx.y, sy.y, z));
+
+                afp k0 = image3d_ld1(weight_blob, ivec3(wx, z, gz2.x));
+                afp k1 = image3d_ld1(weight_blob, ivec3(wx, z, gz2.y));
+
+                sum0 += v0 * k0;
+                sum1 += v1 * k0;
+                sum2 += v2 * k0;
+                sum3 += v3 * k0;
+                sum4 += v0 * k1;
+                sum5 += v1 * k1;
+                sum6 += v2 * k1;
+                sum7 += v3 * k1;
 
                 sx += dilation_w;
                 wx += 1;
@@ -118,17 +162,34 @@ void main()
         }
     }
 #else
-    int w_offset = gz * psc(c) * kernel_w * kernel_h;
+    ivec2 w_offset = gz2 * psc(c) * kernel_w * kernel_h;
 
     for (int z = 0; z < psc(c); z++)
     {
-        int v_offset = z * psc(cstep) + gy * stride_h * psc(w) + gx * stride_w;
+        ivec4 v_offset;
+        v_offset.rg = z * psc(cstep) + gy2.x * stride_h * psc(w) + gx2 * stride_w;
+        v_offset.ba = z * psc(cstep) + gy2.y * stride_h * psc(w) + gx2 * stride_w;
 
         for (int y = 0; y < kernel_h; y++)
         {
             for (int x = 0; x < kernel_w; x++)
             {
-                sum += buffer_ld1(weight_data, w_offset + x) * buffer_ld1(bottom_blob_data, v_offset + x * dilation_w);
+                afp v0 = buffer_ld1(bottom_blob_data, v_offset.r + x * dilation_w);
+                afp v1 = buffer_ld1(bottom_blob_data, v_offset.g + x * dilation_w);
+                afp v2 = buffer_ld1(bottom_blob_data, v_offset.b + x * dilation_w);
+                afp v3 = buffer_ld1(bottom_blob_data, v_offset.a + x * dilation_w);
+
+                afp k0 = buffer_ld1(weight_data, w_offset.x + x);
+                afp k1 = buffer_ld1(weight_data, w_offset.y + x);
+
+                sum0 += v0 * k0;
+                sum1 += v1 * k0;
+                sum2 += v2 * k0;
+                sum3 += v3 * k0;
+                sum4 += v0 * k1;
+                sum5 += v1 * k1;
+                sum6 += v2 * k1;
+                sum7 += v3 * k1;
             }
 
             v_offset += dilation_h * psc(w);
@@ -137,35 +198,37 @@ void main()
     }
 #endif
 
-    if (activation_type == 1)
-    {
-        sum = max(sum, afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        sum = sum < afp(0.f) ? sum * slope : sum;
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        sum = clamp(sum, const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        sum = afp(1.f) / (afp(1.f) + exp(-sum));
-    }
-    if (activation_type == 5)
-    {
-        sum = sum * tanh(log(exp(sum) + afp(1.f)));
-    }
+    sum0 = activation_afp(sum0, activation_type, activation_param_0, activation_param_1);
+    sum1 = activation_afp(sum1, activation_type, activation_param_0, activation_param_1);
+    sum2 = activation_afp(sum2, activation_type, activation_param_0, activation_param_1);
+    sum3 = activation_afp(sum3, activation_type, activation_param_0, activation_param_1);
+    sum4 = activation_afp(sum4, activation_type, activation_param_0, activation_param_1);
+    sum5 = activation_afp(sum5, activation_type, activation_param_0, activation_param_1);
+    sum6 = activation_afp(sum6, activation_type, activation_param_0, activation_param_1);
+    sum7 = activation_afp(sum7, activation_type, activation_param_0, activation_param_1);
 
 #if NCNN_image_shader
-    image3d_st1(top_blob, ivec3(gx, gy, gz), sum);
+    image3d_st1(top_blob, ivec3(gx2.x, gy2.x, gz2.x), sum0);
+    image3d_st1(top_blob, ivec3(gx2.y, gy2.x, gz2.x), sum1);
+    image3d_st1(top_blob, ivec3(gx2.x, gy2.y, gz2.x), sum2);
+    image3d_st1(top_blob, ivec3(gx2.y, gy2.y, gz2.x), sum3);
+    image3d_st1(top_blob, ivec3(gx2.x, gy2.x, gz2.y), sum4);
+    image3d_st1(top_blob, ivec3(gx2.y, gy2.x, gz2.y), sum5);
+    image3d_st1(top_blob, ivec3(gx2.x, gy2.y, gz2.y), sum6);
+    image3d_st1(top_blob, ivec3(gx2.y, gy2.y, gz2.y), sum7);
 #else
-    const int gi = gz * psc(outcstep) + gy * psc(outw) + gx;
+    const ivec2 gi = gz2 * psc(outcstep) + gy * psc(outw) + gx;
 
-    buffer_st1(top_blob_data, gi, sum);
+    buffer_st1(top_blob_data, gi.x, sum0);
+    if (gx + 1 < psc(outw)) buffer_st1(top_blob_data, gi.x + 1, sum1);
+    if (gy + 1 < psc(outh)) buffer_st1(top_blob_data, gi.x + psc(outw), sum2);
+    if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) buffer_st1(top_blob_data, gi.x + psc(outw) + 1, sum3);
+    if (gz + 1 < psc(outc))
+    {
+        buffer_st1(top_blob_data, gi.y, sum4);
+        if (gx + 1 < psc(outw)) buffer_st1(top_blob_data, gi.y + 1, sum5);
+        if (gy + 1 < psc(outh)) buffer_st1(top_blob_data, gi.y + psc(outw), sum6);
+        if (gy + 1 < psc(outh) && gx + 1 < psc(outw)) buffer_st1(top_blob_data, gi.y + psc(outw) + 1, sum7);
+    }
 #endif
 }

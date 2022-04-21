@@ -16,6 +16,8 @@
 
 #include "layer_type.h"
 
+#include "fused_activation.h"
+
 namespace ncnn {
 
 ConvolutionDepthWise::ConvolutionDepthWise()
@@ -45,6 +47,13 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
     activation_type = pd.get(9, 0);
     activation_params = pd.get(10, Mat());
 
+    dynamic_weight = pd.get(19, 0);
+
+    if (dynamic_weight)
+    {
+        one_blob_only = false;
+    }
+
     if (num_output % group != 0)
     {
         // reject invalid group
@@ -66,6 +75,9 @@ int ConvolutionDepthWise::load_param(const ParamDict& pd)
 
 int ConvolutionDepthWise::load_model(const ModelBin& mb)
 {
+    if (dynamic_weight)
+        return 0;
+
     weight_data = mb.load(weight_data_size, 0);
     if (weight_data.empty())
         return -100;
@@ -146,44 +158,16 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
     return 0;
 }
 
-int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+static int convolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int stride_w, int stride_h, int dilation_w, int dilation_h, int group, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    // convolv with NxN kernel
-    // value = value + bias
+    const int w = bottom_blob.w;
+    const int inch = bottom_blob.c;
 
-#if NCNN_INT8
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
-    {
-        return forward_int8(bottom_blob, top_blob, opt);
-    }
-#endif
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int outch = top_blob.c;
 
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-    size_t elemsize = bottom_blob.elemsize;
-
-    if (channels % group != 0 || num_output % group != 0)
-    {
-        // reject invalid group
-        return -100;
-    }
-
-    //     NCNN_LOGE("ConvolutionDepthWise input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
-
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    Mat bottom_blob_bordered;
-    make_padding(bottom_blob, bottom_blob_bordered, opt);
-    if (bottom_blob_bordered.empty())
-        return -100;
-
-    w = bottom_blob_bordered.w;
-    h = bottom_blob_bordered.h;
-
-    int outw = (w - kernel_extent_w) / stride_w + 1;
-    int outh = (h - kernel_extent_h) / stride_h + 1;
+    const int bias_term = bias_data.empty() ? 0 : 1;
 
     const int maxk = kernel_w * kernel_h;
 
@@ -206,20 +190,15 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
         }
     }
 
-    // float32
-    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
-    if (top_blob.empty())
-        return -100;
-
     // depth-wise
-    if (channels == group && group == num_output)
+    if (inch == group && group == outch)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
             float* outptr = top_blob.channel(g);
             const float* kptr = (const float*)weight_data + maxk * g;
-            const Mat m = bottom_blob_bordered.channel(g);
+            const Mat m = bottom_blob.channel(g);
 
             for (int i = 0; i < outh; i++)
             {
@@ -239,42 +218,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         sum += val * w;
                     }
 
-                    if (activation_type == 1)
-                    {
-                        sum = std::max(sum, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sum = sum > 0.f ? sum : sum * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sum < min)
-                            sum = min;
-                        if (sum > max)
-                            sum = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        const float MISH_THRESHOLD = 20;
-                        float x = sum, y;
-                        if (x > MISH_THRESHOLD)
-                            y = x;
-                        else if (x < -MISH_THRESHOLD)
-                            y = expf(x);
-                        else
-                            y = logf(expf(x) + 1);
-                        sum = static_cast<float>(x * tanh(y));
-                    }
-
-                    outptr[j] = sum;
+                    outptr[j] = activation_ss(sum, activation_type, activation_params);
                 }
 
                 outptr += outw;
@@ -284,20 +228,20 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
     else
     {
         // group convolution
-        const int channels_g = channels / group;
-        const int num_output_g = num_output / group;
+        const int inch_g = inch / group;
+        const int outch_g = outch / group;
 
 #ifdef _WIN32
         #pragma omp parallel for num_threads(opt.num_threads)
-#else // _WIN32
+#else
         #pragma omp parallel for collapse(2) num_threads(opt.num_threads)
-#endif // _WIN32
+#endif
         for (int g = 0; g < group; g++)
         {
-            for (int p = 0; p < num_output_g; p++)
+            for (int p = 0; p < outch_g; p++)
             {
-                float* outptr = top_blob.channel(g * num_output_g + p);
-                const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
+                float* outptr = top_blob.channel(g * outch_g + p);
+                const float* weight_data_ptr = (const float*)weight_data + maxk * inch_g * outch_g * g;
 
                 for (int i = 0; i < outh; i++)
                 {
@@ -306,14 +250,13 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         float sum = 0.f;
 
                         if (bias_term)
-                            sum = bias_data[num_output_g * g + p];
+                            sum = bias_data[outch_g * g + p];
 
-                        const float* kptr = weight_data_ptr + maxk * channels_g * p;
+                        const float* kptr = weight_data_ptr + maxk * inch_g * p;
 
-                        // channels_g
-                        for (int q = 0; q < channels_g; q++)
+                        for (int q = 0; q < inch_g; q++)
                         {
-                            const Mat m = bottom_blob_bordered.channel(channels_g * g + q);
+                            const Mat m = bottom_blob.channel(inch_g * g + q);
                             const float* sptr = m.row(i * stride_h) + j * stride_w;
 
                             for (int k = 0; k < maxk; k++)
@@ -326,42 +269,7 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             kptr += maxk;
                         }
 
-                        if (activation_type == 1)
-                        {
-                            sum = std::max(sum, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sum = sum > 0.f ? sum : sum * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sum < min)
-                                sum = min;
-                            if (sum > max)
-                                sum = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                        }
-                        else if (activation_type == 5)
-                        {
-                            const float MISH_THRESHOLD = 20;
-                            float x = sum, y;
-                            if (x > MISH_THRESHOLD)
-                                y = x;
-                            else if (x < -MISH_THRESHOLD)
-                                y = expf(x);
-                            else
-                                y = logf(expf(x) + 1);
-                            sum = static_cast<float>(x * tanh(y));
-                        }
-
-                        outptr[j] = sum;
+                        outptr[j] = activation_ss(sum, activation_type, activation_params);
                     }
 
                     outptr += outw;
@@ -373,13 +281,108 @@ int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const O
     return 0;
 }
 
+int ConvolutionDepthWise::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    // convolv with NxN kernel
+    // value = value + bias
+
+#if NCNN_INT8
+    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    {
+        return forward_int8(bottom_blob, top_blob, opt);
+    }
+#endif
+
+    //     NCNN_LOGE("ConvolutionDepthWise input %d x %d  pad = %d %d  ksize=%d %d  stride=%d %d", w, h, pad_w, pad_h, kernel_w, kernel_h, stride_w, stride_h);
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    const int w = bottom_blob_bordered.w;
+    const int h = bottom_blob_bordered.h;
+    const size_t elemsize = bottom_blob_bordered.elemsize;
+
+    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    top_blob.create(outw, outh, num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    int ret = convolutiondepthwise(bottom_blob_bordered, top_blob, weight_data, bias_data, kernel_w, kernel_h, stride_w, stride_h, dilation_w, dilation_h, group, activation_type, activation_params, opt);
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+
+int ConvolutionDepthWise::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    const Mat& bottom_blob = bottom_blobs[0];
+    const Mat& _weight_data = bottom_blobs[1];
+    Mat& top_blob = top_blobs[0];
+
+    const int _kernel_w = _weight_data.w;
+    const int _kernel_h = _weight_data.h;
+    const int _num_output = _weight_data.c;
+
+    Mat weight_data_flattened;
+    flatten(_weight_data, weight_data_flattened, opt);
+    if (weight_data_flattened.empty())
+        return -100;
+
+    Mat bias_data_flattened;
+    if (bias_term)
+    {
+        const Mat& _bias_data = bottom_blobs[2];
+        flatten(_bias_data, bias_data_flattened, opt);
+        if (bias_data_flattened.empty())
+            return -100;
+    }
+
+    Mat bottom_blob_bordered;
+    make_padding(bottom_blob, bottom_blob_bordered, _kernel_w, _kernel_h, opt);
+    if (bottom_blob_bordered.empty())
+        return -100;
+
+    const int w = bottom_blob_bordered.w;
+    const int h = bottom_blob_bordered.h;
+    const size_t elemsize = bottom_blob_bordered.elemsize;
+
+    const int kernel_extent_w = dilation_w * (_kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (_kernel_h - 1) + 1;
+
+    const int outw = (w - kernel_extent_w) / stride_w + 1;
+    const int outh = (h - kernel_extent_h) / stride_h + 1;
+
+    top_blob.create(outw, outh, _num_output, elemsize, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+    int ret = convolutiondepthwise(bottom_blob_bordered, top_blob, weight_data_flattened, bias_data_flattened, _kernel_w, _kernel_h, stride_w, stride_h, dilation_w, dilation_h, group, activation_type, activation_params, opt);
+    if (ret != 0)
+        return ret;
+
+    return 0;
+}
+
 void ConvolutionDepthWise::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, const Option& opt) const
+{
+    make_padding(bottom_blob, bottom_blob_bordered, kernel_w, kernel_h, opt);
+}
+
+void ConvolutionDepthWise::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered, int _kernel_w, int _kernel_h, const Option& opt) const
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
 
-    const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
-    const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
+    const int kernel_extent_w = dilation_w * (_kernel_w - 1) + 1;
+    const int kernel_extent_h = dilation_h * (_kernel_h - 1) + 1;
 
     bottom_blob_bordered = bottom_blob;
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
@@ -543,40 +546,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                     if (bias_term)
                         sumfp32 += bias_data[g];
 
-                    if (activation_type == 1)
-                    {
-                        sumfp32 = std::max(sumfp32, 0.f);
-                    }
-                    else if (activation_type == 2)
-                    {
-                        float slope = activation_params[0];
-                        sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
-                    }
-                    else if (activation_type == 3)
-                    {
-                        float min = activation_params[0];
-                        float max = activation_params[1];
-                        if (sumfp32 < min)
-                            sumfp32 = min;
-                        if (sumfp32 > max)
-                            sumfp32 = max;
-                    }
-                    else if (activation_type == 4)
-                    {
-                        sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
-                    }
-                    else if (activation_type == 5)
-                    {
-                        const float MISH_THRESHOLD = 20;
-                        float x = sumfp32, y;
-                        if (x > MISH_THRESHOLD)
-                            y = x;
-                        else if (x < -MISH_THRESHOLD)
-                            y = expf(x);
-                        else
-                            y = logf(expf(x) + 1);
-                        sumfp32 = static_cast<float>(x * tanh(y));
-                    }
+                    sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
 
                     if (use_int8_requantize)
                     {
@@ -649,40 +619,7 @@ int ConvolutionDepthWise::forward_int8(const Mat& bottom_blob, Mat& top_blob, co
                         if (bias_term)
                             sumfp32 += bias_data[g * num_output_g + p];
 
-                        if (activation_type == 1)
-                        {
-                            sumfp32 = std::max(sumfp32, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sumfp32 = sumfp32 > 0.f ? sumfp32 : sumfp32 * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sumfp32 < min)
-                                sumfp32 = min;
-                            if (sumfp32 > max)
-                                sumfp32 = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sumfp32 = static_cast<float>(1.f / (1.f + exp(-sumfp32)));
-                        }
-                        else if (activation_type == 5)
-                        {
-                            const float MISH_THRESHOLD = 20;
-                            float x = sumfp32, y;
-                            if (x > MISH_THRESHOLD)
-                                y = x;
-                            else if (x < -MISH_THRESHOLD)
-                                y = expf(x);
-                            else
-                                y = logf(expf(x) + 1);
-                            sumfp32 = static_cast<float>(x * tanh(y));
-                        }
+                        sumfp32 = activation_ss(sumfp32, activation_type, activation_params);
 
                         if (use_int8_requantize)
                         {

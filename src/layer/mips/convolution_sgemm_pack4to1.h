@@ -271,8 +271,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 96);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 48);
+                __builtin_prefetch(kptr0 + 16);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
                 v4f32 _val2 = (v4f32)__msa_ld_w(tmpptr + 8, 0);
@@ -331,8 +331,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 64);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 32);
+                __builtin_prefetch(kptr0 + 16);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
                 v4i32 _w0123 = __msa_ld_w(kptr0, 0);
@@ -378,8 +378,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 32);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr0 + 16);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4i32 _w0123 = __msa_ld_w(kptr0, 0);
                 _sum0 = __msa_fmadd_w(_sum0, _val0, (v4f32)__msa_splati_w(_w0123, 0));
@@ -412,8 +412,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 8);
-                __builtin_prefetch(kptr0 + 32);
+                __builtin_prefetch(tmpptr + 4);
+                __builtin_prefetch(kptr0 + 16);
                 v4f32 _val0 = __msa_fill_w_f32(*tmpptr++);
                 v4f32 _w0 = (v4f32)__msa_ld_w(kptr0, 0);
                 _sum = __msa_fmadd_w(_sum, _val0, _w0);
@@ -454,8 +454,8 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
 
             for (int j = 0; j < nn; j++)
             {
-                __builtin_prefetch(tmpptr + 64);
-                __builtin_prefetch(kptr0 + 8);
+                __builtin_prefetch(tmpptr + 48);
+                __builtin_prefetch(kptr0 + 4);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
                 v4f32 _val2 = (v4f32)__msa_ld_w(tmpptr + 8, 0);
@@ -487,7 +487,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
             for (int j = 0; j < nn; j++)
             {
                 __builtin_prefetch(tmpptr + 32);
-                __builtin_prefetch(kptr0 + 8);
+                __builtin_prefetch(kptr0 + 4);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _val1 = (v4f32)__msa_ld_w(tmpptr + 4, 0);
                 v4f32 _w0 = __msa_fill_w_f32(*kptr0);
@@ -515,7 +515,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
             for (int j = 0; j < nn; j++)
             {
                 __builtin_prefetch(tmpptr + 16);
-                __builtin_prefetch(kptr0 + 8);
+                __builtin_prefetch(kptr0 + 4);
                 v4f32 _val0 = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4f32 _w0 = __msa_fill_w_f32(*kptr0);
                 _sum0 = __msa_fmadd_w(_sum0, _w0, _val0);
@@ -550,7 +550,7 @@ static void im2col_sgemm_pack4to1_msa(const Mat& bottom_im2col, Mat& top_blob, c
                 kptr0 += 4;
             }
 
-            sum0 += __msa_fhadd_w(_sum0);
+            sum0 += __msa_reduce_fadd_w(_sum0);
 
             outptr0[0] = sum0;
 
@@ -567,7 +567,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack4to1_msa(const Mat& _k
     // src = maxk-inch-outch
     // dst = pb-pa-maxk-inch/pa-outch/pb
     Mat kernel = _kernel.reshape(maxk, inch, outch);
-    kernel_tm.create(4 * 4 * maxk, inch / 4, outch / 4 + outch % 4, 4u);
+    kernel_tm.create(4 * 4 * maxk, inch / 4, outch / 4 + outch % 4);
 
     int q = 0;
     for (; q + 3 < outch; q += 4)

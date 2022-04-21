@@ -1,0 +1,89 @@
+name: pnnx
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+concurrency:
+  group: pnnx-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  ubuntu:
+    runs-on: ubuntu-20.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - torch-version: 1.8.1
+            torchvision-version: 0.9.1
+
+          - torch-version: 1.9.1
+            torchvision-version: 0.10.1
+
+          - torch-version: 1.10.0
+            torchvision-version: 0.11.1
+
+          - torch-version: 1.11.0
+            torchvision-version: 0.12.0
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+
+    - name: setup pytorch-${{ matrix.torch-version }}
+      run: |
+        pip install torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+
+    - name: cache-torchvision-${{ matrix.torchvision-version }}
+      id: cache-torchvision
+      uses: actions/cache@v3
+      with:
+        path: torchvision-${{ matrix.torchvision-version }}-install
+        key: torchvision-${{ matrix.torchvision-version }}-linux-install-20211228
+    - name: checkout-torchvision-${{ matrix.torchvision-version }}
+      if: steps.cache-torchvision.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: pytorch/vision
+        path: vision
+        ref: v${{ matrix.torchvision-version }}
+    - name: torchvision-${{ matrix.torchvision-version }}
+      if: steps.cache-torchvision.outputs.cache-hit != 'true'
+      run: |
+        cd vision
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=$HOME/.local/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 2
+        cmake --build . --target install
+
+    - name: build-ncnn
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest setuptools wheel twine
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+        cd ..
+        pip install .
+
+    - name: build-pnnx
+      run: |
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install ..
+        cmake --build . -j 2
+
+    - name: test
+      run: |
+        cd tools/pnnx
+        cd build && ctest --output-on-failure

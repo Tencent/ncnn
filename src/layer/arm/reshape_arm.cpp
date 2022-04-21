@@ -71,7 +71,7 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
             int dims = top_blob_unpacked.dims;
             if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
             if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
         }
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
@@ -91,7 +91,7 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * elempack;
+    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
 
     if (ndim == 2)
     {
@@ -111,7 +111,7 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         int out_elempack = opt.use_packing_layout && _h % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 2 && bottom_blob.h == _h && elempack == out_elempack)
+        if (dims == 2 && bottom_blob.h * elempack == _h && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -194,34 +194,66 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
         }
     }
 
-    if (ndim == 3)
+    if (ndim == 3 || ndim == 4)
     {
         int _w = w;
         int _h = h;
+        int _d = d;
         int _c = c;
 
-        if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-        if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-        if (_c == 0)
-            _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+        if (ndim == 3)
+        {
+            if (_w == 0)
+                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (_h == 0)
+                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (_c == 0)
+                _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
 
-        if (_w == -1)
-            _w = total / _c / _h;
-        if (_h == -1)
-            _h = total / _c / _w;
-        if (_c == -1)
-            _c = total / _h / _w;
+            if (_w == -1)
+                _w = total / _c / _h;
+            if (_h == -1)
+                _h = total / _c / _w;
+            if (_c == -1)
+                _c = total / _h / _w;
+        }
+        else // if (ndim == 4)
+        {
+            if (_w == 0)
+                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (_h == 0)
+                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (_d == 0)
+                _d = bottom_blob.d;
+            if (_c == 0)
+                _c = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
+
+            if (_w == -1)
+                _w = total / _c / _d / _h;
+            if (_h == -1)
+                _h = total / _c / _d / _w;
+            if (_d == -1)
+                _d = total / _c / _h / _w;
+            if (_c == -1)
+                _c = total / _d / _h / _w;
+        }
 
         int out_elempack = opt.use_packing_layout && _c % 4 == 0 ? 4 : 1;
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 3 && bottom_blob.c == _c && elempack == out_elempack)
+        if (dims == 3 && bottom_blob.c * elempack == _c && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.w = _w;
             top_blob.h = _h;
+            return 0;
+        }
+        if (dims == 4 && bottom_blob.c * elempack == _c && elempack == out_elempack)
+        {
+            top_blob = bottom_blob;
+            top_blob.w = _w;
+            top_blob.h = _h;
+            top_blob.d = _d;
             return 0;
         }
 
@@ -236,11 +268,18 @@ int Reshape_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                 return -100;
         }
 
-        top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (ndim == 3)
+        {
+            top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        }
+        else // if (ndim == 4)
+        {
+            top_blob.create(_w, _h, _d, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        }
         if (top_blob.empty())
             return -100;
 
-        int size = top_blob.w * top_blob.h;
+        int size = top_blob.w * top_blob.h * top_blob.d;
 
         if (out_elempack == 4)
         {
@@ -342,9 +381,15 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         {
             // resolve dst_elempack
             int dims = top_blob_unpacked.dims;
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             if (dims == 1) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.w % 8 == 0 ? 8 : top_blob_unpacked.w % 4 == 0 ? 4 : 1;
             if (dims == 2) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.h % 8 == 0 ? 8 : top_blob_unpacked.h % 4 == 0 ? 4 : 1;
-            if (dims == 3) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+            if (dims == 3 || dims == 4) out_elempack = opt.use_fp16_arithmetic && top_blob_unpacked.c % 8 == 0 ? 8 : top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+#else
+            if (dims == 1) out_elempack = top_blob_unpacked.w % 4 == 0 ? 4 : 1;
+            if (dims == 2) out_elempack = top_blob_unpacked.h % 4 == 0 ? 4 : 1;
+            if (dims == 3 || dims == 4) out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
+#endif
         }
         convert_packing(top_blob_unpacked, top_blob, out_elempack, opt);
 
@@ -364,7 +409,7 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
-    int total = bottom_blob.w * bottom_blob.h * bottom_blob.c * elempack;
+    int total = bottom_blob.w * bottom_blob.h * bottom_blob.d * bottom_blob.c * elempack;
 
     if (ndim == 2)
     {
@@ -384,11 +429,15 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             out_elempack = opt.use_fp16_arithmetic && _h % 8 == 0 ? 8 : _h % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = _h % 4 == 0 ? 4 : 1;
+#endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 2 && bottom_blob.h == _h && elempack == out_elempack)
+        if (dims == 2 && bottom_blob.h * elempack == _h && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             return 0;
@@ -534,38 +583,74 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         }
     }
 
-    if (ndim == 3)
+    if (ndim == 3 || ndim == 4)
     {
         int _w = w;
         int _h = h;
+        int _d = d;
         int _c = c;
 
-        if (_w == 0)
-            _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
-        if (_h == 0)
-            _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
-        if (_c == 0)
-            _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
+        if (ndim == 3)
+        {
+            if (_w == 0)
+                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (_h == 0)
+                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (_c == 0)
+                _c = dims == 3 ? bottom_blob.c * elempack : bottom_blob.c;
 
-        if (_w == -1)
-            _w = total / _c / _h;
-        if (_h == -1)
-            _h = total / _c / _w;
-        if (_c == -1)
-            _c = total / _h / _w;
+            if (_w == -1)
+                _w = total / _c / _h;
+            if (_h == -1)
+                _h = total / _c / _w;
+            if (_c == -1)
+                _c = total / _h / _w;
+        }
+        else // if (ndim == 4)
+        {
+            if (_w == 0)
+                _w = dims == 1 ? bottom_blob.w * elempack : bottom_blob.w;
+            if (_h == 0)
+                _h = dims == 2 ? bottom_blob.h * elempack : bottom_blob.h;
+            if (_d == 0)
+                _d = bottom_blob.d;
+            if (_c == 0)
+                _c = (dims == 3 || dims == 4) ? bottom_blob.c * elempack : bottom_blob.c;
+
+            if (_w == -1)
+                _w = total / _c / _d / _h;
+            if (_h == -1)
+                _h = total / _c / _d / _w;
+            if (_d == -1)
+                _d = total / _c / _h / _w;
+            if (_c == -1)
+                _c = total / _d / _h / _w;
+        }
 
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             out_elempack = opt.use_fp16_arithmetic && _c % 8 == 0 ? 8 : _c % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = _c % 4 == 0 ? 4 : 1;
+#endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
-        if (dims == 3 && bottom_blob.c == _c && elempack == out_elempack)
+        if (dims == 3 && bottom_blob.c * elempack == _c && elempack == out_elempack)
         {
             top_blob = bottom_blob;
             top_blob.w = _w;
             top_blob.h = _h;
+            return 0;
+        }
+        if (dims == 4 && bottom_blob.c * elempack == _c && elempack == out_elempack)
+        {
+            top_blob = bottom_blob;
+            top_blob.w = _w;
+            top_blob.h = _h;
+            top_blob.d = _d;
             return 0;
         }
 
@@ -580,11 +665,18 @@ int Reshape_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 return -100;
         }
 
-        top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        if (ndim == 3)
+        {
+            top_blob.create(_w, _h, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        }
+        else // if (ndim == 4)
+        {
+            top_blob.create(_w, _h, _d, _c / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+        }
         if (top_blob.empty())
             return -100;
 
-        int size = top_blob.w * top_blob.h;
+        int size = top_blob.w * top_blob.h * top_blob.d;
 
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         if (out_elempack == 8)
