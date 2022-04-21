@@ -1866,31 +1866,31 @@ num_threads = 1
 powersave = 2
 gpu_device = 0
 cooling_down = 0
-          squeezenet  min =   38.89  max =   39.38  avg =   39.04
-           mobilenet  min =   41.55  max =   41.99  avg =   41.76
-        mobilenet_v2  min =   35.11  max =   38.13  avg =   36.60
-        mobilenet_v3  min =   32.60  max =   37.89  avg =   35.90
-          shufflenet  min =   41.54  max =   41.80  avg =   41.67
-       shufflenet_v2  min =   36.18  max =   38.39  avg =   37.73
-             mnasnet  min =   35.75  max =   39.13  avg =   37.40
-     proxylessnasnet  min =   38.85  max =   42.31  avg =   40.61
-     efficientnet_b0  min =   62.03  max =   66.50  avg =   65.02
-   efficientnetv2_b0  min =  133.97  max =  147.08  avg =  143.37
-        regnety_400m  min =   44.76  max =   51.29  avg =   47.30
-           blazeface  min =   12.09  max =   15.37  avg =   13.13
-           googlenet  min =  130.76  max =  131.61  avg =  131.24
-            resnet18  min =  145.68  max =  146.20  avg =  145.94
-             alexnet  min =  187.09  max =  189.13  avg =  187.96
-               vgg16  min = 1144.59  max = 1148.60  avg = 1147.09
-            resnet50  min =  290.04  max =  290.47  avg =  290.20
-      squeezenet_ssd  min =  176.15  max =  183.08  avg =  180.50
-       mobilenet_ssd  min =   97.35  max =  103.96  avg =  102.20
-      mobilenet_yolo  min =  224.85  max =  227.17  avg =  226.32
-  mobilenetv2_yolov3  min =  120.87  max =  122.01  avg =  121.46
-         yolov4-tiny  min =  303.30  max =  402.31  avg =  330.61
-           nanodet_m  min =   63.01  max =   75.46  avg =   69.81
-    yolo-fastest-1.1  min =   39.46  max =   41.62  avg =   40.96
-      yolo-fastestv2  min =   29.42  max =   38.66  avg =   32.45
+          squeezenet  min =   24.57  max =   24.71  avg =   24.64
+           mobilenet  min =   35.86  max =   36.14  avg =   36.04
+        mobilenet_v2  min =   30.18  max =   30.19  avg =   30.19
+        mobilenet_v3  min =   30.88  max =   31.12  avg =   31.01
+          shufflenet  min =   33.90  max =   33.98  avg =   33.93
+       shufflenet_v2  min =   29.10  max =   29.14  avg =   29.12
+             mnasnet  min =   30.49  max =   30.59  avg =   30.53
+     proxylessnasnet  min =   33.56  max =   33.61  avg =   33.59
+     efficientnet_b0  min =   51.15  max =   51.54  avg =   51.38
+   efficientnetv2_b0  min =   86.26  max =   87.36  avg =   86.91
+        regnety_400m  min =   38.44  max =   38.54  avg =   38.49
+           blazeface  min =    9.66  max =    9.74  avg =    9.70
+           googlenet  min =   80.62  max =   80.96  avg =   80.81
+            resnet18  min =   74.07  max =   74.36  avg =   74.23
+             alexnet  min =   76.84  max =   77.26  avg =   77.08
+               vgg16  min =  300.71  max =  300.89  avg =  300.80
+            resnet50  min =  175.96  max =  176.72  avg =  176.23
+      squeezenet_ssd  min =   71.20  max =   71.38  avg =   71.32
+       mobilenet_ssd  min =   76.99  max =   77.47  avg =   77.19
+      mobilenet_yolo  min =  160.41  max =  160.84  avg =  160.62
+  mobilenetv2_yolov3  min =   91.31  max =   91.37  avg =   91.35
+         yolov4-tiny  min =  130.78  max =  131.54  avg =  131.16
+           nanodet_m  min =   55.90  max =   56.03  avg =   55.96
+    yolo-fastest-1.1  min =   25.50  max =   25.66  avg =   25.59
+      yolo-fastestv2  min =   24.94  max =   25.07  avg =   25.01
 ```
 
 ### NanoPi R2S, Rockchip RK3328 (Cortex-A53 1.3GHz x 4) Armbian focal (21.05.1) aarch64
@@ -2300,29 +2300,29 @@ cooling_down = 1
 
 WW_Tinker_Board:/data/local/tmp # ./benchncnn 4 1 0 0 0
 [0 Mali-T760]  queueC=0[2]  queueG=0[2]  queueT=0[2]
-[0 Mali-T760]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=0
-[0 Mali-T760]  fp16-p/s/a=1/0/0  int8-p/s/a=1/0/0
+[0 Mali-T760]  bugsbn1=0  bugbilz=0  bugcopc=0  bugihfa=1
+[0 Mali-T760]  fp16-p/s/a=1/0/1  int8-p/s/a=1/0/0
 [0 Mali-T760]  subgroup=0  basic=0  vote=0  ballot=0  shuffle=0
 loop_count = 4
 num_threads = 1
 powersave = 0
 gpu_device = 0
 cooling_down = 0
-          squeezenet  min =   77.06  max =   77.20  avg =   77.12
-           mobilenet  min =  124.24  max =  124.58  avg =  124.39
-        mobilenet_v2  min =   84.55  max =   84.67  avg =   84.61
-        mobilenet_v3  min =   75.47  max =   75.63  avg =   75.55
-          shufflenet  min =   61.54  max =   61.63  avg =   61.59
-       shufflenet_v2  min =   64.95  max =   65.05  avg =   65.00
-             mnasnet  min =   84.30  max =   84.41  avg =   84.34
-     proxylessnasnet  min =   89.60  max =   89.71  avg =   89.66
-     efficientnet_b0  min =  127.26  max =  127.42  avg =  127.36
-   efficientnetv2_b0  min =  193.23  max =  193.34  avg =  193.30
-        regnety_400m  min =  104.18  max =  235.72  avg =  166.40
-           blazeface  min =   18.01  max =   18.11  avg =   18.08
-           googlenet  min =  259.49  max =  259.78  avg =  259.61
-            resnet18  min =  257.45  max =  257.56  avg =  257.49
-             alexnet  min =  279.22  max =  281.47  avg =  280.55
+          squeezenet  min =   41.78  max =   41.82  avg =   41.79
+           mobilenet  min =   62.67  max =   62.80  avg =   62.74
+        mobilenet_v2  min =   51.08  max =   51.26  avg =   51.17
+        mobilenet_v3  min =   51.43  max =   51.70  avg =   51.51
+          shufflenet  min =   56.83  max =   56.94  avg =   56.87
+       shufflenet_v2  min =   48.46  max =   48.63  avg =   48.53
+             mnasnet  min =   52.31  max =   52.63  avg =   52.42
+     proxylessnasnet  min =   57.33  max =   57.46  avg =   57.41
+     efficientnet_b0  min =   87.52  max =   87.80  avg =   87.62
+   efficientnetv2_b0  min =  123.83  max =  124.67  avg =  124.34
+        regnety_400m  min =   65.52  max =   65.81  avg =   65.64
+           blazeface  min =   14.56  max =   14.73  avg =   14.62
+           googlenet  min =  138.52  max =  139.39  avg =  138.89
+            resnet18  min =  124.45  max =  124.81  avg =  124.58
+             alexnet  min =  130.46  max =  130.68  avg =  130.54
 ```
 
 ### HiSilicon Hi3519V101 (Cortex-A17 1.2GHz x 1)
