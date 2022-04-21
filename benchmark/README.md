@@ -47,6 +47,26 @@ Parameter
 |gpu device|-1=cpu-only, 0=gpu0, 1=gpu1 ...|-1|
 |cooling down|0=disable, 1=enable|1|
 
+
+Tips: Disable android UI server and set CPU and GPU to max frequency
+```shell
+# stopping android ui server, can be retarted later via adb shell start
+adb root
+adb shell stop
+
+# executed in android adb shell
+# set cpu performance mode
+echo "performance" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+echo "performance" > /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor
+echo "performance" > /sys/devices/system/cpu/cpu2/cpufreq/scaling_governor
+echo "performance" > /sys/devices/system/cpu/cpu3/cpufreq/scaling_governor
+echo "performance" > /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor
+echo "performance" > /sys/devices/system/cpu/cpu5/cpufreq/scaling_governor
+
+# set gpu performance mode (eg. RK3399)
+echo "performance" > /sys/class/misc/mali0/device/devfreq/ff9a0000.gpu/governor
+```
+
 ---
 
 Typical output (executed in android adb shell)
