@@ -9,7 +9,7 @@
 //
 // Unless required by applicable law or agreed to in writing, software distributed
 // under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-// CONDITIONS OF ANY KIND, either express or implied. See the License for the 
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
 #include "gelu_riscv.h"
@@ -54,7 +54,7 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 vfloat32m4_t _p = vle32_v_f32m4(ptr, vl);
 
                 vfloat32m4_t _arg = vfmul_vf_f32m4(
-                                vfmul_vv_f32m4(vfmul_vv_f32m4(_p, _p, vl), _p, vl), 0.044715f, vl);
+                                        vfmul_vv_f32m4(vfmul_vv_f32m4(_p, _p, vl), _p, vl), 0.044715f, vl);
 
                 _arg = vfadd_vv_f32m4(_p, _arg, vl);
                 _arg = vfmul_vf_f32m4(_arg, 0.79788452f, vl);
@@ -84,7 +84,7 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 _p = vfmul_vf_f32m8(_p, .5f, vl);
                 // y = x * P(X <= x) where X ~ N(0, 1)
 
-                _perfc = erfc_ps(_perfc,vl);
+                _perfc = erfc_ps(_perfc, vl);
 
                 _p = vfmul_vv_f32m8(_p, _perfc, vl);
                 vse32_v_f32m8(ptr, _p, vl);
