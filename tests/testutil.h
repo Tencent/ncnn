@@ -663,7 +663,19 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             std::vector<ncnn::VkImageMat> a_gpu(a.size());
             for (size_t i = 0; i < a_gpu.size(); i++)
             {
-                cmd.record_upload(a[i], a_gpu[i], opt);
+                if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+                {
+                    ncnn::Option opt2 = opt;
+                    opt2.use_fp16_packed = false;
+                    opt2.use_fp16_storage = false;
+                    opt2.use_fp16_arithmetic = false;
+                    opt2.use_int8_packed = false;
+                    opt2.use_int8_storage = false;
+                    opt2.use_int8_arithmetic = false;
+                    cmd.record_upload(a[i], a_gpu[i], opt2);
+                }
+                else
+                    cmd.record_upload(a[i], a_gpu[i], opt);
             }
 
             std::vector<ncnn::VkImageMat> d_gpu(top_blob_count);
@@ -690,7 +702,19 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
             std::vector<ncnn::VkMat> a_gpu(a.size());
             for (size_t i = 0; i < a_gpu.size(); i++)
             {
-                cmd.record_upload(a[i], a_gpu[i], opt);
+                if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+                {
+                    ncnn::Option opt2 = opt;
+                    opt2.use_fp16_packed = false;
+                    opt2.use_fp16_storage = false;
+                    opt2.use_fp16_arithmetic = false;
+                    opt2.use_int8_packed = false;
+                    opt2.use_int8_storage = false;
+                    opt2.use_int8_arithmetic = false;
+                    cmd.record_upload(a[i], a_gpu[i], opt2);
+                }
+                else
+                    cmd.record_upload(a[i], a_gpu[i], opt);
             }
 
             std::vector<ncnn::VkMat> d_gpu(top_blob_count);
@@ -1079,7 +1103,19 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         {
             // upload
             ncnn::VkImageMat a_gpu;
-            cmd.record_upload(a, a_gpu, opt);
+            if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+            {
+                ncnn::Option opt2 = opt;
+                opt2.use_fp16_packed = false;
+                opt2.use_fp16_storage = false;
+                opt2.use_fp16_arithmetic = false;
+                opt2.use_int8_packed = false;
+                opt2.use_int8_storage = false;
+                opt2.use_int8_arithmetic = false;
+                cmd.record_upload(a, a_gpu, opt2);
+            }
+            else
+                cmd.record_upload(a, a_gpu, opt);
 
             ncnn::VkImageMat d_gpu;
             if (op->support_inplace)
@@ -1100,7 +1136,19 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
         {
             // upload
             ncnn::VkMat a_gpu;
-            cmd.record_upload(a, a_gpu, opt);
+            if (flag & TEST_LAYER_DISABLE_AUTO_INPUT_CASTING)
+            {
+                ncnn::Option opt2 = opt;
+                opt2.use_fp16_packed = false;
+                opt2.use_fp16_storage = false;
+                opt2.use_fp16_arithmetic = false;
+                opt2.use_int8_packed = false;
+                opt2.use_int8_storage = false;
+                opt2.use_int8_arithmetic = false;
+                cmd.record_upload(a, a_gpu, opt2);
+            }
+            else
+                cmd.record_upload(a, a_gpu, opt);
 
             ncnn::VkMat d_gpu;
             if (op->support_inplace)
