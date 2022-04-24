@@ -72,6 +72,7 @@ public:
 
             TYPE_post_download,
             TYPE_post_cast_float16_to_float32,
+            TYPE_post_cast_int8p_to_int8,
         };
 
         int type;
@@ -179,6 +180,12 @@ public:
                 uint32_t download_post_mat_offset;
                 int num_threads;
             } post_cast_float16_to_float32;
+            struct
+            {
+                uint32_t download_post_mat_fp16_offset;
+                uint32_t download_post_mat_offset;
+                int num_threads;
+            } post_cast_int8p_to_int8;
         };
     };
 
@@ -610,6 +617,27 @@ void VkCompute::record_download(const VkMat& src, Mat& dst, const Option& opt)
             dst = dst_fp16;
         }
     }
+    else if (dst_fp16.elemsize == dst_fp16.elempack * 1u)
+    {
+        if (!opt.use_fp16_storage && opt.use_int8_packed && dst_fp16.elempack % 4 == 0)
+        {
+            dst.create_like(dst_fp16, opt.blob_allocator);
+
+            d->download_post_mats.push_back(dst);
+
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_post_cast_int8p_to_int8;
+            r.command_buffer = 0;
+            r.post_cast_int8p_to_int8.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
+            r.post_cast_int8p_to_int8.download_post_mat_offset = d->download_post_mats.size() - 1;
+            r.post_cast_int8p_to_int8.num_threads = opt.num_threads;
+            d->delayed_records.push_back(r);
+        }
+        else
+        {
+            dst = dst_fp16;
+        }
+    }
     else
     {
         dst = dst_fp16;
@@ -750,6 +778,27 @@ void VkCompute::record_download(const VkImageMat& src, Mat& dst, const Option& o
             r.post_cast_float16_to_float32.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
             r.post_cast_float16_to_float32.download_post_mat_offset = d->download_post_mats.size() - 1;
             r.post_cast_float16_to_float32.num_threads = opt.num_threads;
+            d->delayed_records.push_back(r);
+        }
+        else
+        {
+            dst = dst_fp16;
+        }
+    }
+    else if (dst_fp16.elemsize == dst_fp16.elempack * 1u)
+    {
+        if (!opt.use_fp16_storage && opt.use_int8_packed && dst_fp16.elempack % 4 == 0)
+        {
+            dst.create_like(dst_fp16, opt.blob_allocator);
+
+            d->download_post_mats.push_back(dst);
+
+            VkComputePrivate::record r;
+            r.type = VkComputePrivate::record::TYPE_post_cast_int8p_to_int8;
+            r.command_buffer = 0;
+            r.post_cast_int8p_to_int8.download_post_mat_fp16_offset = d->download_post_mats_fp16.size() - 1;
+            r.post_cast_int8p_to_int8.download_post_mat_offset = d->download_post_mats.size() - 1;
+            r.post_cast_int8p_to_int8.num_threads = opt.num_threads;
             d->delayed_records.push_back(r);
         }
         else
@@ -2383,6 +2432,7 @@ int VkCompute::submit_and_wait()
 #endif // NCNN_BENCHMARK
             case VkComputePrivate::record::TYPE_post_download:
             case VkComputePrivate::record::TYPE_post_cast_float16_to_float32:
+            case VkComputePrivate::record::TYPE_post_cast_int8p_to_int8:
             default:
                 break;
             }
@@ -2465,6 +2515,36 @@ int VkCompute::submit_and_wait()
             opt.num_threads = r.post_cast_float16_to_float32.num_threads;
             opt.blob_allocator = dst.allocator;
             ncnn::cast_float16_to_float32(src, dst, opt);
+            break;
+        }
+        case VkComputePrivate::record::TYPE_post_cast_int8p_to_int8:
+        {
+            //             NCNN_LOGE("post_cast_int8p_to_int8");
+
+            const Mat& src = d->download_post_mats_fp16[r.post_cast_int8p_to_int8.download_post_mat_fp16_offset];
+            Mat& dst = d->download_post_mats[r.post_cast_int8p_to_int8.download_post_mat_offset];
+
+            Option opt;
+            opt.num_threads = r.post_cast_int8p_to_int8.num_threads;
+            opt.blob_allocator = dst.allocator;
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < src.c; q++)
+                {
+                    const unsigned char* ptr = src.channel(q);
+                    signed char* outptr = dst.channel(q);
+
+                    int size = src.w * src.h * src.d * src.elempack;
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        *outptr = (signed char)((int)*ptr - 127);
+
+                        ptr++;
+                        outptr++;
+                    }
+                }
+            }
             break;
         }
         default:

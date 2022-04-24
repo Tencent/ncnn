@@ -622,6 +622,9 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
+    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
+    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
     // FIXME fp16a may produce large error
@@ -1039,6 +1042,9 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_int8_packed()) opt.use_int8_packed = false;
+    if (!vkdev->info.support_int8_storage()) opt.use_int8_storage = false;
+    if (!vkdev->info.support_int8_arithmetic()) opt.use_int8_arithmetic = false;
     if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
     // FIXME fp16a may produce large error
@@ -1202,6 +1208,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
     opts[0].use_fp16_arithmetic = false;
+    opts[0].use_int8_packed = false;
+    opts[0].use_int8_storage = false;
+    opts[0].use_int8_arithmetic = false;
     opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
@@ -1210,6 +1219,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = true;
     opts[1].use_fp16_arithmetic = true;
+    opts[1].use_int8_packed = true;
+    opts[1].use_int8_storage = true;
+    opts[1].use_int8_arithmetic = true;
     opts[1].use_bf16_storage = true;
     opts[1].use_shader_pack8 = false;
     opts[1].use_image_storage = false;
@@ -1218,6 +1230,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_fp16_packed = true;
     opts[2].use_fp16_storage = false;
     opts[2].use_fp16_arithmetic = false;
+    opts[2].use_int8_packed = true;
+    opts[2].use_int8_storage = false;
+    opts[2].use_int8_arithmetic = false;
     opts[2].use_bf16_storage = false;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = false;
@@ -1226,6 +1241,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_fp16_packed = true;
     opts[3].use_fp16_storage = true;
     opts[3].use_fp16_arithmetic = false;
+    opts[3].use_int8_packed = true;
+    opts[3].use_int8_storage = true;
+    opts[3].use_int8_arithmetic = false;
     opts[3].use_bf16_storage = true;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
@@ -1234,6 +1252,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[4].use_fp16_packed = true;
     opts[4].use_fp16_storage = true;
     opts[4].use_fp16_arithmetic = true;
+    opts[4].use_int8_packed = true;
+    opts[4].use_int8_storage = true;
+    opts[4].use_int8_arithmetic = true;
     opts[4].use_bf16_storage = true;
     opts[4].use_shader_pack8 = true;
     opts[4].use_image_storage = true;
@@ -1242,6 +1263,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[5].use_fp16_packed = false;
     opts[5].use_fp16_storage = false;
     opts[5].use_fp16_arithmetic = false;
+    opts[5].use_int8_packed = false;
+    opts[5].use_int8_storage = false;
+    opts[5].use_int8_arithmetic = false;
     opts[5].use_bf16_storage = false;
     opts[5].use_shader_pack8 = false;
     opts[5].use_image_storage = false;
@@ -1252,6 +1276,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[6].use_fp16_packed = true;
     opts[6].use_fp16_storage = true;
     opts[6].use_fp16_arithmetic = true;
+    opts[6].use_int8_packed = true;
+    opts[6].use_int8_storage = true;
+    opts[6].use_int8_arithmetic = true;
     opts[6].use_bf16_storage = true;
     opts[6].use_shader_pack8 = true;
     opts[6].use_image_storage = true;
@@ -1333,7 +1360,32 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_blob_count, top_shapes, epsilon_fp16, func, flag);
         if (ret != 0)
         {
-            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
+            fprintf(stderr, "test_layer %s failed\n"
+            "    use_packing_layout=%d\n"
+            "    use_fp16_packed=%d\n"
+            "    use_fp16_storage=%d\n"
+            "    use_fp16_arithmetic=%d\n"
+            "    use_int8_packed=%d\n"
+            "    use_int8_storage=%d\n"
+            "    use_int8_arithmetic=%d\n"
+            "    use_shader_pack8=%d\n"
+            "    use_bf16_storage=%d\n"
+            "    use_image_storage=%d\n"
+            "    use_sgemm_convolution=%d\n"
+            "    use_winograd_convolution=%d\n",
+            layer_type,
+            opt.use_packing_layout,
+            opt.use_fp16_packed,
+            opt.use_fp16_storage,
+            opt.use_fp16_arithmetic,
+            opt.use_int8_packed,
+            opt.use_int8_storage,
+            opt.use_int8_arithmetic,
+            opt.use_shader_pack8,
+            opt.use_bf16_storage,
+            opt.use_image_storage,
+            opt.use_sgemm_convolution,
+            opt.use_winograd_convolution);
             return ret;
         }
     }
@@ -1350,6 +1402,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[0].use_fp16_packed = false;
     opts[0].use_fp16_storage = false;
     opts[0].use_fp16_arithmetic = false;
+    opts[0].use_int8_packed = false;
+    opts[0].use_int8_storage = false;
+    opts[0].use_int8_arithmetic = false;
     opts[0].use_bf16_storage = false;
     opts[0].use_shader_pack8 = false;
     opts[0].use_image_storage = false;
@@ -1358,6 +1413,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[1].use_fp16_packed = true;
     opts[1].use_fp16_storage = true;
     opts[1].use_fp16_arithmetic = true;
+    opts[1].use_int8_packed = true;
+    opts[1].use_int8_storage = true;
+    opts[1].use_int8_arithmetic = true;
     opts[1].use_bf16_storage = true;
     opts[1].use_shader_pack8 = false;
     opts[1].use_image_storage = false;
@@ -1366,6 +1424,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[2].use_fp16_packed = true;
     opts[2].use_fp16_storage = false;
     opts[2].use_fp16_arithmetic = false;
+    opts[2].use_int8_packed = true;
+    opts[2].use_int8_storage = false;
+    opts[2].use_int8_arithmetic = false;
     opts[2].use_bf16_storage = false;
     opts[2].use_shader_pack8 = true;
     opts[2].use_image_storage = false;
@@ -1374,6 +1435,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[3].use_fp16_packed = true;
     opts[3].use_fp16_storage = true;
     opts[3].use_fp16_arithmetic = false;
+    opts[3].use_int8_packed = true;
+    opts[3].use_int8_storage = true;
+    opts[3].use_int8_arithmetic = false;
     opts[3].use_bf16_storage = true;
     opts[3].use_shader_pack8 = true;
     opts[3].use_image_storage = true;
@@ -1382,6 +1446,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[4].use_fp16_packed = true;
     opts[4].use_fp16_storage = true;
     opts[4].use_fp16_arithmetic = true;
+    opts[4].use_int8_packed = true;
+    opts[4].use_int8_storage = true;
+    opts[4].use_int8_arithmetic = true;
     opts[4].use_bf16_storage = true;
     opts[4].use_shader_pack8 = true;
     opts[4].use_image_storage = true;
@@ -1390,6 +1457,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[5].use_fp16_packed = false;
     opts[5].use_fp16_storage = false;
     opts[5].use_fp16_arithmetic = false;
+    opts[5].use_int8_packed = false;
+    opts[5].use_int8_storage = false;
+    opts[5].use_int8_arithmetic = false;
     opts[5].use_bf16_storage = false;
     opts[5].use_shader_pack8 = false;
     opts[5].use_image_storage = false;
@@ -1400,6 +1470,9 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
     opts[6].use_fp16_packed = true;
     opts[6].use_fp16_storage = true;
     opts[6].use_fp16_arithmetic = true;
+    opts[6].use_int8_packed = true;
+    opts[6].use_int8_storage = true;
+    opts[6].use_int8_arithmetic = true;
     opts[6].use_bf16_storage = true;
     opts[6].use_shader_pack8 = true;
     opts[6].use_image_storage = true;
@@ -1473,7 +1546,32 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         int ret = test_layer<T>(ncnn::layer_to_index(layer_type), pd, weights_fp16, opt, a_fp16, top_shape, epsilon_fp16, func, flag);
         if (ret != 0)
         {
-            fprintf(stderr, "test_layer %s failed use_packing_layout=%d use_fp16_packed=%d use_fp16_storage=%d use_fp16_arithmetic=%d use_shader_pack8=%d use_bf16_storage=%d use_image_storage=%d use_sgemm_convolution=%d use_winograd_convolution=%d\n", layer_type, opt.use_packing_layout, opt.use_fp16_packed, opt.use_fp16_storage, opt.use_fp16_arithmetic, opt.use_shader_pack8, opt.use_bf16_storage, opt.use_image_storage, opt.use_sgemm_convolution, opt.use_winograd_convolution);
+            fprintf(stderr, "test_layer %s failed\n"
+            "    use_packing_layout=%d\n"
+            "    use_fp16_packed=%d\n"
+            "    use_fp16_storage=%d\n"
+            "    use_fp16_arithmetic=%d\n"
+            "    use_int8_packed=%d\n"
+            "    use_int8_storage=%d\n"
+            "    use_int8_arithmetic=%d\n"
+            "    use_shader_pack8=%d\n"
+            "    use_bf16_storage=%d\n"
+            "    use_image_storage=%d\n"
+            "    use_sgemm_convolution=%d\n"
+            "    use_winograd_convolution=%d\n",
+            layer_type,
+            opt.use_packing_layout,
+            opt.use_fp16_packed,
+            opt.use_fp16_storage,
+            opt.use_fp16_arithmetic,
+            opt.use_int8_packed,
+            opt.use_int8_storage,
+            opt.use_int8_arithmetic,
+            opt.use_shader_pack8,
+            opt.use_bf16_storage,
+            opt.use_image_storage,
+            opt.use_sgemm_convolution,
+            opt.use_winograd_convolution);
             return ret;
         }
     }
