@@ -1361,31 +1361,31 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         if (ret != 0)
         {
             fprintf(stderr, "test_layer %s failed\n"
-            "    use_packing_layout=%d\n"
-            "    use_fp16_packed=%d\n"
-            "    use_fp16_storage=%d\n"
-            "    use_fp16_arithmetic=%d\n"
-            "    use_int8_packed=%d\n"
-            "    use_int8_storage=%d\n"
-            "    use_int8_arithmetic=%d\n"
-            "    use_shader_pack8=%d\n"
-            "    use_bf16_storage=%d\n"
-            "    use_image_storage=%d\n"
-            "    use_sgemm_convolution=%d\n"
-            "    use_winograd_convolution=%d\n",
-            layer_type,
-            opt.use_packing_layout,
-            opt.use_fp16_packed,
-            opt.use_fp16_storage,
-            opt.use_fp16_arithmetic,
-            opt.use_int8_packed,
-            opt.use_int8_storage,
-            opt.use_int8_arithmetic,
-            opt.use_shader_pack8,
-            opt.use_bf16_storage,
-            opt.use_image_storage,
-            opt.use_sgemm_convolution,
-            opt.use_winograd_convolution);
+                    "    use_packing_layout=%d\n"
+                    "    use_fp16_packed=%d\n"
+                    "    use_fp16_storage=%d\n"
+                    "    use_fp16_arithmetic=%d\n"
+                    "    use_int8_packed=%d\n"
+                    "    use_int8_storage=%d\n"
+                    "    use_int8_arithmetic=%d\n"
+                    "    use_shader_pack8=%d\n"
+                    "    use_bf16_storage=%d\n"
+                    "    use_image_storage=%d\n"
+                    "    use_sgemm_convolution=%d\n"
+                    "    use_winograd_convolution=%d\n",
+                    layer_type,
+                    opt.use_packing_layout,
+                    opt.use_fp16_packed,
+                    opt.use_fp16_storage,
+                    opt.use_fp16_arithmetic,
+                    opt.use_int8_packed,
+                    opt.use_int8_storage,
+                    opt.use_int8_arithmetic,
+                    opt.use_shader_pack8,
+                    opt.use_bf16_storage,
+                    opt.use_image_storage,
+                    opt.use_sgemm_convolution,
+                    opt.use_winograd_convolution);
             return ret;
         }
     }
@@ -1547,31 +1547,31 @@ int test_layer(const char* layer_type, const ncnn::ParamDict& pd, const std::vec
         if (ret != 0)
         {
             fprintf(stderr, "test_layer %s failed\n"
-            "    use_packing_layout=%d\n"
-            "    use_fp16_packed=%d\n"
-            "    use_fp16_storage=%d\n"
-            "    use_fp16_arithmetic=%d\n"
-            "    use_int8_packed=%d\n"
-            "    use_int8_storage=%d\n"
-            "    use_int8_arithmetic=%d\n"
-            "    use_shader_pack8=%d\n"
-            "    use_bf16_storage=%d\n"
-            "    use_image_storage=%d\n"
-            "    use_sgemm_convolution=%d\n"
-            "    use_winograd_convolution=%d\n",
-            layer_type,
-            opt.use_packing_layout,
-            opt.use_fp16_packed,
-            opt.use_fp16_storage,
-            opt.use_fp16_arithmetic,
-            opt.use_int8_packed,
-            opt.use_int8_storage,
-            opt.use_int8_arithmetic,
-            opt.use_shader_pack8,
-            opt.use_bf16_storage,
-            opt.use_image_storage,
-            opt.use_sgemm_convolution,
-            opt.use_winograd_convolution);
+                    "    use_packing_layout=%d\n"
+                    "    use_fp16_packed=%d\n"
+                    "    use_fp16_storage=%d\n"
+                    "    use_fp16_arithmetic=%d\n"
+                    "    use_int8_packed=%d\n"
+                    "    use_int8_storage=%d\n"
+                    "    use_int8_arithmetic=%d\n"
+                    "    use_shader_pack8=%d\n"
+                    "    use_bf16_storage=%d\n"
+                    "    use_image_storage=%d\n"
+                    "    use_sgemm_convolution=%d\n"
+                    "    use_winograd_convolution=%d\n",
+                    layer_type,
+                    opt.use_packing_layout,
+                    opt.use_fp16_packed,
+                    opt.use_fp16_storage,
+                    opt.use_fp16_arithmetic,
+                    opt.use_int8_packed,
+                    opt.use_int8_storage,
+                    opt.use_int8_arithmetic,
+                    opt.use_shader_pack8,
+                    opt.use_bf16_storage,
+                    opt.use_image_storage,
+                    opt.use_sgemm_convolution,
+                    opt.use_winograd_convolution);
             return ret;
         }
     }
