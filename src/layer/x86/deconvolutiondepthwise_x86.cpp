@@ -77,12 +77,12 @@ int DeconvolutionDepthWise_x86::create_pipeline(const Option& opt)
 #if __SSE2__
 #if __AVX__
         // pack16
+#if __AVX512F__
         if (elempack == 16)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_packed, 16, opt);
         }
-#if __AVX512F__
 #endif // __AVX512F__
 
         // pack8

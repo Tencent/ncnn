@@ -130,7 +130,9 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
 
     const int num_anchors = anchors.w / 2;
 
-    const int num_class = 80;
+    const int num_class = feat_blob.c / num_anchors - 5;
+
+    const int feat_offset = num_class + 5;
 
     for (int q = 0; q < num_anchors; q++)
     {
@@ -146,7 +148,7 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
                 float class_score = -FLT_MAX;
                 for (int k = 0; k < num_class; k++)
                 {
-                    float score = feat_blob.channel(q * 85 + 5 + k).row(i)[j];
+                    float score = feat_blob.channel(q * feat_offset + 5 + k).row(i)[j];
                     if (score > class_score)
                     {
                         class_index = k;
@@ -154,7 +156,7 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
                     }
                 }
 
-                float box_score = feat_blob.channel(q * 85 + 4).row(i)[j];
+                float box_score = feat_blob.channel(q * feat_offset + 4).row(i)[j];
 
                 float confidence = sigmoid(box_score) * sigmoid(class_score);
 
@@ -165,10 +167,10 @@ static void generate_proposals(const ncnn::Mat& anchors, int stride, const ncnn:
                     // y[..., 0:2] = (y[..., 0:2] * 2. - 0.5 + self.grid[i].to(x[i].device)) * self.stride[i]  # xy
                     // y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
 
-                    float dx = sigmoid(feat_blob.channel(q * 85 + 0).row(i)[j]);
-                    float dy = sigmoid(feat_blob.channel(q * 85 + 1).row(i)[j]);
-                    float dw = sigmoid(feat_blob.channel(q * 85 + 2).row(i)[j]);
-                    float dh = sigmoid(feat_blob.channel(q * 85 + 3).row(i)[j]);
+                    float dx = sigmoid(feat_blob.channel(q * feat_offset + 0).row(i)[j]);
+                    float dy = sigmoid(feat_blob.channel(q * feat_offset + 1).row(i)[j]);
+                    float dw = sigmoid(feat_blob.channel(q * feat_offset + 2).row(i)[j]);
+                    float dh = sigmoid(feat_blob.channel(q * feat_offset + 3).row(i)[j]);
 
                     float pb_cx = (dx * 2.f - 0.5f + j) * stride;
                     float pb_cy = (dy * 2.f - 0.5f + i) * stride;
