@@ -68,6 +68,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
     return 0;
 }
 
+// refers to https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
 int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& q_blob = bottom_blobs[0];
