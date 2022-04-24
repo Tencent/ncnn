@@ -23,7 +23,8 @@ static int test_gather(const ncnn::Mat& a)
     std::vector<ncnn::Mat> weights(2);
     weights[0] = RandomMat()
 
-    int ret = test_layer<ncnn::Gather>("Gather", pd, weights, a);
+                 int ret
+                 = test_layer<ncnn::Gather>("Gather", pd, weights, a);
     if (ret != 0)
     {
         fprintf(stderr, "test_gather failed a.dims=%d a=(%d,%d,%d) min=%f max=%f\n", a.dims, a.w, a.h, a.c, min, max);
@@ -34,7 +35,6 @@ static int test_gather(const ncnn::Mat& a)
 
 static int test_gather_0()
 {
-    
     return 0
            || test_gather(RandomMat(5, 7, 24), -1.f, 1.f);
 }
