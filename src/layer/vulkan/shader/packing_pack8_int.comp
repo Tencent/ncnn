@@ -56,7 +56,7 @@ layout (binding = 0) readonly buffer bottom_blob { sintvec8 bottom_blob_data[]; 
 layout (binding = 1) writeonly buffer top_blob { sintvec8 top_blob_data[]; };
 #if NCNN_image_shader
 layout (binding = 2) uniform iunfp isampler3D bottom_blob_3d;
-layout (binding = 3, iimfmtc4) writeonly uniform iunfp iimage3D top_blob_3d;
+layout (binding = 3, iimfmtc4) writeonly uniform iunfp iimage3d top_blob_3d;
 #endif
 
 layout (push_constant) uniform parameter

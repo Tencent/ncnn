@@ -3637,9 +3637,9 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
     {
         custom_defines.push_back(std::make_pair("ibuffer_ld1(buf,i)", "int(round(buf[i]))"));
         custom_defines.push_back(std::make_pair("ibuffer_st1(buf,i,v)", "{buf[i]=float(v);}"));
-        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(int(buf[i])-127, int((buf[i]>>8)&255)-127, int((buf[i]>>16)&255)-127, int((buf[i]>>24)&255)-127)"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld4(buf,i)", "ivec4(int(buf[i]&255)-127, int((buf[i]>>8)&255)-127, int((buf[i]>>16)&255)-127, int((buf[i]>>24)&255)-127)"));
         custom_defines.push_back(std::make_pair("ibuffer_st4(buf,i,v)", "{buf[i]=uint(((v.r+127)) | ((v.g+127)<<8) | ((v.b+127)<<16) | ((v.a+127)<<24));}"));
-        custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(int(buf[i].x)-127, int((buf[i].x>>8)&255)-127, int((buf[i].x>>16)&255)-127, int((buf[i].x>>24)&255)-127),ivec4(int(buf[i].y)-127, int((buf[i].y>>8)&255)-127, int((buf[i].y>>16)&255)-127, int((buf[i].y>>24)&255)-127))"));
+        custom_defines.push_back(std::make_pair("ibuffer_ld8(buf,i)", "aintvec8(ivec4(int(buf[i].x&255)-127, int((buf[i].x>>8)&255)-127, int((buf[i].x>>16)&255)-127, int((buf[i].x>>24)&255)-127),ivec4(int(buf[i].y&255)-127, int((buf[i].y>>8)&255)-127, int((buf[i].y>>16)&255)-127, int((buf[i].y>>24)&255)-127))"));
         custom_defines.push_back(std::make_pair("ibuffer_st8(buf,i,v)", "{buf[i].x=uint(((v.abcd.r+127)) | ((v.abcd.g+127)<<8) | ((v.abcd.b+127)<<16) | ((v.abcd.a+127)<<24));buf[i].y=uint(((v.efgh.r+127)) | ((v.efgh.g+127)<<8) | ((v.efgh.b+127)<<16) | ((v.efgh.a+127)<<24));}"));
     }
     else
@@ -3829,18 +3829,21 @@ int compile_spirv_module(const char* comp_data, int comp_data_size, const Option
             custom_defines.push_back(std::make_pair("iimfmtc1", "r8i"));
             custom_defines.push_back(std::make_pair("iimfmtc4", "rgba8i"));
             custom_defines.push_back(std::make_pair("iunfp", "mediump"));
+            custom_defines.push_back(std::make_pair("iimage3d", "iimage3D"));
         }
         else if (opt.use_int8_packed)
         {
-            custom_defines.push_back(std::make_pair("iimfmtc1", "rg32i"));
+            custom_defines.push_back(std::make_pair("iimfmtc1", "r32f"));
             custom_defines.push_back(std::make_pair("iimfmtc4", "rgba8i"));
             custom_defines.push_back(std::make_pair("iunfp", "mediump"));
+            custom_defines.push_back(std::make_pair("iimage3d", "iimage3D"));
         }
         else
         {
-            custom_defines.push_back(std::make_pair("iimfmtc1", "r32i"));
-            custom_defines.push_back(std::make_pair("iimfmtc4", "rgba32i"));
+            custom_defines.push_back(std::make_pair("iimfmtc1", "r32f"));
+            custom_defines.push_back(std::make_pair("iimfmtc4", "rgba32f"));
             custom_defines.push_back(std::make_pair("iunfp", "highp"));
+            custom_defines.push_back(std::make_pair("iimage3d", "image3D"));
         }
 
         if (opt.use_int8_storage)

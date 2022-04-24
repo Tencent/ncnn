@@ -46,7 +46,11 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform unfp sampler3D bottom_blob_3d;
-layout (binding = 1, iimfmtc1) writeonly uniform iunfp iimage3D top_blob_3d;
+#if !NCNN_int8_storage && NCNN_int8_packed
+layout (binding = 1, r32f) writeonly uniform highp image3D top_blob_3d;
+#else
+layout (binding = 1, iimfmtc1) writeonly uniform iunfp iimage3d top_blob_3d;
+#endif
 layout (binding = 2) uniform unfp sampler3D scale_blob;
 #else
 layout (binding = 0) readonly buffer bottom_blob { sfp bottom_blob_data[]; };
