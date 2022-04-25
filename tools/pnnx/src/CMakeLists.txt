@@ -181,6 +181,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_arange.cpp
     pass_level2/torch_argmax.cpp
     pass_level2/torch_argmin.cpp
+    pass_level2/torch_bmm.cpp
     pass_level2/torch_cat.cpp
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
@@ -406,6 +407,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_addmm.cpp
     pass_ncnn/torch_amax.cpp
     pass_ncnn/torch_amin.cpp
+    pass_ncnn/torch_bmm.cpp
     pass_ncnn/torch_clamp.cpp
     pass_ncnn/torch_clone.cpp
     pass_ncnn/torch_flatten.cpp
