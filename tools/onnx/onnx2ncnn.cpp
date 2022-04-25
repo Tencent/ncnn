@@ -3640,7 +3640,8 @@ int main(int argc, char** argv)
         {
             fprintf(pp, "%-16s", "UnaryOp");
         }
-        else if (op == "Gather") {
+        else if (op == "Gather")
+        {
             fprintf(pp, "%-16s", "Gather");
         }
         else if (op == "Gelu")
@@ -4424,14 +4425,14 @@ int main(int argc, char** argv)
             int op_type = 2;
             fprintf(pp, " 0=%d", op_type);
         }
-        else if (op == "Gather") 
+        else if (op == "Gather")
         {
-            if (weights[node.input(1)].dims_size() > 1) 
+            if (weights[node.input(1)].dims_size() > 1)
             {
                 fprintf(stderr, "Unsupported indice dims > 1");
             }
             int axis = get_node_attr_i(node, "axis", 1) - 1;
-            if (axis < 0) 
+            if (axis < 0)
             {
                 fprintf(stderr, "Unsupported Gather axis: %d!\n", axis + 1);
             }
