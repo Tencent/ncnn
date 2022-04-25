@@ -15,18 +15,16 @@
 #include "layer/gather.h"
 #include "testutil.h"
 
-static int test_gather(const ncnn::Mat& a)
+static int test_gather(const std::vector<ncnn::Mat>& a, const int axis=0)
 {
     ncnn::ParamDict pd;
-    pd.set(0, 0);
+    pd.set(0, axis);
 
-    std::vector<ncnn::Mat> weights(2);
-    weights[0] = RandomMat()
-
+    std::vector<ncnn::Mat> weights(0);
     int ret = test_layer<ncnn::Gather>("Gather", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_gather failed a.dims=%d a=(%d,%d,%d) min=%f max=%f\n", a.dims, a.w, a.h, a.c, min, max);
+        fprintf(stderr, "test_gather failed a[0].dims=%d a[0]=(%d,%d,%d) a[1]=(%d)  axis=%d\n", a[0].dims, a[0].w, a[0].h, a[0].c, a[1].w, axis);
     }
 
     return ret;
@@ -34,25 +32,32 @@ static int test_gather(const ncnn::Mat& a)
 
 static int test_gather_0()
 {
-    
+    std::vector<ncnn::Mat> inp(2);
+    inp[0] = RandomMat(5, 7, 24);
+    inp[1] = RandomMat(60, 0.f, 4.f);
     return 0
-           || test_gather(RandomMat(5, 7, 24), -1.f, 1.f);
+           || test_gather(inp, 0)
+           || test_gather(inp, 1)
+           || test_gather(inp, 2);
 }
 
-static int test_clip_1()
+static int test_gather_1()
 {
+    std::vector<ncnn::Mat> inp(2);
+    inp[0] = RandomMat(8, 7);
+    inp[1] = RandomMat(24, 0.f, 6.f);
     return 0
-           || test_clip(RandomMat(15, 24), -1.f, 1.f)
-           || test_clip(RandomMat(17, 12), -1.f, 1.f)
-           || test_clip(RandomMat(19, 15), -1.f, 1.f);
+           || test_gather(inp, 0)
+           || test_gather(inp, 1);
 }
 
-static int test_clip_2()
+static int test_gather_2()
 {
+    std::vector<ncnn::Mat> inp(2);
+    inp[0] = RandomMat(80);
+    inp[1] = RandomMat(24, 79.f);
     return 0
-           || test_clip(RandomMat(128), -1.f, 1.f)
-           || test_clip(RandomMat(124), -1.f, 1.f)
-           || test_clip(RandomMat(127), -1.f, 1.f);
+           || test_gather(inp, 0);
 }
 
 int main()
@@ -60,7 +65,7 @@ int main()
     SRAND(7767517);
 
     return 0
-           || test_clip_0()
-           || test_clip_1()
-           || test_clip_2();
+           || test_gather_0()
+           || test_gather_1()
+           || test_gather_2();
 }

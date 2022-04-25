@@ -41,7 +41,9 @@ int Gather::forward(const std::vector<Mat> &bottom_blobs, std::vector<Mat> &top_
   size_t elemsize = bottom_blob.elemsize;
   int positive_axis = axis < 0 ? dims + axis : axis;
   Mat &top_blob = top_blobs[0];
-  assert(indices.dims == 1);
+  if (indices.dims == 1) {
+    return -100;
+  }
   const float *indices_ptr = indices;
 
   if (dims == 1 && indices_dims == 1)  // positive_axis == 0
@@ -63,7 +65,6 @@ int Gather::forward(const std::vector<Mat> &bottom_blobs, std::vector<Mat> &top_
 
   if (dims == 2 && positive_axis == 0 && indices_dims == 1) {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     top_blob.create(w, indices.w, elemsize, opt.blob_allocator);
     // w -> w
     // h -> indices.w
@@ -71,8 +72,6 @@ int Gather::forward(const std::vector<Mat> &bottom_blobs, std::vector<Mat> &top_
     if (top_blob.empty()) {
       return -100;
     }
-    const float *ptr = bottom_blob;
-    float *outptr = top_blob;
     for (int i = 0; i < indices.w; i++) {
       const int selected = (int)(indices_ptr[i] + 0.5);
       memcpy(top_blob.row(i), bottom_blob.row(selected), w * elemsize);
@@ -105,7 +104,6 @@ int Gather::forward(const std::vector<Mat> &bottom_blobs, std::vector<Mat> &top_
   if (dims == 3 && positive_axis == 0 && indices_dims == 1) {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     top_blob.create(w, h, indices.w, elemsize, opt.blob_allocator);
 
     if (top_blob.empty()) {
@@ -123,7 +121,6 @@ int Gather::forward(const std::vector<Mat> &bottom_blobs, std::vector<Mat> &top_
 
   if (dims == 3 && positive_axis == 1 && indices_dims == 1) {
     int w = bottom_blob.w;
-    int h = bottom_blob.h;
     int channels = bottom_blob.c;
     top_blob.create(w, indices.w, channels, elemsize, opt.blob_allocator);
 #pragma omp parallel for num_threads(opt.num_threads)

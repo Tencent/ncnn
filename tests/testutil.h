@@ -131,6 +131,34 @@ static ncnn::Mat RandomMat(int w, int h, int d, int c)
     return m;
 }
 
+static ncnn::Mat RandomMat(int w, float min, float max)
+{
+    ncnn::Mat m(w);
+    Randomize(m, min, max);
+    return m;
+}
+
+static ncnn::Mat RandomMat(int w, int h, float min, float max)
+{
+    ncnn::Mat m(w, h);
+    Randomize(m, min, max);
+    return m;
+}
+
+static ncnn::Mat RandomMat(int w, int h, int c, float min, float max)
+{
+    ncnn::Mat m(w, h, c);
+    Randomize(m, min, max);
+    return m;
+}
+
+static ncnn::Mat RandomMat(int w, int h, int d, int c, float min, float max)
+{
+    ncnn::Mat m(w, h, d, c);
+    Randomize(m, min, max);
+    return m;
+}
+
 static ncnn::Mat RandomIntMat(int w)
 {
     ncnn::Mat m(w);
