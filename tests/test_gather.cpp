@@ -15,7 +15,7 @@
 #include "layer/gather.h"
 #include "testutil.h"
 
-static int test_gather(const std::vector<ncnn::Mat>& a, const int axis=0)
+static int test_gather(const std::vector<ncnn::Mat>& a, const int axis = 0)
 {
     ncnn::ParamDict pd;
     pd.set(0, axis);
