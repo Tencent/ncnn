@@ -195,7 +195,9 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_full_like.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_matmul.cpp
+    pass_level2/torch_max.cpp
     pass_level2/torch_mean.cpp
+    pass_level2/torch_min.cpp
     pass_level2/torch_norm.cpp
     pass_level2/torch_normal.cpp
     pass_level2/torch_ones.cpp
@@ -413,7 +415,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_flatten.cpp
     pass_ncnn/torch_logsumexp.cpp
     pass_ncnn/torch_matmul.cpp
+    pass_ncnn/torch_max.cpp
     pass_ncnn/torch_mean.cpp
+    pass_ncnn/torch_min.cpp
     pass_ncnn/torch_permute.cpp
     pass_ncnn/torch_prod.cpp
     pass_ncnn/torch_squeeze.cpp
