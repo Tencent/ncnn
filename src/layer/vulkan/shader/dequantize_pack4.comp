@@ -24,7 +24,7 @@
 layout (constant_id = 0) const int scale_data_size = 0;
 layout (constant_id = 1) const float scale_value = 1.f;
 layout (constant_id = 2) const int bias_data_size = 0;
-layout (constant_id = 3) const float bias_value = 1.f;
+layout (constant_id = 3) const float bias_value = 0.f;
 
 #define shape_constant_id_offset 4
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;

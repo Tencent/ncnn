@@ -12,23 +12,23 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "dequantize_vulkan.h"
+#include "requantize_vulkan.h"
 
 #include "layer_shader_type.h"
 
 namespace ncnn {
 
-Dequantize_vulkan::Dequantize_vulkan()
+Requantize_vulkan::Requantize_vulkan()
 {
     support_vulkan = true;
     support_image_storage = true;
 
-    pipeline_dequantize = 0;
-    pipeline_dequantize_pack4 = 0;
-    pipeline_dequantize_pack8 = 0;
+    pipeline_requantize = 0;
+    pipeline_requantize_pack4 = 0;
+    pipeline_requantize_pack8 = 0;
 }
 
-int Dequantize_vulkan::create_pipeline(const Option& _opt)
+int Requantize_vulkan::create_pipeline(const Option& _opt)
 {
     Option opt = _opt;
     const Mat& shape = bottom_shapes.empty() ? Mat() : bottom_shapes[0];
@@ -46,17 +46,17 @@ int Dequantize_vulkan::create_pipeline(const Option& _opt)
 
     size_t elemsize = elempack * 4u;
     size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    if (opt.use_int8_storage)
     {
-        out_elemsize = elempack * 2u;
+        out_elemsize = out_elempack * 1u;
     }
-    else if (opt.use_fp16_packed)
+    else if (opt.use_int8_packed)
     {
-        out_elemsize = elempack == 1 ? 4u : elempack * 2u;
+        out_elemsize = out_elempack == 1 ? 4u : out_elempack * 1u;
     }
     else
     {
-        out_elemsize = elempack * 4u;
+        out_elemsize = out_elempack * 4u;
     }
 
     Mat shape_packed;
@@ -78,21 +78,26 @@ int Dequantize_vulkan::create_pipeline(const Option& _opt)
         opt.use_image_storage = false;
     }
 
-    std::vector<vk_specialization_type> specializations(4 + 10);
-    specializations[0].i = scale_data_size;
-    specializations[1].f = scale_data_size == 1 ? scale_data[0] : 1.f;
-    specializations[2].i = bias_data_size;
-    specializations[3].f = bias_data_size == 1 ? bias_data[0] : 0.f;
-    specializations[4 + 0].i = shape_packed.dims;
-    specializations[4 + 1].i = shape_packed.w;
-    specializations[4 + 2].i = shape_packed.h * shape_packed.d;
-    specializations[4 + 3].i = shape_packed.c;
-    specializations[4 + 4].i = shape_packed.cstep;
-    specializations[4 + 5].i = out_shape_packed.dims;
-    specializations[4 + 6].i = out_shape_packed.w;
-    specializations[4 + 7].i = out_shape_packed.h * out_shape_packed.d;
-    specializations[4 + 8].i = out_shape_packed.c;
-    specializations[4 + 9].i = out_shape_packed.cstep;
+    std::vector<vk_specialization_type> specializations(9 + 10);
+    specializations[0].i = scale_in_data_size;
+    specializations[1].f = scale_in_data_size == 1 ? scale_in_data[0] : 1.f;
+    specializations[2].i = scale_out_data_size;
+    specializations[3].f = scale_out_data_size == 1 ? scale_out_data[0] : 1.f;
+    specializations[4].i = bias_data_size;
+    specializations[5].f = bias_data_size == 1 ? bias_data[0] : 0.f;
+    specializations[6].i = activation_type;
+    specializations[7].f = activation_params.w >= 1 ? activation_params[0] : 0.f;
+    specializations[8].f = activation_params.w == 2 ? activation_params[1] : 0.f;
+    specializations[9 + 0].i = shape_packed.dims;
+    specializations[9 + 1].i = shape_packed.w;
+    specializations[9 + 2].i = shape_packed.h * shape_packed.d;
+    specializations[9 + 3].i = shape_packed.c;
+    specializations[9 + 4].i = shape_packed.cstep;
+    specializations[9 + 5].i = out_shape_packed.dims;
+    specializations[9 + 6].i = out_shape_packed.w;
+    specializations[9 + 7].i = out_shape_packed.h * out_shape_packed.d;
+    specializations[9 + 8].i = out_shape_packed.c;
+    specializations[9 + 9].i = out_shape_packed.cstep;
 
     Mat local_size_xyz;
     if (shape_packed.dims == 1)
@@ -123,60 +128,77 @@ int Dequantize_vulkan::create_pipeline(const Option& _opt)
     // pack1
     if (shape.dims == 0 || elempack == 1)
     {
-        pipeline_dequantize = new Pipeline(vkdev);
-        pipeline_dequantize->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_dequantize->create(LayerShaderType::dequantize, opt, specializations);
+        pipeline_requantize = new Pipeline(vkdev);
+        pipeline_requantize->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_requantize->create(LayerShaderType::requantize, opt, specializations);
     }
 
     // pack4
     if (shape.dims == 0 || elempack == 4)
     {
-        pipeline_dequantize_pack4 = new Pipeline(vkdev);
-        pipeline_dequantize_pack4->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_dequantize_pack4->create(LayerShaderType::dequantize_pack4, opt, specializations);
+        pipeline_requantize_pack4 = new Pipeline(vkdev);
+        pipeline_requantize_pack4->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_requantize_pack4->create(LayerShaderType::requantize_pack4, opt, specializations);
     }
 
     // pack8
     if ((opt.use_shader_pack8 && shape.dims == 0) || elempack == 8)
     {
-        pipeline_dequantize_pack8 = new Pipeline(vkdev);
-        pipeline_dequantize_pack8->set_optimal_local_size_xyz(local_size_xyz);
-        pipeline_dequantize_pack8->create(LayerShaderType::dequantize_pack8, opt, specializations);
+        pipeline_requantize_pack8 = new Pipeline(vkdev);
+        pipeline_requantize_pack8->set_optimal_local_size_xyz(local_size_xyz);
+        pipeline_requantize_pack8->create(LayerShaderType::requantize_pack8, opt, specializations);
     }
 
     return 0;
 }
 
-int Dequantize_vulkan::destroy_pipeline(const Option& /*opt*/)
+int Requantize_vulkan::destroy_pipeline(const Option& /*opt*/)
 {
-    delete pipeline_dequantize;
-    pipeline_dequantize = 0;
+    delete pipeline_requantize;
+    pipeline_requantize = 0;
 
-    delete pipeline_dequantize_pack4;
-    pipeline_dequantize_pack4 = 0;
+    delete pipeline_requantize_pack4;
+    pipeline_requantize_pack4 = 0;
 
-    delete pipeline_dequantize_pack8;
-    pipeline_dequantize_pack8 = 0;
+    delete pipeline_requantize_pack8;
+    pipeline_requantize_pack8 = 0;
 
     return 0;
 }
 
-int Dequantize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
+int Requantize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 {
-    if (scale_data_size > 1)
+    if (scale_in_data_size > 1)
     {
-        int elempack = opt.use_shader_pack8 && scale_data_size % 8 == 0 ? 8 : scale_data_size % 4 == 0 ? 4 : 1;
+        int elempack = opt.use_shader_pack8 && scale_in_data_size % 8 == 0 ? 8 : scale_in_data_size % 4 == 0 ? 4 : 1;
 
-        Mat scale_data_packed;
-        convert_packing(scale_data, scale_data_packed, elempack, opt);
+        Mat scale_in_data_packed;
+        convert_packing(scale_in_data, scale_in_data_packed, elempack, opt);
 
         if (opt.use_image_storage)
         {
-            cmd.record_upload(scale_data_packed, scale_data_gpu_image, opt);
+            cmd.record_upload(scale_in_data_packed, scale_in_data_gpu_image, opt);
         }
         else
         {
-            cmd.record_upload(scale_data_packed, scale_data_gpu, opt);
+            cmd.record_upload(scale_in_data_packed, scale_in_data_gpu, opt);
+        }
+    }
+
+    if (scale_out_data_size > 1)
+    {
+        int elempack = opt.use_shader_pack8 && scale_out_data_size % 8 == 0 ? 8 : scale_out_data_size % 4 == 0 ? 4 : 1;
+
+        Mat scale_out_data_packed;
+        convert_packing(scale_out_data, scale_out_data_packed, elempack, opt);
+
+        if (opt.use_image_storage)
+        {
+            cmd.record_upload(scale_out_data_packed, scale_out_data_gpu_image, opt);
+        }
+        else
+        {
+            cmd.record_upload(scale_out_data_packed, scale_out_data_gpu, opt);
         }
     }
 
@@ -200,7 +222,7 @@ int Dequantize_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
     return 0;
 }
 
-int Dequantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
+int Requantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blob.dims;
     int w = bottom_blob.w;
@@ -208,18 +230,21 @@ int Dequantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComp
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
 
-    size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    size_t out_elemsize = 1u * elempack;
+
+    if (opt.use_int8_storage)
     {
-        out_elemsize = elempack * 2u;
+        out_elemsize = 1u * elempack;
     }
-    else if (opt.use_fp16_packed)
+    else if (opt.use_int8_packed)
     {
-        out_elemsize = elempack == 1 ? 4u : elempack * 2u;
+        if (elempack == 8) out_elemsize = 8 * 1u;
+        if (elempack == 4) out_elemsize = 4 * 1u;
+        if (elempack == 1) out_elemsize = 4u;
     }
     else
     {
-        out_elemsize = elempack * 4u;
+        out_elemsize = 4u * elempack;
     }
 
     if (dims == 1)
@@ -231,11 +256,12 @@ int Dequantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComp
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkMat> bindings(4);
+    std::vector<VkMat> bindings(5);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = scale_data_gpu;
-    bindings[3] = bias_data_gpu;
+    bindings[2] = scale_in_data_gpu;
+    bindings[3] = scale_out_data_gpu;
+    bindings[4] = bias_data_gpu;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
@@ -249,16 +275,16 @@ int Dequantize_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkComp
     constants[8].i = top_blob.c;
     constants[9].i = top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_dequantize_pack8
-                               : elempack == 4 ? pipeline_dequantize_pack4
-                               : pipeline_dequantize;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_requantize_pack8
+                               : elempack == 4 ? pipeline_requantize_pack4
+                               : pipeline_requantize;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 
     return 0;
 }
 
-int Dequantize_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
+int Requantize_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_blob, VkCompute& cmd, const Option& opt) const
 {
     int dims = bottom_blob.dims;
     int w = bottom_blob.w;
@@ -266,18 +292,21 @@ int Dequantize_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_bl
     int channels = bottom_blob.c;
     int elempack = bottom_blob.elempack;
 
-    size_t out_elemsize;
-    if (opt.use_fp16_storage)
+    size_t out_elemsize = 1u * elempack;
+
+    if (opt.use_int8_storage)
     {
-        out_elemsize = elempack * 2u;
+        out_elemsize = 1u * elempack;
     }
-    else if (opt.use_fp16_packed)
+    else if (opt.use_int8_packed)
     {
-        out_elemsize = elempack == 1 ? 4u : elempack * 2u;
+        if (elempack == 8) out_elemsize = 8 * 1u;
+        if (elempack == 4) out_elemsize = 4 * 1u;
+        if (elempack == 1) out_elemsize = 4u;
     }
     else
     {
-        out_elemsize = elempack * 4u;
+        out_elemsize = 4u * elempack;
     }
 
     if (dims == 1)
@@ -289,11 +318,12 @@ int Dequantize_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_bl
     if (top_blob.empty())
         return -100;
 
-    std::vector<VkImageMat> bindings(4);
+    std::vector<VkImageMat> bindings(5);
     bindings[0] = bottom_blob;
     bindings[1] = top_blob;
-    bindings[2] = scale_data_gpu_image;
-    bindings[3] = bias_data_gpu_image;
+    bindings[2] = scale_in_data_gpu_image;
+    bindings[3] = scale_out_data_gpu_image;
+    bindings[4] = bias_data_gpu_image;
 
     std::vector<vk_constant_type> constants(10);
     constants[0].i = bottom_blob.dims;
@@ -307,9 +337,9 @@ int Dequantize_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_bl
     constants[8].i = top_blob.c;
     constants[9].i = 0; //top_blob.cstep;
 
-    const Pipeline* pipeline = elempack == 8 ? pipeline_dequantize_pack8
-                               : elempack == 4 ? pipeline_dequantize_pack4
-                               : pipeline_dequantize;
+    const Pipeline* pipeline = elempack == 8 ? pipeline_requantize_pack8
+                               : elempack == 4 ? pipeline_requantize_pack4
+                               : pipeline_requantize;
 
     cmd.record_pipeline(pipeline, bindings, constants, bottom_blob);
 

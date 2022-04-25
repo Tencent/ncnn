@@ -21,12 +21,27 @@
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
-layout (constant_id = 0) const int scale_data_size = 0;
-layout (constant_id = 1) const float scale_value = 1.f;
-layout (constant_id = 2) const int bias_data_size = 0;
-layout (constant_id = 3) const float bias_value = 0.f;
+#if NCNN_int8_storage
+#extension GL_EXT_shader_8bit_storage: require
+#endif
+#if NCNN_int8_arithmetic
+#extension GL_EXT_shader_explicit_arithmetic_types_int8: require
+#endif
 
-#define shape_constant_id_offset 4
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
+layout (constant_id = 0) const int scale_in_data_size = 0;
+layout (constant_id = 1) const float scale_in_value = 1.f;
+layout (constant_id = 2) const int scale_out_data_size = 0;
+layout (constant_id = 3) const float scale_out_value = 1.f;
+layout (constant_id = 4) const int bias_data_size = 0;
+layout (constant_id = 5) const float bias_value = 0.f;
+layout (constant_id = 6) const int activation_type = 0;
+layout (constant_id = 7) const float activation_param_0 = 0;
+layout (constant_id = 8) const float activation_param_1 = 0;
+
+#define shape_constant_id_offset 9
 layout (constant_id = shape_constant_id_offset + 0) const int dims = 0;
 layout (constant_id = shape_constant_id_offset + 1) const int w = 0;
 layout (constant_id = shape_constant_id_offset + 2) const int h = 0;
@@ -41,14 +56,20 @@ layout (constant_id = shape_constant_id_offset + 9) const int outcstep = 0;
 
 #if NCNN_image_shader
 layout (binding = 0) uniform iunfp isampler3D bottom_blob_3d;
-layout (binding = 1, imfmtc1) writeonly uniform unfp image3D top_blob_3d;
-layout (binding = 2) uniform unfp sampler3D scale_blob;
-layout (binding = 3) uniform unfp sampler3D bias_blob;
+#if !NCNN_int8_storage && NCNN_int8_packed
+layout (binding = 1, r32f) writeonly uniform highp image3D top_blob_3d;
+#else
+layout (binding = 1, iimfmtc1) writeonly uniform iunfp iimage3d top_blob_3d;
+#endif
+layout (binding = 2) uniform unfp sampler3D scale_in_blob;
+layout (binding = 3) uniform unfp sampler3D scale_out_blob;
+layout (binding = 4) uniform unfp sampler3D bias_blob;
 #else
 layout (binding = 0) readonly buffer bottom_blob { int bottom_blob_data[]; };
-layout (binding = 1) writeonly buffer top_blob { sfp top_blob_data[]; };
-layout (binding = 2) readonly buffer scale_blob { sfp scale_blob_data[]; };
-layout (binding = 3) readonly buffer bias_blob { sfp bias_blob_data[]; };
+layout (binding = 1) writeonly buffer top_blob { sint top_blob_data[]; };
+layout (binding = 2) readonly buffer scale_in_blob { sfp scale_in_blob_data[]; };
+layout (binding = 3) readonly buffer scale_out_blob { sfp scale_out_blob_data[]; };
+layout (binding = 4) readonly buffer bias_blob { sfp bias_blob_data[]; };
 #endif
 
 layout (push_constant) uniform parameter
@@ -83,11 +104,11 @@ void main()
     int v = bottom_blob_data[gi];
 #endif
 
-    afp scale;
+    afp scale_in;
 
-    if (scale_data_size == 1)
+    if (scale_in_data_size == 1)
     {
-        scale = afp(scale_value);
+        scale_in = afp(scale_in_value);
     }
     else
     {
@@ -95,9 +116,9 @@ void main()
         const int abi = gxyz[psc(dims) - 1];
 
 #if NCNN_image_shader
-        scale = image3d_ld1(scale_blob, ivec3(abi, 0, 0));
+        scale_in = image3d_ld1(scale_in_blob, ivec3(abi, 0, 0));
 #else
-        scale = buffer_ld1(scale_blob_data, abi);
+        scale_in = buffer_ld1(scale_in_blob_data, abi);
 #endif
     }
 
@@ -105,11 +126,11 @@ void main()
 
     if (bias_data_size == 0)
     {
-        v_fp = afp(v) * scale;
+        v_fp = afp(v) * scale_in;
     }
     else if (bias_data_size == 1)
     {
-        v_fp = afp(v) * scale + afp(bias_value);
+        v_fp = afp(v) * scale_in + afp(bias_value);
     }
     else
     {
@@ -122,14 +143,36 @@ void main()
         afp bias = buffer_ld1(bias_blob_data, abi);
 #endif
 
-        v_fp = afp(v) * scale + bias;
+        v_fp = afp(v) * scale_in + bias;
     }
 
+    v_fp = activation_afp(v_fp, activation_type, activation_param_0, activation_param_1);
+
+    afp scale_out;
+
+    if (scale_out_data_size == 1)
+    {
+        scale_out = afp(scale_out_value);
+    }
+    else
+    {
+        const ivec3 gxyz = ivec3(gx, gy, gz);
+        const int abi = gxyz[psc(dims) - 1];
+
 #if NCNN_image_shader
-    image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v_fp);
+        scale_out = image3d_ld1(scale_out_blob, ivec3(abi, 0, 0));
+#else
+        scale_out = buffer_ld1(scale_out_blob_data, abi);
+#endif
+    }
+
+    aint v_int = aint(round(clamp(v_fp * scale_out, afp(-127.f), afp(127.f))));
+
+#if NCNN_image_shader
+    iimage3d_st1(top_blob_3d, ivec3(gx, gy, gz), v_int);
 #else
     const int outgi = gz * psc(outcstep) + gy * psc(outw) + gx;
 
-    buffer_st1(top_blob_data, outgi, v_fp);
+    ibuffer_st1(top_blob_data, outgi, v_int);
 #endif
 }
