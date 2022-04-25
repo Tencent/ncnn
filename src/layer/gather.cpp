@@ -130,7 +130,7 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             const unsigned char* ptr = bottom_blob.channel(selected);
             unsigned char* outptr = top_blob.channel(i);
 
-            memcpy(outptr, ptr, w * h * elemsize);
+            memcpy(outptr, ptr, static_cast<size_t>(w) * h * elemsize);
         }
         return 0;
     }
