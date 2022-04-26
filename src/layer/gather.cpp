@@ -40,7 +40,6 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& indices = bottom_blobs[1];
     int dims = bottom_blob.dims;
-    int indices_dims = indices.dims;
     size_t elemsize = bottom_blob.elemsize;
     int positive_axis = axis < 0 ? dims + axis : axis;
     Mat& top_blob = top_blobs[0];

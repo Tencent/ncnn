@@ -55,7 +55,7 @@ static int test_gather_2()
 {
     std::vector<ncnn::Mat> inp(2);
     inp[0] = RandomMat(80);
-    inp[1] = RandomMat(24, 79.f);
+    inp[1] = RandomMat(24, 0.f, 79.f);
     return 0
            || test_gather(inp, 0);
 }
