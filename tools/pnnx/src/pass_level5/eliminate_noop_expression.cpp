@@ -60,6 +60,8 @@ void eliminate_noop_expression(Graph& graph)
                 op->inputs[0]->consumers.push_back(x);
             }
 
+            op->inputs[0]->name = expr_out->name;
+
             expr_out->producer = 0;
             expr_out->consumers.clear();
 
