@@ -44,13 +44,13 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     size_t elemsize = bottom_blob.elemsize;
     int positive_axis = axis < 0 ? dims + axis : axis;
     Mat& top_blob = top_blobs[0];
-    if (indices.dims == 1)
+    if (indices.dims != 1)
     {
         return -100;
     }
     const float* indices_ptr = indices;
 
-    if (dims == 1 && indices_dims == 1) // positive_axis == 0
+    if (dims == 1) // positive_axis == 0
     {
         int w = indices.w;
         top_blob.create(w, elemsize, opt.blob_allocator);
@@ -69,7 +69,7 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 2 && positive_axis == 0 && indices_dims == 1)
+    if (dims == 2 && positive_axis == 0)
     {
         int w = bottom_blob.w;
         top_blob.create(w, indices.w, elemsize, opt.blob_allocator);
@@ -89,7 +89,7 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 2 && positive_axis == 1 && indices_dims == 1)
+    if (dims == 2 && positive_axis == 1)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
@@ -114,7 +114,7 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && positive_axis == 0 && indices_dims == 1)
+    if (dims == 3 && positive_axis == 0)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
@@ -135,7 +135,7 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && positive_axis == 1 && indices_dims == 1)
+    if (dims == 3 && positive_axis == 1)
     {
         int w = bottom_blob.w;
         int channels = bottom_blob.c;
@@ -158,7 +158,7 @@ int Gather::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         return 0;
     }
 
-    if (dims == 3 && positive_axis == 2 && indices_dims == 1)
+    if (dims == 3 && positive_axis == 2)
     {
         int w = bottom_blob.w;
         int h = bottom_blob.h;
