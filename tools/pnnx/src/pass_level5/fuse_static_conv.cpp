@@ -54,9 +54,9 @@ pnnx.Output             output      1 0 out
                 weight = x.second;
         }
 
-        op->params["in_channels"] = weight.shape[1];
+        op->params["in_channels"] = weight.shape[1] * captured_params.at("groups").i;
         op->params["out_channels"] = weight.shape[0];
-        op->params["kernel_size"] = weight.shape[2];
+        op->params["kernel_size"] = std::vector<int>{weight.shape[2]};
         op->params["padding_mode"] = std::string("zeros");
         op->params["stride"] = captured_params.at("stride");
         op->params["padding"] = captured_params.at("padding");
@@ -105,9 +105,9 @@ pnnx.Output             output      1 0 out
                 bias = x.second;
         }
 
-        op->params["in_channels"] = weight.shape[1];
+        op->params["in_channels"] = weight.shape[1] * captured_params.at("groups").i;
         op->params["out_channels"] = weight.shape[0];
-        op->params["kernel_size"] = weight.shape[2];
+        op->params["kernel_size"] = std::vector<int>{weight.shape[2]};
         op->params["padding_mode"] = std::string("zeros");
         op->params["stride"] = captured_params.at("stride");
         op->params["padding"] = captured_params.at("padding");
@@ -153,7 +153,7 @@ pnnx.Output             output      1 0 out
                 weight = x.second;
         }
 
-        op->params["in_channels"] = weight.shape[1];
+        op->params["in_channels"] = weight.shape[1] * captured_params.at("groups").i;
         op->params["out_channels"] = weight.shape[0];
         op->params["kernel_size"] = std::vector<int>{weight.shape[2], weight.shape[3]};
         op->params["padding_mode"] = std::string("zeros");
@@ -204,7 +204,7 @@ pnnx.Output             output      1 0 out
                 bias = x.second;
         }
 
-        op->params["in_channels"] = weight.shape[1];
+        op->params["in_channels"] = weight.shape[1] * captured_params.at("groups").i;
         op->params["out_channels"] = weight.shape[0];
         op->params["kernel_size"] = std::vector<int>{weight.shape[2], weight.shape[3]};
         op->params["padding_mode"] = std::string("zeros");
@@ -252,7 +252,7 @@ pnnx.Output             output      1 0 out
                 weight = x.second;
         }
 
-        op->params["in_channels"] = weight.shape[1];
+        op->params["in_channels"] = weight.shape[1] * captured_params.at("groups").i;
         op->params["out_channels"] = weight.shape[0];
         op->params["kernel_size"] = std::vector<int>{weight.shape[2], weight.shape[3], weight.shape[4]};
         op->params["padding_mode"] = std::string("zeros");
@@ -303,7 +303,7 @@ pnnx.Output             output      1 0 out
                 bias = x.second;
         }
 
-        op->params["in_channels"] = weight.shape[1];
+        op->params["in_channels"] = weight.shape[1] * captured_params.at("groups").i;
         op->params["out_channels"] = weight.shape[0];
         op->params["kernel_size"] = std::vector<int>{weight.shape[2], weight.shape[3], weight.shape[4]};
         op->params["padding_mode"] = std::string("zeros");
