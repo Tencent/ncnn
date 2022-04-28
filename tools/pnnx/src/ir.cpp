@@ -1635,6 +1635,19 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 fprintf(pyfp, ", dim=%d", op->params.at("dim").i);
                 fprintf(pyfp, ")\n");
             }
+            else if (op->type == "torch.einsum")
+            {
+                // einsum
+                fprintf(pyfp, "v_%s = %s(", sanitize_identifier(op->outputs[0]->name).c_str(), op->type.c_str());
+
+                fprintf(pyfp, "\'%s\'", op->params.at("equation").s.c_str());
+
+                for (size_t i = 0; i < op->inputs.size(); i++)
+                {
+                    fprintf(pyfp, ", v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                }
+                fprintf(pyfp, ")\n");
+            }
             else if (op->type == "prim::TupleUnpack")
             {
                 for (size_t i = 0; i < op->outputs.size(); i++)

@@ -266,6 +266,11 @@ static std::string eval_expression(const Operator* op)
 
     std::string r = exprstack.top();
     exprstack.pop();
+    while (!exprstack.empty())
+    {
+        r += std::string(",") + exprstack.top();
+        exprstack.pop();
+    }
 
     //     fprintf(stderr, "eval_expression return %s\n", r.c_str());
 

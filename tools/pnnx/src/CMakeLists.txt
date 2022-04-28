@@ -187,6 +187,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_clamp.cpp
     pass_level2/torch_clone.cpp
     pass_level2/torch_dequantize.cpp
+    pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
     pass_level2/torch_empty_like.cpp
     pass_level2/torch_flatten.cpp
@@ -229,6 +230,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/expand_quantization_modules.cpp
     pass_level3/fuse_cat_stack_tensors.cpp
     pass_level3/fuse_chunk_split_unbind_unpack.cpp
+    pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
     pass_level3/fuse_rnn_unpack.cpp
