@@ -31,21 +31,16 @@ void fuse_einsum_operands(Graph& graph)
             if (op->type != "torch.einsum")
                 continue;
 
-            fprintf(stderr, "a1\n");
-
             if (op->inputs.size() < 1)
                 continue;
 
-            fprintf(stderr, "a2\n");
             if (op->inputs[1]->consumers.size() != 1)
                 continue;
 
-            fprintf(stderr, "a3\n");
             Operator* op2 = op->inputs[1]->producer;
             if (op2->type != "prim::ListConstruct")
                 continue;
 
-            fprintf(stderr, "a4\n");
             matched = true;
 
             op->inputs[1]->producer = 0;
