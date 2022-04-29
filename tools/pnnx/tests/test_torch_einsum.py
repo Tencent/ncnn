@@ -21,13 +21,65 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y0, y1, z0, z1, w, r0, r1, r2):
-        a = torch.einsum('ii', x)
-        b = torch.einsum('ii->i', x)
-        c = torch.einsum('i,j->ij', y0, y1)
-        d = torch.einsum('bij,bjk->bik', z0, z1)
-        e = torch.einsum('...ij->...ji', w)
-        f = torch.einsum('bn,anm,bm->ba', r0, r1, r2)
-        return a, b, c, d, e, f
+        # identity
+        a0 = torch.einsum('i', y0)
+        a1 = torch.einsum('ij', x)
+        a2 = torch.einsum('ijk', z0)
+        a3 = torch.einsum('ijkl', w)
+
+        # permute
+        b0 = torch.einsum('ij->ji', x)
+        b1 = torch.einsum('ba', x)
+        b2 = torch.einsum('jki', z0)
+        b3 = torch.einsum('ijk->kij', z0)
+        b4 = torch.einsum('kjil', w)
+        b5 = torch.einsum('ijkl->jilk', w)
+        b6 = torch.einsum('...ij->...ji', w)
+        b7 = torch.einsum('abc...->cba...', w)
+
+        # trace
+        c = torch.einsum('ii', x)
+
+        # sum
+        d0 = torch.einsum('ij->', x)
+        d1 = torch.einsum('xyz->', z0)
+        d2 = torch.einsum('ijkl->', w)
+
+        # sum axis
+        e0 = torch.einsum('ij->i', x)
+        e1 = torch.einsum('ij->j', x)
+        e2 = torch.einsum('ijk->i', z0)
+        e3 = torch.einsum('ijk->j', z0)
+        e4 = torch.einsum('ijk->k', z0)
+        e5 = torch.einsum('ijk->ij', z0)
+        e6 = torch.einsum('ijk->jk', z0)
+        e7 = torch.einsum('ijk->ik', z0)
+        e8 = torch.einsum('ijkl->i', w)
+        e9 = torch.einsum('ijkl->j', w)
+        e10 = torch.einsum('ijkl->k', w)
+        e11 = torch.einsum('ijkl->l', w)
+        e12 = torch.einsum('ijkl->ij', w)
+        e13 = torch.einsum('ijkl->jk', w)
+        e14 = torch.einsum('ijkl->kl', w)
+        e15 = torch.einsum('ijkl->il', w)
+        e16 = torch.einsum('ijkl->ijk', w)
+        e17 = torch.einsum('ijkl->jkl', w)
+        e18 = torch.einsum('ijkl->ijl', w)
+
+        # matrix-vector
+        f0 = torch.einsum('ij,j->i', r0, y0)
+        f1 = torch.einsum('i,jki->jk', y1, r1)
+
+        # vector-vector outer product
+        g = torch.einsum('i,j->ij', y0, y1)
+
+        # batch mm
+        h0 = torch.einsum('bij,bjk->bik', z0, z1)
+        h1 = torch.einsum('bjk,bij->bik', z1, z0)
+
+        # bilinear
+        i = torch.einsum('bn,anm,bm->ba', r0, r1, r2)
+        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e17, f0, f1, g, h0, h1, i
 
 def test():
     net = Model()
