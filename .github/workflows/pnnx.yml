@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   ubuntu:
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, linux, cvm]
 
     strategy:
       fail-fast: false
@@ -42,6 +42,7 @@ jobs:
 
     - name: setup pytorch-${{ matrix.torch-version }}
       run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         pip install torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
     - name: cache-torchvision-${{ matrix.torchvision-version }}
@@ -62,28 +63,32 @@ jobs:
       run: |
         cd vision
         mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=$HOME/.local/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . -j 2
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 8
         cmake --build . --target install
 
     - name: build-ncnn
       run: |
-        python -m pip install --upgrade pip
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         pip install pytest setuptools wheel twine
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 2
+        cmake --build . -j 8
         cd ..
         pip install .
 
     - name: build-pnnx
       run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install ..
-        cmake --build . -j 2
+        cmake --build . -j 8
 
     - name: test
       run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
         cd tools/pnnx
-        cd build && ctest --output-on-failure
+        cd build && ctest --output-on-failure -j 8
