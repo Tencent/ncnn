@@ -88,5 +88,7 @@ jobs:
     - name: test
       run: |
         export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
         cd tools/pnnx
-        cd build && ctest --output-on-failure -j 4
+        cd build && ctest --output-on-failure -j 8
