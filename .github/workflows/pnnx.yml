@@ -64,7 +64,7 @@ jobs:
         cd vision
         mkdir -p build; cd build
         cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
-        cmake --build . -j 8
+        cmake --build . -j 4
         cmake --build . --target install
 
     - name: build-ncnn
@@ -73,7 +73,7 @@ jobs:
         pip install pytest setuptools wheel twine
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
-        cmake --build . -j 8
+        cmake --build . -j 4
         cd ..
         pip install .
 
@@ -83,7 +83,7 @@ jobs:
         cd tools/pnnx
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install ..
-        cmake --build . -j 8
+        cmake --build . -j 4
 
     - name: test
       run: |
@@ -91,4 +91,4 @@ jobs:
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         cd tools/pnnx
-        cd build && ctest --output-on-failure -j 8
+        cd build && ctest --output-on-failure -j 4
