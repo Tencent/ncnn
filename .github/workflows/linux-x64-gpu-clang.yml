@@ -33,15 +33,11 @@ concurrency:
   cancel-in-progress: true
 jobs:
   linux-clang-gpu:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, cvm]
     steps:
     - uses: actions/checkout@v3
       with:
         submodules: true
-    - name: update
-      run: sudo apt-get update
-    - name: protobuf
-      run: sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev
     - name: cache-vulkansdk
       id: cache-vulkansdk
       uses: actions/cache@v3
