@@ -195,7 +195,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
 
     if(NCNN_COMPILER_SUPPORT_RVV)
         include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ncnn_check_rvv_vfredsum.cmake)
-        if(NOT NCNN_COMPILER_USE_VFREDSUM)
+        if(NOT NCNN_COMPILER_USE_VFREDSUM AND NCNN_COMPILER_SUPPORT_RVV_INTRINSIC)
             if(NCNN_COMPILER_USE_VFREDUSUM)
                 SET(NCNN_REPLACED_VFREDSUM vfredusum)
             else()
