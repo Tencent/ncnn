@@ -102,7 +102,7 @@ class CMakeBuild(build_ext):
                 # CMake 3.12+ only.
                 build_args += ["-j{}".format(self.parallel)]
             else:
-                build_args += ["-j2"]
+                build_args += ["-j8"]
 
         if not os.path.exists(self.build_temp):
             os.makedirs(self.build_temp)
