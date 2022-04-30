@@ -75,6 +75,7 @@ jobs:
         cmake --build . -j 4
     - name: test
       run: |
+        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 4
     - name: build-shared
