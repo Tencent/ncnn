@@ -35,8 +35,6 @@ jobs:
           - torch-version: 1.11.0
             torchvision-version: 0.12.0
 
-    env: 
-      PYTHONUSERBASE: $GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
     steps:
     - uses: actions/checkout@v3
       with:
@@ -44,6 +42,7 @@ jobs:
 
     - name: setup pytorch-${{ matrix.torch-version }}
       run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         pip install torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
     - name: cache-torchvision-${{ matrix.torchvision-version }}
@@ -64,7 +63,7 @@ jobs:
       run: |
         cd vision
         mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=${PYTHONUSERBASE}/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 4
         cmake --build . --target install
 
