@@ -123,7 +123,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: lavapipe-install
-        key: lavapipe-linux-install-20211127
+        key: lavapipe-linux-install-20211127-2
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
@@ -141,6 +141,7 @@ jobs:
         meson -Dprefix="$GITHUB_WORKSPACE/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
         ninja -j4
         ninja install
+        sed -e "s@$GITHUB_WORKSPACE/lavapipe-install/lib/x86_64-linux-gnu/libvulkan_lvp.so@../../../lib/x86_64-linux-gnu/libvulkan_lvp.so@g"
 
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
