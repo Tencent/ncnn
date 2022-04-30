@@ -35,10 +35,9 @@ jobs:
           - torch-version: 1.11.0
             torchvision-version: 0.12.0
 
+    env: 
+      PYTHONUSERBASE: $GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
     steps:
-    - uses: actions/setup-python@v3
-      with:
-        python-version: '3.8'
     - uses: actions/checkout@v3
       with:
         submodules: true
@@ -65,7 +64,7 @@ jobs:
       run: |
         cd vision
         mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=$HOME/.local/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/torchvision-${{ matrix.torchvision-version }}-install -DTorch_DIR=${PYTHONUSERBASE}/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 4
         cmake --build . --target install
 
