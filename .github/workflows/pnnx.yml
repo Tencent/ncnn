@@ -69,6 +69,7 @@ jobs:
 
     - name: build-ncnn
       run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         python -m pip install --upgrade pip
         pip install pytest setuptools wheel twine
         mkdir build && cd build
@@ -86,5 +87,6 @@ jobs:
 
     - name: test
       run: |
+        export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         cd tools/pnnx
         cd build && ctest --output-on-failure -j 2
