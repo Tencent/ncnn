@@ -36,6 +36,9 @@ jobs:
             torchvision-version: 0.12.0
 
     steps:
+    - uses: actions/setup-python@v3
+      with:
+        python-version: '3.8'
     - uses: actions/checkout@v3
       with:
         submodules: true
