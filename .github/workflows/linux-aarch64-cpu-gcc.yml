@@ -36,14 +36,14 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-1
+        key: qemu-aarch64-install-20220502
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
@@ -90,14 +90,14 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-1
+        key: qemu-aarch64-install-20220502
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
