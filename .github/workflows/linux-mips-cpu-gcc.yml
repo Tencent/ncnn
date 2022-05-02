@@ -55,10 +55,9 @@ jobs:
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=mipsel-linux-user --disable-system
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mipsel-linux-user --disable-system
         make -j2
         make install
-        cp -r mipsel-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: mipsel-gnu-toolchain
       run: |
@@ -103,10 +102,9 @@ jobs:
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=mipsel-linux-user --disable-system
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mipsel-linux-user --disable-system
         make -j2
         make install
-        cp -r mipsel-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: mipsisa32r6el-gnu-toolchain
       run: |
