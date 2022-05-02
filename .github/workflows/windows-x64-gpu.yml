@@ -116,6 +116,7 @@ jobs:
     - name: test
       if: matrix.vs-version != 'vs2015'
       run: |
+        echo "[Processor]`nThreadCount=1`n" > build/tests/Release/SwiftShader.ini
         Copy-Item -Path "$env:GITHUB_WORKSPACE\swiftshader-install\vulkan-1.dll" -Destination 'build\tests'
         $env:Path+=";C:/VulkanSDK/1.2.189.0/Bin"
         cd build; ctest -C Release --output-on-failure -j 2
