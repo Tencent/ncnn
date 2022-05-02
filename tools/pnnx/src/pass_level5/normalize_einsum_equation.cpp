@@ -95,11 +95,28 @@ void normalize_einsum_equation(Graph& graph)
                 }
             }
 
+            std::string lhs = equation.substr(0, arrow);
+            std::string rhs = equation.substr(arrow + 2);
+
             // normalize and sort to ijkl...
             std::vector<char> xs;
-            for (size_t i = 0; i < equation_len; i++)
+            for (size_t i = 0; i < rhs.size(); i++)
             {
-                char x = equation[i];
+                char x = rhs[i];
+
+                if ((x >= '0' && x <= '9') || (x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z'))
+                {
+                    if (xset.find(x) == xset.end())
+                    {
+                        xset[x] = '\0';
+                        xs.push_back(x);
+                    }
+                }
+            }
+
+            for (size_t i = 0; i < lhs.size(); i++)
+            {
+                char x = lhs[i];
 
                 if ((x >= '0' && x <= '9') || (x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z'))
                 {
@@ -134,6 +151,18 @@ void normalize_einsum_equation(Graph& graph)
 
             if ((x >= '0' && x <= '9') || (x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z'))
                 equation[i] = xset[x];
+        }
+
+        // shorten jik->ijk to jik
+        if (arrow != std::string::npos && op->inputs.size() == 1)
+        {
+            std::string lhs = equation.substr(0, arrow);
+            std::string rhs = equation.substr(arrow + 2);
+
+            if (lhs.size() == rhs.size())
+            {
+                equation = lhs;
+            }
         }
 
         op->params["equation"] = equation;
