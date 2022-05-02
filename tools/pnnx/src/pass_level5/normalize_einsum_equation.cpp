@@ -21,6 +21,16 @@
 
 namespace pnnx {
 
+static void replaceAll(std::string& str, const std::string& from, const std::string& to)
+{
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos)
+    {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length();
+    }
+}
+
 void normalize_einsum_equation(Graph& graph)
 {
     for (size_t i = 0; i < graph.ops.size(); i++)
@@ -31,7 +41,7 @@ void normalize_einsum_equation(Graph& graph)
             continue;
 
         std::string equation = op->params.at("equation").s;
-        const size_t equation_len = equation.size();
+        size_t equation_len = equation.size();
 
         std::map<char, char> xset;
 
@@ -59,13 +69,39 @@ void normalize_einsum_equation(Graph& graph)
         }
         else
         {
+            // find dot pair ...
+            size_t dot0 = equation.find("...");
+            if (dot0 != std::string::npos)
+            {
+                size_t dot1 = equation.find("...", dot0);
+                if (dot1 != std::string::npos)
+                {
+                    // replace dot pair with alphabet
+                    const int input_rank = op->inputs[0]->shape.size();
+                    if (input_rank > 0)
+                    {
+                        int missing_bits = input_rank - (arrow - 3);
+
+                        std::string missing_bits_word;
+                        for (int i = 0; i < missing_bits; i++)
+                        {
+                            missing_bits_word += '0' + i;
+                        }
+
+                        replaceAll(equation, "...", missing_bits_word);
+                        equation_len = equation.size();
+                        arrow = equation.find("->");
+                    }
+                }
+            }
+
             // normalize and sort to ijkl...
             std::vector<char> xs;
             for (size_t i = 0; i < equation_len; i++)
             {
                 char x = equation[i];
 
-                if ((x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z'))
+                if ((x >= '0' && x <= '9') || (x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z'))
                 {
                     if (xset.find(x) == xset.end())
                     {
@@ -96,7 +132,7 @@ void normalize_einsum_equation(Graph& graph)
         {
             char x = equation[i];
 
-            if ((x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z'))
+            if ((x >= '0' && x <= '9') || (x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z'))
                 equation[i] = xset[x];
         }
 
