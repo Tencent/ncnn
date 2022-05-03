@@ -164,7 +164,7 @@ struct Mat
 
     size_t total() const
     {
-        return cols * (unsigned long) rows * c;
+        return cols * (size_t) rows * c;
     }
 
     uchar* data;
