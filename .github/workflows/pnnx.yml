@@ -15,6 +15,9 @@ on:
 concurrency:
   group: pnnx-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   ubuntu:
     runs-on: [self-hosted, linux, cvm]

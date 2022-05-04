@@ -27,6 +27,9 @@ on:
 concurrency:
   group: linux-riscv64-cpu-gcc-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-gcc-riscv64:
     runs-on: ubuntu-20.04

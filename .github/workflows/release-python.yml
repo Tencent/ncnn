@@ -110,6 +110,8 @@ jobs:
         path: wheelhouse/*.whl
 
   upload_all:
+    permissions:
+      contents: none
     name: Upload
     needs: [build_wheels, build_wheels_qemu, build_sdist]
     runs-on: ubuntu-latest
