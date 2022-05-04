@@ -23,6 +23,9 @@ on:
 concurrency:
   group: web-assembly-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   webassembly:
     runs-on: ubuntu-latest

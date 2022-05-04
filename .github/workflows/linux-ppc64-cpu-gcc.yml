@@ -23,6 +23,9 @@ on:
 concurrency:
   group: linux-ppc64-cpu-gcc-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-gcc-ppc64le:
     runs-on: ubuntu-20.04
