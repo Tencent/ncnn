@@ -36,7 +36,7 @@ static int test_bnll_0()
            || test_bnll(RandomMat(5, 7, 24))
            || test_bnll(RandomMat(7, 9, 12))
            || test_bnll(RandomMat(3, 5, 13));
- }
+}
 
 static int test_bnll_1()
 {
