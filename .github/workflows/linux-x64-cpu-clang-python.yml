@@ -23,6 +23,9 @@ on:
 concurrency:
   group: linux-x64-cpu-clang-python-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-clang-python:
     runs-on: ubuntu-latest

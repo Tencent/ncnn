@@ -33,6 +33,7 @@
 #include "pass_level5/fuse_select_to_unbind.h"
 #include "pass_level5/fuse_slice_indices.h"
 #include "pass_level5/fuse_static_conv.h"
+#include "pass_level5/normalize_einsum_equation.h"
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
 #include "pass_level3/fuse_index_expression.h"
@@ -50,6 +51,8 @@ void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_cons
     eliminate_slice(g);
 
     fuse_slice_indices(g);
+
+    normalize_einsum_equation(g);
 
     eliminate_identity_operator(g);
 

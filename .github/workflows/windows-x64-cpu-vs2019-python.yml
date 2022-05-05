@@ -23,6 +23,9 @@ on:
 concurrency:
   group: windows-x64-cpu-vs2019-python-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   windows-vs2019-python:
     runs-on: windows-latest

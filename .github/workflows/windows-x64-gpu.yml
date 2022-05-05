@@ -31,6 +31,9 @@ on:
 concurrency:
   group: windows-x64-gpu-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   windows-gpu:
     name: ${{ matrix.vs-version }}

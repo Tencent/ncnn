@@ -31,6 +31,9 @@ on:
 concurrency:
   group: linux-x64-gpu-gcc-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-gcc-gpu:
     runs-on: [self-hosted, linux, cvm]

@@ -27,6 +27,9 @@ on:
 concurrency:
   group: linux-mips64-cpu-gcc-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-gcc-mips64el:
     runs-on: ubuntu-20.04

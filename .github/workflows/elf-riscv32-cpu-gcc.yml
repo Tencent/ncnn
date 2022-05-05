@@ -25,6 +25,9 @@ on:
 concurrency:
   group: elf-riscv32-cpu-gcc-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   newlib-rv32imc-gcc:
     runs-on: ubuntu-20.04

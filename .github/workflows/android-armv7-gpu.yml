@@ -23,6 +23,9 @@ on:
 concurrency:
   group: android-armv7-gpu-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   android-armv7-gpu:
     runs-on: ubuntu-latest
