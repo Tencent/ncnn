@@ -13,6 +13,7 @@
 # specific language governing permissions and limitations under the License.
 
 import torch
+import torchvision
 import torchvision.models as models
 
 def test():
