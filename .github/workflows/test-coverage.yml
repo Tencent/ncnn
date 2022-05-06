@@ -278,22 +278,26 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-arm-install-1
+        key: qemu-arm-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=arm-linux-user --disable-system
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=arm-linux-user --disable-system
         make -j2
         make install
-        cp -r arm-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: arm-gnu-toolchain
       run: |
@@ -336,22 +340,26 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-1
+        key: qemu-aarch64-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=aarch64-linux-user --disable-system
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
         make -j2
         make install
-        cp -r aarch64-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: aarch64-gnu-toolchain
       run: |
@@ -394,22 +402,26 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-1
+        key: qemu-aarch64-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=aarch64-linux-user --disable-system
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
         make -j2
         make install
-        cp -r aarch64-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: aarch64-gnu-toolchain
       run: |
@@ -451,22 +463,26 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-1
+        key: qemu-aarch64-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=aarch64-linux-user --disable-system
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
         make -j2
         make install
-        cp -r aarch64-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: aarch64-gnu-toolchain
       run: |
@@ -508,22 +524,26 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-aarch64-install-1
+        key: qemu-aarch64-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=aarch64-linux-user --disable-system
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
         make -j2
         make install
-        cp -r aarch64-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: aarch64-gnu-toolchain
       run: |
@@ -565,22 +585,26 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-mipsel-install-1
+        key: qemu-mipsel-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=mipsel-linux-user --disable-system
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mipsel-linux-user --disable-system
         make -j2
         make install
-        cp -r mipsel-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: mipsisa32r6el-gnu-toolchain
       run: |
@@ -623,22 +647,38 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-mips64el-install-1
+        key: qemu-mips64el-install-20220502-3
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=mips64el-linux-user --disable-system
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0001-target-mips-Fix-SAT_S-trans-helper.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
+        patch -p1 -i 0001-target-mips-Fix-SAT_S-trans-helper.patch
+        patch -p1 -i 0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
+        patch -p1 -i 0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
+        patch -p1 -i 0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
+        patch -p1 -i 0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
+        patch -p1 -i 0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mips64el-linux-user --disable-system
         make -j2
         make install
-        cp -r mips64el-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: mipsisa64r6el-gnuabi64-toolchain
       run: |
@@ -682,22 +722,28 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-riscv64-install-1
+        key: qemu-riscv64-install-20220502-3
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
         repository: qemu/qemu
         path: qemu
-        ref: 8746309137ba470d1b2e8f5ce86ac228625db940
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         cd qemu
-        ./configure --prefix=install --target-list=riscv64-linux-user --disable-system
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
         make -j2
         make install
-        cp -r riscv64-linux-user/install $GITHUB_WORKSPACE/qemu-install
 
     - name: riscv64-gnu-toolchain
       run: |
@@ -741,37 +787,28 @@ jobs:
       uses: actions/cache@v3
       with:
         path: qemu-install
-        key: qemu-riscv64-rvv-install-20210610
-
+        key: qemu-riscv64-install-20220502-3
     - name: install-qemu-build-deps
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
         sudo apt-get update
         sudo apt-get install autoconf automake autotools-dev ninja-build
-
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
-        repository: sifive/qemu
+        repository: qemu/qemu
         path: qemu
-        ref: 7a3e8e23b4cf1422ec48e9d4b4009337a05a635d
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
     - name: qemu
       if: steps.cache-qemu.outputs.cache-hit != 'true'
       run: |
-        wget https://download.qemu.org/qemu-6.0.0.tar.xz
-        tar -xf qemu-6.0.0.tar.xz
-        cp -r qemu/fpu qemu-6.0.0/
-        cp -r qemu/include/fpu qemu-6.0.0/include/
-        cp -r qemu/target/riscv qemu-6.0.0/target/
-        cp -r qemu/linux-user/elfload.c qemu-6.0.0/linux-user/
-        cd qemu-6.0.0
-        mkdir build
-        cd build
-        ../configure --prefix=`pwd`/install --target-list=riscv64-linux-user --disable-system
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
         make -j2
         make install
-        cp -r install $GITHUB_WORKSPACE/qemu-install
 
     - name: cache-riscv
       id: cache-riscv
@@ -824,7 +861,7 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
 
     - name: lcov-collect-vlen128
       run: |
@@ -844,7 +881,7 @@ jobs:
       run: |
         export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,x-v=true,x-Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
 
     - name: lcov-collect-vlen256
       run: |
