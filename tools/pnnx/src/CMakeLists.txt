@@ -233,6 +233,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
+    pass_level3/fuse_multiheadattention_unpack.cpp
     pass_level3/fuse_rnn_unpack.cpp
     pass_level3/rename_F_conv_transposend.cpp
     pass_level3/rename_F_convmode.cpp
@@ -279,6 +280,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_split.cpp
     pass_ncnn/convert_torch_unbind.cpp
+    pass_ncnn/convert_Tensor_select.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
     pass_ncnn/insert_split.cpp
