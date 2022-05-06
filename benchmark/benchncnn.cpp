@@ -158,7 +158,8 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
 }
 
-struct TestCase {
+struct TestCase
+{
     char* model;
     int w;
     int h;
