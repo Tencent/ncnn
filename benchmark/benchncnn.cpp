@@ -248,10 +248,13 @@ int main(int argc, char** argv)
     fprintf(stderr, "gpu_device = %d\n", gpu_device);
     fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
 
-    if (user_defined_case != std::tuple<char*, int, int, int>()) {
+    if (user_defined_case != std::tuple<char*, int, int, int>())
+    {
         // run user defined benchmark
         benchmark(std::get<0>(user_defined_case), ncnn::Mat(std::get<1>(user_defined_case), std::get<2>(user_defined_case), std::get<3>(user_defined_case)), opt);
-    } else {
+    }
+    else
+    {
         // run defaunt cases
         benchmark("squeezenet", ncnn::Mat(227, 227, 3), opt);
 
