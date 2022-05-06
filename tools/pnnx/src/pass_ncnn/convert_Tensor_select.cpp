@@ -56,9 +56,9 @@ void convert_Tensor_select(Graph& graph)
 
             int index = op->params.at("index").i;
 
-            op->params["9"] = std::vector<int>{index};
-            op->params["10"] = std::vector<int>{index + 1};
-            op->params["11"] = std::vector<int>{axis};
+            op->params["9"] = std::vector<int> {index};
+            op->params["10"] = std::vector<int> {index + 1};
+            op->params["11"] = std::vector<int> {axis};
 
             op->params.erase("dim");
             op->params.erase("index");
