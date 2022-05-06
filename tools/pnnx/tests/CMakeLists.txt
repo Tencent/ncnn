@@ -201,6 +201,7 @@ pnnx_add_test(mobilenet_v3_small)
 pnnx_add_test(resnet18)
 pnnx_add_test(shufflenet_v2_x1_0)
 pnnx_add_test(squeezenet1_1)
+pnnx_add_test(vit_b_32)
 
 # TODO enable end2end quantization model test
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)

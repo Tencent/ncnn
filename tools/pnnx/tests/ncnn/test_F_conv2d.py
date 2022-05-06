@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -26,7 +27,7 @@ class Model(nn.Module):
 
     def forward(self, x, w0, w1, b1, y):
         x = F.conv2d(x, w0, None, stride=(2,2), padding=(1,1))
-        if torch.__version__ < '1.9':
+        if version.parse(torch.__version__) < version.parse('1.9'):
             x = F.conv2d(x, w1, b1, stride=(1,1), padding=(1,1), dilation=(2,1), groups=2)
         else:
             x = F.conv2d(x, w1, b1, stride=(1,1), padding='same', dilation=(2,1), groups=2)

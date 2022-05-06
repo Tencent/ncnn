@@ -1708,6 +1708,38 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
+            else if (op->type == "nn.MultiheadAttention")
+            {
+                if (op->outputs.size() == 1)
+                {
+                    fprintf(pyfp, "v_%s, _", sanitize_identifier(op->outputs[0]->name).c_str());
+                }
+                else
+                {
+                    for (size_t i = 0; i < op->outputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
+                        if (i + 1 != op->outputs.size())
+                            fprintf(pyfp, ", ");
+                    }
+                }
+                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                if (op->inputs.size() == 1)
+                {
+                    const char* in0 = sanitize_identifier(op->inputs[0]->name).c_str();
+                    fprintf(pyfp, "v_%s, v_%s, v_%s", in0, in0, in0);
+                }
+                else
+                {
+                    for (size_t i = 0; i < op->inputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                        if (i + 1 != op->inputs.size())
+                            fprintf(pyfp, ", ");
+                    }
+                }
+                fprintf(pyfp, ")\n");
+            }
             else if (op->type.substr(0, 3) == "nn." || op->type.substr(0, 16) == "torchvision.ops.")
             {
                 // self.xxx()
