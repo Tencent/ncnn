@@ -15,7 +15,6 @@
 #include <float.h>
 #include <stdio.h>
 #include <string.h>
-#include <tuple>
 
 #ifdef _WIN32
 #include <algorithm>
@@ -159,6 +158,13 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
     fprintf(stderr, "%20s  min = %7.2f  max = %7.2f  avg = %7.2f\n", comment, time_min, time_max, time_avg);
 }
 
+struct TestCase {
+    char* model;
+    int w;
+    int h;
+    int c;
+};
+
 int main(int argc, char** argv)
 {
     int loop_count = 4;
@@ -166,12 +172,12 @@ int main(int argc, char** argv)
     int powersave = 0;
     int gpu_device = -1;
     int cooling_down = 1;
-    std::tuple<char*, int, int, int> user_defined_case;
+    TestCase user_defined_case = {0};
 
     switch (argc)
     {
     case 10:
-        user_defined_case = std::make_tuple(argv[6], atoi(argv[7]), atoi(argv[8]), atoi(argv[9]));
+        user_defined_case = {argv[6], atoi(argv[7]), atoi(argv[8]), atoi(argv[9])};
     case 6:
         cooling_down = atoi(argv[5]);
     case 5:
@@ -248,10 +254,10 @@ int main(int argc, char** argv)
     fprintf(stderr, "gpu_device = %d\n", gpu_device);
     fprintf(stderr, "cooling_down = %d\n", (int)g_enable_cooling_down);
 
-    if (user_defined_case != std::tuple<char*, int, int, int>())
+    if (user_defined_case.model != nullptr)
     {
         // run user defined benchmark
-        benchmark(std::get<0>(user_defined_case), ncnn::Mat(std::get<1>(user_defined_case), std::get<2>(user_defined_case), std::get<3>(user_defined_case)), opt);
+        benchmark(user_defined_case.model, ncnn::Mat(user_defined_case.h, user_defined_case.w, user_defined_case.c), opt);
     }
     else
     {
