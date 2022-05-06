@@ -32,7 +32,7 @@ class Model(nn.Module):
             self.attention_1_2 = nn.MultiheadAttention(embed_dim=40, num_heads=10, bias=True, add_bias_kv=True, add_zero_attn=True, batch_first=True)
             self.attention_1_3 = nn.MultiheadAttention(embed_dim=32, num_heads=8, bias=True, batch_first=True)
 
-    def forward(self, xq, xk, xv, yq, yk, yv, z, w):
+    def forward(self, xq, xk, xv, z, yq, yk, yv, w):
         x0, x0w = self.attention_0_0(xq, xk, xv)
         x1, x1w = self.attention_0_1(xq, xk, xv)
         x2, x2w = self.attention_0_2(xq, xk, xv)
@@ -56,21 +56,21 @@ def test():
     xq = torch.rand(20, 1, 64)
     xk = torch.rand(20, 1, 64)
     xv = torch.rand(20, 1, 64)
+    z = torch.rand(30, 1, 32)
     yq = torch.rand(1, 15, 40)
     yk = torch.rand(1, 24, 40)
     yv = torch.rand(1, 24, 40)
-    z = torch.rand(30, 1, 32)
     w = torch.rand(1, 20, 32)
 
-    a = net(xq, xk, xv, yq, yk, yv, z, w)
+    a = net(xq, xk, xv, z, yq, yk, yv, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (xq, xk, xv, yq, yk, yv, z, w))
+    mod = torch.jit.trace(net, (xq, xk, xv, z, yq, yk, yv, w))
     mod.save("test_nn_MultiheadAttention.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_nn_MultiheadAttention.pt inputshape=[20,1,64],[20,1,64],[20,1,64],[1,15,40],[1,24,40],[1,24,40],[30,1,32],[1,20,32]")
+    os.system("../src/pnnx test_nn_MultiheadAttention.pt inputshape=[20,1,64],[20,1,64],[20,1,64],[30,1,32],[1,15,40],[1,24,40],[1,24,40],[1,20,32]")
 
     # pnnx inference
     import test_nn_MultiheadAttention_pnnx
