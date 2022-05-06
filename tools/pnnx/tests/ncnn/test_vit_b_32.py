@@ -15,9 +15,10 @@
 import torch
 import torchvision
 import torchvision.models as models
+from packaging import version
 
 def test():
-    if torchvision.__version__ < '0.12':
+    if version.parse(torchvision.__version__) < version.parse('0.12'):
         return True
 
     net = models.vit_b_32().half().float()

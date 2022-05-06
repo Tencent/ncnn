@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -25,7 +26,7 @@ class Model(nn.Module):
         self.attention_0_2 = nn.MultiheadAttention(embed_dim=64, num_heads=16, bias=True, add_bias_kv=True, add_zero_attn=True)
         self.attention_0_3 = nn.MultiheadAttention(embed_dim=32, num_heads=8, bias=True)
 
-        if torch.__version__ >= '1.9':
+        if version.parse(torch.__version__) >= version.parse('1.9'):
             self.attention_1_0 = nn.MultiheadAttention(embed_dim=40, num_heads=4, batch_first=True)
             self.attention_1_1 = nn.MultiheadAttention(embed_dim=40, num_heads=8, bias=False, add_bias_kv=False, add_zero_attn=False, batch_first=True)
             self.attention_1_2 = nn.MultiheadAttention(embed_dim=40, num_heads=10, bias=True, add_bias_kv=True, add_zero_attn=True, batch_first=True)
@@ -37,7 +38,7 @@ class Model(nn.Module):
         x2, x2w = self.attention_0_2(xq, xk, xv)
         x3, _ = self.attention_0_3(z, z, z)
 
-        if torch.__version__ < '1.9':
+        if version.parse(torch.__version__) < version.parse('1.9'):
             return x0, x0w, x1, x1w, x2, x2w, x3
 
         y0, y0w = self.attention_1_0(yq, yk, yv)
