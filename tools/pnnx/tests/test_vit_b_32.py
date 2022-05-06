@@ -16,6 +16,9 @@ import torch
 import torchvision.models as models
 
 def test():
+    if torchvision.__version__ < '0.12':
+        return True
+
     net = models.vit_b_32()
     net.eval()
 
