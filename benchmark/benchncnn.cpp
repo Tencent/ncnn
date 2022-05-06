@@ -255,7 +255,7 @@ int main(int argc, char** argv)
     }
     else
     {
-        // run defaunt cases
+        // run default cases
         benchmark("squeezenet", ncnn::Mat(227, 227, 3), opt);
 
         benchmark("squeezenet_int8", ncnn::Mat(227, 227, 3), opt);
