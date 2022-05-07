@@ -15,6 +15,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
@@ -23,25 +24,29 @@ class Model(nn.Module):
         self.attention_0_0 = nn.MultiheadAttention(embed_dim=64, num_heads=4)
         self.attention_0_1 = nn.MultiheadAttention(embed_dim=64, num_heads=8, bias=False, add_bias_kv=False, add_zero_attn=False)
         self.attention_0_2 = nn.MultiheadAttention(embed_dim=64, num_heads=16, bias=True, add_bias_kv=True, add_zero_attn=True)
+        self.attention_0_3 = nn.MultiheadAttention(embed_dim=32, num_heads=8, bias=True)
 
-        if torch.__version__ >= '1.9':
+        if version.parse(torch.__version__) >= version.parse('1.9'):
             self.attention_1_0 = nn.MultiheadAttention(embed_dim=40, num_heads=4, batch_first=True)
             self.attention_1_1 = nn.MultiheadAttention(embed_dim=40, num_heads=8, bias=False, add_bias_kv=False, add_zero_attn=False, batch_first=True)
             self.attention_1_2 = nn.MultiheadAttention(embed_dim=40, num_heads=10, bias=True, add_bias_kv=True, add_zero_attn=True, batch_first=True)
+            self.attention_1_3 = nn.MultiheadAttention(embed_dim=32, num_heads=8, bias=True, batch_first=True)
 
-    def forward(self, xq, xk, xv, yq, yk, yv):
+    def forward(self, xq, xk, xv, z, yq, yk, yv, w):
         x0, x0w = self.attention_0_0(xq, xk, xv)
         x1, x1w = self.attention_0_1(xq, xk, xv)
         x2, x2w = self.attention_0_2(xq, xk, xv)
+        x3, _ = self.attention_0_3(z, z, z)
 
-        if torch.__version__ < '1.9':
-            return x0, x0w, x1, x1w, x2, x2w
+        if version.parse(torch.__version__) < version.parse('1.9'):
+            return x0, x0w, x1, x1w, x2, x2w, x3
 
         y0, y0w = self.attention_1_0(yq, yk, yv)
         y1, y1w = self.attention_1_1(yq, yk, yv)
         y2, y2w = self.attention_1_2(yq, yk, yv)
+        y3, _ = self.attention_1_3(w, w, w)
 
-        return x0, x0w, x1, x1w, x2, x2w, y0, y0w, y1, y1w, y2, y2w
+        return x0, x0w, x1, x1w, x2, x2w, x3, y0, y0w, y1, y1w, y2, y2w, y3
 
 def test():
     net = Model()
@@ -51,19 +56,21 @@ def test():
     xq = torch.rand(20, 1, 64)
     xk = torch.rand(20, 1, 64)
     xv = torch.rand(20, 1, 64)
+    z = torch.rand(30, 1, 32)
     yq = torch.rand(1, 15, 40)
     yk = torch.rand(1, 24, 40)
     yv = torch.rand(1, 24, 40)
+    w = torch.rand(1, 20, 32)
 
-    a = net(xq, xk, xv, yq, yk, yv)
+    a = net(xq, xk, xv, z, yq, yk, yv, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (xq, xk, xv, yq, yk, yv))
+    mod = torch.jit.trace(net, (xq, xk, xv, z, yq, yk, yv, w))
     mod.save("test_nn_MultiheadAttention.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_nn_MultiheadAttention.pt inputshape=[20,1,64],[20,1,64],[20,1,64],[1,15,40],[1,24,40],[1,24,40]")
+    os.system("../src/pnnx test_nn_MultiheadAttention.pt inputshape=[20,1,64],[20,1,64],[20,1,64],[30,1,32],[1,15,40],[1,24,40],[1,24,40],[1,20,32]")
 
     # pnnx inference
     import test_nn_MultiheadAttention_pnnx
