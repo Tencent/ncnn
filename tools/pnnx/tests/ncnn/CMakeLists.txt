@@ -146,6 +146,7 @@ pnnx_ncnn_add_test(torch_transpose)
 pnnx_ncnn_add_test(torch_unbind)
 pnnx_ncnn_add_test(torch_unsqueeze)
 
+pnnx_ncnn_add_test(convnext_tiny)
 pnnx_ncnn_add_test(mobilenet_v2)
 pnnx_ncnn_add_test(mobilenet_v3_small)
 pnnx_ncnn_add_test(resnet18)

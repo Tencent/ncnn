@@ -42,7 +42,7 @@ void convert_attribute(Graph& graph)
         std::vector<int> new_shape;
         for (int i = 0; i < (int)data.shape.size(); i++)
         {
-            if (i == batch_index)
+            if (i == batch_index && data.shape[i] == 1)
                 continue;
 
             new_shape.push_back(data.shape[i]);

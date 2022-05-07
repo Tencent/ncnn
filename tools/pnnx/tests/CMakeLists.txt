@@ -196,6 +196,7 @@ pnnx_add_test(torch_unsqueeze)
 pnnx_add_test(torch_zeros)
 pnnx_add_test(torch_zeros_like)
 
+pnnx_add_test(convnext_tiny)
 pnnx_add_test(mobilenet_v2)
 pnnx_add_test(mobilenet_v3_small)
 pnnx_add_test(resnet18)
