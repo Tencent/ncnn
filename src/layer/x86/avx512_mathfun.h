@@ -446,6 +446,17 @@ static NCNN_FORCEINLINE void sincos512_ps(__m512 x, __m512* s, __m512* c)
     *c = _mm512_xor_ps(xmm2, sign_bit_cos);
 }
 
+static NCNN_FORCEINLINE __m512 tan512_ps(__m512 x)
+{
+    __m512 ysin, ycos;
+    __m512 eps = _mm512_set1_ps(1E-8f);
+    sincos512_ps(x, &ysin, &ycos);
+    __mmask16 mask = _mm512_cmp_ps_mask(ycos, _mm512_setzero_ps(), _CMP_EQ_OS);
+    ycos = _mm512_mask_add_ps(ycos, mask, ycos, eps);
+    __m512 ytan = _mm512_div_ps(ysin, ycos);
+    return ytan;
+}
+
 static NCNN_FORCEINLINE __m512 pow512_ps(__m512 a, __m512 b)
 {
     // pow(x, m) = exp(m * log(x))

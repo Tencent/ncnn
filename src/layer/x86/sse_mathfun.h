@@ -679,6 +679,18 @@ static NCNN_FORCEINLINE void sincos_ps(v4sf x, v4sf* s, v4sf* c)
     *c = _mm_xor_ps(xmm2, sign_bit_cos);
 }
 
+static NCNN_FORCEINLINE __m128 tan_ps(__m128 x)
+{
+    __m128 ysin, ycos;
+    __m128 eps = _mm_set1_ps(1E-8f);
+    sincos_ps(x, &ysin, &ycos);
+    __m128 mask = _mm_cmpeq_ps(ycos, _mm_setzero_ps());
+    __m128 _tmp = _mm_and_ps(eps, mask);
+    ycos = _mm_add_ps(ycos, _tmp);
+    __m128 ytan = _mm_div_ps(ysin, ycos);
+    return ytan;
+}
+
 static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
 {
     // pow(x, m) = exp(m * log(x))
