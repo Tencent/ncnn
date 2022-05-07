@@ -691,7 +691,6 @@ static NCNN_FORCEINLINE __m128 tan_ps(__m128 x)
     return ytan;
 }
 
-
 static NCNN_FORCEINLINE __m128 pow_ps(__m128 a, __m128 b)
 {
     // pow(x, m) = exp(m * log(x))

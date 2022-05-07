@@ -470,8 +470,8 @@ struct unary_op_tan
     }
 #if __SSE2__
     __m128 operator()(const __m128& x) const
-    {    
-        return tan_ps(x);       
+    {
+        return tan_ps(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const

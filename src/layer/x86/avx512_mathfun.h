@@ -457,8 +457,6 @@ static NCNN_FORCEINLINE __m512 tan512_ps(__m512 x)
     return ytan;
 }
 
-
-
 static NCNN_FORCEINLINE __m512 pow512_ps(__m512 a, __m512 b)
 {
     // pow(x, m) = exp(m * log(x))
