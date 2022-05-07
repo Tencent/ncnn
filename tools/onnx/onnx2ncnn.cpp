@@ -77,13 +77,14 @@ static std::vector<int> get_node_attr_ai(const onnx::NodeProto& node, const char
 static void set_node_attr_ai(onnx::NodeProto& node, const char* key,
                              const std::vector<int>& value)
 {
-  onnx::AttributeProto* attr_group = node.add_attribute();
-  attr_group->set_name(key);
-  for (auto v : value) {
-    attr_group->add_ints(v);
-  }
+    onnx::AttributeProto* attr_group = node.add_attribute();
+    attr_group->set_name(key);
+    for (auto v : value)
+    {
+        attr_group->add_ints(v);
+    }
 
-  return;
+    return;
 }
 
 static std::vector<float> get_node_attr_af(const onnx::NodeProto& node, const char* key)
