@@ -47,18 +47,21 @@ void fuse_einsum_operands(Graph& graph)
             op->inputs[1]->remove_consumer(op);
 
             std::vector<Operand*> new_inputs;
-            std::vector<std::string> new_inputnames(op2->inputs.size());
-            for (auto& x : op2->inputs)
-            {
-                x->remove_consumer(op2);
-                x->consumers.push_back(op);
-                new_inputs.push_back(x);
-            }
+            std::vector<std::string> new_inputnames;
 
             {
                 new_inputs.push_back(op->inputs[0]);
                 new_inputnames.push_back(op->inputnames[0]);
             }
+
+            for (auto& x : op2->inputs)
+            {
+                x->remove_consumer(op2);
+                x->consumers.push_back(op);
+                new_inputs.push_back(x);
+                new_inputnames.push_back("");
+            }
+
             for (size_t j = 2; j < op->inputs.size(); j++)
             {
                 new_inputs.push_back(op->inputs[j]);

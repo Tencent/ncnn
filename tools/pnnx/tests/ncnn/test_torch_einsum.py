@@ -21,29 +21,29 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y0, y1, z0, z1, w, r0, r1, r2):
-        # identity
-        a0 = torch.einsum('i', y0)
-        a1 = torch.einsum('ij', x)
-        a2 = torch.einsum('ijk', z0)
-        a3 = torch.einsum('ijkl', w)
+        ## identity
+        #a0 = torch.einsum('i', y0)
+        #a1 = torch.einsum('ij', x)
+        #a2 = torch.einsum('ijk', z0)
+        #a3 = torch.einsum('ijkl', w)
 
-        # permute
-        b0 = torch.einsum('ij->ji', x)
-        b1 = torch.einsum('ba', x)
-        b2 = torch.einsum('jki', z0)
-        b3 = torch.einsum('ijk->kij', z0)
-        b4 = torch.einsum('kjil', w)
-        b5 = torch.einsum('ijkl->jilk', w)
-        b6 = torch.einsum('...ij->...ji', w)
-        b7 = torch.einsum('abc...->cba...', w)
+        ## permute
+        #b0 = torch.einsum('ij->ji', x)
+        #b1 = torch.einsum('ba', x)
+        #b2 = torch.einsum('jki', z0)
+        #b3 = torch.einsum('ijk->kij', z0)
+        #b4 = torch.einsum('kjil', w)
+        #b5 = torch.einsum('ijkl->jilk', w)
+        #b6 = torch.einsum('...ij->...ji', w)
+        #b7 = torch.einsum('abc...->cba...', w)
 
-        # trace
-        c = torch.einsum('ii', x)
+        ## trace
+        #c = torch.einsum('ii', x)
 
-        # sum
-        d0 = torch.einsum('ij->', x)
-        d1 = torch.einsum('xyz->', z0)
-        d2 = torch.einsum('ijkl->', w)
+        ## sum
+        #d0 = torch.einsum('ij->', x)
+        #d1 = torch.einsum('xyz->', z0)
+        #d2 = torch.einsum('ijkl->', w)
 
         # sum axis
         e0 = torch.einsum('ij->i', x)
@@ -79,7 +79,8 @@ class Model(nn.Module):
 
         # bilinear
         i = torch.einsum('bn,anm,bm->ba', r0, r1, r2)
-        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
+        #return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
+        return e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
 
 def test():
     net = Model()
@@ -104,14 +105,14 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4]")
+    os.system("../../src/pnnx test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4]")
 
-    # pnnx inference
-    import test_torch_einsum_pnnx
-    b = test_torch_einsum_pnnx.test_inference()
+    # ncnn inference
+    import test_torch_einsum_ncnn
+    b = test_torch_einsum_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 

@@ -37,7 +37,7 @@ void insert_split(Graph& graph)
                 matched = true;
 
                 // insert split
-                Operator* split = graph.new_operator_before("Split", std::string("splitncnn_") + std::to_string(opindex++), graph.ops[i + 1]);
+                Operator* split = graph.new_operator_after("Split", std::string("splitncnn_") + std::to_string(opindex++), op);
 
                 split->inputs.push_back(x);
 
@@ -58,6 +58,7 @@ void insert_split(Graph& graph)
                         if (op2->inputs[k] == x)
                         {
                             op2->inputs[k] = operand;
+                            break;
                         }
                     }
                 }
