@@ -49,6 +49,8 @@ void insert_split(Graph& graph)
                     operand->producer = split;
                     operand->consumers.push_back(op2);
 
+                    operand->params["__batch_index"] = x->params["__batch_index"];
+
                     split->outputs.push_back(operand);
 
                     for (size_t k = 0; k < op2->inputs.size(); k++)
