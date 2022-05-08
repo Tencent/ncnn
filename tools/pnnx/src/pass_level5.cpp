@@ -17,6 +17,7 @@
 #include "pass_level5/fold_constants.h"
 #include "pass_level5/eliminate_dropout.h"
 #include "pass_level5/eliminate_identity_operator.h"
+#include "pass_level5/eliminate_noop_einsum.h"
 #include "pass_level5/eliminate_noop_expression.h"
 #include "pass_level5/eliminate_noop_pad.h"
 #include "pass_level5/eliminate_slice.h"
@@ -53,6 +54,8 @@ void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_cons
     fuse_slice_indices(g);
 
     normalize_einsum_equation(g);
+
+    eliminate_noop_einsum(g);
 
     eliminate_identity_operator(g);
 

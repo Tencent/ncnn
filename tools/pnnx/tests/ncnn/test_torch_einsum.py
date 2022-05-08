@@ -67,7 +67,46 @@ class Model(nn.Module):
         b34 = torch.einsum('klji', w)
         b35 = torch.einsum('lkji', w)
 
-        # trace
+        b0 = F.relu(b0)
+        b1 = F.relu(b1)
+        b2 = F.relu(b2)
+        b3 = F.relu(b3)
+        b4 = F.relu(b4)
+        b5 = F.relu(b5)
+        b6 = F.relu(b6)
+        b7 = F.relu(b7)
+
+        b8 = F.relu(b8)
+        b9 = F.relu(b9)
+        b10 = F.relu(b10)
+        b11 = F.relu(b11)
+        b12 = F.relu(b12)
+
+        b13 = F.relu(b13)
+        b14 = F.relu(b14)
+        b15 = F.relu(b15)
+        b16 = F.relu(b16)
+        b17 = F.relu(b17)
+        b18 = F.relu(b18)
+        b19 = F.relu(b19)
+        b20 = F.relu(b20)
+        b21 = F.relu(b21)
+        b22 = F.relu(b22)
+        b23 = F.relu(b23)
+        b24 = F.relu(b24)
+        b25 = F.relu(b25)
+        b26 = F.relu(b26)
+        b27 = F.relu(b27)
+        b28 = F.relu(b28)
+        b29 = F.relu(b29)
+        b30 = F.relu(b30)
+        b31 = F.relu(b31)
+        b32 = F.relu(b32)
+        b33 = F.relu(b33)
+        b34 = F.relu(b34)
+        b35 = F.relu(b35)
+
+        ## trace
         c = torch.einsum('ii', x)
 
         # sum
@@ -141,14 +180,14 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]")
+    os.system("../../src/pnnx test_torch_einsum.pt inputshape=[4,4],[5],[4],[3,2,5],[3,5,4],[2,3,4,5],[2,5],[3,5,4],[2,4],[2,3,5,7],[11,3,17,5]")
 
-    # pnnx inference
-    import test_torch_einsum_pnnx
-    b = test_torch_einsum_pnnx.test_inference()
+    # ncnn inference
+    import test_torch_einsum_ncnn
+    b = test_torch_einsum_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
-        if not torch.equal(a0, b0):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
             return False
     return True
 
