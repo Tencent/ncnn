@@ -52,7 +52,7 @@ int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             _mm512_storeu_ps(ptr, _p);
             ptr += 16;
         }
-#endif 
+#endif
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
