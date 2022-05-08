@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "einsum.h"
+#include <string.h>
 
 namespace ncnn {
 
@@ -30,37 +31,40 @@ int Einsum::load_param(const ParamDict& pd)
 
     // restore to lexical equation string
     std::string equation;
+    equation.resize(equation_len + 1);
+    char* equation_ptr = (char*)equation.c_str();
     {
-        equation.resize(equation_len);
         const int* p = equation_mat;
         for (int i = 0; i < equation_len; i++)
         {
-            equation[i] = p[i];
+            equation_ptr[i] = p[i];
         }
     }
 
     // split into tokens
-    size_t arrow = equation.find("->");
-    std::string lhs = equation.substr(0, arrow);
-    std::string rhs = equation.substr(arrow + 2);
-
+    char* arrow = strstr(equation_ptr, "->");
+    if (!arrow)
     {
-        size_t start = 0;
-        size_t comma = lhs.find(",");
-        while (comma != std::string::npos)
-        {
-            std::string token = lhs.substr(start, comma - start);
-            lhs_tokens.push_back(token);
-
-            start = comma + 1;
-            comma = lhs.find(",", start);
-        }
-
-        std::string token = lhs.substr(start);
-        lhs_tokens.push_back(token);
+        NCNN_LOGE("invalid equation %s", equation_ptr);
+        return -1;
     }
 
-    rhs_token = rhs;
+    arrow[0] = '\0';
+    arrow[1] = '\0';
+
+    char* lhs = equation_ptr;
+    char* rhs = arrow + 2;
+
+    {
+        char* t = strtok(lhs, ",");
+        while (t)
+        {
+            lhs_tokens.push_back(std::string(t));
+            t = strtok(NULL, ",");
+        }
+    }
+
+    rhs_token = std::string(rhs);
 
     // check token always in ijkl
     {
