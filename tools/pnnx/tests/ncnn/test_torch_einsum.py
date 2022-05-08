@@ -140,7 +140,8 @@ class Model(nn.Module):
         f1 = torch.einsum('i,jki->jk', y1, r1)
 
         # vector-vector outer product
-        g = torch.einsum('i,j->ij', y0, y1)
+        g0 = torch.einsum('i,j->ij', y0, y1)
+        g1 = torch.einsum('a,b,c,d->abcd', y0, y1, y0, y1)
 
         # batch mm
         h0 = torch.einsum('bij,bjk->bik', z0, z1)
@@ -149,7 +150,7 @@ class Model(nn.Module):
         # bilinear
         i = torch.einsum('bn,anm,bm->ba', r0, r1, r2)
 
-        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31, b32, b33, b34, b35, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
+        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31, b32, b33, b34, b35, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g0, g1, h0, h1, i
 
 def test():
     net = Model()

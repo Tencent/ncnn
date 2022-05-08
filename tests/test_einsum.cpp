@@ -115,6 +115,17 @@ static int test_einsum_6()
 
 static int test_einsum_7()
 {
+    std::vector<ncnn::Mat> a(4);
+    a[0] = RandomMat(7);
+    a[1] = RandomMat(2);
+    a[2] = RandomMat(11);
+    a[3] = RandomMat(16);
+
+    return test_einsum(a, "i,j,k,l->ijkl");
+}
+
+static int test_einsum_8()
+{
     std::vector<ncnn::Mat> a(2);
     a[0] = RandomMat(5, 2, 3);
     a[1] = RandomMat(4, 5, 3);
@@ -122,7 +133,7 @@ static int test_einsum_7()
     return test_einsum(a, "ijl,ilk->ijk");
 }
 
-static int test_einsum_8()
+static int test_einsum_9()
 {
     std::vector<ncnn::Mat> a(2);
     a[0] = RandomMat(4, 5, 3);
@@ -131,7 +142,7 @@ static int test_einsum_8()
     return test_einsum(a, "ilk,ijl->ijk");
 }
 
-static int test_einsum_9()
+static int test_einsum_10()
 {
     std::vector<ncnn::Mat> a(3);
     a[0] = RandomMat(15, 12);
@@ -155,5 +166,6 @@ int main()
            || test_einsum_6()
            || test_einsum_7()
            || test_einsum_8()
-           || test_einsum_9();
+           || test_einsum_9()
+           || test_einsum_10();
 }

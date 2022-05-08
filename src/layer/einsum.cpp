@@ -90,7 +90,7 @@ int Einsum::load_param(const ParamDict& pd)
             const std::string& lhs_token = lhs_tokens[i];
             for (size_t j = 0; j < lhs_token.size(); j++)
             {
-                if (lhs_token[j] < 'i' || lhs_token[j] > 'l')
+                if (lhs_token[j] < 'i' || lhs_token[j] > 'x')
                 {
                     NCNN_LOGE("invalid lhs_token %s", lhs_token.c_str());
                     return -1;
@@ -174,7 +174,7 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     }
 
     // resolve dimension sizes
-    std::vector<int> dim_sizes(4, 1); // map ijkl -> dim_size
+    std::vector<int> dim_sizes(16, 1); // map ijkl -> dim_size
 
     for (size_t b = 0; b < bottom_blobs.size(); b++)
     {
