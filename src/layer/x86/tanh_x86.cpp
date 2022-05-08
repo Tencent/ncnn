@@ -40,12 +40,19 @@ int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __AVX512F__
     if (elempack == 16)
     {
-        Mat tmp;
-        convert_packing(bottom_top_blob, tmp, 8, opt);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < channels; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
 
-        forward_inplace(tmp, opt);
-
-        convert_packing(tmp, bottom_top_blob, 16, opt);
+            for (int i = 0; i < size; i++)
+            {
+                __m512 _p = _mm512_loadu_ps(ptr);
+                _p = tanh_avx512(_p);
+                _mm512_storeu_ps(ptr, _p);
+                ptr += 16;
+            }
+        }
 
         return 0;
     }
@@ -99,6 +106,15 @@ int TanH_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int i = 0;
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _p = _mm512_loadu_ps(ptr);
+            _p = tanh_avx512(_p);
+            _mm512_storeu_ps(ptr, _p);
+            ptr += 16;
+        }
+#endif 
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
