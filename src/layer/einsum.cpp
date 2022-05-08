@@ -140,6 +140,31 @@ static float get_indexed_value(const Mat& m, const std::string& token, std::vect
     return 0;
 }
 
+static float sum_dim(const std::vector<int>& dim_sizes, int d, const std::vector<Mat>& bottom_blobs, const std::vector<std::string>& tokens, std::vector<int>& indexes)
+{
+    if (d == (int)dim_sizes.size())
+    {
+        float v = 1.f;
+        for (size_t b = 0; b < bottom_blobs.size(); b++)
+        {
+            v *= get_indexed_value(bottom_blobs[b], tokens[b], indexes);
+        }
+
+        return v;
+    }
+
+    float sum = 0.f;
+
+    for (int i = 0; i < dim_sizes[d]; i++)
+    {
+        indexes[d] = i;
+
+        sum += sum_dim(dim_sizes, d + 1, bottom_blobs, tokens, indexes);
+    }
+
+    return sum;
+}
+
 int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     // assert bottom_blobs.size() == lhs_tokens.size()
@@ -174,7 +199,8 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
     }
 
     // resolve dimension sizes
-    std::vector<int> dim_sizes(16, 1); // map ijkl -> dim_size
+    std::vector<int> dim_sizes(16, 1); // map ijklmnopqrstuvwx -> dim_size
+    int dim_sizes_count = 0;
 
     for (size_t b = 0; b < bottom_blobs.size(); b++)
     {
@@ -198,10 +224,15 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
             int dim_sizes_index = lhs_token[s] - 'i';
             dim_sizes[dim_sizes_index] = dim_size;
+            dim_sizes_count = std::max(dim_sizes_count, dim_sizes_index + 1);
         }
     }
 
+    dim_sizes.resize(dim_sizes_count);
+
     const int out_dims = (int)rhs_token.size();
+
+    std::vector<int> indexes(dim_sizes_count);
 
     if (out_dims == 1)
     {
@@ -210,36 +241,11 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         if (top_blob.empty())
             return -100;
 
-        std::vector<int> indexes(4);
-
         for (int i = 0; i < top_blob.w; i++)
         {
             indexes[0] = i;
 
-            float sum = 0.f;
-
-            for (int j = 0; j < dim_sizes[1]; j++)
-            {
-                indexes[1] = j;
-
-                for (int k = 0; k < dim_sizes[2]; k++)
-                {
-                    indexes[2] = k;
-
-                    for (int l = 0; l < dim_sizes[3]; l++)
-                    {
-                        indexes[3] = l;
-
-                        float v = 1.f;
-                        for (size_t b = 0; b < bottom_blobs.size(); b++)
-                        {
-                            v *= get_indexed_value(bottom_blobs[b], lhs_tokens[b], indexes);
-                        }
-
-                        sum += v;
-                    }
-                }
-            }
+            float sum = sum_dim(dim_sizes, 1, bottom_blobs, lhs_tokens, indexes);
 
             top_blob[i] = sum;
         }
@@ -252,8 +258,6 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         if (top_blob.empty())
             return -100;
 
-        std::vector<int> indexes(4);
-
         for (int i = 0; i < top_blob.h; i++)
         {
             indexes[0] = i;
@@ -262,25 +266,7 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             {
                 indexes[1] = j;
 
-                float sum = 0.f;
-
-                for (int k = 0; k < dim_sizes[2]; k++)
-                {
-                    indexes[2] = k;
-
-                    for (int l = 0; l < dim_sizes[3]; l++)
-                    {
-                        indexes[3] = l;
-
-                        float v = 1.f;
-                        for (size_t b = 0; b < bottom_blobs.size(); b++)
-                        {
-                            v *= get_indexed_value(bottom_blobs[b], lhs_tokens[b], indexes);
-                        }
-
-                        sum += v;
-                    }
-                }
+                float sum = sum_dim(dim_sizes, 2, bottom_blobs, lhs_tokens, indexes);
 
                 top_blob.row(i)[j] = sum;
             }
@@ -294,8 +280,6 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         if (top_blob.empty())
             return -100;
 
-        std::vector<int> indexes(4);
-
         for (int i = 0; i < top_blob.c; i++)
         {
             indexes[0] = i;
@@ -308,20 +292,7 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                 {
                     indexes[2] = k;
 
-                    float sum = 0.f;
-
-                    for (int l = 0; l < dim_sizes[3]; l++)
-                    {
-                        indexes[3] = l;
-
-                        float v = 1.f;
-                        for (size_t b = 0; b < bottom_blobs.size(); b++)
-                        {
-                            v *= get_indexed_value(bottom_blobs[b], lhs_tokens[b], indexes);
-                        }
-
-                        sum += v;
-                    }
+                    float sum = sum_dim(dim_sizes, 3, bottom_blobs, lhs_tokens, indexes);
 
                     top_blob.channel(i).row(j)[k] = sum;
                 }
@@ -335,8 +306,6 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
         top_blob.create(dim_sizes[3], dim_sizes[2], dim_sizes[1], dim_sizes[0], elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
-
-        std::vector<int> indexes(4);
 
         for (int i = 0; i < top_blob.c; i++)
         {
@@ -354,17 +323,7 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
                     {
                         indexes[3] = l;
 
-                        float sum = 0.f;
-
-                        {
-                            float v = 1.f;
-                            for (size_t b = 0; b < bottom_blobs.size(); b++)
-                            {
-                                v *= get_indexed_value(bottom_blobs[b], lhs_tokens[b], indexes);
-                            }
-
-                            sum += v;
-                        }
+                        float sum = sum_dim(dim_sizes, 4, bottom_blobs, lhs_tokens, indexes);
 
                         top_blob.channel(i).depth(j).row(k)[l] = sum;
                     }

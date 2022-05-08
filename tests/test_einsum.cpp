@@ -152,6 +152,15 @@ static int test_einsum_10()
     return test_einsum(a, "ik,jkl,il->ij");
 }
 
+static int test_einsum_11()
+{
+    std::vector<ncnn::Mat> a(2);
+    a[0] = RandomMat(7, 5, 3, 2);
+    a[1] = RandomMat(5, 17, 3, 11);
+
+    return test_einsum(a, "imnj,kmln->ijkl");
+}
+
 int main()
 {
     SRAND(7767517);
@@ -167,5 +176,6 @@ int main()
            || test_einsum_7()
            || test_einsum_8()
            || test_einsum_9()
-           || test_einsum_10();
+           || test_einsum_10()
+           || test_einsum_11();
 }
