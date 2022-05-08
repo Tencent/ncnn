@@ -31,7 +31,7 @@ int Einsum::load_param(const ParamDict& pd)
 
     // restore to lexical equation string
     std::string equation;
-    equation.resize(equation_len + 1);
+    equation.resize(equation_len);
     char* equation_ptr = (char*)equation.c_str();
     {
         const int* p = equation_mat;
@@ -39,6 +39,14 @@ int Einsum::load_param(const ParamDict& pd)
         {
             equation_ptr[i] = p[i];
         }
+    }
+
+    if (equation == "ii")
+    {
+        // trace
+        rhs_token = "ii";
+
+        return 0;
     }
 
     // split into tokens
@@ -77,8 +85,6 @@ int Einsum::load_param(const ParamDict& pd)
             }
         }
 
-        NCNN_LOGE("rhs_token = %s", rhs_token.c_str());
-
         for (size_t i = 0; i < lhs_tokens.size(); i++)
         {
             const std::string& lhs_token = lhs_tokens[i];
@@ -90,8 +96,6 @@ int Einsum::load_param(const ParamDict& pd)
                     return -1;
                 }
             }
-
-            NCNN_LOGE("lhs_token = %s", lhs_token.c_str());
         }
     }
 
@@ -143,6 +147,32 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
 
     size_t elemsize = bottom_blobs[0].elemsize;
 
+    if (lhs_tokens.empty() && rhs_token == "ii")
+    {
+        // assert bottom_blobs.size() == 1
+        // assert bottom_blob.dims == 2
+        // assert bottom_blob.w == bottom_blob.h
+
+        // trace
+        Mat& top_blob = top_blobs[0];
+        top_blob.create(1, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        const Mat& bottom_blob = bottom_blobs[0];
+
+        float sum = 0.f;
+
+        for (int i = 0; i < bottom_blob.h; i++)
+        {
+            sum += bottom_blob.row(i)[i];
+        }
+
+        top_blob[0] = sum;
+
+        return 0;
+    }
+
     // resolve dimension sizes
     std::vector<int> dim_sizes(4, 1); // map ijkl -> dim_size
 
@@ -170,8 +200,6 @@ int Einsum::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_
             dim_sizes[dim_sizes_index] = dim_size;
         }
     }
-
-    NCNN_LOGE("dim_sizes = %d %d %d %d", dim_sizes[0], dim_sizes[1], dim_sizes[2], dim_sizes[3]);
 
     const int out_dims = (int)rhs_token.size();
 

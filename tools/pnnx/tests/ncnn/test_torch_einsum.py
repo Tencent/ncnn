@@ -21,29 +21,98 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y0, y1, z0, z1, w, r0, r1, r2):
-        ## identity
-        #a0 = torch.einsum('i', y0)
-        #a1 = torch.einsum('ij', x)
-        #a2 = torch.einsum('ijk', z0)
-        #a3 = torch.einsum('ijkl', w)
+        # identity
+        a0 = torch.einsum('i', y0)
+        a1 = torch.einsum('ij', x)
+        a2 = torch.einsum('ijk', z0)
+        a3 = torch.einsum('ijkl', w)
 
-        ## permute
-        #b0 = torch.einsum('ij->ji', x)
-        #b1 = torch.einsum('ba', x)
-        #b2 = torch.einsum('jki', z0)
-        #b3 = torch.einsum('ijk->kij', z0)
-        #b4 = torch.einsum('kjil', w)
-        #b5 = torch.einsum('ijkl->jilk', w)
-        #b6 = torch.einsum('...ij->...ji', w)
-        #b7 = torch.einsum('abc...->cba...', w)
+        # permute
+        b0 = torch.einsum('ij->ji', x)
+        b1 = torch.einsum('ba', x)
+        b2 = torch.einsum('jki', z0)
+        b3 = torch.einsum('ijk->kij', z0)
+        b4 = torch.einsum('kjil', w)
+        b5 = torch.einsum('ijkl->jilk', w)
+        b6 = torch.einsum('...ij->...ji', w)
+        b7 = torch.einsum('abc...->cba...', w)
+
+        b8 = torch.einsum('ikj', z0)
+        b9 = torch.einsum('jik', z0)
+        b10 = torch.einsum('kij', z0)
+        b11 = torch.einsum('jki', z0)
+        b12 = torch.einsum('kji', z0)
+
+        b13 = torch.einsum('ijlk', w)
+        b14 = torch.einsum('ikjl', w)
+        b15 = torch.einsum('iljk', w)
+        b16 = torch.einsum('iklj', w)
+        b17 = torch.einsum('ilkj', w)
+        b18 = torch.einsum('jikl', w)
+        b19 = torch.einsum('jilk', w)
+        b20 = torch.einsum('kijl', w)
+        b21 = torch.einsum('lijk', w)
+        b22 = torch.einsum('kilj', w)
+        b23 = torch.einsum('likj', w)
+        b24 = torch.einsum('jkil', w)
+        b25 = torch.einsum('jlik', w)
+        b26 = torch.einsum('kjil', w)
+        b27 = torch.einsum('ljik', w)
+        b28 = torch.einsum('klij', w)
+        b29 = torch.einsum('lkij', w)
+        b30 = torch.einsum('jkli', w)
+        b31 = torch.einsum('jlki', w)
+        b32 = torch.einsum('kjli', w)
+        b33 = torch.einsum('ljki', w)
+        b34 = torch.einsum('klji', w)
+        b35 = torch.einsum('lkji', w)
+
+        b0 = F.relu(b0)
+        b1 = F.relu(b1)
+        b2 = F.relu(b2)
+        b3 = F.relu(b3)
+        b4 = F.relu(b4)
+        b5 = F.relu(b5)
+        b6 = F.relu(b6)
+        b7 = F.relu(b7)
+
+        b8 = F.relu(b8)
+        b9 = F.relu(b9)
+        b10 = F.relu(b10)
+        b11 = F.relu(b11)
+        b12 = F.relu(b12)
+
+        b13 = F.relu(b13)
+        b14 = F.relu(b14)
+        b15 = F.relu(b15)
+        b16 = F.relu(b16)
+        b17 = F.relu(b17)
+        b18 = F.relu(b18)
+        b19 = F.relu(b19)
+        b20 = F.relu(b20)
+        b21 = F.relu(b21)
+        b22 = F.relu(b22)
+        b23 = F.relu(b23)
+        b24 = F.relu(b24)
+        b25 = F.relu(b25)
+        b26 = F.relu(b26)
+        b27 = F.relu(b27)
+        b28 = F.relu(b28)
+        b29 = F.relu(b29)
+        b30 = F.relu(b30)
+        b31 = F.relu(b31)
+        b32 = F.relu(b32)
+        b33 = F.relu(b33)
+        b34 = F.relu(b34)
+        b35 = F.relu(b35)
 
         ## trace
-        #c = torch.einsum('ii', x)
+        c = torch.einsum('ii', x)
 
-        ## sum
-        #d0 = torch.einsum('ij->', x)
-        #d1 = torch.einsum('xyz->', z0)
-        #d2 = torch.einsum('ijkl->', w)
+        # sum
+        d0 = torch.einsum('ij->', x)
+        d1 = torch.einsum('xyz->', z0)
+        d2 = torch.einsum('ijkl->', w)
 
         # sum axis
         e0 = torch.einsum('ij->i', x)
@@ -79,8 +148,8 @@ class Model(nn.Module):
 
         # bilinear
         i = torch.einsum('bn,anm,bm->ba', r0, r1, r2)
-        #return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
-        return e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
+
+        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31, b32, b33, b34, b35, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
 
 def test():
     net = Model()

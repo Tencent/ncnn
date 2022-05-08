@@ -37,6 +37,36 @@ class Model(nn.Module):
         b6 = torch.einsum('...ij->...ji', w)
         b7 = torch.einsum('abc...->cba...', w)
 
+        b8 = torch.einsum('ikj', z0)
+        b9 = torch.einsum('jik', z0)
+        b10 = torch.einsum('kij', z0)
+        b11 = torch.einsum('jki', z0)
+        b12 = torch.einsum('kji', z0)
+
+        b13 = torch.einsum('ijlk', w)
+        b14 = torch.einsum('ikjl', w)
+        b15 = torch.einsum('iljk', w)
+        b16 = torch.einsum('iklj', w)
+        b17 = torch.einsum('ilkj', w)
+        b18 = torch.einsum('jikl', w)
+        b19 = torch.einsum('jilk', w)
+        b20 = torch.einsum('kijl', w)
+        b21 = torch.einsum('lijk', w)
+        b22 = torch.einsum('kilj', w)
+        b23 = torch.einsum('likj', w)
+        b24 = torch.einsum('jkil', w)
+        b25 = torch.einsum('jlik', w)
+        b26 = torch.einsum('kjil', w)
+        b27 = torch.einsum('ljik', w)
+        b28 = torch.einsum('klij', w)
+        b29 = torch.einsum('lkij', w)
+        b30 = torch.einsum('jkli', w)
+        b31 = torch.einsum('jlki', w)
+        b32 = torch.einsum('kjli', w)
+        b33 = torch.einsum('ljki', w)
+        b34 = torch.einsum('klji', w)
+        b35 = torch.einsum('lkji', w)
+
         # trace
         c = torch.einsum('ii', x)
 
@@ -79,7 +109,8 @@ class Model(nn.Module):
 
         # bilinear
         i = torch.einsum('bn,anm,bm->ba', r0, r1, r2)
-        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
+
+        return a0, a1, a2, a3, b0, b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11, b12, b13, b14, b15, b16, b17, b18, b19, b20, b21, b22, b23, b24, b25, b26, b27, b28, b29, b30, b31, b32, b33, b34, b35, c, d0, d1, d2, e0, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, f0, f1, g, h0, h1, i
 
 def test():
     net = Model()
