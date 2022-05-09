@@ -8,9 +8,14 @@ env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
   EMSCRIPTEN_VERSION: 2.0.8
 
+permissions:
+  contents: read
+
 jobs:
 
   setup:
+    permissions:
+      contents: none
     runs-on: ubuntu-latest
     outputs:
       VERSION: ${{ steps.get_version.outputs.VERSION }}
@@ -2016,6 +2021,8 @@ jobs:
         path: ${{ env.PACKAGENAME }}.zip
 
   release:
+    permissions:
+      contents: write  # for actions/create-release to create a release
     needs: [setup, full-source, ubuntu-1804, ubuntu-1804-shared, ubuntu-2004, ubuntu-2004-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared]
     runs-on: ubuntu-latest
     steps:

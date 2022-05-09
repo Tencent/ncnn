@@ -180,8 +180,8 @@ static void im2col_sgemm_pack4to1_bf16s_neon(const Mat& bottom_im2col, Mat& top_
 #else
                     asm volatile(
                         "pld        [%0, #256]          \n"
-                        "vld4.u16   {d0-d3}, [%0 :128]  \n"
-                        "vst1.u16   {d0-d3}, [%1 :128]! \n"
+                        "vld4.u16   {d0-d3}, [%0 :64]   \n"
+                        "vst1.u16   {d0-d3}, [%1 :64]!  \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
                         : "0"(img0),

@@ -23,6 +23,9 @@ on:
 concurrency:
   group: windows-x86-cpu-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   windows-x86:
     name: ${{ matrix.vs-version }}

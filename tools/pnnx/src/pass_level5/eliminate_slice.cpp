@@ -62,6 +62,8 @@ void eliminate_slice(Graph& graph)
                     op->inputs[0]->consumers.push_back(x);
                 }
 
+                op->inputs[0]->name = slice_out->name;
+
                 slice_out->producer = 0;
                 slice_out->consumers.clear();
 

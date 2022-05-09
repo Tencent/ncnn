@@ -53,6 +53,8 @@ void eliminate_dropout(Graph& graph)
                 op->inputs[0]->consumers.push_back(x);
             }
 
+            op->inputs[0]->name = dropout_out->name;
+
             dropout_out->producer = 0;
             dropout_out->consumers.clear();
 

@@ -68,6 +68,8 @@ void eliminate_noop_pad(Graph& graph)
                 op->inputs[0]->consumers.push_back(x);
             }
 
+            op->inputs[0]->name = pad_out->name;
+
             pad_out->producer = 0;
             pad_out->consumers.clear();
 

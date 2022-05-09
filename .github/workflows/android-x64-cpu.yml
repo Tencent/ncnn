@@ -21,6 +21,9 @@ on:
 concurrency:
   group: android-x64-cpu-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   android-x86_64:
     runs-on: ubuntu-latest

@@ -56,7 +56,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
 #else
                     asm volatile(
                         "pld        [%0, #128]          \n"
-                        "vld1.u16   {d0-d1}, [%0 :64]   \n"
+                        "vld1.u16   {d0-d1}, [%0]       \n"
                         "vst1.u16   {d0-d1}, [%1 :64]!  \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
@@ -104,7 +104,7 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
 #else
                     asm volatile(
                         "pld        [%0, #64]       \n"
-                        "vld1.u16   {d0}, [%0 :64]  \n"
+                        "vld1.u16   {d0}, [%0]      \n"
                         "vst1.u16   {d0}, [%1 :64]! \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
@@ -931,18 +931,18 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "pld        [%4, #256]          \n"
                 "vld1.u16   {d12-d15}, [%4 :64]! \n"
 
-                "vshll.u16  q4, d12, #16    \n"
-                "vshll.u16  q5, d13, #16    \n"
-                "vshll.u16  q6, d14, #16    \n"
-                "vshll.u16  q7, d15, #16    \n"
+                "vshll.u16  q4, d12, #16        \n"
+                "vshll.u16  q5, d13, #16        \n"
+                "vshll.u16  q6, d14, #16        \n"
+                "vshll.u16  q7, d15, #16        \n"
 
                 "pld        [%5, #256]          \n"
                 "vld1.u16   {d4-d7}, [%5 :64]!  \n"
 
-                "vshll.u16  q0, d4, #16     \n"
-                "vshll.u16  q1, d5, #16     \n"
-                "vshll.u16  q2, d6, #16     \n"
-                "vshll.u16  q3, d7, #16     \n"
+                "vshll.u16  q0, d4, #16         \n"
+                "vshll.u16  q1, d5, #16         \n"
+                "vshll.u16  q2, d6, #16         \n"
+                "vshll.u16  q3, d7, #16         \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q10, q4, d0[1]      \n"
@@ -967,10 +967,10 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "pld        [%4, #256]          \n"
                 "vld1.u16   {d12-d15}, [%4 :64]! \n"
 
-                "vshll.u16  q4, d12, #16    \n"
-                "vshll.u16  q5, d13, #16    \n"
-                "vshll.u16  q6, d14, #16    \n"
-                "vshll.u16  q7, d15, #16    \n"
+                "vshll.u16  q4, d12, #16        \n"
+                "vshll.u16  q5, d13, #16        \n"
+                "vshll.u16  q6, d14, #16        \n"
+                "vshll.u16  q7, d15, #16        \n"
 
                 "vmla.f32   q8, q4, d4[0]       \n"
                 "vmla.f32   q10, q4, d4[1]      \n"
@@ -1324,18 +1324,18 @@ static void im2col_sgemm_bf16s_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "pld        [%4, #256]          \n"
                 "vld1.u16   {d12-d15}, [%4 :64]! \n"
 
-                "vshll.u16  q4, d12, #16    \n"
-                "vshll.u16  q5, d13, #16    \n"
-                "vshll.u16  q6, d14, #16    \n"
-                "vshll.u16  q7, d15, #16    \n"
+                "vshll.u16  q4, d12, #16        \n"
+                "vshll.u16  q5, d13, #16        \n"
+                "vshll.u16  q6, d14, #16        \n"
+                "vshll.u16  q7, d15, #16        \n"
 
                 "pld        [%5, #256]          \n"
                 "vld1.u16   {d4-d7}, [%5 :64]!  \n"
 
-                "vshll.u16  q0, d4, #16     \n"
-                "vshll.u16  q1, d5, #16     \n"
-                "vshll.u16  q2, d6, #16     \n"
-                "vshll.u16  q3, d7, #16     \n"
+                "vshll.u16  q0, d4, #16         \n"
+                "vshll.u16  q1, d5, #16         \n"
+                "vshll.u16  q2, d6, #16         \n"
+                "vshll.u16  q3, d7, #16         \n"
 
                 "vmla.f32   q8, q4, d0[0]       \n"
                 "vmla.f32   q9, q4, d0[1]       \n"

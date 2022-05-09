@@ -25,6 +25,9 @@ on:
 concurrency:
   group: linux-loongarch64-cpu-gcc-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-gcc-loongarch64:
     runs-on: ubuntu-20.04

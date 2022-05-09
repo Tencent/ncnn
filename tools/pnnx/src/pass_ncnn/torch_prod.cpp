@@ -88,7 +88,7 @@ pnnx.Output             output      1 0 out
         return "prod";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["0"] = 6;
         op->params["1"] = 1;

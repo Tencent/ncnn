@@ -20,8 +20,10 @@
 #include "pass_level3/expand_quantization_modules.h"
 #include "pass_level3/fuse_cat_stack_tensors.h"
 #include "pass_level3/fuse_chunk_split_unbind_unpack.h"
+#include "pass_level3/fuse_einsum_operands.h"
 #include "pass_level3/fuse_expression.h"
 #include "pass_level3/fuse_index_expression.h"
+#include "pass_level3/fuse_multiheadattention_unpack.h"
 #include "pass_level3/fuse_rnn_unpack.h"
 #include "pass_level3/rename_F_conv_transposend.h"
 #include "pass_level3/rename_F_convmode.h"
@@ -40,6 +42,10 @@ void pass_level3(Graph& g)
     fuse_cat_stack_tensors(g);
 
     fuse_chunk_split_unbind_unpack(g);
+
+    fuse_einsum_operands(g);
+
+    fuse_multiheadattention_unpack(g);
 
     fuse_rnn_unpack(g);
 

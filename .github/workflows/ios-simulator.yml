@@ -25,6 +25,9 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+permissions:
+  contents: read
+
 jobs:
   ios-iphone-simulator:
     runs-on: macos-latest

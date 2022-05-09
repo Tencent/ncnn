@@ -60,6 +60,8 @@ void eliminate_view_reshape(Graph& graph)
                 op->inputs[0]->consumers.push_back(x);
             }
 
+            op->inputs[0]->name = op_out->name;
+
             op_out->producer = 0;
             op_out->consumers.clear();
 

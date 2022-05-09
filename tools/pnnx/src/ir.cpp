@@ -1635,6 +1635,19 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 fprintf(pyfp, ", dim=%d", op->params.at("dim").i);
                 fprintf(pyfp, ")\n");
             }
+            else if (op->type == "torch.einsum")
+            {
+                // einsum
+                fprintf(pyfp, "v_%s = %s(", sanitize_identifier(op->outputs[0]->name).c_str(), op->type.c_str());
+
+                fprintf(pyfp, "\'%s\'", op->params.at("equation").s.c_str());
+
+                for (size_t i = 0; i < op->inputs.size(); i++)
+                {
+                    fprintf(pyfp, ", v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                }
+                fprintf(pyfp, ")\n");
+            }
             else if (op->type == "prim::TupleUnpack")
             {
                 for (size_t i = 0; i < op->outputs.size(); i++)
@@ -1692,6 +1705,38 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 if (op->inputs.size() == 3)
                 {
                     fprintf(pyfp, ", (v_%s, v_%s)", sanitize_identifier(op->inputs[1]->name).c_str(), sanitize_identifier(op->inputs[2]->name).c_str());
+                }
+                fprintf(pyfp, ")\n");
+            }
+            else if (op->type == "nn.MultiheadAttention")
+            {
+                if (op->outputs.size() == 1)
+                {
+                    fprintf(pyfp, "v_%s, _", sanitize_identifier(op->outputs[0]->name).c_str());
+                }
+                else
+                {
+                    for (size_t i = 0; i < op->outputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
+                        if (i + 1 != op->outputs.size())
+                            fprintf(pyfp, ", ");
+                    }
+                }
+                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                if (op->inputs.size() == 1)
+                {
+                    const char* in0 = sanitize_identifier(op->inputs[0]->name).c_str();
+                    fprintf(pyfp, "v_%s, v_%s, v_%s", in0, in0, in0);
+                }
+                else
+                {
+                    for (size_t i = 0; i < op->inputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                        if (i + 1 != op->inputs.size())
+                            fprintf(pyfp, ", ");
+                    }
                 }
                 fprintf(pyfp, ")\n");
             }

@@ -471,40 +471,17 @@ struct unary_op_tan
 #if __SSE2__
     __m128 operator()(const __m128& x) const
     {
-        //TODO sse optimize
-        float tmp[4];
-        _mm_storeu_ps(tmp, x);
-        tmp[0] = tan(tmp[0]);
-        tmp[1] = tan(tmp[1]);
-        tmp[2] = tan(tmp[2]);
-        tmp[3] = tan(tmp[3]);
-        return _mm_loadu_ps(tmp);
+        return tan_ps(x);
     }
 #if __AVX__
     __m256 operator()(const __m256& x) const
     {
-        //TODO avx optimize
-        float tmp[8];
-        _mm256_storeu_ps(tmp, x);
-        tmp[0] = tan(tmp[0]);
-        tmp[1] = tan(tmp[1]);
-        tmp[2] = tan(tmp[2]);
-        tmp[3] = tan(tmp[3]);
-        tmp[4] = tan(tmp[4]);
-        tmp[5] = tan(tmp[5]);
-        tmp[6] = tan(tmp[6]);
-        tmp[7] = tan(tmp[7]);
-        return _mm256_loadu_ps(tmp);
+        return tan256_ps(x);
     }
 #if __AVX512F__
     __m512 operator()(const __m512& x) const
     {
-        //TODO avx512 optimize
-        float tmp[16];
-        _mm512_storeu_ps(tmp, x);
-        for (int i = 0; i < 16; i++)
-            tmp[i] = tan(tmp[i]);
-        return _mm512_loadu_ps(tmp);
+        return tan512_ps(x);
     }
 #endif // __AVX512F__
 #endif // __AVX__
