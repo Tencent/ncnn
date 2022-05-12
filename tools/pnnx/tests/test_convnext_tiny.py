@@ -41,6 +41,12 @@ def test():
     import test_convnext_tiny_pnnx
     b = test_convnext_tiny_pnnx.test_inference()
 
+    # pnnx to torchscript
+    test_convnext_tiny_pnnx.export_torchscript()
+
+    # pnnx to onnx
+    test_convnext_tiny_pnnx.export_onnx()
+
     return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":

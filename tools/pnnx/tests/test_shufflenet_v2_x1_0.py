@@ -36,6 +36,13 @@ def test():
     import test_shufflenet_v2_x1_0_pnnx
     b = test_shufflenet_v2_x1_0_pnnx.test_inference()
 
+    # pnnx to torchscript
+    test_shufflenet_v2_x1_0_pnnx.export_torchscript()
+
+    # pnnx to onnx
+    # error due to channel_shuffle is not onnx-exportable
+    #test_shufflenet_v2_x1_0_pnnx.export_onnx()
+
     return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
