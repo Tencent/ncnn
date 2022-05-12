@@ -40,7 +40,8 @@ def test():
     test_mobilenet_v3_small_pnnx.export_torchscript()
 
     # pnnx to onnx
-    test_mobilenet_v3_small_pnnx.export_onnx()
+    # hardsigmoid not exportable
+    #test_mobilenet_v3_small_pnnx.export_onnx()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 
