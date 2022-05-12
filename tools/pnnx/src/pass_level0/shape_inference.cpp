@@ -23,10 +23,12 @@ namespace pnnx {
 
 static bool value_link_input(const torch::jit::Value* v, const std::vector<torch::jit::Value*>& inputs, bool ignore_aten_size)
 {
-    if (ignore_aten_size && v->node()->kind().toDisplayString() == std::string("aten::size"))
+    if (ignore_aten_size)
     {
         // any intermediate shape is constant with static input shape
-        return false;
+        std::string optype = v->node()->kind().toDisplayString();
+        if (optype == "aten::size" || optype == "aten::new_empty" || optype == "aten::new_ones" || optype == "aten::new_zeros")
+            return false;
     }
 
     for (auto x : inputs)

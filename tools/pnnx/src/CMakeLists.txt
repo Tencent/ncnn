@@ -170,6 +170,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_expand_as.cpp
     pass_level2/Tensor_index.cpp
     pass_level2/Tensor_new_empty.cpp
+    pass_level2/Tensor_new_ones.cpp
+    pass_level2/Tensor_new_zeros.cpp
     pass_level2/Tensor_repeat.cpp
     pass_level2/Tensor_reshape.cpp
     pass_level2/Tensor_select.cpp
