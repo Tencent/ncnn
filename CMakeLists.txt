@@ -396,6 +396,13 @@ if(NCNN_VULKAN)
 endif()
 
 add_subdirectory(src)
+if(APPLE)
+    set_target_properties(ncnn PROPERTIES
+    FRAMEWORK TRUE
+    FRAMEWORK_VERSION A # Version "A" is macOS convention
+    MACOSX_FRAMEWORK_IDENTIFIER com.tencent.ncnn
+    )
+endif(APPLE)
 if(NCNN_BUILD_BENCHMARK)
     add_subdirectory(benchmark)
 endif()

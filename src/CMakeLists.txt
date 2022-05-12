@@ -440,35 +440,68 @@ if(NCNN_INSTALL_SDK)
         LIBRARY DESTINATION lib
         RUNTIME DESTINATION bin
     )
-    install(FILES
-        allocator.h
-        benchmark.h
-        blob.h
-        c_api.h
-        command.h
-        cpu.h
-        datareader.h
-        gpu.h
-        layer.h
-        layer_shader_type.h
-        layer_type.h
-        mat.h
-        modelbin.h
-        net.h
-        option.h
-        paramdict.h
-        pipeline.h
-        pipelinecache.h
-        simpleocv.h
-        simpleomp.h
-        simplestl.h
-        vulkan_header_fix.h
-        ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
-        ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
-        ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
-        ${CMAKE_CURRENT_BINARY_DIR}/platform.h
-        DESTINATION include/ncnn
-    )
+    if(APPLE)
+        install(FILES
+            allocator.h
+            benchmark.h
+            blob.h
+            c_api.h
+            command.h
+            cpu.h
+            datareader.h
+            gpu.h
+            layer.h
+            layer_shader_type.h
+            layer_type.h
+            mat.h
+            modelbin.h
+            net.h
+            option.h
+            paramdict.h
+            pipeline.h
+            pipelinecache.h
+            simpleocv.h
+            simpleomp.h
+            simplestl.h
+            vulkan_header_fix.h
+            ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
+            ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
+            ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
+            ${CMAKE_CURRENT_BINARY_DIR}/platform.h
+            DESTINATION lib/ncnn.framework/Header
+        )
+    else()
+        install(FILES
+            allocator.h
+            benchmark.h
+            blob.h
+            c_api.h
+            command.h
+            cpu.h
+            datareader.h
+            gpu.h
+            layer.h
+            layer_shader_type.h
+            layer_type.h
+            mat.h
+            modelbin.h
+            net.h
+            option.h
+            paramdict.h
+            pipeline.h
+            pipelinecache.h
+            simpleocv.h
+            simpleomp.h
+            simplestl.h
+            vulkan_header_fix.h
+            ${CMAKE_CURRENT_BINARY_DIR}/ncnn_export.h
+            ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
+            ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
+            ${CMAKE_CURRENT_BINARY_DIR}/platform.h
+            DESTINATION include/ncnn
+        )
+    endif(APPLE)
+    
     install(EXPORT ncnn DESTINATION lib/cmake/ncnn)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in ncnnConfig.cmake @ONLY)
     install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION lib/cmake/ncnn)
