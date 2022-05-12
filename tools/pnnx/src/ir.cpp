@@ -2067,7 +2067,7 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             fprintf(pyfp, ")");
         }
 
-        fprintf(pyfp, ", \"%s.onnx\", export_params=True, opset_version=11", pypath.c_str());
+        fprintf(pyfp, ", \"%s.onnx\", export_params=True, opset_version=13", pypath.c_str());
 
         fprintf(pyfp, ", input_names=[");
         {
