@@ -40,8 +40,7 @@ def test():
     test_shufflenet_v2_x1_0_pnnx.export_torchscript()
 
     # pnnx to onnx
-    # error due to channel_shuffle is not onnx-exportable
-    #test_shufflenet_v2_x1_0_pnnx.export_onnx()
+    test_shufflenet_v2_x1_0_pnnx.export_onnx()
 
     return torch.allclose(a, b, 1e-4, 1e-4)
 
