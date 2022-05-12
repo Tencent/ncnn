@@ -36,12 +36,6 @@ def test():
     import test_mobilenet_v2_pnnx
     b = test_mobilenet_v2_pnnx.test_inference()
 
-    # pnnx to torchscript
-    test_mobilenet_v2_pnnx.export_torchscript()
-
-    # pnnx to onnx
-    test_mobilenet_v2_pnnx.export_onnx()
-
     return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":

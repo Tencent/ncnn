@@ -36,12 +36,6 @@ def test():
     import test_squeezenet1_1_pnnx
     b = test_squeezenet1_1_pnnx.test_inference()
 
-    # pnnx to torchscript
-    test_squeezenet1_1_pnnx.export_torchscript()
-
-    # pnnx to onnx
-    test_squeezenet1_1_pnnx.export_onnx()
-
     return torch.equal(a, b)
 
 if __name__ == "__main__":

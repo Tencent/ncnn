@@ -36,12 +36,6 @@ def test():
     import test_resnet18_pnnx
     b = test_resnet18_pnnx.test_inference()
 
-    # pnnx to torchscript
-    test_resnet18_pnnx.export_torchscript()
-
-    # pnnx to onnx
-    test_resnet18_pnnx.export_onnx()
-
     return torch.allclose(a, b, 1e-4, 1e-4)
 
 if __name__ == "__main__":
