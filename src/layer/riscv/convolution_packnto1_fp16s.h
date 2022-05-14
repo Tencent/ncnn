@@ -93,7 +93,7 @@ static void convolution_packnto1_fp16s_rvv(const Mat& bottom_blob, Mat& top_blob
                     sum += ss[i];
                 }
 #else
-                sum = vfmv_f_s_f32m1_f32(vfredsum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
 #endif
 
                 sum = activation_ss(sum, activation_type, activation_params);
@@ -178,7 +178,7 @@ static void convolution_packnto1_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blo
                     }
                 }
 
-                sum = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
+                sum = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
 
                 sum = activation_ss(sum, activation_type, activation_params);
 
