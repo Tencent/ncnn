@@ -169,6 +169,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
     pass_level2/Tensor_index.cpp
+    pass_level2/Tensor_masked_fill.cpp
     pass_level2/Tensor_new_empty.cpp
     pass_level2/Tensor_new_ones.cpp
     pass_level2/Tensor_new_zeros.cpp
@@ -184,6 +185,10 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_argmax.cpp
     pass_level2/torch_argmin.cpp
     pass_level2/torch_bmm.cpp
+    pass_level2/torch_bitwise_not.cpp
+    pass_level2/torch_bitwise_and.cpp
+    pass_level2/torch_bitwise_or.cpp
+    pass_level2/torch_bitwise_xor.cpp
     pass_level2/torch_cat.cpp
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
@@ -192,15 +197,22 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
     pass_level2/torch_empty_like.cpp
+    pass_level2/torch_eq.cpp
     pass_level2/torch_flatten.cpp
     pass_level2/torch_flip.cpp
     pass_level2/torch_full.cpp
     pass_level2/torch_full_like.cpp
+    pass_level2/torch_gather.cpp
+    pass_level2/torch_ge.cpp
+    pass_level2/torch_gt.cpp
+    pass_level2/torch_le.cpp
     pass_level2/torch_logsumexp.cpp
+    pass_level2/torch_lt.cpp
     pass_level2/torch_matmul.cpp
     pass_level2/torch_max.cpp
     pass_level2/torch_mean.cpp
     pass_level2/torch_min.cpp
+    pass_level2/torch_ne.cpp
     pass_level2/torch_norm.cpp
     pass_level2/torch_normal.cpp
     pass_level2/torch_ones.cpp

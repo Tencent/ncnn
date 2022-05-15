@@ -28,7 +28,7 @@ prim::Constant          op_0        0 1 dtype value=*
 prim::Constant          op_1        0 1 layout value=*
 prim::Constant          op_2        0 1 device value=*
 prim::Constant          op_3        0 1 requires_grad value=*
-aten::arange            op_5        5 1 end dtype layout device requires_grad out
+aten::arange            op_4        5 1 end dtype layout device requires_grad out
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -40,5 +40,32 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_arange, 20)
+
+class torch_arange_1 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+9 8
+pnnx.Input              input_0     0 1 start
+pnnx.Input              input_1     0 1 end
+pnnx.Input              input_2     0 1 step
+prim::Constant          op_0        0 1 dtype value=*
+prim::Constant          op_1        0 1 layout value=*
+prim::Constant          op_2        0 1 device value=*
+prim::Constant          op_3        0 1 requires_grad value=*
+aten::arange            op_4        7 1 start end step dtype layout device requires_grad out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "torch.arange";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(torch_arange_1, 20)
 
 } // namespace pnnx

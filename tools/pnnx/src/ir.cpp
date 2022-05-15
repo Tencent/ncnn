@@ -1049,7 +1049,7 @@ static std::string expand_expression(const Operator* op)
             std::string r = a + ".pow(" + b + ")";
             exprstack.push(r);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "and" || t == "or" || t == "xor")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";
@@ -1057,6 +1057,9 @@ static std::string expand_expression(const Operator* op)
             if (t == "mul") binaryop = "*";
             if (t == "div") binaryop = "/";
             if (t == "floor_divide") binaryop = "//";
+            if (t == "and") binaryop = "&";
+            if (t == "or") binaryop = "|";
+            if (t == "xor") binaryop = "^";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -1771,6 +1774,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 if (op->type.substr(0, 7) == "Tensor.")
                 {
                     fprintf(pyfp, " = v_%s.%s(", sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
+
+                    for (size_t i = 1; i < op->inputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                    }
                 }
                 else
                 {
