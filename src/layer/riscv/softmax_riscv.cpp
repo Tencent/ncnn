@@ -71,7 +71,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             _p = vfsub_vf_f32m8(_p, max, vl);
             _p = exp_ps(_p, vl);
-            _sum = vfredsum_vs_f32m8_f32m1(_sum, _p, /*scalar*/ _sum, vl);
+            _sum = vfredusum_vs_f32m8_f32m1(_sum, _p, /*scalar*/ _sum, vl);
 
             vse32_v_f32m8(ptr_vol, _p, vl);
             sum = vfmv_f_s_f32m1_f32(_sum);
@@ -224,7 +224,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 vfloat32m1_t _s = vfmv_s_f_f32m1(vundefined_f32m1(), s, vl);
 
                 _p = exp_ps(vfsub_vf_f32m8(_p, m, vl), vl);
-                _s = vfredsum_vs_f32m8_f32m1(_s, _p, _s, vl);
+                _s = vfredusum_vs_f32m8_f32m1(_s, _p, _s, vl);
 
                 vse32_v_f32m8(ptr2, _p, vl);
                 s = vfmv_f_s_f32m1_f32(_s);
@@ -482,7 +482,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     vfloat32m1_t _scalar_sum = vfmv_s_f_f32m1(vundefined_f32m1(), sum, vl);
 
                     _p = exp_ps(vfsub_vf_f32m8(_p, max, vl), vl);
-                    _scalar_sum = vfredsum_vs_f32m8_f32m1(_scalar_sum, _p, _scalar_sum, vl);
+                    _scalar_sum = vfredusum_vs_f32m8_f32m1(_scalar_sum, _p, _scalar_sum, vl);
 
                     vse32_v_f32m8(ptr_2, _p, vl);
                     sum = vfmv_f_s_f32m1_f32(_scalar_sum);
