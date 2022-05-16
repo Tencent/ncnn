@@ -52,6 +52,15 @@
 #include <android/bitmap.h>
 #include <jni.h>
 #endif // __ANDROID_API__ >= 9
+#if __APPLE__
+#if __IOS__
+#import <UIKit/UIKit.h>
+#else
+#import <Cocoa/Cocoa.h>
+#endif // __IOS__
+#import <CoreMedia/CoreMedia.h>
+#import <CoreVideo/CoreVideo.h>
+#endif // __APPLE__
 #endif // NCNN_PLATFORM_API
 #endif // NCNN_PIXEL
 
@@ -301,6 +310,25 @@ public:
     // convenient export to android Bitmap and resize to the android Bitmap size
     void to_android_bitmap(JNIEnv* env, jobject bitmap, int type_from) const;
 #endif // __ANDROID_API__ >= 9
+#if __APPLE__
+    // convenient construct from apple SampleBuffer, mat is RGBA
+    static Mat from_apple_samplebuffer(CMSampleBufferRef samplebuffer);
+    // convenient construct from apple PixelBuffer, mat is RGBA
+    static Mat from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer);
+    // convenient export to apple PixelBuffer 
+    void to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer);
+#if __IOS__
+    // convenient construct from apple UIImage
+    static Mat from_apple_image(UIImage* image);
+    // convenient export to apple UIImage
+    UIImage* to_apple_image();
+#else
+    // convenient construct from apple NSImage
+    static Mat from_apple_image(NSImage* image);
+    // convenient export to apple NSImage
+    NSImage* to_apple_image();
+#endif // __IOS__
+#endif // __APPLE__
 #endif // NCNN_PLATFORM_API
 #endif // NCNN_PIXEL
 
