@@ -21,7 +21,7 @@ namespace ncnn {
             size_t h = CVPixelBufferGetHeight(pixelbuffer);
             size_t w = CVPixelBufferGetWidth(pixelbuffer);
             vImage_Buffer a;
-            if (vImageBuffer_Init(&a, 2160, 3840, 32, kvImageNoFlags)!=kvImageNoError) {
+            if (vImageBuffer_Init(&a, h, w, 32, kvImageNoFlags)!=kvImageNoError) {
                 return Mat();
             }
             vImage_YpCbCrPixelRange pixelRange = {16, 128, 265, 240, 235, 16, 240, 16};
@@ -72,6 +72,65 @@ namespace ncnn {
             return mat;
         }else{
             return Mat();
+        }
+    }
+    int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer){
+        if(dims == 1){
+            return -1;
+        }else if(dims == 2){
+            if(elempack==4){
+                if(elemsize==1){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,data,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else if(elemsize==2){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_64RGBAHalf,data,w*8,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else if(elemsize==4){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,data,w*16,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else{
+                    return -1;
+                }
+            }else if(elempack==1){
+                if(elemsize==1){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent8,data,w,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else if(elemsize==2){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent16Half,data,w*2,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else if(elemsize==4){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent32Float,data,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else{
+                    return -1;
+                }
+            }else{
+                return -1;
+            }
+        }else if(dims==3){
+            if(elempack!=1){
+                return -1;
+            }
+        }else{
+            return -1;
         }
     }
 }
