@@ -4504,7 +4504,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Gelu")
         {
-            fprintf(pp, " 0=0");
+            fprintf(pp, " 0=1");
         }
         else if (op == "Gemm")
         {
