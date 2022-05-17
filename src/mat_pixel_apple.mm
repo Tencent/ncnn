@@ -1,5 +1,6 @@
 #if __APPLE__
 #include "mat.h"
+#import <simd/simd.h>
 #import <Accelerate/Accelerate.h>
 
 namespace ncnn {
@@ -80,19 +81,25 @@ namespace ncnn {
         }else if(dims == 2){
             if(elempack==4){
                 if(elemsize==1){
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,data,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                    void* p = malloc(w*h*4);
+                    memcpy(p,data,w*h*4);
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,p,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
                         return 0;
                     }else{
                         return -1;
                     }
                 }else if(elemsize==2){
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_64RGBAHalf,data,w*8,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                    void* p = malloc(w*h*8);
+                    memcpy(p,data,w*h*8);
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_64RGBAHalf,p,w*8,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
                         return 0;
                     }else{
                         return -1;
                     }
                 }else if(elemsize==4){
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,data,w*16,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                    void* p = malloc(w*h*16);
+                    memcpy(p,data,w*h*16);
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,p,w*16,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
                         return 0;
                     }else{
                         return -1;
@@ -102,19 +109,25 @@ namespace ncnn {
                 }
             }else if(elempack==1){
                 if(elemsize==1){
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent8,data,w,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                    void* p = malloc(w*h);
+                    memcpy(p,data,w*h);
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent8,p,w,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
                         return 0;
                     }else{
                         return -1;
                     }
                 }else if(elemsize==2){
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent16Half,data,w*2,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                    void* p = malloc(w*h*2);
+                    memcpy(p,data,w*h*2);
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent16Half,p,w*2,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
                         return 0;
                     }else{
                         return -1;
                     }
                 }else if(elemsize==4){
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent32Float,data,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                    void* p = malloc(w*h*4);
+                    memcpy(p,data,w*h*4);
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent32Float,p,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
                         return 0;
                     }else{
                         return -1;
@@ -127,6 +140,99 @@ namespace ncnn {
             }
         }else if(dims==3){
             if(elempack!=1){
+                return -1;
+            }
+            if(c!=1){
+                return -1;
+            }
+            if(d==3){
+                Mat m2 = depth_range(1,1);
+                Mat m3 = depth_range(2,1);
+                if(elemsize==1){
+                    void* datas = malloc(w*h*4);
+                    int pth =get_cpu_count();
+                    uchar* dp =(uchar*)data;
+                    uchar* dp2 =(uchar*)m2.data;
+                    uchar* dp3 =(uchar*)m3.data;
+                    #pragma omp parallel for num_threads(pth)
+                    for(ushort i = 0;i<h;i++){
+                        for(ushort j = 0;j<w;j+=2){
+                            simd_uchar8 p ={dp+i*w+j,dp2+i*w+j,dp3+i*w+j,255,dp+i*w+j+1,dp2+i*w+j+1,dp3+i*w+j+1,255}
+                            memcpy(datas+i*w+j,p,8);
+                        }
+                    }
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else if(elemsize==4){
+                    void* datas = malloc(w*h*16);
+                    int pth =get_cpu_count();
+                    ushort* dp =(ushort*)data;
+                    ushort* dp2 =(ushort*)m2.data;
+                    ushort* dp3 =(ushort*)m3.data;
+                    #pragma omp parallel for num_threads(pth)
+                    for(ushort i = 0;i<h;i++){
+                        for(ushort j = 0;j<w;j+=1){
+                            simd_ushort4 p ={dp+i*w+j,dp2+i*w+j,dp3+i*w+j,1}
+                            memcpy(datas+i*w+j,p,32);
+                        }
+                    }
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,datas,w*16,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else{
+                    return -1;
+                }
+            }else if(d==4){
+                Mat m2 = depth_range(1,1);
+                Mat m3 = depth_range(2,1);
+                Mat m4 = depth_range(3,1);
+                if(elemsize==1){
+                    void* datas = malloc(w*h*4);
+                    int pth =get_cpu_count();
+                    uchar* dp =(uchar*)data;
+                    uchar* dp2 =(uchar*)m2.data;
+                    uchar* dp3 =(uchar*)m3.data;
+                    uchar* dp4 =(uchar*)m4.data;
+                    #pragma omp parallel for num_threads(pth)
+                    for(ushort i = 0;i<h;i++){
+                        for(ushort j = 0;j<w;j+=2){
+                            simd_uchar8 p ={dp+i*w+j,dp2+i*w+j,dp3+i*w+j,dp4+i*w+j,dp+i*w+j+1,dp2+i*w+j+1,dp3+i*w+j+1,dp4+i*w+j+1}
+                            memcpy(datas+i*w+j,p,8);
+                        }
+                    }
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else if(elemsize==4){
+                    void* datas = malloc(w*h*16);
+                    int pth =get_cpu_count();
+                    ushort* dp =(ushort*)data;
+                    ushort* dp2 =(ushort*)m2.data;
+                    ushort* dp3 =(ushort*)m3.data;
+                    ushort* dp4 =(ushort*)m4.data;
+                    #pragma omp parallel for num_threads(pth)
+                    for(ushort i = 0;i<h;i++){
+                        for(ushort j = 0;j<w;j+=1){
+                            simd_ushort4 p ={dp+i*w+j,dp2+i*w+j,dp3+i*w+j,dp4+i*w+j}
+                            memcpy(datas+i*w+j,p,32);
+                        }
+                    }
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,datas,w*16,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
+                        return 0;
+                    }else{
+                        return -1;
+                    }
+                }else{
+                    return -1;
+                }
+            }else{
                 return -1;
             }
         }else{
