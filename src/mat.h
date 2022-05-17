@@ -315,7 +315,7 @@ public:
     static Mat from_apple_samplebuffer(CMSampleBufferRef samplebuffer);
     // convenient construct from apple PixelBuffer, mat is RGBA
     static Mat from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer);
-    // convenient export to apple PixelBuffer 
+    // convenient export to apple PixelBuffer
     int to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer);
 #if __IOS__
     // convenient construct from apple UIImage
