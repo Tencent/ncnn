@@ -119,8 +119,8 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 _s0 = (v4u32)__msa_srl_w((v4i32)_s0, _v13);
                 _s1 = (v4u32)__msa_srl_w((v4i32)_s1, _v13);
 
-                v8u16 _e = (v8u16)__msa_pckev_h((v8i16)_e0, (v8i16)_e1);
-                v8u16 _s = (v8u16)__msa_pckev_h((v8i16)_s0, (v8i16)_s1);
+                v8u16 _e = (v8u16)__msa_pckev_h((v8i16)_e1, (v8i16)_e0);
+                v8u16 _s = (v8u16)__msa_pckev_h((v8i16)_s1, (v8i16)_s0);
 
                 v8u16 _p = (v8u16)__msa_or_v((v16u8)_e, (v16u8)_s);
 
