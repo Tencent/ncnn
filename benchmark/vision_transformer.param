@@ -16,7 +16,7 @@ BinaryOp         Add_22                   2 1 input.1_splitncnn_0 onnx::Add_174 
 Split            splitncnn_2              1 2 input.4 input.4_splitncnn_0 input.4_splitncnn_1
 LayerNorm        LayerNorm_23             1 1 input.4_splitncnn_1 mmdeploy::Gemm_176 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_24                  1 1 mmdeploy::Gemm_176 mmdeploy::Gelu_177 0=3072 1=1 2=2359296
-GELU             Gelu_25                  1 1 mmdeploy::Gelu_177 input.8 0=0
+GELU             Gelu_25                  1 1 mmdeploy::Gelu_177 input.8 0=1
 InnerProduct     Gemm_26                  1 1 input.8 input.12 0=768 1=1 2=2359296
 BinaryOp         Add_27                   2 1 input.4_splitncnn_0 input.12 input.16 0=0
 Split            splitncnn_3              1 2 input.16 input.16_splitncnn_0 input.16_splitncnn_1
@@ -27,7 +27,7 @@ BinaryOp         Add_38                   2 1 input.16_splitncnn_0 onnx::Add_190
 Split            splitncnn_5              1 2 input.20 input.20_splitncnn_0 input.20_splitncnn_1
 LayerNorm        LayerNorm_39             1 1 input.20_splitncnn_1 mmdeploy::Gemm_192 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_40                  1 1 mmdeploy::Gemm_192 mmdeploy::Gelu_193 0=3072 1=1 2=2359296
-GELU             Gelu_41                  1 1 mmdeploy::Gelu_193 input.24 0=0
+GELU             Gelu_41                  1 1 mmdeploy::Gelu_193 input.24 0=1
 InnerProduct     Gemm_42                  1 1 input.24 input.28 0=768 1=1 2=2359296
 BinaryOp         Add_43                   2 1 input.20_splitncnn_0 input.28 input.32 0=0
 Split            splitncnn_6              1 2 input.32 input.32_splitncnn_0 input.32_splitncnn_1
@@ -38,7 +38,7 @@ BinaryOp         Add_54                   2 1 input.32_splitncnn_0 onnx::Add_206
 Split            splitncnn_8              1 2 input.36 input.36_splitncnn_0 input.36_splitncnn_1
 LayerNorm        LayerNorm_55             1 1 input.36_splitncnn_1 mmdeploy::Gemm_208 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_56                  1 1 mmdeploy::Gemm_208 mmdeploy::Gelu_209 0=3072 1=1 2=2359296
-GELU             Gelu_57                  1 1 mmdeploy::Gelu_209 input.40 0=0
+GELU             Gelu_57                  1 1 mmdeploy::Gelu_209 input.40 0=1
 InnerProduct     Gemm_58                  1 1 input.40 input.44 0=768 1=1 2=2359296
 BinaryOp         Add_59                   2 1 input.36_splitncnn_0 input.44 input.48 0=0
 Split            splitncnn_9              1 2 input.48 input.48_splitncnn_0 input.48_splitncnn_1
@@ -49,7 +49,7 @@ BinaryOp         Add_70                   2 1 input.48_splitncnn_0 onnx::Add_222
 Split            splitncnn_11             1 2 input.52 input.52_splitncnn_0 input.52_splitncnn_1
 LayerNorm        LayerNorm_71             1 1 input.52_splitncnn_1 mmdeploy::Gemm_224 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_72                  1 1 mmdeploy::Gemm_224 mmdeploy::Gelu_225 0=3072 1=1 2=2359296
-GELU             Gelu_73                  1 1 mmdeploy::Gelu_225 input.56 0=0
+GELU             Gelu_73                  1 1 mmdeploy::Gelu_225 input.56 0=1
 InnerProduct     Gemm_74                  1 1 input.56 input.60 0=768 1=1 2=2359296
 BinaryOp         Add_75                   2 1 input.52_splitncnn_0 input.60 input.64 0=0
 Split            splitncnn_12             1 2 input.64 input.64_splitncnn_0 input.64_splitncnn_1
@@ -60,7 +60,7 @@ BinaryOp         Add_86                   2 1 input.64_splitncnn_0 onnx::Add_238
 Split            splitncnn_14             1 2 input.68 input.68_splitncnn_0 input.68_splitncnn_1
 LayerNorm        LayerNorm_87             1 1 input.68_splitncnn_1 mmdeploy::Gemm_240 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_88                  1 1 mmdeploy::Gemm_240 mmdeploy::Gelu_241 0=3072 1=1 2=2359296
-GELU             Gelu_89                  1 1 mmdeploy::Gelu_241 input.72 0=0
+GELU             Gelu_89                  1 1 mmdeploy::Gelu_241 input.72 0=1
 InnerProduct     Gemm_90                  1 1 input.72 input.76 0=768 1=1 2=2359296
 BinaryOp         Add_91                   2 1 input.68_splitncnn_0 input.76 input.80 0=0
 Split            splitncnn_15             1 2 input.80 input.80_splitncnn_0 input.80_splitncnn_1
@@ -71,7 +71,7 @@ BinaryOp         Add_102                  2 1 input.80_splitncnn_0 onnx::Add_254
 Split            splitncnn_17             1 2 input.84 input.84_splitncnn_0 input.84_splitncnn_1
 LayerNorm        LayerNorm_103            1 1 input.84_splitncnn_1 mmdeploy::Gemm_256 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_104                 1 1 mmdeploy::Gemm_256 mmdeploy::Gelu_257 0=3072 1=1 2=2359296
-GELU             Gelu_105                 1 1 mmdeploy::Gelu_257 input.88 0=0
+GELU             Gelu_105                 1 1 mmdeploy::Gelu_257 input.88 0=1
 InnerProduct     Gemm_106                 1 1 input.88 input.92 0=768 1=1 2=2359296
 BinaryOp         Add_107                  2 1 input.84_splitncnn_0 input.92 input.96 0=0
 Split            splitncnn_18             1 2 input.96 input.96_splitncnn_0 input.96_splitncnn_1
@@ -82,7 +82,7 @@ BinaryOp         Add_118                  2 1 input.96_splitncnn_0 onnx::Add_270
 Split            splitncnn_20             1 2 input.100 input.100_splitncnn_0 input.100_splitncnn_1
 LayerNorm        LayerNorm_119            1 1 input.100_splitncnn_1 mmdeploy::Gemm_272 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_120                 1 1 mmdeploy::Gemm_272 mmdeploy::Gelu_273 0=3072 1=1 2=2359296
-GELU             Gelu_121                 1 1 mmdeploy::Gelu_273 input.104 0=0
+GELU             Gelu_121                 1 1 mmdeploy::Gelu_273 input.104 0=1
 InnerProduct     Gemm_122                 1 1 input.104 input.108 0=768 1=1 2=2359296
 BinaryOp         Add_123                  2 1 input.100_splitncnn_0 input.108 input.112 0=0
 Split            splitncnn_21             1 2 input.112 input.112_splitncnn_0 input.112_splitncnn_1
@@ -93,7 +93,7 @@ BinaryOp         Add_134                  2 1 input.112_splitncnn_0 onnx::Add_28
 Split            splitncnn_23             1 2 input.116 input.116_splitncnn_0 input.116_splitncnn_1
 LayerNorm        LayerNorm_135            1 1 input.116_splitncnn_1 mmdeploy::Gemm_288 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_136                 1 1 mmdeploy::Gemm_288 mmdeploy::Gelu_289 0=3072 1=1 2=2359296
-GELU             Gelu_137                 1 1 mmdeploy::Gelu_289 input.120 0=0
+GELU             Gelu_137                 1 1 mmdeploy::Gelu_289 input.120 0=1
 InnerProduct     Gemm_138                 1 1 input.120 input.124 0=768 1=1 2=2359296
 BinaryOp         Add_139                  2 1 input.116_splitncnn_0 input.124 input.128 0=0
 Split            splitncnn_24             1 2 input.128 input.128_splitncnn_0 input.128_splitncnn_1
@@ -104,7 +104,7 @@ BinaryOp         Add_150                  2 1 input.128_splitncnn_0 onnx::Add_30
 Split            splitncnn_26             1 2 input.132 input.132_splitncnn_0 input.132_splitncnn_1
 LayerNorm        LayerNorm_151            1 1 input.132_splitncnn_1 mmdeploy::Gemm_304 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_152                 1 1 mmdeploy::Gemm_304 mmdeploy::Gelu_305 0=3072 1=1 2=2359296
-GELU             Gelu_153                 1 1 mmdeploy::Gelu_305 input.136 0=0
+GELU             Gelu_153                 1 1 mmdeploy::Gelu_305 input.136 0=1
 InnerProduct     Gemm_154                 1 1 input.136 input.140 0=768 1=1 2=2359296
 BinaryOp         Add_155                  2 1 input.132_splitncnn_0 input.140 input.144 0=0
 Split            splitncnn_27             1 2 input.144 input.144_splitncnn_0 input.144_splitncnn_1
@@ -115,7 +115,7 @@ BinaryOp         Add_166                  2 1 input.144_splitncnn_0 onnx::Add_31
 Split            splitncnn_29             1 2 input.148 input.148_splitncnn_0 input.148_splitncnn_1
 LayerNorm        LayerNorm_167            1 1 input.148_splitncnn_1 mmdeploy::Gemm_320 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_168                 1 1 mmdeploy::Gemm_320 mmdeploy::Gelu_321 0=3072 1=1 2=2359296
-GELU             Gelu_169                 1 1 mmdeploy::Gelu_321 input.152 0=0
+GELU             Gelu_169                 1 1 mmdeploy::Gelu_321 input.152 0=1
 InnerProduct     Gemm_170                 1 1 input.152 input.156 0=768 1=1 2=2359296
 BinaryOp         Add_171                  2 1 input.148_splitncnn_0 input.156 input.160 0=0
 Split            splitncnn_30             1 2 input.160 input.160_splitncnn_0 input.160_splitncnn_1
@@ -126,7 +126,7 @@ BinaryOp         Add_182                  2 1 input.160_splitncnn_0 onnx::Add_33
 Split            splitncnn_32             1 2 input.164 input.164_splitncnn_0 input.164_splitncnn_1
 LayerNorm        LayerNorm_183            1 1 input.164_splitncnn_1 mmdeploy::Gemm_336 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_184                 1 1 mmdeploy::Gemm_336 mmdeploy::Gelu_337 0=3072 1=1 2=2359296
-GELU             Gelu_185                 1 1 mmdeploy::Gelu_337 input.168 0=0
+GELU             Gelu_185                 1 1 mmdeploy::Gelu_337 input.168 0=1
 InnerProduct     Gemm_186                 1 1 input.168 input.172 0=768 1=1 2=2359296
 BinaryOp         Add_187                  2 1 input.164_splitncnn_0 input.172 input.176 0=0
 Split            splitncnn_33             1 2 input.176 input.176_splitncnn_0 input.176_splitncnn_1
@@ -137,7 +137,7 @@ BinaryOp         Add_198                  2 1 input.176_splitncnn_0 onnx::Add_35
 Split            splitncnn_35             1 2 input.180 input.180_splitncnn_0 input.180_splitncnn_1
 LayerNorm        LayerNorm_199            1 1 input.180_splitncnn_1 mmdeploy::Gemm_352 0=768 1=1.000000e-06 2=1
 InnerProduct     Gemm_200                 1 1 mmdeploy::Gemm_352 mmdeploy::Gelu_353 0=3072 1=1 2=2359296
-GELU             Gelu_201                 1 1 mmdeploy::Gelu_353 input.184 0=0
+GELU             Gelu_201                 1 1 mmdeploy::Gelu_353 input.184 0=1
 InnerProduct     Gemm_202                 1 1 input.184 input.188 0=768 1=1 2=2359296
 BinaryOp         Add_203                  2 1 input.180_splitncnn_0 input.188 input.192 0=0
 LayerNorm        LayerNorm_204            1 1 input.192 onnx::Gather_357 0=768 1=1.000000e-06 2=1
