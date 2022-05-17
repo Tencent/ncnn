@@ -3702,7 +3702,7 @@ int main(int argc, char** argv)
         }
         else if (op == "Gelu")
         {
-            fprintf(pp, "%-16s", "Gelu");
+            fprintf(pp, "%-16s", "GELU");
         }
         else if (op == "Gemm")
         {
