@@ -190,9 +190,32 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         sum = bias_data[p];
                     }
 
-                    for (int i = 0; i < num_input; i++)
+                    int i = 0;
+#if __ARM_NEON
+                    float32x4_t _sum = vdupq_n_f32(0.f);
+                    for (; i + 3 < num_input; i += 4)
                     {
-                        sum += m[i] * kptr[i];
+                        float32x4_t _val = vld1q_f32(m);
+                        float32x4_t _k = vld1q_f32(kptr);
+                        _sum = vmlaq_f32(_sum, _val, _k);
+
+                        m += 4;
+                        kptr += 4;
+                    }
+#if __aarch64__
+                    sum += vaddvq_f32(_sum);
+#else
+                    float32x2_t _ss = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
+                    _ss = vpadd_f32(_ss, _ss);
+                    sum += vget_lane_f32(_ss, 0);
+#endif
+#endif // __ARM_NEON
+                    for (; i < num_input; i++)
+                    {
+                        sum += *m * *kptr;
+
+                        m += 1;
+                        kptr += 1;
                     }
 
                     sum = activation_ss(sum, activation_type, activation_params);
@@ -658,7 +681,10 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int i = 0; i < num_input; i++)
                     {
-                        sum += (float)m[i] * (float)kptr[i];
+                        sum += (float)*m * (float)*kptr;
+
+                        m += 1;
+                        kptr += 1;
                     }
 
                     sum = activation_ss(sum, activation_type, activation_params);
@@ -1202,7 +1228,10 @@ int InnerProduct_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int i = 0; i < num_input; i++)
                     {
-                        sum += (float)(m[i] * kptr[i]);
+                        sum += (float)(*m * *kptr);
+
+                        m += 1;
+                        kptr += 1;
                     }
 
                     sum = activation_ss(sum, activation_type, activation_params);
@@ -1742,7 +1771,10 @@ int InnerProduct_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const
 
                     for (int i = 0; i < num_input; i++)
                     {
-                        sum += bfloat16_to_float32(m[i]) * bfloat16_to_float32(kptr[i]);
+                        sum += bfloat16_to_float32(*m) * bfloat16_to_float32(*kptr);
+
+                        m += 1;
+                        kptr += 1;
                     }
 
                     sum = activation_ss(sum, activation_type, activation_params);
