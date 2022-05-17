@@ -1,7 +1,9 @@
 #if __APPLE__
 #include "mat.h"
+#include "cpu.h"
 #import <simd/simd.h>
 #import <Accelerate/Accelerate.h>
+#import <CoreGraphics/CoreGraphics.h>
 
 namespace ncnn {
     Mat Mat::from_apple_samplebuffer(CMSampleBufferRef samplebuffer){
@@ -30,10 +32,9 @@ namespace ncnn {
             if (vImageConvert_YpCbCrToARGB_GenerateConversion(kvImage_YpCbCrToARGBMatrix_ITU_R_601_4,&pixelRange,&matrix,kvImage420Yp8_CbCr8,kvImageARGB8888,0)!=kvImageNoError) {
                 return Mat();
             }
-            uint8_t[] map = [1,2,3,0]; 
+            uint8_t map[4] = {1,2,3,0}; 
             Mat mat = Mat(w,h,1,4);
             if(CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != COREVIDEO_TRUE){
-                free(a);
                 mat.release();
                 return Mat();
             }
@@ -42,19 +43,14 @@ namespace ncnn {
             vImage_Buffer yBuff = {yData,h,w,w};
             vImage_Buffer uvBuff = {uvData,h/2,w/2,w};
             if(vImageConvert_420Yp8_CbCr8ToARGB8888(&yBuff,&uvBuff,&a,&matrix,map,1,kvImageNoFlags)!=kvImageNoError) {
-                free(a);
                 mat.release();
-                free(yBuff);
-                free(uvBuff);
+                CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
                 return Mat();
             }
             memcpy(mat.data,a.data,w*h*4);
             if(CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != COREVIDEO_TRUE){
-                free(a);
                 mat.release();
                 CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
-                free(yBuff);
-                free(uvBuff);
                 return Mat();
             }
             return mat;
@@ -149,16 +145,16 @@ namespace ncnn {
                 Mat m2 = depth_range(1,1);
                 Mat m3 = depth_range(2,1);
                 if(elemsize==1){
-                    void* datas = malloc(w*h*4);
+                    char* datas = (char*)malloc(w*h*4);
                     int pth =get_cpu_count();
-                    uchar* dp =(uchar*)data;
-                    uchar* dp2 =(uchar*)m2.data;
-                    uchar* dp3 =(uchar*)m3.data;
+                    char* dp =(char*)data;
+                    char* dp2 =(char*)m2.data;
+                    char* dp3 =(char*)m3.data;
                     #pragma omp parallel for num_threads(pth)
                     for(ushort i = 0;i<h;i++){
                         for(ushort j = 0;j<w;j+=2){
-                            simd_uchar8 p ={dp+i*w+j,dp2+i*w+j,dp3+i*w+j,255,dp+i*w+j+1,dp2+i*w+j+1,dp3+i*w+j+1,255}
-                            memcpy(datas+i*w+j,p,8);
+                            simd_char8 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],255,dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],255};
+                            memcpy((datas+i*w+j),&p,8);
                         }
                     }
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
@@ -167,7 +163,7 @@ namespace ncnn {
                         return -1;
                     }
                 }else if(elemsize==4){
-                    void* datas = malloc(w*h*16);
+                    char* datas = (char*)malloc(w*h*16);
                     int pth =get_cpu_count();
                     ushort* dp =(ushort*)data;
                     ushort* dp2 =(ushort*)m2.data;
@@ -175,8 +171,8 @@ namespace ncnn {
                     #pragma omp parallel for num_threads(pth)
                     for(ushort i = 0;i<h;i++){
                         for(ushort j = 0;j<w;j+=1){
-                            simd_ushort4 p ={dp+i*w+j,dp2+i*w+j,dp3+i*w+j,1}
-                            memcpy(datas+i*w+j,p,32);
+                            simd_ushort4 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],1};
+                            memcpy(datas+(i*w+j)*4,&p,32);
                         }
                     }
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,datas,w*16,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
@@ -192,17 +188,17 @@ namespace ncnn {
                 Mat m3 = depth_range(2,1);
                 Mat m4 = depth_range(3,1);
                 if(elemsize==1){
-                    void* datas = malloc(w*h*4);
+                    char* datas = (char*)malloc(w*h*4);
                     int pth =get_cpu_count();
-                    uchar* dp =(uchar*)data;
-                    uchar* dp2 =(uchar*)m2.data;
-                    uchar* dp3 =(uchar*)m3.data;
-                    uchar* dp4 =(uchar*)m4.data;
+                    char* dp =(char*)data;
+                    char* dp2 =(char*)m2.data;
+                    char* dp3 =(char*)m3.data;
+                    char* dp4 =(char*)m4.data;
                     #pragma omp parallel for num_threads(pth)
                     for(ushort i = 0;i<h;i++){
                         for(ushort j = 0;j<w;j+=2){
-                            simd_uchar8 p ={dp+i*w+j,dp2+i*w+j,dp3+i*w+j,dp4+i*w+j,dp+i*w+j+1,dp2+i*w+j+1,dp3+i*w+j+1,dp4+i*w+j+1}
-                            memcpy(datas+i*w+j,p,8);
+                            simd_char8 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j],dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],dp4[i*w+j+1]};
+                            memcpy(datas+i*w+j,&p,8);
                         }
                     }
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
@@ -211,7 +207,7 @@ namespace ncnn {
                         return -1;
                     }
                 }else if(elemsize==4){
-                    void* datas = malloc(w*h*16);
+                    char* datas = (char*)malloc(w*h*16);
                     int pth =get_cpu_count();
                     ushort* dp =(ushort*)data;
                     ushort* dp2 =(ushort*)m2.data;
@@ -220,8 +216,8 @@ namespace ncnn {
                     #pragma omp parallel for num_threads(pth)
                     for(ushort i = 0;i<h;i++){
                         for(ushort j = 0;j<w;j+=1){
-                            simd_ushort4 p ={dp+i*w+j,dp2+i*w+j,dp3+i*w+j,dp4+i*w+j}
-                            memcpy(datas+i*w+j,p,32);
+                            simd_ushort4 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j]};
+                            memcpy(datas+(i*w+j)*4,&p,32);
                         }
                     }
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,datas,w*16,NULL,NULL,NULL,pixelbuffer)==COREVIDEO_TRUE){
@@ -239,5 +235,368 @@ namespace ncnn {
             return -1;
         }
     }
+#if __IOS__ 
+Mat Mat::from_apple_image(UIImage* image){
+    CGImageRef refImage = [image CGImage];
+    CGSize size = image.size;
+    
+    int bitsPerComponent = 8;
+    int bytePerPixel = 4;
+
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    
+    int pixelCount = size.width * size.height;
+    
+    uint8_t *rgba = (uint8_t *)malloc(pixelCount * bytePerPixel);
+    
+    CGContextRef context = CGBitmapContextCreate(rgba,
+                                                 size.width,
+                                                 size.height,
+                                                 bitsPerComponent,
+                                                 bytePerPixel * size.width,
+                                                 colorSpace,
+                                                 kCGImageAlphaNoneSkipLast);
+    
+    CGContextDrawImage(context, CGRectMake(0, 0, size.width, size.height), refImage);
+    CGContextRelease(context);
+    Mat mat = Mat(size.width,size.height,1,4);
+    memcpy(mat.data,rgba,pixelCount * bytePerPixel);
+    free(rgba);
+    return mat;
+}
+UIImage* Mat::to_apple_image(){
+    int bytes_per_pix = 4;
+
+    int bitsPerComponent = 8;
+    
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+
+    void*datas;
+
+    if(dims == 1){
+        return nil;
+    }else if(dims == 2){
+        if(elempack==4){
+            if(elemsize==1){
+                bytes_per_pix = 4;
+                bitsPerComponent = 8;
+            }else if(elemsize==2){
+                bytes_per_pix = 8;
+                bitsPerComponent = 16;
+            }else if(elemsize==4){
+                bytes_per_pix = 16;
+                bitsPerComponent = 32;
+            }else{
+                return nil;
+            }
+            datas = malloc(w*h*bytes_per_pix);
+            memcpy(datas,data,w*h*bytes_per_pix);
+        }else if(elempack==1){
+            if(elemsize==1){
+                bytes_per_pix = 1;
+                bitsPerComponent = 8;
+            }else if(elemsize==2){
+                bytes_per_pix = 2;
+                bitsPerComponent = 16;
+            }else if(elemsize==4){
+                bytes_per_pix = 4;
+                bitsPerComponent = 32;
+            }else{
+                return nil;
+            }
+            datas = malloc(w*h*bytes_per_pix);
+            memcpy(datas,data,w*h*bytes_per_pix);
+        }else{
+            return nil;
+        }
+    }else if(dims==3){
+        if(elempack!=1){
+            return nil;
+        }
+        if(c!=1){
+            return nil;
+        }
+        if(d==3){
+            Mat m2 = depth_range(1,1);
+            Mat m3 = depth_range(2,1);
+            if(elemsize==1){
+                datas = malloc(w*h*4);
+                int pth =get_cpu_count();
+                char* dp =(char*)data;
+                char* dp2 =(char*)m2.data;
+                char* dp3 =(char*)m3.data;
+                #pragma omp parallel for num_threads(pth)
+                for(ushort i = 0;i<h;i++){
+                    for(ushort j = 0;j<w;j+=2){
+                        simd_uchar8 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],255,dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],255};
+                        memcpy((char*)datas+i*w+j,&p,8);
+                    }
+                }
+                bytes_per_pix = 4;
+                bitsPerComponent = 8;
+            }else if(elemsize==4){
+                datas = malloc(w*h*16);
+                int pth =get_cpu_count();
+                ushort* dp =(ushort*)data;
+                ushort* dp2 =(ushort*)m2.data;
+                ushort* dp3 =(ushort*)m3.data;
+                #pragma omp parallel for num_threads(pth)
+                for(ushort i = 0;i<h;i++){
+                    for(ushort j = 0;j<w;j+=1){
+                        simd_ushort4 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],1};
+                        memcpy((char*)datas+(i*w+j)*4,&p,32);
+                    }
+                }
+                bytes_per_pix = 16;
+                bitsPerComponent = 32;
+            }else{
+                return nil;
+            }
+        }else if(d==4){
+            Mat m2 = depth_range(1,1);
+            Mat m3 = depth_range(2,1);
+            Mat m4 = depth_range(3,1);
+            if(elemsize==1){
+                datas = malloc(w*h*4);
+                int pth =get_cpu_count();
+                char* dp =(char*)data;
+                char* dp2 =(char*)m2.data;
+                char* dp3 =(char*)m3.data;
+                char* dp4 =(char*)m4.data;
+                #pragma omp parallel for num_threads(pth)
+                for(ushort i = 0;i<h;i++){
+                    for(ushort j = 0;j<w;j+=2){
+                        simd_uchar8 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j],dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],dp4[i*w+j+1]};
+                        memcpy((char*)datas+i*w+j,&p,8);
+                    }
+                }
+                bytes_per_pix = 4;
+                bitsPerComponent = 8;
+            }else if(elemsize==4){
+                datas = malloc(w*h*16);
+                int pth =get_cpu_count();
+                ushort* dp =(ushort*)data;
+                ushort* dp2 =(ushort*)m2.data;
+                ushort* dp3 =(ushort*)m3.data;
+                ushort* dp4 =(ushort*)m4.data;
+                #pragma omp parallel for num_threads(pth)
+                for(ushort i = 0;i<h;i++){
+                    for(ushort j = 0;j<w;j+=1){
+                        simd_ushort4 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j]};
+                        memcpy((char*)datas+(i*w+j)*4,&p,32);
+                    }
+                }
+                bytes_per_pix = 16;
+                bitsPerComponent = 32;
+            }else{
+                return nil;
+            }
+        }else{
+            return nil;
+        }
+    }else{
+        return nil;
+    }
+    CGContextRef newContext = CGBitmapContextCreate(datas,
+                                                    w, h, bitsPerComponent,
+                                                    w * bytes_per_pix,
+                                                    colorSpace, kCGImageAlphaNoneSkipLast);
+
+    CGImageRef frame = CGBitmapContextCreateImage(newContext);
+    
+    UIImage *image = [UIImage imageWithCGImage:frame];
+    
+    CGImageRelease(frame);
+
+    CGContextRelease(newContext);
+
+    CGColorSpaceRelease(colorSpace);
+
+    free(datas);
+    
+    return image;
+}
+#else
+Mat Mat::from_apple_image(NSImage* image){
+    CGImageRef refImage = [image CGImage];
+    CGSize size = image.size;
+    
+    int bitsPerComponent = 8;
+    int bytePerPixel = 4;
+
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    
+    int pixelCount = size.width * size.height;
+    
+    uint8_t *rgba = (uint8_t *)malloc(pixelCount * bytePerPixel);
+    
+    CGContextRef context = CGBitmapContextCreate(rgba,
+                                                 size.width,
+                                                 size.height,
+                                                 bitsPerComponent,
+                                                 bytePerPixel * size.width,
+                                                 colorSpace,
+                                                 kCGImageAlphaNoneSkipLast);
+    
+    CGContextDrawImage(context, CGRectMake(0, 0, size.width, size.height), refImage);
+    CGContextRelease(context);
+    Mat mat = Mat(size.width,size.height,1,4);
+    memcpy(mat.data,rgba,pixelCount * bytePerPixel);
+    free(rgba);
+    return mat;
+}
+NSImage* Mat::to_apple_image(){
+    int bytes_per_pix = 4;
+
+    int bitsPerComponent = 8;
+    
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+
+    void*datas;
+
+    if(dims == 1){
+        return nil;
+    }else if(dims == 2){
+        if(elempack==4){
+            if(elemsize==1){
+                bytes_per_pix = 4;
+                bitsPerComponent = 8;
+            }else if(elemsize==2){
+                bytes_per_pix = 8;
+                bitsPerComponent = 16;
+            }else if(elemsize==4){
+                bytes_per_pix = 16;
+                bitsPerComponent = 32;
+            }else{
+                return nil;
+            }
+            datas = malloc(w*h*bytes_per_pix);
+            memcpy(datas,data,w*h*bytes_per_pix);
+        }else if(elempack==1){
+            if(elemsize==1){
+                bytes_per_pix = 1;
+                bitsPerComponent = 8;
+            }else if(elemsize==2){
+                bytes_per_pix = 2;
+                bitsPerComponent = 16;
+            }else if(elemsize==4){
+                bytes_per_pix = 4;
+                bitsPerComponent = 32;
+            }else{
+                return nil;
+            }
+            datas = malloc(w*h*bytes_per_pix);
+            memcpy(datas,data,w*h*bytes_per_pix);
+        }else{
+            return nil;
+        }
+    }else if(dims==3){
+        if(elempack!=1){
+            return nil;
+        }
+        if(c!=1){
+            return nil;
+        }
+        if(d==3){
+            Mat m2 = depth_range(1,1);
+            Mat m3 = depth_range(2,1);
+            if(elemsize==1){
+                datas = malloc(w*h*4);
+                int pth =get_cpu_count();
+                char* dp =(char*)data;
+                char* dp2 =(char*)m2.data;
+                char* dp3 =(char*)m3.data;
+                #pragma omp parallel for num_threads(pth)
+                for(ushort i = 0;i<h;i++){
+                    for(ushort j = 0;j<w;j+=2){
+                        simd_uchar8 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],255,dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],255};
+                        memcpy((char*)datas+i*w+j,&p,8);
+                    }
+                }
+                bytes_per_pix = 4;
+                bitsPerComponent = 8;
+            }else if(elemsize==4){
+                datas = malloc(w*h*16);
+                int pth =get_cpu_count();
+                ushort* dp =(ushort*)data;
+                ushort* dp2 =(ushort*)m2.data;
+                ushort* dp3 =(ushort*)m3.data;
+                #pragma omp parallel for num_threads(pth)
+                for(ushort i = 0;i<h;i++){
+                    for(ushort j = 0;j<w;j+=1){
+                        simd_ushort4 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],1};
+                        memcpy((char*)datas+(i*w+j)*4,&p,32);
+                    }
+                }
+                bytes_per_pix = 16;
+                bitsPerComponent = 32;
+            }else{
+                return nil;
+            }
+        }else if(d==4){
+            Mat m2 = depth_range(1,1);
+            Mat m3 = depth_range(2,1);
+            Mat m4 = depth_range(3,1);
+            if(elemsize==1){
+                datas = malloc(w*h*4);
+                int pth =get_cpu_count();
+                char* dp =(char*)data;
+                char* dp2 =(char*)m2.data;
+                char* dp3 =(char*)m3.data;
+                char* dp4 =(char*)m4.data;
+                #pragma omp parallel for num_threads(pth)
+                for(ushort i = 0;i<h;i++){
+                    for(ushort j = 0;j<w;j+=2){
+                        simd_uchar8 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j],dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],dp4[i*w+j+1]};
+                        memcpy((char*)datas+i*w+j,&p,8);
+                    }
+                }
+                bytes_per_pix = 4;
+                bitsPerComponent = 8;
+            }else if(elemsize==4){
+                datas = malloc(w*h*16);
+                int pth =get_cpu_count();
+                ushort* dp =(ushort*)data;
+                ushort* dp2 =(ushort*)m2.data;
+                ushort* dp3 =(ushort*)m3.data;
+                ushort* dp4 =(ushort*)m4.data;
+                #pragma omp parallel for num_threads(pth)
+                for(ushort i = 0;i<h;i++){
+                    for(ushort j = 0;j<w;j+=1){
+                        simd_ushort4 p ={dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j]};
+                        memcpy((char*)datas+(i*w+j)*4,&p,32);
+                    }
+                }
+                bytes_per_pix = 16;
+                bitsPerComponent = 32;
+            }else{
+                return nil;
+            }
+        }else{
+            return nil;
+        }
+    }else{
+        return nil;
+    }
+    CGContextRef newContext = CGBitmapContextCreate(datas,
+                                                    w, h, bitsPerComponent,
+                                                    w * bytes_per_pix,
+                                                    colorSpace, kCGImageAlphaNoneSkipLast);
+
+    CGImageRef frame = CGBitmapContextCreateImage(newContext);
+    
+    NSImage *image = [NSImage imageWithCGImage:frame];
+    
+    CGImageRelease(frame);
+
+    CGContextRelease(newContext);
+
+    CGColorSpaceRelease(colorSpace);
+
+    free(datas);
+    
+    return image;
+}
+#endif
 }
 #endif
