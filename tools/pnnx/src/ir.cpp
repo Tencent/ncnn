@@ -1121,7 +1121,15 @@ static std::string make_slice_expression(const Operator* op)
         fprintf(stderr, "make_slice_expression %s %s\n", op->inputnames[j].c_str(), op->inputs[j]->name.c_str());
     }
 
-    std::vector<int> dims = op->params.at("dims").ai;
+    std::vector<int> dims;
+    if (op->params.find("dims") != op->params.end())
+    {
+        dims = op->params.at("dims").ai;
+    }
+    else
+    {
+        dims.push_back(op->params.at("dim").i);
+    }
 
     std::string r;
 
