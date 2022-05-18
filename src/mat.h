@@ -55,11 +55,11 @@
 #ifdef __OBJC__
 #import <Foundation/Foundation.h>
 #if __APPLE__
-#if __IOS__
+#if TARGET_OS_IOS
 #import <UIKit/UIKit.h>
 #else
 #import <Cocoa/Cocoa.h>
-#endif // __IOS__
+#endif // TARGET_OS_IOS
 #import <CoreMedia/CoreMedia.h>
 #import <CoreVideo/CoreVideo.h>
 #endif // __APPLE__
@@ -321,7 +321,7 @@ public:
     static Mat from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer);
     // convenient export to apple PixelBuffer
     int to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer);
-#if __IOS__
+#if TARGET_OS_IOS
     // convenient construct from apple UIImage
     static Mat from_apple_image(UIImage* image);
     // convenient export to apple UIImage
@@ -331,7 +331,7 @@ public:
     static Mat from_apple_image(NSImage* image);
     // convenient export to apple NSImage
     NSImage* to_apple_image();
-#endif // __IOS__
+#endif // TARGET_OS_IOS
 #endif // __APPLE__
 #endif
 #endif // NCNN_PLATFORM_API

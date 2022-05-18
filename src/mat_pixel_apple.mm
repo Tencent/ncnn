@@ -235,7 +235,7 @@ namespace ncnn {
             return -1;
         }
     }
-#if __IOS__ 
+#if TARGET_OS_IOS 
 Mat Mat::from_apple_image(UIImage* image){
     CGImageRef refImage = [image CGImage];
     CGSize size = image.size;
