@@ -58,7 +58,7 @@
 #if TARGET_OS_IOS
 #import <UIKit/UIKit.h>
 #else
-#import <Cocoa/Cocoa.h>
+#import <AppKit/Appkit.h>
 #endif // TARGET_OS_IOS
 #import <CoreMedia/CoreMedia.h>
 #import <CoreVideo/CoreVideo.h>
