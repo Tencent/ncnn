@@ -18,7 +18,7 @@
 
 int main(){
     @autoreleasepool{
-        NSImage* image = [[NSImage alloc] initByReferencingURL:[NSURL URLWithString:@"https://raw.githubusercontent.com/Tencent/ncnn/master/images/16-ncnn.png"]];
+        NSImage* image = [[NSImage alloc] initByReferencingURL:[NSURL URLWithString:@"https://gitee.com/Tencent/ncnn/raw/master/images/16-ncnn.png"]];
         ncnn::Mat m = ncnn::Mat::from_apple_image(image);
         if(m.w!=16){
             printf("function Mat::from_apple_image test failed %d",m.w);
@@ -27,17 +27,17 @@ int main(){
         CVPixelBufferRef pixelbuffer;
         int ret = m.to_apple_pixelbuffer(&pixelbuffer);
         if(ret != 0){
-            printf("function Mat::to_apple_pixelbuffer test failed");
+            printf("function Mat::to_apple_pixelbuffer test failed %d",ret);
             return ret;
         }
         ncnn::Mat m2 = ncnn::Mat::from_apple_pixelbuffer(pixelbuffer);
         if(m2.w!=16){
-            printf("function Mat::from_apple_image test failed");
+            printf("function Mat::from_apple_pixelbuffer test failed");
             return -1;
         }
         NSImage* img = m2.to_apple_image();
         if(!img){
-            printf("function Mat::from_apple_image test failed");
+            printf("function Mat::to_apple_image test failed");
             return -1;
         }
     }

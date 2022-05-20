@@ -33,8 +33,9 @@ namespace ncnn {
                 return Mat();
             }
             uint8_t map[4] = {1,2,3,0}; 
-            Mat mat = Mat(w,h,1,4);
-            if(CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != COREVIDEO_TRUE){
+            Mat mat = Mat(w,h,(size_t)1,4);
+            mat.dims = 2;
+            if(CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != 0){
                 mat.release();
                 return Mat();
             }
@@ -48,22 +49,23 @@ namespace ncnn {
                 return Mat();
             }
             memcpy(mat.data,a.data,w*h*4);
-            if(CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != COREVIDEO_TRUE){
+            if(CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != 0){
                 mat.release();
                 CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
                 return Mat();
             }
             return mat;
-        }else if(format == kCVPixelFormatType_32RGBA){
+        }else if(format == kCVPixelFormatType_32ARGB){
             size_t h = CVPixelBufferGetHeight(pixelbuffer);
             size_t w = CVPixelBufferGetWidth(pixelbuffer);
-            Mat mat = Mat(w,h,1,4);
-            if(CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != COREVIDEO_TRUE){
+            Mat mat = Mat(w,h,(size_t)1,4);
+            mat.dims = 2;
+            if(CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != 0){
                 return Mat();
             }
             void* pd = CVPixelBufferGetBaseAddress(pixelbuffer);
             memcpy(mat.data,pd,w*h*4);
-            if(CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != COREVIDEO_TRUE){
+            if(CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != 0){
                 return Mat();
             }
             return mat;
@@ -77,25 +79,25 @@ namespace ncnn {
         }else if(dims == 2){
             if(elempack==4){
                 if(elemsize==1){
-                    void* p = malloc(w*h*4);
+                    char* p = (char*)malloc(w*h*4);
                     memcpy(p,data,w*h*4);
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,p,w*4,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if( CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32ARGB,p,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
                     }
                 }else if(elemsize==2){
-                    void* p = malloc(w*h*8);
+                    char* p = (char*)malloc(w*h*8);
                     memcpy(p,data,w*h*8);
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_64RGBAHalf,p,w*8,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_64RGBAHalf,p,w*8,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
                     }
                 }else if(elemsize==4){
-                    void* p = malloc(w*h*16);
+                    char* p = (char*)malloc(w*h*16);
                     memcpy(p,data,w*h*16);
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,p,w*16,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,p,w*16,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
@@ -105,25 +107,25 @@ namespace ncnn {
                 }
             }else if(elempack==1){
                 if(elemsize==1){
-                    void* p = malloc(w*h);
+                    char* p = (char*)malloc(w*h);
                     memcpy(p,data,w*h);
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent8,p,w,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent8,p,w,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
                     }
                 }else if(elemsize==2){
-                    void* p = malloc(w*h*2);
+                    char* p = (char*)malloc(w*h*2);
                     memcpy(p,data,w*h*2);
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent16Half,p,w*2,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent16Half,p,w*2,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
                     }
                 }else if(elemsize==4){
-                    void* p = malloc(w*h*4);
+                    char* p = (char*)malloc(w*h*4);
                     memcpy(p,data,w*h*4);
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent32Float,p,w*4,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent32Float,p,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
@@ -157,7 +159,7 @@ namespace ncnn {
                             memcpy((datas+i*w+j),&p,8);
                         }
                     }
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
@@ -175,7 +177,7 @@ namespace ncnn {
                             memcpy(datas+(i*w+j)*4,&p,32);
                         }
                     }
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,datas,w*16,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,datas,w*16,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
@@ -201,7 +203,7 @@ namespace ncnn {
                             memcpy(datas+i*w+j,&p,8);
                         }
                     }
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
@@ -220,7 +222,7 @@ namespace ncnn {
                             memcpy(datas+(i*w+j)*4,&p,32);
                         }
                     }
-                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,datas,w*16,NULL,NULL,NULL,pixelbuffer)!=COREVIDEO_FALSE){
+                    if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,datas,w*16,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
                     }else{
                         return -1;
@@ -259,7 +261,8 @@ Mat Mat::from_apple_image(UIImage* image){
     
     CGContextDrawImage(context, CGRectMake(0, 0, size.width, size.height), refImage);
     CGContextRelease(context);
-    Mat mat = Mat(size.width,size.height,1,4);
+    Mat mat = Mat(size.width,size.height,(size_t)1,4);
+    mat.dims = 2;
     memcpy(mat.data,rgba,pixelCount * bytePerPixel);
     free(rgba);
     return mat;
@@ -440,7 +443,8 @@ Mat Mat::from_apple_image(NSImage* image){
     
     CGContextDrawImage(context, CGRectMake(0, 0, size.width, size.height), refImage);
     CGContextRelease(context);
-    Mat mat = Mat(size.width,size.height,1,4);
+    Mat mat = Mat(size.width,size.height,(size_t)1,4);
+    mat.dims = 2;
     memcpy(mat.data,rgba,pixelCount * bytePerPixel);
     free(rgba);
     return mat;
@@ -585,7 +589,7 @@ NSImage* Mat::to_apple_image(){
 
     CGImageRef frame = CGBitmapContextCreateImage(newContext);
     
-    NSImage *image = [NSImage imageWithCGImage:frame];
+    NSImage *image = [[NSImage alloc] initWithCGImage:frame size:NSMakeSize(w,h)];
     
     CGImageRelease(frame);
 
