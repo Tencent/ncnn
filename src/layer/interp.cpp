@@ -81,6 +81,14 @@ linear_coeffs(int w, int outw, int* xofs, float* alpha, int align_corner)
             sx = w - 2;
             fx = 1.f;
         }
+        
+		//w=1，sx = -1时，sx=-1了，fix
+		if (sx < 0)
+		{
+			sx = 0;
+			fx = 0.f;
+		}
+		//w=1，sx = -1时，sx=-1了，fix
 
         xofs[dx] = sx;
 
