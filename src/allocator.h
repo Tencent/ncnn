@@ -72,7 +72,11 @@ static NCNN_FORCEINLINE void* fastMalloc(size_t size)
 {
 #if _MSC_VER
     return _aligned_malloc(size, NCNN_MALLOC_ALIGN);
+<<<<<<< HEAD
 #elif (defined(__unix__) && _POSIX_C_SOURCE >= 200112L) || (__ANDROID__ && __ANDROID_API__ >= 17)
+=======
+#elif (defined(__unix__) && _POSIX_C_SOURCE >= 200112L) || defined(__APPLE__) || (__ANDROID__ && __ANDROID_API__ >= 17)
+>>>>>>> aa426130252fa450e97f1494946710177aa39c62
     void* ptr = 0;
     if (posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size + NCNN_MALLOC_OVERREAD))
         ptr = 0;
