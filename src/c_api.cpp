@@ -163,6 +163,40 @@ void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
     ((Option*)opt)->num_threads = num_threads;
 }
 
+bool ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt)
+{
+    return ((Option*)opt)->use_local_pool_allocator;
+}
+
+void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, bool use_local_pool_allocator)
+{
+    ((Option*)opt)->use_local_pool_allocator = use_local_pool_allocator;
+}
+
+void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
+{
+    if (allocator)
+    {
+        ((Option*)opt)->blob_allocator = (Allocator*)allocator->pthis;
+    }
+    else
+    {
+        ((Option*)opt)->blob_allocator = NULL;
+    }
+}
+
+void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator)
+{
+    if (allocator)
+    {
+        ((Option*)opt)->workspace_allocator = (Allocator*)allocator->pthis;
+    }
+    else
+    {
+        ((Option*)opt)->workspace_allocator = NULL;
+    }
+}
+
 int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
 {
 #if NCNN_VULKAN
@@ -1188,6 +1222,11 @@ void ncnn_net_destroy(ncnn_net_t net)
         ud = ud_next;
     }
     free(net);
+}
+
+ncnn_option_t ncnn_net_get_option(ncnn_net_t net)
+{
+    return (ncnn_option_t)(&((Net*)(net->pthis))->opt);
 }
 
 void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt)
