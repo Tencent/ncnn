@@ -651,20 +651,86 @@ void __kmpc_for_static_fini(void* /*loc*/, int32_t gtid)
     (void)gtid;
 }
 #else  // __clang__
+
+static ncnn::ThreadLocalStorage tls_parallel_context;
+
+struct parallel_context
+{
+    int num_threads_to_wait;
+    ncnn::Mutex finish_lock;
+    ncnn::ConditionVariable finish_condition;
+    ncnn::KMPTask* tasks;
+};
+
 void GOMP_parallel_start(void (*fn)(void*), void* data, unsigned num_threads)
 {
     g_kmp_global.try_init();
 
     // NCNN_LOGE("GOMP_parallel_start %p %p %u", fn, data, num_threads);
-    // TODO implememt me for old gcc
-    (void)num_threads;
-    fn(data);
+    if (num_threads == 0)
+    {
+        num_threads = omp_get_max_threads();
+    }
+
+    if (g_kmp_global.kmp_max_threads == 1 || num_threads == 1)
+    {
+        for (unsigned i = 0; i < num_threads; i++)
+        {
+            tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
+            tls_thread_num.set(reinterpret_cast<void*>((size_t)i));
+
+            fn(data);
+        }
+
+        return;
+    }
+
+    parallel_context* pc = new parallel_context;
+
+    tls_parallel_context.set(pc);
+
+    pc->num_threads_to_wait = num_threads - 1;
+
+    pc->tasks = new ncnn::KMPTask[num_threads - 1];
+    for (unsigned i = 0; i < num_threads - 1; i++)
+    {
+        pc->tasks[i].fn = fn;
+        pc->tasks[i].data = data;
+        pc->tasks[i].num_threads = num_threads;
+        pc->tasks[i].thread_num = i + 1;
+        pc->tasks[i].num_threads_to_wait = &pc->num_threads_to_wait;
+        pc->tasks[i].finish_lock = &pc->finish_lock;
+        pc->tasks[i].finish_condition = &pc->finish_condition;
+    }
+
+    // dispatch 1 ~ num_threads
+    g_kmp_global.kmp_task_queue->dispatch(pc->tasks, num_threads - 1);
+
+    // dispatch 0
+    {
+        tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
+        tls_thread_num.set(reinterpret_cast<void*>((size_t)0));
+    }
 }
 
 void GOMP_parallel_end()
 {
     // NCNN_LOGE("GOMP_parallel_end");
-    // TODO implememt me for old gcc
+    parallel_context* pc = (parallel_context*)tls_parallel_context.get();
+    tls_parallel_context.set(0);
+
+    // wait for finished
+    {
+        pc->finish_lock.lock();
+        if (pc->num_threads_to_wait != 0)
+        {
+            pc->finish_condition.wait(pc->finish_lock);
+        }
+        pc->finish_lock.unlock();
+    }
+
+    delete[] pc->tasks;
+    delete pc;
 }
 
 void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned int /*flags*/)
