@@ -650,7 +650,7 @@ void __kmpc_for_static_fini(void* /*loc*/, int32_t gtid)
     // NCNN_LOGE("__kmpc_for_static_fini");
     (void)gtid;
 }
-#else // __clang__
+#else  // __clang__
 void GOMP_parallel_start(void (*fn)(void*), void* data, unsigned num_threads)
 {
     g_kmp_global.try_init();
