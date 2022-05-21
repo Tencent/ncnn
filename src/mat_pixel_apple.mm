@@ -1,6 +1,7 @@
 #if __APPLE__
 #include "mat.h"
 #include "cpu.h"
+#include "allocator.h"
 #import <simd/simd.h>
 #import <Accelerate/Accelerate.h>
 #import <CoreGraphics/CoreGraphics.h>
@@ -79,7 +80,7 @@ namespace ncnn {
         }else if(dims == 2){
             if(elempack==4){
                 if(elemsize==1){
-                    char* p = (char*)calloc(1,w*h*4);
+                    char* p = (char*)fastMalloc(w*h*4);
                     memcpy(p,data,w*h*4);
                     if( CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32ARGB,p,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
@@ -87,7 +88,7 @@ namespace ncnn {
                         return -1;
                     }
                 }else if(elemsize==2){
-                    char* p = (char*)calloc(1,w*h*8);
+                    char* p = (char*)fastMalloc(w*h*8);
                     memcpy(p,data,w*h*8);
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_64RGBAHalf,p,w*8,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
@@ -95,7 +96,7 @@ namespace ncnn {
                         return -1;
                     }
                 }else if(elemsize==4){
-                    char* p = (char*)calloc(1,w*h*16);
+                    char* p = (char*)fastMalloc(w*h*16);
                     memcpy(p,data,w*h*16);
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_128RGBAFloat,p,w*16,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
@@ -107,7 +108,7 @@ namespace ncnn {
                 }
             }else if(elempack==1){
                 if(elemsize==1){
-                    char* p = (char*)calloc(1,w*h);
+                    char* p = (char*)fastMalloc(w*h);
                     memcpy(p,data,w*h);
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent8,p,w,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
@@ -115,7 +116,7 @@ namespace ncnn {
                         return -1;
                     }
                 }else if(elemsize==2){
-                    char* p = (char*)calloc(1,w*h*2);
+                    char* p = (char*)fastMalloc(w*h*2);
                     memcpy(p,data,w*h*2);
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent16Half,p,w*2,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
@@ -123,7 +124,7 @@ namespace ncnn {
                         return -1;
                     }
                 }else if(elemsize==4){
-                    char* p = (char*)calloc(1,w*h*4);
+                    char* p = (char*)fastMalloc(w*h*4);
                     memcpy(p,data,w*h*4);
                     if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent32Float,p,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess){
                         return 0;
@@ -147,7 +148,7 @@ namespace ncnn {
                 Mat m2 = depth_range(1,1);
                 Mat m3 = depth_range(2,1);
                 if(elemsize==1){
-                    uint8_t* datas = (uint8_t*)calloc(1,w*h*4);
+                    uint8_t* datas = (uint8_t*)fastMalloc(w*h*4);
                     int pth =get_cpu_count();
                     uint8_t* dp =(uint8_t*)data;
                     uint8_t* dp2 =(uint8_t*)m2.data;
@@ -165,7 +166,7 @@ namespace ncnn {
                         return -1;
                     }
                 }else if(elemsize==4){
-                    uint8_t* datas = (uint8_t*)calloc(1,w*h*16);
+                    uint8_t* datas = (uint8_t*)fastMalloc(w*h*16);
                     int pth =get_cpu_count();
                     ushort* dp =(ushort*)data;
                     ushort* dp2 =(ushort*)m2.data;
@@ -190,7 +191,7 @@ namespace ncnn {
                 Mat m3 = depth_range(2,1);
                 Mat m4 = depth_range(3,1);
                 if(elemsize==1){
-                    uint8_t* datas = (uint8_t*)calloc(1,w*h*4);
+                    uint8_t* datas = (uint8_t*)fastMalloc(w*h*4);
                     int pth =get_cpu_count();
                     uint8_t* dp =(uint8_t*)data;
                     uint8_t* dp2 =(uint8_t*)m2.data;
@@ -209,7 +210,7 @@ namespace ncnn {
                         return -1;
                     }
                 }else if(elemsize==4){
-                    uint8_t* datas = (uint8_t*)calloc(1,w*h*16);
+                    uint8_t* datas = (uint8_t*)fastMalloc(w*h*16);
                     int pth =get_cpu_count();
                     ushort* dp =(ushort*)data;
                     ushort* dp2 =(ushort*)m2.data;
@@ -249,7 +250,7 @@ Mat Mat::from_apple_image(UIImage* image){
     
     int pixelCount = size.width * size.height;
     
-    uint8_t *rgba = (uint8_t *)calloc(1,pixelCount * bytePerPixel);
+    uint8_t *rgba = (uint8_t *)fastMalloc(pixelCount * bytePerPixel);
     
     CGContextRef context = CGBitmapContextCreate(rgba,
                                                  size.width,
@@ -292,7 +293,7 @@ UIImage* Mat::to_apple_image(){
             }else{
                 return nil;
             }
-            datas = calloc(1,w*h*bytes_per_pix);
+            datas = fastMalloc(w*h*bytes_per_pix);
             memcpy(datas,data,w*h*bytes_per_pix);
         }else if(elempack==1){
             if(elemsize==1){
@@ -307,7 +308,7 @@ UIImage* Mat::to_apple_image(){
             }else{
                 return nil;
             }
-            datas = calloc(1,w*h*bytes_per_pix);
+            datas = fastMalloc(w*h*bytes_per_pix);
             memcpy(datas,data,w*h*bytes_per_pix);
         }else{
             return nil;
@@ -323,7 +324,7 @@ UIImage* Mat::to_apple_image(){
             Mat m2 = depth_range(1,1);
             Mat m3 = depth_range(2,1);
             if(elemsize==1){
-                datas = calloc(1,w*h*4);
+                datas = fastMalloc(w*h*4);
                 int pth =get_cpu_count();
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
@@ -338,7 +339,7 @@ UIImage* Mat::to_apple_image(){
                 bytes_per_pix = 4;
                 bitsPerComponent = 8;
             }else if(elemsize==4){
-                datas = calloc(1,w*h*16);
+                datas = fastMalloc(w*h*16);
                 int pth =get_cpu_count();
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
@@ -360,7 +361,7 @@ UIImage* Mat::to_apple_image(){
             Mat m3 = depth_range(2,1);
             Mat m4 = depth_range(3,1);
             if(elemsize==1){
-                datas = calloc(1,w*h*4);
+                datas = fastMalloc(w*h*4);
                 int pth =get_cpu_count();
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
@@ -376,7 +377,7 @@ UIImage* Mat::to_apple_image(){
                 bytes_per_pix = 4;
                 bitsPerComponent = 8;
             }else if(elemsize==4){
-                datas = calloc(1,w*h*16);
+                datas = fastMalloc(w*h*16);
                 int pth =get_cpu_count();
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
@@ -431,7 +432,7 @@ Mat Mat::from_apple_image(NSImage* image){
     
     int pixelCount = size.width * size.height;
     
-    uint8_t *rgba = (uint8_t *)calloc(1,pixelCount * bytePerPixel);
+    uint8_t *rgba = (uint8_t *)fastMalloc(pixelCount * bytePerPixel);
     
     CGContextRef context = CGBitmapContextCreate(rgba,
                                                  size.width,
@@ -474,7 +475,7 @@ NSImage* Mat::to_apple_image(){
             }else{
                 return nil;
             }
-            datas = calloc(1,w*h*bytes_per_pix);
+            datas = fastMalloc(w*h*bytes_per_pix);
             memcpy(datas,data,w*h*bytes_per_pix);
         }else if(elempack==1){
             if(elemsize==1){
@@ -489,7 +490,7 @@ NSImage* Mat::to_apple_image(){
             }else{
                 return nil;
             }
-            datas = calloc(1,w*h*bytes_per_pix);
+            datas = fastMalloc(w*h*bytes_per_pix);
             memcpy(datas,data,w*h*bytes_per_pix);
         }else{
             return nil;
@@ -505,7 +506,7 @@ NSImage* Mat::to_apple_image(){
             Mat m2 = depth_range(1,1);
             Mat m3 = depth_range(2,1);
             if(elemsize==1){
-                datas = calloc(1,w*h*4);
+                datas = fastMalloc(w*h*4);
                 int pth =get_cpu_count();
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
@@ -520,7 +521,7 @@ NSImage* Mat::to_apple_image(){
                 bytes_per_pix = 4;
                 bitsPerComponent = 8;
             }else if(elemsize==4){
-                datas = calloc(1,w*h*16);
+                datas = fastMalloc(w*h*16);
                 int pth =get_cpu_count();
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
@@ -542,7 +543,7 @@ NSImage* Mat::to_apple_image(){
             Mat m3 = depth_range(2,1);
             Mat m4 = depth_range(3,1);
             if(elemsize==1){
-                datas = calloc(1,w*h*4);
+                datas = fastMalloc(w*h*4);
                 int pth =get_cpu_count();
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
@@ -558,7 +559,7 @@ NSImage* Mat::to_apple_image(){
                 bytes_per_pix = 4;
                 bitsPerComponent = 8;
             }else if(elemsize==4){
-                datas = calloc(1,w*h*16);
+                datas = fastMalloc(w*h*16);
                 int pth =get_cpu_count();
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
