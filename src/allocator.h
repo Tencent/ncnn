@@ -79,7 +79,7 @@ static NCNN_FORCEINLINE void* fastMalloc(size_t size)
     return ptr;
 #elif defined(__APPLE__)
     void* ptr = NULL;
-    int res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size);
+    int res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size + NCNN_MALLOC_OVERREAD);
     if (res == 0)
     {
         return ptr;
@@ -87,7 +87,7 @@ static NCNN_FORCEINLINE void* fastMalloc(size_t size)
     else if (res == EINVAL)
     {
         free(ptr);
-        res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size);
+        res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size + NCNN_MALLOC_OVERREAD);
         if (res == 0)
         {
             return ptr;
@@ -95,7 +95,7 @@ static NCNN_FORCEINLINE void* fastMalloc(size_t size)
         else if (res == EINVAL)
         {
             free(ptr);
-            res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size);
+            res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size + NCNN_MALLOC_OVERREAD);
             if (res == 0)
             {
                 return ptr;
