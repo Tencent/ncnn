@@ -70,6 +70,16 @@ public:
     {
         return allocator->fast_free(allocator, ptr);
     }
+    
+    virtual void emptyCache()
+    {
+        return allocator->empty_cache(allocator);
+    }
+
+    void set_memory_limit(size_t low, size_t high)
+    {
+        ((ncnn::PoolAllocator*)(allocator->pthis))->set_memory_limit(low, high);
+    }
 
 public:
     ncnn_allocator_t allocator;
@@ -83,6 +93,11 @@ static void* __ncnn_PoolAllocator_fast_malloc(ncnn_allocator_t allocator, size_t
 static void __ncnn_PoolAllocator_fast_free(ncnn_allocator_t allocator, void* ptr)
 {
     ((ncnn::PoolAllocator*)allocator->pthis)->ncnn::PoolAllocator::fastFree(ptr);
+}
+
+static void __ncnn_PoolAllocator_empty_cache(ncnn_allocator_t allocator)
+{
+    ((ncnn::PoolAllocator*)allocator->pthis)->ncnn::PoolAllocator::emptyCache();
 }
 
 class UnlockedPoolAllocator_c_api : public ncnn::UnlockedPoolAllocator
@@ -104,6 +119,16 @@ public:
         return allocator->fast_free(allocator, ptr);
     }
 
+    virtual void emptyCache()
+    {
+        return allocator->empty_cache(allocator);
+    }
+
+    void set_memory_limit(size_t low, size_t high)
+    {
+        ((ncnn::UnlockedPoolAllocator*)(allocator->pthis))->set_memory_limit(low, high);
+    }
+
 public:
     ncnn_allocator_t allocator;
 };
@@ -118,22 +143,69 @@ static void __ncnn_UnlockedPoolAllocator_fast_free(ncnn_allocator_t allocator, v
     ((ncnn::UnlockedPoolAllocator*)allocator->pthis)->ncnn::UnlockedPoolAllocator::fastFree(ptr);
 }
 
+static void __ncnn_UnlockedPoolAllocator_empty_cache(ncnn_allocator_t allocator)
+{
+    ((ncnn::UnlockedPoolAllocator*)allocator->pthis)->ncnn::UnlockedPoolAllocator::emptyCache();
+}
+
 ncnn_allocator_t ncnn_allocator_create_pool_allocator()
 {
     ncnn_allocator_t allocator = (ncnn_allocator_t)malloc(sizeof(struct __ncnn_allocator_t));
-    allocator->pthis = (void*)(new PoolAllocator_c_api(allocator));
+    PoolAllocator_c_api* pthis = new PoolAllocator_c_api(allocator);
+    allocator->pthis = (void*)(pthis);
+
     allocator->fast_malloc = __ncnn_PoolAllocator_fast_malloc;
     allocator->fast_free = __ncnn_PoolAllocator_fast_free;
+    allocator->empty_cache = __ncnn_PoolAllocator_empty_cache;
+    return allocator;
+}
+
+ncnn_allocator_t ncnn_allocator_create_pool_allocator_with_memory_limit(size_t low, size_t high)
+{
+    ncnn_allocator_t allocator = (ncnn_allocator_t)malloc(sizeof(struct __ncnn_allocator_t));
+    PoolAllocator_c_api* pthis = new PoolAllocator_c_api(allocator);
+    allocator->pthis = (void*)(pthis);
+
+    pthis->set_memory_limit(low, high);
+
+    allocator->fast_malloc = __ncnn_PoolAllocator_fast_malloc;
+    allocator->fast_free = __ncnn_PoolAllocator_fast_free;
+    allocator->empty_cache = __ncnn_PoolAllocator_empty_cache;
     return allocator;
 }
 
 ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator()
 {
     ncnn_allocator_t allocator = (ncnn_allocator_t)malloc(sizeof(struct __ncnn_allocator_t));
-    allocator->pthis = (void*)(new UnlockedPoolAllocator_c_api(allocator));
+    UnlockedPoolAllocator_c_api* pthis = new UnlockedPoolAllocator_c_api(allocator);
+    allocator->pthis = (void*)(pthis);
+
     allocator->fast_malloc = __ncnn_UnlockedPoolAllocator_fast_malloc;
     allocator->fast_free = __ncnn_UnlockedPoolAllocator_fast_free;
+    allocator->empty_cache = __ncnn_UnlockedPoolAllocator_empty_cache;
     return allocator;
+}
+
+ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator_with_memory_limit(size_t low, size_t high)
+{
+    ncnn_allocator_t allocator = (ncnn_allocator_t)malloc(sizeof(struct __ncnn_allocator_t));
+    UnlockedPoolAllocator_c_api* pthis = new UnlockedPoolAllocator_c_api(allocator);
+    allocator->pthis = (void*)(pthis);
+
+    pthis->set_memory_limit(low, high);
+
+    allocator->fast_malloc = __ncnn_UnlockedPoolAllocator_fast_malloc;
+    allocator->fast_free = __ncnn_UnlockedPoolAllocator_fast_free;
+    allocator->empty_cache = __ncnn_UnlockedPoolAllocator_empty_cache;
+    return allocator;
+}
+
+void ncnn_allocator_empty_cache(ncnn_allocator_t allocator)
+{
+    if (allocator)
+    {
+        ((Allocator*)(allocator->pthis))->emptyCache();
+    }
 }
 
 void ncnn_allocator_destroy(ncnn_allocator_t allocator)

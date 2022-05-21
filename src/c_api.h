@@ -36,10 +36,15 @@ struct NCNN_EXPORT __ncnn_allocator_t
 
     void* (*fast_malloc)(ncnn_allocator_t allocator, size_t size);
     void (*fast_free)(ncnn_allocator_t allocator, void* ptr);
+    void (*empty_cache)(ncnn_allocator_t allocator);
 };
 
 NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator();
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator_with_memory_limit(size_t low, size_t high);
 NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator();
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator_with_memory_limit(size_t low, size_t high);
+
+NCNN_EXPORT void ncnn_allocator_empty_cache(ncnn_allocator_t allocator);
 NCNN_EXPORT void ncnn_allocator_destroy(ncnn_allocator_t allocator);
 
 /* option api */
