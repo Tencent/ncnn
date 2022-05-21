@@ -32,6 +32,9 @@
 #if __ANDROID_API__ >= 26
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
+#if __APPLE__
+#include <errno.h>
+#endif // __APPLE__
 #endif // NCNN_PLATFORM_API
 
 namespace ncnn {
