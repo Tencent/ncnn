@@ -79,32 +79,47 @@ static NCNN_FORCEINLINE void* fastMalloc(size_t size)
     return ptr;
 #elif defined(__APPLE__)
     void* ptr = NULL;
-    int res = posix_memalign(&ptr,NCNN_MALLOC_ALIGN,size);
-    if(res == 0){
+    int res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size);
+    if (res == 0)
+    {
         return ptr;
-    }else if(res == EINVAL){
+    }
+    else if (res == EINVAL)
+    {
         free(ptr);
-        res = posix_memalign(&ptr,NCNN_MALLOC_ALIGN,size);
-        if(res == 0){
+        res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size);
+        if (res == 0)
+        {
             return ptr;
-        }else if(res == EINVAL){
+        }
+        else if (res == EINVAL)
+        {
             free(ptr);
-            res = posix_memalign(&ptr,NCNN_MALLOC_ALIGN,size);
-            if(res == 0){
+            res = posix_memalign(&ptr, NCNN_MALLOC_ALIGN, size);
+            if (res == 0)
+            {
                 return ptr;
-            }else if(res == EINVAL){
+            }
+            else if (res == EINVAL)
+            {
                 free(ptr);
-            }else{
+            }
+            else
+            {
                 free(ptr);
                 printf("Memory out of data.");
             }
             return NULL;
-        }else{
+        }
+        else
+        {
             free(ptr);
             printf("Memory out of data.");
         }
         return NULL;
-    }else{
+    }
+    else
+    {
         free(ptr);
         printf("Memory out of data.");
     }
