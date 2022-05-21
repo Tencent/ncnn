@@ -657,6 +657,8 @@ void GOMP_parallel_start(void (*fn)(void*), void* data, unsigned num_threads)
 
     // NCNN_LOGE("GOMP_parallel_start %p %p %u", fn, data, num_threads);
     // TODO implememt me for old gcc
+    (void)num_threads;
+    fn(data);
 }
 
 void GOMP_parallel_end()
