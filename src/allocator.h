@@ -145,7 +145,7 @@ static NCNN_FORCEINLINE void fastFree(void* ptr)
     {
 #if _MSC_VER
         _aligned_free(ptr);
-#elif (defined(__unix__) || defined(__APPLE__)) && _POSIX_C_SOURCE >= 200112L || (__ANDROID__ && __ANDROID_API__ >= 17)
+#elif (defined(__unix__) && _POSIX_C_SOURCE >= 200112L) || defined(__APPLE__) || (__ANDROID__ && __ANDROID_API__ >= 17)
         free(ptr);
 #elif __ANDROID__ && __ANDROID_API__ < 17
         free(ptr);
