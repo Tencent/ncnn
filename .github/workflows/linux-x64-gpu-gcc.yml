@@ -89,10 +89,10 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: system-glslang
+    - name: install-deps
       run: |
         sudo apt-get update
-        sudo apt-get install glslang-dev
+        sudo apt-get install libprotobuf-dev protobuf-compiler libopencv-dev libvulkan-dev glslang-dev
 
     - name: build
       run: |
