@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_input_pack8_avx(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+static void conv3x3s1_winograd63_transform_input_pack8_avx(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -178,7 +178,7 @@ static void conv3x3s1_winograd64_transform_input_pack8_avx(const Mat& bottom_blo
     }
 }
 
-static void conv3x3s1_winograd64_transform_output_pack8_avx(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd63_transform_output_pack8_avx(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -322,7 +322,7 @@ static void conv3x3s1_winograd64_transform_output_pack8_avx(const Mat& top_blob_
     }
 }
 
-static void conv3x3s1_winograd42_transform_input_pack8_avx(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+static void conv3x3s1_winograd43_transform_input_pack8_avx(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -436,7 +436,7 @@ static void conv3x3s1_winograd42_transform_input_pack8_avx(const Mat& bottom_blo
     }
 }
 
-static void conv3x3s1_winograd42_transform_output_pack8_avx(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd43_transform_output_pack8_avx(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int outw = top_blob.w;
     const int outh = top_blob.h;

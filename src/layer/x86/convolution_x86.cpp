@@ -271,8 +271,8 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             if (num_input >= 16 && num_output >= 16)
             {
-                conv3x3s1_winograd64_transform_kernel_pack16_avx512(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
-                conv3x3s1_winograd42_transform_kernel_pack16_avx512(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+                conv3x3s1_winograd63_transform_kernel_pack16_avx512(weight_data, weight_winograd63_data, num_input, num_output, opt);
+                conv3x3s1_winograd43_transform_kernel_pack16_avx512(weight_data, weight_winograd43_data, num_input, num_output, opt);
             }
             else
             {
@@ -403,7 +403,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             if (opt.use_winograd_convolution)
             {
-                conv3x3s1_winograd64_transform_kernel_pack16to1_avx512(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
+                conv3x3s1_winograd63_transform_kernel_pack16to1_avx512(weight_data, weight_winograd63_data, num_input, num_output, opt);
             }
             else
             {
@@ -437,8 +437,8 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             if (num_input >= 16 && num_output >= 16)
             {
-                conv3x3s1_winograd64_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
-                conv3x3s1_winograd42_transform_kernel_pack8_avx(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+                conv3x3s1_winograd63_transform_kernel_pack8_avx(weight_data, weight_winograd63_data, num_input, num_output, opt);
+                conv3x3s1_winograd43_transform_kernel_pack8_avx(weight_data, weight_winograd43_data, num_input, num_output, opt);
             }
             else
             {
@@ -545,7 +545,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             if (opt.use_winograd_convolution)
             {
-                conv3x3s1_winograd64_transform_kernel_pack8to1_avx(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
+                conv3x3s1_winograd63_transform_kernel_pack8to1_avx(weight_data, weight_winograd63_data, num_input, num_output, opt);
             }
             else
             {
@@ -576,8 +576,8 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
-            conv3x3s1_winograd64_transform_kernel_pack4_sse(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
-            conv3x3s1_winograd42_transform_kernel_pack4_sse(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+            conv3x3s1_winograd63_transform_kernel_pack4_sse(weight_data, weight_winograd63_data, num_input, num_output, opt);
+            conv3x3s1_winograd43_transform_kernel_pack4_sse(weight_data, weight_winograd43_data, num_input, num_output, opt);
         }
         else
         {
@@ -645,7 +645,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         }
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv3x3s1_winograd64_transform_kernel_pack4to1_sse(weight_data, weight_3x3_winograd64_data, num_input, num_output, opt);
+            conv3x3s1_winograd63_transform_kernel_pack4to1_sse(weight_data, weight_winograd63_data, num_input, num_output, opt);
         }
         else
         {
@@ -672,8 +672,8 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             if (opt.use_winograd_convolution && num_input >= 16 && num_output >= 16)
             {
-                conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_data_3x3_winograd23, num_input, num_output, opt);
-                // conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_3x3_winograd43_data, num_input, num_output, opt);
+                conv3x3s1_winograd23_transform_kernel_sse(weight_data, weight_winograd23_data, num_input, num_output, opt);
+                // conv3x3s1_winograd43_transform_kernel_sse(weight_data, weight_winograd43_data, num_input, num_output, opt);
             }
 
             convolution_im2col_sgemm_transform_kernel_sse(weight_data, weight_sgemm_data, num_input, num_output, kernel_w, kernel_h);
@@ -801,11 +801,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 // we need more proper conditions
                 if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
                 {
-                    conv3x3s1_winograd42_pack16_avx512(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data, bias_data, opt);
+                    conv3x3s1_winograd43_pack16_avx512(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
                 }
                 else
                 {
-                    conv3x3s1_winograd64_pack16_avx512(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                    conv3x3s1_winograd63_pack16_avx512(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
                 }
 
                 if (activation)
@@ -1033,7 +1033,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             if (opt.use_winograd_convolution)
             {
                 // TODO more proper condition
-                conv3x3s1_winograd64_pack16to1_avx512(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                conv3x3s1_winograd63_pack16to1_avx512(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
             }
             else
             {
@@ -1089,11 +1089,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
                 // we need more proper conditions
                 if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
                 {
-                    conv3x3s1_winograd42_pack8_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data, bias_data, opt);
+                    conv3x3s1_winograd43_pack8_avx(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
                 }
                 else
                 {
-                    conv3x3s1_winograd64_pack8_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                    conv3x3s1_winograd63_pack8_avx(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
                 }
             }
             else
@@ -1243,7 +1243,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             if (opt.use_winograd_convolution)
             {
                 // TODO more proper condition
-                conv3x3s1_winograd64_pack8to1_avx(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                conv3x3s1_winograd63_pack8to1_avx(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
             }
             else
             {
@@ -1331,11 +1331,11 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             // we need more proper conditions
             if ((w <= 10 || (w >= 15 && w <= 18) || w == 21 || w == 22) && (h <= 10 || (h >= 15 && h <= 18) || h == 21 || h == 22))
             {
-                conv3x3s1_winograd42_pack4_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd42_data, bias_data, opt);
+                conv3x3s1_winograd43_pack4_sse(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
             }
             else
             {
-                conv3x3s1_winograd64_pack4_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+                conv3x3s1_winograd63_pack4_sse(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
             }
 
             if (activation)
@@ -1448,7 +1448,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             // TODO more proper condition
-            conv3x3s1_winograd64_pack4to1_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd64_data, bias_data, opt);
+            conv3x3s1_winograd63_pack4to1_sse(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
 
             // conv3x3s1_pack4to1_sse(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
 
@@ -1486,8 +1486,8 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             if (opt.use_winograd_convolution && num_input >= 16 && num_output >= 16 && outw >= 8 && outh >= 8)
             {
-                conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_data_3x3_winograd23, bias_data, opt);
-                //             conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_3x3_winograd43_data, bias_data, opt);
+                conv3x3s1_winograd23_sse(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
+                //             conv3x3s1_winograd43_sse(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
             }
             else
             {
@@ -1718,7 +1718,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         }
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+            conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse(weight_data, weight_winograd43_data, num_input, num_output, opt);
         }
         else if (opt.use_sgemm_convolution)
         {
@@ -1774,7 +1774,7 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
         }
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(weight_data, weight_3x3_winograd42_data, num_input, num_output, opt);
+            conv3x3s1_winograd43_transform_kernel_pack8to1_int8_sse(weight_data, weight_winograd43_data, num_input, num_output, opt);
         }
         else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
         {
@@ -1791,8 +1791,8 @@ int Convolution_x86::create_pipeline_int8_x86(const Option& opt)
     {
         if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
-            conv3x3s1_winograd23_transform_kernel_int8_sse(weight_data, weight_data_3x3_winograd23_int8, num_input, num_output, opt);
-            //         conv3x3s1_winograd43_transform_kernel_int8_sse(weight_data, weight_data_3x3_winograd23_int8, num_input, num_output, opt);
+            conv3x3s1_winograd23_transform_kernel_int8_sse(weight_data, weight_winograd23_data, num_input, num_output, opt);
+            // conv3x3s1_winograd43_transform_kernel_int8_sse(weight_data, weight_winograd43_data, num_input, num_output, opt);
         }
 
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -1891,7 +1891,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv3x3s1_winograd42_pack8to4_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd42_data, opt);
+            conv3x3s1_winograd43_pack8to4_int8_sse(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, opt);
         }
         else if (opt.use_sgemm_convolution)
         {
@@ -2001,7 +2001,7 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
-            conv3x3s1_winograd42_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_3x3_winograd42_data, opt);
+            conv3x3s1_winograd43_pack8to1_int8_sse(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, opt);
         }
         else if (opt.use_sgemm_convolution) // TODO better condition && num_input >= 8 && num_output >= 8)
         {
@@ -2053,8 +2053,8 @@ int Convolution_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_blob, con
         }
         else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1 && num_input >= 16 && num_output >= 16)
         {
-            conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_int32, weight_data_3x3_winograd23_int8, opt);
-            //             conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_int32, weight_data_3x3_winograd23_int8, opt);
+            conv3x3s1_winograd23_int8_sse(bottom_blob_bordered, top_blob_int32, weight_winograd23_data, opt);
+            // conv3x3s1_winograd43_int8_sse(bottom_blob_bordered, top_blob_int32, weight_winograd43_data, opt);
         }
         else if (opt.use_sgemm_convolution)
         {

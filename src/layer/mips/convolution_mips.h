@@ -41,9 +41,8 @@ public:
     Layer* activation;
 
     Mat weight_sgemm_data;
-
-    Mat weight_3x3_winograd42_data;
-    Mat weight_3x3_winograd64_data;
+    Mat weight_winograd43_data;
+    Mat weight_winograd63_data;
 
     // pack4
     Mat weight_data_packed;

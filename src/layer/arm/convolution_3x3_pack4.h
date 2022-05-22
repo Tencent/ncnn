@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd63_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
 {
     // winograd63 transform kernel
     Mat kernel_tm;
@@ -244,7 +244,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack4_neon(const Mat& kernel, 
     }
 }
 
-static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd63_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -274,7 +274,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         int tiles = w_tiles * h_tiles;
 
         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd64_transform_input_pack4_neon(bottom_blob_bordered, bottom_blob_tm, opt);
+        conv3x3s1_winograd63_transform_input_pack4_neon(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -1680,7 +1680,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
     }
     {
-        conv3x3s1_winograd64_transform_output_pack4_neon(top_blob_tm, top_blob_bordered, bias, opt);
+        conv3x3s1_winograd63_transform_output_pack4_neon(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 
@@ -1688,7 +1688,7 @@ static void conv3x3s1_winograd64_pack4_neon(const Mat& bottom_blob, Mat& top_blo
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd42_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd43_transform_kernel_pack4_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
 {
     // winograd43 transform kernel
     Mat kernel_tm(6 * 6, inch, outch);
@@ -1917,7 +1917,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack4_neon(const Mat& kernel, 
     }
 }
 
-static void conv3x3s1_winograd42_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd43_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -1947,7 +1947,7 @@ static void conv3x3s1_winograd42_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         int tiles = w_tiles * h_tiles;
 
         bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd42_transform_input_pack4_neon(bottom_blob_bordered, bottom_blob_tm, opt);
+        conv3x3s1_winograd43_transform_input_pack4_neon(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -3353,7 +3353,7 @@ static void conv3x3s1_winograd42_pack4_neon(const Mat& bottom_blob, Mat& top_blo
         top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
     }
     {
-        conv3x3s1_winograd42_transform_output_pack4_neon(top_blob_tm, top_blob_bordered, bias, opt);
+        conv3x3s1_winograd43_transform_output_pack4_neon(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 
