@@ -29,6 +29,7 @@
 #cmakedefine01 NCNN_PIXEL_AFFINE
 #cmakedefine01 NCNN_PIXEL_DRAWING
 #cmakedefine01 NCNN_VULKAN
+#cmakedefine01 NCNN_SYSTEM_GLSLANG
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX
 #cmakedefine01 NCNN_XOP
