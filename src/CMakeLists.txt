@@ -48,7 +48,6 @@ endif()
 if(APPLE)
     enable_language(OBJCXX)
     list(APPEND ncnn_SRCS mat_pixel_apple.mm)
-    #set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -x objective-c++ -Wunused-command-line-argument")
 endif()
 
 ncnn_src_group(ncnn_SRCS "sources")
