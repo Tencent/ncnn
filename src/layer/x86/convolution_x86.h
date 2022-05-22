@@ -42,10 +42,9 @@ public:
     Layer* activation;
 
     Mat weight_sgemm_data;
-    Mat weight_data_3x3_winograd23;
-
-    Mat weight_3x3_winograd42_data;
-    Mat weight_3x3_winograd64_data;
+    Mat weight_winograd23_data;
+    Mat weight_winograd43_data;
+    Mat weight_winograd63_data;
 
     // forwardDilation
     Layer* convolution_dilation1;
@@ -56,7 +55,6 @@ public:
 #if NCNN_INT8
     // int8
     Mat weight_data_int8;
-    Mat weight_data_3x3_winograd23_int8;
 #endif
 };
 
