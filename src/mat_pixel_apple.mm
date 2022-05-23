@@ -203,7 +203,7 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                         memcpy((datas+i*w+j),&p,8);
                     }
                 }
-                if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess) {
+                if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32ARGB,datas,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess) {
                     return 0;
                 } else {
                     return -1;
@@ -257,7 +257,7 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                         memcpy(datas+i*w+j,&p,8);
                     }
                 }
-                if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32RGBA,datas,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess) {
+                if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32ARGB,datas,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess) {
                     return 0;
                 } else {
                     return -1;

@@ -35,6 +35,31 @@ int main() {
             printf("function Mat::from_apple_pixelbuffer test failed");
             return -1;
         }
+        if(memcmp(m.data,m2.data,m.w*m.h*4) != 0){
+            printf("convenient data is error");
+            return -1;
+        }
+        OSType format = CVPixelBufferGetPixelFormatType(pixelbuffer);
+        if (format == kCVPixelFormatType_32ARGB) {
+            if (CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != 0) {
+                printf("lock error");
+                return -1;
+            }
+            void* pd = CVPixelBufferGetBaseAddress(pixelbuffer);
+            if(memcmp(m.data,pd,m.w*m.h*4) != 0){
+                printf("convenient data is error");
+                return -1;
+            }
+            if(memcmp(pd,m2.data,m.w*m.h*4) != 0){
+                printf("convenient data is error");
+                return -1;
+            }
+            if (CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != 0) {
+                printf("unlock error");
+                CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
+                return -1;
+            }
+        }
         NSImage* img = m2.to_apple_image();
         if(!img) {
             printf("function Mat::to_apple_image test failed");
