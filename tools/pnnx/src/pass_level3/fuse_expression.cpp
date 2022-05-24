@@ -75,7 +75,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
 
-    if (op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::rsub")
+    if (op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_" || op->type == "aten::rsub")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
     }
@@ -269,11 +269,13 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         fuse_expression(graph, op->inputs[1], expr, inputs);
         expr += ")";
     }
-    else if (op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub")
+    else if (op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_")
     {
         std::string mathop = op->type.substr(6);
         if (mathop == "add_")
             mathop = "add";
+        if (mathop == "sub_")
+            mathop = "sub";
 
         expr += mathop;
         expr += "(";
@@ -404,7 +406,7 @@ void fuse_expression(Graph& graph)
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::pow" || op->type == "aten::remainder")
+            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::pow" || op->type == "aten::remainder")
             {
                 need_fuse = true;
             }
