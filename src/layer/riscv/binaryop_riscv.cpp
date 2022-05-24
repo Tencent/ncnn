@@ -2748,15 +2748,15 @@ namespace BinaryOp_riscv_functor {
 
 // clang-format off
 // *INDENT-OFF*
-MAKE_FUNCTION(binary_op_add_fp16, x + y, vfadd_vv_f16m8(x, y, vl), vfadd_vf_f16m8(x, y, vl), vfadd_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_sub_fp16, x - y, vfsub_vv_f16m8(x, y, vl), vfsub_vf_f16m8(x, y, vl), vfrsub_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_mul_fp16, x * y, vfmul_vv_f16m8(x, y, vl), vfmul_vf_f16m8(x, y, vl), vfmul_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_div_fp16, x / y, vfdiv_vv_f16m8(x, y, vl), vfdiv_vf_f16m8(x, y, vl), vfrdiv_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_max_fp16, std::max(x, y), vfmax_vv_f16m8(x, y, vl), vfmax_vf_f16m8(x, y, vl), vfmax_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_min_fp16, std::min(x, y), vfmin_vv_f16m8(x, y, vl), vfmin_vf_f16m8(x, y, vl), vfmin_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_pow_fp16, (__fp16)pow((float)x, (float)y), pow_ps(x, y, vl), pow_ps(x, vfmv_v_f_f16m8(y, vl), vl), pow_ps(vfmv_v_f_f16m8(x, vl), y, vl))
-MAKE_FUNCTION(binary_op_rsub_fp16, y - x, vfsub_vv_f16m8(y, x, vl), vfrsub_vf_f16m8(x, y, vl), vfsub_vf_f16m8(y, x, vl))
-MAKE_FUNCTION(binary_op_rdiv_fp16, y / x, vfdiv_vv_f16m8(y, x, vl), vfrdiv_vf_f16m8(x, y, vl), vfdiv_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_add_fp16s, x + y, vfadd_vv_f16m8(x, y, vl), vfadd_vf_f16m8(x, y, vl), vfadd_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_sub_fp16s, x - y, vfsub_vv_f16m8(x, y, vl), vfsub_vf_f16m8(x, y, vl), vfrsub_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_mul_fp16s, x * y, vfmul_vv_f16m8(x, y, vl), vfmul_vf_f16m8(x, y, vl), vfmul_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_div_fp16s, x / y, vfdiv_vv_f16m8(x, y, vl), vfdiv_vf_f16m8(x, y, vl), vfrdiv_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y), vfmax_vv_f16m8(x, y, vl), vfmax_vf_f16m8(x, y, vl), vfmax_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y), vfmin_vv_f16m8(x, y, vl), vfmin_vf_f16m8(x, y, vl), vfmin_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_pow_fp16s, (__fp16)pow((float)x, (float)y), pow_ps(x, y, vl), pow_ps(x, vfmv_v_f_f16m8(y, vl), vl), pow_ps(vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rsub_fp16s, y - x, vfsub_vv_f16m8(y, x, vl), vfrsub_vf_f16m8(x, y, vl), vfsub_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x, vfdiv_vv_f16m8(y, x, vl), vfrdiv_vf_f16m8(x, y, vl), vfdiv_vf_f16m8(y, x, vl))
 // *INDENT-ON*
 // clang-format on
 
@@ -2777,31 +2777,31 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
     if (elempack != 1 || elempack1 != 1)
     {
         if (op_type == Operation_ADD)
-            return binary_op_rvv_fp16s<binary_op_add_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_add_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_SUB)
-            return binary_op_rvv_fp16s<binary_op_sub_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_sub_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MUL)
-            return binary_op_rvv_fp16s<binary_op_mul_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_mul_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_DIV)
-            return binary_op_rvv_fp16s<binary_op_div_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_div_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MAX)
-            return binary_op_rvv_fp16s<binary_op_max_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_max_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MIN)
-            return binary_op_rvv_fp16s<binary_op_min_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_min_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_POW)
-            return binary_op_rvv_fp16s<binary_op_pow_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_pow_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_RSUB)
-            return binary_op_rvv_fp16s<binary_op_rsub_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_rsub_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_RDIV)
-            return binary_op_rvv_fp16s<binary_op_rdiv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_rdiv_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
     }
 
     if (elempack == 1 && elempack1 == 1)
@@ -2842,31 +2842,31 @@ int BinaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& op
     using namespace BinaryOp_riscv_functor;
 
     if (op_type == Operation_ADD)
-        return binary_op_scalar_rvv_fp16s<binary_op_add_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_add_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_SUB)
-        return binary_op_scalar_rvv_fp16s<binary_op_sub_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_sub_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MUL)
-        return binary_op_scalar_rvv_fp16s<binary_op_mul_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_mul_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_DIV)
-        return binary_op_scalar_rvv_fp16s<binary_op_div_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_div_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MAX)
-        return binary_op_scalar_rvv_fp16s<binary_op_max_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_max_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MIN)
-        return binary_op_scalar_rvv_fp16s<binary_op_min_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_min_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_POW)
-        return binary_op_scalar_rvv_fp16s<binary_op_pow_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_pow_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_RSUB)
-        return binary_op_scalar_rvv_fp16s<binary_op_rsub_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_rsub_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_RDIV)
-        return binary_op_scalar_rvv_fp16s<binary_op_rdiv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_rdiv_fp16s>(bottom_top_blob, b, opt);
 
     return 0;
 }
