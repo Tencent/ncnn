@@ -151,6 +151,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         int ti = reverse ? T - 1 - t : t;
 
         const float* x = bottom_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* bias_c_IFOG = (const float*)bias_c + q * 4;
@@ -288,10 +289,16 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         float* cell_ptr = cell_state;
         float* hidden_ptr = hidden_state;
 
-        int q = 0;
+        int remain_num_output_start = 0;
 #if __ARM_NEON
-        for (; q + 3 < num_output; q += 4)
+        int nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             const float* gates_data = gates.row(q);
 
             float32x4x4_t _IFOG_4x4 = vld4q_f32(gates_data);
@@ -313,7 +320,8 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             output_data += 4;
         }
 #endif // __ARM_NEON
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);
 
@@ -547,6 +555,7 @@ static int lstm_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
         int ti = reverse ? T - 1 - t : t;
 
         const __fp16* x = bottom_blob.row<const __fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const __fp16* bias_c_IFOG = (const __fp16*)bias_c + q * 4;
@@ -638,9 +647,13 @@ static int lstm_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
         float* cell_ptr = cell_state;
         float* hidden_ptr = hidden_state;
 
-        int q = 0;
-        for (; q + 3 < num_output; q += 4)
+        int nn_num_output = num_output >> 2;
+        int remain_num_output_start = nn_num_output << 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             const float* gates_data = gates.row(q);
 
             float32x4x4_t _IFOG_4x4 = vld4q_f32(gates_data);
@@ -661,7 +674,8 @@ static int lstm_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             hidden_ptr += 4;
             output_data += 4;
         }
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);
 
@@ -711,9 +725,13 @@ static int lstm_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const
 
         int ti = reverse ? T - 1 - t : t;
 
-        int q = 0;
-        for (; q + 1 < num_output; q += 2)
+        int nn_num_output = num_output >> 1;
+        int remain_num_output_start = nn_num_output << 1;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 2;
+
             const __fp16* bias_c_IFOG = (const __fp16*)bias_c + q * 4;
 
             // gate I F O G
@@ -809,7 +827,8 @@ static int lstm_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const
 
             vst1q_f16(gates_data, _IFOG);
         }
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             const __fp16* bias_c_IFOG = (const __fp16*)bias_c + q * 4;
 
@@ -919,9 +938,13 @@ static int lstm_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const
         float* cell_ptr = cell_state;
         float* hidden_ptr = hidden_state;
 
-        q = 0;
-        for (; q + 3 < num_output; q += 4)
+        nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             const __fp16* gates_data = gates.row<const __fp16>(q);
 
             float16x4x4_t _IFOG_4x4 = vld4_f16(gates_data);
@@ -942,7 +965,8 @@ static int lstm_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const
             hidden_ptr += 4;
             output_data += 4;
         }
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             const __fp16* gates_data = gates.row<const __fp16>(q);
 
@@ -1490,6 +1514,7 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
         int ti = reverse ? T - 1 - t : t;
 
         const unsigned short* x = bottom_blob.row<const unsigned short>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const unsigned short* bias_c_IFOG = (const unsigned short*)bias_c + q * 4;
@@ -1629,10 +1654,16 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
         float* cell_ptr = cell_state;
         float* hidden_ptr = hidden_state;
 
-        int q = 0;
+        int remain_num_output_start = 0;
 #if __ARM_NEON
-        for (; q + 3 < num_output; q += 4)
+        int nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             const float* gates_data = gates.row(q);
 
             float32x4x4_t _IFOG_4x4 = vld4q_f32(gates_data);
@@ -1654,7 +1685,8 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             output_data += 4;
         }
 #endif // __ARM_NEON
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);
 
