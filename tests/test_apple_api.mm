@@ -35,7 +35,7 @@ int main() {
             printf("function Mat::from_apple_pixelbuffer test failed");
             return -1;
         }
-        if(memcmp(m.data,m2.data,m.w*m.h*4) != 0){
+        if(memcmp(m.data,m2.data,m.w*m.h*4) != 0) {
             printf("convenient data is error");
             return -1;
         }
@@ -46,11 +46,11 @@ int main() {
                 return -1;
             }
             void* pd = CVPixelBufferGetBaseAddress(pixelbuffer);
-            if(memcmp(m.data,pd,m.w*m.h*4) != 0){
+            if(memcmp(m.data,pd,m.w*m.h*4) != 0) {
                 printf("convenient data is error");
                 return -1;
             }
-            if(memcmp(pd,m2.data,m.w*m.h*4) != 0){
+            if(memcmp(pd,m2.data,m.w*m.h*4) != 0) {
                 printf("convenient data is error");
                 return -1;
             }
