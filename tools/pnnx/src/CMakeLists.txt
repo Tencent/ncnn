@@ -205,6 +205,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_gather.cpp
     pass_level2/torch_ge.cpp
     pass_level2/torch_gt.cpp
+    pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
     pass_level2/torch_logsumexp.cpp
     pass_level2/torch_lt.cpp
@@ -222,6 +223,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_randn.cpp
     pass_level2/torch_randn_like.cpp
     pass_level2/torch_roll.cpp
+    pass_level2/torch_scatter_add.cpp
     pass_level2/torch_split.cpp
     pass_level2/torch_squeeze.cpp
     pass_level2/torch_stack.cpp
