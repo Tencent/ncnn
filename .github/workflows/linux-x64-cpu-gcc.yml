@@ -107,6 +107,13 @@ jobs:
         cmake --build . -j 2
     - name: test-simplestl
       run: cd build-simplestl && ctest --output-on-failure -j 2
+    - name: build-simplestl-simpleomp
+      run: |
+        mkdir build-simplestl-simpleomp && cd build-simplestl-simpleomp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host-c.gcc.toolchain.cmake -DNCNN_STDIO=ON -DNCNN_STRING=ON -DNCNN_SIMPLESTL=ON -DNCNN_SIMPLEOMP=ON -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+    - name: test-simplestl-simpleomp
+      run: cd build-simplestl-simpleomp && ctest --output-on-failure -j 2
 
   linux-gcc-avx512:
     runs-on: [self-hosted, linux]

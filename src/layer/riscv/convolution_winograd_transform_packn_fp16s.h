@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_input_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+static void conv3x3s1_winograd63_transform_input_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);
@@ -177,7 +177,7 @@ static void conv3x3s1_winograd64_transform_input_packn_fp16sa_rvv(const Mat& bot
     }
 }
 
-static void conv3x3s1_winograd64_transform_output_packn_fp16sa_rvv(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd63_transform_output_packn_fp16sa_rvv(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);
@@ -320,7 +320,7 @@ static void conv3x3s1_winograd64_transform_output_packn_fp16sa_rvv(const Mat& to
     }
 }
 
-static void conv3x3s1_winograd42_transform_input_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+static void conv3x3s1_winograd43_transform_input_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);
@@ -433,7 +433,7 @@ static void conv3x3s1_winograd42_transform_input_packn_fp16sa_rvv(const Mat& bot
     }
 }
 
-static void conv3x3s1_winograd42_transform_output_packn_fp16sa_rvv(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);

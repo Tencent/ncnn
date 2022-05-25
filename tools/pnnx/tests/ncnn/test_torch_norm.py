@@ -1,6 +1,6 @@
 # Tencent is pleased to support the open source community by making ncnn available.
 #
-# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+# Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -20,35 +20,34 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y):
-        x = F.normalize(x, dim=0)
-        x = F.normalize(x, dim=0, eps=1e-3)
-
-        y = F.normalize(y, dim=0)
-        y = F.normalize(y, dim=0, eps=1e-4)
-        return x, y
+    def forward(self, x, y, z):
+        x = torch.norm(x)
+        y = torch.norm(y, p=2, dim=(1,2), keepdim=False)
+        z = torch.norm(z, p=1, dim=None, keepdim=True)
+        return x, y, z
 
 def test():
     net = Model()
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(64)
-    y = torch.rand(12, 24, 64)
+    x = torch.rand(3, 16)
+    y = torch.rand(5, 9, 11)
+    z = torch.rand(8, 5, 9, 10)
 
-    a = net(x, y)
+    a = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
-    mod.save("test_F_normalize.pt")
+    mod = torch.jit.trace(net, (x, y, z))
+    mod.save("test_torch_norm.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_normalize.pt inputshape=[64],[12,24,64]")
+    os.system("../../src/pnnx test_torch_norm.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
 
     # ncnn inference
-    import test_F_normalize_ncnn
-    b = test_F_normalize_ncnn.test_inference()
+    import test_torch_norm_ncnn
+    b = test_torch_norm_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.allclose(a0, b0, 1e-4, 1e-4):
