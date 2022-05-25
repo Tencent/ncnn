@@ -174,12 +174,12 @@ static void conv3x3s1_winograd43_transform_input_sse(const Mat& bottom_blob, Mat
                     float r04 = r0[4];
                     float r05 = r0[5];
 
-                    float tmp0m =  4 * r00 - 5 * r02 + r04;
+                    float tmp0m = 4 * r00 - 5 * r02 + r04;
                     float tmp1m = -4 * (r01 + r02) + r04 + r03;
-                    float tmp2m =  4 * (r01 - r02) + r04 - r03;
+                    float tmp2m = 4 * (r01 - r02) + r04 - r03;
                     float tmp3m = -2 * (r01 - r03) + r04 - r02;
-                    float tmp4m =  2 * (r01 - r03) + r04 - r02;
-                    float tmp5m =  4 * r01 - 5 * r03 + r05;
+                    float tmp4m = 2 * (r01 - r03) + r04 - r02;
+                    float tmp5m = 4 * r01 - 5 * r03 + r05;
 
                     tmp[0][m] = tmp0m;
                     tmp[1][m] = tmp1m;
@@ -207,12 +207,12 @@ static void conv3x3s1_winograd43_transform_input_sse(const Mat& bottom_blob, Mat
                     float tmp04 = tmp[m][4];
                     float tmp05 = tmp[m][5];
 
-                    float r0tm0 =  4 * tmp00 - 5 * tmp02 + tmp04;
+                    float r0tm0 = 4 * tmp00 - 5 * tmp02 + tmp04;
                     float r0tm1 = -4 * (tmp01 + tmp02) + tmp04 + tmp03;
-                    float r0tm2 =  4 * (tmp01 - tmp02) + tmp04 - tmp03;
+                    float r0tm2 = 4 * (tmp01 - tmp02) + tmp04 - tmp03;
                     float r0tm3 = -2 * (tmp01 - tmp03) + tmp04 - tmp02;
-                    float r0tm4 =  2 * (tmp01 - tmp03) + tmp04 - tmp02;
-                    float r0tm5 =  4 * tmp01 - 5 * tmp03 + tmp05;
+                    float r0tm4 = 2 * (tmp01 - tmp03) + tmp04 - tmp02;
+                    float r0tm5 = 4 * tmp01 - 5 * tmp03 + tmp05;
 
                     r0_tm_0[0] = r0tm0;
                     r0_tm_1[0] = r0tm1;
