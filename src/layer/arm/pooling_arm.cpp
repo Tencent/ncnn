@@ -28,6 +28,8 @@ namespace ncnn {
 #if __ARM_NEON
 #include "pooling_2x2_pack4.h"
 #include "pooling_3x3_pack4.h"
+#include "pooling_2x2_pack4_bf16s.h"
+#include "pooling_3x3_pack4_bf16s.h"
 #endif
 
 Pooling_arm::Pooling_arm()
@@ -1339,6 +1341,20 @@ int Pooling_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Opti
 #if __ARM_NEON
         if (elempack == 4)
         {
+            if (kernel_w == 2 && kernel_h == 2 && stride_w == 2 && stride_h == 2)
+            {
+                pooling2x2s2_max_pack4_bf16s_neon(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+
+            if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2)
+            {
+                pooling3x3s2_max_pack4_bf16s_neon(bottom_blob_bordered, top_blob, opt);
+
+                return 0;
+            }
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
