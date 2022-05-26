@@ -44,6 +44,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
         int ti = reverse ? T - 1 - t : t;
 
         const float* x = bottom_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             float* gates_data = gates.row(q);
@@ -189,6 +190,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
         // h_t := (1 - update) .* new + update .* h_{t-1}
         float* output_data = top_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);
@@ -407,6 +409,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
         int ti = reverse ? T - 1 - t : t;
 
         const __fp16* x = bottom_blob.row<const __fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             float* gates_data = gates.row(q);
@@ -552,6 +555,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
         // h_t := (1 - update) .* new + update .* h_{t-1}
         __fp16* output_data = top_blob.row<__fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);
@@ -735,6 +739,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
         int ti = reverse ? T - 1 - t : t;
 
         const __fp16* x = bottom_blob.row<const __fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             float* gates_data = gates.row(q);
@@ -869,6 +874,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
         // h_t := (1 - update) .* new + update .* h_{t-1}
         __fp16* output_data = top_blob.row<__fp16>(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);

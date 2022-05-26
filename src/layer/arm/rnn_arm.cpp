@@ -160,10 +160,16 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
         const float* x = bottom_blob.row(ti);
 
-        int q = 0;
+        int remain_num_output_start = 0;
 #if __ARM_NEON
-        for (; q + 3 < num_output; q += 4)
+        int nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             const float* weight_xc_ptr = weight_xc.row(q / 4);
             const float* weight_hc_ptr = weight_hc.row(q / 4);
 
@@ -243,7 +249,8 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             vst1q_f32((float*)gates + q, _H);
         }
 #endif // __ARM_NEON
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
 #if __ARM_NEON
             const float* weight_xc_ptr = weight_xc.row(q / 4 + q % 4);
@@ -274,10 +281,15 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
         float* hidden_ptr = hidden_state;
 
-        q = 0;
 #if __ARM_NEON
-        for (; q + 3 < num_output; q += 4)
+        nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             float32x4_t _H = vld1q_f32((float*)gates + q);
 
             vst1q_f32(hidden_ptr, _H);
@@ -287,7 +299,8 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             output_data += 4;
         }
 #endif // __ARM_NEON
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             float H = gates[q];
 
@@ -485,9 +498,13 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
         const __fp16* x = bottom_blob.row<const __fp16>(ti);
 
-        int q = 0;
-        for (; q + 3 < num_output; q += 4)
+        int nn_num_output = num_output >> 2;
+        int remain_num_output_start = nn_num_output << 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             const __fp16* weight_xc_ptr = weight_xc.row<const __fp16>(q / 4);
             const __fp16* weight_hc_ptr = weight_hc.row<const __fp16>(q / 4);
 
@@ -552,7 +569,8 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
             vst1q_f32((float*)gates + q, _H);
         }
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             const __fp16* weight_xc_ptr = weight_xc.row<const __fp16>(q / 4 + q % 4);
             const __fp16* weight_hc_ptr = weight_hc.row<const __fp16>(q / 4 + q % 4);
@@ -578,9 +596,13 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
         float* hidden_ptr = hidden_state;
 
-        q = 0;
-        for (; q + 3 < num_output; q += 4)
+        nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             float32x4_t _H = vld1q_f32((float*)gates + q);
 
             vst1q_f32(hidden_ptr, _H);
@@ -589,7 +611,8 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             hidden_ptr += 4;
             output_data += 4;
         }
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             float H = gates[q];
 
@@ -620,9 +643,13 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
         const __fp16* x = bottom_blob.row<const __fp16>(ti);
 
-        int q = 0;
-        for (; q + 7 < num_output; q += 8)
+        int nn_num_output = num_output >> 3;
+        int remain_num_output_start = nn_num_output << 3;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 8;
+
             const __fp16* weight_xc_ptr = weight_xc.row<const __fp16>(q / 8);
             const __fp16* weight_hc_ptr = weight_hc.row<const __fp16>(q / 8);
 
@@ -689,8 +716,12 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             vst1q_f32((float*)gates + q, _H32low);
             vst1q_f32((float*)gates + q + 4, _H32high);
         }
-        for (; q + 3 < num_output; q += 4)
+        nn_num_output = (num_output - remain_num_output_start) >> 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = remain_num_output_start + qq * 4;
+
             const __fp16* weight_xc_ptr = weight_xc.row<const __fp16>(q / 8 + (q % 8) / 4);
             const __fp16* weight_hc_ptr = weight_hc.row<const __fp16>(q / 8 + (q % 8) / 4);
 
@@ -755,7 +786,9 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             vst1q_f32((float*)gates + q, _H32);
         }
-        for (; q < num_output; q++)
+        remain_num_output_start += nn_num_output << 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             const __fp16* weight_xc_ptr = weight_xc.row<const __fp16>(q / 8 + (q % 8) / 4 + q % 4);
             const __fp16* weight_hc_ptr = weight_hc.row<const __fp16>(q / 8 + (q % 8) / 4 + q % 4);
@@ -781,9 +814,13 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
         float* hidden_ptr = hidden_state;
 
-        q = 0;
-        for (; q + 3 < num_output; q += 4)
+        nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             float32x4_t _H = vld1q_f32((float*)gates + q);
 
             vst1q_f32(hidden_ptr, _H);
@@ -792,7 +829,8 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             hidden_ptr += 4;
             output_data += 4;
         }
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             float H = gates[q];
 
@@ -1233,10 +1271,16 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
         const unsigned short* x = bottom_blob.row<const unsigned short>(ti);
 
-        int q = 0;
+        int remain_num_output_start = 0;
 #if __ARM_NEON
-        for (; q + 3 < num_output; q += 4)
+        int nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             const unsigned short* weight_xc_ptr = weight_xc.row<const unsigned short>(q / 4);
             const unsigned short* weight_hc_ptr = weight_hc.row<const unsigned short>(q / 4);
 
@@ -1316,7 +1360,8 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             vst1q_f32((float*)gates + q, _H);
         }
 #endif // __ARM_NEON
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
 #if __ARM_NEON
             const unsigned short* weight_xc_ptr = weight_xc.row<const unsigned short>(q / 4 + q % 4);
@@ -1347,10 +1392,15 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
         float* hidden_ptr = hidden_state;
 
-        q = 0;
 #if __ARM_NEON
-        for (; q + 3 < num_output; q += 4)
+        nn_num_output = num_output >> 2;
+        remain_num_output_start = nn_num_output << 2;
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int qq = 0; qq < nn_num_output; qq++)
         {
+            int q = qq * 4;
+
             float32x4_t _H = vld1q_f32((float*)gates + q);
 
             vst1q_f32(hidden_ptr, _H);
@@ -1360,7 +1410,8 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             output_data += 4;
         }
 #endif // __ARM_NEON
-        for (; q < num_output; q++)
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = remain_num_output_start; q < num_output; q++)
         {
             float H = gates[q];
 
