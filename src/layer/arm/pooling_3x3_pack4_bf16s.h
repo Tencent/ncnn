@@ -160,22 +160,16 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
 #else  // __aarch64__
                 asm volatile(
-                    //                     "pld        [%1, #512]      \n"
-                    //                     "vldm       %1!, {d0-d7}    \n"
-
                     "pld        [%1, #256]      \n"
                     "vld1.u16   {d4-d7}, [%1]!  \n"
+
+                    "pld        [%2, #256]      \n"
+                    "vld1.u16   {d12-d15}, [%2]! \n"
 
                     "vshll.u16  q0, d4, #16     \n"
                     "vshll.u16  q1, d5, #16     \n"
                     "vshll.u16  q2, d6, #16     \n"
                     "vshll.u16  q3, d7, #16     \n"
-
-                    //                     "pld        [%2, #512]      \n"
-                    //                     "vldm       %2!, {d8-d15}   \n"
-
-                    "pld        [%2, #256]      \n"
-                    "vld1.u16   {d12-d15}, [%2]! \n"
 
                     "vshll.u16  q4, d12, #16    \n"
                     "vshll.u16  q5, d13, #16    \n"
@@ -184,9 +178,6 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
 
                     "vmax.f32   q0, q0, q4      \n"
                     "vmax.f32   q1, q1, q5      \n"
-
-                    //                     "pld        [%3, #512]      \n"
-                    //                     "vldm       %3!, {d16-d23}  \n"
 
                     "pld        [%3, #256]      \n"
                     "vld1.u16   {d20-d23}, [%3]! \n"
@@ -202,9 +193,6 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "vmax.f32   q0, q0, q8      \n"
                     "vmax.f32   q1, q1, q9      \n"
 
-                    //                     "pld        [%1, #512]      \n"
-                    //                     "vldm       %1!, {d8-d15}   \n"
-
                     "pld        [%1, #256]      \n"
                     "vld1.u16   {d12-d15}, [%1]! \n"
 
@@ -216,9 +204,6 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "vmax.f32   q2, q2, q10     \n"
                     "vmax.f32   q3, q3, q11     \n"
 
-                    //                     "pld        [%2, #512]      \n"
-                    //                     "vldm       %2!, {d16-d23}  \n"
-
                     "pld        [%2, #256]      \n"
                     "vld1.u16   {d20-d23}, [%2]! \n"
 
@@ -229,9 +214,6 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
 
                     "vmax.f32   q4, q4, q8      \n"
                     "vmax.f32   q5, q5, q9      \n"
-
-                    //                     "pld        [%3, #512]      \n"
-                    //                     "vldm       %3!, {d24-d31}  \n"
 
                     "pld        [%3, #256]      \n"
                     "vld1.u16   {d28-d31}, [%3]! \n"
@@ -247,17 +229,14 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "vmax.f32   q4, q4, q12     \n"
                     "vmax.f32   q5, q5, q13     \n"
 
-                    //                     "vld1.f32   {d24-d25}, [%1 :128] \n"
-                    //                     "vld1.f32   {d26-d27}, [%2 :128] \n"
                     "vld1.u16   {d25}, [%1]     \n"
-                    "vshll.u16  q12, d25, #16   \n"
                     "vld1.u16   {d27}, [%2]     \n"
+                    "vshll.u16  q12, d25, #16   \n"
                     "vshll.u16  q13, d27, #16   \n"
 
                     "vmax.f32   q6, q6, q14     \n"
                     "vmax.f32   q7, q7, q15     \n"
 
-                    //                     "vld1.f32   {d28-d29}, [%3 :128] \n"
                     "vld1.u16   {d29}, [%3]     \n"
                     "vshll.u16  q14, d29, #16   \n"
 
@@ -279,7 +258,6 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "vshrn.u32  d26, q14, #16   \n"
                     "vshrn.u32  d27, q15, #16   \n"
 
-                    //                     "vstm       %0!, {d24-d31}  \n"
                     "vst1.u16   {d24-d27}, [%0]! \n"
 
                     : "=r"(outptr), // %0
@@ -365,22 +343,16 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #else  // __aarch64__
                 asm volatile(
-                    //                     "pld        [%1, #512]      \n"
-                    //                     "vldm       %1!, {d0-d7}    \n"
-
                     "pld        [%1, #256]      \n"
                     "vld1.u16   {d4-d7}, [%1]!  \n"
+
+                    "pld        [%2, #256]      \n"
+                    "vld1.u16   {d12-d15}, [%2]! \n"
 
                     "vshll.u16  q0, d4, #16     \n"
                     "vshll.u16  q1, d5, #16     \n"
                     "vshll.u16  q2, d6, #16     \n"
                     "vshll.u16  q3, d7, #16     \n"
-
-                    //                     "pld        [%2, #512]      \n"
-                    //                     "vldm       %2!, {d8-d15}   \n"
-
-                    "pld        [%2, #256]      \n"
-                    "vld1.u16   {d12-d15}, [%2]! \n"
 
                     "vshll.u16  q4, d12, #16    \n"
                     "vshll.u16  q5, d13, #16    \n"
@@ -389,9 +361,6 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
 
                     "vmax.f32   q12, q0, q4     \n"
                     "vmax.f32   q13, q1, q5     \n"
-
-                    //                     "pld        [%3, #512]      \n"
-                    //                     "vldm       %3!, {d16-d23}  \n"
 
                     "pld        [%3, #256]      \n"
                     "vld1.u16   {d20-d23}, [%3]! \n"
@@ -404,21 +373,18 @@ static void pooling3x3s2_max_pack4_bf16s_neon(const Mat& bottom_blob, Mat& top_b
                     "vmax.f32   q14, q2, q6     \n"
                     "vmax.f32   q15, q3, q7     \n"
 
-                    //                     "vld1.f32   {d0-d1}, [%1 :128] \n"
                     "vld1.u16   {d1}, [%1]      \n"
                     "vshll.u16  q0, d1, #16     \n"
 
                     "vmax.f32   q12, q12, q8    \n"
                     "vmax.f32   q13, q13, q9    \n"
 
-                    //                     "vld1.f32   {d2-d3}, [%2 :128] \n"
                     "vld1.u16   {d3}, [%2]      \n"
                     "vshll.u16  q1, d3, #16     \n"
 
                     "vmax.f32   q14, q14, q10   \n"
                     "vmax.f32   q15, q15, q11   \n"
 
-                    //                     "vld1.f32   {d4-d5}, [%3 :128] \n"
                     "vld1.u16   {d5}, [%3]      \n"
                     "vshll.u16  q2, d5, #16     \n"
 
