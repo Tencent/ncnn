@@ -45,7 +45,7 @@ jobs:
     - uses: actions/setup-python@v3
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@2.5.0
+      uses: pypa/cibuildwheel@2.6.0
       env:
         CIBW_ARCHS_MACOS: x86_64 universal2 arm64
         CIBW_ARCHS_LINUX: x86_64 i686
@@ -91,7 +91,7 @@ jobs:
         platforms: all
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@2.5.0
+      uses: pypa/cibuildwheel@2.6.0
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
