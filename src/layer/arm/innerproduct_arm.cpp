@@ -306,35 +306,108 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             const float* m = bottom_blob.channel(q);
 
 #if __ARM_NEON
-            int nn = size >> 2;
-            int remain = size & 3;
+            int nn = size >> 3;
+            int remain = size & 7;
 #else
             int remain = size;
 #endif // __ARM_NEON
 
 #if __ARM_NEON
-            for (; nn > 0; nn--)
+#if __aarch64__
+            if (nn > 0)
             {
-                float32x4_t _m = vld1q_f32(m);
-
-                float32x4_t _w0 = vld1q_f32(w0);
-                _sum0 = vmlaq_f32(_sum0, _m, _w0);
-
-                float32x4_t _w1 = vld1q_f32(w1);
-                _sum1 = vmlaq_f32(_sum1, _m, _w1);
-
-                float32x4_t _w2 = vld1q_f32(w2);
-                _sum2 = vmlaq_f32(_sum2, _m, _w2);
-
-                float32x4_t _w3 = vld1q_f32(w3);
-                _sum3 = vmlaq_f32(_sum3, _m, _w3);
-
-                m += 4;
-                w0 += 4;
-                w1 += 4;
-                w2 += 4;
-                w3 += 4;
+                asm volatile(
+                    "0:                                   \n"
+                    "prfm       pldl1keep, [%1, #256]     \n"
+                    "ld1        {v0.4s, v1.4s}, [%1], #32 \n"
+                    "prfm       pldl1keep, [%2, #256]     \n"
+                    "ld1        {v2.4s, v3.4s}, [%2], #32 \n"
+                    "prfm       pldl1keep, [%3, #256]     \n"
+                    "ld1        {v4.4s, v5.4s}, [%3], #32 \n"
+                    "prfm       pldl1keep, [%4, #256]     \n"
+                    "ld1        {v6.4s, v7.4s}, [%4], #32 \n"
+                    "prfm       pldl1keep, [%5, #256]     \n"
+                    "ld1        {v8.4s, v9.4s}, [%5], #32 \n"
+                    "fmla       %6.4s, v0.4s, v2.4s       \n"
+                    "fmla       %7.4s, v0.4s, v4.4s       \n"
+                    "fmla       %8.4s, v0.4s, v6.4s       \n"
+                    "fmla       %9.4s, v0.4s, v8.4s       \n"
+                    "subs       %w0, %w0, #1              \n"
+                    "fmla       %6.4s, v1.4s, v3.4s       \n"
+                    "fmla       %7.4s, v1.4s, v5.4s       \n"
+                    "fmla       %8.4s, v1.4s, v7.4s       \n"
+                    "fmla       %9.4s, v1.4s, v9.4s       \n"
+                    "bne        0b                        \n"
+                    : "=r"(nn),    // %0
+                    "=r"(m),     // %1
+                    "=r"(w0),    // %2
+                    "=r"(w1),    // %3
+                    "=r"(w2),    // %4
+                    "=r"(w3),    // %5
+                    "=w"(_sum0), // %6
+                    "=w"(_sum1), // %7
+                    "=w"(_sum2), // %8
+                    "=w"(_sum3)  // %9
+                    : "0"(nn),
+                    "1"(m),
+                    "2"(w0),
+                    "3"(w1),
+                    "4"(w2),
+                    "5"(w3),
+                    "6"(_sum0),
+                    "7"(_sum1),
+                    "8"(_sum2),
+                    "9"(_sum3)
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
             }
+#else
+            if (nn > 0)
+            {
+                asm volatile(
+                    "0:                             \n"
+                    "pld        [%1, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%1 :128]! \n"
+                    "pld        [%2, #256]          \n"
+                    "vld1.f32   {d4-d7}, [%2]!      \n"
+                    "pld        [%3, #256]          \n"
+                    "vld1.f32   {d8-d11}, [%3]!     \n"
+                    "pld        [%4, #256]          \n"
+                    "vld1.f32   {d12-d15}, [%4]!    \n"
+                    "pld        [%5, #256]          \n"
+                    "vld1.f32   {d16-d19}, [%5]!    \n"
+                    "vmla.f32   %q6, q0, q2         \n"
+                    "vmla.f32   %q7, q0, q4         \n"
+                    "vmla.f32   %q8, q0, q6         \n"
+                    "vmla.f32   %q9, q0, q8         \n"
+                    "subs       %0, #1              \n"
+                    "vmla.f32   %q6, q1, q3         \n"
+                    "vmla.f32   %q7, q1, q5         \n"
+                    "vmla.f32   %q8, q1, q7         \n"
+                    "vmla.f32   %q9, q1, q9         \n"
+                    "bne        0b                  \n"
+                    : "=r"(nn),    // %0
+                    "=r"(m),     // %1
+                    "=r"(w0),    // %2
+                    "=r"(w1),    // %3
+                    "=r"(w2),    // %4
+                    "=r"(w3),    // %5
+                    "=w"(_sum0), // %6
+                    "=w"(_sum1), // %7
+                    "=w"(_sum2), // %8
+                    "=w"(_sum3)  // %9
+                    : "0"(nn),
+                    "1"(m),
+                    "2"(w0),
+                    "3"(w1),
+                    "4"(w2),
+                    "5"(w3),
+                    "6"(_sum0),
+                    "7"(_sum1),
+                    "8"(_sum2),
+                    "9"(_sum3)
+                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9");
+            }
+#endif // __aarch64__
 #endif // __ARM_NEON
             for (; remain > 0; remain--)
             {
