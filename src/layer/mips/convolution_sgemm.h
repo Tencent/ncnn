@@ -322,10 +322,10 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
             float sum01 = biasptr[0];
             float sum02 = biasptr[0];
             float sum03 = biasptr[0];
-            float sum10 = biasptr[0];
-            float sum11 = biasptr[0];
-            float sum12 = biasptr[0];
-            float sum13 = biasptr[0];
+            float sum10 = biasptr[1];
+            float sum11 = biasptr[1];
+            float sum12 = biasptr[1];
+            float sum13 = biasptr[1];
 
             for (int q = 0; q < nn; q++)
             {
