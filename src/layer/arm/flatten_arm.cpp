@@ -70,10 +70,12 @@ int Flatten_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     int total = size * channels * elempack;
 
     int out_elempack = 1;
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
         out_elempack = total % 4 == 0 ? 4 : 1;
     }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (out_elempack == 1)
@@ -232,10 +234,16 @@ int Flatten_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     int total = size * channels * elempack;
 
     int out_elempack = 1;
+#if __ARM_NEON
     if (opt.use_packing_layout)
     {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
         out_elempack = opt.use_fp16_arithmetic && total % 8 == 0 ? 8 : total % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = total % 4 == 0 ? 4 : 1;
+#endif
     }
+#endif
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
     if (out_elempack == 1)

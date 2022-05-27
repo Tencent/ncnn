@@ -385,7 +385,11 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             out_elempack = opt.use_fp16_arithmetic && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = top_w % 4 == 0 ? 4 : 1;
+#endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -426,7 +430,11 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             out_elempack = opt.use_fp16_arithmetic && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = top_h % 4 == 0 ? 4 : 1;
+#endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 
@@ -609,7 +617,11 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             out_elempack = opt.use_fp16_arithmetic && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
+#else
+            out_elempack = top_channels % 4 == 0 ? 4 : 1;
+#endif
         }
         size_t out_elemsize = elemsize / elempack * out_elempack;
 

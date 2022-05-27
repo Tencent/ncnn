@@ -79,32 +79,33 @@ static void conv3x3s1_winograd63_transform_input_pack4_fp16sa_neon(const Mat& bo
 
                     float16x4_t _tmp0m = vfma_n_f16(vsub_f16(_r00, _r06), vsub_f16(_r04, _r02), 5.25f);
                     float16x4_t _tmp7m = vfma_n_f16(vsub_f16(_r07, _r01), vsub_f16(_r03, _r05), 5.25f);
-                    vst1_f16(tmp[0][m], _tmp0m);
-                    vst1_f16(tmp[7][m], _tmp7m);
 
                     float16x4_t _tmp12a = vfms_n_f16(vadd_f16(_r02, _r06), _r04, 4.25f);
                     float16x4_t _tmp12b = vfms_n_f16(vadd_f16(_r01, _r05), _r03, 4.25f);
 
                     float16x4_t _tmp1m = vadd_f16(_tmp12a, _tmp12b);
                     float16x4_t _tmp2m = vsub_f16(_tmp12a, _tmp12b);
-                    vst1_f16(tmp[1][m], _tmp1m);
-                    vst1_f16(tmp[2][m], _tmp2m);
 
                     float16x4_t _tmp34a = vfms_n_f16(vfma_n_f16(_r06, _r02, 0.25f), _r04, 1.25f);
                     float16x4_t _tmp34b = vfma_n_f16(vfms_n_f16(vmul_n_f16(_r01, 0.5f), _r03, 2.5f), _r05, 2.f);
 
                     float16x4_t _tmp3m = vadd_f16(_tmp34a, _tmp34b);
                     float16x4_t _tmp4m = vsub_f16(_tmp34a, _tmp34b);
-                    vst1_f16(tmp[3][m], _tmp3m);
-                    vst1_f16(tmp[4][m], _tmp4m);
 
                     float16x4_t _tmp56a = vfma_n_f16(_r06, vfms_n_f16(_r02, _r04, 1.25f), 4.f);
                     float16x4_t _tmp56b = vfma_n_f16(vfms_n_f16(vmul_n_f16(_r01, 2.f), _r03, 2.5f), _r05, 0.5f);
 
                     float16x4_t _tmp5m = vadd_f16(_tmp56a, _tmp56b);
                     float16x4_t _tmp6m = vsub_f16(_tmp56a, _tmp56b);
+
+                    vst1_f16(tmp[0][m], _tmp0m);
+                    vst1_f16(tmp[1][m], _tmp1m);
+                    vst1_f16(tmp[2][m], _tmp2m);
+                    vst1_f16(tmp[3][m], _tmp3m);
+                    vst1_f16(tmp[4][m], _tmp4m);
                     vst1_f16(tmp[5][m], _tmp5m);
                     vst1_f16(tmp[6][m], _tmp6m);
+                    vst1_f16(tmp[7][m], _tmp7m);
 
                     r0 += w * 4;
                 }
@@ -250,15 +251,16 @@ static void conv3x3s1_winograd63_transform_output_pack4_fp16sa_neon(const Mat& t
                     float16x4_t _tmp0m = vadd_f16(vadd_f16(_out0tm0, _tmp024a), vfma_n_f16(_tmp024b, _tmp024c, 32.f));
                     float16x4_t _tmp2m = vfma_n_f16(vfma_n_f16(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f);
                     float16x4_t _tmp4m = vfma_n_f16(vfma_n_f16(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f);
-                    vst1_f16(tmp[0][m], _tmp0m);
-                    vst1_f16(tmp[2][m], _tmp2m);
-                    vst1_f16(tmp[4][m], _tmp4m);
 
                     float16x4_t _tmp1m = vfma_n_f16(vfma_n_f16(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f);
                     float16x4_t _tmp3m = vfma_n_f16(vfma_n_f16(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f);
                     float16x4_t _tmp5m = vadd_f16(vadd_f16(_out0tm7, _tmp135a), vfma_n_f16(_tmp135c, _tmp135b, 32.f));
+
+                    vst1_f16(tmp[0][m], _tmp0m);
                     vst1_f16(tmp[1][m], _tmp1m);
+                    vst1_f16(tmp[2][m], _tmp2m);
                     vst1_f16(tmp[3][m], _tmp3m);
+                    vst1_f16(tmp[4][m], _tmp4m);
                     vst1_f16(tmp[5][m], _tmp5m);
 
                     output0_tm_0 += tiles * 32;
@@ -294,15 +296,16 @@ static void conv3x3s1_winograd63_transform_output_pack4_fp16sa_neon(const Mat& t
                     float16x4_t _out00 = vadd_f16(_bias0, vadd_f16(vadd_f16(_tmp00, _tmp024a), vfma_n_f16(_tmp024b, _tmp024c, 32.f)));
                     float16x4_t _out02 = vadd_f16(_bias0, vfma_n_f16(vfma_n_f16(_tmp024a, _tmp024b, 4.f), _tmp024c, 8.f));
                     float16x4_t _out04 = vadd_f16(_bias0, vfma_n_f16(vfma_n_f16(_tmp024a, _tmp024b, 16.f), _tmp024c, 2.f));
-                    vst1_f16(output0, _out00);
-                    vst1_f16(output0 + 8, _out02);
-                    vst1_f16(output0 + 16, _out04);
 
                     float16x4_t _out01 = vadd_f16(_bias0, vfma_n_f16(vfma_n_f16(_tmp135a, _tmp135b, 2.f), _tmp135c, 16.f));
                     float16x4_t _out03 = vadd_f16(_bias0, vfma_n_f16(vfma_n_f16(_tmp135a, _tmp135b, 8.f), _tmp135c, 4.f));
                     float16x4_t _out05 = vadd_f16(_bias0, vadd_f16(vadd_f16(_tmp07, _tmp135a), vfma_n_f16(_tmp135c, _tmp135b, 32.f)));
+
+                    vst1_f16(output0, _out00);
                     vst1_f16(output0 + 4, _out01);
+                    vst1_f16(output0 + 8, _out02);
                     vst1_f16(output0 + 12, _out03);
+                    vst1_f16(output0 + 16, _out04);
                     vst1_f16(output0 + 20, _out05);
 
                     output0 += outw * 4;
