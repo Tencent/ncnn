@@ -338,7 +338,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     "fmla       %8.4s, v1.4s, v7.4s       \n"
                     "fmla       %9.4s, v1.4s, v9.4s       \n"
                     "bne        0b                        \n"
-                    : "=r"(nn),   // %0
+                    : "=r"(nn),    // %0
                     "=r"(m),     // %1
                     "=r"(w0),    // %2
                     "=r"(w1),    // %3
@@ -385,7 +385,7 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     "vmla.f32   %q8, q1, q7         \n"
                     "vmla.f32   %q9, q1, q9         \n"
                     "bne        0b                  \n"
-                    : "=r"(nn),   // %0
+                    : "=r"(nn),    // %0
                     "=r"(m),     // %1
                     "=r"(w0),    // %2
                     "=r"(w1),    // %3
