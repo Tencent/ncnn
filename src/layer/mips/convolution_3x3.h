@@ -519,6 +519,8 @@ static void conv3x3s1_winograd23_msa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int j = 0; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(k0 + 8);
                         float w0 = k0[0];
                         float w1 = k0[1];
                         sum00 += r0[0] * w0;
@@ -558,6 +560,8 @@ static void conv3x3s1_winograd23_msa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int j = 0; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 4);
+                        __builtin_prefetch(k0 + 8);
                         float val0 = r0[0];
                         sum00 += val0 * k0[0];
                         sum10 += val0 * k0[1];
@@ -619,6 +623,8 @@ static void conv3x3s1_winograd23_msa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(k0 + 4);
                         float w0 = k0[0];
                         sum0 += r0[0] * w0;
                         sum1 += r0[1] * w0;
@@ -1193,6 +1199,8 @@ static void conv3x3s1_winograd43_msa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int j = 0; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(k0 + 8);
                         float w0 = k0[0];
                         float w1 = k0[1];
                         sum00 += r0[0] * w0;
@@ -1232,6 +1240,8 @@ static void conv3x3s1_winograd43_msa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int j = 0; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 4);
+                        __builtin_prefetch(k0 + 8);
                         float val0 = r0[0];
                         sum00 += val0 * k0[0];
                         sum10 += val0 * k0[1];
@@ -1293,6 +1303,8 @@ static void conv3x3s1_winograd43_msa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (; j < nn; j++)
                     {
+                        __builtin_prefetch(r0 + 16);
+                        __builtin_prefetch(k0 + 4);
                         float w0 = k0[0];
                         sum0 += r0[0] * w0;
                         sum1 += r0[1] * w0;

@@ -329,6 +329,8 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
             for (int q = 0; q < nn; q++)
             {
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr + 8);
                 float k0 = kptr[0];
                 float k1 = kptr[1];
                 sum00 += tmpptr[0] * k0;
@@ -367,6 +369,8 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
             for (int q = 0; q < nn; q++)
             {
+                __builtin_prefetch(tmpptr + 4);
+                __builtin_prefetch(kptr + 8);
                 sum0 += tmpptr[0] * kptr[0];
                 sum1 += tmpptr[0] * kptr[1];
                 tmpptr++;
@@ -422,6 +426,8 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
             for (int q = 0; q < nn; q++)
             {
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr + 4);
                 sum0 += tmpptr[0] * kptr[0];
                 sum1 += tmpptr[1] * kptr[0];
                 sum2 += tmpptr[2] * kptr[0];
