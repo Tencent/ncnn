@@ -144,7 +144,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
 
 #if __mips_msa
     int nn_outch = outch >> 2;
-    int remain_outch_start += nn_outch << 2;
+    int remain_outch_start = nn_outch << 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
@@ -394,7 +394,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
     }
 #else // __mips_msa
     int nn_outch = outch >> 1;
-    int remain_outch_start += nn_outch << 1;
+    int remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
