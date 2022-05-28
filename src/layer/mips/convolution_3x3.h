@@ -108,7 +108,7 @@ static void conv3x3s1_winograd23_transform_kernel_msa(const Mat& kernel, Mat& ke
             }
         }
     }
-#else // __mips_msa
+#else  // __mips_msa
     for (; q + 1 < outch; q += 2)
     {
         Mat g0 = kernel_tm2.channel(q / 2);
@@ -615,7 +615,7 @@ static void conv3x3s1_winograd23_msa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     __msa_st_w((v4i32)_sum0, output0_tm, 0);
                     output0_tm += 4;
-#else // __mips_msa
+#else  // __mips_msa
                     float sum0 = 0.f;
                     float sum1 = 0.f;
                     float sum2 = 0.f;
@@ -787,7 +787,7 @@ static void conv3x3s1_winograd43_transform_kernel_msa(const Mat& kernel, Mat& ke
             }
         }
     }
-#else // __mips_msa
+#else  // __mips_msa
     for (; q + 1 < outch; q += 2)
     {
         Mat g0 = kernel_tm2.channel(q / 2);
@@ -1295,7 +1295,7 @@ static void conv3x3s1_winograd43_msa(const Mat& bottom_blob, Mat& top_blob, cons
 
                     __msa_st_w((v4i32)_sum0, output0_tm, 0);
                     output0_tm += 4;
-#else // __mips_msa
+#else  // __mips_msa
                     float sum0 = 0.f;
                     float sum1 = 0.f;
                     float sum2 = 0.f;
