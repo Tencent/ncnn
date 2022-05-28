@@ -471,9 +471,6 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "ldc1       %6, 0(%1)       \n" // int8x8_t _k = __mmi_pldb_s(kptr);
 
                         "mtc1       $0, %8          \n" // int8x8_t _zero = __mmi_pzerob_s();
-                        "daddiu     %0, %0, 8       \n" // tmpptr += 8;
-                        "daddiu     %1, %1, 8       \n" // kptr += 8;
-
                         "pcmpgtb    %5, %8, %4      \n" // int8x8_t _extv = __mmi_pcmpgtb_s(_zero, _v);
                         "pcmpgtb    %7, %8, %6      \n" // int8x8_t _extk = __mmi_pcmpgtb_s(_zero, _k);
 
@@ -524,6 +521,9 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "f"(flag_0x44), // %24
                         "f"(flag_0xee)  // %25
                         : "memory");
+
+                        tmpptr += 8;
+                        kptr += 8;
                 }
 
                 int sum[4];
@@ -600,9 +600,6 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "ldc1       %5, 0(%1)       \n" // int8x8_t _k = __mmi_pldb_s(kptr);
 
                         "mtc1       $0, %7          \n" // int8x8_t _zero = __mmi_pzerob_s();
-                        "daddiu     %0, %0, 4       \n" // tmpptr += 4;
-                        "daddiu     %1, %1, 8       \n" // kptr += 8;
-
                         "pcmpgtb    %4, %7, %3      \n" // int8x8_t _extv = __mmi_pcmpgtb_s(_zero, _v);
                         "pcmpgtb    %6, %7, %5      \n" // int8x8_t _extk = __mmi_pcmpgtb_s(_zero, _k);
 
@@ -640,6 +637,9 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "f"(flag_0x44), // %18
                         "f"(flag_0xee)  // %19
                         : "memory");
+
+                        tmpptr += 4;
+                        kptr += 8;
                 }
 
                 int sum[2];
@@ -756,9 +756,6 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "ldc1       %5, 0(%1)       \n" // int8x8_t _k = __mmi_pldb_s(kptr);
 
                         "mtc1       $0, %6          \n" // int8x8_t _zero = __mmi_pzerob_s();
-                        "daddiu     %0, %0, 8       \n" // tmpptr += 8;
-                        "daddiu     %1, %1, 4       \n" // kptr += 4;
-
                         "pcmpgtb    %4, %6, %3      \n" // int8x8_t _extv = __mmi_pcmpgtb_s(_zero, _v);
                         "pcmpgtb    %6, %6, %5      \n" // int8x8_t _extk = __mmi_pcmpgtb_s(_zero, _k);
 
@@ -796,6 +793,9 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "f"(flag_0x44), // %18
                         "f"(flag_0xee)  // %19
                         : "memory");
+
+                        tmpptr += 8;
+                        kptr += 4;
                 }
 
                 int sum[2];
@@ -889,9 +889,6 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "ldc1       %5, 0(%1)       \n" // int8x8_t _k = __mmi_pldb_s(kptr);
 
                         "mtc1       $0, %6          \n" // int8x8_t _zero = __mmi_pzerob_s();
-                        "daddiu     %0, %0, 4       \n" // tmpptr += 4;
-                        "daddiu     %1, %1, 4       \n" // kptr += 4;
-
                         "pcmpgtb    %4, %6, %3      \n" // int8x8_t _extv = __mmi_pcmpgtb_s(_zero, _v);
                         "pcmpgtb    %6, %6, %5      \n" // int8x8_t _extk = __mmi_pcmpgtb_s(_zero, _k);
 
@@ -916,6 +913,9 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "5"(temp2),
                         "6"(temp3)
                         : "memory");
+
+                        tmpptr += 4;
+                        kptr += 4;
                 }
 
                 int tmp[2];
