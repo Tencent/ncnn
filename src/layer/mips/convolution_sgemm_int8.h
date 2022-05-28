@@ -635,10 +635,14 @@ static void convolution_im2col_sgemm_transform_kernel_int8_msa(const Mat& _kerne
 #endif // __mips_msa
     else
     {
+#if __mips_msa
         if (inch >= 4)
             kernel_tm.create(4 * maxk, inch / 4 + inch % 4, outch, (size_t)1u);
         else
+#endif // __mips_msa
+        {
             kernel_tm.create(1 * maxk, inch, outch, (size_t)1u);
+        }
     }
 
     int q = 0;
