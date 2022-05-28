@@ -33,6 +33,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             tmp.create(maxk, inch / 4 + inch % 4, size, 4u, 4, opt.workspace_allocator);
     }
     else
+#endif // __mips_msa
     {
         if (size >= 2)
             tmp.create(2 * maxk, inch, size / 2 + size % 2, 1u, 1, opt.workspace_allocator);
@@ -51,6 +52,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             signed char* tmpptr = tmp.channel(i / 2);
 
             int q = 0;
+#if __mips_msa
             for (; q + 3 < inch; q += 4)
             {
                 const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
@@ -76,6 +78,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                     img3 += size;
                 }
             }
+#endif // __mips_msa
             for (; q < inch; q++)
             {
                 const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
@@ -100,6 +103,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             signed char* tmpptr = tmp.channel(i / 2 + i % 2);
 
             int q = 0;
+#if __mips_msa
             for (; q + 3 < inch; q += 4)
             {
                 const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
@@ -121,52 +125,26 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                     img3 += size;
                 }
             }
-            for (; q < inch; q++)
-            {
-                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-
-                    tmpptr += 1;
-
-                    img0 += size;
-                }
-            }
-        }
-    }
-#else // __mips_msa
-    tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            signed char* tmpptr = tmp.channel(i);
-
-            int q = 0;
-            for (; q < inch; q++)
-            {
-                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-
-                    tmpptr += 1;
-
-                    img0 += size;
-                }
-            }
-        }
-    }
 #endif // __mips_msa
+            for (; q < inch; q++)
+            {
+                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
 
-    int nn_outch = 0;
-    int remain_outch_start = 0;
+                for (int k = 0; k < maxk; k++)
+                {
+                    tmpptr[0] = img0[0];
+
+                    tmpptr += 1;
+
+                    img0 += size;
+                }
+            }
+        }
+    }
 
 #if __mips_msa
-    nn_outch = outch >> 2;
+    int nn_outch = outch >> 2;
+    int remain_outch_start = nn_outch << 2;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
@@ -414,8 +392,85 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             outptr3 += 1;
         }
     }
+#else // __mips_msa
+    int nn_outch = outch >> 1;
+    int remain_outch_start = nn_outch << 1;
 
-    remain_outch_start += nn_outch << 2;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        int p = pp * 2;
+
+        int* outptr0 = top_blob.channel(p);
+        int* outptr1 = top_blob.channel(p + 1);
+
+        int i = 0;
+        for (; i + 1 < size; i += 2)
+        {
+            const signed char* tmpptr = tmp.channel(i / 2);
+            const signed char* kptr = kernel.channel(p / 2);
+
+            int nn1 = inch * maxk;
+
+            int sum00 = 0;
+            int sum01 = 0;
+            int sum10 = 0;
+            int sum11 = 0;
+
+            int j = 0;
+            for (; j < nn1; j++)
+            {
+                signed char val0 = tmpptr[0];
+                signed char val1 = tmpptr[1];
+                signed char w0 = kptr[0];
+                signed char w1 = kptr[1];
+
+                sum00 += val0 * w0;
+                sum01 += val1 * w0;
+                sum10 += val0 * w1;
+                sum11 += val1 * w1;
+
+                tmpptr += 2;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum00;
+            outptr0[1] = sum01;
+            outptr1[0] = sum10;
+            outptr1[1] = sum11;
+            outptr0 += 2;
+            outptr1 += 2;
+        }
+        for (; i < size; i++)
+        {
+            const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
+            const signed char* kptr = kernel.channel(p / 2);
+
+            int nn1 = inch * maxk;
+
+            int sum00 = 0;
+            int sum10 = 0;
+
+            int j = 0;
+            for (; j < nn1; j++)
+            {
+                signed char val0 = tmpptr[0];
+                signed char w0 = kptr[0];
+                signed char w1 = kptr[1];
+
+                sum00 += val0 * w0;
+                sum10 += val0 * w1;
+
+                tmpptr += 1;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum00;
+            outptr1[0] = sum10;
+            outptr0 += 1;
+            outptr1 += 1;
+        }
+    }
 #endif // __mips_msa
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -424,17 +479,21 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
         int* outptr0 = top_blob.channel(p);
 
         int i = 0;
-#if __mips_msa
         for (; i + 1 < size; i += 2)
         {
             const signed char* tmpptr = tmp.channel(i / 2);
+#if __mips_msa
             const signed char* kptr = kernel.channel(p / 4 + p % 4);
-
-            int nn4 = (inch / 4) * maxk;
-            int nn1 = (inch % 4) * maxk;
+#else
+            const signed char* kptr = kernel.channel(p / 2 + p % 2);
+#endif
 
             int sum0 = 0;
             int sum1 = 0;
+
+#if __mips_msa
+            int nn4 = (inch / 4) * maxk;
+            int nn1 = (inch % 4) * maxk;
 
             if (nn4 > 0)
             {
@@ -467,6 +526,9 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                 sum0 = _sum0[0] + _sum0[1] + _sum0[2] + _sum0[3];
                 sum1 = _sum1[0] + _sum1[1] + _sum1[2] + _sum1[3];
             }
+#else
+            int nn1 = inch * maxk;
+#endif // __mips_msa
 
             int j = 0;
             for (; j < nn1; j++)
@@ -489,12 +551,17 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
         for (; i < size; i++)
         {
             const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
+#if __mips_msa
             const signed char* kptr = kernel.channel(p / 4 + p % 4);
-
-            int nn4 = (inch / 4) * maxk;
-            int nn1 = (inch % 4) * maxk;
+#else
+            const signed char* kptr = kernel.channel(p / 2 + p % 2);
+#endif
 
             int sum = 0;
+
+#if __mips_msa
+            int nn4 = (inch / 4) * maxk;
+            int nn1 = (inch % 4) * maxk;
 
             if (nn4 > 0)
             {
@@ -520,31 +587,10 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
 
                 sum = _sum[0] + _sum[1] + _sum[2] + _sum[3];
             }
-
-            int j = 0;
-            for (; j < nn1; j++)
-            {
-                signed char val = tmpptr[0];
-                signed char w = kptr[0];
-
-                sum += val * w;
-
-                tmpptr += 1;
-                kptr += 1;
-            }
-
-            outptr0[0] = sum;
-            outptr0 += 1;
-        }
-#else  // __mips_msa
-        for (; i < size; i++)
-        {
-            const signed char* tmpptr = tmp.channel(i);
-            const signed char* kptr = kernel.channel(p);
-
+#else
             int nn1 = inch * maxk;
+#endif // __mips_msa
 
-            int sum = 0;
             int j = 0;
             for (; j < nn1; j++)
             {
@@ -560,7 +606,6 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             outptr0[0] = sum;
             outptr0 += 1;
         }
-#endif // __mips_msa
     }
 }
 
@@ -568,11 +613,11 @@ static void convolution_im2col_sgemm_transform_kernel_int8_msa(const Mat& _kerne
 {
     const int maxk = kernel_w * kernel_h;
 
-#if __mips_msa
     // interleave
     // src = maxk-inch-outch
     // dst = 4a-4b-maxk-inch/4a-outch/4b
     Mat kernel = _kernel.reshape(maxk, inch, outch);
+#if __mips_msa
     if (outch >= 4)
     {
         if (inch >= 4)
@@ -580,15 +625,26 @@ static void convolution_im2col_sgemm_transform_kernel_int8_msa(const Mat& _kerne
         else
             kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4, (size_t)1u);
     }
+#else
+    if (outch >= 2)
+    {
+        kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2, (size_t)1u);
+    }
+#endif // __mips_msa
     else
     {
+#if __mips_msa
         if (inch >= 4)
             kernel_tm.create(4 * maxk, inch / 4 + inch % 4, outch, (size_t)1u);
         else
+#endif // __mips_msa
+        {
             kernel_tm.create(1 * maxk, inch, outch, (size_t)1u);
+        }
     }
 
     int q = 0;
+#if __mips_msa
     for (; q + 3 < outch; q += 4)
     {
         signed char* g00 = kernel_tm.channel(q / 4);
@@ -603,9 +659,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_msa(const Mat& _kerne
                     for (int j = 0; j < 4; j++)
                     {
                         const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
@@ -618,20 +672,42 @@ static void convolution_im2col_sgemm_transform_kernel_int8_msa(const Mat& _kerne
                 for (int i = 0; i < 4; i++)
                 {
                     const signed char* k00 = kernel.channel(q + i).row<const signed char>(p);
-
                     g00[0] = k00[k];
-
                     g00++;
                 }
             }
         }
     }
-    // TODO unroll 2
-    for (; q < outch; q++)
+#else  // __mips_msa
+    for (; q + 1 < outch; q += 2)
     {
-        signed char* g00 = kernel_tm.channel(q / 4 + q % 4);
+        signed char* g00 = kernel_tm.channel(q / 2);
 
         int p = 0;
+        for (; p < inch; p++)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    const signed char* k00 = kernel.channel(q + i).row<const signed char>(p);
+                    g00[0] = k00[k];
+                    g00++;
+                }
+            }
+        }
+    }
+#endif // __mips_msa
+    for (; q < outch; q++)
+    {
+#if __mips_msa
+        signed char* g00 = kernel_tm.channel(q / 4 + q % 4);
+#else
+        signed char* g00 = kernel_tm.channel(q / 2 + q % 2);
+#endif
+
+        int p = 0;
+#if __mips_msa
         for (; p + 3 < inch; p += 4)
         {
             for (int k = 0; k < maxk; k++)
@@ -639,28 +715,22 @@ static void convolution_im2col_sgemm_transform_kernel_int8_msa(const Mat& _kerne
                 for (int j = 0; j < 4; j++)
                 {
                     const signed char* k00 = kernel.channel(q).row<const signed char>(p + j);
-
                     g00[0] = k00[k];
-
                     g00++;
                 }
             }
         }
+#endif // __mips_msa
         for (; p < inch; p++)
         {
             for (int k = 0; k < maxk; k++)
             {
                 const signed char* k00 = kernel.channel(q).row<const signed char>(p);
-
                 g00[0] = k00[k];
-
                 g00++;
             }
         }
     }
-#else  // __mips_msa
-    kernel_tm = _kernel.reshape(maxk, inch, outch);
-#endif // __mips_msa
 }
 
 static void convolution_im2col_sgemm_int8_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)

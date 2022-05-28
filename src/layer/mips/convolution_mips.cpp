@@ -30,7 +30,9 @@
 namespace ncnn {
 
 #include "convolution_sgemm.h"
+#include "convolution_winograd_transform.h"
 #include "convolution_1x1.h"
+#include "convolution_3x3.h"
 
 #if NCNN_INT8
 #include "convolution_sgemm_int8.h"
@@ -188,6 +190,17 @@ int Convolution_mips::create_pipeline(const Option& opt)
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             convolution_im2col_sgemm_transform_kernel_msa(weight_data, weight_data_packed, num_input, num_output, kernel_w, kernel_h);
+        }
+        if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            if (num_input >= 16 && num_output >= 16)
+            {
+                conv3x3s1_winograd43_transform_kernel_msa(weight_data, weight_winograd43_data, num_input, num_output, opt);
+            }
+            else
+            {
+                conv3x3s1_winograd23_transform_kernel_msa(weight_data, weight_winograd23_data, num_input, num_output, opt);
+            }
         }
         else if (opt.use_sgemm_convolution)
         {
@@ -389,6 +402,22 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
         {
             conv1x1s1_sgemm_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+
+            if (activation)
+            {
+                activation->forward_inplace(top_blob, opt);
+            }
+        }
+        else if (opt.use_winograd_convolution && kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+        {
+            if (num_input >= 16 && num_output >= 16)
+            {
+                conv3x3s1_winograd43_msa(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
+            }
+            else
+            {
+                conv3x3s1_winograd23_msa(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
+            }
 
             if (activation)
             {
