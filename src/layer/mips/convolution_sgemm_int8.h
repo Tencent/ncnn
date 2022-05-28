@@ -522,8 +522,8 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "f"(flag_0xee)  // %25
                         : "memory");
 
-                        tmpptr += 8;
-                        kptr += 8;
+                    tmpptr += 8;
+                    kptr += 8;
                 }
 
                 int sum[4];
@@ -638,8 +638,8 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "f"(flag_0xee)  // %19
                         : "memory");
 
-                        tmpptr += 4;
-                        kptr += 8;
+                    tmpptr += 4;
+                    kptr += 8;
                 }
 
                 int sum[2];
@@ -794,8 +794,8 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "f"(flag_0xee)  // %19
                         : "memory");
 
-                        tmpptr += 8;
-                        kptr += 4;
+                    tmpptr += 8;
+                    kptr += 4;
                 }
 
                 int sum[2];
@@ -914,8 +914,8 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "6"(temp3)
                         : "memory");
 
-                        tmpptr += 4;
-                        kptr += 4;
+                    tmpptr += 4;
+                    kptr += 4;
                 }
 
                 int tmp[2];
