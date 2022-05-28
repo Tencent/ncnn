@@ -84,7 +84,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                     tmpptr[5] = img3[0];
                     tmpptr[6] = img2[1];
                     tmpptr[7] = img3[1];
-#else // __mips_loongson_mmi
+#else  // __mips_loongson_mmi
                     tmpptr[0] = img0[0];
                     tmpptr[1] = img1[0];
                     tmpptr[2] = img2[0];
@@ -497,18 +497,18 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "paddw      %2, %2, %6      \n" // _sum0 = __mmi_paddw_s(_sum0, _s0y);
                         "paddw      %3, %3, %7      \n" // _sum1 = __mmi_paddw_s(_sum1, _s1y);
 
-                        : "=r"(tmpptr),  // %0
-                        "=r"(kptr),    // %1
-                        "=f"(_sum0),   // %2
-                        "=f"(_sum1),   // %3
-                        "=f"(temp0),   // %4
-                        "=f"(temp1),   // %5
-                        "=f"(temp2),   // %6
-                        "=f"(temp3),   // %7
-                        "=f"(temp4),   // %8
-                        "=f"(temp5),   // %9
-                        "=f"(temp6),   // %10
-                        "=f"(temp7)    // %11
+                        : "=r"(tmpptr), // %0
+                        "=r"(kptr),   // %1
+                        "=f"(_sum0),  // %2
+                        "=f"(_sum1),  // %3
+                        "=f"(temp0),  // %4
+                        "=f"(temp1),  // %5
+                        "=f"(temp2),  // %6
+                        "=f"(temp3),  // %7
+                        "=f"(temp4),  // %8
+                        "=f"(temp5),  // %9
+                        "=f"(temp6),  // %10
+                        "=f"(temp7)   // %11
                         : "0"(tmpptr),
                         "1"(kptr),
                         "2"(_sum0),
@@ -521,10 +521,9 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "9"(temp5),
                         "10"(temp6),
                         "11"(temp7),
-                        "f"(flag_0x44),   // %24
-                        "f"(flag_0xee)    // %25
-                        : "memory"
-                    );
+                        "f"(flag_0x44), // %24
+                        "f"(flag_0xee)  // %25
+                        : "memory");
                 }
 
                 int sum[4];
@@ -536,7 +535,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                 sum10 = sum[2];
                 sum11 = sum[3];
             }
-#else // __mips_loongson_mmi
+#else  // __mips_loongson_mmi
             int nn1 = inch * maxk;
 #endif // __mips_loongson_mmi
 
@@ -620,15 +619,15 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "paddw      %2, %2, %3      \n" // _sum01 = __mmi_paddw_s(_sum01, _s01x);
                         "paddw      %2, %2, %4      \n" // _sum01 = __mmi_paddw_s(_sum01, _s01y);
 
-                        : "=r"(tmpptr),  // %0
-                        "=r"(kptr),    // %1
-                        "=f"(_sum01),  // %2
-                        "=f"(temp0),   // %3
-                        "=f"(temp1),   // %4
-                        "=f"(temp2),   // %5
-                        "=f"(temp3),   // %6
-                        "=f"(temp4),   // %7
-                        "=f"(temp5)    // %8
+                        : "=r"(tmpptr), // %0
+                        "=r"(kptr),   // %1
+                        "=f"(_sum01), // %2
+                        "=f"(temp0),  // %3
+                        "=f"(temp1),  // %4
+                        "=f"(temp2),  // %5
+                        "=f"(temp3),  // %6
+                        "=f"(temp4),  // %7
+                        "=f"(temp5)   // %8
                         : "0"(tmpptr),
                         "1"(kptr),
                         "2"(_sum01),
@@ -638,10 +637,9 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "6"(temp3),
                         "7"(temp4),
                         "8"(temp5),
-                        "f"(flag_0x44),   // %18
-                        "f"(flag_0xee)    // %19
-                        : "memory"
-                    );
+                        "f"(flag_0x44), // %18
+                        "f"(flag_0xee)  // %19
+                        : "memory");
                 }
 
                 int sum[2];
@@ -650,7 +648,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                 sum00 = sum[0];
                 sum10 = sum[1];
             }
-#else // __mips_loongson_mmi
+#else  // __mips_loongson_mmi
             int nn1 = inch * maxk;
 #endif // __mips_loongson_mmi
 
@@ -777,15 +775,15 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "paddw      %2, %2, %3      \n" // _sum01 = __mmi_paddw_s(_sum01, _s01x);
                         "paddw      %2, %2, %4      \n" // _sum01 = __mmi_paddw_s(_sum01, _s01y);
 
-                        : "=r"(tmpptr),  // %0
-                        "=r"(kptr),    // %1
-                        "=f"(_sum01),  // %2
-                        "=f"(temp0),   // %3
-                        "=f"(temp1),   // %4
-                        "=f"(temp2),   // %5
-                        "=f"(temp3),   // %6
-                        "=f"(temp4),   // %7
-                        "=f"(temp5)    // %8
+                        : "=r"(tmpptr), // %0
+                        "=r"(kptr),   // %1
+                        "=f"(_sum01), // %2
+                        "=f"(temp0),  // %3
+                        "=f"(temp1),  // %4
+                        "=f"(temp2),  // %5
+                        "=f"(temp3),  // %6
+                        "=f"(temp4),  // %7
+                        "=f"(temp5)   // %8
                         : "0"(tmpptr),
                         "1"(kptr),
                         "2"(_sum01),
@@ -795,10 +793,9 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "6"(temp3),
                         "7"(temp4),
                         "8"(temp5),
-                        "f"(flag_0x44),   // %18
-                        "f"(flag_0xee)    // %19
-                        : "memory"
-                    );
+                        "f"(flag_0x44), // %18
+                        "f"(flag_0xee)  // %19
+                        : "memory");
                 }
 
                 int sum[2];
@@ -807,7 +804,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                 sum0 = sum[0];
                 sum1 = sum[1];
             }
-#else // __mips_loongson_mmi
+#else  // __mips_loongson_mmi
             int nn1 = inch * maxk;
 #endif // __mips_msa || __mips_loongson_mmi
 
@@ -904,13 +901,13 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "pmaddhw    %3, %3, %5      \n" // int32x2_t _s0x = __mmi_pmaddhw(_v0, _k0);
                         "paddw      %2, %2, %3      \n" // _sum0 = __mmi_paddw_s(_sum0, _s0x);
 
-                        : "=r"(tmpptr),  // %0
-                        "=r"(kptr),    // %1
-                        "=f"(_sum0),   // %2
-                        "=f"(temp0),   // %3
-                        "=f"(temp1),   // %4
-                        "=f"(temp2),   // %5
-                        "=f"(temp3)    // %6
+                        : "=r"(tmpptr), // %0
+                        "=r"(kptr),   // %1
+                        "=f"(_sum0),  // %2
+                        "=f"(temp0),  // %3
+                        "=f"(temp1),  // %4
+                        "=f"(temp2),  // %5
+                        "=f"(temp3)   // %6
                         : "0"(tmpptr),
                         "1"(kptr),
                         "2"(_sum0),
@@ -918,8 +915,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                         "4"(temp1),
                         "5"(temp2),
                         "6"(temp3)
-                        : "memory"
-                    );
+                        : "memory");
                 }
 
                 int tmp[2];
@@ -927,7 +923,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
 
                 sum = tmp[0] + tmp[1];
             }
-#else // __mips_loongson_mmi
+#else  // __mips_loongson_mmi
             int nn1 = inch * maxk;
 #endif // __mips_msa
 
@@ -1033,7 +1029,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_msa(const Mat& _kerne
             }
         }
     }
-#else  // __mips_msa
+#else // __mips_msa
     for (; q + 1 < outch; q += 2)
     {
         signed char* g00 = kernel_tm.channel(q / 2);
