@@ -392,7 +392,7 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             outptr3 += 1;
         }
     }
-#else  // __mips_msa
+#else // __mips_msa
     int nn_outch = outch >> 1;
     int remain_outch_start += nn_outch << 1;
 
