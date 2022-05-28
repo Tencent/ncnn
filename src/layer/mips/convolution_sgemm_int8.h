@@ -471,8 +471,6 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             outptr1 += 1;
         }
     }
-
-    remain_outch_start += nn_outch << 2;
 #endif // __mips_msa
 
     #pragma omp parallel for num_threads(opt.num_threads)
