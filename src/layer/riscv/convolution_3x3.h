@@ -630,7 +630,7 @@ static void conv3x3s1_winograd23_rvv(const Mat& bottom_blob, Mat& top_blob, cons
                     vse32_v_f32m1(output0_tm, _sum0, vl);
                     output0_tm += packn;
                 }
-#else // __riscv_vector
+#else  // __riscv_vector
                 for (; i + 3 < tiles; i += 4)
                 {
                     const float* r0 = bb2.row(i / 4);
@@ -1328,7 +1328,7 @@ static void conv3x3s1_winograd43_rvv(const Mat& bottom_blob, Mat& top_blob, cons
                     vse32_v_f32m1(output0_tm, _sum0, vl);
                     output0_tm += packn;
                 }
-#else // __riscv_vector
+#else  // __riscv_vector
                 for (; i + 3 < tiles; i += 4)
                 {
                     const float* r0 = bb2.row(i / 4);
