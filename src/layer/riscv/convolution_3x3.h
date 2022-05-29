@@ -983,7 +983,7 @@ static void conv3x3s1_winograd43_rvv(const Mat& bottom_blob, Mat& top_blob, cons
         bottom_blob_tm = Mat();
         // permute end
 
-        top_blob_tm.create(tiles, 16, outch, 4u, opt.workspace_allocator);
+        top_blob_tm.create(tiles, 36, outch, 4u, opt.workspace_allocator);
 
 #if __riscv_vector
         int nn_outch = outch >> 3;
