@@ -620,7 +620,7 @@ static void conv3x3s1_winograd23_rvv(const Mat& bottom_blob, Mat& top_blob, cons
 
                     vfloat32m1_t _sum0 = vfmv_v_f_f32m1(0.f, vl);
 
-                    for (; j < nn; j++)
+                    for (int j = 0; j < nn; j++)
                     {
                         _sum0 = vfmacc_vf_f32m1(_sum0, k0[0], vle32_v_f32m1(r0, vl), vl);
                         r0 += packn;
@@ -1323,7 +1323,7 @@ static void conv3x3s1_winograd43_rvv(const Mat& bottom_blob, Mat& top_blob, cons
 
                     vfloat32m1_t _sum0 = vfmv_v_f_f32m1(0.f, vl);
 
-                    for (; j < nn; j++)
+                    for (int j = 0; j < nn; j++)
                     {
                         _sum0 = vfmacc_vf_f32m1(_sum0, k0[0], vle32_v_f32m1(r0, vl), vl);
                         r0 += packn;
