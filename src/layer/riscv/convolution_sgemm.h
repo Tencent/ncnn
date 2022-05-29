@@ -95,7 +95,11 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
+#if __riscv_vector
             float* tmpptr = tmp.channel(i / packn + i % packn);
+#else
+            float* tmpptr = tmp.channel(i / 4 + i % 4);
+#endif
 
             for (int q = 0; q < inch; q++)
             {

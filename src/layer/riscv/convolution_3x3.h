@@ -855,6 +855,11 @@ static void conv3x3s1_winograd43_transform_kernel_rvv(const Mat& kernel, Mat& ke
 
 static void conv3x3s1_winograd43_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
+#if __riscv_vector
+    const int packn = csrr_vlenb() / 4;
+    const word_type vl = vsetvl_e32m1(packn);
+#endif
+
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
