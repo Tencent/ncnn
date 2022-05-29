@@ -234,7 +234,7 @@ static void conv3x3s1_winograd23_rvv(const Mat& bottom_blob, Mat& top_blob, cons
                     tmpptr += packn;
                 }
             }
-#else // __riscv_vector
+#else  // __riscv_vector
             for (; i + 3 < tiles; i += 4)
             {
                 float* tmpptr = tm2.row(i / 4);
@@ -663,7 +663,7 @@ static void conv3x3s1_winograd23_rvv(const Mat& bottom_blob, Mat& top_blob, cons
                     output0_tm[3] = sum3;
                     output0_tm += 4;
                 }
-#else  // __riscv_vector
+#else // __riscv_vector
                 for (; i < tiles; i++)
                 {
 #if __riscv_vector
@@ -932,7 +932,7 @@ static void conv3x3s1_winograd43_rvv(const Mat& bottom_blob, Mat& top_blob, cons
                     tmpptr += packn;
                 }
             }
-#else // __riscv_vector
+#else  // __riscv_vector
             for (; i + 3 < tiles; i += 4)
             {
                 float* tmpptr = tm2.row(i / 4);
@@ -1361,7 +1361,7 @@ static void conv3x3s1_winograd43_rvv(const Mat& bottom_blob, Mat& top_blob, cons
                     output0_tm[3] = sum3;
                     output0_tm += 4;
                 }
-#else  // __riscv_vector
+#else // __riscv_vector
                 for (; i < tiles; i++)
                 {
 #if __riscv_vector

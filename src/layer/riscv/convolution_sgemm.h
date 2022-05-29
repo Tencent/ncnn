@@ -432,7 +432,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
             outptr0 += packn;
         }
-#else // __riscv_vector
+#else  // __riscv_vector
         for (; i + 3 < size; i += 4)
         {
             const float* tmpptr = tmp.channel(i / 4);
