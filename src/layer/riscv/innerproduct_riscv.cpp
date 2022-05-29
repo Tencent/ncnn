@@ -287,8 +287,63 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         vse32_v_f32m1((float*)top_blob + p, _sum, vl);
     }
-#else  // __riscv_vector
-    int remain_num_output_start = 0;
+#else // __riscv_vector
+    int nn_num_output = num_output / 4;
+    int remain_num_output_start = nn_num_output * 4;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_num_output; pp++)
+    {
+        int p = pp * 4;
+
+        float sum0 = 0.f;
+        float sum1 = 0.f;
+        float sum2 = 0.f;
+        float sum3 = 0.f;
+
+        if (bias_term)
+        {
+            sum0 = bias_data[p];
+            sum1 = bias_data[p + 1];
+            sum2 = bias_data[p + 2];
+            sum3 = bias_data[p + 3];
+        }
+
+        const float* w0 = weight_data_ptr + num_input * p;
+        const float* w1 = weight_data_ptr + num_input * (p + 1);
+        const float* w2 = weight_data_ptr + num_input * (p + 2);
+        const float* w3 = weight_data_ptr + num_input * (p + 3);
+
+        // channels
+        for (int q = 0; q < channels; q++)
+        {
+            const float* m = bottom_blob.channel(q);
+
+            for (int i = 0; i < size; i++)
+            {
+                sum0 += *m * *w0;
+                sum1 += *m * *w1;
+                sum2 += *m * *w2;
+                sum3 += *m * *w3;
+
+                m++;
+                w0++;
+                w1++;
+                w2++;
+                w3++;
+            }
+        }
+
+        sum0 = activation_ss(sum0, activation_type, activation_params);
+        sum1 = activation_ss(sum1, activation_type, activation_params);
+        sum2 = activation_ss(sum2, activation_type, activation_params);
+        sum3 = activation_ss(sum3, activation_type, activation_params);
+
+        top_blob[p] = sum0;
+        top_blob[p + 1] = sum1;
+        top_blob[p + 2] = sum2;
+        top_blob[p + 3] = sum3;
+    }
 #endif // __riscv_vector
 
     // num_output
