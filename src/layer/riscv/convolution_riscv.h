@@ -43,8 +43,9 @@ public:
 
     // packn
     Mat weight_data_packed;
-    Mat weight_winograd63_data;
+    Mat weight_winograd23_data;
     Mat weight_winograd43_data;
+    Mat weight_winograd63_data;
 
     // fp16
     Mat weight_data_fp16;
