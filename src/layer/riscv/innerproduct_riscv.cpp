@@ -287,7 +287,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
         vse32_v_f32m1((float*)top_blob + p, _sum, vl);
     }
-#else  // __riscv_vector
+#else // __riscv_vector
     int nn_num_output = num_output / 4;
     int remain_num_output_start = nn_num_output * 4;
 
