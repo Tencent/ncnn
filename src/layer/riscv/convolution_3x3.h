@@ -458,10 +458,10 @@ static void conv3x3s1_winograd23_rvv(const Mat& bottom_blob, Mat& top_blob, cons
                     vse32_v_f32m1(output2_tm, _sum2, vl);
                     vse32_v_f32m1(output3_tm, _sum3, vl);
 
-                    output0_tm += 4;
-                    output1_tm += 4;
-                    output2_tm += 4;
-                    output3_tm += 4;
+                    output0_tm += packn;
+                    output1_tm += packn;
+                    output2_tm += packn;
+                    output3_tm += packn;
                 }
                 for (; i < tiles; i++)
                 {
@@ -1161,10 +1161,10 @@ static void conv3x3s1_winograd43_rvv(const Mat& bottom_blob, Mat& top_blob, cons
                     vse32_v_f32m1(output2_tm, _sum2, vl);
                     vse32_v_f32m1(output3_tm, _sum3, vl);
 
-                    output0_tm += 4;
-                    output1_tm += 4;
-                    output2_tm += 4;
-                    output3_tm += 4;
+                    output0_tm += packn;
+                    output1_tm += packn;
+                    output2_tm += packn;
+                    output3_tm += packn;
                 }
                 for (; i < tiles; i++)
                 {
