@@ -365,7 +365,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
                 sum12 += tmpptr[2] * k1;
                 sum13 += tmpptr[3] * k1;
                 tmpptr += 4;
-                kptr += 4;
+                kptr += 2;
             }
 
             outptr0[0] = sum00;
@@ -395,7 +395,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
                 sum0 += tmpptr[0] * kptr[0];
                 sum1 += tmpptr[0] * kptr[1];
                 tmpptr++;
-                kptr += 4;
+                kptr += 2;
             }
 
             outptr0[0] = sum0;
