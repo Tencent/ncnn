@@ -126,8 +126,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
             reshape_1x1xw->top_shapes[0] = Mat(1, 1, num_input, (void*)0);
 
             ncnn::ParamDict pd;
-            pd.set(0, 1); // w
-            pd.set(1, 1); // h
+            pd.set(0, 1);         // w
+            pd.set(1, 1);         // h
             pd.set(2, num_input); // c
 
             reshape_1x1xw->load_param(pd);
@@ -746,7 +746,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         // check weight shape
-//         Mat weight_data_packed(maxk, num_input / elempack, num_output / out_elempack, (void*)0, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+        //         Mat weight_data_packed(maxk, num_input / elempack, num_output / out_elempack, (void*)0, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
         if (!vkdev->shape_support_image_storage(weight_data_packed))
         {
             support_image_storage = false;
