@@ -25,6 +25,8 @@
 
 namespace ncnn {
 
+#include "convolutiondepthwise_3x3.h"
+
 #if __mips_msa
 #include "convolutiondepthwise_3x3_pack4.h"
 #include "convolutiondepthwise_5x5_pack4.h"
@@ -352,6 +354,25 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
 
         if (elempack == 1)
         {
+            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            {
+                convdw3x3s1_msa(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            {
+                convdw3x3s2_msa(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+
+                if (activation)
+                {
+                    activation->forward_inplace(top_blob, opt);
+                }
+            }
+            else
             {
                 const int maxk = kernel_w * kernel_h;
 
