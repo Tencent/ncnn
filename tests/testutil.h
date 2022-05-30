@@ -363,6 +363,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -808,6 +809,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;

@@ -3175,7 +3175,7 @@ void VkTransfer::record_upload(const Mat& src, VkImageMat& dst, const Option& op
     //     NCNN_LOGE("record_upload image src = %d | %d %d %d @ %d", src.dims, src.w, src.h, src.c, src.elempack);
 
     // NOTE keep the hack here ?
-    if (src.elemsize == src.elempack * 4u)
+    if (src.elembits() == 32)
     {
         if (opt.use_fp16_storage || (opt.use_fp16_packed && src.elempack % 4 == 0))
         {
