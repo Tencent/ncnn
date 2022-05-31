@@ -139,7 +139,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack4.create(maxk, num_input / 4, num_output / 4, (size_t)4 * 16, 16);
+            weight_data_tm.create(maxk, num_input / 4, num_output / 4, (size_t)4 * 16, 16);
 
             for (int q = 0; q + 3 < num_output; q += 4)
             {
@@ -148,7 +148,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
                 const Mat k2 = weight_data_r2.channel(q + 2);
                 const Mat k3 = weight_data_r2.channel(q + 3);
 
-                float* g00 = weight_data_pack4.channel(q / 4);
+                float* g00 = weight_data_tm.channel(q / 4);
 
                 for (int p = 0; p + 3 < num_input; p += 4)
                 {
@@ -209,7 +209,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack1to4.create(maxk, num_input, num_output / 4, (size_t)4 * 4, 4);
+            weight_data_tm.create(maxk, num_input, num_output / 4, (size_t)4 * 4, 4);
 
             for (int q = 0; q + 3 < num_output; q += 4)
             {
@@ -218,7 +218,7 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
                 const Mat k2 = weight_data_r2.channel(q + 2);
                 const Mat k3 = weight_data_r2.channel(q + 3);
 
-                float* g00 = weight_data_pack1to4.channel(q / 4);
+                float* g00 = weight_data_tm.channel(q / 4);
 
                 for (int p = 0; p < num_input; p++)
                 {
@@ -249,12 +249,12 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-            weight_data_pack4to1.create(maxk, num_input / 4, num_output, (size_t)4 * 4, 4);
+            weight_data_tm.create(maxk, num_input / 4, num_output, (size_t)4 * 4, 4);
 
             for (int q = 0; q < num_output; q++)
             {
                 const Mat k0 = weight_data_r2.channel(q);
-                float* g00 = weight_data_pack4to1.channel(q);
+                float* g00 = weight_data_tm.channel(q);
 
                 for (int p = 0; p + 3 < num_input; p += 4)
                 {
@@ -281,7 +281,31 @@ int Deconvolution_arm::create_pipeline(const Option& opt)
     // pack1
     if (elempack == 1 && out_elempack == 1)
     {
-        weight_data_pack1 = weight_data_transposed;
+        if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        {
+            weight_data_tm = weight_data;
+        }
+        else if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            weight_data_tm = weight_data;
+        }
+        else if (kernel_w == 4 && kernel_h == 4 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
+        {
+            weight_data_tm = weight_data;
+        }
+        else if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
+        {
+            weight_data_tm = weight_data;
+        }
+        else
+        {
+            weight_data_tm = weight_data_transposed;
+        }
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
     }
 
     return 0;
@@ -317,9 +341,6 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (opt.use_bf16_storage && elembits == 16)
         return forward_bf16s(bottom_blob, top_blob, opt);
 #endif
-
-    // deconvolv with NxN kernel
-    // value = value + bias
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -378,7 +399,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                     }
 
-                    const float* kptr = (const float*)weight_data_pack4 + maxk * channels * p * 16;
+                    const float* kptr = weight_data_tm.channel(p);
 
                     // channels
                     for (int q = 0; q < channels; q++)
@@ -462,7 +483,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                     }
 
-                    const float* kptr = (const float*)weight_data_pack1to4 + maxk * channels * p * 4;
+                    const float* kptr = weight_data_tm.channel(p);
 
                     // channels
                     for (int q = 0; q < channels; q++)
@@ -518,7 +539,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         // num_output
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = 0; p < num_output / out_elempack; p++)
+        for (int p = 0; p < num_output; p++)
         {
             float* outptr = top_blob_bordered.channel(p);
 
@@ -533,7 +554,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         sum = bias_data[p];
                     }
 
-                    const float* kptr = (const float*)weight_data_pack4to1 + maxk * channels * p * 4;
+                    const float* kptr = weight_data_tm.channel(p);
 
                     // channels
                     for (int q = 0; q < channels; q++)
@@ -597,7 +618,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     {
         if (kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
-            deconv3x3s1_neon(bottom_blob, top_blob_bordered, weight_data, bias_data, opt);
+            deconv3x3s1_neon(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, opt);
 
             if (activation)
             {
@@ -606,7 +627,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         }
         else if (kernel_w == 3 && kernel_h == 3 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
         {
-            deconv3x3s2_neon(bottom_blob, top_blob_bordered, weight_data, bias_data, opt);
+            deconv3x3s2_neon(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, opt);
 
             if (activation)
             {
@@ -615,7 +636,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         }
         else if (kernel_w == 4 && kernel_h == 4 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1)
         {
-            deconv4x4s1_neon(bottom_blob, top_blob_bordered, weight_data, bias_data, opt);
+            deconv4x4s1_neon(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, opt);
 
             if (activation)
             {
@@ -624,7 +645,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
         }
         else if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
         {
-            deconv4x4s2_neon(bottom_blob, top_blob_bordered, weight_data, bias_data, opt);
+            deconv4x4s2_neon(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, opt);
 
             if (activation)
             {
@@ -650,7 +671,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                             sum = bias_data[p];
                         }
 
-                        const float* kptr = (const float*)weight_data_pack1 + maxk * channels * p;
+                        const float* kptr = (const float*)weight_data_tm + maxk * channels * p;
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -692,28 +713,7 @@ int Deconvolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                             kptr += maxk;
                         }
 
-                        if (activation_type == 1)
-                        {
-                            sum = std::max(sum, 0.f);
-                        }
-                        else if (activation_type == 2)
-                        {
-                            float slope = activation_params[0];
-                            sum = sum > 0.f ? sum : sum * slope;
-                        }
-                        else if (activation_type == 3)
-                        {
-                            float min = activation_params[0];
-                            float max = activation_params[1];
-                            if (sum < min)
-                                sum = min;
-                            if (sum > max)
-                                sum = max;
-                        }
-                        else if (activation_type == 4)
-                        {
-                            sum = static_cast<float>(1.f / (1.f + exp(-sum)));
-                        }
+                        sum = activation_ss(sum, activation_type, activation_params);
 
                         outptr[j] = sum;
                     }
@@ -768,11 +768,11 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
     {
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-        weight_data_fp16.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
+        weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            __fp16* g00 = weight_data_fp16.channel(q / out_elempack);
+            __fp16* g00 = weight_data_tm.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
@@ -798,11 +798,16 @@ int Deconvolution_arm::create_pipeline_fp16s(const Option& opt)
     {
         if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
         {
-            ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
+            ncnn::cast_float32_to_float16(weight_data, weight_data_tm, opt);
         }
     }
 
     ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
 
     return 0;
 }
@@ -863,7 +868,7 @@ int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -942,7 +947,7 @@ int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1015,7 +1020,7 @@ int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1090,7 +1095,7 @@ int Deconvolution_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1210,7 +1215,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _sum = vld1q_f16((const __fp16*)bias_data_fp16 + p * 8);
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1297,7 +1302,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _sum = vld1q_f16((const __fp16*)bias_data_fp16 + p * 8);
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1370,7 +1375,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _sum = vld1q_f16((const __fp16*)bias_data_fp16 + p * 8);
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1449,7 +1454,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1525,7 +1530,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _sum = vld1_f16((const __fp16*)bias_data_fp16 + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1612,7 +1617,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _sum = vld1_f16((const __fp16*)bias_data_fp16 + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1691,7 +1696,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             _sum = vld1_f16((const __fp16*)bias_data_fp16 + p * 4);
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1764,7 +1769,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1823,7 +1828,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
     {
         if (kernel_w == 4 && kernel_h == 4 && stride_w == 2 && stride_h == 2 && dilation_w == 1 && dilation_h == 1)
         {
-            deconv4x4s2_fp16sa_neon(bottom_blob, top_blob_bordered, weight_data_fp16, bias_data_fp16, opt);
+            deconv4x4s2_fp16sa_neon(bottom_blob, top_blob_bordered, weight_data_tm, bias_data_fp16, opt);
 
             if (activation)
             {
@@ -1849,7 +1854,7 @@ int Deconvolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, con
                             sum = bias_data[p];
                         }
 
-                        const __fp16* kptr = weight_data_fp16.channel(p);
+                        const __fp16* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -1948,11 +1953,11 @@ int Deconvolution_arm::create_pipeline_bf16s(const Option& opt)
     {
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-        weight_data_bf16.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
+        weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)2u * elempack * out_elempack, elempack * out_elempack);
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            unsigned short* g00 = weight_data_bf16.channel(q / out_elempack);
+            unsigned short* g00 = weight_data_tm.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
@@ -1972,6 +1977,11 @@ int Deconvolution_arm::create_pipeline_bf16s(const Option& opt)
                 }
             }
         }
+    }
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
     }
 
     return 0;
@@ -2040,7 +2050,7 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
-                        const unsigned short* kptr = weight_data_bf16.channel(p);
+                        const unsigned short* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -2126,7 +2136,7 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             _sum = vld1q_f32(((const float*)bias_data) + p * 4);
                         }
 
-                        const unsigned short* kptr = weight_data_bf16.channel(p);
+                        const unsigned short* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -2199,7 +2209,7 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             sum = bias_data[p];
                         }
 
-                        const unsigned short* kptr = weight_data_bf16.channel(p);
+                        const unsigned short* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
@@ -2280,7 +2290,7 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
                             sum = bias_data[p];
                         }
 
-                        const unsigned short* kptr = weight_data_bf16.channel(p);
+                        const unsigned short* kptr = weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)
