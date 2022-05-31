@@ -428,6 +428,68 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             const float* sptr = bottom_blob_flattened;
 
             int i = 0;
+            for (; i + 7 < num_input; i += 8)
+            {
+#if __aarch64__
+                asm volatile(
+                    "prfm       pldl1keep, [%0, #256]     \n"
+                    "ld1        {v0.4s, v1.4s}, [%0], #32 \n"
+                    "prfm       pldl1keep, [%1, #512]     \n"
+                    "ld1        {v2.4s, v3.4s, v4.4s, v5.4s}, [%1], #64 \n"
+                    "prfm       pldl1keep, [%1, #512]     \n"
+                    "ld1        {v6.4s, v7.4s, v8.4s, v9.4s}, [%1], #64 \n"
+                    "fmla       %2.4s, v2.4s, v0.s[0]     \n"
+                    "fmla       %3.4s, v3.4s, v0.s[1]     \n"
+                    "fmla       %4.4s, v4.4s, v0.s[2]     \n"
+                    "fmla       %5.4s, v5.4s, v0.s[3]     \n"
+                    "fmla       %2.4s, v6.4s, v1.s[0]     \n"
+                    "fmla       %3.4s, v7.4s, v1.s[1]     \n"
+                    "fmla       %4.4s, v8.4s, v1.s[2]     \n"
+                    "fmla       %5.4s, v9.4s, v1.s[3]     \n"
+                    : "=r"(sptr), // %0
+                    "=r"(kptr),  // %1
+                    "=w"(_sum0), // %2
+                    "=w"(_sum1), // %3
+                    "=w"(_sum2), // %4
+                    "=w"(_sum3)  // %5
+                    : "0"(sptr),
+                    "1"(kptr),
+                    "2"(_sum0),
+                    "3"(_sum1),
+                    "4"(_sum2),
+                    "5"(_sum3)
+                    : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
+#else
+                asm volatile(
+                    "pld        [%0, #256]          \n"
+                    "vld1.f32   {d0-d3}, [%0 :128]! \n"
+                    "pld        [%1, #512]          \n"
+                    "vldm       %1!, {d4-d11}       \n"
+                    "pld        [%1, #512]          \n"
+                    "vldm       %1!, {d12-d19}      \n"
+                    "vmla.f32   %q2, q2, d0[0]      \n"
+                    "vmla.f32   %q3, q3, d0[1]      \n"
+                    "vmla.f32   %q4, q4, d1[0]      \n"
+                    "vmla.f32   %q5, q5, d1[1]      \n"
+                    "vmla.f32   %q2, q6, d2[0]      \n"
+                    "vmla.f32   %q3, q7, d2[1]      \n"
+                    "vmla.f32   %q4, q8, d3[0]      \n"
+                    "vmla.f32   %q5, q9, d3[1]      \n"
+                    : "=r"(sptr), // %0
+                    "=r"(kptr),  // %1
+                    "=w"(_sum0), // %2
+                    "=w"(_sum1), // %3
+                    "=w"(_sum2), // %4
+                    "=w"(_sum3)  // %5
+                    : "0"(sptr),
+                    "1"(kptr),
+                    "2"(_sum0),
+                    "3"(_sum1),
+                    "4"(_sum2),
+                    "5"(_sum3)
+                    : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9");
+#endif
+            }
             for (; i + 3 < num_input; i += 4)
             {
                 float32x4_t _val = vld1q_f32(sptr);
