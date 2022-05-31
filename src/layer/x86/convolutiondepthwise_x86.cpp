@@ -123,15 +123,15 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
 
         if (elempack == 1)
         {
-            weight_data_tm = weight_data;
-
             // depth-wise specific
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
+                weight_data_tm = weight_data;
                 return 0;
             }
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
+                weight_data_tm = weight_data;
                 return 0;
             }
         }
