@@ -735,11 +735,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
     if (bottom_blob.dims == 1 && kernel_w == 1 && kernel_h == 1)
     {
         Mat bottom_blob_3d;
-        if (bottom_blob.elempack == 1)
-        {
-            bottom_blob_3d = bottom_blob.reshape(1, 1, bottom_blob.w, opt.workspace_allocator);
-        }
-        else
+        if (bottom_blob.elemsize % 16 == 0)
         {
             bottom_blob_3d = bottom_blob;
             bottom_blob_3d.dims = 3;
@@ -748,17 +744,17 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             bottom_blob_3d.c = bottom_blob.w;
             bottom_blob_3d.cstep = 1;
         }
+        else
+        {
+            bottom_blob_3d = bottom_blob.reshape(1, 1, bottom_blob.w, opt.workspace_allocator);
+        }
 
         Mat top_blob_3d;
         int ret = forward(bottom_blob_3d, top_blob_3d, opt);
         if (ret != 0)
             return ret;
 
-        if (top_blob_3d.elempack == 1)
-        {
-            top_blob = top_blob_3d.reshape(top_blob_3d.c, opt.blob_allocator);
-        }
-        else
+        if (top_blob_3d.elemsize % 16 == 0)
         {
             top_blob = top_blob_3d;
             top_blob.dims = 1;
@@ -766,6 +762,10 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
             top_blob.h = 1;
             top_blob.c = 1;
             bottom_blob_3d.cstep = top_blob_3d.c;
+        }
+        else
+        {
+            top_blob = top_blob_3d.reshape(top_blob_3d.c, opt.blob_allocator);
         }
 
         return 0;
