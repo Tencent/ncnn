@@ -30,7 +30,10 @@ Mat Mat::from_apple_samplebuffer(CMSampleBufferRef samplebuffer) {
         return Mat();
     }
     CVPixelBufferRef pixel = CMSampleBufferGetImageBuffer(samplebuffer);
-    return Mat::from_apple_pixelbuffer(pixel);
+    CVPixelBufferRetain(pixel);
+    Mat o = Mat::from_apple_pixelbuffer(pixel);
+    CVPixelBufferRelease(pixel);
+    return o;
 }
 
 Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer) {
