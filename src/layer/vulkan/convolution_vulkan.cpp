@@ -746,8 +746,8 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         // check weight shape
-        //         Mat weight_data_packed(maxk, num_input / elempack, num_output / out_elempack, (void*)0, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
-        if (!vkdev->shape_support_image_storage(weight_data_packed))
+        Mat weight_data_packed_shape(maxk, num_input / elempack, num_output / out_elempack, (void*)0, (size_t)4 * elempack * out_elempack, elempack * out_elempack);
+        if (!vkdev->shape_support_image_storage(weight_data_packed_shape))
         {
             support_image_storage = false;
             opt.use_image_storage = false;
