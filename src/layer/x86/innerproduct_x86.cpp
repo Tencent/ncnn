@@ -170,7 +170,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 16;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m512 _sum0 = _mm512_set1_ps(0.f);
@@ -277,7 +277,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 16;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m512 _sum = _mm512_set1_ps(0.f);
@@ -311,7 +311,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 16;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m128 _sum0 = _mm_set1_ps(0.f);
@@ -419,7 +419,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 16;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -561,7 +561,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 4;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m512 _sum0 = _mm512_set1_ps(0.f);
@@ -609,7 +609,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 8;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m512 _sum0 = _mm512_set1_ps(0.f);
@@ -679,7 +679,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 8;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -754,7 +754,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 8;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m256 _sum = _mm256_set1_ps(0.f);
@@ -838,7 +838,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 8;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m128 _sum0 = _mm_set1_ps(0.f);
@@ -983,7 +983,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 4;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m256 _sum0 = _mm256_set1_ps(0.f);
@@ -1060,7 +1060,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 4;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m128 _sum0 = _mm_set1_ps(0.f);
@@ -1134,7 +1134,7 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
                 for (int p = 0; p < num_output / num_output_elempack; p++)
                 {
-                    const float* kptr = (const float*)weight_data_tm + num_input * p * 4;
+                    const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
                     __m128 _sum = _mm_set1_ps(0.f);
