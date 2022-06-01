@@ -50,6 +50,7 @@ jobs:
         chmod +x qemu-loongarch64
         echo -e "#include <iostream>\nint main() { std::cerr << \"hello loongarch64\" << std::endl; return 0; }" > hello.cpp
         $GITHUB_WORKSPACE/cross-tools/bin/loongarch64-unknown-linux-gnu-g++ hello.cpp -march=loongarch64 -o hello
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
         export QEMU_STRACE=1
         ./qemu-loongarch64 -L $GITHUB_WORKSPACE/cross-tools/target/usr ./hello
 
