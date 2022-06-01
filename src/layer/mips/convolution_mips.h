@@ -40,17 +40,14 @@ protected:
 public:
     Layer* activation;
 
+    Mat weight_data_tm;
     Mat weight_sgemm_data;
     Mat weight_winograd23_data;
     Mat weight_winograd43_data;
     Mat weight_winograd63_data;
 
-    // pack4
-    Mat weight_data_packed;
-
 #if NCNN_INT8
-    // int8
-    Mat weight_data_int8;
+    Mat scale_in_data;
 #endif
 };
 
