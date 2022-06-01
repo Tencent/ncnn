@@ -48,6 +48,11 @@ jobs:
         tar -xf loongarch64-clfs-5.0-cross-tools-gcc-glibc.tar.xz
         wget https://github.com/loongson/build-tools/releases/download/2022.05.29/qemu-loongarch64
         chmod +x qemu-loongarch64
+        echo -e "#include <iostream>\nint main() { std::cerr << \"hello loongarch64\" << std::endl; return 0; }" > hello.cpp
+        $GITHUB_WORKSPACE/cross-tools/bin/loongarch64-unknown-linux-gnu-g++ hello.cpp -march=loongarch64 -o hello
+        export QEMU_STRACE=1
+        ./qemu-loongarch64 -L $GITHUB_WORKSPACE/cross-tools/target/usr ./hello
+
 
     - name: configure
       run: |
