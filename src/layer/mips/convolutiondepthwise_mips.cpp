@@ -74,12 +74,13 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
         if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, 4, opt);
+            convert_packing(weight_data_r2, weight_data_tm, 4, opt);
         }
 #endif // __mips_msa
 
         if (elempack == 1)
         {
+            weight_data_tm = weight_data;
         }
 
         return 0;
@@ -87,6 +88,11 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
 
     // group convolution
     create_group_ops(opt);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
 
     return 0;
 }
@@ -109,7 +115,7 @@ int ConvolutionDepthWise_mips::create_group_ops(const Option& opt)
 
     for (int g = 0; g < group; g++)
     {
-        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
+        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g).clone();
         Mat bias_data_g;
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
@@ -210,7 +216,7 @@ int ConvolutionDepthWise_mips::destroy_pipeline(const Option& opt)
 int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
 #if NCNN_INT8
-    if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
+    if (opt.use_int8_inference && int8_scale_term)
     {
         return forward_int8_mips(bottom_blob, top_blob, opt);
     }
@@ -256,7 +262,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                convdw3x3s1_pack4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+                convdw3x3s1_pack4_msa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
                 if (activation)
                 {
@@ -265,7 +271,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                convdw3x3s2_pack4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+                convdw3x3s2_pack4_msa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
                 if (activation)
                 {
@@ -274,7 +280,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
             }
             else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                convdw5x5s1_pack4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+                convdw5x5s1_pack4_msa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
                 if (activation)
                 {
@@ -283,7 +289,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
             }
             else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                convdw5x5s2_pack4_msa(bottom_blob_bordered, top_blob, weight_data_packed, bias_data, opt);
+                convdw5x5s2_pack4_msa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
                 if (activation)
                 {
@@ -317,7 +323,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
                 for (int g = 0; g < channels; g++)
                 {
                     float* outptr = top_blob.channel(g);
-                    const float* kptr = (const float*)weight_data_packed + maxk * g * 4;
+                    const float* kptr = (const float*)weight_data_tm + maxk * g * 4;
                     const Mat m = bottom_blob_bordered.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -356,7 +362,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                convdw3x3s1_msa(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                convdw3x3s1_msa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
                 if (activation)
                 {
@@ -365,7 +371,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                convdw3x3s2_msa(bottom_blob_bordered, top_blob, weight_data, bias_data, opt);
+                convdw3x3s2_msa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, opt);
 
                 if (activation)
                 {
@@ -399,7 +405,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
                 for (int g = 0; g < group; g++)
                 {
                     float* outptr = top_blob.channel(g);
-                    const float* kptr = (const float*)weight_data + maxk * g;
+                    const float* kptr = (const float*)weight_data_tm + maxk * g;
                     const Mat m = bottom_blob_bordered.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -587,7 +593,12 @@ int ConvolutionDepthWise_mips::create_pipeline_int8_mips(const Option& opt)
         if (elempack == 8)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_int8, 8, opt);
+            convert_packing(weight_data_r2, weight_data_tm, 8, opt);
+        }
+
+        if (elempack == 1)
+        {
+            weight_data_tm = weight_data;
         }
 
         return 0;
@@ -595,6 +606,11 @@ int ConvolutionDepthWise_mips::create_pipeline_int8_mips(const Option& opt)
 
     // group convolution
     create_group_ops(opt);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
 
     return 0;
 }
@@ -694,7 +710,7 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
                 {
                     signed char* outptr_s8 = top_blob.channel(g);
                     float* outptr_f32 = top_blob.channel(g);
-                    const signed char* kptr = (const signed char*)weight_data_int8 + maxk * g * 8;
+                    const signed char* kptr = (const signed char*)weight_data_tm + maxk * g * 8;
                     const Mat m = bottom_blob_bordered.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -808,7 +824,7 @@ int ConvolutionDepthWise_mips::forward_int8_mips(const Mat& bottom_blob, Mat& to
                 {
                     signed char* outptr_s8 = top_blob.channel(g);
                     float* outptr_f32 = top_blob.channel(g);
-                    const signed char* kptr = (const signed char*)weight_data + maxk * g;
+                    const signed char* kptr = (const signed char*)weight_data_tm + maxk * g;
                     const Mat m = bottom_blob_bordered.channel(g);
 
                     for (int i = 0; i < outh; i++)
