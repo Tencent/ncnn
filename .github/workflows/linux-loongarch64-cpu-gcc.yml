@@ -48,6 +48,8 @@ jobs:
         tar -xf loongarch64-clfs-5.0-cross-tools-gcc-glibc.tar.xz
         wget https://github.com/loongson/build-tools/releases/download/2022.05.29/qemu-loongarch64
         chmod +x qemu-loongarch64
+        cd cross-tools/target/usr/lib64
+        ln -s . lib64
 
     - name: configure
       run: |
@@ -62,6 +64,5 @@ jobs:
     - name: test
       run: |
         export PATH=$GITHUB_WORKSPACE:$PATH
-        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr:$GITHUB_WORKSPACE/cross-tools/target/usr/lib64" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr/lib64" ctest --output-on-failure -j 2
