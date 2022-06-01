@@ -248,11 +248,14 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     const float* kptr = weight_data_tm.row(p);
                     const float* m = bottom_blob.row(j);
 
-                    float32x4_t _sum = vdupq_n_f32(0.f);
+                    float32x4_t _sum0 = vdupq_n_f32(0.f);
+                    float32x4_t _sum1 = vdupq_n_f32(0.f);
+                    float32x4_t _sum2 = vdupq_n_f32(0.f);
+                    float32x4_t _sum3 = vdupq_n_f32(0.f);
 
                     if (bias_term)
                     {
-                        _sum = vld1q_f32((const float*)bias_data + p * 4);
+                        _sum0 = vld1q_f32((const float*)bias_data + p * 4);
                     }
 
                     int i = 0;
@@ -266,15 +269,15 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                         float32x4_t _w3 = vld1q_f32(kptr + 12);
 
 #if __aarch64__
-                        _sum = vfmaq_laneq_f32(_sum, _w0, _val, 0);
-                        _sum = vfmaq_laneq_f32(_sum, _w1, _val, 1);
-                        _sum = vfmaq_laneq_f32(_sum, _w2, _val, 2);
-                        _sum = vfmaq_laneq_f32(_sum, _w3, _val, 3);
+                        _sum0 = vfmaq_laneq_f32(_sum0, _w0, _val, 0);
+                        _sum1 = vfmaq_laneq_f32(_sum1, _w1, _val, 1);
+                        _sum2 = vfmaq_laneq_f32(_sum2, _w2, _val, 2);
+                        _sum3 = vfmaq_laneq_f32(_sum3, _w3, _val, 3);
 #else
-                        _sum = vmlaq_lane_f32(_sum, _w0, vget_low_f32(_val), 0);
-                        _sum = vmlaq_lane_f32(_sum, _w1, vget_low_f32(_val), 1);
-                        _sum = vmlaq_lane_f32(_sum, _w2, vget_high_f32(_val), 0);
-                        _sum = vmlaq_lane_f32(_sum, _w3, vget_high_f32(_val), 1);
+                        _sum0 = vmlaq_lane_f32(_sum0, _w0, vget_low_f32(_val), 0);
+                        _sum1 = vmlaq_lane_f32(_sum1, _w1, vget_low_f32(_val), 1);
+                        _sum2 = vmlaq_lane_f32(_sum2, _w2, vget_high_f32(_val), 0);
+                        _sum3 = vmlaq_lane_f32(_sum3, _w3, vget_high_f32(_val), 1);
 #endif
 
                         m += 4;
@@ -284,15 +287,19 @@ int InnerProduct_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
                     {
                         float32x4_t _val = vld1q_dup_f32(m);
                         float32x4_t _k = vld1q_f32(kptr);
-                        _sum = vmlaq_f32(_sum, _val, _k);
+                        _sum0 = vmlaq_f32(_sum0, _val, _k);
 
                         m += 1;
                         kptr += 4;
                     }
 
-                    _sum = activation_ps(_sum, activation_type, activation_params);
+                    _sum0 = vaddq_f32(_sum0, _sum1);
+                    _sum2 = vaddq_f32(_sum2, _sum3);
+                    _sum0 = vaddq_f32(_sum0, _sum2);
 
-                    vst1q_f32(outptr, _sum);
+                    _sum0 = activation_ps(_sum0, activation_type, activation_params);
+
+                    vst1q_f32(outptr, _sum0);
                     outptr += 4;
                 }
             }
