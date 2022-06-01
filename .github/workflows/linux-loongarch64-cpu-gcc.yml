@@ -54,7 +54,7 @@ jobs:
         export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_OPENMP=OFF ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
 
     - name: build
       run: cmake --build build -j 2
@@ -64,4 +64,4 @@ jobs:
         export PATH=$GITHUB_WORKSPACE:$PATH
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr/lib64" ctest --output-on-failure -j 2
