@@ -50,6 +50,7 @@ protected:
 public:
     Layer* activation;
 
+    Mat weight_data_tm;
     Mat weight_3x3s2_data;
 
     Mat weight_sgemm_data;
@@ -59,22 +60,10 @@ public:
     // forwardDilation
     Layer* convolution_dilation1;
 
-    // pack4
-    Mat weight_data_packed;
-
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 
-#if NCNN_BF16
-    // bf16
-    Mat weight_data_bf16;
-#endif
-
 #if NCNN_INT8
-    // int8
-    Mat weight_data_int8;
-
     //     Mat weight_3x3s2_data_int8;
     std::vector<Mat> weight_3x3_winograd23_data_int8;
 #endif
