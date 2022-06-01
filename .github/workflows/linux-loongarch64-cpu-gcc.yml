@@ -54,7 +54,7 @@ jobs:
         export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
         mkdir build && cd build
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_OPENMP=OFF ..
 
     - name: build
       run: cmake --build build -j 2
