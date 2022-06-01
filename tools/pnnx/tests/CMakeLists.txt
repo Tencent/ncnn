@@ -222,6 +222,7 @@ pnnx_add_test(vit_b_32)
 # TODO enable end2end quantization model test
 #pnnx_add_test(quantization_shufflenet_v2_x1_0)
 
+pnnx_add_test(pnnx_eliminate_noop_cat)
 pnnx_add_test(pnnx_eliminate_noop_math)
 pnnx_add_test(pnnx_fold_constant)
 pnnx_add_test(pnnx_fuse_conv1d_batchnorm1d)
