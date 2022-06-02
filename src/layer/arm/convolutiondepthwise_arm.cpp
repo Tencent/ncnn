@@ -130,6 +130,11 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
 
             ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
 
+            if (opt.lightmode)
+            {
+                weight_data.release();
+            }
+
             return 0;
         }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
@@ -1589,6 +1594,11 @@ int ConvolutionDepthWise_arm::create_pipeline_int8_arm(const Option& opt)
         if (elempack == 1)
         {
             weight_data_tm = weight_data;
+        }
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
         }
 
         return 0;
