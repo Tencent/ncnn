@@ -682,12 +682,12 @@ int ConvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
             Mat weight_data_r2_packed;
             convert_packing(weight_data_r2, weight_data_r2_packed, packn, opt);
 
-            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_fp16, opt);
+            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
         }
 
         if (elempack == 1)
         {
-            ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
+            ncnn::cast_float32_to_float16(weight_data, weight_data_tm, opt);
         }
 
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
@@ -773,7 +773,7 @@ int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_b
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
-                    const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * g * packn;
+                    const __fp16* kptr = (const __fp16*)weight_data_tm + maxk * g * packn;
                     const Mat m = bottom_blob_bordered.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -835,7 +835,7 @@ int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_b
                 for (int g = 0; g < group; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
-                    const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * g;
+                    const __fp16* kptr = (const __fp16*)weight_data_tm + maxk * g;
                     const Mat m = bottom_blob_bordered.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -959,7 +959,7 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                convdw3x3s1_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+                convdw3x3s1_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
                 if (activation)
                 {
@@ -968,7 +968,7 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
             }
             else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                convdw3x3s2_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+                convdw3x3s2_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
                 if (activation)
                 {
@@ -977,7 +977,7 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
             }
             else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
-                convdw5x5s1_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+                convdw5x5s1_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
                 if (activation)
                 {
@@ -986,7 +986,7 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
             }
             else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
-                convdw5x5s2_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_fp16, bias_data_fp16, opt);
+                convdw5x5s2_packn_fp16sa_rvv(bottom_blob_bordered, top_blob, weight_data_tm, bias_data_fp16, opt);
 
                 if (activation)
                 {
@@ -1020,7 +1020,7 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
-                    const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * g * packn;
+                    const __fp16* kptr = (const __fp16*)weight_data_tm + maxk * g * packn;
                     const Mat m = bottom_blob_bordered.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -1082,7 +1082,7 @@ int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_
                 for (int g = 0; g < group; g++)
                 {
                     __fp16* outptr = top_blob.channel(g);
-                    const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * g;
+                    const __fp16* kptr = (const __fp16*)weight_data_tm + maxk * g;
                     const Mat m = bottom_blob_bordered.channel(g);
 
                     for (int i = 0; i < outh; i++)

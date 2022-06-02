@@ -158,6 +158,11 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
                 ncnn::cast_float32_to_bfloat16(weight_data, weight_data_tm, opt);
             }
 
+            if (opt.lightmode)
+            {
+                weight_data.release();
+            }
+
             return 0;
         }
 #endif // NCNN_BF16
@@ -168,8 +173,6 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_tm, 4, opt);
-
-            return 0;
         }
 #endif // __ARM_NEON
 
@@ -178,24 +181,32 @@ int ConvolutionDepthWise_arm::create_pipeline(const Option& opt)
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 weight_data_tm = weight_data;
-                return 0;
             }
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 weight_data_tm = weight_data;
-                return 0;
             }
-            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 weight_data_tm = weight_data;
-                return 0;
             }
-            if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            else if (kernel_w == 5 && kernel_h == 5 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 weight_data_tm = weight_data;
-                return 0;
+            }
+            else
+            {
+                // group convolution
+                create_group_ops(opt);
             }
         }
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
+        }
+
+        return 0;
     }
 
     // group convolution
