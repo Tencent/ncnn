@@ -83,6 +83,11 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
             weight_data_tm = weight_data;
         }
 
+        if (opt.lightmode)
+        {
+            weight_data.release();
+        }
+
         return 0;
     }
 

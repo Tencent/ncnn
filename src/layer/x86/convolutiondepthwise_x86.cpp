@@ -96,8 +96,6 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_tm, 16, opt);
-
-            return 0;
         }
 #endif // __AVX512F__
 
@@ -106,8 +104,6 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_tm, 8, opt);
-
-            return 0;
         }
 #endif // __AVX__
 
@@ -116,8 +112,6 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_tm, 4, opt);
-
-            return 0;
         }
 #endif // __SSE2__
 
@@ -127,14 +121,23 @@ int ConvolutionDepthWise_x86::create_pipeline(const Option& opt)
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
             {
                 weight_data_tm = weight_data;
-                return 0;
             }
-            if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
+            else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
             {
                 weight_data_tm = weight_data;
-                return 0;
+            }
+            else
+            {
+                create_group_ops(opt);
             }
         }
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
+        }
+
+        return 0;
     }
 
     // group convolution
