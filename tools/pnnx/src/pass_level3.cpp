@@ -35,7 +35,7 @@
 
 namespace pnnx {
 
-void pass_level3(Graph& g)
+void pass_level3(Graph& g, const std::map<std::string, Attribute>& foldable_constants)
 {
     assign_unique_name(g);
 
@@ -61,7 +61,7 @@ void pass_level3(Graph& g)
 
     eliminate_noop_math(g);
 
-    fuse_expression(g);
+    fuse_expression(g, foldable_constants);
 
     fuse_index_expression(g);
 
