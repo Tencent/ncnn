@@ -77,14 +77,14 @@ int HardSigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
                 "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
-                "mov    v4.16b, %4.16b          \n"
-                "mov    v5.16b, %4.16b          \n"
-                "mov    v6.16b, %4.16b          \n"
-                "mov    v7.16b, %4.16b          \n"
-                "fmla   v4.4s, v0.4s, %5.4s     \n"
-                "fmla   v5.4s, v1.4s, %5.4s     \n"
-                "fmla   v6.4s, v2.4s, %5.4s     \n"
-                "fmla   v7.4s, v3.4s, %5.4s     \n"
+                "mov    v4.16b, %5.16b          \n"
+                "mov    v5.16b, %5.16b          \n"
+                "mov    v6.16b, %5.16b          \n"
+                "mov    v7.16b, %5.16b          \n"
+                "fmla   v4.4s, v0.4s, %4.4s     \n"
+                "fmla   v5.4s, v1.4s, %4.4s     \n"
+                "fmla   v6.4s, v2.4s, %4.4s     \n"
+                "fmla   v7.4s, v3.4s, %4.4s     \n"
                 "fmax   v0.4s, v4.4s, %2.4s     \n"
                 "fmax   v1.4s, v5.4s, %2.4s     \n"
                 "fmax   v2.4s, v6.4s, %2.4s     \n"
@@ -105,14 +105,14 @@ int HardSigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             asm volatile(
                 "pld        [%0, #512]      \n"
                 "vldm       %0, {d0-d7}     \n"
-                "vmov       q4, %q4         \n"
-                "vmov       q5, %q4         \n"
-                "vmov       q6, %q4         \n"
-                "vmov       q7, %q4         \n"
-                "vmla.f32   q4, q0, %q5     \n"
-                "vmla.f32   q5, q1, %q5     \n"
-                "vmla.f32   q6, q2, %q5     \n"
-                "vmla.f32   q7, q3, %q5     \n"
+                "vmov       q4, %q5         \n"
+                "vmov       q5, %q5         \n"
+                "vmov       q6, %q5         \n"
+                "vmov       q7, %q5         \n"
+                "vmla.f32   q4, q0, %q4     \n"
+                "vmla.f32   q5, q1, %q4     \n"
+                "vmla.f32   q6, q2, %q4     \n"
+                "vmla.f32   q7, q3, %q4     \n"
                 "vmax.f32   q0, q4, %q2     \n"
                 "vmax.f32   q1, q5, %q2     \n"
                 "vmax.f32   q2, q6, %q2     \n"
@@ -188,16 +188,32 @@ int HardSigmoid_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
 
         float32x4_t _zero = vdupq_n_f32(0.f);
         float32x4_t _one = vdupq_n_f32(1.f);
+        float32x4_t _alpha = vdupq_n_f32(alpha);
+        float32x4_t _beta = vdupq_n_f32(beta);
 
         int i = 0;
+        for (; i + 7 < size; i += 8)
+        {
+            float16x8_t _p = vld1q_f16(ptr);
+            float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
+            float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
+            _p0 = vfmaq_f32(_beta, _p0, _alpha);
+            _p1 = vfmaq_f32(_beta, _p1, _alpha);
+            _p0 = vmaxq_f32(_p0, _zero);
+            _p1 = vmaxq_f32(_p1, _zero);
+            _p0 = vminq_f32(_p0, _one);
+            _p1 = vminq_f32(_p1, _one);
+            _p = vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1));
+            vst1q_f16(ptr, _p);
+            ptr += 8;
+        }
         for (; i + 3 < size; i += 4)
         {
             float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
-            float32x4_t _ans = vdupq_n_f32(beta);
-            _ans = vfmaq_n_f32(_ans, _p, alpha);
-            _ans = vmaxq_f32(_ans, _zero);
-            _ans = vminq_f32(_ans, _one);
-            vst1_f16(ptr, vcvt_f16_f32(_ans));
+            _p = vfmaq_f32(_beta, _p, _alpha);
+            _p = vmaxq_f32(_p, _zero);
+            _p = vminq_f32(_p, _one);
+            vst1_f16(ptr, vcvt_f16_f32(_p));
             ptr += 4;
         }
         for (; i < size; i++)
@@ -237,26 +253,70 @@ int HardSigmoid_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
 
         float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
         float16x8_t _one = vdupq_n_f16((__fp16)1.f);
+        float16x8_t _alpha = vdupq_n_f16(alpha_fp16);
+        float16x8_t _beta = vdupq_n_f16(beta_fp16);
 
         int i = 0;
+        for (; i + 31 < size; i += 32)
+        {
+            asm volatile(
+                "prfm   pldl1keep, [%0, #512]   \n"
+                "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
+                "mov    v4.16b, %5.16b          \n"
+                "mov    v5.16b, %5.16b          \n"
+                "mov    v6.16b, %5.16b          \n"
+                "mov    v7.16b, %5.16b          \n"
+                "fmla   v4.8h, v0.8h, %4.8h     \n"
+                "fmla   v5.8h, v1.8h, %4.8h     \n"
+                "fmla   v6.8h, v2.8h, %4.8h     \n"
+                "fmla   v7.8h, v3.8h, %4.8h     \n"
+                "fmax   v0.8h, v4.8h, %2.8h     \n"
+                "fmax   v1.8h, v5.8h, %2.8h     \n"
+                "fmax   v2.8h, v6.8h, %2.8h     \n"
+                "fmax   v3.8h, v7.8h, %2.8h     \n"
+                "fmin   v0.8h, v0.8h, %3.8h     \n"
+                "fmin   v1.8h, v1.8h, %3.8h     \n"
+                "fmin   v2.8h, v2.8h, %3.8h     \n"
+                "fmin   v3.8h, v3.8h, %3.8h     \n"
+                "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
+                : "=r"(ptr) // %0
+                : "0"(ptr),
+                "w"(_zero),  // %2
+                "w"(_one),   // %3
+                "w"(_alpha), // %4
+                "w"(_beta)   // %5
+                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+        }
+        for (; i + 15 < size; i += 16)
+        {
+            float16x8_t _p0 = vld1q_f16(ptr);
+            float16x8_t _p1 = vld1q_f16(ptr + 8);
+            _p0 = vfmaq_f16(_beta, _p0, _alpha);
+            _p1 = vfmaq_f16(_beta, _p1, _alpha);
+            _p0 = vmaxq_f16(_p0, _zero);
+            _p1 = vmaxq_f16(_p1, _zero);
+            _p0 = vminq_f16(_p0, _one);
+            _p1 = vminq_f16(_p1, _one);
+            vst1q_f16(ptr, _p0);
+            vst1q_f16(ptr + 8, _p1);
+            ptr += 16;
+        }
         for (; i + 7 < size; i += 8)
         {
             float16x8_t _p = vld1q_f16(ptr);
-            float16x8_t _ans = vdupq_n_f16(beta_fp16);
-            _ans = vfmaq_n_f16(_ans, _p, alpha_fp16);
-            _ans = vmaxq_f16(_ans, _zero);
-            _ans = vminq_f16(_ans, _one);
-            vst1q_f16(ptr, _ans);
+            _p = vfmaq_f16(_beta, _p, _alpha);
+            _p = vmaxq_f16(_p, _zero);
+            _p = vminq_f16(_p, _one);
+            vst1q_f16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
             float16x4_t _p = vld1_f16(ptr);
-            float16x4_t _ans = vdup_n_f16(beta_fp16);
-            _ans = vfma_n_f16(_ans, _p, alpha_fp16);
-            _ans = vmax_f16(_ans, vget_low_f16(_zero));
-            _ans = vmin_f16(_ans, vget_low_f16(_one));
-            vst1_f16(ptr, _ans);
+            _p = vfma_f16(vget_low_f16(_beta), _p, vget_low_f16(_alpha));
+            _p = vmax_f16(_p, vget_low_f16(_zero));
+            _p = vmin_f16(_p, vget_low_f16(_one));
+            vst1_f16(ptr, _p);
             ptr += 4;
         }
         for (; i < size; i++)
@@ -309,14 +369,14 @@ int HardSigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
                 "shll   v1.4s, v1.4h, #16       \n"
                 "shll   v2.4s, v2.4h, #16       \n"
                 "shll   v3.4s, v3.4h, #16       \n"
-                "mov    v4.16b, %4.16b          \n"
-                "mov    v5.16b, %4.16b          \n"
-                "mov    v6.16b, %4.16b          \n"
-                "mov    v7.16b, %4.16b          \n"
-                "fmla   v4.4s, v0.4s, %5.4s     \n"
-                "fmla   v5.4s, v1.4s, %5.4s     \n"
-                "fmla   v6.4s, v2.4s, %5.4s     \n"
-                "fmla   v7.4s, v3.4s, %5.4s     \n"
+                "mov    v4.16b, %5.16b          \n"
+                "mov    v5.16b, %5.16b          \n"
+                "mov    v6.16b, %5.16b          \n"
+                "mov    v7.16b, %5.16b          \n"
+                "fmla   v4.4s, v0.4s, %4.4s     \n"
+                "fmla   v5.4s, v1.4s, %4.4s     \n"
+                "fmla   v6.4s, v2.4s, %4.4s     \n"
+                "fmla   v7.4s, v3.4s, %4.4s     \n"
                 "fmax   v0.4s, v4.4s, %2.4s     \n"
                 "fmax   v1.4s, v5.4s, %2.4s     \n"
                 "fmax   v2.4s, v6.4s, %2.4s     \n"
@@ -345,14 +405,14 @@ int HardSigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& o
                 "vshll.u16  q1, d5, #16     \n"
                 "vshll.u16  q2, d6, #16     \n"
                 "vshll.u16  q3, d7, #16     \n"
-                "vmov       q4, %q4         \n"
-                "vmov       q5, %q4         \n"
-                "vmov       q6, %q4         \n"
-                "vmov       q7, %q4         \n"
-                "vmla.f32   q4, q0, %q5     \n"
-                "vmla.f32   q5, q1, %q5     \n"
-                "vmla.f32   q6, q2, %q5     \n"
-                "vmla.f32   q7, q3, %q5     \n"
+                "vmov       q4, %q5         \n"
+                "vmov       q5, %q5         \n"
+                "vmov       q6, %q5         \n"
+                "vmov       q7, %q5         \n"
+                "vmla.f32   q4, q0, %q4     \n"
+                "vmla.f32   q5, q1, %q4     \n"
+                "vmla.f32   q6, q2, %q4     \n"
+                "vmla.f32   q7, q3, %q4     \n"
                 "vmax.f32   q0, q4, %q2     \n"
                 "vmax.f32   q1, q5, %q2     \n"
                 "vmax.f32   q2, q6, %q2     \n"
