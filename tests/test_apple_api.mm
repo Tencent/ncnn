@@ -18,7 +18,7 @@
 
 int main() {
     @autoreleasepool{
-        NSImage* image = [[NSImage alloc] initByReferencingURL:[NSURL URLWithString:@"https://gitee.com/Tencent/ncnn/raw/master/images/16-ncnn.png"]];
+        NSImage* image = [[NSImage alloc] initByReferencingURL:[NSURL URLWithString:@"https://github.com/Tencent/ncnn/raw/master/images/16-ncnn.png"]];
         ncnn::Mat m = ncnn::Mat::from_apple_image(image);
         if(m.w!=16) {
             printf("function Mat::from_apple_image test failed %d",m.w);

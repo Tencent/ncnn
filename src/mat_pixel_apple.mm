@@ -100,7 +100,7 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                 void* p = NULL;
                 posix_memalign(&p,64,w*h*elemsize);
                 if(!p) {
-                    posix_memalign(&p,64,w*h*elemsize);
+                    return -1;
                 }
                 memcpy(p,data,w*h*4);
                 if( CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_32ARGB,p,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess) {
@@ -112,7 +112,7 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                 void* p = NULL;
                 posix_memalign(&p,64,w*h*elemsize);
                 if(!p) {
-                    posix_memalign(&p,64,w*h*elemsize);
+                    return -1;
                 }
                 memcpy(p,data,w*h*8);
                 if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_64RGBAHalf,p,w*8,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess) {
@@ -164,7 +164,7 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                 void* p = NULL;
                 posix_memalign(&p,64,w*h*elemsize);
                 if(!p) {
-                    posix_memalign(&p,64,w*h*elemsize);
+                    return -1;
                 }
                 memcpy(p,data,w*h*4);
                 if(CVPixelBufferCreateWithBytes(NULL,w,h,kCVPixelFormatType_OneComponent32Float,p,w*4,NULL,NULL,NULL,pixelbuffer)==kCVReturnSuccess) {
@@ -192,14 +192,12 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                 void * dpa = NULL;
                 posix_memalign(&dpa,64,w*h*elemsize*4);
                 if(!dpa) {
-                    posix_memalign(&dpa,64,w*h*elemsize*4);
+                    return -1;
                 }
                 uint8_t* datas = (uint8_t*) dpa;
-                int pth =get_cpu_count();
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
                 uint8_t* dp3 =(uint8_t*)m3.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=2) {
                         simd_uchar8 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],255,dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],255};
@@ -215,14 +213,12 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                 void * dpa = NULL;
                 posix_memalign(&dpa,64,w*h*elemsize*4);
                 if(!dpa) {
-                    posix_memalign(&dpa,64,w*h*elemsize*4);
+                    return -1;
                 }
                 uint8_t* datas = (uint8_t*) dpa;
-                int pth =get_cpu_count();
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
                 ushort* dp3 =(ushort*)m3.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=1) {
                         simd_ushort4 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],1};
@@ -245,15 +241,13 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                 void * dpa = NULL;
                 posix_memalign(&dpa,64,w*h*elemsize*4);
                 if(!dpa) {
-                    posix_memalign(&dpa,64,w*h*elemsize*4);
+                    return -1;
                 }
                 uint8_t* datas = (uint8_t*) dpa;
-                int pth =get_cpu_count();
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
                 uint8_t* dp3 =(uint8_t*)m3.data;
                 uint8_t* dp4 =(uint8_t*)m4.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=2) {
                         simd_uchar8 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j],dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],dp4[i*w+j+1]};
@@ -269,15 +263,13 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer) {
                 void * dpa = NULL;
                 posix_memalign(&dpa,64,w*h*elemsize*4);
                 if(!dpa) {
-                    posix_memalign(&dpa,64,w*h*elemsize*4);
+                    return -1;
                 }
                 uint8_t* datas = (uint8_t*) dpa;
-                int pth =get_cpu_count();
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
                 ushort* dp3 =(ushort*)m3.data;
                 ushort* dp4 =(ushort*)m4.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=1) {
                         simd_ushort4 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j]};
@@ -313,7 +305,7 @@ Mat Mat::from_apple_image(UIImage* image) {
 
     uint8_t *rgba = (uint8_t *)fastMalloc(pixelCount * bytePerPixel);
     if(!rgba)
-        rgba = (uint8_t *)fastMalloc(pixelCount * bytePerPixel);
+        return Mat();
 
     CGContextRef context = CGBitmapContextCreate(rgba,
                            size.width,
@@ -388,12 +380,10 @@ UIImage* Mat::to_apple_image() {
             if(elemsize==1) {
                 datas = fastMalloc(w*h*4);
                 if(!datas)
-                    datas = fastMalloc(w*h*4);
-                int pth =get_cpu_count();
+                    return nil;
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
                 uint8_t* dp3 =(uint8_t*)m3.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=2) {
                         simd_uchar8 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],255,dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],255};
@@ -405,12 +395,10 @@ UIImage* Mat::to_apple_image() {
             } else if(elemsize==4) {
                 datas = fastMalloc(w*h*16);
                 if(!datas)
-                    datas = fastMalloc(w*h*16);
-                int pth =get_cpu_count();
+                    return nil;
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
                 ushort* dp3 =(ushort*)m3.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=1) {
                         simd_ushort4 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],1};
@@ -429,13 +417,11 @@ UIImage* Mat::to_apple_image() {
             if(elemsize==1) {
                 datas = fastMalloc(w*h*4);
                 if(!datas)
-                    datas = fastMalloc(w*h*4);
-                int pth =get_cpu_count();
+                    return nil;
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
                 uint8_t* dp3 =(uint8_t*)m3.data;
                 uint8_t* dp4 =(uint8_t*)m4.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=2) {
                         simd_uchar8 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j],dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],dp4[i*w+j+1]};
@@ -447,13 +433,11 @@ UIImage* Mat::to_apple_image() {
             } else if(elemsize==4) {
                 datas = fastMalloc(w*h*16);
                 if(!datas)
-                    datas = fastMalloc(w*h*16);
-                int pth =get_cpu_count();
+                    return nil;
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
                 ushort* dp3 =(ushort*)m3.data;
                 ushort* dp4 =(ushort*)m4.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=1) {
                         simd_ushort4 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j]};
@@ -504,7 +488,7 @@ Mat Mat::from_apple_image(NSImage* image) {
 
     uint8_t *rgba = (uint8_t *)fastMalloc(pixelCount * bytePerPixel);
     if(!rgba)
-        rgba = (uint8_t *)fastMalloc(pixelCount * bytePerPixel);
+        return Mat();
 
     CGContextRef context = CGBitmapContextCreate(rgba,
                            size.width,
@@ -565,7 +549,7 @@ NSImage* Mat::to_apple_image() {
         }
         datas = fastMalloc(w*h*bytes_per_pix);
         if(!datas)
-            datas = fastMalloc(w*h*bytes_per_pix);
+            return nil;
         memcpy(datas,data,w*h*bytes_per_pix);
     } else if(dims==3) {
         if(elempack!=1) {
@@ -580,13 +564,11 @@ NSImage* Mat::to_apple_image() {
             if(elemsize==1) {
                 datas = fastMalloc(w*h*4);
                 if(!datas) {
-                    datas = fastMalloc(w*h*4);
+                    return nil;
                 }
-                int pth =get_cpu_count();
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
                 uint8_t* dp3 =(uint8_t*)m3.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=2) {
                         simd_uchar8 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],255,dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],255};
@@ -598,8 +580,7 @@ NSImage* Mat::to_apple_image() {
             } else if(elemsize==4) {
                 datas = fastMalloc(w*h*16);
                 if(!datas)
-                    datas = fastMalloc(w*h*16);
-                int pth =get_cpu_count();
+                    return nil;
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
                 ushort* dp3 =(ushort*)m3.data;
@@ -622,13 +603,11 @@ NSImage* Mat::to_apple_image() {
             if(elemsize==1) {
                 datas = fastMalloc(w*h*4);
                 if(!datas)
-                    datas = fastMalloc(w*h*4);
-                int pth =get_cpu_count();
+                    return nil;
                 uint8_t* dp =(uint8_t*)data;
                 uint8_t* dp2 =(uint8_t*)m2.data;
                 uint8_t* dp3 =(uint8_t*)m3.data;
                 uint8_t* dp4 =(uint8_t*)m4.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=2) {
                         simd_uchar8 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j],dp[i*w+j+1],dp2[i*w+j+1],dp3[i*w+j+1],dp4[i*w+j+1]};
@@ -640,13 +619,11 @@ NSImage* Mat::to_apple_image() {
             } else if(elemsize==4) {
                 datas = fastMalloc(w*h*16);
                 if(!datas)
-                    datas = fastMalloc(w*h*16);
-                int pth =get_cpu_count();
+                    return nil;
                 ushort* dp =(ushort*)data;
                 ushort* dp2 =(ushort*)m2.data;
                 ushort* dp3 =(ushort*)m3.data;
                 ushort* dp4 =(ushort*)m4.data;
-                #pragma omp parallel for num_threads(pth)
                 for(ushort i = 0; i<h; i++) {
                     for(ushort j = 0; j<w; j+=1) {
                         simd_ushort4 p = {dp[i*w+j],dp2[i*w+j],dp3[i*w+j],dp4[i*w+j]};
