@@ -57,7 +57,7 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 : "=r"(ptr) // %0
                 : "0"(ptr)
                 : "memory", "v0", "v1", "v2", "v3");
-#else // __aarch64__
+#else  // __aarch64__
             asm volatile(
                 "pld        [%0, #512]      \n"
                 "vldm       %0, {d0-d7}     \n"

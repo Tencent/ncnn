@@ -83,7 +83,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     : "0"(ptr),
                     "w"(_zero) // %2
                     : "memory", "v0", "v1", "v2", "v3");
-#else // __aarch64__
+#else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #512]      \n"
                     "vldm       %0, {d0-d7}     \n"
@@ -158,7 +158,7 @@ int ReLU_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     : "0"(ptr),
                     "w"(_slope) // %2
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
-#else // __aarch64__
+#else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #512]      \n"
                     "vldm       %0, {d0-d7}     \n"
@@ -412,7 +412,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     : "0"(ptr),
                     "w"(_zero) // %2
                     : "memory", "v0", "v1", "v2", "v3");
-#else // __aarch64__
+#else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #256]      \n"
                     "vld1.u16   {d4-d7}, [%0]!  \n"
@@ -506,7 +506,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     : "0"(ptr),
                     "w"(_slope) // %2
                     : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
-#else // __aarch64__
+#else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #256]      \n"
                     "vld1.u16   {d4-d7}, [%0]!  \n"

@@ -81,10 +81,10 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
                 : "=r"(ptr) // %0
                 : "0"(ptr),
-                  "w"(_min), // %2
-                  "w"(_max) // %3
+                "w"(_min), // %2
+                "w"(_max)  // %3
                 : "memory", "v0", "v1", "v2", "v3");
-#else // __aarch64__
+#else  // __aarch64__
             asm volatile(
                 "pld        [%0, #512]      \n"
                 "vldm       %0, {d0-d7}     \n"
@@ -99,8 +99,8 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 "vstm       %0!, {d0-d7}    \n"
                 : "=r"(ptr) // %0
                 : "0"(ptr),
-                  "w"(_min), // %2
-                  "w"(_max) // %3
+                "w"(_min), // %2
+                "w"(_max)  // %3
                 : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
         }
@@ -178,8 +178,8 @@ int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
                 "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
                 : "=r"(ptr) // %0
                 : "0"(ptr),
-                  "w"(_min), // %2
-                  "w"(_max) // %3
+                "w"(_min), // %2
+                "w"(_max)  // %3
                 : "memory", "v0", "v1", "v2", "v3");
         }
         for (; i + 15 < size; i += 16)
@@ -272,10 +272,10 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0], #32 \n"
                 : "=r"(ptr) // %0
                 : "0"(ptr),
-                  "w"(_min), // %2
-                  "w"(_max) // %3
+                "w"(_min), // %2
+                "w"(_max)  // %3
                 : "memory", "v0", "v1", "v2", "v3");
-#else // __aarch64__
+#else  // __aarch64__
             asm volatile(
                 "pld        [%0, #256]      \n"
                 "vld1.u16   {d4-d7}, [%0]!  \n"
@@ -298,8 +298,8 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                 "vld1.u16   {d0-d3}, [%0]!  \n"
                 : "=r"(ptr) // %0
                 : "0"(ptr),
-                  "w"(_min), // %2
-                  "w"(_max) // %3
+                "w"(_min), // %2
+                "w"(_max)  // %3
                 : "memory", "q0", "q1", "q2", "q3");
 #endif // __aarch64__
         }
