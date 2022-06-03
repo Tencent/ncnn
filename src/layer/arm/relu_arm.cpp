@@ -319,7 +319,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
                     "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
                     : "=r"(ptr) // %0
                     : "0"(ptr),
-                    "w"(_zero) // %2
+                    "w"(_slope) // %2
                     : "memory", "v0", "v1", "v2", "v3");
             }
             for (; i + 15 < size; i += 16)
