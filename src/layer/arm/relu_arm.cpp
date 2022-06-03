@@ -325,7 +325,7 @@ int ReLU_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
             for (; i + 15 < size; i += 16)
             {
                 float16x8_t _p0 = vld1q_f16(ptr);
-                float16x8_t _p1 = vld1q_f16(ptr);
+                float16x8_t _p1 = vld1q_f16(ptr + 8);
                 uint16x8_t _lemask0 = vcleq_f16(_p0, _zero);
                 uint16x8_t _lemask1 = vcleq_f16(_p1, _zero);
                 float16x8_t _ps0 = vmulq_f16(_p0, _slope);
