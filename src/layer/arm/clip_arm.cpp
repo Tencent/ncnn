@@ -18,14 +18,16 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Clip_arm::Clip_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
 
@@ -38,8 +40,8 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int elembits = bottom_top_blob.elembits();
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_inplace_fp16s(bottom_top_blob, opt);
 #endif
 
@@ -139,94 +141,6 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
     return 0;
 }
-
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-
-        __fp16 min_fp16 = min;
-        __fp16 max_fp16 = max;
-
-        float16x8_t _min = vdupq_n_f16(min_fp16);
-        float16x8_t _max = vdupq_n_f16(max_fp16);
-
-        int i = 0;
-        for (; i + 31 < size; i += 32)
-        {
-            asm volatile(
-                "prfm   pldl1keep, [%0, #512]   \n"
-                "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
-                "fmax   v0.8h, v0.8h, %2.8h     \n"
-                "fmax   v1.8h, v1.8h, %2.8h     \n"
-                "fmax   v2.8h, v2.8h, %2.8h     \n"
-                "fmax   v3.8h, v3.8h, %2.8h     \n"
-                "fmin   v0.8h, v0.8h, %3.8h     \n"
-                "fmin   v1.8h, v1.8h, %3.8h     \n"
-                "fmin   v2.8h, v2.8h, %3.8h     \n"
-                "fmin   v3.8h, v3.8h, %3.8h     \n"
-                "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
-                : "=r"(ptr) // %0
-                : "0"(ptr),
-                "w"(_min), // %2
-                "w"(_max)  // %3
-                : "memory", "v0", "v1", "v2", "v3");
-        }
-        for (; i + 15 < size; i += 16)
-        {
-            float16x8_t _p0 = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr + 8);
-            _p0 = vmaxq_f16(_p0, _min);
-            _p1 = vmaxq_f16(_p1, _min);
-            _p0 = vminq_f16(_p0, _max);
-            _p1 = vminq_f16(_p1, _max);
-            vst1q_f16(ptr, _p0);
-            vst1q_f16(ptr + 8, _p1);
-            ptr += 16;
-        }
-        for (; i + 7 < size; i += 8)
-        {
-            float16x8_t _p = vld1q_f16(ptr);
-            _p = vmaxq_f16(_p, _min);
-            _p = vminq_f16(_p, _max);
-            vst1q_f16(ptr, _p);
-            ptr += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            float16x4_t _p = vld1_f16(ptr);
-            _p = vmax_f16(_p, vget_low_f16(_min));
-            _p = vmin_f16(_p, vget_low_f16(_max));
-            vst1_f16(ptr, _p);
-            ptr += 4;
-        }
-        for (; i < size; i++)
-        {
-            __fp16 v = *ptr;
-            if (v < min_fp16)
-                v = min_fp16;
-
-            if (v > max_fp16)
-                v = max_fp16;
-
-            *ptr = v;
-            ptr++;
-        }
-    }
-
-    return 0;
-}
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 #if NCNN_BF16
 int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const
