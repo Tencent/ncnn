@@ -83,9 +83,9 @@ int AbsVal_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _ptr = vld1q_f32(ptr);
-            _ptr = vabsq_f32(_ptr);
-            vst1q_f32(ptr, _ptr);
+            float32x4_t _p = vld1q_f32(ptr);
+            _p = vabsq_f32(_p);
+            vst1q_f32(ptr, _p);
             ptr += 4;
         }
 #endif // __ARM_NEON

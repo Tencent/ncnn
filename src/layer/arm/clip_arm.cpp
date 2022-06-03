@@ -118,10 +118,10 @@ int Clip_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         }
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _ptr = vld1q_f32(ptr);
-            _ptr = vmaxq_f32(_ptr, _min);
-            _ptr = vminq_f32(_ptr, _max);
-            vst1q_f32(ptr, _ptr);
+            float32x4_t _p = vld1q_f32(ptr);
+            _p = vmaxq_f32(_p, _min);
+            _p = vminq_f32(_p, _max);
+            vst1q_f32(ptr, _p);
             ptr += 4;
         }
 #endif // __ARM_NEON
@@ -196,18 +196,18 @@ int Clip_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) con
         }
         for (; i + 7 < size; i += 8)
         {
-            float16x8_t _ptr = vld1q_f16(ptr);
-            _ptr = vmaxq_f16(_ptr, _min);
-            _ptr = vminq_f16(_ptr, _max);
-            vst1q_f16(ptr, _ptr);
+            float16x8_t _p = vld1q_f16(ptr);
+            _p = vmaxq_f16(_p, _min);
+            _p = vminq_f16(_p, _max);
+            vst1q_f16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
-            float16x4_t _ptr = vld1_f16(ptr);
-            _ptr = vmax_f16(_ptr, vget_low_f16(_min));
-            _ptr = vmin_f16(_ptr, vget_low_f16(_max));
-            vst1_f16(ptr, _ptr);
+            float16x4_t _p = vld1_f16(ptr);
+            _p = vmax_f16(_p, vget_low_f16(_min));
+            _p = vmin_f16(_p, vget_low_f16(_max));
+            vst1_f16(ptr, _p);
             ptr += 4;
         }
         for (; i < size; i++)
@@ -318,10 +318,10 @@ int Clip_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
         }
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _ptr = vcvt_f32_bf16(vld1_u16(ptr));
-            _ptr = vmaxq_f32(_ptr, _min);
-            _ptr = vminq_f32(_ptr, _max);
-            vst1_u16(ptr, vcvt_bf16_f32(_ptr));
+            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+            _p = vmaxq_f32(_p, _min);
+            _p = vminq_f32(_p, _max);
+            vst1_u16(ptr, vcvt_bf16_f32(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON
