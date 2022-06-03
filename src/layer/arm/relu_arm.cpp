@@ -415,7 +415,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #256]      \n"
-                    "vld1.u16   {d4-d7}, [%0]!  \n"
+                    "vld1.u16   {d4-d7}, [%0]   \n"
                     "vshll.u16  q0, d4, #16     \n"
                     "vshll.u16  q1, d5, #16     \n"
                     "vshll.u16  q2, d6, #16     \n"
@@ -428,7 +428,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     "vshrn.u32  d1, q1, #16     \n"
                     "vshrn.u32  d2, q2, #16     \n"
                     "vshrn.u32  d3, q3, #16     \n"
-                    "vld1.u16   {d0-d3}, [%0]!  \n"
+                    "vst1.u16   {d0-d3}, [%0]!  \n"
                     : "=r"(ptr) // %0
                     : "0"(ptr),
                     "w"(_zero) // %2
@@ -509,7 +509,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #else  // __aarch64__
                 asm volatile(
                     "pld        [%0, #256]      \n"
-                    "vld1.u16   {d4-d7}, [%0]!  \n"
+                    "vld1.u16   {d4-d7}, [%0]   \n"
                     "vshll.u16  q0, d4, #16     \n"
                     "vshll.u16  q1, d5, #16     \n"
                     "vshll.u16  q2, d6, #16     \n"
@@ -530,7 +530,7 @@ int ReLU_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
                     "vshrn.u32  d1, q1, #16     \n"
                     "vshrn.u32  d2, q2, #16     \n"
                     "vshrn.u32  d3, q3, #16     \n"
-                    "vld1.u16   {d0-d3}, [%0]!  \n"
+                    "vst1.u16   {d0-d3}, [%0]!  \n"
                     : "=r"(ptr) // %0
                     : "0"(ptr),
                     "w"(_zero), // %2
