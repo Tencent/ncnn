@@ -50,6 +50,8 @@ int Padding_arm::create_pipeline(const Option& opt)
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
+        value_fp16 = float32_to_float16(value);
+
         ncnn::cast_float32_to_float16(per_channel_pad_data, per_channel_pad_data_fp16, opt);
     }
 #endif
@@ -268,7 +270,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 if (top_blob.empty())
                     return -100;
 
-                float16x8_t pad_value = vdupq_n_f16((__fp16)value);
+                uint16x8_t pad_value = vdupq_n_u16(value_fp16);
                 padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
 
                 return 0;
@@ -289,7 +291,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 if (top_blob.empty())
                     return -100;
 
-                float16x8_t pad_value = vdupq_n_f16((__fp16)value);
+                uint16x8_t pad_value = vdupq_n_u16(value_fp16);
                 padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
 
                 return 0;
@@ -317,7 +319,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 {
                     Mat borderm = top_blob.channel(q);
 
-                    float16x8_t pad_value = per_channel_pad_data_size ? vld1q_f16((const __fp16*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_f16((__fp16)value);
+                    uint16x8_t pad_value = per_channel_pad_data_size ? vld1q_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_u16(value_fp16);
 
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
@@ -355,7 +357,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    float16x8_t pad_value = per_channel_pad_data_size ? vld1q_f16((const __fp16*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_f16((__fp16)value);
+                    uint16x8_t pad_value = per_channel_pad_data_size ? vld1q_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_u16(value_fp16);
 
                     for (int z = 0; z < outd; z++)
                     {
@@ -405,7 +407,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if NCNN_ARM82
                 if (support_fp16_storage && opt.use_fp16_storage)
                 {
-                    pad_value = vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                    pad_value = vdup_n_u16(value_fp16);
                 }
                 else
 #endif
@@ -450,7 +452,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if NCNN_ARM82
                 if (support_fp16_storage && opt.use_fp16_storage)
                 {
-                    pad_value = vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                    pad_value = vdup_n_u16(value_fp16);
                 }
                 else
 #endif
@@ -502,7 +504,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if NCNN_ARM82
                     if (support_fp16_storage && opt.use_fp16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vreinterpret_u16_f16(vld1_f16((const __fp16*)per_channel_pad_data_fp16 + q * 4)) : vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                        pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 4) : vdup_n_u16(value_fp16);
                     }
                     else
 #endif
@@ -560,7 +562,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 #if NCNN_ARM82
                     if (support_fp16_storage && opt.use_fp16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vreinterpret_u16_f16(vld1_f16((const __fp16*)per_channel_pad_data_fp16 + q * 4)) : vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                        pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 4) : vdup_n_u16(value_fp16);
                     }
                     else
 #endif
