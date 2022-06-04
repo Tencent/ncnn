@@ -151,8 +151,14 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
 
     if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
         include(CheckCXXCompilerFlag)
-        check_cxx_compiler_flag("-march=armv8.2-a+fp16" NCNN_COMPILER_SUPPORT_ARM82_FP16)
-        check_cxx_compiler_flag("-march=armv8.2-a+fp16+dotprod" NCNN_COMPILER_SUPPORT_ARM82_FP16_DOTPROD)
+
+        set(CMAKE_REQUIRED_FLAGS "-march=armv8.2-a+fp16")
+        check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float16x8_t _s, _a, _b; _s = vfmaq_f16(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM82_FP16)
+
+        set(CMAKE_REQUIRED_FLAGS "-march=armv8.2-a+fp16+dotprod")
+        check_cxx_source_compiles("#include <arm_neon.h>\nint main() { int32x4_t _s; int8x16_t _a, _b; _s = vdotq_s32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM82_FP16_DOTPROD)
+
+        unset(CMAKE_REQUIRED_FLAGS)
     endif()
 
     if(NCNN_COMPILER_SUPPORT_ARM82_FP16)

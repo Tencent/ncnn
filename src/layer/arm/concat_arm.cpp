@@ -14,14 +14,16 @@
 
 #include "concat_arm.h"
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Concat_arm::Concat_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
 
@@ -34,8 +36,8 @@ int Concat_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 {
     int elembits = bottom_blobs[0].elembits();
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_packing && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blobs, top_blobs, opt);
 #endif
 
@@ -385,8 +387,8 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            out_elempack = opt.use_fp16_arithmetic && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_w % 4 == 0 ? 4 : 1;
 #endif
@@ -430,8 +432,8 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            out_elempack = opt.use_fp16_arithmetic && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_h % 4 == 0 ? 4 : 1;
 #endif
@@ -456,7 +458,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
             if (bottom_blob.elempack == 8 && elempack == 4)
             {
                 for (int i = 0; i < bottom_blob.h; i++)
@@ -517,7 +519,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
                     outptr += w * 8;
                 }
             }
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#endif // NCNN_ARM82
             if (bottom_blob.elempack == 4 && elempack == 1)
             {
                 for (int i = 0; i < bottom_blob.h; i++)
@@ -617,8 +619,8 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         int out_elempack = 1;
         if (opt.use_packing_layout)
         {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            out_elempack = opt.use_fp16_arithmetic && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_channels % 4 == 0 ? 4 : 1;
 #endif
@@ -643,7 +645,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
         {
             const Mat& bottom_blob = bottom_blobs[b];
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
             if (bottom_blob.elempack == 8 && elempack == 4)
             {
                 int size = bottom_blob.w * bottom_blob.h;
@@ -708,7 +710,7 @@ int Concat_arm::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std::v
                     p += 8;
                 }
             }
-#endif
+#endif // NCNN_ARM82
             if (bottom_blob.elempack == 4 && elempack == 1)
             {
                 int size = bottom_blob.w * bottom_blob.h;

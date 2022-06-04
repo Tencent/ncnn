@@ -18,14 +18,16 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 HardSigmoid_arm::HardSigmoid_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
 
@@ -38,8 +40,8 @@ int HardSigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 {
     int elembits = bottom_top_blob.elembits();
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
             return forward_inplace_fp16sa(bottom_top_blob, opt);
@@ -170,173 +172,6 @@ int HardSigmoid_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
     return 0;
 }
-
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-int HardSigmoid_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-
-        float32x4_t _zero = vdupq_n_f32(0.f);
-        float32x4_t _one = vdupq_n_f32(1.f);
-        float32x4_t _alpha = vdupq_n_f32(alpha);
-        float32x4_t _beta = vdupq_n_f32(beta);
-
-        int i = 0;
-        for (; i + 7 < size; i += 8)
-        {
-            float16x8_t _p = vld1q_f16(ptr);
-            float32x4_t _p0 = vcvt_f32_f16(vget_low_f16(_p));
-            float32x4_t _p1 = vcvt_f32_f16(vget_high_f16(_p));
-            _p0 = vfmaq_f32(_beta, _p0, _alpha);
-            _p1 = vfmaq_f32(_beta, _p1, _alpha);
-            _p0 = vmaxq_f32(_p0, _zero);
-            _p1 = vmaxq_f32(_p1, _zero);
-            _p0 = vminq_f32(_p0, _one);
-            _p1 = vminq_f32(_p1, _one);
-            _p = vcombine_f16(vcvt_f16_f32(_p0), vcvt_f16_f32(_p1));
-            vst1q_f16(ptr, _p);
-            ptr += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
-            _p = vfmaq_f32(_beta, _p, _alpha);
-            _p = vmaxq_f32(_p, _zero);
-            _p = vminq_f32(_p, _one);
-            vst1_f16(ptr, vcvt_f16_f32(_p));
-            ptr += 4;
-        }
-        for (; i < size; i++)
-        {
-            float v = (float)*ptr;
-            if (v < lower)
-                v = 0.f;
-            else if (v > upper)
-                v = 1.f;
-            else
-                v = v * alpha + beta;
-            *ptr = (__fp16)v;
-
-            ptr++;
-        }
-    }
-
-    return 0;
-}
-
-int HardSigmoid_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const
-{
-    int w = bottom_top_blob.w;
-    int h = bottom_top_blob.h;
-    int d = bottom_top_blob.d;
-    int channels = bottom_top_blob.c;
-    int elempack = bottom_top_blob.elempack;
-    int size = w * h * d * elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = bottom_top_blob.channel(q);
-
-        __fp16 alpha_fp16 = (__fp16)alpha;
-        __fp16 beta_fp16 = (__fp16)beta;
-
-        float16x8_t _zero = vdupq_n_f16((__fp16)0.f);
-        float16x8_t _one = vdupq_n_f16((__fp16)1.f);
-        float16x8_t _alpha = vdupq_n_f16(alpha_fp16);
-        float16x8_t _beta = vdupq_n_f16(beta_fp16);
-
-        int i = 0;
-        for (; i + 31 < size; i += 32)
-        {
-            asm volatile(
-                "prfm   pldl1keep, [%0, #512]   \n"
-                "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
-                "mov    v4.16b, %5.16b          \n"
-                "mov    v5.16b, %5.16b          \n"
-                "mov    v6.16b, %5.16b          \n"
-                "mov    v7.16b, %5.16b          \n"
-                "fmla   v4.8h, v0.8h, %4.8h     \n"
-                "fmla   v5.8h, v1.8h, %4.8h     \n"
-                "fmla   v6.8h, v2.8h, %4.8h     \n"
-                "fmla   v7.8h, v3.8h, %4.8h     \n"
-                "fmax   v0.8h, v4.8h, %2.8h     \n"
-                "fmax   v1.8h, v5.8h, %2.8h     \n"
-                "fmax   v2.8h, v6.8h, %2.8h     \n"
-                "fmax   v3.8h, v7.8h, %2.8h     \n"
-                "fmin   v0.8h, v0.8h, %3.8h     \n"
-                "fmin   v1.8h, v1.8h, %3.8h     \n"
-                "fmin   v2.8h, v2.8h, %3.8h     \n"
-                "fmin   v3.8h, v3.8h, %3.8h     \n"
-                "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0], #64 \n"
-                : "=r"(ptr) // %0
-                : "0"(ptr),
-                "w"(_zero),  // %2
-                "w"(_one),   // %3
-                "w"(_alpha), // %4
-                "w"(_beta)   // %5
-                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
-        }
-        for (; i + 15 < size; i += 16)
-        {
-            float16x8_t _p0 = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr + 8);
-            _p0 = vfmaq_f16(_beta, _p0, _alpha);
-            _p1 = vfmaq_f16(_beta, _p1, _alpha);
-            _p0 = vmaxq_f16(_p0, _zero);
-            _p1 = vmaxq_f16(_p1, _zero);
-            _p0 = vminq_f16(_p0, _one);
-            _p1 = vminq_f16(_p1, _one);
-            vst1q_f16(ptr, _p0);
-            vst1q_f16(ptr + 8, _p1);
-            ptr += 16;
-        }
-        for (; i + 7 < size; i += 8)
-        {
-            float16x8_t _p = vld1q_f16(ptr);
-            _p = vfmaq_f16(_beta, _p, _alpha);
-            _p = vmaxq_f16(_p, _zero);
-            _p = vminq_f16(_p, _one);
-            vst1q_f16(ptr, _p);
-            ptr += 8;
-        }
-        for (; i + 3 < size; i += 4)
-        {
-            float16x4_t _p = vld1_f16(ptr);
-            _p = vfma_f16(vget_low_f16(_beta), _p, vget_low_f16(_alpha));
-            _p = vmax_f16(_p, vget_low_f16(_zero));
-            _p = vmin_f16(_p, vget_low_f16(_one));
-            vst1_f16(ptr, _p);
-            ptr += 4;
-        }
-        for (; i < size; i++)
-        {
-            __fp16 v = *ptr;
-            if (v < (__fp16)lower)
-                v = (__fp16)0.f;
-            else if (v > (__fp16)upper)
-                v = (__fp16)1.f;
-            else
-                v = v * alpha_fp16 + beta_fp16;
-            *ptr = v;
-
-            ptr++;
-        }
-    }
-
-    return 0;
-}
-#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 
 #if NCNN_BF16
 int HardSigmoid_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const

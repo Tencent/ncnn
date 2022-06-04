@@ -18,13 +18,15 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 #if __ARM_NEON
 #include "padding_pack4.h"
 #include "padding_pack4_bf16s_fp16s.h"
 #include "padding_pack8_int8.h"
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
 #include "padding_pack8_fp16s.h"
 #endif
 #endif // __ARM_NEON
@@ -33,8 +35,8 @@ Padding_arm::Padding_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
 
@@ -45,9 +47,11 @@ Padding_arm::Padding_arm()
 
 int Padding_arm::create_pipeline(const Option& opt)
 {
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage)
     {
+        value_fp16 = float32_to_float16(value);
+
         ncnn::cast_float32_to_float16(per_channel_pad_data, per_channel_pad_data_fp16, opt);
     }
 #endif
@@ -82,8 +86,8 @@ int Padding_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
@@ -250,7 +254,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
     int elempack = bottom_blob.elempack;
 
 #if __ARM_NEON
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if NCNN_ARM82
     if (elempack == 8)
     {
         if (dims == 1)
@@ -266,7 +270,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 if (top_blob.empty())
                     return -100;
 
-                float16x8_t pad_value = vdupq_n_f16((__fp16)value);
+                uint16x8_t pad_value = vdupq_n_u16(value_fp16);
                 padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, 0, 0, left / 8, right / 8, pad_value);
 
                 return 0;
@@ -287,7 +291,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 if (top_blob.empty())
                     return -100;
 
-                float16x8_t pad_value = vdupq_n_f16((__fp16)value);
+                uint16x8_t pad_value = vdupq_n_u16(value_fp16);
                 padding_constant_pack8_fp16s_neon(bottom_blob, top_blob, top / 8, bottom / 8, left, right, pad_value);
 
                 return 0;
@@ -315,7 +319,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 {
                     Mat borderm = top_blob.channel(q);
 
-                    float16x8_t pad_value = per_channel_pad_data_size ? vld1q_f16((const __fp16*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_f16((__fp16)value);
+                    uint16x8_t pad_value = per_channel_pad_data_size ? vld1q_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_u16(value_fp16);
 
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
@@ -353,7 +357,7 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    float16x8_t pad_value = per_channel_pad_data_size ? vld1q_f16((const __fp16*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_f16((__fp16)value);
+                    uint16x8_t pad_value = per_channel_pad_data_size ? vld1q_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 8) : vdupq_n_u16(value_fp16);
 
                     for (int z = 0; z < outd; z++)
                     {
@@ -384,8 +388,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
         {
             int outw = w * elempack + left + right;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = opt.use_fp16_arithmetic && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outw % 4 == 0 ? 4 : 1;
 #endif
@@ -400,10 +404,10 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 // clang-format off
                 // *INDENT-OFF*
                 uint16x4_t pad_value;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-                if (opt.use_fp16_storage)
+#if NCNN_ARM82
+                if (support_fp16_storage && opt.use_fp16_storage)
                 {
-                    pad_value = vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                    pad_value = vdup_n_u16(value_fp16);
                 }
                 else
 #endif
@@ -429,8 +433,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outw = w + left + right;
             int outh = h * elempack + top + bottom;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outh % 4 == 0 ? 4 : 1;
 #endif
@@ -445,10 +449,10 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 // clang-format off
                 // *INDENT-OFF*
                 uint16x4_t pad_value;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-                if (opt.use_fp16_storage)
+#if NCNN_ARM82
+                if (support_fp16_storage && opt.use_fp16_storage)
                 {
-                    pad_value = vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                    pad_value = vdup_n_u16(value_fp16);
                 }
                 else
 #endif
@@ -475,8 +479,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
             int outh = h + top + bottom;
             int outc = channels * elempack + front + behind;
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-            int out_elempack = opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+#if NCNN_ARM82
+            int out_elempack = support_fp16_storage && opt.use_fp16_arithmetic && outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
 #else
             int out_elempack = outc % 4 == 0 ? 4 : 1;
 #endif
@@ -497,10 +501,10 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     // clang-format off
                     // *INDENT-OFF*
                     uint16x4_t pad_value;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-                    if (opt.use_fp16_storage)
+#if NCNN_ARM82
+                    if (support_fp16_storage && opt.use_fp16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vreinterpret_u16_f16(vld1_f16((const __fp16*)per_channel_pad_data_fp16 + q * 4)) : vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                        pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 4) : vdup_n_u16(value_fp16);
                     }
                     else
 #endif
@@ -555,10 +559,10 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     // clang-format off
                     // *INDENT-OFF*
                     uint16x4_t pad_value;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-                    if (opt.use_fp16_storage)
+#if NCNN_ARM82
+                    if (support_fp16_storage && opt.use_fp16_storage)
                     {
-                        pad_value = per_channel_pad_data_size ? vreinterpret_u16_f16(vld1_f16((const __fp16*)per_channel_pad_data_fp16 + q * 4)) : vreinterpret_u16_f16(vdup_n_f16((__fp16)value));
+                        pad_value = per_channel_pad_data_size ? vld1_u16((const unsigned short*)per_channel_pad_data_fp16 + q * 4) : vdup_n_u16(value_fp16);
                     }
                     else
 #endif
