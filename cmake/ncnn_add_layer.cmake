@@ -212,7 +212,7 @@ macro(ncnn_add_layer class)
         endif()
     endif()
 
-    if(NCNN_RUNTIME_CPU AND ((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)")))
+    if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)"))
         if(NCNN_ARM82)
             ncnn_add_arch_opt_source(${class} asimdhp "-march=armv8.2-a+fp16")
         endif()
