@@ -1098,8 +1098,8 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
 #endif // __ARM_NEON
         bool use_int8_requantize = int8_scale_term > 100;
         size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-        if (opt.use_fp16_storage)
+#if NCNN_ARM82
+        if (support_fp16_storage && opt.use_fp16_storage)
         {
             out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
         }
@@ -1494,8 +1494,8 @@ int ConvolutionDepthWise_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_
     }
 #endif // __ARM_NEON
     size_t out_elemsize = use_int8_requantize ? 1u * out_elempack : 4u * out_elempack;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage)
     {
         out_elemsize = use_int8_requantize ? 1u * out_elempack : 2u * out_elempack;
     }
