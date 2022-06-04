@@ -33,7 +33,7 @@ public:
 
 protected:
     int create_group_ops(const Option& opt);
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;

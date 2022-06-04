@@ -27,7 +27,7 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
     int forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const;
 #endif

@@ -31,7 +31,7 @@ Quantize_arm::Quantize_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
@@ -45,7 +45,7 @@ int Quantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
 {
     int elembits = bottom_blob.elembits();
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)

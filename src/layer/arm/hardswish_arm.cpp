@@ -26,7 +26,7 @@ HardSwish_arm::HardSwish_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
@@ -40,7 +40,7 @@ int HardSwish_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 {
     int elembits = bottom_top_blob.elembits();
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)

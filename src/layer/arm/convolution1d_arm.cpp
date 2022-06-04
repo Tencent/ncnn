@@ -30,7 +30,7 @@ Convolution1D_arm::Convolution1D_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
@@ -45,7 +45,7 @@ int Convolution1D_arm::create_pipeline(const Option& opt)
     if (dynamic_weight)
         return 0;
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -115,7 +115,7 @@ int Convolution1D_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 {
     int elembits = bottom_blob.elembits();
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -372,14 +372,14 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
     if (weight_data_flattened.empty())
         return -100;
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && weight_data_flattened.elembits() == 16)
     {
         Mat weight_data_flattened_fp32;
         cast_float16_to_float32(weight_data_flattened, weight_data_flattened_fp32, opt);
         weight_data_flattened = weight_data_flattened_fp32;
     }
-#endif // NCNN_ARM82
+#endif // NCNN_ARM82 && __aarch64__
 #if NCNN_BF16
     if (opt.use_bf16_storage && weight_data_flattened.elembits() == 16)
     {
@@ -402,14 +402,14 @@ int Convolution1D_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector
         if (bias_data_flattened.empty())
             return -100;
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
         if (opt.use_fp16_storage && cpu_support_arm_asimdhp() && bias_data_flattened.elembits() == 16)
         {
             Mat bias_data_flattened_fp32;
             cast_float16_to_float32(bias_data_flattened, bias_data_flattened_fp32, opt);
             bias_data_flattened = bias_data_flattened_fp32;
         }
-#endif // NCNN_ARM82
+#endif // NCNN_ARM82 && __aarch64__
 #if NCNN_BF16
         if (opt.use_bf16_storage && bias_data_flattened.elembits() == 16)
         {

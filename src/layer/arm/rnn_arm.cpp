@@ -29,7 +29,7 @@ namespace ncnn {
 RNN_arm::RNN_arm()
 {
 #if __ARM_NEON
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
@@ -41,7 +41,7 @@ RNN_arm::RNN_arm()
 
 int RNN_arm::create_pipeline(const Option& opt)
 {
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -318,7 +318,7 @@ int RNN_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) c
 {
     int elembits = bottom_blob.elembits();
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -395,7 +395,7 @@ int RNN_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top
     const Mat& bottom_blob = bottom_blobs[0];
     int elembits = bottom_blob.elembits();
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)

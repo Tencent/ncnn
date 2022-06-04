@@ -27,7 +27,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 #endif

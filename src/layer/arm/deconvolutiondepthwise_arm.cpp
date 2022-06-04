@@ -30,7 +30,7 @@ DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
@@ -42,7 +42,7 @@ DeconvolutionDepthWise_arm::DeconvolutionDepthWise_arm()
 
 int DeconvolutionDepthWise_arm::create_pipeline(const Option& opt)
 {
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         return create_pipeline_fp16s(opt);
@@ -213,7 +213,7 @@ int DeconvolutionDepthWise_arm::forward(const Mat& bottom_blob, Mat& top_blob, c
 {
     int elembits = bottom_blob.elembits();
 
-#if NCNN_ARM82
+#if NCNN_ARM82 && __aarch64__
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
