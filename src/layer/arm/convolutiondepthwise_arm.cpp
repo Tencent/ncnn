@@ -45,12 +45,6 @@ namespace ncnn {
 #if NCNN_INT8
 #include "convolutiondepthwise_3x3_pack8_int8.h"
 #endif // NCNN_INT8
-
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#include "convolutiondepthwise_3x3_fp16s.h"
-#include "convolutiondepthwise_3x3_pack8_fp16s.h"
-#include "convolutiondepthwise_5x5_pack8_fp16s.h"
-#endif
 #endif // __ARM_NEON
 
 ConvolutionDepthWise_arm::ConvolutionDepthWise_arm()
