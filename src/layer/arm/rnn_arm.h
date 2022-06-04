@@ -29,7 +29,7 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 protected:
-#if NCNN_ARM82 && __aarch64__
+#if NCNN_ARM82
     int create_pipeline_fp16s(const Option& opt);
     int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
     int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;

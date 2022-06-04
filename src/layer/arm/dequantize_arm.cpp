@@ -27,7 +27,7 @@ Dequantize_arm::Dequantize_arm()
 {
 #if __ARM_NEON
     support_packing = true;
-#if NCNN_ARM82 && __aarch64__
+#if NCNN_ARM82
     support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 #endif // __ARM_NEON
@@ -41,7 +41,7 @@ int Dequantize_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
 {
     // assert bottom_blob.elembits() == 32
 
-#if NCNN_ARM82 && __aarch64__
+#if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
         if (opt.use_fp16_arithmetic)
