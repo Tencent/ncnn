@@ -419,6 +419,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 else
 #endif
                 {
+                    // shall never reach here
+                    pad_value = vdup_n_u16(0);
                 }
                 // *INDENT-ON*
                 // clang-format on
@@ -464,6 +466,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                 else
 #endif
                 {
+                    // shall never reach here
+                    pad_value = vdup_n_u16(0);
                 }
                 // *INDENT-ON*
                 // clang-format on
@@ -516,6 +520,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     else
 #endif
                     {
+                        // shall never reach here
+                        pad_value = vdup_n_u16(0);
                     }
                     // *INDENT-ON*
                     // clang-format on
@@ -574,6 +580,8 @@ int Padding_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                     else
 #endif
                     {
+                        // shall never reach here
+                        pad_value = vdup_n_u16(0);
                     }
                     // *INDENT-ON*
                     // clang-format on

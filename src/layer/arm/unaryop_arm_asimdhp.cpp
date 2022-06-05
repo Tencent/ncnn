@@ -44,22 +44,6 @@ static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
         __fp16* ptr = a.channel(q);
 
         int i = 0;
-        for (; i + 31 < size; i += 32)
-        {
-            float16x8_t _p0 = vld1q_f16(ptr);
-            float16x8_t _p1 = vld1q_f16(ptr + 8);
-            float16x8_t _p2 = vld1q_f16(ptr + 16);
-            float16x8_t _p3 = vld1q_f16(ptr + 24);
-            _p0 = op.func_pack8(_p0);
-            _p1 = op.func_pack8(_p1);
-            _p2 = op.func_pack8(_p2);
-            _p3 = op.func_pack8(_p3);
-            vst1q_f16(ptr, _p0);
-            vst1q_f16(ptr + 8, _p1);
-            vst1q_f16(ptr + 16, _p2);
-            vst1q_f16(ptr + 24, _p3);
-            ptr += 32;
-        }
         for (; i + 15 < size; i += 16)
         {
             float16x8_t _p0 = vld1q_f16(ptr);

@@ -58,24 +58,6 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 
         int i = 0;
 #if __ARM_NEON
-#if __aarch64__
-        for (; i + 15 < size; i += 16)
-        {
-            float32x4_t _p0 = vld1q_f32(ptr);
-            float32x4_t _p1 = vld1q_f32(ptr + 4);
-            float32x4_t _p2 = vld1q_f32(ptr + 8);
-            float32x4_t _p3 = vld1q_f32(ptr + 12);
-            _p0 = op.func_pack4(_p0);
-            _p1 = op.func_pack4(_p1);
-            _p2 = op.func_pack4(_p2);
-            _p3 = op.func_pack4(_p3);
-            vst1q_f32(ptr, _p0);
-            vst1q_f32(ptr + 4, _p1);
-            vst1q_f32(ptr + 8, _p2);
-            vst1q_f32(ptr + 12, _p3);
-            ptr += 16;
-        }
-#endif // __aarch64__
         for (; i + 7 < size; i += 8)
         {
             float32x4_t _p0 = vld1q_f32(ptr);
