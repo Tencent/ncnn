@@ -235,7 +235,6 @@ else()
             set(NCNN_COMPILER_SUPPORT_X86_AVX512 OFF)
             set(NCNN_COMPILER_SUPPORT_X86_AVX512_VNNI OFF)
         endif()
-        
     else()
         check_cxx_compiler_flag("-mavx" NCNN_COMPILER_SUPPORT_X86_AVX)
         check_cxx_compiler_flag("-mfma" NCNN_COMPILER_SUPPORT_X86_FMA)
