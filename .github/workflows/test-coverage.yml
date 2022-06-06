@@ -261,10 +261,10 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      uses: codecov/codecov-action@v3
-      with:
-        token: ${{ secrets.CODECOV_TOKEN }}
-        file: build/lcov.info
+      run: |
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        chmod +x codecov
+        ./codecov -f build/lcov.info -t ${{ secrets.CODECOV_TOKEN }}
 
   linux-gcc-armhf-vfpv3-d16:
     runs-on: ubuntu-20.04
