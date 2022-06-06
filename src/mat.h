@@ -315,22 +315,26 @@ public:
 #endif // __ANDROID_API__ >= 9
 #ifdef __OBJC__
 #if __APPLE__
-    // convenient construct from apple SampleBuffer, mat is RGBA
-    static Mat from_apple_samplebuffer(CMSampleBufferRef samplebuffer);
-    // convenient construct from apple PixelBuffer, mat is RGBA
-    static Mat from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer);
-    // convenient export to apple PixelBuffer
-    int to_apple_pixelbuffer(CVPixelBufferRef* pixelbuffer);
+    // convenient construct from apple SampleBuffer
+    static Mat from_apple_samplebuffer(CMSampleBufferRef samplebuffer, int type_to, Allocator* allocator = 0);
+    // convenient construct from apple PixelBuffer
+    static Mat from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Allocator* allocator = 0);
+    // convenient export to apple PixelBuffer and resize to the apple PixelBuffer size
+    int to_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_from) const;
+    // convenient construct from apple CGImage
+    static Mat from_apple_cgimage(CGImageRef image, int type_to, Allocator* allocator = 0);
+    // convenient export to apple CGImage
+    CGImageRef to_apple_cgimage() const;
 #if TARGET_OS_IOS
     // convenient construct from apple UIImage
-    static Mat from_apple_image(UIImage* image);
+    static Mat from_apple_uiimage(UIImage* image, int type_to, Allocator* allocator = 0);
     // convenient export to apple UIImage
-    UIImage* to_apple_image();
+    UIImage* to_apple_uiimage() const;
 #else
     // convenient construct from apple NSImage
-    static Mat from_apple_image(NSImage* image);
+    static Mat from_apple_nsimage(NSImage* image, int type_to, Allocator* allocator = 0);
     // convenient export to apple NSImage
-    NSImage* to_apple_image();
+    NSImage* to_apple_nsimage() const;
 #endif // TARGET_OS_IOS
 #endif // __APPLE__
 #endif
