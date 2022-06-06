@@ -82,7 +82,7 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
             if (uv_data == y_data + w * h && y_stride == w && uv_stride == w)
             {
                 // already nv12  :)
-                yuv420sp2rgb_nv12(y_data, w, h, rgb.data);
+                yuv420sp2rgb_nv12(y_data, w, h, (unsigned char*)rgb.data);
             }
             else
             {
@@ -106,7 +106,7 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
                     }
                 }
 
-                yuv420sp2rgb_nv12(nv12, w, h, rgb.data);
+                yuv420sp2rgb_nv12(nv12, w, h, (unsigned char*)rgb.data);
 
                 delete[] nv12;
             }
