@@ -44,16 +44,15 @@ jobs:
 
     - name: loongarch64-toolchain
       run: |
-        wget https://github.com/loongson/build-tools/releases/download/2021.12.21/loongarch64-clfs-2022-03-03-cross-tools-gcc-glibc.tar.xz
-        tar -xf loongarch64-clfs-2022-03-03-cross-tools-gcc-glibc.tar.xz
-        wget https://github.com/loongson/build-tools/releases/download/2021.12.21/qemu-loongarch-2022-4-01.tar.gz
-        tar -xf qemu-loongarch-2022-4-01.tar.gz
-        chmod +x 4-1/new-world/qemu-loongarch64
+        wget https://github.com/loongson/build-tools/releases/download/2022.05.29/loongarch64-clfs-5.0-cross-tools-gcc-full.tar.xz
+        tar -xf loongarch64-clfs-5.0-cross-tools-gcc-full.tar.xz
+        wget https://github.com/loongson/build-tools/releases/download/2022.05.29/qemu-loongarch64
+        chmod +x qemu-loongarch64
 
     - name: configure
       run: |
-        export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc
-        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr/lib64:$LD_LIBRARY_PATH
+        export LOONGARCH64_ROOT_PATH=$GITHUB_WORKSPACE/cross-tools
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
 
@@ -62,7 +61,8 @@ jobs:
 
     - name: test
       run: |
-        export PATH=$GITHUB_WORKSPACE/4-1/new-world:$PATH
-        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr/lib64:$LD_LIBRARY_PATH
+        export PATH=$GITHUB_WORKSPACE:$PATH
+        export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
+        export QEMU_STRACE=1
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools.gcc_glibc/target/usr" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr" ctest --output-on-failure -j 2
