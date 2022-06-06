@@ -13,8 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __ARM_NEON && __aarch64__ && !__ARM_FEATURE_DOTPROD
-void im2col_sgemm_pack8to4_int8_neon_arm82dot(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
-void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_arm82dot(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
+void im2col_sgemm_pack8to4_int8_neon_asimddp(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_asimddp(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
 #endif
 
 static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
@@ -22,7 +22,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __ARM_NEON && __aarch64__ && !__ARM_FEATURE_DOTPROD
     if (ncnn::cpu_support_arm_asimddp())
     {
-        im2col_sgemm_pack8to4_int8_neon_arm82dot(bottom_im2col, top_blob, kernel, opt);
+        im2col_sgemm_pack8to4_int8_neon_asimddp(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
@@ -1121,7 +1121,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const M
 #if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __ARM_NEON && __aarch64__ && !__ARM_FEATURE_DOTPROD
     if (ncnn::cpu_support_arm_asimddp())
     {
-        convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_arm82dot(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
+        convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_asimddp(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
         return;
     }
 #endif

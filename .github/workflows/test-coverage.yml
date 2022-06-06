@@ -266,6 +266,68 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
 
+  linux-gcc-armhf-vfpv3-d16:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: lcov
+      run: sudo apt-get install lcov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v3
+      with:
+        path: qemu-install
+        key: qemu-arm-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=arm-linux-user --disable-system
+        make -j2
+        make install
+
+    - name: arm-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-arm-linux-gnueabihf
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j 2
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+
   linux-gcc-arm:
     runs-on: ubuntu-20.04
     steps:

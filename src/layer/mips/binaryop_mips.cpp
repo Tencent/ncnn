@@ -30,6 +30,153 @@ BinaryOp_mips::BinaryOp_mips()
 #endif // __mips_msa
 }
 
+template<typename Op>
+static int binary_op_2_3_4_20(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = b.w;
+    int h = b.h;
+    int d = b.d;
+    int channels = b.c;
+    int elempack = b.elempack;
+    int size = w * h * d * elempack;
+
+    // type 2 3 4 20
+    c.create_like(b, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float a0 = a[0];
+        const float* ptr = b.channel(q);
+        float* outptr = c.channel(q);
+
+        int i = 0;
+#if __mips_msa
+        v4f32 _a0 = __msa_fill_w_f32(a0);
+        for (; i + 3 < size; i += 4)
+        {
+            __builtin_prefetch(ptr + 16);
+            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+            v4f32 _outp = op(_a0, _p);
+            __msa_st_w((v4i32)_outp, outptr, 0);
+            ptr += 4;
+            outptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            *outptr = op(a0, *ptr);
+            ptr += 1;
+            outptr += 1;
+        }
+    }
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_6_11_16_25(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    // type 6 11 16 25
+    c.create_like(a, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* ptr = a.channel(q);
+        const float b0 = b[0];
+        float* outptr = c.channel(q);
+
+        int i = 0;
+#if __mips_msa
+        v4f32 _b0 = __msa_fill_w_f32(b0);
+        for (; i + 3 < size; i += 4)
+        {
+            __builtin_prefetch(ptr + 16);
+            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+            v4f32 _outp = op(_p, _b0);
+            __msa_st_w((v4i32)_outp, outptr, 0);
+            ptr += 4;
+            outptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            *outptr = op(*ptr, b0);
+            ptr += 1;
+            outptr += 1;
+        }
+    }
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_7_13_19_29(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    // type 7 13 19 29
+    c.create_like(a, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* ptr = a.channel(q);
+        const float* ptr1 = b.channel(q);
+        float* outptr = c.channel(q);
+
+        int i = 0;
+#if __mips_msa
+        for (; i + 3 < size; i += 4)
+        {
+            __builtin_prefetch(ptr + 16);
+            __builtin_prefetch(ptr1 + 16);
+            v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
+            v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
+            v4f32 _outp = op(_p, _p1);
+            __msa_st_w((v4i32)_outp, outptr, 0);
+            ptr += 4;
+            ptr1 += 4;
+            outptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            *outptr = op(*ptr, *ptr1);
+            ptr += 1;
+            ptr1 += 1;
+            outptr += 1;
+        }
+    }
+
+    return 0;
+}
+
 #if __mips_msa
 // broadcasting rule
 // https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
@@ -60,32 +207,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
         if (b.dims == 4)
         {
             // type 29
-            c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    __builtin_prefetch(ptr + 16);
-                    __builtin_prefetch(ptr1 + 16);
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
-                    v4f32 _outp = op(_p, _p1);
-                    __msa_st_w((v4i32)_outp, outptr, 0);
-                    ptr += 4;
-                    ptr1 += 4;
-                    outptr += 4;
-                }
-            }
-
-            return 0;
+            return binary_op_7_13_19_29<Op>(a, b, c, opt);
         }
 
         c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
@@ -163,25 +285,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 25
-                v4f32 _b0 = __msa_fill_w_f32(b[0]);
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __builtin_prefetch(ptr + 16);
-                        v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                        v4f32 _outp = op(_p, _b0);
-                        __msa_st_w((v4i32)_outp, outptr, 0);
-                        ptr += 4;
-                        outptr += 4;
-                    }
-                }
-
-                return 0;
+                return binary_op_6_11_16_25<Op>(a, b, c, opt);
             }
 
             // type 26
@@ -495,32 +599,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             }
 
             // type 19
-            c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    __builtin_prefetch(ptr + 16);
-                    __builtin_prefetch(ptr1 + 16);
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
-                    v4f32 _outp = op(_p, _p1);
-                    __msa_st_w((v4i32)_outp, outptr, 0);
-                    ptr += 4;
-                    ptr1 += 4;
-                    outptr += 4;
-                }
-            }
-
-            return 0;
+            return binary_op_7_13_19_29<Op>(a, b, c, opt);
         }
 
         c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
@@ -562,25 +641,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 16
-                v4f32 _b0 = __msa_fill_w_f32(b[0]);
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        __builtin_prefetch(ptr + 16);
-                        v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                        v4f32 _outp = op(_p, _b0);
-                        __msa_st_w((v4i32)_outp, outptr, 0);
-                        ptr += 4;
-                        outptr += 4;
-                    }
-                }
-
-                return 0;
+                return binary_op_6_11_16_25<Op>(a, b, c, opt);
             }
 
             // type 17
@@ -685,23 +746,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
         if (b.dims == 2)
         {
             // type 13
-            const float* ptr = a;
-            const float* ptr1 = b;
-            float* outptr = c;
-            for (int i = 0; i < size; i++)
-            {
-                __builtin_prefetch(ptr + 16);
-                __builtin_prefetch(ptr1 + 16);
-                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
-                v4f32 _outp = op(_p, _p1);
-                __msa_st_w((v4i32)_outp, outptr, 0);
-                ptr += 4;
-                ptr1 += 4;
-                outptr += 4;
-            }
-
-            return 0;
+            return binary_op_7_13_19_29<Op>(a, b, c, opt);
         }
 
         if (b.dims == 1)
@@ -713,20 +758,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 11
-                v4f32 _b0 = __msa_fill_w_f32(b[0]);
-                const float* ptr = a;
-                float* outptr = c;
-                for (int i = 0; i < size; i++)
-                {
-                    __builtin_prefetch(ptr + 16);
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                    v4f32 _outp = op(_p, _b0);
-                    __msa_st_w((v4i32)_outp, outptr, 0);
-                    ptr += 4;
-                    outptr += 4;
-                }
-
-                return 0;
+                return binary_op_6_11_16_25<Op>(a, b, c, opt);
             }
 
             // type 12
@@ -757,107 +789,8 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
     {
         if (a.w == 1 && elempack == 1)
         {
-            if (b.dims == 4)
-            {
-                // type 20
-                c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                v4f32 _a0 = __msa_fill_w_f32(a[0]);
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int i = 0; i < size1; i++)
-                    {
-                        __builtin_prefetch(ptr1 + 16);
-                        v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
-                        v4f32 _outp = op(_a0, _p1);
-                        __msa_st_w((v4i32)_outp, outptr, 0);
-                        ptr1 += 4;
-                        outptr += 4;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 3)
-            {
-                // type 4
-                c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                v4f32 _a0 = __msa_fill_w_f32(a[0]);
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    for (int i = 0; i < size1; i++)
-                    {
-                        __builtin_prefetch(ptr1 + 16);
-                        v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
-                        v4f32 _outp = op(_a0, _p1);
-                        __msa_st_w((v4i32)_outp, outptr, 0);
-                        ptr1 += 4;
-                        outptr += 4;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 2)
-            {
-                // type 3
-                c.create(w1, h1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                v4f32 _a0 = __msa_fill_w_f32(a[0]);
-                const float* ptr1 = b;
-                float* outptr = c;
-                for (int i = 0; i < size1; i++)
-                {
-                    __builtin_prefetch(ptr1 + 16);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
-                    v4f32 _outp = op(_a0, _p1);
-                    __msa_st_w((v4i32)_outp, outptr, 0);
-                    ptr1 += 4;
-                    outptr += 4;
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 1)
-            {
-                // type 2
-                c.create(w1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                v4f32 _a0 = __msa_fill_w_f32(a[0]);
-                const float* ptr1 = b;
-                float* outptr = c;
-                for (int i = 0; i < w1; i++)
-                {
-                    __builtin_prefetch(ptr1 + 16);
-                    v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
-                    v4f32 _outp = op(_a0, _p1);
-                    __msa_st_w((v4i32)_outp, outptr, 0);
-                    ptr1 += 4;
-                    outptr += 4;
-                }
-
-                return 0;
-            }
+            // type 2 3 4 20
+            return binary_op_2_3_4_20<Op>(a, b, c, opt);
         }
 
         if (b.dims == 4)
@@ -955,46 +888,20 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 6
-                v4f32 _b0 = __msa_fill_w_f32(b[0]);
-                const float* ptr = a;
-                float* outptr = c;
-                for (int i = 0; i < w; i++)
-                {
-                    __builtin_prefetch(ptr + 16);
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                    v4f32 _outp = op(_p, _b0);
-                    __msa_st_w((v4i32)_outp, outptr, 0);
-                    ptr += 4;
-                    outptr += 4;
-                }
-
-                return 0;
+                return binary_op_6_11_16_25<Op>(a, b, c, opt);
             }
 
             // type 7
-            const float* ptr = a;
-            const float* ptr1 = b;
-            float* outptr = c;
-            for (int i = 0; i < w; i++)
-            {
-                __builtin_prefetch(ptr + 16);
-                __builtin_prefetch(ptr1 + 16);
-                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                v4f32 _p1 = (v4f32)__msa_ld_w(ptr1, 0);
-                v4f32 _outp = op(_p, _p1);
-                __msa_st_w((v4i32)_outp, outptr, 0);
-                ptr += 4;
-                ptr1 += 4;
-                outptr += 4;
-            }
+            binary_op_7_13_19_29<Op>(a, b, c, opt);
         }
     }
 
     return 0;
 }
+#endif // __mips_msa
 
 template<typename Op>
-static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
+static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 {
     Op op;
 
@@ -1002,22 +909,30 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
     int h = a.h;
     int d = a.d;
     int channels = a.c;
-    int size = w * h * d;
-
-    v4f32 _b = __msa_fill_w_f32(b);
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = a.channel(q);
 
-        for (int i = 0; i < size; i++)
+        int i = 0;
+#if __mips_msa
+        v4f32 _b = __msa_fill_w_f32(b);
+        for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
             _p = op(_p, _b);
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
+        }
+#endif // __mips_msa
+        for (; i < size; i++)
+        {
+            *ptr = op(*ptr, b);
+            ptr++;
         }
     }
 
@@ -1026,29 +941,47 @@ static int binary_op_scalar_inplace_pack4(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_mips_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL)                              \
+#if __mips_msa
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                       \
     struct NAME                                                \
     {                                                          \
+        float operator()(const float& x, const float& y) const \
+        {                                                      \
+            return IMPL;                                       \
+        }                                                      \
         v4f32 operator()(const v4f32& x, const v4f32& y) const \
+        {                                                      \
+            return IMPL4;                                      \
+        }                                                      \
+    };
+#else
+#define MAKE_FUNCTION(NAME, IMPL, IMPL4)                       \
+    struct NAME                                                \
+    {                                                          \
+        float operator()(const float& x, const float& y) const \
         {                                                      \
             return IMPL;                                       \
         }                                                      \
     };
+#endif // __mips_msa
 
-MAKE_FUNCTION(binary_op_add_pack4, __msa_fadd_w(x, y))
-MAKE_FUNCTION(binary_op_sub_pack4, __msa_fsub_w(x, y))
-MAKE_FUNCTION(binary_op_mul_pack4, __msa_fmul_w(x, y))
-MAKE_FUNCTION(binary_op_div_pack4, __msa_fdiv_w(x, y))
-MAKE_FUNCTION(binary_op_max_pack4, __msa_fmax_w(x, y))
-MAKE_FUNCTION(binary_op_min_pack4, __msa_fmin_w(x, y))
-MAKE_FUNCTION(binary_op_pow_pack4, pow_ps(x, y))
-MAKE_FUNCTION(binary_op_rsub_pack4, __msa_fsub_w(y, x))
-MAKE_FUNCTION(binary_op_rdiv_pack4, __msa_fdiv_w(y, x))
+// clang-format off
+// *INDENT-OFF*
+MAKE_FUNCTION(binary_op_add, x + y, __msa_fadd_w(x, y))
+MAKE_FUNCTION(binary_op_sub, x - y, __msa_fsub_w(x, y))
+MAKE_FUNCTION(binary_op_mul, x * y, __msa_fmul_w(x, y))
+MAKE_FUNCTION(binary_op_div, x / y, __msa_fdiv_w(x, y))
+MAKE_FUNCTION(binary_op_max, std::max(x, y), __msa_fmax_w(x, y))
+MAKE_FUNCTION(binary_op_min, std::min(x, y), __msa_fmin_w(x, y))
+MAKE_FUNCTION(binary_op_pow, (float)pow(x, y), pow_ps(x, y))
+MAKE_FUNCTION(binary_op_rsub, y - x, __msa_fsub_w(y, x))
+MAKE_FUNCTION(binary_op_rdiv, y / x, __msa_fdiv_w(y, x))
+// *INDENT-ON*
+// clang-format on
 
 #undef MAKE_FUNCTION
 
 } // namespace BinaryOp_mips_functor
-#endif // __mips_msa
 
 int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
@@ -1065,31 +998,31 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
     if (elempack == 4 || elempack1 == 4)
     {
         if (op_type == Operation_ADD)
-            return binary_op_pack4<binary_op_add_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_add>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_SUB)
-            return binary_op_pack4<binary_op_sub_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_sub>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MUL)
-            return binary_op_pack4<binary_op_mul_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_mul>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_DIV)
-            return binary_op_pack4<binary_op_div_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_div>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MAX)
-            return binary_op_pack4<binary_op_max_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_max>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MIN)
-            return binary_op_pack4<binary_op_min_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_min>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_POW)
-            return binary_op_pack4<binary_op_pow_pack4>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_pack4<binary_op_pow>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_RSUB)
-            return binary_op_pack4<binary_op_sub_pack4>(bottom_blob1, bottom_blob, top_blob, opt);
+            return binary_op_pack4<binary_op_sub>(bottom_blob1, bottom_blob, top_blob, opt);
 
         if (op_type == Operation_RDIV)
-            return binary_op_pack4<binary_op_div_pack4>(bottom_blob1, bottom_blob, top_blob, opt);
+            return binary_op_pack4<binary_op_div>(bottom_blob1, bottom_blob, top_blob, opt);
     }
 #endif // __mips_msa
 
@@ -1098,43 +1031,36 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
 
 int BinaryOp_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#if __mips_msa
     using namespace BinaryOp_mips_functor;
 
-    int elempack = bottom_top_blob.elempack;
+    if (op_type == Operation_ADD)
+        return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
 
-    if (elempack == 4)
-    {
-        if (op_type == Operation_ADD)
-            return binary_op_scalar_inplace_pack4<binary_op_add_pack4>(bottom_top_blob, b, opt);
+    if (op_type == Operation_SUB)
+        return binary_op_scalar_inplace<binary_op_sub>(bottom_top_blob, b, opt);
 
-        if (op_type == Operation_SUB)
-            return binary_op_scalar_inplace_pack4<binary_op_sub_pack4>(bottom_top_blob, b, opt);
+    if (op_type == Operation_MUL)
+        return binary_op_scalar_inplace<binary_op_mul>(bottom_top_blob, b, opt);
 
-        if (op_type == Operation_MUL)
-            return binary_op_scalar_inplace_pack4<binary_op_mul_pack4>(bottom_top_blob, b, opt);
+    if (op_type == Operation_DIV)
+        return binary_op_scalar_inplace<binary_op_div>(bottom_top_blob, b, opt);
 
-        if (op_type == Operation_DIV)
-            return binary_op_scalar_inplace_pack4<binary_op_div_pack4>(bottom_top_blob, b, opt);
+    if (op_type == Operation_MAX)
+        return binary_op_scalar_inplace<binary_op_max>(bottom_top_blob, b, opt);
 
-        if (op_type == Operation_MAX)
-            return binary_op_scalar_inplace_pack4<binary_op_max_pack4>(bottom_top_blob, b, opt);
+    if (op_type == Operation_MIN)
+        return binary_op_scalar_inplace<binary_op_min>(bottom_top_blob, b, opt);
 
-        if (op_type == Operation_MIN)
-            return binary_op_scalar_inplace_pack4<binary_op_min_pack4>(bottom_top_blob, b, opt);
+    if (op_type == Operation_POW)
+        return binary_op_scalar_inplace<binary_op_pow>(bottom_top_blob, b, opt);
 
-        if (op_type == Operation_POW)
-            return binary_op_scalar_inplace_pack4<binary_op_pow_pack4>(bottom_top_blob, b, opt);
+    if (op_type == Operation_RSUB)
+        return binary_op_scalar_inplace<binary_op_rsub>(bottom_top_blob, b, opt);
 
-        if (op_type == Operation_RSUB)
-            return binary_op_scalar_inplace_pack4<binary_op_rsub_pack4>(bottom_top_blob, b, opt);
+    if (op_type == Operation_RDIV)
+        return binary_op_scalar_inplace<binary_op_rdiv>(bottom_top_blob, b, opt);
 
-        if (op_type == Operation_RDIV)
-            return binary_op_scalar_inplace_pack4<binary_op_rdiv_pack4>(bottom_top_blob, b, opt);
-    }
-#endif // __mips_msa
-
-    return BinaryOp::forward_inplace(bottom_top_blob, opt);
+    return 0;
 }
 
 } // namespace ncnn

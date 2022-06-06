@@ -1049,7 +1049,7 @@ static std::string expand_expression(const Operator* op)
             std::string r = a + ".pow(" + b + ")";
             exprstack.push(r);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "and" || t == "or" || t == "xor")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";
@@ -1057,6 +1057,9 @@ static std::string expand_expression(const Operator* op)
             if (t == "mul") binaryop = "*";
             if (t == "div") binaryop = "/";
             if (t == "floor_divide") binaryop = "//";
+            if (t == "and") binaryop = "&";
+            if (t == "or") binaryop = "|";
+            if (t == "xor") binaryop = "^";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -1118,7 +1121,15 @@ static std::string make_slice_expression(const Operator* op)
         fprintf(stderr, "make_slice_expression %s %s\n", op->inputnames[j].c_str(), op->inputs[j]->name.c_str());
     }
 
-    std::vector<int> dims = op->params.at("dims").ai;
+    std::vector<int> dims;
+    if (op->params.find("dims") != op->params.end())
+    {
+        dims = op->params.at("dims").ai;
+    }
+    else
+    {
+        dims.push_back(op->params.at("dim").i);
+    }
 
     std::string r;
 
@@ -1771,6 +1782,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 if (op->type.substr(0, 7) == "Tensor.")
                 {
                     fprintf(pyfp, " = v_%s.%s(", sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
+
+                    for (size_t i = 1; i < op->inputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                    }
                 }
                 else
                 {
@@ -2001,6 +2017,127 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
         }
 
         fprintf(pyfp, "    mod.save(\"%s.pt\")\n", pypath.c_str());
+    }
+
+    fprintf(pyfp, "\n");
+
+    // export onnx
+    {
+        fprintf(pyfp, "def export_onnx():\n");
+        fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.eval()\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "    torch.manual_seed(0)\n");
+
+        std::vector<std::string> input_names;
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Input")
+                continue;
+
+            const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            if (type_is_integer(r->type))
+            {
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+            else
+            {
+                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+
+            input_names.push_back(input_name);
+        }
+
+        fprintf(pyfp, "\n");
+
+        // torch.onnx._export(net, v_0, "test_swin_t.onnx", export_params=True, opset_version=14, input_names=['in0'], output_names=['out0'])
+
+        if (input_names.size() == 1)
+        {
+            fprintf(pyfp, "    torch.onnx._export(net, %s", input_names[0].c_str());
+        }
+        else
+        {
+            fprintf(pyfp, "    torch.onnx._export(net, (");
+
+            for (size_t i = 0; i < input_names.size(); i++)
+            {
+                fprintf(pyfp, "%s", input_names[i].c_str());
+                if (i + 1 != input_names.size())
+                    fprintf(pyfp, ", ");
+            }
+
+            fprintf(pyfp, ")");
+        }
+
+        fprintf(pyfp, ", \"%s.onnx\", export_params=True, operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK, opset_version=13", pypath.c_str());
+
+        fprintf(pyfp, ", input_names=[");
+        {
+            int input_count = 0;
+            {
+                for (const Operator* op : ops)
+                {
+                    if (op->type == "pnnx.Input")
+                        input_count++;
+                }
+            }
+
+            int input_index = 0;
+            for (const Operator* op : ops)
+            {
+                if (op->type != "pnnx.Input")
+                    continue;
+
+                fprintf(pyfp, "'in%d'", input_index);
+                if (input_index + 1 != input_count)
+                    fprintf(pyfp, ", ");
+
+                input_index++;
+            }
+        }
+        fprintf(pyfp, "]");
+
+        fprintf(pyfp, ", output_names=[");
+        {
+            int output_count = 0;
+            {
+                for (const Operator* op : ops)
+                {
+                    if (op->type == "pnnx.Output")
+                        output_count++;
+                }
+            }
+
+            int output_index = 0;
+            for (const Operator* op : ops)
+            {
+                if (op->type != "pnnx.Output")
+                    continue;
+
+                fprintf(pyfp, "'out%d'", output_index);
+                if (output_index + 1 != output_count)
+                    fprintf(pyfp, ", ");
+
+                output_index++;
+            }
+        }
+        fprintf(pyfp, "]");
+
+        fprintf(pyfp, ")\n");
     }
 
     fprintf(pyfp, "\n");

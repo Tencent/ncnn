@@ -17,6 +17,7 @@
 #include "pass_level5/fold_constants.h"
 #include "pass_level5/eliminate_dropout.h"
 #include "pass_level5/eliminate_identity_operator.h"
+#include "pass_level5/eliminate_noop_cat.h"
 #include "pass_level5/eliminate_noop_einsum.h"
 #include "pass_level5/eliminate_noop_expression.h"
 #include "pass_level5/eliminate_noop_pad.h"
@@ -74,6 +75,8 @@ void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_cons
     fuse_linear_batchnorm1d(g);
 
     eliminate_noop_pad(g);
+
+    eliminate_noop_cat(g);
 
     eliminate_dropout(g);
 

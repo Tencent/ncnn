@@ -36,17 +36,17 @@ macro(ncnn_add_arch_opt_layer class NCNN_TARGET_ARCH_OPT NCNN_TARGET_ARCH_OPT_CF
         set(create_pipeline_content "        { int ret = ${class}::create_pipeline(opt); if (ret) return ret; }\n")
         set(destroy_pipeline_content "        { int ret = ${class}::destroy_pipeline(opt); if (ret) return ret; }\n")
 
-        set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}.h\"\n")
-        set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}")
-        set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        { int ret = ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
-
         if(WITH_LAYER_${name}_vulkan)
             set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
             set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_vulkan")
             set(create_pipeline_content "${create_pipeline_content}        if (vkdev) { int ret = ${class}_vulkan::create_pipeline(opt); if (ret) return ret; }\n")
             set(destroy_pipeline_content "        if (vkdev) { int ret = ${class}_vulkan::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
         endif()
+
+        set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}.h\"\n")
+        set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}")
+        set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}::create_pipeline(opt); if (ret) return ret; }\n")
+        set(destroy_pipeline_content "        { int ret = ${class}_${NCNN_TARGET_ARCH}_${NCNN_TARGET_ARCH_OPT}::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
 
         set(layer_declaration "${layer_declaration}namespace ncnn {\n${layer_declaration_class}\n{\n")
         set(layer_declaration "${layer_declaration}public:\n")
@@ -118,15 +118,6 @@ macro(ncnn_add_layer class)
         source_group ("sources\\\\layers" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${name}.cpp")
     endif()
 
-    if(WITH_LAYER_${name}_${NCNN_TARGET_ARCH})
-        set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.h\"\n")
-        set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${NCNN_TARGET_ARCH}")
-        set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${NCNN_TARGET_ARCH}::create_pipeline(opt); if (ret) return ret; }\n")
-        set(destroy_pipeline_content "        { int ret = ${class}_${NCNN_TARGET_ARCH}::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
-
-        source_group ("sources\\\\layers\\\\${NCNN_TARGET_ARCH}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp")
-    endif()
-
     if(WITH_LAYER_${name}_vulkan)
         set(layer_declaration "${layer_declaration}#include \"layer/vulkan/${name}_vulkan.h\"\n")
         set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_vulkan")
@@ -141,6 +132,15 @@ macro(ncnn_add_layer class)
         endforeach()
 
         source_group ("sources\\\\layers\\\\vulkan" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/vulkan/${name}_vulkan.cpp")
+    endif()
+
+    if(WITH_LAYER_${name}_${NCNN_TARGET_ARCH})
+        set(layer_declaration "${layer_declaration}#include \"layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.h\"\n")
+        set(layer_declaration_class "${layer_declaration_class}, virtual public ${class}_${NCNN_TARGET_ARCH}")
+        set(create_pipeline_content "${create_pipeline_content}        { int ret = ${class}_${NCNN_TARGET_ARCH}::create_pipeline(opt); if (ret) return ret; }\n")
+        set(destroy_pipeline_content "        { int ret = ${class}_${NCNN_TARGET_ARCH}::destroy_pipeline(opt); if (ret) return ret; }\n${destroy_pipeline_content}")
+
+        source_group ("sources\\\\layers\\\\${NCNN_TARGET_ARCH}" FILES "${CMAKE_CURRENT_SOURCE_DIR}/layer/${NCNN_TARGET_ARCH}/${name}_${NCNN_TARGET_ARCH}.cpp")
     endif()
 
     if(WITH_LAYER_${name})
@@ -212,12 +212,12 @@ macro(ncnn_add_layer class)
         endif()
     endif()
 
-    if(NCNN_RUNTIME_CPU AND ((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)")))
+    if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)"))
         if(NCNN_ARM82)
-            ncnn_add_arch_opt_layer(${class} arm82 "-march=armv8.2-a+fp16")
+            ncnn_add_arch_opt_source(${class} asimdhp "-march=armv8.2-a+fp16")
         endif()
         if(NCNN_ARM82DOT)
-            ncnn_add_arch_opt_source(${class} arm82dot "-march=armv8.2-a+fp16+dotprod")
+            ncnn_add_arch_opt_source(${class} asimddp "-march=armv8.2-a+fp16+dotprod")
         endif()
     endif()
 

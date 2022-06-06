@@ -65,6 +65,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
 
                 for (int k = 0; k < maxk; k++)
                 {
+                    // transpose 4x12
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
@@ -119,15 +120,22 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
 
                 for (int k = 0; k < maxk; k++)
                 {
+                    // transpose 4x8
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
-                        "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
+                        "ld4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
                         "prfm   pldl1keep, [%0, #512]       \n"
-                        "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0] \n"
-                        "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+                        "ld4    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0] \n"
+                        "st1    {v0.4s}, [%1], #16          \n"
+                        "st1    {v4.4s}, [%1], #16          \n"
+                        "st1    {v1.4s}, [%1], #16          \n"
+                        "st1    {v5.4s}, [%1], #16          \n"
                         "sub    %0, %0, #64                 \n"
-                        "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%1], #64 \n"
+                        "st1    {v2.4s}, [%1], #16          \n"
+                        "st1    {v6.4s}, [%1], #16          \n"
+                        "st1    {v3.4s}, [%1], #16          \n"
+                        "st1    {v7.4s}, [%1], #16          \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
                         : "0"(img0),
@@ -140,7 +148,6 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                         "pld        [%0, #512]          \n"
                         "vldm       %0, {d16-d23}       \n"
 
-                        // transpose 8x4
                         "vtrn.32    q0, q1              \n"
                         "vtrn.32    q2, q3              \n"
                         "vtrn.32    q8, q9              \n"
@@ -188,11 +195,12 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
 
                 for (int k = 0; k < maxk; k++)
                 {
+                    // transpose 4x4
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0] \n"
-                        "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
+                        "st4    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
                         : "0"(img0),
@@ -202,6 +210,10 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                     asm volatile(
                         "pld        [%0, #512]          \n"
                         "vldm       %0, {d0-d7}         \n"
+                        "vtrn.32    q0, q1              \n"
+                        "vtrn.32    q2, q3              \n"
+                        "vswp       d1, d4              \n"
+                        "vswp       d3, d6              \n"
                         "vstm       %1!, {d0-d7}        \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
@@ -234,11 +246,12 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
 
                 for (int k = 0; k < maxk; k++)
                 {
+                    // transpose 4x2
 #if __aarch64__
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
                         "ld1    {v0.4s, v1.4s}, [%0]        \n"
-                        "st1    {v0.4s, v1.4s}, [%1], #32   \n"
+                        "st2    {v0.4s, v1.4s}, [%1], #32   \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
                         : "0"(img0),
@@ -248,7 +261,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                     asm volatile(
                         "pld        [%0, #256]          \n"
                         "vld1.f32   {d0-d3}, [%0 :128]  \n"
-                        "vst1.f32   {d0-d3}, [%1 :128]! \n"
+                        "vst2.f32   {d0-d3}, [%1 :128]! \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
                         : "0"(img0),
@@ -540,84 +553,84 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%4], #64 \n" // w0011_01
 
                 "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                "fmla   v17.4s, v8.4s, v1.s[0]      \n"
-                "fmla   v18.4s, v8.4s, v2.s[0]      \n"
-                "fmla   v19.4s, v8.4s, v3.s[0]      \n"
-
-                "prfm   pldl1keep, [%3, #512]       \n"
-                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%3], #64 \n" // r4 r5 r6 r7
-
-                "fmla   v20.4s, v8.4s, v4.s[0]      \n"
-                "fmla   v21.4s, v8.4s, v5.s[0]      \n"
-                "fmla   v22.4s, v8.4s, v6.s[0]      \n"
-                "fmla   v23.4s, v8.4s, v7.s[0]      \n"
+                "fmla   v17.4s, v8.4s, v0.s[1]      \n"
+                "fmla   v18.4s, v8.4s, v0.s[2]      \n"
+                "fmla   v19.4s, v8.4s, v0.s[3]      \n"
+                "fmla   v20.4s, v8.4s, v1.s[0]      \n"
+                "fmla   v21.4s, v8.4s, v1.s[1]      \n"
+                "fmla   v22.4s, v8.4s, v1.s[2]      \n"
+                "fmla   v23.4s, v8.4s, v1.s[3]      \n"
 
                 "fmla   v24.4s, v9.4s, v0.s[0]      \n"
-                "fmla   v25.4s, v9.4s, v1.s[0]      \n"
-                "fmla   v26.4s, v9.4s, v2.s[0]      \n"
-                "fmla   v27.4s, v9.4s, v3.s[0]      \n"
-                "fmla   v28.4s, v9.4s, v4.s[0]      \n"
-                "fmla   v29.4s, v9.4s, v5.s[0]      \n"
-                "fmla   v30.4s, v9.4s, v6.s[0]      \n"
-                "fmla   v31.4s, v9.4s, v7.s[0]      \n"
+                "fmla   v25.4s, v9.4s, v0.s[1]      \n"
+                "fmla   v26.4s, v9.4s, v0.s[2]      \n"
+                "fmla   v27.4s, v9.4s, v0.s[3]      \n"
+                "fmla   v28.4s, v9.4s, v1.s[0]      \n"
+                "fmla   v29.4s, v9.4s, v1.s[1]      \n"
+                "fmla   v30.4s, v9.4s, v1.s[2]      \n"
+                "fmla   v31.4s, v9.4s, v1.s[3]      \n"
 
-                "fmla   v16.4s, v10.4s, v0.s[1]     \n"
-                "fmla   v17.4s, v10.4s, v1.s[1]     \n"
-                "fmla   v18.4s, v10.4s, v2.s[1]     \n"
-                "fmla   v19.4s, v10.4s, v3.s[1]     \n"
-                "fmla   v20.4s, v10.4s, v4.s[1]     \n"
-                "fmla   v21.4s, v10.4s, v5.s[1]     \n"
-                "fmla   v22.4s, v10.4s, v6.s[1]     \n"
-                "fmla   v23.4s, v10.4s, v7.s[1]     \n"
-
-                "fmla   v24.4s, v11.4s, v0.s[1]     \n"
-                "fmla   v25.4s, v11.4s, v1.s[1]     \n"
-                "fmla   v26.4s, v11.4s, v2.s[1]     \n"
-                "fmla   v27.4s, v11.4s, v3.s[1]     \n"
-                "fmla   v28.4s, v11.4s, v4.s[1]     \n"
-                "fmla   v29.4s, v11.4s, v5.s[1]     \n"
-                "fmla   v30.4s, v11.4s, v6.s[1]     \n"
-                "fmla   v31.4s, v11.4s, v7.s[1]     \n"
+                "fmla   v16.4s, v10.4s, v2.s[0]     \n"
+                "fmla   v17.4s, v10.4s, v2.s[1]     \n"
+                "fmla   v18.4s, v10.4s, v2.s[2]     \n"
+                "fmla   v19.4s, v10.4s, v2.s[3]     \n"
+                "fmla   v20.4s, v10.4s, v3.s[0]     \n"
+                "fmla   v21.4s, v10.4s, v3.s[1]     \n"
+                "fmla   v22.4s, v10.4s, v3.s[2]     \n"
+                "fmla   v23.4s, v10.4s, v3.s[3]     \n"
 
                 "prfm   pldl1keep, [%4, #512]       \n"
                 "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%4], #64 \n" // w2233_01
 
-                "fmla   v16.4s, v12.4s, v0.s[2]     \n"
-                "fmla   v17.4s, v12.4s, v1.s[2]     \n"
-                "fmla   v18.4s, v12.4s, v2.s[2]     \n"
-                "fmla   v19.4s, v12.4s, v3.s[2]     \n"
-                "fmla   v20.4s, v12.4s, v4.s[2]     \n"
-                "fmla   v21.4s, v12.4s, v5.s[2]     \n"
-                "fmla   v22.4s, v12.4s, v6.s[2]     \n"
-                "fmla   v23.4s, v12.4s, v7.s[2]     \n"
+                "fmla   v24.4s, v11.4s, v2.s[0]     \n"
+                "fmla   v25.4s, v11.4s, v2.s[1]     \n"
+                "fmla   v26.4s, v11.4s, v2.s[2]     \n"
+                "fmla   v27.4s, v11.4s, v2.s[3]     \n"
 
-                "fmla   v24.4s, v13.4s, v0.s[2]     \n"
-                "fmla   v25.4s, v13.4s, v1.s[2]     \n"
-                "fmla   v26.4s, v13.4s, v2.s[2]     \n"
-                "fmla   v27.4s, v13.4s, v3.s[2]     \n"
-                "fmla   v28.4s, v13.4s, v4.s[2]     \n"
-                "fmla   v29.4s, v13.4s, v5.s[2]     \n"
-                "fmla   v30.4s, v13.4s, v6.s[2]     \n"
-                "fmla   v31.4s, v13.4s, v7.s[2]     \n"
+                "prfm   pldl1keep, [%3, #512]       \n"
+                "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%3], #64 \n" // r4 r5 r6 r7
 
-                "fmla   v16.4s, v14.4s, v0.s[3]     \n"
-                "fmla   v17.4s, v14.4s, v1.s[3]     \n"
-                "fmla   v18.4s, v14.4s, v2.s[3]     \n"
-                "fmla   v19.4s, v14.4s, v3.s[3]     \n"
-                "fmla   v20.4s, v14.4s, v4.s[3]     \n"
-                "fmla   v21.4s, v14.4s, v5.s[3]     \n"
-                "fmla   v22.4s, v14.4s, v6.s[3]     \n"
+                "fmla   v28.4s, v11.4s, v3.s[0]     \n"
+                "fmla   v29.4s, v11.4s, v3.s[1]     \n"
+                "fmla   v30.4s, v11.4s, v3.s[2]     \n"
+                "fmla   v31.4s, v11.4s, v3.s[3]     \n"
+
+                "fmla   v16.4s, v12.4s, v4.s[0]     \n"
+                "fmla   v17.4s, v12.4s, v4.s[1]     \n"
+                "fmla   v18.4s, v12.4s, v4.s[2]     \n"
+                "fmla   v19.4s, v12.4s, v4.s[3]     \n"
+                "fmla   v20.4s, v12.4s, v5.s[0]     \n"
+                "fmla   v21.4s, v12.4s, v5.s[1]     \n"
+                "fmla   v22.4s, v12.4s, v5.s[2]     \n"
+                "fmla   v23.4s, v12.4s, v5.s[3]     \n"
+
+                "fmla   v24.4s, v13.4s, v4.s[0]     \n"
+                "fmla   v25.4s, v13.4s, v4.s[1]     \n"
+                "fmla   v26.4s, v13.4s, v4.s[2]     \n"
+                "fmla   v27.4s, v13.4s, v4.s[3]     \n"
+                "fmla   v28.4s, v13.4s, v5.s[0]     \n"
+                "fmla   v29.4s, v13.4s, v5.s[1]     \n"
+                "fmla   v30.4s, v13.4s, v5.s[2]     \n"
+                "fmla   v31.4s, v13.4s, v5.s[3]     \n"
+
+                "fmla   v16.4s, v14.4s, v6.s[0]     \n"
+                "fmla   v17.4s, v14.4s, v6.s[1]     \n"
+                "fmla   v18.4s, v14.4s, v6.s[2]     \n"
+                "fmla   v19.4s, v14.4s, v6.s[3]     \n"
+                "fmla   v20.4s, v14.4s, v7.s[0]     \n"
+                "fmla   v21.4s, v14.4s, v7.s[1]     \n"
+                "fmla   v22.4s, v14.4s, v7.s[2]     \n"
                 "fmla   v23.4s, v14.4s, v7.s[3]     \n"
 
                 "subs   %w0, %w0, #1                \n"
 
-                "fmla   v24.4s, v15.4s, v0.s[3]     \n"
-                "fmla   v25.4s, v15.4s, v1.s[3]     \n"
-                "fmla   v26.4s, v15.4s, v2.s[3]     \n"
-                "fmla   v27.4s, v15.4s, v3.s[3]     \n"
-                "fmla   v28.4s, v15.4s, v4.s[3]     \n"
-                "fmla   v29.4s, v15.4s, v5.s[3]     \n"
-                "fmla   v30.4s, v15.4s, v6.s[3]     \n"
+                "fmla   v24.4s, v15.4s, v6.s[0]     \n"
+                "fmla   v25.4s, v15.4s, v6.s[1]     \n"
+                "fmla   v26.4s, v15.4s, v6.s[2]     \n"
+                "fmla   v27.4s, v15.4s, v6.s[3]     \n"
+                "fmla   v28.4s, v15.4s, v7.s[0]     \n"
+                "fmla   v29.4s, v15.4s, v7.s[1]     \n"
+                "fmla   v30.4s, v15.4s, v7.s[2]     \n"
                 "fmla   v31.4s, v15.4s, v7.s[3]     \n"
 
                 "bne    0b                          \n"
@@ -667,48 +680,45 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%4], #64 \n" // w0011_01
 
                 "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                "fmla   v17.4s, v8.4s, v1.s[0]      \n"
-                "fmla   v18.4s, v8.4s, v2.s[0]      \n"
-                "fmla   v19.4s, v8.4s, v3.s[0]      \n"
-
+                "fmla   v17.4s, v8.4s, v0.s[1]      \n"
+                "fmla   v18.4s, v8.4s, v0.s[2]      \n"
+                "fmla   v19.4s, v8.4s, v0.s[3]      \n"
                 "fmla   v20.4s, v9.4s, v0.s[0]      \n"
-                "fmla   v21.4s, v9.4s, v1.s[0]      \n"
-                "fmla   v22.4s, v9.4s, v2.s[0]      \n"
-                "fmla   v23.4s, v9.4s, v3.s[0]      \n"
+                "fmla   v21.4s, v9.4s, v0.s[1]      \n"
+                "fmla   v22.4s, v9.4s, v0.s[2]      \n"
+                "fmla   v23.4s, v9.4s, v0.s[3]      \n"
+
+                "fmla   v16.4s, v10.4s, v1.s[0]     \n"
+                "fmla   v17.4s, v10.4s, v1.s[1]     \n"
+                "fmla   v18.4s, v10.4s, v1.s[2]     \n"
+                "fmla   v19.4s, v10.4s, v1.s[3]     \n"
 
                 "prfm   pldl1keep, [%4, #512]       \n"
                 "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%4], #64 \n" // w2233_01
 
-                "fmla   v16.4s, v10.4s, v0.s[1]     \n"
-                "fmla   v17.4s, v10.4s, v1.s[1]     \n"
-                "fmla   v18.4s, v10.4s, v2.s[1]     \n"
-                "fmla   v19.4s, v10.4s, v3.s[1]     \n"
-
-                "fmla   v20.4s, v11.4s, v0.s[1]     \n"
+                "fmla   v20.4s, v11.4s, v1.s[0]     \n"
                 "fmla   v21.4s, v11.4s, v1.s[1]     \n"
-                "fmla   v22.4s, v11.4s, v2.s[1]     \n"
-                "fmla   v23.4s, v11.4s, v3.s[1]     \n"
+                "fmla   v22.4s, v11.4s, v1.s[2]     \n"
+                "fmla   v23.4s, v11.4s, v1.s[3]     \n"
 
-                "fmla   v16.4s, v12.4s, v0.s[2]     \n"
-                "fmla   v17.4s, v12.4s, v1.s[2]     \n"
+                "fmla   v16.4s, v12.4s, v2.s[0]     \n"
+                "fmla   v17.4s, v12.4s, v2.s[1]     \n"
                 "fmla   v18.4s, v12.4s, v2.s[2]     \n"
-                "fmla   v19.4s, v12.4s, v3.s[2]     \n"
-
-                "fmla   v20.4s, v13.4s, v0.s[2]     \n"
-                "fmla   v21.4s, v13.4s, v1.s[2]     \n"
+                "fmla   v19.4s, v12.4s, v2.s[3]     \n"
+                "fmla   v20.4s, v13.4s, v2.s[0]     \n"
+                "fmla   v21.4s, v13.4s, v2.s[1]     \n"
                 "fmla   v22.4s, v13.4s, v2.s[2]     \n"
-                "fmla   v23.4s, v13.4s, v3.s[2]     \n"
+                "fmla   v23.4s, v13.4s, v2.s[3]     \n"
 
                 "subs   %w0, %w0, #1                \n"
 
-                "fmla   v16.4s, v14.4s, v0.s[3]     \n"
-                "fmla   v17.4s, v14.4s, v1.s[3]     \n"
-                "fmla   v18.4s, v14.4s, v2.s[3]     \n"
+                "fmla   v16.4s, v14.4s, v3.s[0]     \n"
+                "fmla   v17.4s, v14.4s, v3.s[1]     \n"
+                "fmla   v18.4s, v14.4s, v3.s[2]     \n"
                 "fmla   v19.4s, v14.4s, v3.s[3]     \n"
-
-                "fmla   v20.4s, v15.4s, v0.s[3]     \n"
-                "fmla   v21.4s, v15.4s, v1.s[3]     \n"
-                "fmla   v22.4s, v15.4s, v2.s[3]     \n"
+                "fmla   v20.4s, v15.4s, v3.s[0]     \n"
+                "fmla   v21.4s, v15.4s, v3.s[1]     \n"
+                "fmla   v22.4s, v15.4s, v3.s[2]     \n"
                 "fmla   v23.4s, v15.4s, v3.s[3]     \n"
 
                 "bne    0b                          \n"
@@ -752,28 +762,28 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%4], #64 \n" // w0011_01
 
                 "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                "fmla   v17.4s, v8.4s, v1.s[0]      \n"
+                "fmla   v17.4s, v8.4s, v0.s[1]      \n"
                 "fmla   v18.4s, v9.4s, v0.s[0]     \n"
-                "fmla   v19.4s, v9.4s, v1.s[0]     \n"
+                "fmla   v19.4s, v9.4s, v0.s[1]     \n"
 
                 "prfm   pldl1keep, [%4, #512]       \n"
                 "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%4], #64 \n" // w2233_01
 
-                "fmla   v16.4s, v10.4s, v0.s[1]      \n"
-                "fmla   v17.4s, v10.4s, v1.s[1]      \n"
-                "fmla   v18.4s, v11.4s, v0.s[1]     \n"
-                "fmla   v19.4s, v11.4s, v1.s[1]     \n"
+                "fmla   v16.4s, v10.4s, v0.s[2]      \n"
+                "fmla   v17.4s, v10.4s, v0.s[3]      \n"
+                "fmla   v18.4s, v11.4s, v0.s[2]     \n"
+                "fmla   v19.4s, v11.4s, v0.s[3]     \n"
 
-                "fmla   v16.4s, v12.4s, v0.s[2]     \n"
-                "fmla   v17.4s, v12.4s, v1.s[2]     \n"
-                "fmla   v18.4s, v13.4s, v0.s[2]     \n"
-                "fmla   v19.4s, v13.4s, v1.s[2]     \n"
+                "fmla   v16.4s, v12.4s, v1.s[0]     \n"
+                "fmla   v17.4s, v12.4s, v1.s[1]     \n"
+                "fmla   v18.4s, v13.4s, v1.s[0]     \n"
+                "fmla   v19.4s, v13.4s, v1.s[1]     \n"
 
                 "subs   %w0, %w0, #1                \n"
 
-                "fmla   v16.4s, v14.4s, v0.s[3]     \n"
+                "fmla   v16.4s, v14.4s, v1.s[2]     \n"
                 "fmla   v17.4s, v14.4s, v1.s[3]     \n"
-                "fmla   v18.4s, v15.4s, v0.s[3]     \n"
+                "fmla   v18.4s, v15.4s, v1.s[2]     \n"
                 "fmla   v19.4s, v15.4s, v1.s[3]     \n"
 
                 "bne    0b                          \n"
@@ -803,6 +813,8 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
 
             asm volatile(
                 "ld1    {v16.4s, v17.4s}, [%10]     \n"
+                "eor    v18.16b, v18.16b, v18.16b   \n"
+                "eor    v19.16b, v19.16b, v19.16b   \n"
 
                 "0:                                 \n"
 
@@ -818,18 +830,21 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "prfm   pldl1keep, [%4, #512]       \n"
                 "ld1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%4], #64 \n" // w2233_01
 
-                "fmla   v16.4s, v10.4s, v0.s[1]     \n"
-                "fmla   v17.4s, v11.4s, v0.s[1]     \n"
+                "fmla   v18.4s, v10.4s, v0.s[1]     \n"
+                "fmla   v19.4s, v11.4s, v0.s[1]     \n"
 
                 "fmla   v16.4s, v12.4s, v0.s[2]     \n"
                 "fmla   v17.4s, v13.4s, v0.s[2]     \n"
 
                 "subs   %w0, %w0, #1                \n"
 
-                "fmla   v16.4s, v14.4s, v0.s[3]     \n"
-                "fmla   v17.4s, v15.4s, v0.s[3]     \n"
+                "fmla   v18.4s, v14.4s, v0.s[3]     \n"
+                "fmla   v19.4s, v15.4s, v0.s[3]     \n"
 
                 "bne    0b                          \n"
+
+                "fadd   v16.4s, v16.4s, v18.4s      \n"
+                "fadd   v17.4s, v17.4s, v19.4s      \n"
 
                 "st1    {v16.4s}, [%1], #16         \n"
                 "st1    {v17.4s}, [%2], #16         \n"
@@ -845,7 +860,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "3"(tmpptr),
                 "4"(kptr0),
                 "r"(biasptr) // %10
-                : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17");
+                : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19");
         }
     }
 #endif // __aarch64__
@@ -1001,45 +1016,45 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%3], #64 \n" // w0123
 
                 "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                "fmla   v17.4s, v8.4s, v1.s[0]      \n"
-                "fmla   v18.4s, v8.4s, v2.s[0]      \n"
-                "fmla   v19.4s, v8.4s, v3.s[0]      \n"
+                "fmla   v17.4s, v8.4s, v0.s[1]      \n"
+                "fmla   v18.4s, v8.4s, v0.s[2]      \n"
+                "fmla   v19.4s, v8.4s, v0.s[3]      \n"
+                "fmla   v20.4s, v8.4s, v1.s[0]      \n"
+                "fmla   v21.4s, v8.4s, v1.s[1]      \n"
+                "fmla   v22.4s, v8.4s, v1.s[2]      \n"
+                "fmla   v23.4s, v8.4s, v1.s[3]      \n"
+
+                "fmla   v16.4s, v9.4s, v2.s[0]      \n"
+                "fmla   v17.4s, v9.4s, v2.s[1]      \n"
+                "fmla   v18.4s, v9.4s, v2.s[2]      \n"
+                "fmla   v19.4s, v9.4s, v2.s[3]      \n"
 
                 "prfm   pldl1keep, [%2, #512]       \n"
                 "ld1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%2], #64 \n" // r4 r5 r6 r7
 
-                "fmla   v20.4s, v8.4s, v4.s[0]      \n"
-                "fmla   v21.4s, v8.4s, v5.s[0]      \n"
-                "fmla   v22.4s, v8.4s, v6.s[0]      \n"
-                "fmla   v23.4s, v8.4s, v7.s[0]      \n"
+                "fmla   v20.4s, v9.4s, v3.s[0]      \n"
+                "fmla   v21.4s, v9.4s, v3.s[1]      \n"
+                "fmla   v22.4s, v9.4s, v3.s[2]      \n"
+                "fmla   v23.4s, v9.4s, v3.s[3]      \n"
 
-                "fmla   v16.4s, v9.4s, v0.s[1]      \n"
-                "fmla   v17.4s, v9.4s, v1.s[1]      \n"
-                "fmla   v18.4s, v9.4s, v2.s[1]      \n"
-                "fmla   v19.4s, v9.4s, v3.s[1]      \n"
-                "fmla   v20.4s, v9.4s, v4.s[1]      \n"
-                "fmla   v21.4s, v9.4s, v5.s[1]      \n"
-                "fmla   v22.4s, v9.4s, v6.s[1]      \n"
-                "fmla   v23.4s, v9.4s, v7.s[1]      \n"
-
-                "fmla   v16.4s, v10.4s, v0.s[2]     \n"
-                "fmla   v17.4s, v10.4s, v1.s[2]     \n"
-                "fmla   v18.4s, v10.4s, v2.s[2]     \n"
-                "fmla   v19.4s, v10.4s, v3.s[2]     \n"
-                "fmla   v20.4s, v10.4s, v4.s[2]     \n"
-                "fmla   v21.4s, v10.4s, v5.s[2]     \n"
-                "fmla   v22.4s, v10.4s, v6.s[2]     \n"
-                "fmla   v23.4s, v10.4s, v7.s[2]     \n"
+                "fmla   v16.4s, v10.4s, v4.s[0]     \n"
+                "fmla   v17.4s, v10.4s, v4.s[1]     \n"
+                "fmla   v18.4s, v10.4s, v4.s[2]     \n"
+                "fmla   v19.4s, v10.4s, v4.s[3]     \n"
+                "fmla   v20.4s, v10.4s, v5.s[0]     \n"
+                "fmla   v21.4s, v10.4s, v5.s[1]     \n"
+                "fmla   v22.4s, v10.4s, v5.s[2]     \n"
+                "fmla   v23.4s, v10.4s, v5.s[3]     \n"
 
                 "subs   %w0, %w0, #1                \n"
 
-                "fmla   v16.4s, v11.4s, v0.s[3]     \n"
-                "fmla   v17.4s, v11.4s, v1.s[3]     \n"
-                "fmla   v18.4s, v11.4s, v2.s[3]     \n"
-                "fmla   v19.4s, v11.4s, v3.s[3]     \n"
-                "fmla   v20.4s, v11.4s, v4.s[3]     \n"
-                "fmla   v21.4s, v11.4s, v5.s[3]     \n"
-                "fmla   v22.4s, v11.4s, v6.s[3]     \n"
+                "fmla   v16.4s, v11.4s, v6.s[0]     \n"
+                "fmla   v17.4s, v11.4s, v6.s[1]     \n"
+                "fmla   v18.4s, v11.4s, v6.s[2]     \n"
+                "fmla   v19.4s, v11.4s, v6.s[3]     \n"
+                "fmla   v20.4s, v11.4s, v7.s[0]     \n"
+                "fmla   v21.4s, v11.4s, v7.s[1]     \n"
+                "fmla   v22.4s, v11.4s, v7.s[2]     \n"
                 "fmla   v23.4s, v11.4s, v7.s[3]     \n"
 
                 "bne    0b                          \n"
@@ -1164,25 +1179,25 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%3], #64 \n" // w0123
 
                 "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                "fmla   v17.4s, v8.4s, v1.s[0]      \n"
-                "fmla   v18.4s, v8.4s, v2.s[0]      \n"
-                "fmla   v19.4s, v8.4s, v3.s[0]      \n"
+                "fmla   v17.4s, v8.4s, v0.s[1]      \n"
+                "fmla   v18.4s, v8.4s, v0.s[2]      \n"
+                "fmla   v19.4s, v8.4s, v0.s[3]      \n"
 
-                "fmla   v16.4s, v9.4s, v0.s[1]      \n"
+                "fmla   v16.4s, v9.4s, v1.s[0]      \n"
                 "fmla   v17.4s, v9.4s, v1.s[1]      \n"
-                "fmla   v18.4s, v9.4s, v2.s[1]      \n"
-                "fmla   v19.4s, v9.4s, v3.s[1]      \n"
+                "fmla   v18.4s, v9.4s, v1.s[2]      \n"
+                "fmla   v19.4s, v9.4s, v1.s[3]      \n"
 
-                "fmla   v16.4s, v10.4s, v0.s[2]     \n"
-                "fmla   v17.4s, v10.4s, v1.s[2]     \n"
+                "fmla   v16.4s, v10.4s, v2.s[0]     \n"
+                "fmla   v17.4s, v10.4s, v2.s[1]     \n"
                 "fmla   v18.4s, v10.4s, v2.s[2]     \n"
-                "fmla   v19.4s, v10.4s, v3.s[2]     \n"
+                "fmla   v19.4s, v10.4s, v2.s[3]     \n"
 
                 "subs   %w0, %w0, #1                \n"
 
-                "fmla   v16.4s, v11.4s, v0.s[3]     \n"
-                "fmla   v17.4s, v11.4s, v1.s[3]     \n"
-                "fmla   v18.4s, v11.4s, v2.s[3]     \n"
+                "fmla   v16.4s, v11.4s, v3.s[0]     \n"
+                "fmla   v17.4s, v11.4s, v3.s[1]     \n"
+                "fmla   v18.4s, v11.4s, v3.s[2]     \n"
                 "fmla   v19.4s, v11.4s, v3.s[3]     \n"
 
                 "bne    0b                          \n"
@@ -1216,25 +1231,25 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "vldm       %3!, {d8-d15}   \n"
 
                 "vmla.f32   q8, q4, d0[0]   \n"
-                "vmla.f32   q9, q4, d2[0]   \n"
-                "vmla.f32   q10, q4, d4[0]  \n"
-                "vmla.f32   q11, q4, d6[0]  \n"
+                "vmla.f32   q9, q4, d0[1]   \n"
+                "vmla.f32   q10, q4, d1[0]  \n"
+                "vmla.f32   q11, q4, d1[1]  \n"
 
-                "vmla.f32   q8, q5, d0[1]   \n"
+                "vmla.f32   q8, q5, d2[0]   \n"
                 "vmla.f32   q9, q5, d2[1]   \n"
-                "vmla.f32   q10, q5, d4[1]  \n"
-                "vmla.f32   q11, q5, d6[1]  \n"
+                "vmla.f32   q10, q5, d3[0]  \n"
+                "vmla.f32   q11, q5, d3[1]  \n"
 
-                "vmla.f32   q8, q6, d1[0]   \n"
-                "vmla.f32   q9, q6, d3[0]   \n"
+                "vmla.f32   q8, q6, d4[0]   \n"
+                "vmla.f32   q9, q6, d4[1]   \n"
                 "vmla.f32   q10, q6, d5[0]  \n"
-                "vmla.f32   q11, q6, d7[0]  \n"
+                "vmla.f32   q11, q6, d5[1]  \n"
 
                 "subs       %0, %0, #1      \n"
 
-                "vmla.f32   q8, q7, d1[1]   \n"
-                "vmla.f32   q9, q7, d3[1]   \n"
-                "vmla.f32   q10, q7, d5[1]  \n"
+                "vmla.f32   q8, q7, d6[0]   \n"
+                "vmla.f32   q9, q7, d6[1]   \n"
+                "vmla.f32   q10, q7, d7[0]  \n"
                 "vmla.f32   q11, q7, d7[1]  \n"
 
                 "bne        0b              \n"
@@ -1270,6 +1285,8 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "ld1    {v0.4s}, [%8]               \n"
                 "mov    v16.16b, v0.16b             \n"
                 "mov    v17.16b, v0.16b             \n"
+                "eor    v18.16b, v18.16b, v18.16b   \n"
+                "eor    v19.16b, v19.16b, v19.16b   \n"
 
                 "0:                                 \n"
 
@@ -1280,20 +1297,23 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%3], #64 \n" // w0123
 
                 "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                "fmla   v17.4s, v8.4s, v1.s[0]      \n"
+                "fmla   v17.4s, v8.4s, v0.s[1]      \n"
 
-                "fmla   v16.4s, v9.4s, v0.s[1]      \n"
-                "fmla   v17.4s, v9.4s, v1.s[1]      \n"
+                "fmla   v18.4s, v9.4s, v0.s[2]      \n"
+                "fmla   v19.4s, v9.4s, v0.s[3]      \n"
 
-                "fmla   v16.4s, v10.4s, v0.s[2]     \n"
-                "fmla   v17.4s, v10.4s, v1.s[2]     \n"
+                "fmla   v16.4s, v10.4s, v1.s[0]     \n"
+                "fmla   v17.4s, v10.4s, v1.s[1]     \n"
 
                 "subs   %w0, %w0, #1                \n"
 
-                "fmla   v16.4s, v11.4s, v0.s[3]     \n"
-                "fmla   v17.4s, v11.4s, v1.s[3]     \n"
+                "fmla   v18.4s, v11.4s, v1.s[2]     \n"
+                "fmla   v19.4s, v11.4s, v1.s[3]     \n"
 
                 "bne    0b                          \n"
+
+                "fadd   v16.4s, v16.4s, v18.4s      \n"
+                "fadd   v17.4s, v17.4s, v19.4s      \n"
 
                 "st1    {v16.4s, v17.4s}, [%1], #32 \n"
 
@@ -1306,10 +1326,12 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "2"(tmpptr),
                 "3"(kptr0),
                 "r"(biasptr) // %8
-                : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v16", "v17");
+                : "cc", "memory", "v0", "v1", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19");
 #else
             asm volatile(
                 "vld1.f32   {d0-d1}, [%8]   \n"
+                "veor       q10, q10        \n"
+                "veor       q11, q11        \n"
                 "vmov       q8, q0          \n"
                 "vmov       q9, q0          \n"
 
@@ -1322,20 +1344,23 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "vldm       %3!, {d8-d15}   \n"
 
                 "vmla.f32   q8, q4, d0[0]   \n"
-                "vmla.f32   q9, q4, d2[0]   \n"
+                "vmla.f32   q9, q4, d0[1]   \n"
 
-                "vmla.f32   q8, q5, d0[1]   \n"
-                "vmla.f32   q9, q5, d2[1]   \n"
+                "vmla.f32   q10, q5, d1[0]  \n"
+                "vmla.f32   q11, q5, d1[1]  \n"
 
-                "vmla.f32   q8, q6, d1[0]   \n"
-                "vmla.f32   q9, q6, d3[0]   \n"
+                "vmla.f32   q8, q6, d2[0]   \n"
+                "vmla.f32   q9, q6, d2[1]   \n"
 
                 "subs       %0, %0, #1      \n"
 
-                "vmla.f32   q8, q7, d1[1]   \n"
-                "vmla.f32   q9, q7, d3[1]   \n"
+                "vmla.f32   q10, q7, d3[0]  \n"
+                "vmla.f32   q11, q7, d3[1]  \n"
 
                 "bne        0b              \n"
+
+                "vadd.f32   q8, q8, q10     \n"
+                "vadd.f32   q9, q9, q11     \n"
 
                 "vst1.f32   {d16-d19}, [%1 :128]! \n"
 
@@ -1348,7 +1373,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "2"(tmpptr),
                 "3"(kptr0),
                 "r"(biasptr) // %8
-                : "cc", "memory", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9");
+                : "cc", "memory", "q0", "q1", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif
         }
         for (; i < size; i++)
@@ -1366,6 +1391,9 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
 #if __aarch64__
             asm volatile(
                 "ld1    {v16.4s}, [%8]              \n"
+                "eor    v17.16b, v17.16b, v17.16b   \n"
+                "eor    v18.16b, v18.16b, v18.16b   \n"
+                "eor    v19.16b, v19.16b, v19.16b   \n"
 
                 "0:                                 \n"
 
@@ -1376,14 +1404,18 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "ld1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%3], #64 \n" // w0123
 
                 "fmla   v16.4s, v8.4s, v0.s[0]      \n"
-                "fmla   v16.4s, v9.4s, v0.s[1]      \n"
+                "fmla   v17.4s, v9.4s, v0.s[1]      \n"
 
                 "subs   %w0, %w0, #1                \n"
 
-                "fmla   v16.4s, v10.4s, v0.s[2]     \n"
-                "fmla   v16.4s, v11.4s, v0.s[3]     \n"
+                "fmla   v18.4s, v10.4s, v0.s[2]     \n"
+                "fmla   v19.4s, v11.4s, v0.s[3]     \n"
 
                 "bne    0b                          \n"
+
+                "fadd   v16.4s, v16.4s, v18.4s      \n"
+                "fadd   v17.4s, v17.4s, v19.4s      \n"
+                "fadd   v16.4s, v16.4s, v17.4s      \n"
 
                 "st1    {v16.4s}, [%1], #16         \n"
 
@@ -1396,10 +1428,13 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "2"(tmpptr),
                 "3"(kptr0),
                 "r"(biasptr) // %8
-                : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v16");
+                : "cc", "memory", "v0", "v8", "v9", "v10", "v11", "v16", "v17", "v18", "v19");
 #else
             asm volatile(
                 "vld1.f32   {d16-d17}, [%8] \n"
+                "veor       q9, q9          \n"
+                "veor       q10, q10        \n"
+                "veor       q11, q11        \n"
 
                 "0:                         \n"
 
@@ -1410,14 +1445,18 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "vldm       %3!, {d8-d15}   \n"
 
                 "vmla.f32   q8, q4, d0[0]   \n"
-                "vmla.f32   q8, q5, d0[1]   \n"
+                "vmla.f32   q9, q5, d0[1]   \n"
 
                 "subs       %0, %0, #1      \n"
 
-                "vmla.f32   q8, q6, d1[0]   \n"
-                "vmla.f32   q8, q7, d1[1]   \n"
+                "vmla.f32   q10, q6, d1[0]  \n"
+                "vmla.f32   q11, q7, d1[1]  \n"
 
                 "bne        0b              \n"
+
+                "vadd.f32   q8, q8, q10     \n"
+                "vadd.f32   q9, q9, q11     \n"
+                "vadd.f32   q8, q8, q9      \n"
 
                 "vst1.f32   {d16-d17}, [%1 :128]! \n"
 
@@ -1430,7 +1469,7 @@ static void im2col_sgemm_pack4_neon(const Mat& bottom_im2col, Mat& top_blob, con
                 "2"(tmpptr),
                 "3"(kptr0),
                 "r"(biasptr) // %8
-                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8");
+                : "cc", "memory", "q0", "q4", "q5", "q6", "q7", "q8", "q9", "q10", "q11");
 #endif
         }
     }

@@ -171,7 +171,7 @@ static std::string eval_expression(const Operator* op)
                 exprstack.push(r);
             }
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "pow" || t == "remainder")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "pow" || t == "remainder" || t == "and" || t == "or" || t == "xor")
         {
             std::string a = exprstack.top();
             exprstack.pop();

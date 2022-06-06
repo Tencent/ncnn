@@ -103,31 +103,31 @@ static void RandomizeS8(ncnn::Mat& m)
     }
 }
 
-static ncnn::Mat RandomMat(int w)
+static ncnn::Mat RandomMat(int w, float a = -1.2f, float b = 1.2f)
 {
     ncnn::Mat m(w);
-    Randomize(m);
+    Randomize(m, a, b);
     return m;
 }
 
-static ncnn::Mat RandomMat(int w, int h)
+static ncnn::Mat RandomMat(int w, int h, float a = -1.2f, float b = 1.2f)
 {
     ncnn::Mat m(w, h);
-    Randomize(m);
+    Randomize(m, a, b);
     return m;
 }
 
-static ncnn::Mat RandomMat(int w, int h, int c)
+static ncnn::Mat RandomMat(int w, int h, int c, float a = -1.2f, float b = 1.2f)
 {
     ncnn::Mat m(w, h, c);
-    Randomize(m);
+    Randomize(m, a, b);
     return m;
 }
 
-static ncnn::Mat RandomMat(int w, int h, int d, int c)
+static ncnn::Mat RandomMat(int w, int h, int d, int c, float a = -1.2f, float b = 1.2f)
 {
     ncnn::Mat m(w, h, d, c);
-    Randomize(m);
+    Randomize(m, a, b);
     return m;
 }
 
@@ -363,6 +363,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -808,6 +809,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;

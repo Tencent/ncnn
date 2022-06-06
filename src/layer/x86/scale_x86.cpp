@@ -412,9 +412,7 @@ int Scale_x86::forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option&
                     }
 #endif // __AVX__
                     __m128 _s128 = _mm_set1_ps(s);
-                    __m128 _bias128;
-                    if (bias_term)
-                        _bias128 = _mm_set1_ps(bias_data[i]);
+                    __m128 _bias128 = _mm_set1_ps(bias_data[i]);
                     for (; j < size; j += 4)
                     {
                         __m128 _p = _mm_load_ps(ptr);

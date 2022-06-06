@@ -23,45 +23,45 @@ namespace ncnn {
 #include "convolution_sgemm_pack8to4_int8.h"
 
 // pack1
-void im2col_sgemm_int8_neon_arm82dot(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+void im2col_sgemm_int8_neon_asimddp(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     im2col_sgemm_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
-void convolution_im2col_sgemm_transform_kernel_int8_neon_arm82dot(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
+void convolution_im2col_sgemm_transform_kernel_int8_neon_asimddp(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
     convolution_im2col_sgemm_transform_kernel_int8_neon(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
 }
 
 // pack1to4
-void im2col_sgemm_pack1to4_int8_neon_arm82dot(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+void im2col_sgemm_pack1to4_int8_neon_asimddp(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     im2col_sgemm_pack1to4_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
-void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon_arm82dot(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
+void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon_asimddp(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
     convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
 }
 
 // pack8to1
-void im2col_sgemm_pack8to1_int8_neon_arm82dot(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+void im2col_sgemm_pack8to1_int8_neon_asimddp(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     im2col_sgemm_pack8to1_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
-void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon_arm82dot(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
+void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon_asimddp(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
     convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
 }
 
 // pack8to4
-void im2col_sgemm_pack8to4_int8_neon_arm82dot(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
+void im2col_sgemm_pack8to4_int8_neon_asimddp(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
     im2col_sgemm_pack8to4_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
-void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_arm82dot(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
+void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_asimddp(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
     convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
 }

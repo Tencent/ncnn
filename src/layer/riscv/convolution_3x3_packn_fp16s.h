@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_kernel_packn_fp16sa_rvv(const Mat& kernel, Mat& kernel_tm_packn, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd63_transform_kernel_packn_fp16sa_rvv(const Mat& kernel, Mat& kernel_tm_packn, int inch, int outch, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
 
@@ -95,7 +95,7 @@ static void conv3x3s1_winograd64_transform_kernel_packn_fp16sa_rvv(const Mat& ke
     }
 }
 
-static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd63_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);
@@ -128,7 +128,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
         const int tiles = w_tiles * h_tiles;
 
         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd64_transform_input_packn_fp16sa_rvv(bottom_blob_bordered, bottom_blob_tm, opt);
+        conv3x3s1_winograd63_transform_input_packn_fp16sa_rvv(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -448,7 +448,7 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
         top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
     }
     {
-        conv3x3s1_winograd64_transform_output_packn_fp16sa_rvv(top_blob_tm, top_blob_bordered, bias, opt);
+        conv3x3s1_winograd63_transform_output_packn_fp16sa_rvv(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 
@@ -456,11 +456,11 @@ static void conv3x3s1_winograd64_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd42_transform_kernel_packn_fp16sa_rvv(const Mat& kernel, Mat& kernel_tm_packn, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd43_transform_kernel_packn_fp16sa_rvv(const Mat& kernel, Mat& kernel_tm_packn, int inch, int outch, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
 
-    // winograd42 transform kernel
+    // winograd43 transform kernel
     Mat kernel_tm(6 * 6, inch, outch);
 
     const float ktm[6][3] = {
@@ -536,7 +536,7 @@ static void conv3x3s1_winograd42_transform_kernel_packn_fp16sa_rvv(const Mat& ke
     }
 }
 
-static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd43_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
     const word_type vl = vsetvl_e16m1(packn);
@@ -569,7 +569,7 @@ static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
         const int tiles = w_tiles * h_tiles;
 
         bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd42_transform_input_packn_fp16sa_rvv(bottom_blob_bordered, bottom_blob_tm, opt);
+        conv3x3s1_winograd43_transform_input_packn_fp16sa_rvv(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -889,7 +889,7 @@ static void conv3x3s1_winograd42_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& t
         top_blob_bordered.create(outw, outh, outch, elemsize, elempack, opt.workspace_allocator);
     }
     {
-        conv3x3s1_winograd42_transform_output_packn_fp16sa_rvv(top_blob_tm, top_blob_bordered, bias, opt);
+        conv3x3s1_winograd43_transform_output_packn_fp16sa_rvv(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 
