@@ -2209,7 +2209,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
     if (mac)
     {
-        fprintf(stderr, "mac = %llu = %.2f M\n", mac, mac / 1000000.0);
+        fprintf(stderr, "mac = %llu = %.2f M\n", static_cast<long long unsigned>(mac), mac / 1000000.0);
     }
 
     return 0;
