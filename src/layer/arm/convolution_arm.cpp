@@ -531,7 +531,6 @@ int Convolution_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option
 
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
-    int size = w * h;
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
@@ -1698,7 +1697,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
 
     int w = bottom_blob_bordered.w;
     int h = bottom_blob_bordered.h;
-    int channels = bottom_blob_bordered.c;
     int elempack = bottom_blob_bordered.elempack;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
@@ -1735,6 +1733,7 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         return -100;
 
 #if NCNN_ARM82DOT
+    int channels = bottom_blob_bordered.c;
     const int num_input = channels * elempack;
 #endif
 
