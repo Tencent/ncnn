@@ -90,19 +90,19 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
                 unsigned char* nv12 = new unsigned char[w * h + w * h / 2];
                 {
                     // Y
-                    for (int y = 0; y < height; y++)
+                    for (int y = 0; y < h; y++)
                     {
-                        unsigned char* yptr = nv21 + width * y;
+                        unsigned char* yptr = nv21 + w * y;
                         const unsigned char* y_data_ptr = y_data + y_stride * y;
-                        memcpy(yptr, y_data_ptr, width);
+                        memcpy(yptr, y_data_ptr, w);
                     }
 
                     // UV
-                    for (int y = 0; y < height / 2; y++)
+                    for (int y = 0; y < h / 2; y++)
                     {
-                        unsigned char* uvptr = nv21 + width * height + width * y;
+                        unsigned char* uvptr = nv21 + w * h + w * y;
                         const unsigned char* uv_data_ptr = uv_data + uv_stride * y;
-                        memcpy(uvptr, uv_data_ptr, width);
+                        memcpy(uvptr, uv_data_ptr, w);
                     }
                 }
 
