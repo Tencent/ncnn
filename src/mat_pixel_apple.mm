@@ -92,7 +92,7 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
                     // Y
                     for (int y = 0; y < h; y++)
                     {
-                        unsigned char* yptr = nv21 + w * y;
+                        unsigned char* yptr = nv12 + w * y;
                         const unsigned char* y_data_ptr = y_data + y_stride * y;
                         memcpy(yptr, y_data_ptr, w);
                     }
@@ -100,7 +100,7 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
                     // UV
                     for (int y = 0; y < h / 2; y++)
                     {
-                        unsigned char* uvptr = nv21 + w * h + w * y;
+                        unsigned char* uvptr = nv12 + w * h + w * y;
                         const unsigned char* uv_data_ptr = uv_data + uv_stride * y;
                         memcpy(uvptr, uv_data_ptr, w);
                     }
@@ -201,7 +201,7 @@ Mat Mat::from_apple_cgimage(CGImageRef image, int type_to, Allocator* allocator)
         int type_from = PIXEL_GRAY;
         int type = type_to == type_from ? type_from : (type_from | (type_to << PIXEL_CONVERT_SHIFT));
 
-        return from_pixels((const unsigned char*)rgba.data, type, w, h, allocator);
+        return from_pixels((const unsigned char*)gray.data, type, w, h, allocator);
     }
 
     // always fallback to rgba
@@ -230,7 +230,7 @@ CGImageRef Mat::to_apple_cgimage() const
         CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceGray();
 
         Mat gray(w, h, (size_t)1u, 1);
-        to_pixels((unsigned char*)gray.data, PIXEL_GRAY, w, h, w);
+        to_pixels((unsigned char*)gray.data, PIXEL_GRAY, w);
 
         CGContextRef newContext = CGBitmapContextCreate(gray.data, w, h, 8, w, colorSpace, kCGImageAlphaNone | kCGBitmapByteOrderDefault);
 
@@ -248,7 +248,7 @@ CGImageRef Mat::to_apple_cgimage() const
         CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
 
         Mat rgb(w, h, (size_t)3u, 3);
-        to_pixels((unsigned char*)rgb.data, PIXEL_RGB, w, h, w * 3);
+        to_pixels((unsigned char*)rgb.data, PIXEL_RGB, w * 3);
 
         CGContextRef newContext = CGBitmapContextCreate(rgb.data, w, h, 8, w * 3, colorSpace, kCGImageAlphaNone | kCGBitmapByteOrderDefault);
 
@@ -266,7 +266,7 @@ CGImageRef Mat::to_apple_cgimage() const
         CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
 
         Mat rgba(w, h, (size_t)4u, 4);
-        to_pixels((unsigned char*)rgba.data, PIXEL_RGBA, w, h, w * 4);
+        to_pixels((unsigned char*)rgba.data, PIXEL_RGBA, w * 4);
 
         CGContextRef newContext = CGBitmapContextCreate(rgba.data, w, h, 8, w * 4, colorSpace, kCGImageAlphaLast | kCGBitmapByteOrderDefault);
 
