@@ -35,7 +35,7 @@ Mat Mat::from_apple_samplebuffer(CMSampleBufferRef samplebuffer, int type_to, Al
 
     CVPixelBufferRetain(pixel);
 
-    Mat m = Mat::from_apple_pixelbuffer(pixel, type, allocator);
+    Mat m = Mat::from_apple_pixelbuffer(pixel, type_to, allocator);
 
     CVPixelBufferRelease(pixel);
 
@@ -59,9 +59,9 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
             // fast path for y-channel to gray
             CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
 
-            const void* y_data = CVPixelBufferGetBaseAddressOfPlane(pixelbuffer, 0);
+            const unsigned char* y_data = CVPixelBufferGetBaseAddressOfPlane(pixelbuffer, 0);
 
-            Mat m = from_pixels((const unsigned char*)y_data, PIXEL_GRAY, w, h, stride, allocator);
+            Mat m = from_pixels(y_data, PIXEL_GRAY, w, h, stride, allocator);
 
             CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
 
@@ -74,15 +74,15 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
 
             CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
 
-            const void* y_data = CVPixelBufferGetBaseAddressOfPlane(pixelbuffer, 0);
-            const void* uv_data = CVPixelBufferGetBaseAddressOfPlane(pixelbuffer, 1);
+            const unsigned char* y_data = CVPixelBufferGetBaseAddressOfPlane(pixelbuffer, 0);
+            const unsigned char* uv_data = CVPixelBufferGetBaseAddressOfPlane(pixelbuffer, 1);
             const int y_stride = CVPixelBufferGetBytesPerRowOfPlane(pixelbuffer, 0);
             const int uv_stride = CVPixelBufferGetBytesPerRowOfPlane(pixelbuffer, 1);
 
             if (uv_data == y_data + w * h && y_stride == w && uv_stride == w)
             {
                 // already nv12  :)
-                yuv420sp2rgb_nv12((const unsigned char*)y_data, w, h, rgb.data);
+                yuv420sp2rgb_nv12(y_data, w, h, rgb.data);
             }
             else
             {
@@ -93,7 +93,7 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
                     for (int y = 0; y < height; y++)
                     {
                         unsigned char* yptr = nv21 + width * y;
-                        const unsigned char* y_data_ptr = (const unsigned char*)y_data + y_stride * y;
+                        const unsigned char* y_data_ptr = y_data + y_stride * y;
                         memcpy(yptr, y_data_ptr, width);
                     }
 
@@ -101,7 +101,7 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
                     for (int y = 0; y < height / 2; y++)
                     {
                         unsigned char* uvptr = nv21 + width * height + width * y;
-                        const unsigned char* uv_data_ptr = (const unsigned char*)uv_data + uv_stride * y;
+                        const unsigned char* uv_data_ptr = uv_data + uv_stride * y;
                         memcpy(uvptr, uv_data_ptr, width);
                     }
                 }
@@ -124,12 +124,12 @@ Mat Mat::from_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_to, Alloc
     {
         CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
 
-        const void* rgba_data = CVPixelBufferGetBaseAddress(pixelbuffer);
+        const unsigned char* rgba_data = CVPixelBufferGetBaseAddress(pixelbuffer);
 
         int type_from = PIXEL_BGRA;
         int type = type_to == type_from ? type_from : (type_from | (type_to << PIXEL_CONVERT_SHIFT));
 
-        Mat m = from_pixels((const unsigned char*)rgba_data, type, w, h, stride, allocator);
+        Mat m = from_pixels(rgba_data, type, w, h, stride, allocator);
 
         CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
 
@@ -170,9 +170,9 @@ int Mat::to_apple_pixelbuffer(CVPixelBufferRef pixelbuffer, int type_from) const
 
     int type = type_from == type_to ? type_to : (type_from | (type_to << PIXEL_CONVERT_SHIFT));
 
-    const void* data = CVPixelBufferGetBaseAddress(pixelbuffer);
+    unsigned char* data = CVPixelBufferGetBaseAddress(pixelbuffer);
 
-    to_pixels_resize((unsigned char*)data, type, target_width, target_height, target_stride);
+    to_pixels_resize(data, type, target_width, target_height, target_stride);
 
     CVPixelBufferUnlockBaseAddress(pixelbuffer, 0);
 
