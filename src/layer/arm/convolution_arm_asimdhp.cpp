@@ -429,7 +429,6 @@ int Convolution_arm::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const
 
     w = bottom_blob_bordered.w;
     h = bottom_blob_bordered.h;
-    int size = w * h;
 
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
