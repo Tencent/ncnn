@@ -38,6 +38,9 @@ static bool type_is_integer(int type)
     if (type == 7) return true;
     if (type == 8) return true;
     if (type == 9) return true;
+    if (type == 10) return false;
+    if (type == 11) return false;
+    if (type == 12) return false;
     return false;
 }
 
@@ -52,6 +55,9 @@ static const char* type_to_string(int type)
     if (type == 7) return "i8";
     if (type == 8) return "u8";
     if (type == 9) return "bool";
+    if (type == 10) return "cp64";
+    if (type == 11) return "cp128";
+    if (type == 12) return "cp32";
     return "null";
 }
 
@@ -66,6 +72,9 @@ static const char* type_to_numpy_string(int type)
     if (type == 7) return "int8";
     if (type == 8) return "uint8";
     if (type == 9) return "bool8";
+    if (type == 10) return "csingle";
+    if (type == 11) return "cdouble";
+    if (type == 12) return "chalf";
     return "null";
 }
 
@@ -80,6 +89,9 @@ static const char* type_to_dtype_string(int type)
     if (type == 7) return "torch.int8";
     if (type == 8) return "torch.uint8";
     if (type == 9) return "torch.bool";
+    if (type == 10) return "torch.complex64";
+    if (type == 11) return "torch.complex128";
+    if (type == 12) return "torch.complex32";
     return "null";
 }
 
@@ -94,6 +106,9 @@ static size_t type_to_elemsize(int type)
     if (type == 7) return 1;
     if (type == 8) return 1;
     if (type == 9) return 1;
+    if (type == 10) return 8;
+    if (type == 11) return 16;
+    if (type == 12) return 4;
     return 0; // null
 }
 
@@ -108,6 +123,9 @@ static int string_to_type(const char* s)
     if (strcmp(s, "i8") == 0) return 7;
     if (strcmp(s, "u8") == 0) return 8;
     if (strcmp(s, "bool") == 0) return 9;
+    if (strcmp(s, "cp64") == 0) return 10;
+    if (strcmp(s, "cp128") == 0) return 11;
+    if (strcmp(s, "cp32") == 0) return 12;
     return 0; // null
 }
 
@@ -125,6 +143,9 @@ int get_at_tensor_type(const at::ScalarType& st)
     if (st == c10::ScalarType::Byte) return 8;
     if (st == c10::ScalarType::QUInt8) return 8;
     if (st == c10::ScalarType::Bool) return 9;
+    if (st == c10::ScalarType::ComplexFloat) return 10;
+    if (st == c10::ScalarType::ComplexDouble) return 11;
+    if (st == c10::ScalarType::ComplexHalf) return 12;
     return 0; // unknown type
 }
 

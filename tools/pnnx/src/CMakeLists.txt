@@ -193,6 +193,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
     pass_level2/torch_clone.cpp
+    pass_level2/torch_complex.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
@@ -205,6 +206,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_gather.cpp
     pass_level2/torch_ge.cpp
     pass_level2/torch_gt.cpp
+    pass_level2/torch_imag.cpp
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
     pass_level2/torch_logsumexp.cpp
@@ -222,6 +224,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp
     pass_level2/torch_randn_like.cpp
+    pass_level2/torch_real.cpp
     pass_level2/torch_roll.cpp
     pass_level2/torch_scatter_add.cpp
     pass_level2/torch_split.cpp
@@ -235,6 +238,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_var.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
+    pass_level2/torch_fft_irfft2.cpp
+    pass_level2/torch_fft_rfft2.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 )
