@@ -244,6 +244,7 @@ public:
 ModelWriter::ModelWriter()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
+    opt.lightmode = false;
     has_custom_layer = false;
     gen_random_weight = false;
     cutstart = -1;
