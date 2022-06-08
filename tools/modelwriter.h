@@ -330,6 +330,7 @@ int ModelWriter::shape_inference()
     }
 
     ncnn::Extractor ex = create_extractor();
+    ex.set_light_mode(true);
 
     // prepare Input blobs
     for (size_t i = 0; i < layer_count; i++)
@@ -453,6 +454,7 @@ int ModelWriter::estimate_memory_footprint()
     MemoryFootprintAllocator allocator;
 
     ncnn::Extractor ex = create_extractor();
+    ex.set_light_mode(true);
 
     ex.set_blob_allocator(&allocator);
     ex.set_workspace_allocator(&allocator);
