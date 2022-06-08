@@ -93,5 +93,6 @@ jobs:
         export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
+        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
         cd tools/pnnx
         cd build && ctest --output-on-failure -j 4

@@ -238,8 +238,24 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_var.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
+    pass_level2/torch_fft_irfft.cpp
     pass_level2/torch_fft_irfft2.cpp
+    pass_level2/torch_fft_irfftn.cpp
+    pass_level2/torch_fft_rfft.cpp
     pass_level2/torch_fft_rfft2.cpp
+    pass_level2/torch_fft_rfftn.cpp
+    pass_level2/torch_fft_ihfft.cpp
+    pass_level2/torch_fft_ihfft2.cpp
+    pass_level2/torch_fft_ihfftn.cpp
+    pass_level2/torch_fft_hfft.cpp
+    pass_level2/torch_fft_hfft2.cpp
+    pass_level2/torch_fft_hfftn.cpp
+    pass_level2/torch_fft_ifft.cpp
+    pass_level2/torch_fft_ifft2.cpp
+    pass_level2/torch_fft_ifftn.cpp
+    pass_level2/torch_fft_fft.cpp
+    pass_level2/torch_fft_fft2.cpp
+    pass_level2/torch_fft_fftn.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 )
