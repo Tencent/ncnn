@@ -13,7 +13,7 @@ jobs:
       with:
         submodules: true
 
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v4
 
     - name: Install deps
       run: python -m pip install twine build
@@ -42,7 +42,7 @@ jobs:
       with:
         submodules: true
 
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v4
 
     - name: Build wheels
       uses: pypa/cibuildwheel@2.6.1
@@ -83,7 +83,7 @@ jobs:
       with:
         submodules: true
 
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v4
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v2
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/setup-python@v3
+    - uses: actions/setup-python@v4
 
     - uses: actions/download-artifact@v3
       with:
