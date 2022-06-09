@@ -78,7 +78,7 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j 4
         cd ..
-        pip install .
+        pip install --user .
 
     - name: build-pnnx
       run: |
