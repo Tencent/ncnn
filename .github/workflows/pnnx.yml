@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   ubuntu:
-    runs-on: [self-hosted, linux, cvm]
+    runs-on: [self-hosted, linux, centos]
 
     strategy:
       fail-fast: false
