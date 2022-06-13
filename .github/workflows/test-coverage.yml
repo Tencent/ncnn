@@ -82,7 +82,7 @@ jobs:
         file: build/lcov.info
 
   linux-gcc-gpu-t4:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, t4]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -236,7 +236,7 @@ jobs:
         file: build-avx2/lcov.info
 
   linux-gcc-x64-avx512:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, t4]
     steps:
     - uses: actions/checkout@v3
     - name: build
