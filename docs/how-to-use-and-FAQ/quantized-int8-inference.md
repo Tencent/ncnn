@@ -20,7 +20,7 @@ Some imagenet sample images here https://github.com/nihui/imagenet-sample-images
 
 ```shell
 find images/ -type f > imagelist.txt
-./ncnn2table mobilenet-opt.param mobilenet-opt.bin imagelist.txt mobilenet.table mean=[104,117,123] norm=[0.017,0.017,0.017] shape=[224,224,3] pixel=BGR thread=8 method=kl
+./ncnn2table mobilenet-opt.param mobilenet-opt.bin imagelist.txt mobilenet.table mean=[104,117,123] norm=[0.017,0.017,0.017] shape=[224,224,3] pixel=BGR thread=8 method=kl format=txt
 ```
 
 * mean and norm are the values you passed to ```Mat::substract_mean_normalize()```
@@ -35,6 +35,7 @@ find images/ -type f > imagelist.txt
 * pixel is the pixel format of your model, image pixels will be converted to this type before ```Extractor::input()```
 * thread is the CPU thread count that could be used for parallel inference
 * method is the post training quantization algorithm, kl and aciq are currently supported
+* format is the output file type of quantization parameters, choose `ini` for `txt`. Using `txt` by default
 
 If your model has multiple input nodes, you can use multiple list files and other parameters
 
@@ -60,7 +61,7 @@ mobilenet.load_model("mobilenet-int8.bin");
 
 ## mixed precision inference
 
-Before quantize your model, comment the layer weight scale line in table file, then the layer will do the float32 inference
+Before quantize your model, comment layer weight scale line in the table file with `txt` format, then the layer will do the float32 inference
 
 ```
 conv1_param_0 156.639840536
@@ -68,4 +69,27 @@ conv1_param_0 156.639840536
 
 ```
 #conv1_param_0 156.639840536
+```
+
+If you are using `ini` format, just remove whole quantization parameters of the layer, for example:
+
+```
+[conv0]
+type = "Conv"
+weight = [ 156.639840536 ]
+input_scale = 1.23
+
+[fire]
+type = "Gemm"
+weight = [ 156.639840536 ]
+input_scale = 1.23
+```
+
+to
+
+```
+[fire]
+type = "Gemm"
+weight = [ 156.639840536 ]
+input_scale = 1.23
 ```
