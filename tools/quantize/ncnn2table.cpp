@@ -194,11 +194,11 @@ int QuantNet::save_table(const char* tablepath)
     return 0;
 }
 
-
 int QuantNet::save_toml(const char* filepath)
 {
     std::ofstream fout(filepath, std::ios::out);
-    if (not fout.is_open()) {
+    if (not fout.is_open())
+    {
         fprintf(stderr, "open %s failed\n", filepath);
         return -1;
     }
@@ -216,11 +216,16 @@ int QuantNet::save_toml(const char* filepath)
 
         // write opr type
         auto type = type_list[i];
-        if (type == "Convolution" or type == "ConvolutionDepthWise") {
+        if (type == "Convolution" or type == "ConvolutionDepthWise")
+        {
             tbl.insert_or_assign("type", std::string("Conv"));
-        } else if (type == "InnerProduct") {
+        }
+        else if (type == "InnerProduct")
+        {
             tbl.insert_or_assign("type", std::string("Gemm"));
-        } else {
+        }
+        else
+        {
             fprintf(stderr, "unknown type %s\n", type.c_str());
         }
 
@@ -251,10 +256,9 @@ int QuantNet::save_toml(const char* filepath)
         root.insert_or_assign(name.c_str(), tbl);
     }
 
-    fout << toml::toml_formatter{ root };
+    fout << toml::toml_formatter{root};
     return 0;
 }
-
 
 void QuantNet::print_quant_info() const
 {
@@ -1716,21 +1720,36 @@ int main(int argc, char** argv)
         char* value = eqs + 1;
 
         // load mean norm shape
-        if (memcmp(key, "mean", 4) == 0) {
+        if (memcmp(key, "mean", 4) == 0)
+        {
             net.means = parse_comma_float_array_list(value);
-        } else if (memcmp(key, "norm", 4) == 0) {
+        }
+        else if (memcmp(key, "norm", 4) == 0)
+        {
             net.norms = parse_comma_float_array_list(value);
-        } else if (memcmp(key, "shape", 5) == 0) {
+        }
+        else if (memcmp(key, "shape", 5) == 0)
+        {
             net.shapes = parse_comma_int_array_list(value);
-        } else if (memcmp(key, "pixel", 5) == 0) {
+        }
+        else if (memcmp(key, "pixel", 5) == 0)
+        {
             net.type_to_pixels = parse_comma_pixel_type_list(value);
-        } else if (memcmp(key, "thread", 6) == 0) {
+        }
+        else if (memcmp(key, "thread", 6) == 0)
+        {
             net.quantize_num_threads = atoi(value);
-        } else if (memcmp(key, "method", 6) == 0) {
+        }
+        else if (memcmp(key, "method", 6) == 0)
+        {
             method = std::string(value);
-        } else if (memcmp(key, "format", 6) == 0) {
+        }
+        else if (memcmp(key, "format", 6) == 0)
+        {
             format = std::string(value);
-        } else {
+        }
+        else
+        {
             fprintf(stderr, "unknown key=%s\n", key);
         }
     }
@@ -1808,9 +1827,12 @@ int main(int argc, char** argv)
 
     net.print_quant_info();
 
-    if (format == "toml") {
+    if (format == "toml")
+    {
         net.save_toml(outtable);
-    } else {
+    }
+    else
+    {
         net.save_table(outtable);
     }
 

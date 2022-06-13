@@ -41,7 +41,6 @@ public:
     }
 };
 
-
 int main(int argc, char** argv)
 {
     fprintf(stdout, "ncnn2int8_toml will parse toml format ")
@@ -60,7 +59,7 @@ int main(int argc, char** argv)
     std::string table = parser.get<std::string>("table");
 
     NetQuantize quantizer;
-    
+
     quantizer.read(table);
     quantizer.load_param(inparam.c_str());
 

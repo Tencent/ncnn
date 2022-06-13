@@ -17,6 +17,6 @@ public:
     int quantize_convolution();
     int quantize_convolutiondepthwise();
     int quantize_innerproduct();
-    
+
     int fuse_requantize();
 };

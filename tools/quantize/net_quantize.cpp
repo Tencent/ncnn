@@ -13,30 +13,34 @@ NetQuantize::NetQuantize()
 {
 }
 
-void NetQuantize::read_toml(const std::string& path) {
+void NetQuantize::read_toml(const std::string& path)
+{
     blob_int8scale_table.clear();
     weight_int8scale_table.clear();
 
     toml::table root = toml::parse_file(path);
 
-    root.for_each([&](const toml::key& key, auto&& val)
-    {
+    root.for_each([&](const toml::key& key, auto&& val) {
         std::string name = key.str().data();
-        if constexpr (toml::is_string<decltype(val)>) {
+        if constexpr (toml::is_string<decltype(val)>)
+        {
             auto string_val = val.as_string();
             fprintf(stderr, "%s : %s\n", name.c_str(), string_val->get().c_str());
-
-        } else if constexpr (toml::is_table<decltype(val)>) {
+        }
+        else if constexpr (toml::is_table<decltype(val)>)
+        {
             toml::table* tbl = val.as_table();
 
             auto type = (*tbl)["type"].value<std::string>();
-            if (type == "Conv" or type == "Gemm") {
+            if (type == "Conv" or type == "Gemm")
+            {
                 // load weight scales
                 {
                     std::vector<float> scales = {};
                     auto arr = (*tbl)["weight"].as_array();
-                    arr->for_each([&scales](auto&& v){
-                        if constexpr(toml::is_number<decltype(v)>) {
+                    arr->for_each([&scales](auto&& v) {
+                        if constexpr (toml::is_number<decltype(v)>)
+                        {
                             scales.emplace_back(*v);
                         }
                     });
@@ -49,8 +53,9 @@ void NetQuantize::read_toml(const std::string& path) {
                     std::vector<float> scales = {static_cast<float>(double_value->get())};
                     blob_int8scale_table[name] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
                 }
-
-            } else {
+            }
+            else
+            {
                 fprintf(stderr, "unknown type %s\n", type->c_str());
             }
         }

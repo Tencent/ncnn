@@ -15,17 +15,17 @@ TOML_NAMESPACE_START
 {
 #if TOML_HAS_CUSTOM_OPTIONAL_TYPE
 
-	template <typename T>
-	using optional = TOML_OPTIONAL_TYPE<T>;
+    template<typename T>
+    using optional = TOML_OPTIONAL_TYPE<T>;
 
 #else
 
-	/// \brief	The 'optional' type used throughout the library.
-	///
-	/// \remarks By default this will be an alias for std::optional, but you can change the optional type
-	/// 		 used by the library by defining #TOML_OPTIONAL_TYPE.
-	template <typename T>
-	using optional = std::optional<T>;
+    /// \brief	The 'optional' type used throughout the library.
+    ///
+    /// \remarks By default this will be an alias for std::optional, but you can change the optional type
+    /// 		 used by the library by defining #TOML_OPTIONAL_TYPE.
+    template<typename T>
+    using optional = std::optional<T>;
 
 #endif
 }
