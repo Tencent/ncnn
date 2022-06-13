@@ -607,7 +607,7 @@ static void conv3x3s1_winograd23_transform_input_pack16_avx512(const Mat& bottom
                     __m512 _tmp1m = _mm512_add_ps(_r01, _r02);
                     __m512 _tmp2m = _mm512_sub_ps(_r02, _r01);
                     __m512 _tmp3m = _mm512_sub_ps(_r03, _r01);
-\
+
                     _mm512_store_ps(tmp[0][m], _tmp0m);
                     _mm512_store_ps(tmp[1][m], _tmp1m);
                     _mm512_store_ps(tmp[2][m], _tmp2m);
