@@ -38,6 +38,7 @@
 #endif
 #include <string>
 #include <vector>
+#include "helper/toml++/toml.h"
 
 // ncnn public header
 #include "benchmark.h"
@@ -91,6 +92,7 @@ public:
     int init();
     void print_quant_info() const;
     int save_table(const char* tablepath);
+    int save_toml(const char* filepath);
     int quantize_KL();
     int quantize_ACIQ();
     int quantize_EQ();
@@ -98,6 +100,7 @@ public:
 public:
     std::vector<int> input_blobs;
     std::vector<int> conv_layers;
+    std::vector<std::string> type_list;
     std::vector<int> conv_bottom_blobs;
     std::vector<int> conv_top_blobs;
 
@@ -132,6 +135,7 @@ int QuantNet::init()
         if (layer->type == "Convolution" || layer->type == "ConvolutionDepthWise" || layer->type == "InnerProduct")
         {
             conv_layers.push_back(i);
+            type_list.push_back(layer->type);
             conv_bottom_blobs.push_back(layer->bottoms[0]);
             conv_top_blobs.push_back(layer->tops[0]);
         }
@@ -189,6 +193,68 @@ int QuantNet::save_table(const char* tablepath)
 
     return 0;
 }
+
+
+int QuantNet::save_toml(const char* filepath)
+{
+    std::ofstream fout(filepath, std::ios::out);
+    if (not fout.is_open()) {
+        fprintf(stderr, "open %s failed\n", filepath);
+        return -1;
+    }
+
+    auto root = toml::table();
+
+    // auto root = cpptoml::make_table();
+
+    const int conv_layer_count = static_cast<int>(conv_layers.size());
+    const int conv_bottom_blob_count = static_cast<int>(conv_bottom_blobs.size());
+
+    for (int i = 0; i < conv_layer_count; i++)
+    {
+        toml::table tbl = toml::table();
+
+        // write opr type
+        auto type = type_list[i];
+        if (type == "Convolution" or type == "ConvolutionDepthWise") {
+            tbl.insert_or_assign("type", std::string("Conv"));
+        } else if (type == "InnerProduct") {
+            tbl.insert_or_assign("type", std::string("Gemm"));
+        } else {
+            fprintf(stderr, "unknown type %s\n", type.c_str());
+        }
+
+        // write weight scales
+        {
+            const ncnn::Mat& weight_scale = weight_scales[i];
+
+            toml::array float_arr = {};
+            for (int j = 0; j < weight_scale.w; j++)
+            {
+                float_arr.push_back(static_cast<float>(weight_scale[j]));
+            }
+            tbl.insert_or_assign("weight", float_arr);
+        }
+
+        // write input scale
+        {
+            const ncnn::Mat& bottom_blob_scale = bottom_blob_scales[i];
+            if (bottom_blob_scale.w != 1)
+            {
+                fprintf(stderr, "not support conv input scale length=%d\n", bottom_blob_scale.w);
+                return -1;
+            }
+            tbl.insert_or_assign("input_scale", static_cast<float>(bottom_blob_scale[0]));
+        }
+
+        const std::string name = layers[conv_layers[i]]->name;
+        root.insert_or_assign(name.c_str(), tbl);
+    }
+
+    fout << toml::toml_formatter{ root };
+    return 0;
+}
+
 
 void QuantNet::print_quant_info() const
 {
@@ -1586,7 +1652,8 @@ static void show_usage()
     fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  method=kl/aciq/eq\n");
-    fprintf(stderr, "Sample usage: ncnn2table squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl\n");
+    fprintf(stderr, "  format=raw/toml\n");
+    fprintf(stderr, "Sample usage: ncnn2table squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl format=toml\n");
 }
 
 int main(int argc, char** argv)
@@ -1629,6 +1696,7 @@ int main(int argc, char** argv)
     net.listspaths = parse_comma_path_list(lists);
 
     std::string method = "kl";
+    std::string format = "raw";
 
     for (int i = 5; i < argc; i++)
     {
@@ -1648,18 +1716,23 @@ int main(int argc, char** argv)
         char* value = eqs + 1;
 
         // load mean norm shape
-        if (memcmp(key, "mean", 4) == 0)
+        if (memcmp(key, "mean", 4) == 0) {
             net.means = parse_comma_float_array_list(value);
-        if (memcmp(key, "norm", 4) == 0)
+        } else if (memcmp(key, "norm", 4) == 0) {
             net.norms = parse_comma_float_array_list(value);
-        if (memcmp(key, "shape", 5) == 0)
+        } else if (memcmp(key, "shape", 5) == 0) {
             net.shapes = parse_comma_int_array_list(value);
-        if (memcmp(key, "pixel", 5) == 0)
+        } else if (memcmp(key, "pixel", 5) == 0) {
             net.type_to_pixels = parse_comma_pixel_type_list(value);
-        if (memcmp(key, "thread", 6) == 0)
+        } else if (memcmp(key, "thread", 6) == 0) {
             net.quantize_num_threads = atoi(value);
-        if (memcmp(key, "method", 6) == 0)
+        } else if (memcmp(key, "method", 6) == 0) {
             method = std::string(value);
+        } else if (memcmp(key, "format", 6) == 0) {
+            format = std::string(value);
+        } else {
+            fprintf(stderr, "unknown key=%s\n", key);
+        }
     }
 
     // sanity check
@@ -1735,7 +1808,11 @@ int main(int argc, char** argv)
 
     net.print_quant_info();
 
-    net.save_table(outtable);
+    if (format == "toml") {
+        net.save_toml(outtable);
+    } else {
+        net.save_table(outtable);
+    }
 
     return 0;
 }
