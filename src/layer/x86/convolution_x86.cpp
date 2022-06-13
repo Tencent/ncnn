@@ -443,7 +443,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             if ((opt.use_winograd63_convolution && num_input >= 128 && num_output >= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
                 conv3x3s1_winograd63_transform_kernel_pack8_avx(weight_data, weight_winograd63_data, num_input, num_output, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 32 && num_output >= 32) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
+            else if ((opt.use_winograd43_convolution && num_input >= 16 && num_output >= 16) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
                 conv3x3s1_winograd43_transform_kernel_pack8_avx(weight_data, weight_winograd43_data, num_input, num_output, opt);
             else // if (opt.use_winograd23_convolution)
                 conv3x3s1_winograd23_transform_kernel_pack8_avx(weight_data, weight_winograd23_data, num_input, num_output, opt);
@@ -585,7 +585,7 @@ int Convolution_x86::create_pipeline(const Option& opt)
         {
             if ((opt.use_winograd63_convolution && num_input >= 128 && num_output >= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
                 conv3x3s1_winograd63_transform_kernel_pack4_sse(weight_data, weight_winograd63_data, num_input, num_output, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 32 && num_output >= 32) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
+            else if ((opt.use_winograd43_convolution && num_input >= 8 && num_output >= 8) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
                 conv3x3s1_winograd43_transform_kernel_pack4_sse(weight_data, weight_winograd43_data, num_input, num_output, opt);
             else // if (opt.use_winograd23_convolution)
                 conv3x3s1_winograd23_transform_kernel_pack4_sse(weight_data, weight_winograd23_data, num_input, num_output, opt);
@@ -1137,7 +1137,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             if ((opt.use_winograd63_convolution && num_input >= 128 && num_output >= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
                 conv3x3s1_winograd63_pack8_avx(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 32 && num_output >= 32) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
+            else if ((opt.use_winograd43_convolution && num_input >= 16 && num_output >= 16) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
                 conv3x3s1_winograd43_pack8_avx(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
             else // if (opt.use_winograd23_convolution)
                 conv3x3s1_winograd23_pack8_avx(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
@@ -1380,7 +1380,7 @@ int Convolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option
         {
             if ((opt.use_winograd63_convolution && num_input >= 128 && num_output >= 128) || (!opt.use_winograd43_convolution && !opt.use_winograd23_convolution))
                 conv3x3s1_winograd63_pack4_sse(bottom_blob_bordered, top_blob, weight_winograd63_data, bias_data, opt);
-            else if ((opt.use_winograd43_convolution && num_input >= 32 && num_output >= 32) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
+            else if ((opt.use_winograd43_convolution && num_input >= 8 && num_output >= 8) || (!opt.use_winograd63_convolution && !opt.use_winograd23_convolution))
                 conv3x3s1_winograd43_pack4_sse(bottom_blob_bordered, top_blob, weight_winograd43_data, bias_data, opt);
             else // if (opt.use_winograd23_convolution)
                 conv3x3s1_winograd23_pack4_sse(bottom_blob_bordered, top_blob, weight_winograd23_data, bias_data, opt);
