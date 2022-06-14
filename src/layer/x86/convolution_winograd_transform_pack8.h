@@ -553,3 +553,183 @@ static void conv3x3s1_winograd43_transform_output_pack8_avx(const Mat& top_blob_
         }
     }
 }
+
+static void conv3x3s1_winograd23_transform_input_pack8_avx(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int inch = bottom_blob.c;
+
+    const int w_tiles = (w - 2) / 2;
+    const int h_tiles = (h - 2) / 2;
+    const int tiles = w_tiles * h_tiles;
+
+    // const float itm[4][4] = {
+    //     {1.0f,  0.0f, -1.0f,  0.0f},
+    //     {0.0f,  1.0f,  1.00f, 0.0f},
+    //     {0.0f, -1.0f,  1.00f, 0.0f},
+    //     {0.0f, -1.0f,  0.00f, 1.0f}
+    // };
+
+    // 0 = r00 - r02
+    // 1 = r01 + r02
+    // 2 = r02 - r01
+    // 3 = r03 - r01
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < inch; q++)
+    {
+        const Mat img0 = bottom_blob.channel(q);
+        Mat img0_tm = bottom_blob_tm.channel(q);
+
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+        float tmp[4][4][8];
+
+        // tile
+        for (int i = 0; i < h_tiles; i++)
+        {
+            for (int j = 0; j < w_tiles; j++)
+            {
+                const float* r0 = img0.row(i * 2) + (j * 2) * 8;
+
+                for (int m = 0; m < 4; m++)
+                {
+                    __m256 _r00 = _mm256_load_ps(r0);
+                    __m256 _r01 = _mm256_load_ps(r0 + 8);
+                    __m256 _r02 = _mm256_load_ps(r0 + 8 * 2);
+                    __m256 _r03 = _mm256_load_ps(r0 + 8 * 3);
+
+                    __m256 _tmp0m = _mm256_sub_ps(_r00, _r02);
+                    __m256 _tmp1m = _mm256_add_ps(_r01, _r02);
+                    __m256 _tmp2m = _mm256_sub_ps(_r02, _r01);
+                    __m256 _tmp3m = _mm256_sub_ps(_r03, _r01);
+
+                    _mm256_store_ps(tmp[0][m], _tmp0m);
+                    _mm256_store_ps(tmp[1][m], _tmp1m);
+                    _mm256_store_ps(tmp[2][m], _tmp2m);
+                    _mm256_store_ps(tmp[3][m], _tmp3m);
+
+                    r0 += w * 8;
+                }
+
+                float* r0_tm_0 = (float*)img0_tm + (i * w_tiles + j) * 8;
+                float* r0_tm_1 = r0_tm_0 + tiles * 8;
+                float* r0_tm_2 = r0_tm_0 + tiles * 8 * 2;
+                float* r0_tm_3 = r0_tm_0 + tiles * 8 * 3;
+
+                for (int m = 0; m < 4; m++)
+                {
+                    __m256 _tmp00 = _mm256_load_ps(tmp[m][0]);
+                    __m256 _tmp01 = _mm256_load_ps(tmp[m][1]);
+                    __m256 _tmp02 = _mm256_load_ps(tmp[m][2]);
+                    __m256 _tmp03 = _mm256_load_ps(tmp[m][3]);
+
+                    __m256 _r0tm0 = _mm256_sub_ps(_tmp00, _tmp02);
+                    __m256 _r0tm1 = _mm256_add_ps(_tmp01, _tmp02);
+                    __m256 _r0tm2 = _mm256_sub_ps(_tmp02, _tmp01);
+                    __m256 _r0tm3 = _mm256_sub_ps(_tmp03, _tmp01);
+
+                    _mm256_store_ps(r0_tm_0, _r0tm0);
+                    _mm256_store_ps(r0_tm_1, _r0tm1);
+                    _mm256_store_ps(r0_tm_2, _r0tm2);
+                    _mm256_store_ps(r0_tm_3, _r0tm3);
+
+                    r0_tm_0 += tiles * 8 * 4;
+                    r0_tm_1 += tiles * 8 * 4;
+                    r0_tm_2 += tiles * 8 * 4;
+                    r0_tm_3 += tiles * 8 * 4;
+                }
+            }
+        }
+    }
+}
+
+static void conv3x3s1_winograd23_transform_output_pack8_avx(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
+{
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int outch = top_blob.c;
+
+    const int w_tiles = outw / 2;
+    const int h_tiles = outh / 2;
+    const int tiles = w_tiles * h_tiles;
+
+    const float* biasptr = bias;
+
+    // const float otm[2][4] = {
+    //     {1.0f,  1.0f,  1.0f,  0.0f},
+    //     {0.0f,  1.0f, -1.0f,  1.0f}
+    // };
+
+    // 0 = r00 + r01 + r02
+    // 1 = r01 - r02 + r03
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < outch; p++)
+    {
+        const Mat out0_tm = top_blob_tm.channel(p);
+        Mat out0 = top_blob.channel(p);
+
+        __m256 _bias0 = biasptr ? _mm256_loadu_ps(biasptr + p * 8) : _mm256_setzero_ps();
+
+#ifdef _MSC_VER
+        __declspec(align(32))
+#else
+        __attribute__((aligned(32)))
+#endif
+        float tmp[2][4][8];
+
+        // tile
+        for (int i = 0; i < h_tiles; i++)
+        {
+            for (int j = 0; j < w_tiles; j++)
+            {
+                const float* output0_tm_0 = (const float*)out0_tm + (i * w_tiles + j) * 8;
+                const float* output0_tm_1 = output0_tm_0 + tiles * 8;
+                const float* output0_tm_2 = output0_tm_0 + tiles * 8 * 2;
+                const float* output0_tm_3 = output0_tm_0 + tiles * 8 * 3;
+
+                float* output0 = out0.row(i * 2) + (j * 2) * 8;
+
+                for (int m = 0; m < 4; m++)
+                {
+                    __m256 _out0tm0 = _mm256_load_ps(output0_tm_0);
+                    __m256 _out0tm1 = _mm256_load_ps(output0_tm_1);
+                    __m256 _out0tm2 = _mm256_load_ps(output0_tm_2);
+                    __m256 _out0tm3 = _mm256_load_ps(output0_tm_3);
+
+                    __m256 _tmp0m = _mm256_add_ps(_mm256_add_ps(_out0tm0, _out0tm1), _out0tm2);
+                    __m256 _tmp1m = _mm256_add_ps(_mm256_sub_ps(_out0tm1, _out0tm2), _out0tm3);
+
+                    _mm256_store_ps(tmp[0][m], _tmp0m);
+                    _mm256_store_ps(tmp[1][m], _tmp1m);
+
+                    output0_tm_0 += tiles * 8 * 4;
+                    output0_tm_1 += tiles * 8 * 4;
+                    output0_tm_2 += tiles * 8 * 4;
+                    output0_tm_3 += tiles * 8 * 4;
+                }
+
+                for (int m = 0; m < 2; m++)
+                {
+                    __m256 _tmp00 = _mm256_load_ps(tmp[m][0]);
+                    __m256 _tmp01 = _mm256_load_ps(tmp[m][1]);
+                    __m256 _tmp02 = _mm256_load_ps(tmp[m][2]);
+                    __m256 _tmp03 = _mm256_load_ps(tmp[m][3]);
+
+                    __m256 _out00 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_add_ps(_tmp00, _tmp01), _tmp02));
+                    __m256 _out01 = _mm256_add_ps(_bias0, _mm256_add_ps(_mm256_sub_ps(_tmp01, _tmp02), _tmp03));
+
+                    _mm256_store_ps(output0, _out00);
+                    _mm256_store_ps(output0 + 8, _out01);
+
+                    output0 += outw * 8;
+                }
+            }
+        }
+    }
+}

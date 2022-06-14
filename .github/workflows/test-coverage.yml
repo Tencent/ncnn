@@ -76,13 +76,63 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
+      id: codecov
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-retry-1
+      continue-on-error: true
+      id: codecov-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-2
+      continue-on-error: true
+      id: codecov-retry-2
+      if: steps.codecov-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-3
+      continue-on-error: true
+      id: codecov-retry-3
+      if: steps.codecov-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-4
+      continue-on-error: true
+      id: codecov-retry-4
+      if: steps.codecov-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-5
+      continue-on-error: true
+      id: codecov-retry-5
+      if: steps.codecov-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
   linux-gcc-gpu-t4:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, t4]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -110,10 +160,60 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
+      id: codecov
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-retry-1
+      continue-on-error: true
+      id: codecov-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-2
+      continue-on-error: true
+      id: codecov-retry-2
+      if: steps.codecov-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-3
+      continue-on-error: true
+      id: codecov-retry-3
+      if: steps.codecov-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-4
+      continue-on-error: true
+      id: codecov-retry-4
+      if: steps.codecov-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-5
+      continue-on-error: true
+      id: codecov-retry-5
+      if: steps.codecov-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
   linux-gcc-gpu-lavapipe:
     runs-on: [self-hosted, linux, cvm]
@@ -164,10 +264,60 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
+      id: codecov
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-retry-1
+      continue-on-error: true
+      id: codecov-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-2
+      continue-on-error: true
+      id: codecov-retry-2
+      if: steps.codecov-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-3
+      continue-on-error: true
+      id: codecov-retry-3
+      if: steps.codecov-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-4
+      continue-on-error: true
+      id: codecov-retry-4
+      if: steps.codecov-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-5
+      continue-on-error: true
+      id: codecov-retry-5
+      if: steps.codecov-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
   linux-gcc-x64:
     runs-on: ubuntu-latest
@@ -236,7 +386,7 @@ jobs:
         file: build-avx2/lcov.info
 
   linux-gcc-x64-avx512:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, t4]
     steps:
     - uses: actions/checkout@v3
     - name: build
@@ -261,10 +411,60 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
+      id: codecov
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-retry-1
+      continue-on-error: true
+      id: codecov-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-2
+      continue-on-error: true
+      id: codecov-retry-2
+      if: steps.codecov-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-3
+      continue-on-error: true
+      id: codecov-retry-3
+      if: steps.codecov-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-4
+      continue-on-error: true
+      id: codecov-retry-4
+      if: steps.codecov-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-retry-5
+      continue-on-error: true
+      id: codecov-retry-5
+      if: steps.codecov-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
   linux-gcc-armhf-vfpv3-d16:
     runs-on: ubuntu-20.04

@@ -116,7 +116,7 @@ jobs:
       run: cd build-simplestl-simpleomp && ctest --output-on-failure -j 2
 
   linux-gcc-avx512:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, t4]
     steps:
     - uses: actions/checkout@v3
     - name: build
