@@ -46,7 +46,7 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     {
         Randomize(a, -1, 1);
         if (c >= 64)
-            Randomize(weights[0], -0.4, 0.4);
+            Randomize(weights[0], -0.3, 0.3);
         else
             Randomize(weights[0], -1, 1);
         epsilon = 0.002;
