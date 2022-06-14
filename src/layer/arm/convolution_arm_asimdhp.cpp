@@ -46,6 +46,7 @@ namespace ncnn {
 #include "convolution_winograd_transform_fp16s.h"
 #include "convolution_winograd_transform_pack4_fp16s.h"
 #include "convolution_winograd_transform_pack8_fp16s.h"
+#include "convolution_winograd_dot_pack8_fp16s.h"
 #include "convolution_1x1_fp16s.h"
 #include "convolution_1x1_pack4_fp16s.h"
 #include "convolution_1x1_pack1to4_fp16s.h"
