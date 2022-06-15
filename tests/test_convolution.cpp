@@ -155,8 +155,11 @@ static int test_convolution_0()
            || test_convolution(15, 17, 32, 26, 3, 1, 2, 0, 1)
            || test_convolution(30, 30, 32, 26, 3, 1, 1, 1, 0)
            || test_convolution(12, 18, 8, 16, 3, 1, 1, 1, 1)
-           || test_convolution(42, 18, 128, 160, 3, 1, 1, 1, 1)
-           || test_convolution(12, 18, 128, 160, 3, 1, 1, 1, 1);
+           || test_convolution(42, 18, 32, 160, 3, 1, 1, 1, 1)
+           || test_convolution(12, 18, 32, 160, 3, 1, 1, 1, 1)
+           || test_convolution(12, 18, 4, 12, 3, 1, 1, 1, 1)
+           || test_convolution(42, 18, 28, 140, 3, 1, 1, 1, 1)
+           || test_convolution(12, 18, 28, 140, 3, 1, 1, 1, 1);
 }
 
 static int test_convolution_vec(int w, int outch, int kernel, int dilation, int stride, int pad, int bias)
