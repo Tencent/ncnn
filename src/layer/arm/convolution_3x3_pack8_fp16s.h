@@ -141,8 +141,8 @@ static void conv3x3s1_winograd63_pack8_fp16sa_neon(const Mat& bottom_blob, Mat& 
     // BEGIN transform input
     Mat bottom_blob_tm;
     {
-        int w_tiles = outw / 6 * 8;
-        int h_tiles = outh / 6 * 8;
+        int w_tiles = outw / 6;
+        int h_tiles = outh / 6;
         const int tiles = w_tiles * h_tiles;
 
         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
