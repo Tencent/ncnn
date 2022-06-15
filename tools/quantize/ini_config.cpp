@@ -2,26 +2,30 @@
 #include <sstream>
 #include <cassert>
 
-namespace ini
-{
+namespace ini {
 
 template<typename T>
-void Value::set(T val) {
+void Value::set(T val)
+{
     text = std::to_string(f);
 }
 
-void Value::set(std::string str) {
+void Value::set(std::string str)
+{
     text = '\"' + str + '\"';
 }
 
 template<typename T>
-void Value::set(const std::vector<T>& data) {
+void Value::set(const std::vector<T>& data)
+{
     text = "[ ";
 
     size_t len = data.size();
-    if (len > 0) {
+    if (len > 0)
+    {
         size_t i = 0;
-        for (;i < len - 1; ++i) {
+        for (; i < len - 1; ++i)
+        {
             text += std::to_string(data[i]);
             text += ", ";
         }
@@ -33,7 +37,8 @@ void Value::set(const std::vector<T>& data) {
 }
 
 template<typename T>
-T Value::get() {
+T Value::get()
+{
     T result;
     std::stringstream ss;
     ss << text;
@@ -42,7 +47,8 @@ T Value::get() {
 }
 
 template<typename T>
-std::vector<T> Value::get() {
+std::vector<T> Value::get()
+{
     std::vector<T> result;
 
     std::string no_brace;
@@ -57,9 +63,11 @@ std::vector<T> Value::get() {
         // split with the separator ','
         std::stringstream ss;
         size_t end = 0, start = 0;
-        while(true) {
+        while (true)
+        {
             end = no_brace.find(',', start);
-            if (end == std::string::npos){
+            if (end == std::string::npos)
+            {
                 break;
             }
 
@@ -84,51 +92,61 @@ std::vector<T> Value::get() {
     return result;
 }
 
-std::string Value::stringify() {
+std::string Value::stringify()
+{
     return text;
 }
 
-void Table::feed(std::string line) {
+void Table::feed(std::string line)
+{
     auto pos = line.find(':');
     assert(pos != std::string::npos);
 
-    std::string key = line.substr(0, pos-1);
-    std::string value_str = line.substr(pos+1);
-    
+    std::string key = line.substr(0, pos - 1);
+    std::string value_str = line.substr(pos + 1);
+
     values[key] = std::make_shared<Value>(value_str);
 }
 
-void Table::feed(const std::vector<std::string>& lines) {
-    for (auto& line : lines) {
+void Table::feed(const std::vector<std::string>& lines)
+{
+    for (auto& line : lines)
+    {
         feed(line);
     }
 }
 
-void Table::append(std::string key, float data) {
+void Table::append(std::string key, float data)
+{
     auto pVal = std::make_shared<Value>();
     pVal->set(data);
     values[key] = pVal;
 }
 
-void Table::append(std::string key, const std::vector<float>& data) {
+void Table::append(std::string key, const std::vector<float>& data)
+{
     auto pVal = std::make_shared<Value>();
     pVal->set(data);
     values[key] = pVal;
 }
 
-void Table::append(std::string key, std::string data) {
+void Table::append(std::string key, std::string data)
+{
     auto pVal = std::make_shared<Value>();
     pVal->set(data);
     values[key] = pVal;
 }
 
-std::shared_ptr<Value> Table::operator[](std::string key) {
+std::shared_ptr<Value> Table::operator[](std::string key)
+{
     return values[key];
 }
 
-std::string Table::stringify() {
+std::string Table::stringify()
+{
     std::string result;
-    for (auto itra = values.begin(); itra != values.end(); ++itra) {
+    for (auto itra = values.begin(); itra != values.end(); ++itra)
+    {
         result += itra->first;
         result += " = ";
         result += itra->second->stringify();
@@ -137,11 +155,13 @@ std::string Table::stringify() {
     return result;
 }
 
-void Config::read(std::string path) {
+void Config::read(std::string path)
+{
     std::ifstream fin;
     fin.open(path, std::ios::in);
 
-    if (! fin.is_open()) {
+    if (!fin.is_open())
+    {
         fprintf(stderr, "open %s failed\n", path.c_str());
         return;
     }
@@ -150,46 +170,55 @@ void Config::read(std::string path) {
     std::shared_ptr<Table> pTable = nullptr;
 
     std::string line;
-    while(fin >> line) {
-        if (nullptr == pTable) {
+    while (fin >> line)
+    {
+        if (nullptr == pTable)
+        {
             auto start = line.find('[');
             auto end = line.find(']');
             assert(start != std::string::npos);
             assert(end != std::string::npos);
 
-            std::string key = line.substr(start+1, end);
+            std::string key = line.substr(start + 1, end);
             pTable = std::make_shared<Table>();
             tables[key] = pTable;
             continue;
-        } 
+        }
 
-        if (line.length() <= 2) {
+        if (line.length() <= 2)
+        {
             pTable = nullptr;
-            continue;;
+            continue;
+            ;
         }
 
         pTable->feed(line);
     }
 }
 
-std::vector<std::string> Config::list_all() {
+std::vector<std::string> Config::list_all()
+{
     std::vector<std::string> result;
-    for (auto itra = tables.begin(); itra != tables.end(); ++itra) {
+    for (auto itra = tables.begin(); itra != tables.end(); ++itra)
+    {
         result.push_back(itra->first);
     }
     return result;
 }
 
-std::shared_ptr<Table> Config::operator[](std::string key) {
+std::shared_ptr<Table> Config::operator[](std::string key)
+{
     return tables[key];
 }
 
-void Config::append(std::string key, std::shared_ptr<Table> table) {
+void Config::append(std::string key, std::shared_ptr<Table> table)
+{
     tables[key] = table;
 }
 
-void Config::write(std::string path) {
-    // TODO 
+void Config::write(std::string path)
+{
+    // TODO
 }
 
 } // namespace ini

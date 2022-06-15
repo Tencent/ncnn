@@ -16,18 +16,20 @@
 // [LayerNorm_66]
 // type = "LayerNorm"
 // zero_point = -24
-namespace ini
-{
+namespace ini {
 
-class Value {
+class Value
+{
 public:
-    Value() {}
+    Value()
+    {
+    }
 
     void set(std::string str);
 
     template<typename T>
     void set(T data);
-    
+
     template<typename T>
     void set(const std::vector<T>& data);
 
@@ -43,9 +45,12 @@ private:
     std::string text;
 };
 
-class Table {
+class Table
+{
 public:
-    Table() {}
+    Table()
+    {
+    }
 
     void feed(std::string line);
     void feed(const std::vector<std::string>& lines);
@@ -62,9 +67,12 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Value> > values;
 };
 
-class Config {
+class Config
+{
 public:
-    Config() {}
+    Config()
+    {
+    }
     void read(std::string path);
 
     std::vector<std::string> list_all();
