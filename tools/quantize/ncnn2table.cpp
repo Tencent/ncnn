@@ -92,7 +92,7 @@ public:
     int init();
     void print_quant_info() const;
     int save_table(const char* tablepath);
-    int save_toml(const char* filepath);
+    int save_ini(const char* filepath);
     int quantize_KL();
     int quantize_ACIQ();
     int quantize_EQ();
@@ -1657,7 +1657,7 @@ static void show_usage()
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  method=kl/aciq/eq\n");
     fprintf(stderr, "  format=raw/toml\n");
-    fprintf(stderr, "Sample usage: ncnn2table squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl format=toml\n");
+    fprintf(stderr, "Sample usage: ncnn2table squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl format=ini\n");
 }
 
 int main(int argc, char** argv)
@@ -1827,9 +1827,9 @@ int main(int argc, char** argv)
 
     net.print_quant_info();
 
-    if (format == "toml")
+    if (format == "ini")
     {
-        net.save_toml(outtable);
+        net.save_ini(outtable);
     }
     else
     {
