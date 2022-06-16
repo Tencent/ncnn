@@ -25,14 +25,13 @@ void MemoryFootprintAllocator::fastFree(void* ptr)
     ncnn::fastFree(ptr);
 }
 
-
 int CustomLayer::load_param(const ncnn::ParamDict& pd)
 {
     mpd = pd;
     return 0;
 }
 
-void  CustomLayer::write_param(FILE* pp)
+void CustomLayer::write_param(FILE* pp)
 {
     for (int i = 0; i < NCNN_MAX_PARAM_COUNT; i++)
     {

@@ -64,12 +64,13 @@ int main(int argc, char** argv)
     {
         success = quantizer.read_raw_format(int8scale_table_path);
     }
-    else 
+    else
     {
         success = quantizer.read_ini_format(int8scale_table_path);
     }
-    
-    if (!success) {
+
+    if (!success)
+    {
         fprintf(stderr, "read_int8scale_table failed\n");
         return -1;
     }

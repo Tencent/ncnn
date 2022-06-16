@@ -8,7 +8,8 @@
 #include <vector>
 #include "ini_config.h"
 
-bool NetQuantize::read_raw_format(const char* filepath) {
+bool NetQuantize::read_raw_format(const char* filepath)
+{
     blob_int8scale_table.clear();
     weight_int8scale_table.clear();
 
@@ -89,11 +90,13 @@ bool NetQuantize::read_ini_format(const char* path)
     size_t len = root.size();
     std::string name, type;
     std::shared_ptr<ini::Table> ptable;
-    for (size_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i)
+    {
         std::tie(name, ptable) = root[i];
         type = ptable->get<std::string>("type");
-    
-        if (type == "Conv" || type == "Gemm") {
+
+        if (type == "Conv" || type == "Gemm")
+        {
             // load weight scales
             {
                 std::vector<float> scales = ptable->get_list<float>("weight");

@@ -139,7 +139,6 @@ public:
     ncnn::ParamDict mpd;
 };
 
-
 class ModelWriter : public ncnn::Net
 {
 public:

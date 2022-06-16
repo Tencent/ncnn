@@ -5,7 +5,9 @@
 class NetQuantize : public ModelWriter
 {
 public:
-    NetQuantize() {}
+    NetQuantize()
+    {
+    }
 
     std::map<std::string, ncnn::Mat> blob_int8scale_table;
     std::map<std::string, ncnn::Mat> weight_int8scale_table;
