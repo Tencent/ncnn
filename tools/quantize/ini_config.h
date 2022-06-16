@@ -74,10 +74,10 @@ T value_get(std::string text)
 template<>
 std::string value_get<std::string>(std::string text)
 {
-    auto start = text.find("\"");
-    auto end = text.find("\"");
+    auto start = text.find('\"');
+    auto end = text.find_last_of('\"');
 
-    return text.substr(start + 1, end);
+    return text.substr(start + 1, end-start-1);
 }
 
 /**
@@ -169,7 +169,7 @@ public:
     template<typename T>
     T get(std::string key)
     {
-        std::string text = values[key];
+        std::string text = values.at(key);
         return value_get<T>(text);
     }
 

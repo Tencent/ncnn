@@ -8,7 +8,6 @@ public:
     NetQuantize()
     {
     }
-
     std::map<std::string, ncnn::Mat> blob_int8scale_table;
     std::map<std::string, ncnn::Mat> weight_int8scale_table;
 
@@ -18,6 +17,10 @@ public:
     int quantize_convolution();
     int quantize_convolutiondepthwise();
     int quantize_innerproduct();
-
     int fuse_requantize();
+
+    void set_weight_suffix(std::string s);
+
+private:
+    std::string suffix;
 };

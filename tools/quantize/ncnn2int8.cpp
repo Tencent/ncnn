@@ -62,6 +62,7 @@ int main(int argc, char** argv)
     bool success = false;
     if (std::string(int8scale_table_path).find(".ini") == std::string::npos)
     {
+        quantizer.set_weight_suffix("_param_0");
         success = quantizer.read_raw_format(int8scale_table_path);
     }
     else

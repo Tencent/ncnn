@@ -8,6 +8,10 @@
 #include <vector>
 #include "ini_config.h"
 
+void NetQuantize::set_weight_suffix(std::string str) {
+    suffix = str;
+}
+
 bool NetQuantize::read_raw_format(const char* filepath)
 {
     blob_int8scale_table.clear();
@@ -129,12 +133,12 @@ int NetQuantize::quantize_convolution()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        sprintf(key, "%s%s", layers[i]->name.c_str(), suffix.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
         {
-            fprintf(stderr, "this layer need to be quantized, but no scale param!\n");
+            fprintf(stderr, "%s need to be quantized, but no scale param!\n", key);
             return -1;
         }
 
@@ -187,7 +191,7 @@ int NetQuantize::quantize_convolutiondepthwise()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        sprintf(key, "%s%s", layers[i]->name.c_str(), suffix.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())
@@ -249,7 +253,7 @@ int NetQuantize::quantize_innerproduct()
             continue;
 
         char key[256];
-        sprintf(key, "%s_param_0", layers[i]->name.c_str());
+        sprintf(key, "%s%s", layers[i]->name.c_str(), suffix.c_str());
 
         std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
         if (iter == weight_int8scale_table.end())

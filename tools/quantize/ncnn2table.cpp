@@ -1646,7 +1646,7 @@ static void show_usage()
     fprintf(stderr, "  pixel=RAW/RGB/BGR/GRAY/RGBA/BGRA,...\n");
     fprintf(stderr, "  thread=8\n");
     fprintf(stderr, "  method=kl/aciq/eq\n");
-    fprintf(stderr, "  format=raw/toml\n");
+    fprintf(stderr, "  format=raw/ini\n");
     fprintf(stderr, "Sample usage: ncnn2table squeezenet.param squeezenet.bin imagelist.txt squeezenet.table mean=[104.0,117.0,123.0] norm=[1.0,1.0,1.0] shape=[227,227,3] pixel=BGR method=kl format=raw\n");
 }
 
