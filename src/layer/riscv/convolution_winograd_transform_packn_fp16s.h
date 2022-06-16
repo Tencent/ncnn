@@ -701,8 +701,6 @@ static void conv3x3s1_winograd23_transform_output_packn_fp16sa_rvv(const Mat& to
 
                     vse16_v_f16m1(tmp[0][m], _tmp0m, vl);
                     vse16_v_f16m1(tmp[1][m], _tmp1m, vl);
-                    vse16_v_f16m1(tmp[2][m], _tmp2m, vl);
-                    vse16_v_f16m1(tmp[3][m], _tmp3m, vl);
 
                     output0_tm_0 += tiles * packn * 4;
                     output0_tm_1 += tiles * packn * 4;

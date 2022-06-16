@@ -97,9 +97,6 @@ static void conv3x3s1_winograd63_transform_kernel_packn_fp16sa_rvv(const Mat& ke
 
 static void conv3x3s1_winograd63_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
-    const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
@@ -239,9 +236,6 @@ static void conv3x3s1_winograd43_transform_kernel_packn_fp16sa_rvv(const Mat& ke
 
 static void conv3x3s1_winograd43_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
-    const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
@@ -379,9 +373,6 @@ static void conv3x3s1_winograd23_transform_kernel_packn_fp16sa_rvv(const Mat& ke
 
 static void conv3x3s1_winograd23_packn_fp16sa_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
-    const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
-
     int w = bottom_blob.w;
     int h = bottom_blob.h;
     int inch = bottom_blob.c;
