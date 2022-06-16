@@ -207,7 +207,7 @@ int QuantNet::save_ini(const char* filepath)
 
         // write opr type
         auto type = type_list[i];
-        if (type == "Convolution" or type == "ConvolutionDepthWise")
+        if (type == "Convolution" || type == "ConvolutionDepthWise")
         {
             tbl->append("type", std::string("Conv"));
         }
