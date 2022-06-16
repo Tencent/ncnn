@@ -89,87 +89,28 @@ static void conv3x3s1_winograd63_transform_kernel_pack4_fp16sa_neon(const Mat& k
 
             for (int p = 0; p + 3 < inch; p += 4)
             {
-                const float* k00 = k0.row(p);
-                const float* k01 = k0.row(p + 1);
-                const float* k02 = k0.row(p + 2);
-                const float* k03 = k0.row(p + 3);
+                for (int i = 0; i < 4; i++)
+                {
+                    const float* k00 = k0.row(p + i);
+                    const float* k10 = k1.row(p + i);
+                    const float* k20 = k2.row(p + i);
+                    const float* k30 = k3.row(p + i);
+                    const float* k40 = k4.row(p + i);
+                    const float* k50 = k5.row(p + i);
+                    const float* k60 = k6.row(p + i);
+                    const float* k70 = k7.row(p + i);
 
-                const float* k10 = k1.row(p);
-                const float* k11 = k1.row(p + 1);
-                const float* k12 = k1.row(p + 2);
-                const float* k13 = k1.row(p + 3);
+                    g00[0] = (__fp16)k00[k];
+                    g00[1] = (__fp16)k10[k];
+                    g00[2] = (__fp16)k20[k];
+                    g00[3] = (__fp16)k30[k];
+                    g00[4] = (__fp16)k40[k];
+                    g00[5] = (__fp16)k50[k];
+                    g00[6] = (__fp16)k60[k];
+                    g00[7] = (__fp16)k70[k];
 
-                const float* k20 = k2.row(p);
-                const float* k21 = k2.row(p + 1);
-                const float* k22 = k2.row(p + 2);
-                const float* k23 = k2.row(p + 3);
-
-                const float* k30 = k3.row(p);
-                const float* k31 = k3.row(p + 1);
-                const float* k32 = k3.row(p + 2);
-                const float* k33 = k3.row(p + 3);
-
-                const float* k40 = k4.row(p);
-                const float* k41 = k4.row(p + 1);
-                const float* k42 = k4.row(p + 2);
-                const float* k43 = k4.row(p + 3);
-
-                const float* k50 = k5.row(p);
-                const float* k51 = k5.row(p + 1);
-                const float* k52 = k5.row(p + 2);
-                const float* k53 = k5.row(p + 3);
-
-                const float* k60 = k6.row(p);
-                const float* k61 = k6.row(p + 1);
-                const float* k62 = k6.row(p + 2);
-                const float* k63 = k6.row(p + 3);
-
-                const float* k70 = k7.row(p);
-                const float* k71 = k7.row(p + 1);
-                const float* k72 = k7.row(p + 2);
-                const float* k73 = k7.row(p + 3);
-
-                g00[0] = (__fp16)k00[k];
-                g00[1] = (__fp16)k10[k];
-                g00[2] = (__fp16)k20[k];
-                g00[3] = (__fp16)k30[k];
-
-                g00[4] = (__fp16)k40[k];
-                g00[5] = (__fp16)k50[k];
-                g00[6] = (__fp16)k60[k];
-                g00[7] = (__fp16)k70[k];
-
-                g00[8] = (__fp16)k01[k];
-                g00[9] = (__fp16)k11[k];
-                g00[10] = (__fp16)k21[k];
-                g00[11] = (__fp16)k31[k];
-
-                g00[12] = (__fp16)k41[k];
-                g00[13] = (__fp16)k51[k];
-                g00[14] = (__fp16)k61[k];
-                g00[15] = (__fp16)k71[k];
-
-                g00[16] = (__fp16)k02[k];
-                g00[17] = (__fp16)k12[k];
-                g00[18] = (__fp16)k22[k];
-                g00[19] = (__fp16)k32[k];
-
-                g00[20] = (__fp16)k42[k];
-                g00[21] = (__fp16)k52[k];
-                g00[22] = (__fp16)k62[k];
-                g00[23] = (__fp16)k72[k];
-
-                g00[24] = (__fp16)k03[k];
-                g00[25] = (__fp16)k13[k];
-                g00[26] = (__fp16)k23[k];
-                g00[27] = (__fp16)k33[k];
-
-                g00[28] = (__fp16)k43[k];
-                g00[29] = (__fp16)k53[k];
-                g00[30] = (__fp16)k63[k];
-                g00[31] = (__fp16)k73[k];
-
-                g00 += 32;
+                    g00 += 8;
+                }
             }
         }
     }
@@ -188,47 +129,20 @@ static void conv3x3s1_winograd63_transform_kernel_pack4_fp16sa_neon(const Mat& k
 
             for (int p = 0; p + 3 < inch; p += 4)
             {
-                const float* k00 = k0.row(p);
-                const float* k01 = k0.row(p + 1);
-                const float* k02 = k0.row(p + 2);
-                const float* k03 = k0.row(p + 3);
+                for (int i = 0; i < 4; i++)
+                {
+                    const float* k00 = k0.row(p + i);
+                    const float* k10 = k1.row(p + i);
+                    const float* k20 = k2.row(p + i);
+                    const float* k30 = k3.row(p + i);
 
-                const float* k10 = k1.row(p);
-                const float* k11 = k1.row(p + 1);
-                const float* k12 = k1.row(p + 2);
-                const float* k13 = k1.row(p + 3);
+                    g00[0] = (__fp16)k00[k];
+                    g00[1] = (__fp16)k10[k];
+                    g00[2] = (__fp16)k20[k];
+                    g00[3] = (__fp16)k30[k];
 
-                const float* k20 = k2.row(p);
-                const float* k21 = k2.row(p + 1);
-                const float* k22 = k2.row(p + 2);
-                const float* k23 = k2.row(p + 3);
-
-                const float* k30 = k3.row(p);
-                const float* k31 = k3.row(p + 1);
-                const float* k32 = k3.row(p + 2);
-                const float* k33 = k3.row(p + 3);
-
-                g00[0] = (__fp16)k00[k];
-                g00[1] = (__fp16)k10[k];
-                g00[2] = (__fp16)k20[k];
-                g00[3] = (__fp16)k30[k];
-
-                g00[4] = (__fp16)k01[k];
-                g00[5] = (__fp16)k11[k];
-                g00[6] = (__fp16)k21[k];
-                g00[7] = (__fp16)k31[k];
-
-                g00[8] = (__fp16)k02[k];
-                g00[9] = (__fp16)k12[k];
-                g00[10] = (__fp16)k22[k];
-                g00[11] = (__fp16)k32[k];
-
-                g00[12] = (__fp16)k03[k];
-                g00[13] = (__fp16)k13[k];
-                g00[14] = (__fp16)k23[k];
-                g00[15] = (__fp16)k33[k];
-
-                g00 += 16;
+                    g00 += 4;
+                }
             }
         }
     }
@@ -271,506 +185,7 @@ static void conv3x3s1_winograd63_pack4_fp16sa_neon(const Mat& bottom_blob, Mat& 
 
     // BEGIN dot
     Mat top_blob_tm;
-    {
-        int w_tm = outw / 6 * 8;
-        int h_tm = outh / 6 * 8;
-
-        const int tiles = h_tm / 8 * w_tm / 8;
-
-        // permute
-        //         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
-        Mat bottom_blob_tm2;
-        if (tiles >= 8)
-            bottom_blob_tm2.create(8 * inch, tiles / 8 + (tiles % 8) / 4 + tiles % 4, 64, 2u * elempack, elempack, opt.workspace_allocator);
-        else if (tiles >= 4)
-            bottom_blob_tm2.create(4 * inch, tiles / 4 + tiles % 4, 64, 2u * elempack, elempack, opt.workspace_allocator);
-        else // if (tiles >= 1)
-            bottom_blob_tm2.create(1 * inch, tiles, 64, 2u * elempack, elempack, opt.workspace_allocator);
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int r = 0; r < 64; r++)
-        {
-            Mat tm2 = bottom_blob_tm2.channel(r);
-
-            // tile
-            int i = 0;
-            for (; i + 7 < tiles; i += 8)
-            {
-                __fp16* tm2p = tm2.row<__fp16>(i / 8);
-
-                const __fp16* r0 = bottom_blob_tm;
-
-                r0 += (r * tiles + i) * 4;
-
-                for (int q = 0; q < inch; q++)
-                {
-                    // transpose 4x8
-                    asm volatile(
-                        "prfm   pldl1keep, [%0, #512]   \n"
-                        "ld4    {v0.8h, v1.8h, v2.8h, v3.8h}, [%0] \n"
-                        "st1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%1], #64 \n"
-                        : "=r"(r0),  // %0
-                        "=r"(tm2p) // %1
-                        : "0"(r0),
-                        "1"(tm2p)
-                        : "memory", "v0", "v1", "v2", "v3");
-
-                    r0 += bottom_blob_tm.cstep * 4;
-                }
-            }
-            for (; i + 3 < tiles; i += 4)
-            {
-                __fp16* tm2p = tm2.row<__fp16>(i / 8 + (i % 8) / 4);
-
-                const __fp16* r0 = bottom_blob_tm;
-
-                r0 += (r * tiles + i) * 4;
-
-                for (int q = 0; q < inch; q++)
-                {
-                    // transpose 4x4
-                    asm volatile(
-                        "prfm   pldl1keep, [%0, #256]   \n"
-                        "ld4    {v0.4h, v1.4h, v2.4h, v3.4h}, [%0] \n"
-                        "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
-                        : "=r"(r0),  // %0
-                        "=r"(tm2p) // %1
-                        : "0"(r0),
-                        "1"(tm2p)
-                        : "memory", "v0", "v1", "v2", "v3");
-
-                    r0 += bottom_blob_tm.cstep * 4;
-                }
-            }
-            for (; i < tiles; i++)
-            {
-                __fp16* tm2p = tm2.row<__fp16>(i / 8 + (i % 8) / 4 + i % 4);
-
-                const __fp16* r0 = bottom_blob_tm;
-
-                r0 += (r * tiles + i) * 4;
-
-                for (int q = 0; q < inch; q++)
-                {
-                    asm volatile(
-                        "prfm   pldl1keep, [%0, #64]    \n"
-                        "ld1    {v0.4h}, [%0]           \n"
-                        "st1    {v0.4h}, [%1], #8       \n"
-                        : "=r"(r0),  // %0
-                        "=r"(tm2p) // %1
-                        : "0"(r0),
-                        "1"(tm2p)
-                        : "memory", "v0");
-
-                    r0 += bottom_blob_tm.cstep * 4;
-                }
-            }
-        }
-
-        bottom_blob_tm = Mat();
-        // permute end
-
-        top_blob_tm.create(tiles, 64, outch, 2u * elempack, elempack, opt.workspace_allocator);
-
-        int nn_outch = 0;
-        int remain_outch_start = 0;
-
-        nn_outch = outch >> 1;
-        remain_outch_start = nn_outch << 1;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int pp = 0; pp < nn_outch; pp++)
-        {
-            int p = pp * 2;
-
-            __fp16* output0_tm = top_blob_tm.channel(p);
-            __fp16* output1_tm = top_blob_tm.channel(p + 1);
-
-            const Mat kernel01_tm = kernel_tm.channel(pp);
-
-            for (int r = 0; r < 64; r++)
-            {
-                const Mat bb2 = bottom_blob_tm2.channel(r);
-
-                int i = 0;
-                for (; i + 7 < tiles; i += 8)
-                {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 8);
-
-                    const __fp16* kptr = kernel01_tm.row<const __fp16>(r);
-
-                    int nn = inch; // inch always > 0
-
-                    asm volatile(
-                        "eor    v24.16b, v24.16b, v24.16b   \n"
-                        "eor    v25.16b, v25.16b, v25.16b   \n"
-                        "eor    v26.16b, v26.16b, v26.16b   \n"
-                        "eor    v27.16b, v27.16b, v27.16b   \n"
-                        "eor    v28.16b, v28.16b, v28.16b   \n"
-                        "eor    v29.16b, v29.16b, v29.16b   \n"
-                        "eor    v30.16b, v30.16b, v30.16b   \n"
-                        "eor    v31.16b, v31.16b, v31.16b   \n"
-
-                        "0:                                 \n"
-
-                        "prfm   pldl1keep, [%3, #512]       \n"
-                        "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%3], #64 \n" // r01 r23 r45 r67
-
-                        "prfm   pldl1keep, [%4, #512]       \n"
-                        "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%4], #64 \n" // k0123
-
-                        "fmla   v24.8h, v4.8h, v0.h[0]      \n"
-                        "fmla   v25.8h, v4.8h, v0.h[1]      \n"
-                        "fmla   v26.8h, v4.8h, v0.h[2]      \n"
-                        "fmla   v27.8h, v4.8h, v0.h[3]      \n"
-                        "fmla   v28.8h, v4.8h, v0.h[4]      \n"
-                        "fmla   v29.8h, v4.8h, v0.h[5]      \n"
-                        "fmla   v30.8h, v4.8h, v0.h[6]      \n"
-                        "fmla   v31.8h, v4.8h, v0.h[7]      \n"
-
-                        "fmla   v24.8h, v5.8h, v1.h[0]      \n"
-                        "fmla   v25.8h, v5.8h, v1.h[1]      \n"
-                        "fmla   v26.8h, v5.8h, v1.h[2]      \n"
-                        "fmla   v27.8h, v5.8h, v1.h[3]      \n"
-                        "fmla   v28.8h, v5.8h, v1.h[4]      \n"
-                        "fmla   v29.8h, v5.8h, v1.h[5]      \n"
-                        "fmla   v30.8h, v5.8h, v1.h[6]      \n"
-                        "fmla   v31.8h, v5.8h, v1.h[7]      \n"
-
-                        "fmla   v24.8h, v6.8h, v2.h[0]      \n"
-                        "fmla   v25.8h, v6.8h, v2.h[1]      \n"
-                        "fmla   v26.8h, v6.8h, v2.h[2]      \n"
-                        "fmla   v27.8h, v6.8h, v2.h[3]      \n"
-                        "fmla   v28.8h, v6.8h, v2.h[4]      \n"
-                        "fmla   v29.8h, v6.8h, v2.h[5]      \n"
-                        "fmla   v30.8h, v6.8h, v2.h[6]      \n"
-                        "fmla   v31.8h, v6.8h, v2.h[7]      \n"
-
-                        "subs   %w0, %w0, #1                \n"
-
-                        "fmla   v24.8h, v7.8h, v3.h[0]      \n"
-                        "fmla   v25.8h, v7.8h, v3.h[1]      \n"
-                        "fmla   v26.8h, v7.8h, v3.h[2]      \n"
-                        "fmla   v27.8h, v7.8h, v3.h[3]      \n"
-                        "fmla   v28.8h, v7.8h, v3.h[4]      \n"
-                        "fmla   v29.8h, v7.8h, v3.h[5]      \n"
-                        "fmla   v30.8h, v7.8h, v3.h[6]      \n"
-                        "fmla   v31.8h, v7.8h, v3.h[7]      \n"
-
-                        "bne    0b                          \n"
-
-                        "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%1], #32 \n"
-                        "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%1], #32 \n"
-
-                        "ext    v24.16b, v24.16b, v24.16b, #8 \n"
-                        "ext    v25.16b, v25.16b, v25.16b, #8 \n"
-                        "ext    v26.16b, v26.16b, v26.16b, #8 \n"
-                        "ext    v27.16b, v27.16b, v27.16b, #8 \n"
-                        "ext    v28.16b, v28.16b, v28.16b, #8 \n"
-                        "ext    v29.16b, v29.16b, v29.16b, #8 \n"
-                        "ext    v30.16b, v30.16b, v30.16b, #8 \n"
-                        "ext    v31.16b, v31.16b, v31.16b, #8 \n"
-
-                        "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%2], #32 \n"
-                        "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%2], #32 \n"
-
-                        : "=r"(nn),         // %0
-                        "=r"(output0_tm), // %1
-                        "=r"(output1_tm), // %2
-                        "=r"(r0),         // %3
-                        "=r"(kptr)        // %4
-                        : "0"(nn),
-                        "1"(output0_tm),
-                        "2"(output1_tm),
-                        "3"(r0),
-                        "4"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-                }
-                for (; i + 3 < tiles; i += 4)
-                {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + (i % 8) / 4);
-
-                    const __fp16* kptr = kernel01_tm.row<const __fp16>(r);
-
-                    int nn = inch; // inch always > 0
-
-                    asm volatile(
-                        "eor    v24.16b, v24.16b, v24.16b   \n"
-                        "eor    v25.16b, v25.16b, v25.16b   \n"
-                        "eor    v26.16b, v26.16b, v26.16b   \n"
-                        "eor    v27.16b, v27.16b, v27.16b   \n"
-
-                        "0:                                 \n"
-
-                        "prfm   pldl1keep, [%3, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%3], #32 \n" // r01 r23 r45 r67
-
-                        "prfm   pldl1keep, [%4, #512]       \n"
-                        "ld1    {v4.8h, v5.8h, v6.8h, v7.8h}, [%4], #64 \n" // k0123
-
-                        "fmla   v24.8h, v4.8h, v0.h[0]      \n"
-                        "fmla   v25.8h, v4.8h, v0.h[1]      \n"
-                        "fmla   v26.8h, v4.8h, v0.h[2]      \n"
-                        "fmla   v27.8h, v4.8h, v0.h[3]      \n"
-
-                        "fmla   v24.8h, v5.8h, v1.h[0]      \n"
-                        "fmla   v25.8h, v5.8h, v1.h[1]      \n"
-                        "fmla   v26.8h, v5.8h, v1.h[2]      \n"
-                        "fmla   v27.8h, v5.8h, v1.h[3]      \n"
-
-                        "fmla   v24.8h, v6.8h, v2.h[0]      \n"
-                        "fmla   v25.8h, v6.8h, v2.h[1]      \n"
-                        "fmla   v26.8h, v6.8h, v2.h[2]      \n"
-                        "fmla   v27.8h, v6.8h, v2.h[3]      \n"
-
-                        "subs   %w0, %w0, #1                \n"
-
-                        "fmla   v24.8h, v7.8h, v3.h[0]      \n"
-                        "fmla   v25.8h, v7.8h, v3.h[1]      \n"
-                        "fmla   v26.8h, v7.8h, v3.h[2]      \n"
-                        "fmla   v27.8h, v7.8h, v3.h[3]      \n"
-
-                        "bne    0b                          \n"
-
-                        "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%1], #32 \n"
-
-                        "ext    v24.16b, v24.16b, v24.16b, #8 \n"
-                        "ext    v25.16b, v25.16b, v25.16b, #8 \n"
-                        "ext    v26.16b, v26.16b, v26.16b, #8 \n"
-                        "ext    v27.16b, v27.16b, v27.16b, #8 \n"
-
-                        "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%2], #32 \n"
-
-                        : "=r"(nn),         // %0
-                        "=r"(output0_tm), // %1
-                        "=r"(output1_tm), // %2
-                        "=r"(r0),         // %3
-                        "=r"(kptr)        // %4
-                        : "0"(nn),
-                        "1"(output0_tm),
-                        "2"(output1_tm),
-                        "3"(r0),
-                        "4"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v24", "v25", "v26", "v27");
-                }
-                for (; i < tiles; i++)
-                {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + (i % 8) / 4 + i % 4);
-
-                    const __fp16* kptr = kernel01_tm.row<const __fp16>(r);
-
-                    float16x8_t _sum0 = vdupq_n_f16(0.f);
-
-                    for (int q = 0; q < inch; q++)
-                    {
-                        float16x4_t _r0 = vld1_f16(r0);
-
-                        float16x8_t _k0 = vld1q_f16(kptr);
-                        float16x8_t _k1 = vld1q_f16(kptr + 8);
-                        float16x8_t _k2 = vld1q_f16(kptr + 16);
-                        float16x8_t _k3 = vld1q_f16(kptr + 24);
-
-                        _sum0 = vfmaq_lane_f16(_sum0, _k0, _r0, 0);
-                        _sum0 = vfmaq_lane_f16(_sum0, _k1, _r0, 1);
-                        _sum0 = vfmaq_lane_f16(_sum0, _k2, _r0, 2);
-                        _sum0 = vfmaq_lane_f16(_sum0, _k3, _r0, 3);
-
-                        kptr += 32;
-                        r0 += 4;
-                    }
-
-                    vst1_f16(output0_tm, vget_low_f16(_sum0));
-                    vst1_f16(output1_tm, vget_high_f16(_sum0));
-
-                    output0_tm += 4;
-                    output1_tm += 4;
-                }
-            }
-        }
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int p = remain_outch_start; p < outch; p++)
-        {
-            __fp16* output0_tm = top_blob_tm.channel(p);
-
-            const Mat kernel0_tm = kernel_tm.channel(p / 2 + p % 2);
-
-            for (int r = 0; r < 64; r++)
-            {
-                const Mat bb2 = bottom_blob_tm2.channel(r);
-
-                int i = 0;
-                for (; i + 7 < tiles; i += 8)
-                {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 8);
-
-                    const __fp16* kptr = kernel0_tm.row<const __fp16>(r);
-
-                    int nn = inch; // inch always > 0
-
-                    asm volatile(
-                        "eor    v24.16b, v24.16b, v24.16b   \n"
-                        "eor    v25.16b, v25.16b, v25.16b   \n"
-                        "eor    v26.16b, v26.16b, v26.16b   \n"
-                        "eor    v27.16b, v27.16b, v27.16b   \n"
-                        "eor    v28.16b, v28.16b, v28.16b   \n"
-                        "eor    v29.16b, v29.16b, v29.16b   \n"
-                        "eor    v30.16b, v30.16b, v30.16b   \n"
-                        "eor    v31.16b, v31.16b, v31.16b   \n"
-
-                        "0:                                 \n"
-
-                        "prfm   pldl1keep, [%2, #512]       \n"
-                        "ld1    {v0.8h, v1.8h, v2.8h, v3.8h}, [%2], #64 \n" // r01 r23 r45 r67
-
-                        "prfm   pldl1keep, [%3, #256]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%3], #32 \n" // k0123
-
-                        "fmla   v24.4h, v4.4h, v0.h[0]      \n"
-                        "fmla   v25.4h, v4.4h, v0.h[1]      \n"
-                        "fmla   v26.4h, v4.4h, v0.h[2]      \n"
-                        "fmla   v27.4h, v4.4h, v0.h[3]      \n"
-                        "fmla   v28.4h, v4.4h, v0.h[4]      \n"
-                        "fmla   v29.4h, v4.4h, v0.h[5]      \n"
-                        "fmla   v30.4h, v4.4h, v0.h[6]      \n"
-                        "fmla   v31.4h, v4.4h, v0.h[7]      \n"
-
-                        "fmla   v24.4h, v5.4h, v1.h[0]      \n"
-                        "fmla   v25.4h, v5.4h, v1.h[1]      \n"
-                        "fmla   v26.4h, v5.4h, v1.h[2]      \n"
-                        "fmla   v27.4h, v5.4h, v1.h[3]      \n"
-                        "fmla   v28.4h, v5.4h, v1.h[4]      \n"
-                        "fmla   v29.4h, v5.4h, v1.h[5]      \n"
-                        "fmla   v30.4h, v5.4h, v1.h[6]      \n"
-                        "fmla   v31.4h, v5.4h, v1.h[7]      \n"
-
-                        "fmla   v24.4h, v6.4h, v2.h[0]      \n"
-                        "fmla   v25.4h, v6.4h, v2.h[1]      \n"
-                        "fmla   v26.4h, v6.4h, v2.h[2]      \n"
-                        "fmla   v27.4h, v6.4h, v2.h[3]      \n"
-                        "fmla   v28.4h, v6.4h, v2.h[4]      \n"
-                        "fmla   v29.4h, v6.4h, v2.h[5]      \n"
-                        "fmla   v30.4h, v6.4h, v2.h[6]      \n"
-                        "fmla   v31.4h, v6.4h, v2.h[7]      \n"
-
-                        "subs   %w0, %w0, #1                \n"
-
-                        "fmla   v24.4h, v7.4h, v3.h[0]      \n"
-                        "fmla   v25.4h, v7.4h, v3.h[1]      \n"
-                        "fmla   v26.4h, v7.4h, v3.h[2]      \n"
-                        "fmla   v27.4h, v7.4h, v3.h[3]      \n"
-                        "fmla   v28.4h, v7.4h, v3.h[4]      \n"
-                        "fmla   v29.4h, v7.4h, v3.h[5]      \n"
-                        "fmla   v30.4h, v7.4h, v3.h[6]      \n"
-                        "fmla   v31.4h, v7.4h, v3.h[7]      \n"
-
-                        "bne    0b                          \n"
-
-                        "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%1], #32 \n"
-                        "st1    {v28.4h, v29.4h, v30.4h, v31.4h}, [%1], #32 \n"
-
-                        : "=r"(nn),         // %0
-                        "=r"(output0_tm), // %1
-                        "=r"(r0),         // %2
-                        "=r"(kptr)        // %3
-                        : "0"(nn),
-                        "1"(output0_tm),
-                        "2"(r0),
-                        "3"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-                }
-                for (; i + 3 < tiles; i += 4)
-                {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + (i % 8) / 4);
-
-                    const __fp16* kptr = kernel0_tm.row<const __fp16>(r);
-
-                    int nn = inch; // inch always > 0
-
-                    asm volatile(
-                        "eor    v24.16b, v24.16b, v24.16b   \n"
-                        "eor    v25.16b, v25.16b, v25.16b   \n"
-                        "eor    v26.16b, v26.16b, v26.16b   \n"
-                        "eor    v27.16b, v27.16b, v27.16b   \n"
-
-                        "0:                                 \n"
-
-                        "prfm   pldl1keep, [%2, #256]       \n"
-                        "ld1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%2], #32 \n" // r01 r23 r45 r67
-
-                        "prfm   pldl1keep, [%3, #256]       \n"
-                        "ld1    {v4.4h, v5.4h, v6.4h, v7.4h}, [%3], #32 \n" // k0123
-
-                        "fmla   v24.4h, v4.4h, v0.h[0]      \n"
-                        "fmla   v25.4h, v4.4h, v0.h[1]      \n"
-                        "fmla   v26.4h, v4.4h, v0.h[2]      \n"
-                        "fmla   v27.4h, v4.4h, v0.h[3]      \n"
-
-                        "fmla   v24.4h, v5.4h, v1.h[0]      \n"
-                        "fmla   v25.4h, v5.4h, v1.h[1]      \n"
-                        "fmla   v26.4h, v5.4h, v1.h[2]      \n"
-                        "fmla   v27.4h, v5.4h, v1.h[3]      \n"
-
-                        "fmla   v24.4h, v6.4h, v2.h[0]      \n"
-                        "fmla   v25.4h, v6.4h, v2.h[1]      \n"
-                        "fmla   v26.4h, v6.4h, v2.h[2]      \n"
-                        "fmla   v27.4h, v6.4h, v2.h[3]      \n"
-
-                        "subs   %w0, %w0, #1                \n"
-
-                        "fmla   v24.4h, v7.4h, v3.h[0]      \n"
-                        "fmla   v25.4h, v7.4h, v3.h[1]      \n"
-                        "fmla   v26.4h, v7.4h, v3.h[2]      \n"
-                        "fmla   v27.4h, v7.4h, v3.h[3]      \n"
-
-                        "bne    0b                          \n"
-
-                        "st1    {v24.4h, v25.4h, v26.4h, v27.4h}, [%1], #32 \n"
-
-                        : "=r"(nn),         // %0
-                        "=r"(output0_tm), // %1
-                        "=r"(r0),         // %2
-                        "=r"(kptr)        // %3
-                        : "0"(nn),
-                        "1"(output0_tm),
-                        "2"(r0),
-                        "3"(kptr)
-                        : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v24", "v25", "v26", "v27");
-                }
-                for (; i < tiles; i++)
-                {
-                    const __fp16* r0 = bb2.row<const __fp16>(i / 8 + (i % 8) / 4 + i % 4);
-
-                    const __fp16* kptr = kernel0_tm.row<const __fp16>(r);
-
-                    float16x4_t _sum0 = vdup_n_f16(0.f);
-
-                    for (int q = 0; q < inch; q++)
-                    {
-                        float16x4_t _r0 = vld1_f16(r0);
-
-                        float16x4_t _k0 = vld1_f16(kptr);
-                        float16x4_t _k1 = vld1_f16(kptr + 4);
-                        float16x4_t _k2 = vld1_f16(kptr + 8);
-                        float16x4_t _k3 = vld1_f16(kptr + 12);
-
-                        _sum0 = vfma_lane_f16(_sum0, _k0, _r0, 0);
-                        _sum0 = vfma_lane_f16(_sum0, _k1, _r0, 1);
-                        _sum0 = vfma_lane_f16(_sum0, _k2, _r0, 2);
-                        _sum0 = vfma_lane_f16(_sum0, _k3, _r0, 3);
-
-                        kptr += 16;
-                        r0 += 4;
-                    }
-
-                    vst1_f16(output0_tm, _sum0);
-
-                    output0_tm += 4;
-                }
-            }
-        }
-    }
-    bottom_blob_tm = Mat();
+    convolution_winograd_dot_pack4_fp16sa_neon(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
     // END dot
 
     // BEGIN transform output
@@ -785,6 +200,388 @@ static void conv3x3s1_winograd63_pack4_fp16sa_neon(const Mat& bottom_blob, Mat& 
     }
     {
         conv3x3s1_winograd63_transform_output_pack4_fp16sa_neon(top_blob_tm, top_blob_bordered, bias, opt);
+    }
+    // END transform output
+
+    // cut result pad
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
+}
+
+static void conv3x3s1_winograd43_transform_kernel_pack4_fp16sa_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
+{
+    // winograd43 transform kernel
+    Mat kernel_tm(6 * 6, inch, outch);
+
+    const float ktm[6][3] = {
+        {1.0f / 4, 0.0f, 0.0f},
+        {-1.0f / 6, -1.0f / 6, -1.0f / 6},
+        {-1.0f / 6, 1.0f / 6, -1.0f / 6},
+        {1.0f / 24, 1.0f / 12, 1.0f / 6},
+        {1.0f / 24, -1.0f / 12, 1.0f / 6},
+        {0.0f, 0.0f, 1.0f}
+    };
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
+            const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
+            float* kernel_tm0 = kernel_tm.channel(p).row(q);
+
+            // transform kernel
+            const float* k0 = kernel0;
+            const float* k1 = kernel0 + 3;
+            const float* k2 = kernel0 + 6;
+
+            // h
+            float tmp[6][3];
+            for (int i = 0; i < 6; i++)
+            {
+                tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
+                tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
+                tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
+            }
+
+            // U
+            for (int j = 0; j < 6; j++)
+            {
+                float* tmpp = &tmp[j][0];
+
+                for (int i = 0; i < 6; i++)
+                {
+                    kernel_tm0[j * 6 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                }
+            }
+        }
+    }
+
+    // interleave
+    // src = 36-inch-outch
+    // dst = 4b-4a-inch/4a-36-outch/4b;
+    kernel_tm_pack4.create(2 * inch / 4, 36, (outch / 4) / 2 + (outch / 4) % 2, (size_t)2u * 16, 16);
+
+    int q = 0;
+    for (; q + 7 < outch; q += 8)
+    {
+        const Mat k0 = kernel_tm.channel(q);
+        const Mat k1 = kernel_tm.channel(q + 1);
+        const Mat k2 = kernel_tm.channel(q + 2);
+        const Mat k3 = kernel_tm.channel(q + 3);
+        const Mat k4 = kernel_tm.channel(q + 4);
+        const Mat k5 = kernel_tm.channel(q + 5);
+        const Mat k6 = kernel_tm.channel(q + 6);
+        const Mat k7 = kernel_tm.channel(q + 7);
+
+        Mat g0 = kernel_tm_pack4.channel(q / 8);
+
+        for (int k = 0; k < 36; k++)
+        {
+            __fp16* g00 = g0.row<__fp16>(k);
+
+            for (int p = 0; p + 3 < inch; p += 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    const float* k00 = k0.row(p + i);
+                    const float* k10 = k1.row(p + i);
+                    const float* k20 = k2.row(p + i);
+                    const float* k30 = k3.row(p + i);
+                    const float* k40 = k4.row(p + i);
+                    const float* k50 = k5.row(p + i);
+                    const float* k60 = k6.row(p + i);
+                    const float* k70 = k7.row(p + i);
+
+                    g00[0] = (__fp16)k00[k];
+                    g00[1] = (__fp16)k10[k];
+                    g00[2] = (__fp16)k20[k];
+                    g00[3] = (__fp16)k30[k];
+                    g00[4] = (__fp16)k40[k];
+                    g00[5] = (__fp16)k50[k];
+                    g00[6] = (__fp16)k60[k];
+                    g00[7] = (__fp16)k70[k];
+
+                    g00 += 8;
+                }
+            }
+        }
+    }
+    for (; q + 3 < outch; q += 4)
+    {
+        const Mat k0 = kernel_tm.channel(q);
+        const Mat k1 = kernel_tm.channel(q + 1);
+        const Mat k2 = kernel_tm.channel(q + 2);
+        const Mat k3 = kernel_tm.channel(q + 3);
+
+        Mat g0 = kernel_tm_pack4.channel(q / 8 + (q % 8) / 4);
+
+        for (int k = 0; k < 36; k++)
+        {
+            __fp16* g00 = g0.row<__fp16>(k);
+
+            for (int p = 0; p + 3 < inch; p += 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    const float* k00 = k0.row(p + i);
+                    const float* k10 = k1.row(p + i);
+                    const float* k20 = k2.row(p + i);
+                    const float* k30 = k3.row(p + i);
+
+                    g00[0] = (__fp16)k00[k];
+                    g00[1] = (__fp16)k10[k];
+                    g00[2] = (__fp16)k20[k];
+                    g00[3] = (__fp16)k30[k];
+
+                    g00 += 4;
+                }
+            }
+        }
+    }
+}
+
+static void conv3x3s1_winograd43_pack4_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    // pad to 4n+2
+    Mat bottom_blob_bordered = bottom_blob;
+
+    outw = (outw + 3) / 4 * 4;
+    outh = (outh + 3) / 4 * 4;
+
+    w = outw + 2;
+    h = outh + 2;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
+
+    // BEGIN transform input
+    Mat bottom_blob_tm;
+    {
+        int w_tiles = outw / 4;
+        int h_tiles = outh / 4;
+        const int tiles = w_tiles * h_tiles;
+
+        bottom_blob_tm.create(tiles, 36, inch, elemsize, elempack, opt.workspace_allocator);
+        conv3x3s1_winograd43_transform_input_pack4_fp16sa_neon(bottom_blob_bordered, bottom_blob_tm, opt);
+    }
+    bottom_blob_bordered = Mat();
+    // END transform input
+
+    // BEGIN dot
+    Mat top_blob_tm;
+    convolution_winograd_dot_pack4_fp16sa_neon(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
+    // END dot
+
+    // BEGIN transform output
+    Mat top_blob_bordered;
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, 2u * 4, 4, opt.workspace_allocator);
+    }
+    {
+        conv3x3s1_winograd43_transform_output_pack4_fp16sa_neon(top_blob_tm, top_blob_bordered, bias, opt);
+    }
+    // END transform output
+
+    // cut result pad
+    copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
+}
+
+static void conv3x3s1_winograd23_transform_kernel_pack4_fp16sa_neon(const Mat& kernel, Mat& kernel_tm_pack4, int inch, int outch, const Option& opt)
+{
+    // winograd23 transform kernel
+    Mat kernel_tm(4 * 4, inch, outch);
+
+    const float ktm[4][3] = {
+        {1.0f, 0.0f, 0.0f},
+        {1.0f / 2, 1.0f / 2, 1.0f / 2},
+        {1.0f / 2, -1.0f / 2, 1.0f / 2},
+        {0.0f, 0.0f, 1.0f}
+    };
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < outch; p++)
+    {
+        for (int q = 0; q < inch; q++)
+        {
+            const float* kernel0 = (const float*)kernel + p * inch * 9 + q * 9;
+            float* kernel_tm0 = kernel_tm.channel(p).row(q);
+
+            // transform kernel
+            const float* k0 = kernel0;
+            const float* k1 = kernel0 + 3;
+            const float* k2 = kernel0 + 6;
+
+            // h
+            float tmp[4][3];
+            for (int i = 0; i < 4; i++)
+            {
+                tmp[i][0] = k0[0] * ktm[i][0] + k0[1] * ktm[i][1] + k0[2] * ktm[i][2];
+                tmp[i][1] = k1[0] * ktm[i][0] + k1[1] * ktm[i][1] + k1[2] * ktm[i][2];
+                tmp[i][2] = k2[0] * ktm[i][0] + k2[1] * ktm[i][1] + k2[2] * ktm[i][2];
+            }
+
+            // U
+            for (int j = 0; j < 4; j++)
+            {
+                float* tmpp = &tmp[j][0];
+
+                for (int i = 0; i < 4; i++)
+                {
+                    kernel_tm0[j * 4 + i] = tmpp[0] * ktm[i][0] + tmpp[1] * ktm[i][1] + tmpp[2] * ktm[i][2];
+                }
+            }
+        }
+    }
+
+    // interleave
+    // src = 16-inch-outch
+    // dst = 4b-4a-inch/4a-16-outch/4b;
+    kernel_tm_pack4.create(2 * inch / 4, 16, (outch / 4) / 2 + (outch / 4) % 2, (size_t)2u * 16, 16);
+
+    int q = 0;
+    for (; q + 7 < outch; q += 8)
+    {
+        const Mat k0 = kernel_tm.channel(q);
+        const Mat k1 = kernel_tm.channel(q + 1);
+        const Mat k2 = kernel_tm.channel(q + 2);
+        const Mat k3 = kernel_tm.channel(q + 3);
+        const Mat k4 = kernel_tm.channel(q + 4);
+        const Mat k5 = kernel_tm.channel(q + 5);
+        const Mat k6 = kernel_tm.channel(q + 6);
+        const Mat k7 = kernel_tm.channel(q + 7);
+
+        Mat g0 = kernel_tm_pack4.channel(q / 8);
+
+        for (int k = 0; k < 16; k++)
+        {
+            __fp16* g00 = g0.row<__fp16>(k);
+
+            for (int p = 0; p + 3 < inch; p += 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    const float* k00 = k0.row(p + i);
+                    const float* k10 = k1.row(p + i);
+                    const float* k20 = k2.row(p + i);
+                    const float* k30 = k3.row(p + i);
+                    const float* k40 = k4.row(p + i);
+                    const float* k50 = k5.row(p + i);
+                    const float* k60 = k6.row(p + i);
+                    const float* k70 = k7.row(p + i);
+
+                    g00[0] = (__fp16)k00[k];
+                    g00[1] = (__fp16)k10[k];
+                    g00[2] = (__fp16)k20[k];
+                    g00[3] = (__fp16)k30[k];
+                    g00[4] = (__fp16)k40[k];
+                    g00[5] = (__fp16)k50[k];
+                    g00[6] = (__fp16)k60[k];
+                    g00[7] = (__fp16)k70[k];
+
+                    g00 += 8;
+                }
+            }
+        }
+    }
+    for (; q + 3 < outch; q += 4)
+    {
+        const Mat k0 = kernel_tm.channel(q);
+        const Mat k1 = kernel_tm.channel(q + 1);
+        const Mat k2 = kernel_tm.channel(q + 2);
+        const Mat k3 = kernel_tm.channel(q + 3);
+
+        Mat g0 = kernel_tm_pack4.channel(q / 8 + (q % 8) / 4);
+
+        for (int k = 0; k < 16; k++)
+        {
+            __fp16* g00 = g0.row<__fp16>(k);
+
+            for (int p = 0; p + 3 < inch; p += 4)
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    const float* k00 = k0.row(p + i);
+                    const float* k10 = k1.row(p + i);
+                    const float* k20 = k2.row(p + i);
+                    const float* k30 = k3.row(p + i);
+
+                    g00[0] = (__fp16)k00[k];
+                    g00[1] = (__fp16)k10[k];
+                    g00[2] = (__fp16)k20[k];
+                    g00[3] = (__fp16)k30[k];
+
+                    g00 += 4;
+                }
+            }
+        }
+    }
+}
+
+static void conv3x3s1_winograd23_pack4_fp16sa_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
+{
+    int w = bottom_blob.w;
+    int h = bottom_blob.h;
+    int inch = bottom_blob.c;
+    size_t elemsize = bottom_blob.elemsize;
+    int elempack = bottom_blob.elempack;
+
+    int outw = top_blob.w;
+    int outh = top_blob.h;
+    int outch = top_blob.c;
+
+    // pad to 2n+2
+    Mat bottom_blob_bordered = bottom_blob;
+
+    outw = (outw + 1) / 2 * 2;
+    outh = (outh + 1) / 2 * 2;
+
+    w = outw + 2;
+    h = outh + 2;
+    copy_make_border(bottom_blob, bottom_blob_bordered, 0, h - bottom_blob.h, 0, w - bottom_blob.w, BORDER_CONSTANT, 0.f, opt);
+
+    // BEGIN transform input
+    Mat bottom_blob_tm;
+    {
+        int w_tiles = outw / 2;
+        int h_tiles = outh / 2;
+        const int tiles = w_tiles * h_tiles;
+
+        bottom_blob_tm.create(tiles, 16, inch, elemsize, elempack, opt.workspace_allocator);
+        conv3x3s1_winograd23_transform_input_pack4_fp16sa_neon(bottom_blob_bordered, bottom_blob_tm, opt);
+    }
+    bottom_blob_bordered = Mat();
+    // END transform input
+
+    // BEGIN dot
+    Mat top_blob_tm;
+    convolution_winograd_dot_pack4_fp16sa_neon(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
+    // END dot
+
+    // BEGIN transform output
+    Mat top_blob_bordered;
+    if (outw == top_blob.w && outh == top_blob.h)
+    {
+        top_blob_bordered = top_blob;
+    }
+    else
+    {
+        top_blob_bordered.create(outw, outh, outch, 2u * 4, 4, opt.workspace_allocator);
+    }
+    {
+        conv3x3s1_winograd23_transform_output_pack4_fp16sa_neon(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 
