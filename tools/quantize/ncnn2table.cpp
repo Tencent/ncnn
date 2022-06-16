@@ -1690,7 +1690,7 @@ int main(int argc, char** argv)
     net.listspaths = parse_comma_path_list(lists);
 
     std::string method = "kl";
-    std::string format = "raw";
+    std::string format = "txt";
 
     for (int i = 5; i < argc; i++)
     {
