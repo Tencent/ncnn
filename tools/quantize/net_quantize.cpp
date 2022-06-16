@@ -6,62 +6,109 @@
 #include <map>
 #include <set>
 #include <vector>
-#include "helper/toml++/toml.h"
+#include "ini_config.h"
 
-NetQuantize::NetQuantize()
-    : ModelWriter()
-{
+bool NetQuantize::read_raw_format(const char* filepath) {
+    blob_int8scale_table.clear();
+    weight_int8scale_table.clear();
+
+    FILE* fp = fopen(filepath, "rb");
+    if (!fp)
+    {
+        fprintf(stderr, "Open %s failed.\n", filepath);
+        return false;
+    }
+
+    std::string key_str;
+    std::vector<float> scales;
+
+    std::vector<char> line(10240000);
+    char* pch = NULL;
+    size_t len = 0;
+
+    while (!feof(fp))
+    {
+        char* s = fgets(line.data(), (int)line.size(), fp);
+        if (!s)
+            break;
+
+        float scale = 1.f;
+        char key[256];
+        line[strcspn(line.data(), "\r\n")] = 0;
+
+        pch = strtok(line.data(), " ");
+
+        if (pch == NULL) break;
+
+        bool is_key = true;
+        while (pch != NULL)
+        {
+            if (is_key)
+            {
+                sscanf(pch, "%255s", key);
+
+                key_str = key;
+                is_key = false;
+            }
+            else
+            {
+                sscanf(pch, "%f", &scale);
+
+                scales.push_back(scale);
+            }
+
+            pch = strtok(NULL, " ");
+        }
+
+        // XYZ_param_N pattern
+        if (strstr(key_str.c_str(), "_param_"))
+        {
+            weight_int8scale_table[key_str] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
+        }
+        else
+        {
+            blob_int8scale_table[key_str] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
+        }
+        key_str.clear();
+        scales.clear();
+    }
+
+    fclose(fp);
+
+    return true;
 }
 
-void NetQuantize::read_toml(const std::string& path)
+bool NetQuantize::read_ini_format(const char* path)
 {
     blob_int8scale_table.clear();
     weight_int8scale_table.clear();
 
-    toml::table root = toml::parse_file(path);
+    ini::Config root;
+    root.read(std::string(path));
 
-    root.for_each([&](const toml::key& key, auto&& val) {
-        std::string name = key.str().data();
-        if constexpr (toml::is_string<decltype(val)>)
-        {
-            auto string_val = val.as_string();
-            fprintf(stderr, "%s : %s\n", name.c_str(), string_val->get().c_str());
-        }
-        else if constexpr (toml::is_table<decltype(val)>)
-        {
-            toml::table* tbl = val.as_table();
-
-            auto type = (*tbl)["type"].value<std::string>();
-            if (type == "Conv" or type == "Gemm")
+    size_t len = root.size();
+    std::string name, type;
+    std::shared_ptr<ini::Table> ptable;
+    for (size_t i = 0; i < len; ++i) {
+        std::tie(name, ptable) = root[i];
+        type = ptable->get<std::string>("type");
+    
+        if (type == "Conv" || type == "Gemm") {
+            // load weight scales
             {
-                // load weight scales
-                {
-                    std::vector<float> scales = {};
-                    auto arr = (*tbl)["weight"].as_array();
-                    arr->for_each([&scales](auto&& v) {
-                        if constexpr (toml::is_number<decltype(v)>)
-                        {
-                            scales.emplace_back(*v);
-                        }
-                    });
-                    weight_int8scale_table[name] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
-                }
-
-                // load input scale
-                {
-                    auto double_value = (*tbl)["input_scale"].as_floating_point();
-                    std::vector<float> scales = {static_cast<float>(double_value->get())};
-                    blob_int8scale_table[name] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
-                }
+                std::vector<float> scales = ptable->get_list<float>("weight");
+                weight_int8scale_table[name] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
             }
-            else
+
+            // load input scale
             {
-                fprintf(stderr, "unknown type %s\n", type->c_str());
+                std::vector<float> scales = {ptable->get<float>("input_scale")};
+                blob_int8scale_table[name] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
             }
         }
-    });
+    }
 
-    return;
+    return true;
 }
 
 int NetQuantize::quantize_convolution()

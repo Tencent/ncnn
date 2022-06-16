@@ -218,6 +218,8 @@ public:
 
       pTable->feed(line);
     }
+
+    fin.close();
   }
 
   std::vector<std::string> keys() {
@@ -232,7 +234,7 @@ public:
     return tables.size();
   }
 
-  std::shared_ptr<Table> operator[](size_t i) { return std::get<1>(tables[i]); }
+  std::tuple<std::string, std::shared_ptr<Table>> operator[](size_t i) { return tables[i]; }
 
   void append(const std::string& key, std::shared_ptr<Table> table) {
     tables.emplace_back(std::make_pair(key, table));
