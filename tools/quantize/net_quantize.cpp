@@ -8,7 +8,8 @@
 #include <vector>
 #include "ini_config.h"
 
-void NetQuantize::set_weight_suffix(std::string str) {
+void NetQuantize::set_weight_suffix(std::string str)
+{
     suffix = str;
 }
 

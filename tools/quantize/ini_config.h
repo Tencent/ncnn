@@ -77,7 +77,7 @@ std::string value_get<std::string>(std::string text)
     auto start = text.find('\"');
     auto end = text.find_last_of('\"');
 
-    return text.substr(start + 1, end-start-1);
+    return text.substr(start + 1, end - start - 1);
 }
 
 /**
