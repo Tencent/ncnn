@@ -38,7 +38,7 @@
 #endif
 #include <string>
 #include <vector>
-#include "helper/toml++/toml.h"
+#include "ini_config.h"
 
 // ncnn public header
 #include "benchmark.h"
@@ -194,35 +194,26 @@ int QuantNet::save_table(const char* tablepath)
     return 0;
 }
 
-int QuantNet::save_toml(const char* filepath)
+int QuantNet::save_ini(const char* filepath)
 {
-    std::ofstream fout(filepath, std::ios::out);
-    if (not fout.is_open())
-    {
-        fprintf(stderr, "open %s failed\n", filepath);
-        return -1;
-    }
-
-    auto root = toml::table();
-
-    // auto root = cpptoml::make_table();
+    auto root = ini::Config();
 
     const int conv_layer_count = static_cast<int>(conv_layers.size());
     const int conv_bottom_blob_count = static_cast<int>(conv_bottom_blobs.size());
 
     for (int i = 0; i < conv_layer_count; i++)
     {
-        toml::table tbl = toml::table();
+        auto tbl = std::make_shared<ini::Table>();
 
         // write opr type
         auto type = type_list[i];
         if (type == "Convolution" or type == "ConvolutionDepthWise")
         {
-            tbl.insert_or_assign("type", std::string("Conv"));
+            tbl->append("type", std::string("Conv"));
         }
         else if (type == "InnerProduct")
         {
-            tbl.insert_or_assign("type", std::string("Gemm"));
+            tbl->append("type", std::string("Gemm"));
         }
         else
         {
@@ -233,12 +224,12 @@ int QuantNet::save_toml(const char* filepath)
         {
             const ncnn::Mat& weight_scale = weight_scales[i];
 
-            toml::array float_arr = {};
+            std::vector<float> scales = {};
             for (int j = 0; j < weight_scale.w; j++)
             {
-                float_arr.push_back(static_cast<float>(weight_scale[j]));
+                scales.push_back(static_cast<float>(weight_scale[j]));
             }
-            tbl.insert_or_assign("weight", float_arr);
+            tbl->append("weight", scales);
         }
 
         // write input scale
@@ -249,14 +240,13 @@ int QuantNet::save_toml(const char* filepath)
                 fprintf(stderr, "not support conv input scale length=%d\n", bottom_blob_scale.w);
                 return -1;
             }
-            tbl.insert_or_assign("input_scale", static_cast<float>(bottom_blob_scale[0]));
+            tbl->append("input_scale", static_cast<float>(bottom_blob_scale[0]));
         }
 
         const std::string name = layers[conv_layers[i]]->name;
-        root.insert_or_assign(name.c_str(), tbl);
+        root.append(name, tbl);
     }
-
-    fout << toml::toml_formatter{root};
+    root.write(std::string(filepath));
     return 0;
 }
 
