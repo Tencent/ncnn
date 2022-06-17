@@ -57,7 +57,7 @@ public:
 
     /**
      * @brief mha consists of multiple GEMM, they also have input scale
-     * 
+     *
      * internal_scales = [
      *  q_affine_scale,
      *  k_affine_scale,
@@ -65,7 +65,7 @@ public:
      *  energy_scale,
      *  feat_scael
      * ]
-     * 
+     *
      */
     Mat internal_scales;
 #endif

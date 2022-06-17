@@ -153,14 +153,16 @@ int NetQuantize::quantize_mha()
                 opt_q.use_packing_layout = false;
 
                 auto scales = table->get_list<float>(key);
-                if (scales.empty()) {
+                if (scales.empty())
+                {
                     return -100;
                 }
                 w_scales = ncnn::Mat((int)scales.size(), (void*)scales.data());
 
                 ncnn::Mat weight_int8;
                 ncnn::quantize_to_int8(weight, weight_int8, w_scales, base_opt);
-                if (weight_int8.empty()) {
+                if (weight_int8.empty())
+                {
                     return -200;
                 }
                 weight = weight_int8.reshape(mha->weight_data_size);
@@ -176,7 +178,8 @@ int NetQuantize::quantize_mha()
             success += convert(mha->v_weight_data, "weight_v", mha->v_weight_scales);
             success += convert(mha->out_weight_data, "weight_o", mha->o_weight_scales);
 
-            if (success != 0) {
+            if (success != 0)
+            {
                 fprintf(stderr, "convert fp32 weight to int8 failed. \n");
                 return -1;
             }
