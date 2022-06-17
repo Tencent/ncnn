@@ -141,52 +141,63 @@ int NetQuantize::quantize_mha()
 
         ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layers[i];
         fprintf(stderr, "quantize_multiheadattention %s\n", mha->name.c_str());
-        
 
-        // find convolution layer
-        std::map<std::string, ncnn::Mat>::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
-        if (iter_data == blob_int8scale_table.end())
-            continue;
-
-        char key[256];
-        sprintf(key, "%s%s", layers[i]->name.c_str(), suffix.c_str());
-
-        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
-        if (iter == weight_int8scale_table.end())
+        auto table = mha_table.at(name);
         {
-            fprintf(stderr, "%s need to be quantized, but no scale param!\n", key);
-            return -1;
+            // write weights
+            // convert fp32 mat to int8 mat with the scales
+            auto base_opt = opt;
+            auto convert = [table, mha, base_opt](ncnn::Mat& weight, std::string key, ncnn::Mat& w_scales) -> int {
+                ncnn::Option opt_q = base_opt;
+                opt_q.blob_allocator = weight.allocator;
+                opt_q.use_packing_layout = false;
+
+                auto scales = table->get_list<float>(key);
+                if (scales.empty()) {
+                    return -100;
+                }
+                w_scales = ncnn::Mat((int)scales.size(), (void*)scales.data());
+
+                ncnn::Mat weight_int8;
+                ncnn::quantize_to_int8(weight, weight_int8, w_scales, base_opt);
+                if (weight_int8.empty()) {
+                    return -200;
+                }
+                weight = weight_int8.reshape(mha->weight_data_size);
+
+                return 0;
+            };
+
+            ncnn::Mat q_scale_weight, k_scale_weight, v_scale_weight, o_scale_weight;
+
+            int success = 0;
+            success += convert(mha->q_weight_data, "weight_q", mha->q_weight_scales);
+            success += convert(mha->k_weight_data, "weight_k", mha->k_weight_scales);
+            success += convert(mha->v_weight_data, "weight_v", mha->v_weight_scales);
+            success += convert(mha->out_weight_data, "weight_o", mha->o_weight_scales);
+
+            if (success != 0) {
+                fprintf(stderr, "convert fp32 weight to int8 failed. \n");
+                return -1;
+            }
         }
 
-        // Convolution - quantize weight from fp32 to int8
-        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[i];
-
-        ncnn::Mat bottom_blob_int8_scales = iter_data->second;
-        ncnn::Mat weight_data_int8_scales = iter->second;
-
-        fprintf(stderr, "quantize_convolution %s\n", convolution->name.c_str());
-
         {
-            const int maxk = convolution->kernel_w * convolution->kernel_h;
-            const int num_input = convolution->weight_data_size / convolution->num_output / maxk;
+            // write internal scales
+            std::vector<float> internal_scales;
+            internal_scales.emplace_back(table->get<float>("internal_scale_q"));
+            internal_scales.emplace_back(table->get<float>("internal_scale_k"));
+            internal_scales.emplace_back(table->get<float>("internal_scale_v"));
+            internal_scales.emplace_back(table->get<float>("internal_scale_energy"));
+            internal_scales.emplace_back(table->get<float>("internal_scale_feat"));
 
-            ncnn::Mat weight_data_r2 = convolution->weight_data.reshape(maxk, num_input, convolution->num_output);
-
-            ncnn::Mat weight_data_int8;
-
-            ncnn::Option opt_q = opt;
-            opt_q.blob_allocator = convolution->weight_data.allocator;
-            opt_q.use_packing_layout = false;
-            ncnn::quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
-            if (weight_data_int8.empty())
-                return -100;
-
-            convolution->weight_data = weight_data_int8.reshape(convolution->weight_data_size);
+            mha->internal_scales = ncnn::Mat((int)internal_scales.size(), (void*)internal_scales.data());
         }
 
-        convolution->int8_scale_term = 2;
-        convolution->weight_data_int8_scales = weight_data_int8_scales;
-        convolution->bottom_blob_int8_scales = bottom_blob_int8_scales;
+        {
+            // write control variable
+            mha->int8_scale_term = 1;
+        }
     }
 
     return 0;

@@ -27,46 +27,71 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     embed_dim = pd.get(0, 0);
     num_head = pd.get(1, 1);
     weight_data_size = pd.get(2, 0);
+    int8_scale_term = pd.get(3, 0);
 
+    if (int8_scale_term)
+    {
+#if NCNN_INT8
+        support_int8_storage = true;
+#else
+        NCNN_LOGE("please build ncnn with NCNN_INT8 enabled for int8 inference");
+        return -1;
+#endif
+    }
     return 0;
 }
 
 int MultiHeadAttention::load_model(const ModelBin& mb)
 {
-    q_weight_data = mb.load(weight_data_size, 0);
-    if (q_weight_data.empty())
-        return -100;
+#define LOAD_MAT(name, len) \
+    name = mb.load(len, 0);\
+    if (name.empty())\
+    {\
+        return -100;\
+    }
 
-    q_bias_data = mb.load(embed_dim, 1);
-    if (q_bias_data.empty())
-        return -100;
+    LOAD_MAT(q_weight_data, weight_data_size);
+    LOAD_MAT(k_weight_data, weight_data_size);
+    LOAD_MAT(v_weight_data, weight_data_size);
+    LOAD_MAT(out_weight_data, weight_data_size);
+#undef LOAD_MAT
 
-    k_weight_data = mb.load(weight_data_size, 0);
-    if (k_weight_data.empty())
-        return -100;
+#define LOAD_FLOAT_MAT(name, len) \
+    name = mb.load(len, 1); \
+    if (name.empty()) \
+    { \
+        return -100; \
+    }
 
-    k_bias_data = mb.load(embed_dim, 1);
-    if (k_bias_data.empty())
-        return -100;
+    LOAD_FLOAT_MAT(q_bias_data, embed_dim);
+    LOAD_FLOAT_MAT(k_bias_data, embed_dim);
+    LOAD_FLOAT_MAT(v_bias_data, embed_dim);
+    LOAD_FLOAT_MAT(out_bias_data, embed_dim);
 
-    v_weight_data = mb.load(weight_data_size, 0);
-    if (v_weight_data.empty())
-        return -100;
+#if NCNN_INT8
+    if (int8_scale_term)
+    {
+        LOAD_FLOAT_MAT(q_weight_scales, weight_data_size);
+        LOAD_FLOAT_MAT(k_weight_scales, weight_data_size);
+        LOAD_FLOAT_MAT(v_weight_scales, weight_data_size);
+        LOAD_FLOAT_MAT(o_weight_scales, weight_data_size);
 
-    v_bias_data = mb.load(embed_dim, 1);
-    if (v_bias_data.empty())
-        return -100;
+        LOAD_FLOAT_MAT(internal_scales, 5);
+    }
+#endif // NCNN_INT8
 
-    out_weight_data = mb.load(weight_data_size, 0);
-    if (out_weight_data.empty())
-        return -100;
-
-    out_bias_data = mb.load(embed_dim, 1);
-    if (out_bias_data.empty())
-        return -100;
+#undef LOAD_FLOAT_MAT
 
     return 0;
 }
+
+#ifdef NCNN_INT8
+int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+{
+    // mha int8 kernel
+    
+}
+#endif
 
 // refers to https://pytorch.org/docs/stable/generated/torch.nn.MultiheadAttention.html
 int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const

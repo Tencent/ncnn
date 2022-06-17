@@ -89,6 +89,7 @@ int main(int argc, char** argv)
     quantizer.quantize_convolution();
     quantizer.quantize_convolutiondepthwise();
     quantizer.quantize_innerproduct();
+    quantizer.quantize_mha();
 
     quantizer.fuse_requantize();
 

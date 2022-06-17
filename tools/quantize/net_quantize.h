@@ -27,6 +27,8 @@ public:
 
     void set_weight_suffix(std::string s);
 
+    ncnn::Mat convert();
+
 private:
     std::string suffix;
 };
