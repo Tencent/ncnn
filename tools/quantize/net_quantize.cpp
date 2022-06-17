@@ -13,7 +13,7 @@ void NetQuantize::set_weight_suffix(std::string str)
     suffix = str;
 }
 
-bool NetQuantize::read_raw_format(const char* filepath)
+bool NetQuantize::read_txt_format(const char* filepath)
 {
     blob_int8scale_table.clear();
     weight_int8scale_table.clear();

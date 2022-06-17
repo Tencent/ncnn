@@ -12,7 +12,7 @@ public:
     std::map<std::string, ncnn::Mat> weight_int8scale_table;
 
 public:
-    bool read_raw_format(const char* path);
+    bool read_txt_format(const char* path);
     bool read_ini_format(const char* path);
     int quantize_convolution();
     int quantize_convolutiondepthwise();
