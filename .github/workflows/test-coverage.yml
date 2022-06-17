@@ -82,42 +82,42 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
+      id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -125,7 +125,7 @@ jobs:
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -166,42 +166,42 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
+      id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -209,7 +209,7 @@ jobs:
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -270,42 +270,42 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
+      id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -313,7 +313,7 @@ jobs:
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -417,42 +417,42 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
+      id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -460,7 +460,7 @@ jobs:
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -1134,10 +1134,60 @@ jobs:
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen128
+      id: codecov-vlen128
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-vlen128-retry-1
+      continue-on-error: true
+      id: codecov-vlen128-retry-1
+      if: steps.codecov-vlen128.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-2
+      continue-on-error: true
+      id: codecov-vlen128-retry-2
+      if: steps.codecov-vlen128-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-3
+      continue-on-error: true
+      id: codecov-vlen128-retry-3
+      if: steps.codecov-vlen128-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-4
+      continue-on-error: true
+      id: codecov-vlen128-retry-4
+      if: steps.codecov-vlen128-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-5
+      continue-on-error: true
+      id: codecov-vlen128-retry-5
+      if: steps.codecov-vlen128-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set codecov-vlen128 status
+      if: always()
+      run: |
+        if ${{ steps.codecov-vlen128.outcome=='success' || steps.codecov-vlen128-retry-1.outcome=='success' || steps.codecov-vlen128-retry-2.outcome=='success' || steps.codecov-vlen128-retry-3.outcome=='success' || steps.codecov-vlen128-retry-4.outcome=='success' || steps.codecov-vlen128-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
     - name: test-vlen256
       run: |
@@ -1154,56 +1204,56 @@ jobs:
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen256
-      id: codecov
+      id: codecov-vlen256
       continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
-      if: steps.codecov.outcome=='failure'
+      id: codecov-vlen256-retry-1
+      if: steps.codecov-vlen256.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: set the status
+    - name: set codecov-vlen256 status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov-vlen256.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
