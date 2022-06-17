@@ -114,9 +114,82 @@ bool NetQuantize::read_ini_format(const char* path)
                 blob_int8scale_table[name] = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
             }
         }
+        else if (type == "MultiHeadAttention")
+        {
+            mha_table[name] = ptable;
+        }
     }
 
     return true;
+}
+
+int NetQuantize::quantize_mha()
+{
+    const int layer_count = static_cast<int>(layers.size());
+    for (int i = 0; i < layer_count; i++)
+    {
+        // find convolution layer
+        if (layers[i]->type != "MultiHeadAttention")
+            continue;
+
+        std::string name = layers[i]->name;
+        if (mha_table.find(name) == mha_table.end())
+        {
+            fprintf(stderr, "cannot find %s quant param.\n", name.c_str());
+            continue;
+        }
+
+        ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layers[i];
+        fprintf(stderr, "quantize_multiheadattention %s\n", mha->name.c_str());
+        
+
+        // find convolution layer
+        std::map<std::string, ncnn::Mat>::iterator iter_data = blob_int8scale_table.find(layers[i]->name);
+        if (iter_data == blob_int8scale_table.end())
+            continue;
+
+        char key[256];
+        sprintf(key, "%s%s", layers[i]->name.c_str(), suffix.c_str());
+
+        std::map<std::string, ncnn::Mat>::iterator iter = weight_int8scale_table.find(key);
+        if (iter == weight_int8scale_table.end())
+        {
+            fprintf(stderr, "%s need to be quantized, but no scale param!\n", key);
+            return -1;
+        }
+
+        // Convolution - quantize weight from fp32 to int8
+        ncnn::Convolution* convolution = (ncnn::Convolution*)layers[i];
+
+        ncnn::Mat bottom_blob_int8_scales = iter_data->second;
+        ncnn::Mat weight_data_int8_scales = iter->second;
+
+        fprintf(stderr, "quantize_convolution %s\n", convolution->name.c_str());
+
+        {
+            const int maxk = convolution->kernel_w * convolution->kernel_h;
+            const int num_input = convolution->weight_data_size / convolution->num_output / maxk;
+
+            ncnn::Mat weight_data_r2 = convolution->weight_data.reshape(maxk, num_input, convolution->num_output);
+
+            ncnn::Mat weight_data_int8;
+
+            ncnn::Option opt_q = opt;
+            opt_q.blob_allocator = convolution->weight_data.allocator;
+            opt_q.use_packing_layout = false;
+            ncnn::quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
+            if (weight_data_int8.empty())
+                return -100;
+
+            convolution->weight_data = weight_data_int8.reshape(convolution->weight_data_size);
+        }
+
+        convolution->int8_scale_term = 2;
+        convolution->weight_data_int8_scales = weight_data_int8_scales;
+        convolution->bottom_blob_int8_scales = bottom_blob_int8_scales;
+    }
+
+    return 0;
 }
 
 int NetQuantize::quantize_convolution()
