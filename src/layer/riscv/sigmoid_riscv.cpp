@@ -57,7 +57,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
-    int size = w * h *d * elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -98,7 +98,7 @@ int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
-    int size = w * h *d * elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -129,7 +129,7 @@ int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
-    int size = w * h *d * elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)

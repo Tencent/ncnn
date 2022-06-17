@@ -39,7 +39,7 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
-    int size = w * h *d * elempack;
+    int size = w * h * d * elempack;
 
 #if __riscv_vector
     if (fast_gelu)
