@@ -82,42 +82,42 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
+      id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -125,7 +125,7 @@ jobs:
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -166,42 +166,42 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
+      id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -209,7 +209,7 @@ jobs:
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -270,42 +270,42 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
+      id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -313,7 +313,7 @@ jobs:
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -417,42 +417,42 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-1
+    - name: codecov-vlen256-retry-1
       continue-on-error: true
-      id: codecov-retry-1
+      id: codecov-vlen256-retry-1
       if: steps.codecov.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-2
+    - name: codecov-vlen256-retry-2
       continue-on-error: true
-      id: codecov-retry-2
-      if: steps.codecov-retry-1.outcome=='failure'
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-3
+    - name: codecov-vlen256-retry-3
       continue-on-error: true
-      id: codecov-retry-3
-      if: steps.codecov-retry-2.outcome=='failure'
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-4
+    - name: codecov-vlen256-retry-4
       continue-on-error: true
-      id: codecov-retry-4
-      if: steps.codecov-retry-3.outcome=='failure'
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
-    - name: codecov-retry-5
+    - name: codecov-vlen256-retry-5
       continue-on-error: true
-      id: codecov-retry-5
-      if: steps.codecov-retry-4.outcome=='failure'
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
@@ -460,7 +460,7 @@ jobs:
     - name: set the status
       if: always()
       run: |
-        if ${{ steps.codecov.outcome=='success' || steps.codecov-retry-1.outcome=='success' || steps.codecov-retry-2.outcome=='success' || steps.codecov-retry-3.outcome=='success' || steps.codecov-retry-4.outcome=='success' || steps.codecov-retry-5.outcome=='success' }}; then
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
            echo fine
         else
            exit 1
@@ -1037,124 +1037,224 @@ jobs:
         file: build/lcov.info
 
   linux-gcc-riscv64-rvv:
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, linux, centos]
     steps:
     - uses: actions/checkout@v3
 
-    - name: lcov
-      run: sudo apt-get install lcov
+    #- name: lcov
+      #run: sudo apt-get install lcov
 
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-riscv64-install-20220502-3
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
-        make -j2
-        make install
+    #- name: cache-qemu
+      #id: cache-qemu
+      #uses: actions/cache@v3
+      #with:
+        #path: qemu-install
+        #key: qemu-riscv64-install-20220502-3
+    #- name: install-qemu-build-deps
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev ninja-build
+    #- name: checkout-qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v3
+      #with:
+        #repository: qemu/qemu
+        #path: qemu
+        #ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    #- name: qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #cd qemu
+        #wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        #patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        #./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        #make -j2
+        #make install
 
-    - name: cache-riscv
-      id: cache-riscv
-      uses: actions/cache@v3
-      with:
-        path: rv64gcv-install
-        key: rv64gcv-linux-install-20210504
+    #- name: cache-riscv
+      #id: cache-riscv
+      #uses: actions/cache@v3
+      #with:
+        #path: rv64gcv-install
+        #key: rv64gcv-linux-install-20210504
 
-    - name: install-riscv-build-deps
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+    #- name: install-riscv-build-deps
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
 
-    - name: checkout-riscv-gnu-toolchain
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: riscv/riscv-gnu-toolchain
-        path: riscv-gnu-toolchain
-        ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
-    - name: checkout-riscv-gnu-toolchain-submodules
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        cd riscv-gnu-toolchain
-        git submodule update --init --recursive --depth 1 riscv-binutils
-        git submodule update --init --recursive --depth 1 riscv-gcc
-        git submodule update --init --recursive --depth 1 riscv-glibc
-        git submodule update --init --recursive --depth 1 riscv-dejagnu
-        git submodule update --init --recursive --depth 1 riscv-newlib
-        git submodule update --init --recursive --depth 1 riscv-gdb
-    - name: riscv-gnu-toolchain
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        cd riscv-gnu-toolchain
-        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
-        ./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
-        make linux
+    #- name: checkout-riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v3
+      #with:
+        #repository: riscv/riscv-gnu-toolchain
+        #path: riscv-gnu-toolchain
+        #ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
+    #- name: checkout-riscv-gnu-toolchain-submodules
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-gcc
+        #git submodule update --init --recursive --depth 1 riscv-glibc
+        #git submodule update --init --recursive --depth 1 riscv-dejagnu
+        #git submodule update --init --recursive --depth 1 riscv-newlib
+        #git submodule update --init --recursive --depth 1 riscv-gdb
+    #- name: riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        #./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
+        #make linux
 
-    - name: riscv-strip-install
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
+    #- name: riscv-strip-install
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
 
     - name: configure
-      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: export RISCV_ROOT_PATH=/data/action/osd/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j 4
 
     - name: test-vlen128
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
 
     - name: lcov-collect-vlen128
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
+        lcov --gcov-tool /data/action/osd/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen128
+      id: codecov-vlen128
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-vlen128-retry-1
+      continue-on-error: true
+      id: codecov-vlen128-retry-1
+      if: steps.codecov-vlen128.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-2
+      continue-on-error: true
+      id: codecov-vlen128-retry-2
+      if: steps.codecov-vlen128-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-3
+      continue-on-error: true
+      id: codecov-vlen128-retry-3
+      if: steps.codecov-vlen128-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-4
+      continue-on-error: true
+      id: codecov-vlen128-retry-4
+      if: steps.codecov-vlen128-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-5
+      continue-on-error: true
+      id: codecov-vlen128-retry-5
+      if: steps.codecov-vlen128-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set codecov-vlen128 status
+      if: always()
+      run: |
+        if ${{ steps.codecov-vlen128.outcome=='success' || steps.codecov-vlen128-retry-1.outcome=='success' || steps.codecov-vlen128-retry-2.outcome=='success' || steps.codecov-vlen128-retry-3.outcome=='success' || steps.codecov-vlen128-retry-4.outcome=='success' || steps.codecov-vlen128-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
     - name: test-vlen256
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
 
     - name: lcov-collect-vlen256
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
+        lcov --gcov-tool /data/action/osd/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen256
+      id: codecov-vlen256
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-vlen256-retry-1
+      continue-on-error: true
+      id: codecov-vlen256-retry-1
+      if: steps.codecov-vlen256.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-2
+      continue-on-error: true
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-3
+      continue-on-error: true
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-4
+      continue-on-error: true
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-5
+      continue-on-error: true
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set codecov-vlen256 status
+      if: always()
+      run: |
+        if ${{ steps.codecov-vlen256.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
