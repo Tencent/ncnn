@@ -687,8 +687,6 @@ static void conv3x3s1_winograd23_transform_output_pack4_msa(const Mat& top_blob_
                 const float* output0_tm_1 = output0_tm_0 + tiles * 4;
                 const float* output0_tm_2 = output0_tm_0 + tiles * 4 * 2;
                 const float* output0_tm_3 = output0_tm_0 + tiles * 4 * 3;
-                const float* output0_tm_4 = output0_tm_0 + tiles * 4 * 4;
-                const float* output0_tm_5 = output0_tm_0 + tiles * 4 * 5;
 
                 float* output0 = out0.row<float>(i * 2) + (j * 2) * 4;
 
