@@ -174,7 +174,8 @@ int NetQuantize::quantize_mha()
             success += convert(mha->v_weight_data, "weight_v", mha->v_weight_scales);
             success += convert(mha->out_weight_data, "weight_o", mha->o_weight_scales);
 
-            if (success != 0) {
+            if (success != 0)
+            {
                 fprintf(stderr, "convert fp32 weight to int8 failed. \n");
                 return -1;
             }

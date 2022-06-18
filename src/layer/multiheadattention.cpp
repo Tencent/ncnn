@@ -44,10 +44,10 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
 int MultiHeadAttention::load_model(const ModelBin& mb)
 {
 #define LOAD_MAT(name, len) \
-    name = mb.load(len, 0);\
-    if (name.empty())\
-    {\
-        return -100;\
+    name = mb.load(len, 0); \
+    if (name.empty())       \
+    {                       \
+        return -100;        \
     }
 
     LOAD_MAT(q_weight_data, weight_data_size);
@@ -57,10 +57,10 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
 #undef LOAD_MAT
 
 #define LOAD_FLOAT_MAT(name, len) \
-    name = mb.load(len, 1); \
-    if (name.empty()) \
-    { \
-        return -100; \
+    name = mb.load(len, 1);       \
+    if (name.empty())             \
+    {                             \
+        return -100;              \
     }
 
     LOAD_FLOAT_MAT(q_bias_data, embed_dim);
