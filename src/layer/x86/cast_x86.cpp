@@ -35,8 +35,6 @@ Cast_x86::Cast_x86()
 
 int Cast_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-    NCNN_LOGE("ncnn::cpu_support_x86_avx512() = %d", ncnn::cpu_support_x86_avx512());
-    NCNN_LOGE("ncnn::cpu_support_x86_avx512_bf16() = %d", ncnn::cpu_support_x86_avx512_bf16());
     if (type_from == type_to)
     {
         top_blob = bottom_blob;

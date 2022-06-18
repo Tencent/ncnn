@@ -72,6 +72,8 @@ NCNN_EXPORT int cpu_support_x86_avx512();
 NCNN_EXPORT int cpu_support_x86_avx512_vnni();
 // avx512_bf16 = x86 avx512 bf16
 NCNN_EXPORT int cpu_support_x86_avx512_bf16();
+// avx512_fp16 = x86 avx512 fp16
+NCNN_EXPORT int cpu_support_x86_avx512_fp16();
 
 // msa = mips mas
 NCNN_EXPORT int cpu_support_mips_msa();
