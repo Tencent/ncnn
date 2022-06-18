@@ -86,6 +86,71 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
 }
 
 #ifdef NCNN_INT8
+/**
+ * @brief 
+ *  q_input_int8 * q_weight --> q_out_int32
+ *  q_out_int32 / input_scale / weight_scale + bias --> q_out_fp32 
+ *  q_out_fp32 --> q_internal_int8
+ * @param input 
+ * @param internal 
+ * @param input_scale 
+ * @param weight_scales 
+ * @param transpose_out 
+ * @return int 
+ */
+int MultiHeadAttention::transform_input(const Mat& input, const Mat& weight, Mat& out_int8, const Mat& input_scale, const Mat& weight_scales, const Option& opt, bool transpose_out=false) const
+{
+    const int seqlen = input.h;
+    const int embed_dim_per_head = embed_dim / num_head;
+
+    Mat input_int8;
+    if (input.elemsize != 1) {
+        quantize_to_int8(input, input_int8, input_scale, opt);
+    }
+
+    Mat buffer(embed_dim_per_head, seqlen, num_head, 4u, opt.workspace_allocator);
+
+
+    for (int q = 0; q < num_head; q++)
+    {
+        // xq = affine(q)
+        {
+            Mat outm = buffer.channel(q);
+
+            for (int i = 0; i < seqlen; i++)
+            {
+                int32_t* outptr = outm.row<int32_t>(i);
+
+                for (int j = 0; j < embed_dim_per_head; j++)
+                {
+                    const int8_t* ptr = input_int8.row<int8_t>(i);
+                    const int8_t* kptr = (int8_t*)(weight.data) + embed_dim * (q * embed_dim_per_head + j);
+
+                    int32_t sum = 0;
+                    for (int k = 0; k < embed_dim; k++)
+                    {
+                        sum += *ptr++ * *kptr++;
+                    }
+                    // TODO calculate scale
+                    outptr[j] = sum / input_scale;
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
+/**
+ * @brief int8 mha, referenced to
+ * 
+ *  https://github.com/megvii-research/FQ-ViT/blob/main/models/vit_quant.py#L95
+ * 
+ * @param bottom_blobs 
+ * @param top_blobs 
+ * @param opt 
+ * @return int 
+ */
 int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     // mha int8 kernel
@@ -111,7 +176,9 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         quantize_to_int8(v_blob, v_blob_int8, v_input_scale, opt_g);
     }
 
+    // 145
     const int seqlen = q_blob.h;
+    // 64
     const int embed_dim_per_head = embed_dim / num_head;
 
     Mat& top_blob = top_blobs[0];
@@ -119,197 +186,15 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     if (top_blob.empty())
         return -1;
 
+    // 64, 145, 12
     Mat xq(embed_dim_per_head, seqlen, num_head, 4u, opt.workspace_allocator);
     Mat xk(embed_dim_per_head, seqlen, num_head, 4u, opt.workspace_allocator);
+    // transpose(v) for better gemm performance
     Mat xv(seqlen, embed_dim_per_head, num_head, 4u, opt.workspace_allocator);
 
-    Mat xqk(seqlen, seqlen, num_head, 4u, opt.workspace_allocator);
 
-    Mat xqkv(embed_dim_per_head, num_head, seqlen, 4u, opt.workspace_allocator);
-
-    const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < num_head; q++)
     {
-        // xq = affine(q) * inv_sqrt_embed_dim_per_head
-        {
-            Mat outm = xq.channel(q);
 
-            for (int i = 0; i < seqlen; i++)
-            {
-                float* outptr = outm.row(i);
-
-                for (int j = 0; j < embed_dim_per_head; j++)
-                {
-                    const float* ptr = q_blob.row(i);
-                    const float* kptr = (const float*)q_weight_data + embed_dim * (q * embed_dim_per_head + j);
-
-                    float sum = q_bias_data[q * embed_dim_per_head + j];
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    outptr[j] = sum * inv_sqrt_embed_dim_per_head;
-                }
-            }
-        }
-
-        // xk = affine(k)
-        {
-            Mat outm = xk.channel(q);
-
-            for (int i = 0; i < seqlen; i++)
-            {
-                float* outptr = outm.row(i);
-
-                for (int j = 0; j < embed_dim_per_head; j++)
-                {
-                    const float* ptr = k_blob.row(i);
-                    const float* kptr = (const float*)k_weight_data + embed_dim * (q * embed_dim_per_head + j);
-
-                    float sum = k_bias_data[q * embed_dim_per_head + j];
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-
-        // xv = affine(v)
-        {
-            Mat outm = xv.channel(q);
-
-            for (int i = 0; i < embed_dim_per_head; i++)
-            {
-                for (int j = 0; j < seqlen; j++)
-                {
-                    const float* ptr = v_blob.row(j);
-                    const float* kptr = (const float*)v_weight_data + embed_dim * (q * embed_dim_per_head + i);
-
-                    float sum = v_bias_data[q * embed_dim_per_head + i];
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    float* outptr = outm.row(i);
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-
-        // xqk = xq * xk
-        // xq  (embed_dim_per_head, seqlen)
-        // xk  (embed_dim_per_head, seqlen)
-        {
-            const Mat xqm = xq.channel(q);
-            const Mat xkm = xk.channel(q);
-
-            Mat outm = xqk.channel(q);
-
-            for (int i = 0; i < seqlen; i++)
-            {
-                float* outptr = outm.row(i);
-
-                for (int j = 0; j < seqlen; j++)
-                {
-                    const float* qptr = xqm.row(i);
-                    const float* kptr = xkm.row(j);
-
-                    float sum = 0.f;
-                    for (int k = 0; k < embed_dim_per_head; k++)
-                    {
-                        sum += *qptr++ * *kptr++;
-                    }
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-
-        // softmax(xqk)
-        {
-            Mat outm = xqk.channel(q);
-
-            for (int i = 0; i < seqlen; i++)
-            {
-                float* ptr = outm.row(i);
-
-                float max = -FLT_MAX;
-                for (int j = 0; j < seqlen; j++)
-                {
-                    max = std::max(max, ptr[j]);
-                }
-
-                float sum = 0.f;
-                for (int j = 0; j < seqlen; j++)
-                {
-                    ptr[j] = (float)(exp(ptr[j] - max));
-                    sum += ptr[j];
-                }
-
-                for (int j = 0; j < seqlen; j++)
-                {
-                    ptr[j] /= sum;
-                }
-            }
-        }
-
-        // xqkv = xqk * xv
-        // xqk (seqlen, seqlen)
-        // xv  (seqlen, embed_dim_per_head)
-        // out (embed_dim_per_head, num_head, seqlen)
-        {
-            const Mat xqkm = xqk.channel(q);
-            const Mat xvm = xv.channel(q);
-
-            for (int i = 0; i < seqlen; i++)
-            {
-                float* outptr = xqkv.channel(i).row(q);
-
-                for (int j = 0; j < embed_dim_per_head; j++)
-                {
-                    const float* qkptr = xqkm.row(i);
-                    const float* vptr = xvm.row(j);
-
-                    float sum = 0.f;
-                    for (int k = 0; k < seqlen; k++)
-                    {
-                        sum += *qkptr++ * *vptr++;
-                    }
-
-                    outptr[j] = sum;
-                }
-            }
-        }
-    }
-
-    // out = affine(xqkv)
-    // xqkv  (embed_dim, seqlen)
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int i = 0; i < seqlen; i++)
-    {
-        float* outptr = top_blob.row(i);
-
-        for (int j = 0; j < embed_dim; j++)
-        {
-            const float* ptr = xqkv.channel(i);
-            const float* kptr = (const float*)out_weight_data + embed_dim * j;
-
-            float sum = out_bias_data[j];
-            for (int k = 0; k < embed_dim; k++)
-            {
-                sum += *ptr++ * *kptr++;
-            }
-
-            outptr[j] = sum;
-        }
     }
 
     return 0;

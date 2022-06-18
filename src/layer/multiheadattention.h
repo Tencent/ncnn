@@ -32,6 +32,7 @@ public:
 
 #ifdef NCNN_INT8
     virtual int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    int transform_input(const Mat& input, const Mat& weight, Mat& out_int8, const Mat& input_scale, const Mat& weight_scales, const Option& opt, bool transpose_out=false) const;
 #endif
 
 public:
