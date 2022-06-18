@@ -87,29 +87,29 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
 
 #ifdef NCNN_INT8
 /**
- * @brief 
+ * @brief
  *  q_input_int8 * q_weight --> q_out_int32
- *  q_out_int32 / input_scale / weight_scale + bias --> q_out_fp32 
+ *  q_out_int32 / input_scale / weight_scale + bias --> q_out_fp32
  *  q_out_fp32 --> q_internal_int8
- * @param input 
- * @param internal 
- * @param input_scale 
- * @param weight_scales 
- * @param transpose_out 
- * @return int 
+ * @param input
+ * @param internal
+ * @param input_scale
+ * @param weight_scales
+ * @param transpose_out
+ * @return int
  */
-int MultiHeadAttention::transform_input(const Mat& input, const Mat& weight, Mat& out_int8, const Mat& input_scale, const Mat& weight_scales, const Option& opt, bool transpose_out=false) const
+int MultiHeadAttention::transform_input(const Mat& input, const Mat& weight, Mat& out_int8, const Mat& input_scale, const Mat& weight_scales, const Option& opt, bool transpose_out = false) const
 {
     const int seqlen = input.h;
     const int embed_dim_per_head = embed_dim / num_head;
 
     Mat input_int8;
-    if (input.elemsize != 1) {
+    if (input.elemsize != 1)
+    {
         quantize_to_int8(input, input_int8, input_scale, opt);
     }
 
     Mat buffer(embed_dim_per_head, seqlen, num_head, 4u, opt.workspace_allocator);
-
 
     for (int q = 0; q < num_head; q++)
     {
@@ -143,13 +143,13 @@ int MultiHeadAttention::transform_input(const Mat& input, const Mat& weight, Mat
 
 /**
  * @brief int8 mha, referenced to
- * 
+ *
  *  https://github.com/megvii-research/FQ-ViT/blob/main/models/vit_quant.py#L95
- * 
- * @param bottom_blobs 
- * @param top_blobs 
- * @param opt 
- * @return int 
+ *
+ * @param bottom_blobs
+ * @param top_blobs
+ * @param opt
+ * @return int
  */
 int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
@@ -161,18 +161,21 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     Option opt_g = opt;
     opt_g.blob_allocator = opt.workspace_allocator;
     opt_g.use_packing_layout = false;
-    
+
     Mat q_blob_int8 = q_blob, k_blob_int8 = k_blob, v_blob_int8 = v_blob;
 
-    if (q_blob_int8.elemsize != 1) {
+    if (q_blob_int8.elemsize != 1)
+    {
         quantize_to_int8(q_blob, q_blob_int8, q_input_scale, opt_g);
     }
 
-    if (k_blob_int8.elemsize != 1) {
+    if (k_blob_int8.elemsize != 1)
+    {
         quantize_to_int8(k_blob, k_blob_int8, k_input_scale, opt_g);
     }
 
-    if (v_blob_int8.elemsize != 1) {
+    if (v_blob_int8.elemsize != 1)
+    {
         quantize_to_int8(v_blob, v_blob_int8, v_input_scale, opt_g);
     }
 
@@ -192,9 +195,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     // transpose(v) for better gemm performance
     Mat xv(seqlen, embed_dim_per_head, num_head, 4u, opt.workspace_allocator);
 
-
     {
-
     }
 
     return 0;
@@ -207,10 +208,10 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 #if NCNN_INT8
     if (opt.use_int8_inference)
     {
-        if (q_weight_data.elemsize != (size_t)1u || k_weight_data.elemsize != (size_t)1u || 
-            v_weight_data.elemsize != (size_t)1u || out_weight_data.elemsize != (size_t)1u){
-                return -1;
-            }
+        if (q_weight_data.elemsize != (size_t)1u || k_weight_data.elemsize != (size_t)1u || v_weight_data.elemsize != (size_t)1u || out_weight_data.elemsize != (size_t)1u)
+        {
+            return -1;
+        }
         return forward_int8(bottom_blobs, top_blobs, opt);
     }
 #endif
