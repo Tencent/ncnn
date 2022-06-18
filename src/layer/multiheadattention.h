@@ -50,6 +50,10 @@ public:
     Mat out_bias_data;
 
 #ifdef NCNN_INT8
+    Mat q_input_scale;
+    Mat k_input_scale;
+    Mat v_input_scale;
+
     Mat q_weight_scales;
     Mat k_weight_scales;
     Mat v_weight_scales;

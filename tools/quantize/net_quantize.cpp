@@ -152,14 +152,14 @@ int NetQuantize::quantize_mha()
                 opt_q.blob_allocator = weight.allocator;
                 opt_q.use_packing_layout = false;
 
-                auto scales = table->get_list<float>(key);
+                auto& scales = table->get_list<float>(key);
                 if (scales.empty()) {
                     return -100;
                 }
                 w_scales = ncnn::Mat((int)scales.size(), (void*)scales.data());
 
                 ncnn::Mat weight_int8;
-                ncnn::quantize_to_int8(weight, weight_int8, w_scales, base_opt);
+                ncnn::quantize_to_int8(weight, weight_int8, w_scales, opt_q);
                 if (weight_int8.empty()) {
                     return -200;
                 }
@@ -167,8 +167,6 @@ int NetQuantize::quantize_mha()
 
                 return 0;
             };
-
-            ncnn::Mat q_scale_weight, k_scale_weight, v_scale_weight, o_scale_weight;
 
             int success = 0;
             success += convert(mha->q_weight_data, "weight_q", mha->q_weight_scales);
@@ -180,6 +178,21 @@ int NetQuantize::quantize_mha()
                 fprintf(stderr, "convert fp32 weight to int8 failed. \n");
                 return -1;
             }
+        }
+
+        {
+            // write input scale
+            auto convert = [table](const std::string key, ncnn::Mat& mat) {
+                auto& scales = table->get_list<float>(key);
+                if (scales.empty()) {
+                    return -100;
+                }
+                mat = ncnn::Mat((int)scales.size(), (void*)scales.data());
+            };
+
+            convert("input_scale_q", mha->q_input_scale);
+            convert("input_scale_k", mha->q_input_scale);
+            convert("input_scale_v", mha->q_input_scale);
         }
 
         {
