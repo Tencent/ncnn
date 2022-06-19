@@ -65,7 +65,7 @@ static float RandomFloat(float a = -1.2f, float b = 1.2f)
     float r = random * diff;
     float v = a + r;
     // generate denormal as zero
-    if (v < 0.001 && v > -0.001)
+    if (v < 0.0001 && v > -0.0001)
         v = 0.f;
     return v;
 }
