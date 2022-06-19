@@ -44,7 +44,7 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     return 0;
 }
 
-int MultiHeadAttention::load_model(const ModelBin& mb)\
+int MultiHeadAttention::load_model(const ModelBin& mb)
 {
 #define LOAD_MAT(name, len) \
     name = mb.load(len, 0); \
@@ -102,8 +102,8 @@ int MultiHeadAttention::load_model(const ModelBin& mb)\
  * @return int
  */
 int MultiHeadAttention::transform_input(
-    const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8, 
-    const Mat& input_scale, const Mat& weight_scales, const float transform_scale, 
+    const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8,
+    const Mat& input_scale, const Mat& weight_scales, const float transform_scale,
     const Option& opt) const
 {
     const int seqlen = input.h;
@@ -152,19 +152,21 @@ int MultiHeadAttention::transform_input(
     return 0;
 }
 
-static inline int32_t int_polynominal(const int32_t x, const float s) {
+static inline int32_t int_polynominal(const int32_t x, const float s)
+{
     // ax**2 + bx + c
     const float coef0 = 0.35815147;
     const float coef1 = 0.96963238 / coef0;
     const float coef2 = 1.0 / coef0;
-    
+
     const int32_t b_int = floor(coef1 * s);
     const int32_t c_int = floor(coef2 * s * s);
     return x * (x + b_int) + c_int;
 }
 
-static inline int32_t int_exp(int32_t x, float s) {
-    #define LN2 (-0.6931f)
+static inline int32_t int_exp(int32_t x, float s)
+{
+#define LN2 (-0.6931f)
     const int n = 30;
     const int x0_int = floor(LN2 / s);
 
@@ -176,36 +178,43 @@ static inline int32_t int_exp(int32_t x, float s) {
     return exp_int;
 }
 
-int MultiHeadAttention::log_int_softmax(int32_t* ptr, int8_t *out, const int len, float scale)
+int MultiHeadAttention::log_int_softmax(int32_t* ptr, int8_t* out, const int len, float scale)
 {
     int32_t max = ptr[0];
-    for (int i = 0; i < len; ++i) {
-        if (max < ptr[i]) {
+    for (int i = 0; i < len; ++i)
+    {
+        if (max < ptr[i])
+        {
             max = ptr[i];
         }
     }
 
     int sum = 0;
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < len; ++i)
+    {
         ptr[i] = ptr[i] - max;
         ptr[i] = int_exp(ptr[i], scale);
         sum += ptr[i];
     }
 
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < len; ++i)
+    {
         ptr[i] = int32_t(sum * 1.f / ptr[i] + 0.5f);
     }
 
     // log_round
     const int QUANT_MAX = 15;
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < len; ++i)
+    {
         int32_t val = floor(log2(ptr[i]));
-        float big = 1.5f * pow(2, val-1);
-        if (val > big) {
+        float big = 1.5f * pow(2, val - 1);
+        if (val > big)
+        {
             val += 1;
         }
 
-        if (val > QUANT_MAX || val < 0) {
+        if (val > QUANT_MAX || val < 0)
+        {
             out[i] = 0;
             continue;
         }
@@ -231,7 +240,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     const Mat& q_blob = bottom_blobs[0];
     const Mat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
     const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[2];
-    
+
     // 145
     const int seqlen = q_blob.h;
     // 64
@@ -288,11 +297,13 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     Mat xqk_uint4(seqlen, seqlen, num_head, 1u, opt.workspace_allocator);
     {
         // TODO int_softmax
-        for (int q = 0; q < num_head; ++q) {
+        for (int q = 0; q < num_head; ++q)
+        {
             Mat inm = xqk.channel(q);
             Mat outm = xqk_uint4.channel(q);
 
-            for (int i = 0; i < seqlen; ++i) {
+            for (int i = 0; i < seqlen; ++i)
+            {
                 int32_t* inrow = inm.row<int32_t>(i);
                 int8_t* outrow = outm.row<int8_t>(i);
                 log_int_softmax(inrow, outrow, seqlen, internal_scales[3]);
@@ -303,7 +314,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     // TODO FIXME
     // xqkv int4 @ int8, implement by shift
     {
-            // xqkv = xqk * xv
+        // xqkv = xqk * xv
         // xqk (seqlen, seqlen)
         // xv  (seqlen, embed_dim_per_head)
         // out (embed_dim_per_head, num_head, seqlen)
@@ -332,7 +343,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
     }
 
-    
     Mat& top_blob = top_blobs[0];
     top_blob.create(embed_dim, seqlen, 4u, opt.blob_allocator);
     if (top_blob.empty())
