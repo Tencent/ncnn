@@ -31,8 +31,12 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 #ifdef NCNN_INT8
-    virtual int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-    int transform_input(const Mat& input, const Mat& weight, Mat& out_int8, const Mat& input_scale, const Mat& weight_scales, const Option& opt, bool transpose_out=false) const;
+    int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    int log_int_softmax(int32_t* ptr, int8_t *out, const int len, float scale);
+    int transform_input(
+        const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8, 
+        const Mat& input_scale, const Mat& weight_scales, const float transform_scale, 
+        const Option& opt) const;
 #endif
 
 public:
