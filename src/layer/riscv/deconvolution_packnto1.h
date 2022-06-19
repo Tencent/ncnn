@@ -91,7 +91,7 @@ static void deconvolution_packnto1_rvv(const Mat& bottom_blob, Mat& top_blob, co
                     kptr += maxk * packn;
                 }
 
-                sum = vfmv_f_s_f32m1_f32(vfredsum_vs_f32m1_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m1_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
 
                 sum = activation_ss(sum, activation_type, activation_params);
 

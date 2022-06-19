@@ -19,14 +19,24 @@ import torch.nn.functional as F
 def hardsigmoid_forward_0(x):
     return F.relu6(x + 3., True) / 6.
 
+class h_sigmoid(nn.Module):
+    def __init__(self, inplace=True):
+        super(h_sigmoid, self).__init__()
+        self.relu = nn.ReLU6(inplace=inplace)
+
+    def forward(self, x):
+        return self.relu(x + 3) / 6
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+        self.h_sigmoid = h_sigmoid();
+
     def forward(self, x, y, z, w):
         x = F.hardsigmoid(x)
         y = F.hardsigmoid(y)
-        z = F.hardsigmoid(z)
+        z = self.h_sigmoid(z)
         w = hardsigmoid_forward_0(w)
         return x, y, z, w
 

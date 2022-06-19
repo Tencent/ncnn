@@ -120,7 +120,7 @@ int LRN_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 __m256 _ssp = _mm256_loadu_ps(ssptr);
                 _ssp = _mm256_mul_ps(_ssp, _ads);
                 _ssp = _mm256_add_ps(_ssp, _bias);
-                _ssp = pow_ps(_ssp, _mb);
+                _ssp = pow256_ps(_ssp, _mb);
                 _p = _mm256_mul_ps(_p, _ssp);
                 _mm256_storeu_ps(ptr, _p);
 

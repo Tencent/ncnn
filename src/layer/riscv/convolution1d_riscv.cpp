@@ -284,7 +284,7 @@ int Convolution1D_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Op
                         }
                     }
 
-                    sum = vfmv_f_s_f32m1_f32(vfredsum_vs_f32m1_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                    sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m1_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
 
                     sum = activation_ss(sum, activation_type, activation_params);
 
@@ -642,7 +642,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                         sum += ss[i];
                     }
 #else
-                    sum = vfmv_f_s_f32m1_f32(vfredsum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                    sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
 #endif
 
                     sum = activation_ss(sum, activation_type, activation_params);
@@ -854,7 +854,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
                         }
                     }
 
-                    sum = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
+                    sum = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
 
                     sum = activation_ss(sum, activation_type, activation_params);
 

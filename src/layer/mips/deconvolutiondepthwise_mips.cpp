@@ -73,13 +73,13 @@ int DeconvolutionDepthWise_mips::create_pipeline(const Option& opt)
         if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, 4, opt);
+            convert_packing(weight_data_r2, weight_data_tm, 4, opt);
         }
 #endif // __mips_msa || __mips_mxu2
 
         if (elempack == 1)
         {
-            weight_data_packed = weight_data_transposed;
+            weight_data_tm = weight_data_transposed;
         }
 
         return 0;
@@ -87,6 +87,11 @@ int DeconvolutionDepthWise_mips::create_pipeline(const Option& opt)
 
     // group convolution
     create_group_ops(opt);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
 
     return 0;
 }
@@ -109,7 +114,7 @@ int DeconvolutionDepthWise_mips::create_group_ops(const Option& opt)
 
     for (int g = 0; g < group; g++)
     {
-        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
+        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g).clone();
         Mat bias_data_g;
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
@@ -224,7 +229,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
                 for (int g = 0; g < channels; g++)
                 {
                     float* outptr = top_blob_bordered.channel(g);
-                    const float* kptr = (const float*)weight_data_packed + maxk * g * 4;
+                    const float* kptr = (const float*)weight_data_tm + maxk * g * 4;
                     const Mat m = bottom_blob.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -286,7 +291,7 @@ int DeconvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, 
             for (int g = 0; g < channels; g++)
             {
                 float* outptr = top_blob_bordered.channel(g);
-                const float* kptr = (const float*)weight_data_packed + maxk * g;
+                const float* kptr = (const float*)weight_data_tm + maxk * g;
                 const Mat m = bottom_blob.channel(g);
 
                 for (int i = 0; i < outh; i++)

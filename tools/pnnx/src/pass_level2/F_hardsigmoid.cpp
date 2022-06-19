@@ -140,4 +140,30 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_4, 9)
 
+class F_hardsigmoid_5 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+8 7
+pnnx.Input              input       0 1 input
+prim::Constant          op_1        0 1 22 value=1
+prim::Constant          op_2        0 1 23 value=3
+aten::add               op_3        3 1 input 23 22 a
+nn.ReLU6                op_4        1 1 a b
+prim::Constant          op_0        0 1 21 value=6
+aten::div               op_5        2 1 b 21 out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.hardsigmoid";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_hardsigmoid_5, 9)
+
 } // namespace pnnx

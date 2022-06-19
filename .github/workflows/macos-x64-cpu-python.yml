@@ -25,6 +25,9 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+permissions:
+  contents: read
+
 jobs:
   macos-clang:
     runs-on: macos-latest
@@ -36,7 +39,7 @@ jobs:
       with:
         submodules: true
     - name: set up python ${{ matrix.python-version }}
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: install dependencies

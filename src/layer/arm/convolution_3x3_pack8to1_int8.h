@@ -12,9 +12,9 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_neon(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd43_transform_kernel_pack8to1_int8_neon(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt)
 {
-    // winograd42 transform kernel
+    // winograd43 transform kernel
     Mat kernel_tm(6 * 6, inch, outch, (size_t)2u);
 
     const short ktm[6][3] = {
@@ -125,7 +125,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_neon(const Mat& 
     }
 }
 
-static void conv3x3s1_winograd42_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
+static void conv3x3s1_winograd43_pack8to1_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;

@@ -61,7 +61,11 @@ void main()
     afp v = buffer_ld1(bottom_top_blob_data, gi);
 #endif
 
+#if NCNN_moltenvk
+    v = afp(tanh(float(v)));
+#else
     v = tanh(v);
+#endif
 
 #if NCNN_image_shader
     image3d_st1(top_blob_3d, ivec3(gx, gy, gz), v);

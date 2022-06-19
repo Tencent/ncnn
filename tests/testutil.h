@@ -103,31 +103,31 @@ static void RandomizeS8(ncnn::Mat& m)
     }
 }
 
-static ncnn::Mat RandomMat(int w)
+static ncnn::Mat RandomMat(int w, float a = -1.2f, float b = 1.2f)
 {
     ncnn::Mat m(w);
-    Randomize(m);
+    Randomize(m, a, b);
     return m;
 }
 
-static ncnn::Mat RandomMat(int w, int h)
+static ncnn::Mat RandomMat(int w, int h, float a = -1.2f, float b = 1.2f)
 {
     ncnn::Mat m(w, h);
-    Randomize(m);
+    Randomize(m, a, b);
     return m;
 }
 
-static ncnn::Mat RandomMat(int w, int h, int c)
+static ncnn::Mat RandomMat(int w, int h, int c, float a = -1.2f, float b = 1.2f)
 {
     ncnn::Mat m(w, h, c);
-    Randomize(m);
+    Randomize(m, a, b);
     return m;
 }
 
-static ncnn::Mat RandomMat(int w, int h, int d, int c)
+static ncnn::Mat RandomMat(int w, int h, int d, int c, float a = -1.2f, float b = 1.2f)
 {
     ncnn::Mat m(w, h, d, c);
-    Randomize(m);
+    Randomize(m, a, b);
     return m;
 }
 
@@ -363,6 +363,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -464,8 +465,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
             if (elembits == 32)
             {
-#if (NCNN_AVX2 || NCNN_AVX)
-                if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
+#if NCNN_AVX512
+                if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                    dst_elempack = 16;
+                else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                    dst_elempack = 8;
+                else if (elemcount % 4 == 0)
+                    dst_elempack = 4;
+#elif NCNN_AVX
+                if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                     dst_elempack = 8;
                 else if (elemcount % 4 == 0)
                     dst_elempack = 4;
@@ -615,6 +623,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;
@@ -800,6 +809,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -888,8 +898,15 @@ int test_layer_cpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
 
         if (elembits == 32)
         {
-#if (NCNN_AVX2 || NCNN_AVX)
-            if (elemcount % 8 == 0 && (ncnn::cpu_support_x86_avx2() || ncnn::cpu_support_x86_avx()))
+#if NCNN_AVX512
+            if (elemcount % 16 == 0 && ncnn::cpu_support_x86_avx512())
+                dst_elempack = 16;
+            else if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
+                dst_elempack = 8;
+            else if (elemcount % 4 == 0)
+                dst_elempack = 4;
+#elif NCNN_AVX
+            if (elemcount % 8 == 0 && ncnn::cpu_support_x86_avx())
                 dst_elempack = 8;
             else if (elemcount % 4 == 0)
                 dst_elempack = 4;
@@ -1024,6 +1041,7 @@ int test_layer_gpu(int typeindex, const ncnn::ParamDict& pd, const std::vector<n
     if (!vkdev->info.support_fp16_packed()) opt.use_fp16_packed = false;
     if (!vkdev->info.support_fp16_storage()) opt.use_fp16_storage = false;
     if (!vkdev->info.support_fp16_arithmetic()) opt.use_fp16_arithmetic = false;
+    if (!vkdev->info.support_cooperative_matrix()) opt.use_cooperative_matrix = false;
 
     // FIXME fp16a may produce large error
     opt.use_fp16_arithmetic = false;

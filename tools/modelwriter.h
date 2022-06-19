@@ -244,6 +244,7 @@ public:
 ModelWriter::ModelWriter()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
+    opt.lightmode = false;
     has_custom_layer = false;
     gen_random_weight = false;
     cutstart = -1;
@@ -329,6 +330,7 @@ int ModelWriter::shape_inference()
     }
 
     ncnn::Extractor ex = create_extractor();
+    ex.set_light_mode(true);
 
     // prepare Input blobs
     for (size_t i = 0; i < layer_count; i++)
@@ -452,6 +454,7 @@ int ModelWriter::estimate_memory_footprint()
     MemoryFootprintAllocator allocator;
 
     ncnn::Extractor ex = create_extractor();
+    ex.set_light_mode(true);
 
     ex.set_blob_allocator(&allocator);
     ex.set_workspace_allocator(&allocator);
@@ -2209,7 +2212,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
     if (mac)
     {
-        fprintf(stderr, "mac = %llu = %.2f M\n", mac, mac / 1000000.0);
+        fprintf(stderr, "mac = %llu = %.2f M\n", static_cast<long long unsigned>(mac), mac / 1000000.0);
     }
 
     return 0;

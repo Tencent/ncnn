@@ -20,8 +20,11 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif
+#if __SSE2__
+#include <emmintrin.h>
 #if __AVX__
 #include <immintrin.h>
+#endif
 #endif
 #if __mips_msa
 #include <msa.h>
@@ -116,10 +119,16 @@ public:
     void fill(float16x8_t _v);
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
+#if __SSE2__
 #if __AVX__
+#if __AVX512F__
+    void fill(__m512 _v);
+#endif // __AVX512F__
     void fill(__m256 _v);
-    void fill(__m128i _v);
 #endif // __AVX__
+    void fill(__m128 _v);
+    void fill(__m128i _v);
+#endif // __SSE2__
 #if __mips_msa
     void fill(v4f32 _v);
 #endif // __mips_msa
@@ -766,6 +775,7 @@ enum BorderType
 {
     BORDER_CONSTANT = 0,
     BORDER_REPLICATE = 1,
+    BORDER_REFLECT = 2,
     BORDER_TRANSPARENT = -233,
 };
 NCNN_EXPORT void copy_make_border(const Mat& src, Mat& dst, int top, int bottom, int left, int right, int type, float v, const Option& opt = Option());
@@ -903,48 +913,16 @@ NCNN_FORCEINLINE void Mat::fill(float _v)
     int size = (int)total();
     float* ptr = (float*)data;
 
-#if __ARM_NEON
-    int nn = size >> 2;
-    int remain = size - (nn << 2);
-#else
-    int remain = size;
-#endif // __ARM_NEON
-
+    int i = 0;
 #if __ARM_NEON
     float32x4_t _c = vdupq_n_f32(_v);
-#if __aarch64__
-    if (nn > 0)
+    for (; i + 3 < size; i += 4)
     {
-        asm volatile(
-            "0:                             \n"
-            "subs       %w0, %w0, #1        \n"
-            "st1        {%4.4s}, [%1], #16  \n"
-            "bne        0b                  \n"
-            : "=r"(nn), // %0
-            "=r"(ptr) // %1
-            : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
-            : "cc", "memory");
+        vst1q_f32(ptr, _c);
+        ptr += 4;
     }
-#else
-    if (nn > 0)
-    {
-        asm volatile(
-            "0:                             \n"
-            "subs       %0, #1              \n"
-            "vst1.f32   {%e4-%f4}, [%1 :128]!\n"
-            "bne        0b                  \n"
-            : "=r"(nn), // %0
-            "=r"(ptr) // %1
-            : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
-            : "cc", "memory");
-    }
-#endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain > 0; remain--)
+    for (; i < size; i++)
     {
         *ptr++ = _v;
     }
@@ -955,48 +933,16 @@ NCNN_FORCEINLINE void Mat::fill(int _v)
     int size = (int)total();
     int* ptr = (int*)data;
 
-#if __ARM_NEON
-    int nn = size >> 2;
-    int remain = size - (nn << 2);
-#else
-    int remain = size;
-#endif // __ARM_NEON
-
+    int i = 0;
 #if __ARM_NEON
     int32x4_t _c = vdupq_n_s32(_v);
-#if __aarch64__
-    if (nn > 0)
+    for (; i + 3 < size; i += 4)
     {
-        asm volatile(
-            "0:                             \n"
-            "subs       %w0, %w0, #1        \n"
-            "st1        {%4.4s}, [%1], #16  \n"
-            "bne        0b                  \n"
-            : "=r"(nn), // %0
-            "=r"(ptr) // %1
-            : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
-            : "cc", "memory");
+        vst1q_s32(ptr, _c);
+        ptr += 4;
     }
-#else
-    if (nn > 0)
-    {
-        asm volatile(
-            "0:                             \n"
-            "subs       %0, #1              \n"
-            "vst1.s32   {%e4-%f4}, [%1 :128]!\n"
-            "bne        0b                  \n"
-            : "=r"(nn), // %0
-            "=r"(ptr) // %1
-            : "0"(nn),
-            "1"(ptr),
-            "w"(_c) // %4
-            : "cc", "memory");
-    }
-#endif // __aarch64__
 #endif // __ARM_NEON
-    for (; remain > 0; remain--)
+    for (; i < size; i++)
     {
         *ptr++ = _v;
     }
@@ -1071,7 +1017,21 @@ NCNN_FORCEINLINE void Mat::fill(float16x8_t _v)
 }
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #endif // __ARM_NEON
+
+#if __SSE2__
 #if __AVX__
+#if __AVX512F__
+NCNN_FORCEINLINE void Mat::fill(__m512 _v)
+{
+    int size = (int)total();
+    float* ptr = (float*)data;
+    for (int i = 0; i < size; i++)
+    {
+        _mm512_storeu_ps(ptr, _v);
+        ptr += 16;
+    }
+}
+#endif // __AVX512F__
 NCNN_FORCEINLINE void Mat::fill(__m256 _v)
 {
     int size = (int)total();
@@ -1082,6 +1042,18 @@ NCNN_FORCEINLINE void Mat::fill(__m256 _v)
         ptr += 8;
     }
 }
+#endif // __AVX__
+NCNN_FORCEINLINE void Mat::fill(__m128 _v)
+{
+    int size = (int)total();
+    float* ptr = (float*)data;
+    for (int i = 0; i < size; i++)
+    {
+        _mm_storeu_ps(ptr, _v);
+        ptr += 4;
+    }
+}
+
 NCNN_FORCEINLINE void Mat::fill(__m128i _v)
 {
     int size = (int)total();
@@ -1092,7 +1064,7 @@ NCNN_FORCEINLINE void Mat::fill(__m128i _v)
         ptr += 8;
     }
 }
-#endif // __AVX__
+#endif // __SSE2__
 
 #if __mips_msa
 NCNN_FORCEINLINE void Mat::fill(v4f32 _v)

@@ -62,8 +62,13 @@ void main()
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
 #endif
 
+#if NCNN_moltenvk
+    v[0] = v[0] * afpvec4(tanh(vec4(log(exp(v[0]) + afpvec4(1.f)))));
+    v[1] = v[1] * afpvec4(tanh(vec4(log(exp(v[1]) + afpvec4(1.f)))));
+#else
     v[0] = v[0] * tanh(log(exp(v[0]) + afpvec4(1.f)));
     v[1] = v[1] * tanh(log(exp(v[1]) + afpvec4(1.f)));
+#endif
 
 #if NCNN_image_shader
     image3d_st8(top_blob_3d, ivec3(gx, gy, gz), v);

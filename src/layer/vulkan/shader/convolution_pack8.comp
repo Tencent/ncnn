@@ -22,6 +22,9 @@ struct sfpvec8 { f16vec4 abcd; f16vec4 efgh; };
 #extension GL_EXT_shader_explicit_arithmetic_types_float16: require
 #endif
 
+#extension GL_GOOGLE_include_directive: enable
+#include "vulkan_activation.comp"
+
 layout (constant_id = 0) const int kernel_w = 1;
 layout (constant_id = 1) const int kernel_h = 1;
 layout (constant_id = 2) const int dilation_w = 1;
@@ -342,125 +345,14 @@ void main()
     }
 #endif
 
-    if (activation_type == 1)
-    {
-        sum0[0] = max(sum0[0], afp(0.f));
-        sum0[1] = max(sum0[1], afp(0.f));
-        sum1[0] = max(sum1[0], afp(0.f));
-        sum1[1] = max(sum1[1], afp(0.f));
-        sum2[0] = max(sum2[0], afp(0.f));
-        sum2[1] = max(sum2[1], afp(0.f));
-        sum3[0] = max(sum3[0], afp(0.f));
-        sum3[1] = max(sum3[1], afp(0.f));
-        sum4[0] = max(sum4[0], afp(0.f));
-        sum4[1] = max(sum4[1], afp(0.f));
-        sum5[0] = max(sum5[0], afp(0.f));
-        sum5[1] = max(sum5[1], afp(0.f));
-        sum6[0] = max(sum6[0], afp(0.f));
-        sum6[1] = max(sum6[1], afp(0.f));
-        sum7[0] = max(sum7[0], afp(0.f));
-        sum7[1] = max(sum7[1], afp(0.f));
-    }
-    if (activation_type == 2)
-    {
-        const afp slope = afp(activation_param_0);
-        sum0[0] = mix(sum0[0], sum0[0] * afp(slope), lessThan(sum0[0], afpvec4(0.f)));
-        sum0[1] = mix(sum0[1], sum0[1] * afp(slope), lessThan(sum0[1], afpvec4(0.f)));
-        sum1[0] = mix(sum1[0], sum1[0] * afp(slope), lessThan(sum1[0], afpvec4(0.f)));
-        sum1[1] = mix(sum1[1], sum1[1] * afp(slope), lessThan(sum1[1], afpvec4(0.f)));
-        sum2[0] = mix(sum2[0], sum2[0] * afp(slope), lessThan(sum2[0], afpvec4(0.f)));
-        sum2[1] = mix(sum2[1], sum2[1] * afp(slope), lessThan(sum2[1], afpvec4(0.f)));
-        sum3[0] = mix(sum3[0], sum3[0] * afp(slope), lessThan(sum3[0], afpvec4(0.f)));
-        sum3[1] = mix(sum3[1], sum3[1] * afp(slope), lessThan(sum3[1], afpvec4(0.f)));
-        sum4[0] = mix(sum4[0], sum4[0] * afp(slope), lessThan(sum4[0], afpvec4(0.f)));
-        sum4[1] = mix(sum4[1], sum4[1] * afp(slope), lessThan(sum4[1], afpvec4(0.f)));
-        sum5[0] = mix(sum5[0], sum5[0] * afp(slope), lessThan(sum5[0], afpvec4(0.f)));
-        sum5[1] = mix(sum5[1], sum5[1] * afp(slope), lessThan(sum5[1], afpvec4(0.f)));
-        sum6[0] = mix(sum6[0], sum6[0] * afp(slope), lessThan(sum6[0], afpvec4(0.f)));
-        sum6[1] = mix(sum6[1], sum6[1] * afp(slope), lessThan(sum6[1], afpvec4(0.f)));
-        sum7[0] = mix(sum7[0], sum7[0] * afp(slope), lessThan(sum7[0], afpvec4(0.f)));
-        sum7[1] = mix(sum7[1], sum7[1] * afp(slope), lessThan(sum7[1], afpvec4(0.f)));
-    }
-    if (activation_type == 3)
-    {
-        const afp const_min = afp(activation_param_0);
-        const afp const_max = afp(activation_param_1);
-        sum0[0] = clamp(sum0[0], const_min, const_max);
-        sum0[1] = clamp(sum0[1], const_min, const_max);
-        sum1[0] = clamp(sum1[0], const_min, const_max);
-        sum1[1] = clamp(sum1[1], const_min, const_max);
-        sum2[0] = clamp(sum2[0], const_min, const_max);
-        sum2[1] = clamp(sum2[1], const_min, const_max);
-        sum3[0] = clamp(sum3[0], const_min, const_max);
-        sum3[1] = clamp(sum3[1], const_min, const_max);
-        sum4[0] = clamp(sum4[0], const_min, const_max);
-        sum4[1] = clamp(sum4[1], const_min, const_max);
-        sum5[0] = clamp(sum5[0], const_min, const_max);
-        sum5[1] = clamp(sum5[1], const_min, const_max);
-        sum6[0] = clamp(sum6[0], const_min, const_max);
-        sum6[1] = clamp(sum6[1], const_min, const_max);
-        sum7[0] = clamp(sum7[0], const_min, const_max);
-        sum7[1] = clamp(sum7[1], const_min, const_max);
-    }
-    if (activation_type == 4)
-    {
-        sum0[0] = afp(1.f) / (afp(1.f) + exp(-sum0[0]));
-        sum0[1] = afp(1.f) / (afp(1.f) + exp(-sum0[1]));
-        sum1[0] = afp(1.f) / (afp(1.f) + exp(-sum1[0]));
-        sum1[1] = afp(1.f) / (afp(1.f) + exp(-sum1[1]));
-        sum2[0] = afp(1.f) / (afp(1.f) + exp(-sum2[0]));
-        sum2[1] = afp(1.f) / (afp(1.f) + exp(-sum2[1]));
-        sum3[0] = afp(1.f) / (afp(1.f) + exp(-sum3[0]));
-        sum3[1] = afp(1.f) / (afp(1.f) + exp(-sum3[1]));
-        sum4[0] = afp(1.f) / (afp(1.f) + exp(-sum4[0]));
-        sum4[1] = afp(1.f) / (afp(1.f) + exp(-sum4[1]));
-        sum5[0] = afp(1.f) / (afp(1.f) + exp(-sum5[0]));
-        sum5[1] = afp(1.f) / (afp(1.f) + exp(-sum5[1]));
-        sum6[0] = afp(1.f) / (afp(1.f) + exp(-sum6[0]));
-        sum6[1] = afp(1.f) / (afp(1.f) + exp(-sum6[1]));
-        sum7[0] = afp(1.f) / (afp(1.f) + exp(-sum7[0]));
-        sum7[1] = afp(1.f) / (afp(1.f) + exp(-sum7[1]));
-    }
-    if (activation_type == 5)
-    {
-        sum0[0] = sum0[0] * tanh(log(exp(sum0[0]) + afp(1.f)));
-        sum0[1] = sum0[1] * tanh(log(exp(sum0[1]) + afp(1.f)));
-        sum1[0] = sum1[0] * tanh(log(exp(sum1[0]) + afp(1.f)));
-        sum1[1] = sum1[1] * tanh(log(exp(sum1[1]) + afp(1.f)));
-        sum2[0] = sum2[0] * tanh(log(exp(sum2[0]) + afp(1.f)));
-        sum2[1] = sum2[1] * tanh(log(exp(sum2[1]) + afp(1.f)));
-        sum3[0] = sum3[0] * tanh(log(exp(sum3[0]) + afp(1.f)));
-        sum3[1] = sum3[1] * tanh(log(exp(sum3[1]) + afp(1.f)));
-        sum4[0] = sum4[0] * tanh(log(exp(sum4[0]) + afp(1.f)));
-        sum4[1] = sum4[1] * tanh(log(exp(sum4[1]) + afp(1.f)));
-        sum5[0] = sum5[0] * tanh(log(exp(sum5[0]) + afp(1.f)));
-        sum5[1] = sum5[1] * tanh(log(exp(sum5[1]) + afp(1.f)));
-        sum6[0] = sum6[0] * tanh(log(exp(sum6[0]) + afp(1.f)));
-        sum6[1] = sum6[1] * tanh(log(exp(sum6[1]) + afp(1.f)));
-        sum7[0] = sum7[0] * tanh(log(exp(sum7[0]) + afp(1.f)));
-        sum7[1] = sum7[1] * tanh(log(exp(sum7[1]) + afp(1.f)));
-    }
-    if (activation_type == 6)
-    {
-        const afp alpha = afp(activation_param_0);
-        const afp beta = afp(activation_param_1);
-        sum0[0] = sum0[0] * clamp(sum0[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum0[1] = sum0[1] * clamp(sum0[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum1[0] = sum1[0] * clamp(sum1[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum1[1] = sum1[1] * clamp(sum1[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum2[0] = sum2[0] * clamp(sum2[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum2[1] = sum2[1] * clamp(sum2[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum3[0] = sum3[0] * clamp(sum3[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum3[1] = sum3[1] * clamp(sum3[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum4[0] = sum4[0] * clamp(sum4[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum4[1] = sum4[1] * clamp(sum4[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum5[0] = sum5[0] * clamp(sum5[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum5[1] = sum5[1] * clamp(sum5[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum6[0] = sum6[0] * clamp(sum6[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum6[1] = sum6[1] * clamp(sum6[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum7[0] = sum7[0] * clamp(sum7[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-        sum7[1] = sum7[1] * clamp(sum7[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
-    }
+    sum0 = activation_afpvec8(sum0, activation_type, activation_param_0, activation_param_1);
+    sum1 = activation_afpvec8(sum1, activation_type, activation_param_0, activation_param_1);
+    sum2 = activation_afpvec8(sum2, activation_type, activation_param_0, activation_param_1);
+    sum3 = activation_afpvec8(sum3, activation_type, activation_param_0, activation_param_1);
+    sum4 = activation_afpvec8(sum4, activation_type, activation_param_0, activation_param_1);
+    sum5 = activation_afpvec8(sum5, activation_type, activation_param_0, activation_param_1);
+    sum6 = activation_afpvec8(sum6, activation_type, activation_param_0, activation_param_1);
+    sum7 = activation_afpvec8(sum7, activation_type, activation_param_0, activation_param_1);
 
 #if NCNN_image_shader
     image3d_st8(top_blob, ivec3(gx2.x, gy2.x, gz2.x), sum0);

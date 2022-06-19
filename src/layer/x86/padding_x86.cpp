@@ -28,6 +28,9 @@ namespace ncnn {
 #include "padding_pack8_int8.h"
 #if __AVX__
 #include "padding_pack8.h"
+#if __AVX512F__
+#include "padding_pack16.h"
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 
@@ -61,6 +64,133 @@ int Padding_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        if (dims == 1)
+        {
+            int outw = w * elempack + left + right;
+
+            int out_elempack = outw % 16 == 0 ? 16 : outw % 8 == 0 ? 8 : outw % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (left % 16 == 0 && out_elempack == 16 && type == 0)
+            {
+                top_blob.create(outw / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                __m512 pad_value = _mm512_set1_ps(value);
+                padding_constant_pack16_avx512(bottom_blob, top_blob, 0, 0, left / 16, right / 16, pad_value);
+
+                return 0;
+            }
+        }
+
+        if (dims == 2)
+        {
+            int outw = w + left + right;
+            int outh = h * elempack + top + bottom;
+
+            int out_elempack = outh % 16 == 0 ? 16 : outh % 8 == 0 ? 8 : outh % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (top % 16 == 0 && out_elempack == 16 && type == 0)
+            {
+                top_blob.create(outw, outh / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                __m512 pad_value = _mm512_set1_ps(value);
+                padding_constant_pack16_avx512(bottom_blob, top_blob, top / 16, bottom / 16, left, right, pad_value);
+
+                return 0;
+            }
+        }
+
+        if (dims == 3)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outc = channels * elempack + front + behind;
+
+            int out_elempack = outc % 16 == 0 ? 16 : outc % 8 == 0 ? 8 : outc % 4 == 0 ? 4 : 1;
+            size_t out_elemsize = elemsize / elempack * out_elempack;
+
+            if (front % 16 == 0 && out_elempack == 16 && !(outc != channels * elempack && type != 0))
+            {
+                top_blob.create(outw, outh, outc / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                int front_ = front / elempack;
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < outc / out_elempack; q++)
+                {
+                    Mat borderm = top_blob.channel(q);
+
+                    __m512 pad_value = per_channel_pad_data_size ? _mm512_loadu_ps((const float*)per_channel_pad_data + q * 16) : _mm512_set1_ps(value);
+                    //Channel padding
+                    if ((q - front_) < 0 || (q - front_) >= channels)
+                    {
+                        borderm.fill(pad_value);
+                    }
+                    else
+                    {
+                        const Mat m = bottom_blob.channel(q - front_);
+                        if (type == 0)
+                            padding_constant_pack16_avx512(m, borderm, top, bottom, left, right, pad_value);
+                        if (type == 1)
+                            padding_replicate_pack16_avx512(m, borderm, top, bottom, left, right);
+                        if (type == 2)
+                            padding_reflect_pack16_avx512(m, borderm, top, bottom, left, right);
+                    }
+                }
+
+                return 0;
+            }
+        }
+
+        if (dims == 4)
+        {
+            int outw = w + left + right;
+            int outh = h + top + bottom;
+            int outd = d + front + behind;
+
+            if (type == 0)
+            {
+                top_blob.create(outw, outh, outd, channels, elemsize, elempack, opt.blob_allocator);
+                if (top_blob.empty())
+                    return -100;
+
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    __m512 pad_value = per_channel_pad_data_size ? _mm512_loadu_ps((const float*)per_channel_pad_data + q * 16) : _mm512_set1_ps(value);
+
+                    for (int z = 0; z < outd; z++)
+                    {
+                        Mat borderm = top_blob.channel(q).depth(z);
+
+                        // depth padding
+                        if ((z - front) < 0 || (z - front) >= d)
+                        {
+                            borderm.fill(pad_value);
+                        }
+                        else
+                        {
+                            const Mat m = bottom_blob.channel(q).depth(z - front);
+                            padding_constant_pack16_avx512(m, borderm, top, bottom, left, right, pad_value);
+                        }
+                    }
+                }
+
+                return 0;
+            }
+        }
+    }
+#endif // __AVX512F__
+
     if (elempack == 8)
     {
         if (dims == 1)

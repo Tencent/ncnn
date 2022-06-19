@@ -21,8 +21,16 @@
 
 namespace pnnx {
 
-static bool value_link_input(const torch::jit::Value* v, const std::vector<torch::jit::Value*>& inputs)
+static bool value_link_input(const torch::jit::Value* v, const std::vector<torch::jit::Value*>& inputs, bool ignore_aten_size)
 {
+    if (ignore_aten_size)
+    {
+        // any intermediate shape is constant with static input shape
+        std::string optype = v->node()->kind().toDisplayString();
+        if (optype == "aten::size" || optype == "aten::new_empty" || optype == "aten::new_ones" || optype == "aten::new_zeros")
+            return false;
+    }
+
     for (auto x : inputs)
     {
         if (v == x)
@@ -31,7 +39,7 @@ static bool value_link_input(const torch::jit::Value* v, const std::vector<torch
 
     for (size_t i = 0; i < v->node()->inputs().size(); i++)
     {
-        bool link = value_link_input(v->node()->inputs()[i], inputs);
+        bool link = value_link_input(v->node()->inputs()[i], inputs, ignore_aten_size);
         if (link)
             return true;
     }
@@ -183,7 +191,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 v->setType(c10::TensorType::create(t));
 
                 // check if value that does not depend on inputs
-                if (!value_link_input(v, g_inputs) && value_link_output(v, g_outputs))
+                if (!value_link_input(v, g_inputs, true) && value_link_output(v, g_outputs))
                 {
                     output_tensors[v] = t;
                 }
@@ -221,7 +229,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 v->setType(finaltype);
 
                 // check if value that does not depend on inputs
-                if (!value_link_input(v, g_inputs) && value_link_output(v, g_outputs))
+                if (!value_link_input(v, g_inputs, false) && value_link_output(v, g_outputs))
                 {
                     output_tensors[v] = t;
                 }

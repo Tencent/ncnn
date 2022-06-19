@@ -1181,7 +1181,7 @@ Mat Mat::from_float16(const unsigned short* data, int size)
         asm volatile(
             "0:                             \n"
             "pld        [%1, #64]           \n"
-            "vld1.s16   {d0}, [%1 :64]!     \n"
+            "vld1.s16   {d0}, [%1]!         \n"
             "vcvt.f32.f16 q1, d0            \n"
             "subs       %0, #1              \n"
             "vst1.f32   {d2-d3}, [%2 :128]! \n"

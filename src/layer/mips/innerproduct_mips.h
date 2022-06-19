@@ -37,12 +37,11 @@ protected:
 
 public:
     Layer* flatten;
-    Layer* activation;
+
+    Mat weight_data_tm;
 
 #if NCNN_INT8
-    // int8
-    Mat weight_data_int8;
-    Mat scales_in;
+    Mat scale_in_data;
 #endif
 };
 
