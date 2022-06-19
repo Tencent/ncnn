@@ -63,7 +63,11 @@ static float RandomFloat(float a = -1.2f, float b = 1.2f)
     float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
     float diff = b - a;
     float r = random * diff;
-    return a + r;
+    float v = a + r;
+    // generate denormal as zero
+    if (v < 0.0001 && v > -0.0001)
+        v = 0.f;
+    return v;
 }
 
 static int RandomInt(int a = -10000, int b = 10000)
