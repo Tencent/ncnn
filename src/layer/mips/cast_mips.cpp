@@ -104,7 +104,7 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 __builtin_prefetch(ptr + 16);
                 v4f32 _p0 = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _p1 = (v4f32)__msa_ld_w(ptr + 4, 0);
-                v8i16 _p = __msa_fexdo_h(_p0, _p1);
+                v8i16 _p = __msa_fexdo_h(_p1, _p0);
                 __msa_st_h(_p, outptr, 0);
 
                 ptr += 8;
