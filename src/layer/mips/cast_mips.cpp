@@ -16,7 +16,6 @@
 
 #if __mips_msa
 #include <msa.h>
-typedef __fp16 v8f16 __attribute__ ((vector_size(16)));
 #endif // __mips_msa
 
 namespace ncnn {
@@ -105,8 +104,8 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
                 __builtin_prefetch(ptr + 16);
                 v4f32 _p0 = (v4f32)__msa_ld_w(ptr, 0);
                 v4f32 _p1 = (v4f32)__msa_ld_w(ptr + 4, 0);
-                v8f16 _p = __msa_fexdo_h(_p0, _p1);
-                __msa_st_h((v8i16)_p, outptr, 0);
+                v8i16 _p = __msa_fexdo_h(_p0, _p1);
+                __msa_st_h(_p, outptr, 0);
 
                 ptr += 8;
                 outptr += 8;
@@ -134,7 +133,7 @@ int Cast_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
             for (; i + 7 < size; i += 8)
             {
                 __builtin_prefetch(ptr + 16);
-                v8f16 _p = (v8f16)__msa_ld_h(ptr, 0);
+                v8i16 _p = __msa_ld_h(ptr, 0);
                 v4f32 _p0 = __msa_fexupr_w(_p);
                 v4f32 _p1 = __msa_fexupl_w(_p);
                 __msa_st_w((v4i32)_p0, outptr, 0);
