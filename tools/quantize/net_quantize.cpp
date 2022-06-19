@@ -153,14 +153,16 @@ int NetQuantize::quantize_mha()
                 opt_q.use_packing_layout = false;
 
                 auto& scales = table->get_list<float>(key);
-                if (scales.empty()) {
+                if (scales.empty())
+                {
                     return -100;
                 }
                 w_scales = ncnn::Mat((int)scales.size(), (void*)scales.data());
 
                 ncnn::Mat weight_int8;
                 ncnn::quantize_to_int8(weight, weight_int8, w_scales, opt_q);
-                if (weight_int8.empty()) {
+                if (weight_int8.empty())
+                {
                     return -200;
                 }
                 weight = weight_int8.reshape(mha->weight_data_size);
@@ -185,7 +187,8 @@ int NetQuantize::quantize_mha()
             // write input scale
             auto convert = [table](const std::string key, ncnn::Mat& mat) {
                 auto& scales = table->get_list<float>(key);
-                if (scales.empty()) {
+                if (scales.empty())
+                {
                     return -100;
                 }
                 mat = ncnn::Mat((int)scales.size(), (void*)scales.data());

@@ -90,16 +90,16 @@ int MultiHeadAttention::load_model(const ModelBin& mb)\
 
 #ifdef NCNN_INT8
 /**
- * @brief 
+ * @brief
  *  q_input_int8 * q_weight --> q_out_int32
- *  q_out_int32 / input_scale / weight_scale + bias --> q_out_fp32 
+ *  q_out_int32 / input_scale / weight_scale + bias --> q_out_fp32
  *  q_out_fp32 --> q_internal_int8
- * @param input 
- * @param internal 
- * @param input_scale 
- * @param weight_scales 
- * @param transpose_out 
- * @return int 
+ * @param input
+ * @param internal
+ * @param input_scale
+ * @param weight_scales
+ * @param transpose_out
+ * @return int
  */
 int MultiHeadAttention::transform_input(
     const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8, 
@@ -111,7 +111,8 @@ int MultiHeadAttention::transform_input(
     const float scale = 1.0 / input_scale[0];
 
     Mat input_int8;
-    if (input.elemsize != 1) {
+    if (input.elemsize != 1)
+    {
         quantize_to_int8(input, input_int8, input_scale, opt);
     }
 
@@ -216,13 +217,13 @@ int MultiHeadAttention::log_int_softmax(int32_t* ptr, int8_t *out, const int len
 
 /**
  * @brief int8 mha, referenced to
- * 
+ *
  *  https://github.com/megvii-research/FQ-ViT/blob/main/models/vit_quant.py#L95
- * 
- * @param bottom_blobs 
- * @param top_blobs 
- * @param opt 
- * @return int 
+ *
+ * @param bottom_blobs
+ * @param top_blobs
+ * @param opt
+ * @return int
  */
 int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
@@ -369,10 +370,10 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 #if NCNN_INT8
     if (opt.use_int8_inference)
     {
-        if (q_weight_data.elemsize != (size_t)1u || k_weight_data.elemsize != (size_t)1u || 
-            v_weight_data.elemsize != (size_t)1u || out_weight_data.elemsize != (size_t)1u){
-                return -1;
-            }
+        if (q_weight_data.elemsize != (size_t)1u || k_weight_data.elemsize != (size_t)1u || v_weight_data.elemsize != (size_t)1u || out_weight_data.elemsize != (size_t)1u)
+        {
+            return -1;
+        }
         return forward_int8(bottom_blobs, top_blobs, opt);
     }
 #endif
