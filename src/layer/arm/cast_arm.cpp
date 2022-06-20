@@ -144,7 +144,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "shrn   v2.4h, v2.4s, #16       \n"
                     "shrn   v3.4h, v3.4s, #16       \n"
                     "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
-                    : "=r"(ptr), // %0
+                    : "=r"(ptr),   // %0
                     "=r"(outptr) // %1
                     : "0"(ptr),
                     "1"(outptr)
@@ -158,7 +158,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "vshrn.u32  d2, q2, #16     \n"
                     "vshrn.u32  d3, q3, #16     \n"
                     "vst1.u16   {d0-d3}, [%1 :128]! \n"
-                    : "=r"(ptr), // %0
+                    : "=r"(ptr),   // %0
                     "=r"(outptr) // %1
                     : "0"(ptr),
                     "1"(outptr)
@@ -213,7 +213,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "shll   v2.4s, v2.4h, #16       \n"
                     "shll   v3.4s, v3.4h, #16       \n"
                     "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
-                    : "=r"(ptr), // %0
+                    : "=r"(ptr),   // %0
                     "=r"(outptr) // %1
                     : "0"(ptr),
                     "1"(outptr)
@@ -227,7 +227,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
                     "vshll.u16  q2, d6, #16     \n"
                     "vshll.u16  q3, d7, #16     \n"
                     "vstm       %1!, {d0-d7}    \n"
-                    : "=r"(ptr), // %0
+                    : "=r"(ptr),   // %0
                     "=r"(outptr) // %1
                     : "0"(ptr),
                     "1"(outptr)

@@ -54,7 +54,7 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 "fcvtn  v2.4h, v2.4s            \n"
                 "fcvtn  v3.4h, v3.4s            \n"
                 "st1    {v0.4h, v1.4h, v2.4h, v3.4h}, [%1], #32 \n"
-                : "=r"(ptr), // %0
+                : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
                 "1"(outptr)
@@ -68,7 +68,7 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 "vcvt.f16.f32 d2, q2        \n"
                 "vcvt.f16.f32 d3, q3        \n"
                 "vst1.u16   {d0-d3}, [%1 :128]! \n"
-                : "=r"(ptr), // %0
+                : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
                 "1"(outptr)
@@ -139,7 +139,7 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 "fcvtl  v2.4s, v2.4h            \n"
                 "fcvtl  v3.4s, v3.4h            \n"
                 "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%1], #64 \n"
-                : "=r"(ptr), // %0
+                : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
                 "1"(outptr)
@@ -153,7 +153,7 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 "vcvt.f32.f16 q2, d6        \n"
                 "vcvt.f32.f16 q3, d7        \n"
                 "vstm       %1!, {d0-d7}    \n"
-                : "=r"(ptr), // %0
+                : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
                 "1"(outptr)
