@@ -400,9 +400,9 @@ if(NCNN_TARGET_ARCH STREQUAL "x86")
     endif()
 endif()
 
-if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(armv7)"))
+if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm)"))
     if(NOT NCNN_RUNTIME_CPU AND NCNN_VFPV4)
-        target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4)
+        target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4 -mfp16-format=ieee)
     endif()
 endif()
 

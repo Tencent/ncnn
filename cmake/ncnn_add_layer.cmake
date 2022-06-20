@@ -218,9 +218,9 @@ macro(ncnn_add_layer class)
         endif()
     endif()
 
-    if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(armv7)"))
+    if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm)"))
         if(NCNN_VFPV4)
-            ncnn_add_arch_opt_source(${class} vfpv4 "-mfpu=neon-vfpv4")
+            ncnn_add_arch_opt_source(${class} vfpv4 "-mfpu=neon-vfpv4 -mfp16-format=ieee")
         endif()
     endif()
 

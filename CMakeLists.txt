@@ -152,7 +152,7 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
     if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
         include(CheckCXXCompilerFlag)
 
-        set(CMAKE_REQUIRED_FLAGS "-mfpu=neon-vfpv4")
+        set(CMAKE_REQUIRED_FLAGS "-mfpu=neon-vfpv4 -mfp16-format=ieee")
         check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vcvt_f16_f32(_a); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4)
 
         set(CMAKE_REQUIRED_FLAGS "-march=armv8.2-a+fp16")
