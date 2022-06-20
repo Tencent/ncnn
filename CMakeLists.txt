@@ -152,6 +152,14 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
     if(NOT (CMAKE_CXX_COMPILER_ID MATCHES "MSVC" OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_CXX_SIMULATE_ID MATCHES "MSVC" AND CMAKE_CXX_COMPILER_FRONTEND_VARIANT MATCHES "MSVC")))
         include(CheckCXXCompilerFlag)
 
+        set(CMAKE_REQUIRED_FLAGS "-mfpu=neon-vfpv4")
+        check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vcvt_f16_f32(_a); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+
+        if(NOT NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+            set(CMAKE_REQUIRED_FLAGS "-mfpu=neon-vfpv4 -mfp16-format=ieee")
+            check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vcvt_f16_f32(_a); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4_FP16)
+        endif()
+
         set(CMAKE_REQUIRED_FLAGS "-march=armv8.2-a+fp16")
         check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float16x8_t _s, _a, _b; _s = vfmaq_f16(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM82_FP16)
 
@@ -159,6 +167,12 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
         check_cxx_source_compiles("#include <arm_neon.h>\nint main() { int32x4_t _s; int8x16_t _a, _b; _s = vdotq_s32(_s, _a, _b); return 0; }" NCNN_COMPILER_SUPPORT_ARM82_FP16_DOTPROD)
 
         unset(CMAKE_REQUIRED_FLAGS)
+    endif()
+
+    if(NCNN_COMPILER_SUPPORT_ARM_VFPV4 OR NCNN_COMPILER_SUPPORT_ARM_VFPV4_FP16)
+        option(NCNN_VFPV4 "optimize armv7 platform with vfpv4" ON)
+    else()
+        message(WARNING "The compiler does not support arm vfpv4. NCNN_VFPV4 will be OFF.")
     endif()
 
     if(NCNN_COMPILER_SUPPORT_ARM82_FP16)

@@ -41,6 +41,7 @@
 #cmakedefine01 NCNN_AVX512VNNI
 #cmakedefine01 NCNN_AVX512BF16
 #cmakedefine01 NCNN_AVX512FP16
+#cmakedefine01 NCNN_VFPV4
 #if __aarch64__
 #cmakedefine01 NCNN_ARM82
 #cmakedefine01 NCNN_ARM82DOT
