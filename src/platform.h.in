@@ -32,6 +32,7 @@
 #cmakedefine01 NCNN_SYSTEM_GLSLANG
 #cmakedefine01 NCNN_RUNTIME_CPU
 #cmakedefine01 NCNN_AVX
+#if __AVX__
 #cmakedefine01 NCNN_XOP
 #cmakedefine01 NCNN_FMA
 #cmakedefine01 NCNN_F16C
@@ -41,6 +42,7 @@
 #cmakedefine01 NCNN_AVX512VNNI
 #cmakedefine01 NCNN_AVX512BF16
 #cmakedefine01 NCNN_AVX512FP16
+#endif // __AVX__
 #cmakedefine01 NCNN_VFPV4
 #if __aarch64__
 #cmakedefine01 NCNN_ARM82
