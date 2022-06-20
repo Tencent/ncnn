@@ -402,7 +402,11 @@ endif()
 
 if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm)"))
     if(NOT NCNN_RUNTIME_CPU AND NCNN_VFPV4)
-        target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4 -mfp16-format=ieee)
+        if(NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+            target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4)
+        elseif(NCNN_COMPILER_SUPPORT_ARM_VFPV4_FP16)
+            target_compile_options(ncnn PRIVATE -mfpu=neon-vfpv4 -mfp16-format=ieee)
+        endif()
     endif()
 endif()
 
