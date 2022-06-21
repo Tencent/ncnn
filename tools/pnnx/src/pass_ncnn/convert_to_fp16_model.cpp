@@ -105,9 +105,9 @@ void convert_to_fp16_model(Graph& graph)
                 // write fp16 flag
                 // unsigned int fp16_flag = 0x01306B47;
                 attr.data[0] = 0x47;
-                attr.data[1] = 0x68;
-                attr.data[2] = 0x06;
-                attr.data[3] = 0x13;
+                attr.data[1] = 0x6B;
+                attr.data[2] = 0x30;
+                attr.data[3] = 0x01;
 
                 is_type_flag_fp32 = true;
                 continue;
