@@ -16,13 +16,12 @@
 
 #include "ini_config.h"
 
-namespace ini
-{
+namespace ini {
 template<>
 std::string value_set<std::string>(std::string data)
 {
     return "\"" + data + "\"";
-} 
+}
 
 template<>
 std::string value_set<const char*>(const char* data)
