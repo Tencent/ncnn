@@ -19,7 +19,6 @@
 #include <map>
 #include <set>
 #include <vector>
-#include "ini_config.h"
 
 void NetQuantize::set_weight_suffix(std::string str)
 {
@@ -165,7 +164,7 @@ int NetQuantize::quantize_mha()
                 opt_q.blob_allocator = weight.allocator;
                 opt_q.use_packing_layout = false;
 
-                auto& scales = table->get_list<float>(key);
+                auto scales = table->get_list<float>(key);
                 if (scales.empty())
                 {
                     return -100;
@@ -199,7 +198,7 @@ int NetQuantize::quantize_mha()
         {
             // write input scale
             auto convert = [table](const std::string key, ncnn::Mat& mat) {
-                auto& scales = table->get_list<float>(key);
+                auto scales = table->get_list<float>(key);
                 if (scales.empty())
                 {
                     return -100;
