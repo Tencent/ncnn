@@ -138,6 +138,8 @@ bool NetQuantize::read_ini_format(const char* path)
 int NetQuantize::quantize_mha()
 {
     const int layer_count = static_cast<int>(layers.size());
+    auto base_opt = opt;
+
     for (int i = 0; i < layer_count; i++)
     {
         // find convolution layer
@@ -154,11 +156,10 @@ int NetQuantize::quantize_mha()
         ncnn::MultiHeadAttention* mha = (ncnn::MultiHeadAttention*)layers[i];
         fprintf(stderr, "quantize_multiheadattention %s\n", mha->name.c_str());
 
-        auto table = mha_table.at(name);
+        auto& table = mha_table.at(name);
         {
             // write weights
             // convert fp32 mat to int8 mat with the scales
-            auto base_opt = opt;
             auto convert = [table, mha, base_opt](ncnn::Mat& weight, std::string key, ncnn::Mat& w_scales) -> int {
                 ncnn::Option opt_q = base_opt;
                 opt_q.blob_allocator = weight.allocator;
@@ -169,7 +170,7 @@ int NetQuantize::quantize_mha()
                 {
                     return -100;
                 }
-                w_scales = ncnn::Mat((int)scales.size(), (void*)scales.data());
+                w_scales = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
 
                 ncnn::Mat weight_int8;
                 ncnn::quantize_to_int8(weight, weight_int8, w_scales, opt_q);
@@ -197,18 +198,26 @@ int NetQuantize::quantize_mha()
 
         {
             // write input scale
-            auto convert = [table](const std::string key, ncnn::Mat& mat) {
-                auto scales = table->get_list<float>(key);
+            auto convert = [table, base_opt](const std::string key, ncnn::Mat& mat) -> int {
+                std::vector<float> scales = {table->get<float>(key)};
                 if (scales.empty())
                 {
                     return -100;
                 }
-                mat = ncnn::Mat((int)scales.size(), (void*)scales.data());
+
+                mat = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
+                return 0;
             };
 
-            convert("input_scale_q", mha->q_input_scale);
-            convert("input_scale_k", mha->q_input_scale);
-            convert("input_scale_v", mha->q_input_scale);
+            int success = 0;
+            success += convert("input_scale_q", mha->q_input_scale);
+            success += convert("input_scale_k", mha->k_input_scale);
+            success += convert("input_scale_v", mha->v_input_scale);
+            if (success != 0)
+            {
+                fprintf(stderr, "load input scale failed. \n");
+                return -100;
+            }
         }
 
         {
@@ -220,7 +229,7 @@ int NetQuantize::quantize_mha()
             internal_scales.emplace_back(table->get<float>("internal_scale_energy"));
             internal_scales.emplace_back(table->get<float>("internal_scale_feat"));
 
-            mha->internal_scales = ncnn::Mat((int)internal_scales.size(), (void*)internal_scales.data());
+            mha->internal_scales = ncnn::Mat((int)internal_scales.size(), (void*)internal_scales.data()).clone();
         }
 
         {
