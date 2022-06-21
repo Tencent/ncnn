@@ -1604,6 +1604,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", embed_dim)
             fprintf_param_value(" 1=%d", num_head)
             fprintf_param_value(" 2=%d", weight_data_size)
+            fprintf_param_value(" 3=%d", int8_scale_term);
 
             fwrite_weight_tag_data(op->q_weight_data, bp);
             fwrite_weight_data(op->q_bias_data, bp);
@@ -1613,6 +1614,20 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->v_bias_data, bp);
             fwrite_weight_tag_data(op->out_weight_data, bp);
             fwrite_weight_data(op->out_bias_data, bp);
+
+#ifdef NCNN_INT8
+            if (op->int8_scale_term) {
+                fwrite_weight_data(op->q_input_scale, bp, 90, 100);
+                fwrite_weight_data(op->k_input_scale, bp, 90, 100);
+                fwrite_weight_data(op->v_input_scale, bp, 90, 100);
+
+                fwrite_weight_data(op->q_weight_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->k_weight_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->v_weight_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->o_weight_scales, bp, 0.001, 1);
+                fwrite_weight_data(op->internal_scales, bp, 0.001, 1);
+            }
+#endif
         }
         else if (layer->type == "MVN")
         {
