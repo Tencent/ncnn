@@ -44,7 +44,7 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     return 0;
 }
 
-int MultiHeadAttention::load_model(const ModelBin& mb)\
+int MultiHeadAttention::load_model(const ModelBin& mb)
 {
 #define LOAD_MAT(name, len) \
     name = mb.load(len, 0); \
@@ -308,7 +308,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     const Mat& q_blob = bottom_blobs[0];
     const Mat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
     const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[2];
-    
+
     // 145
     const int seqlen = q_blob.h;
     // 64
@@ -368,7 +368,8 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         int64_t* bufptr = (int64_t*)buffer.data;
         float attn_scale = internal_scales[3];
         // TODO int_softmax
-        for (int q = 0; q < num_head; ++q) {
+        for (int q = 0; q < num_head; ++q)
+        {
             Mat inm = xqk.channel(q);
             Mat outm = xqk_uint4.channel(q);
 
@@ -414,7 +415,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
     }
 
-    
     Mat& top_blob = top_blobs[0];
     top_blob.create(embed_dim, seqlen, 4u, opt.blob_allocator);
     if (top_blob.empty())
