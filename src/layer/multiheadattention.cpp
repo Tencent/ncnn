@@ -53,12 +53,6 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         return -100;        \
     }
 
-    LOAD_MAT(q_weight_data, weight_data_size);
-    LOAD_MAT(k_weight_data, weight_data_size);
-    LOAD_MAT(v_weight_data, weight_data_size);
-    LOAD_MAT(out_weight_data, weight_data_size);
-#undef LOAD_MAT
-
 #define LOAD_FLOAT_MAT(name, len) \
     name = mb.load(len, 1);       \
     if (name.empty())             \
@@ -66,9 +60,16 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         return -100;              \
     }
 
+    LOAD_MAT(q_weight_data, weight_data_size);
     LOAD_FLOAT_MAT(q_bias_data, embed_dim);
+
+    LOAD_MAT(k_weight_data, weight_data_size);
     LOAD_FLOAT_MAT(k_bias_data, embed_dim);
+
+    LOAD_MAT(v_weight_data, weight_data_size);
     LOAD_FLOAT_MAT(v_bias_data, embed_dim);
+
+    LOAD_MAT(out_weight_data, weight_data_size);
     LOAD_FLOAT_MAT(out_bias_data, embed_dim);
 
 #if NCNN_INT8
@@ -87,6 +88,7 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
     }
 #endif // NCNN_INT8
 
+#undef LOAD_MAT
 #undef LOAD_FLOAT_MAT
 
     return 0;
