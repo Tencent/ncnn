@@ -1616,7 +1616,8 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fwrite_weight_data(op->out_bias_data, bp);
 
 #ifdef NCNN_INT8
-            if (op->int8_scale_term) {
+            if (op->int8_scale_term)
+            {
                 fwrite_weight_data(op->q_input_scale, bp, 90, 100);
                 fwrite_weight_data(op->k_input_scale, bp, 90, 100);
                 fwrite_weight_data(op->v_input_scale, bp, 90, 100);

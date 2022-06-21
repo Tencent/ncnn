@@ -32,10 +32,10 @@ public:
 
 #ifdef NCNN_INT8
     int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
-    int log_int_softmax_inverse_15(int32_t* ptr, int64_t* buf, int8_t *out, const int len, float scale);
+    int log_int_softmax_inverse_15(int32_t* ptr, int64_t* buf, int8_t* out, const int len, float scale);
     int transform_input(
-        const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8, 
-        const Mat& input_scale, const Mat& weight_scales, const float transform_scale, 
+        const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8,
+        const Mat& input_scale, const Mat& weight_scales, const float transform_scale,
         const Option& opt, bool transpose = false) const;
 #endif
 
