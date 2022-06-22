@@ -1118,7 +1118,7 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
             }
         }
     }
-#else // __F16C__
+#else  // __F16C__
     (void)bottom_blob;
     (void)top_blob;
     (void)weight_data_fp16;

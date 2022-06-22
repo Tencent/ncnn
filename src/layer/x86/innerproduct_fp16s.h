@@ -271,7 +271,7 @@ static void innerproduct_fp16s_pack8_avx(const Mat& bottom_blob, Mat& top_blob, 
         float* outptr = top_blob;
         _mm256_storeu_ps(outptr + p * 8, _sum0);
     }
-#else // __F16C__
+#else  // __F16C__
     (void)bottom_blob;
     (void)top_blob;
     (void)weight_data_fp16;
@@ -392,7 +392,7 @@ static void innerproduct_fp16s_pack4_sse(const Mat& bottom_blob, Mat& top_blob, 
         float* outptr = top_blob;
         _mm_storeu_ps(outptr + p * 4, _sum0);
     }
-#else // __F16C__
+#else  // __F16C__
     (void)bottom_blob;
     (void)top_blob;
     (void)weight_data_fp16;
@@ -681,7 +681,7 @@ static void innerproduct_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
         float* outptr = top_blob;
         outptr[p] = sum;
     }
-#else // __F16C__
+#else  // __F16C__
     (void)bottom_blob;
     (void)top_blob;
     (void)weight_data_fp16;
