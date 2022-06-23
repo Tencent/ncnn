@@ -63,7 +63,11 @@ static float RandomFloat(float a = -1.2f, float b = 1.2f)
     float random = ((float)RAND()) / (float)uint64_t(-1); //RAND_MAX;
     float diff = b - a;
     float r = random * diff;
-    return a + r;
+    float v = a + r;
+    // generate denormal as zero
+    if (v < 0.0001 && v > -0.0001)
+        v = 0.f;
+    return v;
 }
 
 static int RandomInt(int a = -10000, int b = 10000)
@@ -363,6 +367,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;
@@ -808,6 +813,7 @@ int test_layer_naive(int typeindex, const ncnn::ParamDict& pd, const std::vector
 
     ncnn::Option opt;
     opt.num_threads = 1;
+    opt.lightmode = false;
     opt.use_packing_layout = false;
     opt.use_fp16_packed = false;
     opt.use_fp16_storage = false;

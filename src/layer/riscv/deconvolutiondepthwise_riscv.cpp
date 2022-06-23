@@ -88,13 +88,18 @@ int DeconvolutionDepthWise_riscv::create_pipeline(const Option& opt)
         if (elempack == packn)
         {
             Mat weight_data_r2 = weight_data_transposed.reshape(maxk, group);
-            convert_packing(weight_data_r2, weight_data_packed, packn, opt);
+            convert_packing(weight_data_r2, weight_data_tm, packn, opt);
         }
 #endif // __riscv_vector
 
         if (elempack == 1)
         {
-            weight_data_packed = weight_data_transposed;
+            weight_data_tm = weight_data_transposed;
+        }
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
         }
 
         return 0;
@@ -102,6 +107,11 @@ int DeconvolutionDepthWise_riscv::create_pipeline(const Option& opt)
 
     // group convolution
     create_group_ops(opt);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
 
     return 0;
 }
@@ -124,7 +134,7 @@ int DeconvolutionDepthWise_riscv::create_group_ops(const Option& opt)
 
     for (int g = 0; g < group; g++)
     {
-        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g);
+        Mat weight_data_g = weight_data.range(maxk * channels_g * num_output_g * g, maxk * channels_g * num_output_g).clone();
         Mat bias_data_g;
         if (bias_term)
             bias_data_g = bias_data.range(num_output_g * g, num_output_g);
@@ -256,7 +266,7 @@ int DeconvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob,
                 for (int g = 0; g < channels; g++)
                 {
                     float* outptr = top_blob_bordered.channel(g);
-                    const float* kptr = (const float*)weight_data_packed + maxk * g * packn;
+                    const float* kptr = (const float*)weight_data_tm + maxk * g * packn;
                     const Mat m = bottom_blob.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -318,7 +328,7 @@ int DeconvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob,
             for (int g = 0; g < channels; g++)
             {
                 float* outptr = top_blob_bordered.channel(g);
-                const float* kptr = (const float*)weight_data_packed + maxk * g;
+                const float* kptr = (const float*)weight_data_tm + maxk * g;
                 const Mat m = bottom_blob.channel(g);
 
                 for (int i = 0; i < outh; i++)
@@ -480,21 +490,31 @@ int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
             Mat weight_data_r2_packed;
             convert_packing(weight_data_r2, weight_data_r2_packed, packn, opt);
 
-            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_fp16, opt);
+            ncnn::cast_float32_to_float16(weight_data_r2_packed, weight_data_tm, opt);
         }
 
         if (elempack == 1)
         {
-            ncnn::cast_float32_to_float16(weight_data_transposed, weight_data_fp16, opt);
+            ncnn::cast_float32_to_float16(weight_data_transposed, weight_data_tm, opt);
         }
 
         ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+
+        if (opt.lightmode)
+        {
+            weight_data.release();
+        }
 
         return 0;
     }
 
     // group convolution
     create_group_ops(opt);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
 
     return 0;
 }
@@ -543,7 +563,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob_bordered.channel(g);
-                    const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * g * packn;
+                    const __fp16* kptr = (const __fp16*)weight_data_tm + maxk * g * packn;
                     const Mat m = bottom_blob.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -605,7 +625,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob_bordered.channel(g);
-                    const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * g;
+                    const __fp16* kptr = (const __fp16*)weight_data_tm + maxk * g;
                     const Mat m = bottom_blob.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -764,7 +784,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob_bordered.channel(g);
-                    const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * g * packn;
+                    const __fp16* kptr = (const __fp16*)weight_data_tm + maxk * g * packn;
                     const Mat m = bottom_blob.channel(g);
 
                     for (int i = 0; i < outh; i++)
@@ -826,7 +846,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& to
                 for (int g = 0; g < channels; g++)
                 {
                     __fp16* outptr = top_blob_bordered.channel(g);
-                    const __fp16* kptr = (const __fp16*)weight_data_fp16 + maxk * g;
+                    const __fp16* kptr = (const __fp16*)weight_data_tm + maxk * g;
                     const Mat m = bottom_blob.channel(g);
 
                     for (int i = 0; i < outh; i++)

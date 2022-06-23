@@ -507,11 +507,22 @@ jobs:
         sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
         sudo cp openmp-ios/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: build
+    - name: build-armv7
       run: |
-        mkdir build && cd build
+        mkdir build-armv7 && cd build-armv7
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 3
+        cmake --build . --target install
+    - name: build-arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
@@ -550,8 +561,8 @@ jobs:
         ln -s Versions/Current/Headers ncnn.framework/Headers
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        lipo -create build-armv7/install/lib/libncnn.a build-arm64/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+        cp -r build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
@@ -735,11 +746,22 @@ jobs:
         sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
         sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: build
+    - name: build-armv7
       run: |
-        mkdir build && cd build
+        mkdir build-armv7 && cd build-armv7
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 3
+        cmake --build . --target install
+    - name: build-arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
@@ -778,8 +800,8 @@ jobs:
         ln -s Versions/Current/Headers ncnn.framework/Headers
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        lipo -create build-armv7/install/lib/libncnn.a build-arm64/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+        cp -r build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework

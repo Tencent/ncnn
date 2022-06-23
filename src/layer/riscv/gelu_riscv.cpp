@@ -24,6 +24,7 @@
 #endif // __riscv_vector
 
 namespace ncnn {
+
 GELU_riscv::GELU_riscv()
 {
 #if __riscv_vector
@@ -35,9 +36,11 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
 #if __riscv_vector
     if (fast_gelu)
     {
@@ -46,7 +49,7 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            int n = size * elempack;
+            int n = size;
             while (n > 0)
             {
                 word_type vl = vsetvl_e32m4(n);
@@ -75,7 +78,7 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            int n = size * elempack;
+            int n = size;
             while (n > 0)
             {
                 word_type vl = vsetvl_e32m8(n);

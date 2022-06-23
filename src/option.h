@@ -135,9 +135,11 @@ public:
     // enable cooperative matrix optimization for gpu inference
     bool use_cooperative_matrix;
 
-    bool use_reserved_3;
-    bool use_reserved_4;
-    bool use_reserved_5;
+    // more fine-grained control of winograd convolution
+    bool use_winograd23_convolution;
+    bool use_winograd43_convolution;
+    bool use_winograd63_convolution;
+
     bool use_reserved_6;
     bool use_reserved_7;
     bool use_reserved_8;
