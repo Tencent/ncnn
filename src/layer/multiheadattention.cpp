@@ -178,7 +178,7 @@ int MultiHeadAttention::transform_input(
     }
 
     debug = buffer.clone();
-    
+
     Mat transform(1, 4u, opt.workspace_allocator);
     transform[0] = transform_scale;
     quantize_to_int8(buffer, out_int8, transform, opt);
@@ -358,11 +358,8 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     transform_input(k_blob, k_weight_data, k_bias_data, xk, k_input_scale, k_weight_scales, internal_scales[1], opt_g, debug_xk);
     transform_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], opt_g, debug_xv, true);
 
-
-
     // xq @ qk * inv_sqrt_embed_dim_per_head
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
-
 
     {
         // debug xqk
