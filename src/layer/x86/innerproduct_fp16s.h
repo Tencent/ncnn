@@ -375,7 +375,7 @@ static void innerproduct_fp16s_pack4_sse(const Mat& bottom_blob, Mat& top_blob, 
         {
             __m128 _val = _mm_set1_ps(sptr[0]);
             __m128 _w = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)kptr));
-            _sum0 = _mm_add_ps(_mm_mul_ps(_val, _w), _sum0);
+            _sum0 = _mm_comp_fmadd_ps(_val, _w, _sum0);
 
             sptr += 1;
             kptr += 4;
@@ -589,10 +589,10 @@ static void innerproduct_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
             __m128 _w2 = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)w2));
             __m128 _w3 = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)w3));
 
-            _sum0l = _mm_add_ps(_mm_mul_ps(_m, _w0), _sum0l);
-            _sum1l = _mm_add_ps(_mm_mul_ps(_m, _w1), _sum1l);
-            _sum2l = _mm_add_ps(_mm_mul_ps(_m, _w2), _sum2l);
-            _sum3l = _mm_add_ps(_mm_mul_ps(_m, _w3), _sum3l);
+            _sum0l = _mm_comp_fmadd_ps(_m, _w0, _sum0l);
+            _sum1l = _mm_comp_fmadd_ps(_m, _w1, _sum1l);
+            _sum2l = _mm_comp_fmadd_ps(_m, _w2, _sum2l);
+            _sum3l = _mm_comp_fmadd_ps(_m, _w3, _sum3l);
 
             m += 4;
             w0 += 4;
