@@ -57,42 +57,28 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m512 _sum0 = _mm512_set1_ps(0.f);
-                __m512 _sum1 = _mm512_set1_ps(0.f);
-                __m512 _sum2 = _mm512_set1_ps(0.f);
-                __m512 _sum3 = _mm512_set1_ps(0.f);
-                __m512 _sum4 = _mm512_set1_ps(0.f);
-                __m512 _sum5 = _mm512_set1_ps(0.f);
-                __m512 _sum6 = _mm512_set1_ps(0.f);
-                __m512 _sum7 = _mm512_set1_ps(0.f);
-                __m512 _sum8 = _mm512_set1_ps(0.f);
-                __m512 _sum9 = _mm512_set1_ps(0.f);
-                __m512 _suma = _mm512_set1_ps(0.f);
-                __m512 _sumb = _mm512_set1_ps(0.f);
-                __m512 _sumc = _mm512_set1_ps(0.f);
-                __m512 _sumd = _mm512_set1_ps(0.f);
-                __m512 _sume = _mm512_set1_ps(0.f);
-                __m512 _sumf = _mm512_set1_ps(0.f);
+                __m512 _sum0 = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
                     _sum0 = _mm512_loadu_ps(bias_data_ptr + p * 16);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
-                    _sum4 = _sum0;
-                    _sum5 = _sum0;
-                    _sum6 = _sum0;
-                    _sum7 = _sum0;
-                    _sum8 = _sum0;
-                    _sum9 = _sum0;
-                    _suma = _sum0;
-                    _sumb = _sum0;
-                    _sumc = _sum0;
-                    _sumd = _sum0;
-                    _sume = _sum0;
-                    _sumf = _sum0;
                 }
+
+                __m512 _sum1 = _sum0;
+                __m512 _sum2 = _sum0;
+                __m512 _sum3 = _sum0;
+                __m512 _sum4 = _sum0;
+                __m512 _sum5 = _sum0;
+                __m512 _sum6 = _sum0;
+                __m512 _sum7 = _sum0;
+                __m512 _sum8 = _sum0;
+                __m512 _sum9 = _sum0;
+                __m512 _suma = _sum0;
+                __m512 _sumb = _sum0;
+                __m512 _sumc = _sum0;
+                __m512 _sumd = _sum0;
+                __m512 _sume = _sum0;
+                __m512 _sumf = _sum0;
 
                 for (int i = 0; i < num_input; i++)
                 {
@@ -184,7 +170,7 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m512 _sum = _mm512_set1_ps(0.f);
+                __m512 _sum = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -218,18 +204,16 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m512 _sum0 = _mm512_set1_ps(0.f);
-                __m512 _sum1 = _mm512_set1_ps(0.f);
-                __m512 _sum2 = _mm512_set1_ps(0.f);
-                __m512 _sum3 = _mm512_set1_ps(0.f);
+                __m512 _sum0 = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
                     _sum0 = _mm512_loadu_ps(bias_data_ptr + p * 16);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
                 }
+
+                __m512 _sum1 = _sum0;
+                __m512 _sum2 = _sum0;
+                __m512 _sum3 = _sum0;
 
                 int i = 0;
                 for (; i < num_input; i++)
@@ -293,26 +277,20 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m512 _sum0 = _mm512_set1_ps(0.f);
-                __m512 _sum1 = _mm512_set1_ps(0.f);
-                __m512 _sum2 = _mm512_set1_ps(0.f);
-                __m512 _sum3 = _mm512_set1_ps(0.f);
-                __m512 _sum4 = _mm512_set1_ps(0.f);
-                __m512 _sum5 = _mm512_set1_ps(0.f);
-                __m512 _sum6 = _mm512_set1_ps(0.f);
-                __m512 _sum7 = _mm512_set1_ps(0.f);
+                __m512 _sum0 = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
                     _sum0 = _mm512_loadu_ps(bias_data_ptr + p * 16);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
-                    _sum4 = _sum0;
-                    _sum5 = _sum0;
-                    _sum6 = _sum0;
-                    _sum7 = _sum0;
                 }
+
+                __m512 _sum1 = _sum0;
+                __m512 _sum2 = _sum0;
+                __m512 _sum3 = _sum0;
+                __m512 _sum4 = _sum0;
+                __m512 _sum5 = _sum0;
+                __m512 _sum6 = _sum0;
+                __m512 _sum7 = _sum0;
 
                 int i = 0;
                 for (; i < num_input; i++)
@@ -408,7 +386,7 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m512 _sum0 = _mm512_set1_ps(0.f);
+                __m512 _sum0 = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -466,10 +444,10 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m512 _sum0 = _mm512_set1_ps(0.f);
-                __m512 _sum1 = _mm512_set1_ps(0.f);
-                __m512 _sum2 = _mm512_set1_ps(0.f);
-                __m512 _sum3 = _mm512_set1_ps(0.f);
+                __m512 _sum0 = _mm512_setzero_ps();
+                __m512 _sum1 = _mm512_setzero_ps();
+                __m512 _sum2 = _mm512_setzero_ps();
+                __m512 _sum3 = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -524,14 +502,14 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m512 _sum0 = _mm512_set1_ps(0.f);
-                __m512 _sum1 = _mm512_set1_ps(0.f);
-                __m512 _sum2 = _mm512_set1_ps(0.f);
-                __m512 _sum3 = _mm512_set1_ps(0.f);
-                __m512 _sum4 = _mm512_set1_ps(0.f);
-                __m512 _sum5 = _mm512_set1_ps(0.f);
-                __m512 _sum6 = _mm512_set1_ps(0.f);
-                __m512 _sum7 = _mm512_set1_ps(0.f);
+                __m512 _sum0 = _mm512_setzero_ps();
+                __m512 _sum1 = _mm512_setzero_ps();
+                __m512 _sum2 = _mm512_setzero_ps();
+                __m512 _sum3 = _mm512_setzero_ps();
+                __m512 _sum4 = _mm512_setzero_ps();
+                __m512 _sum5 = _mm512_setzero_ps();
+                __m512 _sum6 = _mm512_setzero_ps();
+                __m512 _sum7 = _mm512_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -608,26 +586,20 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m256 _sum0 = _mm256_set1_ps(0.f);
-                __m256 _sum1 = _mm256_set1_ps(0.f);
-                __m256 _sum2 = _mm256_set1_ps(0.f);
-                __m256 _sum3 = _mm256_set1_ps(0.f);
-                __m256 _sum4 = _mm256_set1_ps(0.f);
-                __m256 _sum5 = _mm256_set1_ps(0.f);
-                __m256 _sum6 = _mm256_set1_ps(0.f);
-                __m256 _sum7 = _mm256_set1_ps(0.f);
+                __m256 _sum0 = _mm256_setzero_ps();
 
                 if (bias_data_ptr)
                 {
                     _sum0 = _mm256_loadu_ps(bias_data_ptr + p * 8);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
-                    _sum4 = _sum0;
-                    _sum5 = _sum0;
-                    _sum6 = _sum0;
-                    _sum7 = _sum0;
                 }
+
+                __m256 _sum1 = _sum0;
+                __m256 _sum2 = _sum0;
+                __m256 _sum3 = _sum0;
+                __m256 _sum4 = _sum0;
+                __m256 _sum5 = _sum0;
+                __m256 _sum6 = _sum0;
+                __m256 _sum7 = _sum0;
 
                 for (int i = 0; i < num_input; i++)
                 {
@@ -687,7 +659,7 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m256 _sum = _mm256_set1_ps(0.f);
+                __m256 _sum = _mm256_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -781,18 +753,16 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m256 _sum0 = _mm256_set1_ps(0.f);
-                __m256 _sum1 = _mm256_set1_ps(0.f);
-                __m256 _sum2 = _mm256_set1_ps(0.f);
-                __m256 _sum3 = _mm256_set1_ps(0.f);
+                __m256 _sum0 = _mm256_setzero_ps();
 
                 if (bias_data_ptr)
                 {
                     _sum0 = _mm256_loadu_ps(bias_data_ptr + p * 8);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
                 }
+
+                __m256 _sum1 = _sum0;
+                __m256 _sum2 = _sum0;
+                __m256 _sum3 = _sum0;
 
                 int i = 0;
                 for (; i < num_input; i++)
@@ -849,10 +819,10 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m256 _sum0 = _mm256_set1_ps(0.f);
-                __m256 _sum1 = _mm256_set1_ps(0.f);
-                __m256 _sum2 = _mm256_set1_ps(0.f);
-                __m256 _sum3 = _mm256_set1_ps(0.f);
+                __m256 _sum0 = _mm256_setzero_ps();
+                __m256 _sum1 = _mm256_setzero_ps();
+                __m256 _sum2 = _mm256_setzero_ps();
+                __m256 _sum3 = _mm256_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -913,10 +883,10 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m256 _sum0 = _mm256_set1_ps(0.f);
-                __m256 _sum1 = _mm256_set1_ps(0.f);
-                __m256 _sum2 = _mm256_set1_ps(0.f);
-                __m256 _sum3 = _mm256_set1_ps(0.f);
+                __m256 _sum0 = _mm256_setzero_ps();
+                __m256 _sum1 = _mm256_setzero_ps();
+                __m256 _sum2 = _mm256_setzero_ps();
+                __m256 _sum3 = _mm256_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -970,18 +940,16 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m128 _sum0 = _mm_set1_ps(0.f);
-                __m128 _sum1 = _mm_set1_ps(0.f);
-                __m128 _sum2 = _mm_set1_ps(0.f);
-                __m128 _sum3 = _mm_set1_ps(0.f);
+                __m128 _sum0 = _mm_setzero_ps();
 
                 if (bias_data_ptr)
                 {
                     _sum0 = _mm_loadu_ps(bias_data_ptr + p * 4);
-                    _sum1 = _sum0;
-                    _sum2 = _sum0;
-                    _sum3 = _sum0;
                 }
+
+                __m128 _sum1 = _sum0;
+                __m128 _sum2 = _sum0;
+                __m128 _sum3 = _sum0;
 
                 int i = 0;
                 for (; i < num_input; i++)
@@ -1026,7 +994,7 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m128 _sum = _mm_set1_ps(0.f);
+                __m128 _sum = _mm_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -1060,10 +1028,10 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 const unsigned short* kptr = weight_data_fp16.row<const unsigned short>(p);
                 const float* m = bottom_blob.row(j);
 
-                __m128 _sum0 = _mm_set1_ps(0.f);
-                __m128 _sum1 = _mm_set1_ps(0.f);
-                __m128 _sum2 = _mm_set1_ps(0.f);
-                __m128 _sum3 = _mm_set1_ps(0.f);
+                __m128 _sum0 = _mm_setzero_ps();
+                __m128 _sum1 = _mm_setzero_ps();
+                __m128 _sum2 = _mm_setzero_ps();
+                __m128 _sum3 = _mm_setzero_ps();
 
                 if (bias_data_ptr)
                 {
@@ -1131,7 +1099,7 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 }
 
                 int i = 0;
-                __m256 _sum = _mm256_set1_ps(0.f);
+                __m256 _sum = _mm256_setzero_ps();
                 for (; i + 7 < num_input; i += 8)
                 {
                     __m256 _m = _mm256_loadu_ps(m);
@@ -1141,7 +1109,7 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                     m += 8;
                     kptr += 8;
                 }
-                __m128 _suml = _mm_set1_ps(0.f);
+                __m128 _suml = _mm_setzero_ps();
                 for (; i + 3 < num_input; i += 4)
                 {
                     __m128 _val = _mm_loadu_ps(m);
