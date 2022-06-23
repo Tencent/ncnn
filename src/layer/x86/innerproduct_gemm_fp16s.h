@@ -416,11 +416,35 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 }
 
                 int i = 0;
+                for (; i + 3 < num_input; i += 4)
+                {
+                    __m512 _val0 = _mm512_loadu_ps(m);
+                    __m512 _val1 = _mm512_loadu_ps(m + 16);
+                    __m512 _val2 = _mm512_loadu_ps(m + 32);
+                    __m512 _val3 = _mm512_loadu_ps(m + 48);
+
+                    __m128 _w = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)kptr));
+                    __m256 _ww = _mm256_insertf128_ps(_mm256_castps128_ps256(_w), _w, 1);
+                    __m512 _www = _mm512_insertf32x8(_mm512_castps256_ps512(_ww), _ww, 1);
+
+                    __m512 _w0 = _mm512_permute_ps(_www, _MM_SHUFFLE(0, 0, 0, 0));
+                    __m512 _w1 = _mm512_permute_ps(_www, _MM_SHUFFLE(1, 1, 1, 1));
+                    __m512 _w2 = _mm512_permute_ps(_www, _MM_SHUFFLE(2, 2, 2, 2));
+                    __m512 _w3 = _mm512_permute_ps(_www, _MM_SHUFFLE(3, 3, 3, 3));
+
+                    _sum0 = _mm512_fmadd_ps(_val0, _w0, _sum0);
+                    _sum0 = _mm512_fmadd_ps(_val1, _w1, _sum0);
+                    _sum0 = _mm512_fmadd_ps(_val2, _w2, _sum0);
+                    _sum0 = _mm512_fmadd_ps(_val3, _w3, _sum0);
+
+                    m += 64;
+                    kptr += 4;
+                }
                 for (; i < num_input; i++)
                 {
                     __m512 _val = _mm512_loadu_ps(m);
-                    __m512 _k = _mm512_set1_ps(float16_to_float32(kptr[0]));
-                    _sum0 = _mm512_fmadd_ps(_val, _k, _sum0);
+                    __m512 _w = _mm512_set1_ps(float16_to_float32(kptr[0]));
+                    _sum0 = _mm512_fmadd_ps(_val, _w, _sum0);
 
                     m += 16;
                     kptr += 1;
@@ -459,10 +483,20 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 for (; i < num_input; i++)
                 {
                     __m512 _val = _mm512_loadu_ps(m);
-                    _sum0 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[0])), _sum0);
-                    _sum1 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[1])), _sum1);
-                    _sum2 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[2])), _sum2);
-                    _sum3 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[3])), _sum3);
+
+                    __m128 _w = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)kptr));
+                    __m256 _ww = _mm256_insertf128_ps(_mm256_castps128_ps256(_w), _w, 1);
+                    __m512 _www = _mm512_insertf32x8(_mm512_castps256_ps512(_ww), _ww, 1);
+
+                    __m512 _w0 = _mm512_permute_ps(_www, _MM_SHUFFLE(0, 0, 0, 0));
+                    __m512 _w1 = _mm512_permute_ps(_www, _MM_SHUFFLE(1, 1, 1, 1));
+                    __m512 _w2 = _mm512_permute_ps(_www, _MM_SHUFFLE(2, 2, 2, 2));
+                    __m512 _w3 = _mm512_permute_ps(_www, _MM_SHUFFLE(3, 3, 3, 3));
+
+                    _sum0 = _mm512_fmadd_ps(_val, _w0, _sum0);
+                    _sum1 = _mm512_fmadd_ps(_val, _w1, _sum1);
+                    _sum2 = _mm512_fmadd_ps(_val, _w2, _sum2);
+                    _sum3 = _mm512_fmadd_ps(_val, _w3, _sum3);
 
                     m += 16;
                     kptr += 4;
@@ -516,14 +550,28 @@ static void innerproduct_gemm_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, c
                 {
                     __m512 _val = _mm512_loadu_ps(m);
 
-                    _sum0 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[0])), _sum0);
-                    _sum1 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[1])), _sum1);
-                    _sum2 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[2])), _sum2);
-                    _sum3 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[3])), _sum3);
-                    _sum4 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[4])), _sum4);
-                    _sum5 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[5])), _sum5);
-                    _sum6 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[6])), _sum6);
-                    _sum7 = _mm512_fmadd_ps(_val, _mm512_set1_ps(float16_to_float32(kptr[7])), _sum7);
+                    __m256 _w = _mm256_cvtph_ps(_mm_lddqu_si128((const __m128i*)kptr));
+                    __m512 _ww = _mm512_castps256_ps512(_w);
+                    __m512 _www0 = _mm512_shuffle_f32x4(_ww, _ww, _MM_SHUFFLE(0, 0, 0, 0));
+                    __m512 _www1 = _mm512_shuffle_f32x4(_ww, _ww, _MM_SHUFFLE(1, 1, 1, 1));
+
+                    __m512 _w0 = _mm512_permute_ps(_www0, _MM_SHUFFLE(0, 0, 0, 0));
+                    __m512 _w1 = _mm512_permute_ps(_www0, _MM_SHUFFLE(1, 1, 1, 1));
+                    __m512 _w2 = _mm512_permute_ps(_www0, _MM_SHUFFLE(2, 2, 2, 2));
+                    __m512 _w3 = _mm512_permute_ps(_www0, _MM_SHUFFLE(3, 3, 3, 3));
+                    __m512 _w4 = _mm512_permute_ps(_www1, _MM_SHUFFLE(0, 0, 0, 0));
+                    __m512 _w5 = _mm512_permute_ps(_www1, _MM_SHUFFLE(1, 1, 1, 1));
+                    __m512 _w6 = _mm512_permute_ps(_www1, _MM_SHUFFLE(2, 2, 2, 2));
+                    __m512 _w7 = _mm512_permute_ps(_www1, _MM_SHUFFLE(3, 3, 3, 3));
+
+                    _sum0 = _mm512_fmadd_ps(_val, _w0, _sum0);
+                    _sum1 = _mm512_fmadd_ps(_val, _w1, _sum1);
+                    _sum2 = _mm512_fmadd_ps(_val, _w2, _sum2);
+                    _sum3 = _mm512_fmadd_ps(_val, _w3, _sum3);
+                    _sum4 = _mm512_fmadd_ps(_val, _w4, _sum4);
+                    _sum5 = _mm512_fmadd_ps(_val, _w5, _sum5);
+                    _sum6 = _mm512_fmadd_ps(_val, _w6, _sum6);
+                    _sum7 = _mm512_fmadd_ps(_val, _w7, _sum7);
 
                     m += 16;
                     kptr += 8;
