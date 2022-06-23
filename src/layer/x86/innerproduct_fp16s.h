@@ -136,6 +136,7 @@ static void innerproduct_fp16s_pack16_avx512(const Mat& bottom_blob, Mat& top_bl
 void innerproduct_fp16s_pack8_avx_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_fp16s_pack4_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_fp16s_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+void innerproduct_transform_kernel_fp16s_sse_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
 static void innerproduct_fp16s_pack8_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
@@ -688,6 +689,59 @@ static void innerproduct_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
     (void)bias_data;
     (void)activation_type;
     (void)activation_params;
+    (void)opt;
+#endif // __F16C__
+}
+
+static void innerproduct_transform_kernel_fp16s_sse(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
+{
+#if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
+    if (ncnn::cpu_support_x86_f16c())
+    {
+        innerproduct_transform_kernel_fp16s_sse_f16c(weight_data, weight_data_tm, num_input, num_output, opt);
+        return;
+    }
+#endif
+
+#if __F16C__
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+#if __AVX512F__
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#endif
+    }
+
+    Mat weight_data_fp16;
+    ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
+
+    // src = inch-outch
+    // dst = pb-inch-outch/pb
+    {
+        Mat weight_data_r2 = weight_data_fp16.reshape(num_input, num_output);
+
+        weight_data_tm.create(num_input, num_output / out_elempack, (size_t)2u * out_elempack, out_elempack);
+
+        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        {
+            unsigned short* g0 = weight_data_tm.row<unsigned short>(q / out_elempack);
+
+            for (int p = 0; p < num_input; p++)
+            {
+                for (int j = 0; j < out_elempack; j++)
+                {
+                    *g0++ = weight_data_r2.row<const unsigned short>(q + j)[p];
+                }
+            }
+        }
+    }
+#else  // __F16C__
+    (void)weight_data;
+    (void)weight_data_tm;
+    (void)num_input;
+    (void)num_output;
     (void)opt;
 #endif // __F16C__
 }

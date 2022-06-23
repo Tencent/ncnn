@@ -49,4 +49,9 @@ void innerproduct_gemm_fp16s_sse_f16c(const Mat& bottom_blob, Mat& top_blob, con
     innerproduct_gemm_fp16s_sse(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
 }
 
+void innerproduct_transform_kernel_fp16s_sse_f16c(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
+{
+    innerproduct_transform_kernel_fp16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+}
+
 } // namespace ncnn

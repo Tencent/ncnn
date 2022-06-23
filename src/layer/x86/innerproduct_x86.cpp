@@ -2009,37 +2009,7 @@ int InnerProduct_x86::create_pipeline_fp16s(const Option& opt)
 {
     const int num_input = weight_data_size / num_output;
 
-    int out_elempack = 1;
-
-    if (opt.use_packing_layout)
-    {
-#if __AVX512F__
-        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-#else
-        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
-#endif
-    }
-
-    // src = inch-outch
-    // dst = pb-inch-outch/pb
-    {
-        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
-
-        weight_data_tm.create(num_input, num_output / out_elempack, (size_t)2u * out_elempack, out_elempack);
-
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
-        {
-            unsigned short* g0 = weight_data_tm.row<unsigned short>(q / out_elempack);
-
-            for (int p = 0; p < num_input; p++)
-            {
-                for (int j = 0; j < out_elempack; j++)
-                {
-                    *g0++ = float32_to_float16(weight_data_r2.row(q + j)[p]);
-                }
-            }
-        }
-    }
+    innerproduct_transform_kernel_fp16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
 
     if (opt.lightmode)
     {
