@@ -86,10 +86,10 @@ int main(int argc, char** argv)
     else
         quantizer.load_model(inbin);
 
+    quantizer.quantize_mha();
     quantizer.quantize_convolution();
     quantizer.quantize_convolutiondepthwise();
     quantizer.quantize_innerproduct();
-    quantizer.quantize_mha();
 
     quantizer.fuse_requantize();
 

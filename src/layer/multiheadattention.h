@@ -36,7 +36,7 @@ public:
     int transform_input(
         const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8,
         const Mat& input_scale, const Mat& weight_scales, const float transform_scale,
-        const Option& opt, bool transpose = false) const;
+        const Option& opt, Mat& debug, bool transpose = false) const;
 #endif
 
 public:

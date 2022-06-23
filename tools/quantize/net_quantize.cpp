@@ -100,6 +100,7 @@ bool NetQuantize::read_ini_format(const char* path)
 {
     blob_int8scale_table.clear();
     weight_int8scale_table.clear();
+    mha_table.clear();
 
     ini::Config root;
     root.read(std::string(path));
@@ -172,14 +173,18 @@ int NetQuantize::quantize_mha()
                 }
                 w_scales = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
 
-                ncnn::Mat weight_int8;
-                ncnn::quantize_to_int8(weight, weight_int8, w_scales, opt_q);
-                if (weight_int8.empty())
                 {
-                    return -200;
-                }
-                weight = weight_int8.reshape(mha->weight_data_size);
+                    ncnn::Mat weight_int8;
+                    const int num_input = mha->embed_dim;
+                    const int num_output = mha->weight_data_size / num_input;
 
+                    ncnn::Mat weight_data_r2 = weight.reshape(num_input, num_output);
+                    ncnn::quantize_to_int8(weight_data_r2, weight_int8, w_scales, opt_q);
+                    if (weight_int8.empty())
+                        return -100;
+
+                    weight = weight_int8.reshape(mha->weight_data_size).clone();
+                }
                 return 0;
             };
 
