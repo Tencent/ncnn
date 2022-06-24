@@ -111,7 +111,7 @@ static void innerproduct_fp16s_pack4_neon(const Mat& bottom_blob, Mat& top_blob,
                 "4"(_sum2),
                 "5"(_sum3)
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
-#else // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#else  // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             asm volatile(
                 "prfm   pldl1keep, [%0, #256]       \n"
                 "ld1    {v0.4s, v1.4s}, [%0], #32   \n"
@@ -147,7 +147,7 @@ static void innerproduct_fp16s_pack4_neon(const Mat& bottom_blob, Mat& top_blob,
                 "5"(_sum3)
                 : "cc", "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9");
 #endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-#else // __aarch64__
+#else  // __aarch64__
             asm volatile(
                 "pld        [%0, #256]          \n"
                 "vld1.f32   {d0-d3}, [%0 :128]! \n"
