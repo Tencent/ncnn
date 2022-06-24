@@ -77,10 +77,10 @@ static void innerproduct_fp16s_pack4_neon(const Mat& bottom_blob, Mat& top_blob,
             float32x4_t _val = vcvt_f32_f16(vld1_f16(sptr));
             float16x8_t _w01 = vld1q_f16(kptr);
             float16x8_t _w23 = vld1q_f16(kptr + 8);
-            float32x4_t _w0 = vcvt_f32_f16(vget_low_u16(_w01));
-            float32x4_t _w1 = vcvt_f32_f16(vget_high_u16(_w01));
-            float32x4_t _w2 = vcvt_f32_f16(vget_low_u16(_w23));
-            float32x4_t _w3 = vcvt_f32_f16(vget_high_u16(_w23));
+            float32x4_t _w0 = vcvt_f32_f16(vget_low_f16(_w01));
+            float32x4_t _w1 = vcvt_f32_f16(vget_high_f16(_w01));
+            float32x4_t _w2 = vcvt_f32_f16(vget_low_f16(_w23));
+            float32x4_t _w3 = vcvt_f32_f16(vget_high_f16(_w23));
 #else
             float32x4_t _val = vld1q_f32(sptr);
             uint16x8_t _w01 = vld1q_u16(kptr);
