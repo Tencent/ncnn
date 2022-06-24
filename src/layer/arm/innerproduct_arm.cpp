@@ -855,7 +855,12 @@ int InnerProduct_arm::create_pipeline_fp16s(const Option& opt)
 
     innerproduct_transform_kernel_fp16s_neon(weight_data, weight_data_tm, num_input, num_output, opt);
 
-    ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+#if NCNN_ARM82
+    if (ncnn::cpu_support_arm_asimdhp() && opt.use_fp16_arithmetic)
+    {
+        ncnn::cast_float32_to_float16(bias_data, bias_data_fp16, opt);
+    }
+#endif
 
     if (opt.lightmode)
     {
