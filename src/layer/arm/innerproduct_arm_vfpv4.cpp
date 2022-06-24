@@ -14,7 +14,7 @@
 
 #include "innerproduct_arm.h"
 
-#include "layer_type.h"
+#include "cpu.h"
 
 #if __ARM_NEON
 #include <arm_neon.h>
