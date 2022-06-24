@@ -140,7 +140,7 @@ int MultiHeadAttention::transform_input(
                     const int8_t* kptr = (int8_t*)(weight.data) + embed_dim * (q * embed_dim_per_head + i);
 
                     int32_t sum = 0;
-                    const int32_t index = q * embed_dim_per_head + j;
+                    const int32_t index = q * embed_dim_per_head + i;
                     for (int k = 0; k < embed_dim; k++)
                     {
                         sum += *ptr++ * *kptr++;
@@ -265,12 +265,15 @@ static inline int32_t find_first_one(int32_t v)
     return pos;
 }
 
-static inline int32_t clamp(const float val, const int32_t min, const int32_t max)
+static inline int32_t float2int8(float v)
 {
-    return std::min(max, std::max((int32_t)(val + 0.5f), min));
+    int int32 = static_cast<int>(round(v));
+    if (int32 > 127) return 127;
+    if (int32 < -127) return -127;
+    return int32;
 }
 
-int MultiHeadAttention::log_int_softmax(int8_t* ptr, int64_t* buffer, int8_t* out, const int len, float scale) const
+int MultiHeadAttention::log_int_softmax(int8_t* ptr, int64_t* buffer, int8_t* out, const int len, float scale, float*debug) const
 {
     int32_t max = ptr[0];
     for (int i = 0; i < len; ++i)
@@ -289,32 +292,25 @@ int MultiHeadAttention::log_int_softmax(int8_t* ptr, int64_t* buffer, int8_t* ou
         sum += buffer[i];
     }
 
-    for (int i = 0; i < len; ++i)
-    {
-        ptr[i] = int32_t(sum * 1.f / buffer[i] + 0.5f);
-    }
-
-    // log_round
     const int UINT4_MAX = 15;
     for (int i = 0; i < len; ++i)
     {
-        // int32_t val = floor(log2(ptr[i]));
-        int32_t val = find_first_one(ptr[i]);
-        float big = fast_pow2_multiply_3(val - 1);
-        // fprintf(stdout, "val %d\n", val);
-        if (ptr[i] >= big)
-        {
-            // fprintf(stdout, "big index %d\n", i);
-            val += 1;
+        const int32_t val = int32_t(sum * 1.f / buffer[i] + 0.5f);
+        int32_t power = find_first_one(val);
+        float big = fast_pow2_multiply_3(power - 1);
+
+        if (power >= big) {
+            power += 1;
         }
 
-        if (val > UINT4_MAX)
-        {
+        if (power > UINT4_MAX) {
             out[i] = -1;
+            debug[i] = 0.0f;
             continue;
         }
 
-        out[i] = UINT4_MAX - val;
+        debug[i] = pow(2.0, -power);
+        out[i] = UINT4_MAX - power;
     }
 
     return 0;
@@ -349,20 +345,23 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     // 64, 145, 12
     Mat xq(embed_dim_per_head, seqlen, num_head, 1u, opt.workspace_allocator);
     Mat xk(embed_dim_per_head, seqlen, num_head, 1u, opt.workspace_allocator);
-    // transpose(v) for better gemm performance
-    Mat xv(seqlen, embed_dim_per_head, num_head, 1u, opt.workspace_allocator);
 
-    Mat debug_xq, debug_xk, debug_xv;
+    Mat debug_xq, debug_xk;
 
     transform_input(q_blob, q_weight_data, q_bias_data, xq, q_input_scale, q_weight_scales, internal_scales[0], opt_g, debug_xq);
     transform_input(k_blob, k_weight_data, k_bias_data, xk, k_input_scale, k_weight_scales, internal_scales[1], opt_g, debug_xk);
-    transform_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], opt_g, debug_xv, true);
+    
+    Mat xv(embed_dim_per_head, seqlen, num_head, 1u, opt.workspace_allocator);
+    Mat debug_xv;
+    transform_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], opt_g, debug_xv);
 
-
+    // transpose(v) for better gemm performance
+    // Mat xv(seqlen, embed_dim_per_head, num_head, 1u, opt.workspace_allocator);
+    // Mat debug_xv;
+    // transform_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], opt_g, debug_xv, true);
 
     // xq @ qk * inv_sqrt_embed_dim_per_head
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
-
 
     {
         // debug xqk
@@ -396,7 +395,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         fprintf(stdout, "debug_xqk\n");
     }
 
-    Mat xqk(seqlen, seqlen, num_head, 1u, opt.workspace_allocator); // TODO 乘法乘太多
+    Mat xqk(seqlen, seqlen, num_head, 1u, opt.workspace_allocator);
     // xqk = xq * xk
     // xq  (embed_dim_per_head, seqlen)
     // xk  (embed_dim_per_head, seqlen)
@@ -419,41 +418,86 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                     const int8_t* qptr = xqm.row<int8_t>(i);
                     const int8_t* kptr = xkm.row<int8_t>(j);
 
-                    int32_t sum = 0.f;
+                    int32_t sum = 0;
                     for (int k = 0; k < embed_dim_per_head; k++)
                     {
                         sum += *qptr++ * *kptr++;
                     }
 
-                    outptr[j] = clamp(sum * out_scale, -127, 127);
+                    outptr[j] = float2int8(sum * out_scale);
                 }
             }
         }
     }
 
     // int_softmax(xqk)
+    Mat deq_softmax(seqlen, seqlen, num_head, 4u, opt.workspace_allocator);
     Mat xqk_uint4(seqlen, seqlen, num_head, 1u, opt.workspace_allocator);
     {
         Mat buffer(seqlen, 8u, opt.workspace_allocator);
         int64_t* bufptr = (int64_t*)buffer.data;
-        float attn_scale = internal_scales[3];
-        // TODO int_softmax
+
         for (int q = 0; q < num_head; ++q)
         {
             Mat inm = xqk.channel(q);
             Mat outm = xqk_uint4.channel(q);
+            Mat deqm = deq_softmax.channel(q);
 
             for (int i = 0; i < seqlen; ++i)
             {
                 int8_t* inptr = inm.row<int8_t>(i);
                 int8_t* outptr = outm.row<int8_t>(i);
-                log_int_softmax(inptr, bufptr, outptr, seqlen, attn_scale);
+                float* deqptr = deqm.row<float>(i);
+                log_int_softmax(inptr, bufptr, outptr, seqlen, 1.0f / internal_scales[3], deqptr);
             }
         }
     }
 
     // xqkv int4 @ int8, implement by shift
     Mat xqkv(embed_dim_per_head, num_head, seqlen, 4u, opt.workspace_allocator);
+    Mat debug_attn(embed_dim_per_head, num_head, seqlen, 4u, opt.workspace_allocator);
+
+
+    {
+        // TODO remove
+        Mat test_xv(embed_dim_per_head, seqlen , num_head, 1u, opt.workspace_allocator);
+        Mat test_debug;
+        transform_input(v_blob, v_weight_data, v_bias_data, test_xv, v_input_scale, v_weight_scales, internal_scales[2], opt_g, test_debug);
+    }
+
+    {
+        // debug attn
+        for (int q = 0; q < num_head; ++q)
+        {
+            // xqkv = xqk * xv
+            // xqk (seqlen, seqlen)
+            // xv  (seqlen, embed_dim_per_head)
+            // out (embed_dim_per_head, num_head, seqlen)
+            const Mat xqkm = deq_softmax.channel(q);
+            const Mat xvm = debug_xv.channel(q);
+
+            for (int i = 0; i < seqlen; i++)
+            {
+                float* debug = debug_attn.channel(i).row<float>(q);
+
+                for (int j = 0; j < embed_dim_per_head; j++)
+                {
+                    const float* qkptr = xqkm.row<float>(i);
+                    const float* vptr = xvm.row<float>(j);
+
+                    float sum = 0;
+                    for (int k = 0; k < seqlen; k++)
+                    {
+                        sum += (*vptr++) * (*qkptr++);
+                    }
+
+                    debug[j] = sum;
+                }
+            }
+        }
+
+    }
+
     for (int q = 0; q < num_head; ++q)
     {
         // xqkv = xqk * xv
@@ -467,6 +511,8 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         {
             int32_t* outptr = xqkv.channel(i).row<int32_t>(q);
 
+            float* debug = debug_attn.channel(i).row<float>(q);
+
             for (int j = 0; j < embed_dim_per_head; j++)
             {
                 const int8_t* qkptr = xqkm.row<int8_t>(i);
@@ -475,14 +521,15 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 int32_t sum = 0;
                 for (int k = 0; k < seqlen; k++)
                 {
-                    if (*vptr == 0)
+                    if ((*qkptr) < 0)
                     {
                         continue;
                     }
-                    sum += (*qkptr++) << (*vptr++);
+                    sum += (*vptr++) << (*qkptr++);
                 }
 
                 outptr[j] = sum;
+                debug[j] = (sum >> 15) / internal_scales[2];
             }
         }
     }
@@ -502,14 +549,13 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
             const int32_t* ptr = xqkv.channel(i);
             const int8_t* kptr = (const int8_t*)out_weight_data + embed_dim * j;
 
-            float out_scale = 1.0 / o_weight_scales[j];
             int32_t sum = 0;
             for (int k = 0; k < embed_dim; k++)
             {
                 sum += *ptr++ * *kptr++;
             }
 
-            outptr[j] = (sum >> 15) * out_scale + out_bias_data[j];
+            outptr[j] = (sum >> 15) * 1.0 / o_weight_scales[j] / internal_scales[2] + out_bias_data[j];
         }
     }
 
