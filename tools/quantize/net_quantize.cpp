@@ -183,6 +183,46 @@ int NetQuantize::quantize_mha()
                     if (weight_int8.empty())
                         return -100;
 
+                    {
+                        fprintf(stdout, "check %s diff\n", key.c_str());
+
+                        ncnn::Mat dequant_q_w(mha->weight_data_size, 4u, opt_q.workspace_allocator);
+                        
+                        float* origin = (float*)weight_data_r2.data;
+                        float* to = (float*)dequant_q_w.data;
+                        int8_t* from = (int8_t*)weight_int8.data;
+
+                        for (int i = 0; i < num_output; ++i) {
+
+                            int min = 255, max=-1;
+                            for (int j = 0; j < num_input; ++j) {
+                                const int offset = i * num_input + j;
+                                to[offset] = from[offset] * 1.0 / w_scales[i];
+
+                                float diff = origin[offset] - to[offset];
+                                if (diff > 1.0 / w_scales[i]) {
+                                    fprintf(stdout, "find big diff %d %f\n", offset, diff);
+                                }
+
+                                if (from[offset] > max) {
+                                    max = from[offset];
+                                }
+                                if (from[offset] < min) {
+                                    min = from[offset];
+                                }
+                            }
+
+                            if (min == -127) {
+                                continue;
+                            }
+                            if (max == 127) {
+                                continue;
+                            }
+                            fprintf(stdout, "channel row %d min %d max %d\n", i, min, max);
+                        }
+                        fprintf(stdout, "debug\n");
+                    }
+
                     weight = weight_int8.reshape(mha->weight_data_size).clone();
                 }
                 return 0;
