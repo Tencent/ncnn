@@ -182,7 +182,7 @@ int MultiHeadAttention::transform_input(
     }
 
     debug = buffer.clone();
-    
+
     Mat transform(1, 4u, opt.workspace_allocator);
     transform[0] = transform_scale;
     quantize_to_int8(buffer, out_int8, transform, opt);
@@ -391,11 +391,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     dequants.push_back(debug_xk);
     transform_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], opt_g, debug_xv, true);
     dequants.push_back(debug_xv);
-
-    // transpose(v) for better gemm performance
-    // Mat xv(seqlen, embed_dim_per_head, num_head, 1u, opt.workspace_allocator);
-    // Mat debug_xv;
-    // transform_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], opt_g, debug_xv, true);
 
     // xq @ qk * inv_sqrt_embed_dim_per_head
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
