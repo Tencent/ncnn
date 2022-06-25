@@ -277,7 +277,8 @@ static inline int32_t float2int8(float v)
     return int32;
 }
 
-static void write_file(int32_t* ptr, int32_t* out, float scale, int len) {
+static void write_file(int32_t* ptr, int32_t* out, float scale, int len)
+{
     static int index = 0;
     char filename[64] = {0};
     sprintf(filename, "lis_%d", index++);
@@ -286,12 +287,14 @@ static void write_file(int32_t* ptr, int32_t* out, float scale, int len) {
     fout.open(std::string(filename), std::ios::out);
     fout << scale << std::endl;
 
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < len; ++i)
+    {
         fout << ptr[i] << ",";
     }
     fout << std::endl;
 
-    for (int i = 0; i < len; ++i) {
+    for (int i = 0; i < len; ++i)
+    {
         fout << out[i] << ",";
     }
     fout << std::endl;
@@ -299,7 +302,7 @@ static void write_file(int32_t* ptr, int32_t* out, float scale, int len) {
     fout.close();
 }
 
-int MultiHeadAttention::log_int_softmax(int8_t* ptr, int64_t* buffer, int8_t* out, const int len, float scale, float*debug) const
+int MultiHeadAttention::log_int_softmax(int8_t* ptr, int64_t* buffer, int8_t* out, const int len, float scale, float* debug) const
 {
     // std::vector<int32_t> from;
     // std::vector<int32_t> to;
@@ -329,11 +332,13 @@ int MultiHeadAttention::log_int_softmax(int8_t* ptr, int64_t* buffer, int8_t* ou
         int32_t power = find_first_one(val);
         float big = fast_pow2_multiply_3(power - 1);
 
-        if (val >= big) {
+        if (val >= big)
+        {
             power += 1;
         }
 
-        if (power > UINT4_MAX) {
+        if (power > UINT4_MAX)
+        {
             out[i] = -1;
             debug[i] = 0.0f;
             // to.push_back(static_cast<int32_t>(-1));
@@ -383,7 +388,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     Mat xv(seqlen, embed_dim_per_head, num_head, 1u, opt.workspace_allocator);
 
     Mat debug_xq, debug_xk, debug_xv;
-
 
     transform_input(q_blob, q_weight_data, q_bias_data, xq, q_input_scale, q_weight_scales, internal_scales[0], opt_g, debug_xq);
     dequants.push_back(debug_xq);
@@ -467,7 +471,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     {
         Mat deq_softmax(seqlen, seqlen, num_head, 4u, opt.workspace_allocator);
 
-
         Mat buffer(seqlen, 8u, opt.workspace_allocator);
         int64_t* bufptr = (int64_t*)buffer.data;
 
@@ -493,7 +496,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     // xqkv int4 @ int8, implement by shift
     Mat xqkv(embed_dim_per_head, num_head, seqlen, 1u, opt.workspace_allocator);
     Mat debug_feat(embed_dim_per_head, num_head, seqlen, 4u, opt.workspace_allocator);
-
 
     // {
     //     // TODO remove
@@ -567,7 +569,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 }
 
                 outptr[j] = float2int8(sum * xqkv_out_scale);
-                
+
                 debug[j] = sum / 32768.f / internal_scales[2];
             }
         }
@@ -626,7 +628,6 @@ int MultiHeadAttention::forward_int8_v2(const std::vector<Mat>& bottom_blobs, st
     Mat xv(seqlen, embed_dim_per_head, num_head, 1u, opt.workspace_allocator);
 
     Mat debug_xq, debug_xk, debug_xv;
-
 
     transform_input(q_blob, q_weight_data, q_bias_data, xq, q_input_scale, q_weight_scales, internal_scales[0], opt_g, debug_xq);
     dequants.push_back(debug_xq);
@@ -849,21 +850,26 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
     {
         // fake rewrite q
-        for (int i = 0; i < embed_dim; ++i) {
-            float* wptr = (float*)q_weight_data.data + i * embed_dim; 
+        for (int i = 0; i < embed_dim; ++i)
+        {
+            float* wptr = (float*)q_weight_data.data + i * embed_dim;
             float _min = 10000.f, _max = -100000.f;
-            for (int j = 0; j < embed_dim; ++j) {
-                if (wptr[j] > _max) {
+            for (int j = 0; j < embed_dim; ++j)
+            {
+                if (wptr[j] > _max)
+                {
                     _max = wptr[j];
                 }
-                if (wptr[j] < _min) {
+                if (wptr[j] < _min)
+                {
                     _min = wptr[j];
                 }
             }
             float abs = std::max(std::abs(_min), std::abs(_max));
             float scale = 127.0 / abs;
 
-            for (int j = 0; j < embed_dim; ++j) {
+            for (int j = 0; j < embed_dim; ++j)
+            {
                 wptr[j] = float2int8(wptr[j] * scale) * 1.0 / scale;
             }
         }
@@ -898,21 +904,26 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
     {
         // fake rewrite k
-        for (int i = 0; i < embed_dim; ++i) {
-            float* wptr = (float*)k_weight_data.data + i * embed_dim; 
+        for (int i = 0; i < embed_dim; ++i)
+        {
+            float* wptr = (float*)k_weight_data.data + i * embed_dim;
             float _min = 10000.f, _max = -100000.f;
-            for (int j = 0; j < embed_dim; ++j) {
-                if (wptr[j] > _max) {
+            for (int j = 0; j < embed_dim; ++j)
+            {
+                if (wptr[j] > _max)
+                {
                     _max = wptr[j];
                 }
-                if (wptr[j] < _min) {
+                if (wptr[j] < _min)
+                {
                     _min = wptr[j];
                 }
             }
             float abs = std::max(std::abs(_min), std::abs(_max));
             float scale = 127.0 / abs;
 
-            for (int j = 0; j < embed_dim; ++j) {
+            for (int j = 0; j < embed_dim; ++j)
+            {
                 wptr[j] = float2int8(wptr[j] * scale) * 1.0 / scale;
             }
         }
@@ -954,21 +965,26 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         //     }
         // }
 
-        for (int i = 0; i < embed_dim; ++i) {
-            float* wptr = (float*)v_weight_data.data + i * embed_dim; 
+        for (int i = 0; i < embed_dim; ++i)
+        {
+            float* wptr = (float*)v_weight_data.data + i * embed_dim;
             float _min = 10000.f, _max = -100000.f;
-            for (int j = 0; j < embed_dim; ++j) {
-                if (wptr[j] > _max) {
+            for (int j = 0; j < embed_dim; ++j)
+            {
+                if (wptr[j] > _max)
+                {
                     _max = wptr[j];
                 }
-                if (wptr[j] < _min) {
+                if (wptr[j] < _min)
+                {
                     _min = wptr[j];
                 }
             }
             float abs = std::max(std::abs(_min), std::abs(_max));
             float scale = 127.0 / abs;
 
-            for (int j = 0; j < embed_dim; ++j) {
+            for (int j = 0; j < embed_dim; ++j)
+            {
                 wptr[j] = float2int8(wptr[j] * scale) * 1.0 / scale;
             }
         }
@@ -1033,7 +1049,6 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
         }
     }
 
-
     for (int q = 0; q < num_head; q++)
     {
         // softmax(xqk)
@@ -1064,7 +1079,6 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
             }
         }
     }
-
 
     for (int q = 0; q < num_head; q++)
     {
@@ -1099,21 +1113,26 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
     {
         // fake rewrite o
-        for (int i = 0; i < embed_dim; ++i) {
-            float* wptr = (float*)out_weight_data.data + i * embed_dim; 
+        for (int i = 0; i < embed_dim; ++i)
+        {
+            float* wptr = (float*)out_weight_data.data + i * embed_dim;
             float _min = 10000.f, _max = -100000.f;
-            for (int j = 0; j < embed_dim; ++j) {
-                if (wptr[j] > _max) {
+            for (int j = 0; j < embed_dim; ++j)
+            {
+                if (wptr[j] > _max)
+                {
                     _max = wptr[j];
                 }
-                if (wptr[j] < _min) {
+                if (wptr[j] < _min)
+                {
                     _min = wptr[j];
                 }
             }
             float abs = std::max(std::abs(_min), std::abs(_max));
             float scale = 127.0 / abs;
 
-            for (int j = 0; j < embed_dim; ++j) {
+            for (int j = 0; j < embed_dim; ++j)
+            {
                 wptr[j] = float2int8(wptr[j] * scale) * 1.0 / scale;
             }
         }
