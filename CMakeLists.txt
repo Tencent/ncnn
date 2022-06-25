@@ -196,6 +196,8 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
     set(CMAKE_REQUIRED_FLAGS "-mloongson-mmi -I${CMAKE_CURRENT_SOURCE_DIR}/src/layer/mips")
     check_cxx_source_compiles("#include \"loongson_mmi.h\"\nint main() { int16x4_t _a, _b; int32x2_t _s = __mmi_pmaddhw(_a, _b); return 0; }" NCNN_COMPILER_SUPPORT_LOONGSON_MMI)
 
+    unset(CMAKE_REQUIRED_FLAGS)
+
     if(NCNN_COMPILER_SUPPORT_MIPS_MSA)
         option(NCNN_MSA "optimize mips platform with msa extension" ON)
     else()
