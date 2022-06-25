@@ -26,7 +26,14 @@
 
 #include "layer_type.h"
 
+#include "cpu.h"
+
 namespace ncnn {
+
+#if NCNN_F16C
+#include "innerproduct_fp16s.h"
+#include "innerproduct_gemm_fp16s.h"
+#endif
 
 InnerProduct_x86::InnerProduct_x86()
 {
@@ -54,6 +61,13 @@ int InnerProduct_x86::create_pipeline(const Option& opt)
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_x86(opt);
+    }
+#endif
+
+#if NCNN_F16C
+    if (cpu_support_x86_f16c() && opt.use_fp16_storage)
+    {
+        return create_pipeline_fp16s(opt);
     }
 #endif
 
@@ -128,6 +142,13 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     if (opt.use_int8_inference && int8_scale_term)
     {
         return forward_int8_x86(bottom_blob, top_blob, opt);
+    }
+#endif
+
+#if NCNN_F16C
+    if (cpu_support_x86_f16c() && opt.use_fp16_storage)
+    {
+        return forward_fp16s(bottom_blob, top_blob, opt);
     }
 #endif
 
@@ -1982,6 +2003,95 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     return 0;
 }
+
+#if NCNN_F16C
+int InnerProduct_x86::create_pipeline_fp16s(const Option& opt)
+{
+    const int num_input = weight_data_size / num_output;
+
+    innerproduct_transform_kernel_fp16s_sse(weight_data, weight_data_tm, num_input, num_output, opt);
+
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
+
+    return 0;
+}
+
+int InnerProduct_x86::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+{
+    const int num_input = weight_data_size / num_output;
+
+    if (bottom_blob.dims == 2 && bottom_blob.w == num_input && bottom_blob.h * bottom_blob.elempack > 1)
+    {
+        // gemm
+        int h = bottom_blob.h;
+        size_t elemsize = bottom_blob.elemsize;
+        int elempack = bottom_blob.elempack;
+
+        top_blob.create(num_output, h, elemsize, elempack, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
+        innerproduct_gemm_fp16s_sse(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+
+        return 0;
+    }
+
+    // flatten
+    Mat bottom_blob_flattened = bottom_blob;
+    if (bottom_blob.dims != 1)
+    {
+        Option opt_flatten = opt;
+        opt_flatten.blob_allocator = opt.workspace_allocator;
+
+        flatten->forward(bottom_blob, bottom_blob_flattened, opt_flatten);
+    }
+
+    size_t elemsize = bottom_blob_flattened.elemsize;
+    int elempack = bottom_blob_flattened.elempack;
+
+    int out_elempack = 1;
+    if (opt.use_packing_layout)
+    {
+#if __AVX512F__
+        out_elempack = num_output % 16 == 0 ? 16 : num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#else
+        out_elempack = num_output % 8 == 0 ? 8 : num_output % 4 == 0 ? 4 : 1;
+#endif
+    }
+    size_t out_elemsize = elemsize / elempack * out_elempack;
+
+    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (top_blob.empty())
+        return -100;
+
+#if __AVX512F__
+    if (out_elempack == 16)
+    {
+        innerproduct_fp16s_pack16_avx512(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    }
+#endif // __AVX512F__
+
+    if (out_elempack == 8)
+    {
+        innerproduct_fp16s_pack8_avx(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    }
+
+    if (out_elempack == 4)
+    {
+        innerproduct_fp16s_pack4_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    }
+
+    if (out_elempack == 1)
+    {
+        innerproduct_fp16s_sse(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+    }
+
+    return 0;
+}
+#endif // NCNN_F16C
 
 #if NCNN_INT8
 int InnerProduct_x86::create_pipeline_int8_x86(const Option& opt)
