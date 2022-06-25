@@ -34,6 +34,7 @@ public:
 #ifdef NCNN_INT8
     int log_int_softmax(int8_t* ptr, int64_t* buf, int8_t* out, const int len, float scale, float*deq) const;
     int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, std::vector<Mat>& fp32) const;
+    int forward_int8_v2(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt, std::vector<Mat>& fp32) const;
     int transform_input(
         const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8,
         const Mat& input_scale, const Mat& weight_scales, const float transform_scale,
