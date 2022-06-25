@@ -384,20 +384,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
     Mat debug_xq, debug_xk, debug_xv;
 
-    // {
-    //     Mat dequant_q_w(weight_data_size, 4u, opt.workspace_allocator);
-    //     float* to = (float*)dequant_q_w.data;
-    //     int8_t* from = (int8_t*)q_weight_data.data;
-    //     for (int i = 0; i < embed_dim; ++i) {
-    //         for (int j = 0; j < embed_dim; ++j) {
-    //             const int offset = i * embed_dim + j;
-    //             to[offset] = from[offset] * 1.0 / q_weight_scales[i];
-    //         }
-    //     }
-
-    //     dequants.emplace_back(dequant_q_w);
-    //     dequants.emplace_back(q_weight_data);
-    // }
 
     transform_input(q_blob, q_weight_data, q_bias_data, xq, q_input_scale, q_weight_scales, internal_scales[0], opt_g, debug_xq);
     dequants.push_back(debug_xq);
@@ -657,6 +643,28 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
+    {
+        // fake rewrite q
+        for (int i = 0; i < embed_dim; ++i) {
+            float* wptr = (float*)q_weight_data.data + i * embed_dim; 
+            float _min = 10000.f, _max = -100000.f;
+            for (int j = 0; j < embed_dim; ++j) {
+                if (wptr[j] > _max) {
+                    _max = wptr[j];
+                }
+                if (wptr[j] < _min) {
+                    _min = wptr[j];
+                }
+            }
+            float abs = std::max(std::abs(_min), std::abs(_max));
+            float scale = 127.0 / abs;
+
+            for (int j = 0; j < embed_dim; ++j) {
+                wptr[j] = float2int8(wptr[j] * scale) * 1.0 / scale;
+            }
+        }
+    }
+
     for (int q = 0; q < num_head; q++)
     {
         // xq = affine(q)
@@ -680,6 +688,28 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
                     outptr[j] = sum;
                 }
+            }
+        }
+    }
+
+    {
+        // fake rewrite k
+        for (int i = 0; i < embed_dim; ++i) {
+            float* wptr = (float*)k_weight_data.data + i * embed_dim; 
+            float _min = 10000.f, _max = -100000.f;
+            for (int j = 0; j < embed_dim; ++j) {
+                if (wptr[j] > _max) {
+                    _max = wptr[j];
+                }
+                if (wptr[j] < _min) {
+                    _min = wptr[j];
+                }
+            }
+            float abs = std::max(std::abs(_min), std::abs(_max));
+            float scale = 127.0 / abs;
+
+            for (int j = 0; j < embed_dim; ++j) {
+                wptr[j] = float2int8(wptr[j] * scale) * 1.0 / scale;
             }
         }
     }
@@ -859,6 +889,28 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 
                     outptr[j] = sum;
                 }
+            }
+        }
+    }
+
+    {
+        // fake rewrite o
+        for (int i = 0; i < embed_dim; ++i) {
+            float* wptr = (float*)out_weight_data.data + i * embed_dim; 
+            float _min = 10000.f, _max = -100000.f;
+            for (int j = 0; j < embed_dim; ++j) {
+                if (wptr[j] > _max) {
+                    _max = wptr[j];
+                }
+                if (wptr[j] < _min) {
+                    _min = wptr[j];
+                }
+            }
+            float abs = std::max(std::abs(_min), std::abs(_max));
+            float scale = 127.0 / abs;
+
+            for (int j = 0; j < embed_dim; ++j) {
+                wptr[j] = float2int8(wptr[j] * scale) * 1.0 / scale;
             }
         }
     }
