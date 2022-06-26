@@ -214,6 +214,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         // xk  (embed_dim_per_head, seqlen)
         const float out_scale = inv_sqrt_embed_dim_per_head / (internal_scales[0] * internal_scales[1]);
 
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; ++q)
         {
             const Mat xqm = xq.channel(q);
@@ -242,6 +243,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
 
         // fp32_softmax(xqk)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; q++)
         {
             // softmax(xqk)
@@ -280,6 +282,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     Mat xqkv(embed_dim_per_head, num_head, seqlen, 1u, opt.workspace_allocator);
 
     const float xqkv_out_scale = internal_scales[4] / 127.f / internal_scales[2];
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_head; ++q)
     {
         // xqkv = xqk * xv
@@ -317,6 +320,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     const float out_scale = 1.0f / internal_scales[4];
     // out = affine(xqkv)
     // xqkv  (embed_dim, seqlen)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < seqlen; i++)
     {
         float* outptr = top_blob.row(i);

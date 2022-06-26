@@ -16,7 +16,6 @@
 #define LAYER_MULTIHEADATTENTION_H
 
 #include "layer.h"
-#include <vector>
 
 namespace ncnn {
 
