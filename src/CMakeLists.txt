@@ -234,7 +234,9 @@ if(NCNN_THREADS)
     set(THREADS_PREFER_PTHREAD_FLAG TRUE)
     find_package(Threads REQUIRED)
 
-    target_link_libraries(ncnn PUBLIC Threads::Threads)
+    if(TARGET Threads::Threads)
+        target_link_libraries(ncnn PUBLIC Threads::Threads)
+    endif()
 
     if(NCNN_SIMPLEOMP OR NCNN_SIMPLESTL)
         target_link_libraries(ncnn PUBLIC pthread)
