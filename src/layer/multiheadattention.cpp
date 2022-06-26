@@ -79,11 +79,10 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
         LOAD_FLOAT_MAT(k_input_scale, 1);
         LOAD_FLOAT_MAT(v_input_scale, 1);
 
-        const int channel = weight_data_size / embed_dim;
-        LOAD_FLOAT_MAT(q_weight_scales, channel);
-        LOAD_FLOAT_MAT(k_weight_scales, channel);
-        LOAD_FLOAT_MAT(v_weight_scales, channel);
-        LOAD_FLOAT_MAT(o_weight_scales, channel);
+        LOAD_FLOAT_MAT(q_weight_scales, embed_dim);
+        LOAD_FLOAT_MAT(k_weight_scales, embed_dim);
+        LOAD_FLOAT_MAT(v_weight_scales, embed_dim);
+        LOAD_FLOAT_MAT(o_weight_scales, embed_dim);
 
         LOAD_FLOAT_MAT(internal_scales, 5);
     }
