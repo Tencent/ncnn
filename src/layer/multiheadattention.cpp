@@ -269,7 +269,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
                     for (int j = 0; j < seqlen; j++)
                     {
-                        out[j] =  float2int8(ptr[j] / sum * 127.f);
+                        out[j] = float2int8(ptr[j] / sum * 127.f);
                     }
                 }
             }
@@ -332,7 +332,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
                 sum += *ptr++ * *kptr++;
             }
 
-            outptr[j] = sum * out_scale / o_weight_scales[j]  + out_bias_data[j];
+            outptr[j] = sum * out_scale / o_weight_scales[j] + out_bias_data[j];
         }
     }
 
