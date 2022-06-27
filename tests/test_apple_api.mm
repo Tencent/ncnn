@@ -14,56 +14,70 @@
 
 #import <Cocoa/Cocoa.h>
 #import <CoreVideo/CoreVideo.h>
-#include "testutil.h"
 
-int main() {
-    @autoreleasepool{
-        NSImage* image = [[NSImage alloc] initByReferencingURL:[NSURL URLWithString:@"https://github.com/Tencent/ncnn/raw/master/images/16-ncnn.png"]];
-        ncnn::Mat m = ncnn::Mat::from_apple_image(image);
-        if(m.w!=16) {
-            printf("function Mat::from_apple_image test failed %d",m.w);
-            return -1;
-        }
-        CVPixelBufferRef pixelbuffer;
-        int ret = m.to_apple_pixelbuffer(&pixelbuffer);
-        if(ret != 0) {
-            printf("function Mat::to_apple_pixelbuffer test failed %d",ret);
-            return ret;
-        }
-        ncnn::Mat m2 = ncnn::Mat::from_apple_pixelbuffer(pixelbuffer);
-        if(m2.w!=16) {
-            printf("function Mat::from_apple_pixelbuffer test failed");
-            return -1;
-        }
-        if(memcmp(m.data,m2.data,m.w*m.h*4) != 0) {
-            printf("convenient data is error");
-            return -1;
-        }
-        OSType format = CVPixelBufferGetPixelFormatType(pixelbuffer);
-        if (format == kCVPixelFormatType_32ARGB) {
-            if (CVPixelBufferLockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != 0) {
-                printf("lock error");
-                return -1;
-            }
-            void* pd = CVPixelBufferGetBaseAddress(pixelbuffer);
-            if(memcmp(m.data,pd,m.w*m.h*4) != 0) {
-                printf("convenient data is error");
-                return -1;
-            }
-            if(memcmp(pd,m2.data,m.w*m.h*4) != 0) {
-                printf("convenient data is error");
-                return -1;
-            }
-            if (CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly) != 0) {
-                printf("unlock error");
-                CVPixelBufferUnlockBaseAddress(pixelbuffer, kCVPixelBufferLock_ReadOnly);
-                return -1;
-            }
-        }
-        NSImage* img = m2.to_apple_image();
-        if(!img) {
-            printf("function Mat::to_apple_image test failed");
-            return -1;
-        }
+#include <stdio.h>
+#include <string.h>
+#include "testutil.h"
+#include "mat.h"
+
+static ncnn::Mat generate_ncnn_logo(int w, int h)
+{
+    // clang-format off
+    // *INDENT-OFF*
+    static const unsigned char ncnn_logo_data[16][16] =
+    {
+        {245, 245,  33, 245, 245, 245, 245, 245, 245, 245, 245, 245, 245,  33, 245, 245},
+        {245,  33,  33,  33, 245, 245, 245, 245, 245, 245, 245, 245,  33,  33,  33, 245},
+        {245,  33, 158, 158,  33, 245, 245, 245, 245, 245, 245,  33, 158, 158,  33, 245},
+        { 33, 117, 158, 224, 158,  33, 245, 245, 245, 245,  33, 158, 224, 158, 117,  33},
+        { 33, 117, 224, 224, 224,  66,  33,  33,  33,  33,  66, 224, 224, 224, 117,  33},
+        { 33, 189, 224, 224, 224, 224, 224, 224, 224, 224, 224, 224, 224, 224, 189,  33},
+        { 33, 224, 224, 224, 224, 224, 224, 224, 224, 224, 224, 224, 224, 224, 224,  33},
+        { 33, 224, 224,  97,  97,  97,  97, 224, 224,  97,  97,  97,  97, 224, 224,  33},
+        { 33, 224, 224,  97,  33,   0, 189, 224, 224,  97,   0,  33,  97, 224, 224,  33},
+        { 33, 224, 224,  97,  33,   0, 189, 224, 224,  97,   0,  33,  97, 224, 224,  33},
+        { 33, 224, 224,  97,  97,  97,  97, 224, 224,  97, 189, 189,  97, 224, 224,  33},
+        { 33,  66,  66,  66, 224, 224, 224, 224, 224, 224, 224, 224,  66,  66,  66,  33},
+        { 66, 158, 158,  66,  66, 224, 224, 224, 224, 224, 224,  66, 158, 158,  66,  66},
+        { 66, 158, 158, 208,  66, 224, 224, 224, 224, 224, 224,  66, 158, 158, 208,  66},
+        { 66, 224, 202, 158,  66, 224, 224, 224, 224, 224, 224,  66, 224, 202, 158,  66},
+        { 66, 158, 224, 158,  66, 224, 224, 224, 224, 224, 224,  66, 158, 224, 158,  66}
+    };
+    // *INDENT-ON*
+    // clang-format on
+
+    ncnn::Mat m(w, h, (size_t)1, 1);
+    resize_bilinear_c1((const unsigned char*)ncnn_logo_data, 16, 16, m, w, h);
+    return m;
+}
+
+int main()
+{
+    ncnn::Mat m = generate_ncnn_logo(256, 256);
+
+    NSImage* nsimg = m.to_apple_nsimage();
+
+    ncnn::Mat m2 = ncnn::Mat::from_apple_nsimage(nsimg, ncnn::Mat::PIXEL_RGB);
+    ncnn::Mat m3 = ncnn::Mat::from_apple_nsimage(nsimg, ncnn::Mat::PIXEL_GRAY);
+
+    ncnn::Mat gray(256, 256, (size_t)1u, 1);
+    m2.to_pixels((unsigned char*)gray.data, ncnn::Mat::PIXEL_GRAY);
+
+    if (memcmp(m.data, gray.data, 256 * 256) != 0)
+    {
+        fprintf(stderr, "m gray data mismatch\n")
+        return -1;
     }
+
+    NSImage* nsimg2 = m.to_apple_nsimage();
+
+    ncnn::Mat m4 = ncnn::Mat::from_apple_nsimage(nsimg2, ncnn::Mat::PIXEL_GRAY);
+
+    if (memcmp(m3.data, m4.data, 256 * 256 * sizeof(float)) != 0)
+    {
+        fprintf(stderr, "m3 m4 data mismatch\n")
+        return -1;
+    }
+
+    return 0;
 }
