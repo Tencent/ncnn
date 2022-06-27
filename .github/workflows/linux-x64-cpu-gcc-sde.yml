@@ -54,4 +54,4 @@ jobs:
     - name: test-avx512-spr
       run: |
         cd build-avx512-spr
-        TESTS_EXECUTABLE_LOADER=$SDE_PATH TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
