@@ -83,7 +83,7 @@ jobs:
     - name: lcov-collect
       run: |
         cd build-avx512-spr
-        lcov -d ./src -c -o lcov.info
+        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
         lcov --list lcov.info
