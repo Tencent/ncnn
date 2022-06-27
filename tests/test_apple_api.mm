@@ -54,11 +54,15 @@ static ncnn::Mat generate_ncnn_logo(int w, int h)
 int main()
 {
     ncnn::Mat m = generate_ncnn_logo(256, 256);
+    fprintf(stderr, "m = %p\n", m.data);
 
     NSImage* nsimg = m.to_apple_nsimage();
+    fprintf(stderr, "nsimg = %p\n", nsimg);
 
     ncnn::Mat m2 = ncnn::Mat::from_apple_nsimage(nsimg, ncnn::Mat::PIXEL_RGB);
     ncnn::Mat m3 = ncnn::Mat::from_apple_nsimage(nsimg, ncnn::Mat::PIXEL_GRAY);
+    fprintf(stderr, "m2 = %p\n", m2.data);
+    fprintf(stderr, "m3 = %p\n", m3.data);
 
     ncnn::Mat gray(256, 256, (size_t)1u, 1);
     m2.to_pixels((unsigned char*)gray.data, ncnn::Mat::PIXEL_RGB2GRAY);
@@ -70,8 +74,10 @@ int main()
     }
 
     NSImage* nsimg2 = m.to_apple_nsimage();
+    fprintf(stderr, "nsimg2 = %p\n", nsimg2);
 
     ncnn::Mat m4 = ncnn::Mat::from_apple_nsimage(nsimg2, ncnn::Mat::PIXEL_GRAY);
+    fprintf(stderr, "m4 = %p\n", m4.data);
 
     if (memcmp(m3.data, m4.data, 256 * 256 * sizeof(float)) != 0)
     {
