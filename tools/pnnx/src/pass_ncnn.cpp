@@ -79,12 +79,12 @@ void pass_ncnn(Graph& g)
 
     ncnn::chain_multi_output(g);
 
-    ncnn::insert_reshape_pooling(g);
-    ncnn::insert_reshape_linear(g);
-
     ncnn::solve_batch_index(g);
 
     ncnn::convert_half_to_float(g);
+
+    ncnn::insert_reshape_pooling(g);
+    ncnn::insert_reshape_linear(g);
 
     ncnn::convert_torch_cat(g);
     ncnn::convert_torch_chunk(g);

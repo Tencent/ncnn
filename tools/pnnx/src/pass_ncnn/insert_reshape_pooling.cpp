@@ -57,6 +57,8 @@ void insert_reshape_pooling(Graph& graph)
             Operand* pooling_in = op->inputs[0];
             Operand* pooling_out = op->outputs[0];
 
+            const int batch_index = pooling_in->params["__batch_index"].i;
+
             Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
             Operator* reshape1 = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape1", op);
 
@@ -85,6 +87,9 @@ void insert_reshape_pooling(Graph& graph)
             reshape0_out->consumers.push_back(op);
             reshape1_in->producer = op;
             reshape1_in->consumers.push_back(reshape1);
+
+            reshape0_out->params["__batch_index"] = 0;
+            reshape1_in->params["__batch_index"] = batch_index;
 
             std::vector<int> reshape0_shape = pooling_in->shape;
             reshape0_shape.insert(reshape0_shape.begin(), 1);

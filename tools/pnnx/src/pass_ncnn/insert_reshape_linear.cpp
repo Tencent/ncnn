@@ -54,6 +54,8 @@ void insert_reshape_linear(Graph& graph)
             Operand* linear_in = op->inputs[0];
             Operand* linear_out = op->outputs[0];
 
+            const int batch_index = linear_in->params["__batch_index"].i;
+
             Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
             Operator* reshape1 = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape1", op);
 
@@ -83,7 +85,24 @@ void insert_reshape_linear(Graph& graph)
             reshape1_in->producer = op;
             reshape1_in->consumers.push_back(reshape1);
 
-            std::vector<int> reshape0_shape = {1, -1, linear_in->shape[input_rank - 1]};
+            reshape0_out->params["__batch_index"] = batch_index;
+            reshape1_in->params["__batch_index"] = batch_index;
+
+            int reshape_h = 1;
+            for (size_t j = 0; j < linear_in->shape.size() - 1; j++)
+            {
+                reshape_h *= linear_in->shape[j];
+            }
+
+            std::vector<int> reshape0_shape;
+            if (batch_index == 0 && batch_index != 233)
+            {
+                reshape0_shape = {1, reshape_h, linear_in->shape[input_rank - 1]};
+            }
+            else
+            {
+                reshape0_shape = {reshape_h, linear_in->shape[input_rank - 1]};
+            }
             std::vector<int> reshape1_shape = linear_out->shape;
 
             reshape0->params["shape"] = reshape0_shape;
