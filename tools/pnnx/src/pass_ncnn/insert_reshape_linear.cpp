@@ -12,14 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "insert_reshape_pooling.h"
+#include "insert_reshape_linear.h"
 #include "pass_ncnn.h"
 
 namespace pnnx {
 
 namespace ncnn {
 
-void insert_reshape_pooling(Graph& graph)
+void insert_reshape_linear(Graph& graph)
 {
     while (1)
     {
@@ -29,20 +29,17 @@ void insert_reshape_pooling(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "nn.MaxPool1d" && op->type != "nn.MaxPool2d" && op->type != "nn.MaxPool3d")
+            if (op->type != "nn.Linear")
                 continue;
 
             int input_rank = op->inputs[0]->shape.size();
             if (input_rank == 0)
                 continue;
 
-            // nn.MaxPool1d    2d-3d-2d
-            // nn.MaxPool2d    3d-4d-3d
-            // nn.MaxPool3d    4d-5d-4d
+            // nn.Linear    4d-2d-4d
+            // nn.Linear    5d-2d-5d
             bool insert_reshape = false;
-            if ((op->type == "nn.MaxPool1d" && input_rank == 2)
-                    || (op->type == "nn.MaxPool2d" && input_rank == 3)
-                    || (op->type == "nn.MaxPool3d" && input_rank == 4))
+            if (op->type == "nn.Linear" && (input_rank == 4 || input_rank == 5))
             {
                 insert_reshape = true;
             }
@@ -50,14 +47,14 @@ void insert_reshape_pooling(Graph& graph)
             if (!insert_reshape)
                 continue;
 
-            fprintf(stderr, "insert_reshape_pooling %d\n", input_rank);
+            fprintf(stderr, "insert_reshape_linear %d\n", input_rank);
 
             matched = true;
 
-            Operand* pooling_in = op->inputs[0];
-            Operand* pooling_out = op->outputs[0];
+            Operand* linear_in = op->inputs[0];
+            Operand* linear_out = op->outputs[0];
 
-            const int batch_index = pooling_in->params["__batch_index"].i;
+            const int batch_index = linear_in->params["__batch_index"].i;
 
             Operator* reshape0 = graph.new_operator_before("Tensor.reshape", op->name + "_ncnnreshape0", op);
             Operator* reshape1 = graph.new_operator_after("Tensor.reshape", op->name + "_ncnnreshape1", op);
@@ -65,20 +62,20 @@ void insert_reshape_pooling(Graph& graph)
             Operand* reshape0_out = graph.new_operand(op->name + "_ncnnreshape0_out");
             Operand* reshape1_in = graph.new_operand(op->name + "_ncnnreshape1_in");
 
-            reshape0->inputs.push_back(pooling_in);
+            reshape0->inputs.push_back(linear_in);
             reshape0->outputs.push_back(reshape0_out);
             reshape1->inputs.push_back(reshape1_in);
-            reshape1->outputs.push_back(pooling_out);
+            reshape1->outputs.push_back(linear_out);
 
-            for (size_t j = 0; j < pooling_in->consumers.size(); j++)
+            for (size_t j = 0; j < linear_in->consumers.size(); j++)
             {
-                if (pooling_in->consumers[j] == op)
+                if (linear_in->consumers[j] == op)
                 {
-                    pooling_in->consumers[j] = reshape0;
+                    linear_in->consumers[j] = reshape0;
                     break;
                 }
             }
-            pooling_out->producer = reshape1;
+            linear_out->producer = reshape1;
 
             op->inputs[0] = reshape0_out;
             op->outputs[0] = reshape1_in;
@@ -88,12 +85,25 @@ void insert_reshape_pooling(Graph& graph)
             reshape1_in->producer = op;
             reshape1_in->consumers.push_back(reshape1);
 
-            reshape0_out->params["__batch_index"] = 0;
+            reshape0_out->params["__batch_index"] = batch_index;
             reshape1_in->params["__batch_index"] = batch_index;
 
-            std::vector<int> reshape0_shape = pooling_in->shape;
-            reshape0_shape.insert(reshape0_shape.begin(), 1);
-            std::vector<int> reshape1_shape = pooling_out->shape;
+            int reshape_h = 1;
+            for (size_t j = 0; j < linear_in->shape.size() - 1; j++)
+            {
+                reshape_h *= linear_in->shape[j];
+            }
+
+            std::vector<int> reshape0_shape;
+            if (batch_index == 0 && batch_index != 233)
+            {
+                reshape0_shape = {1, reshape_h, linear_in->shape[input_rank - 1]};
+            }
+            else
+            {
+                reshape0_shape = {reshape_h, linear_in->shape[input_rank - 1]};
+            }
+            std::vector<int> reshape1_shape = linear_out->shape;
 
             reshape0->params["shape"] = reshape0_shape;
             reshape1->params["shape"] = reshape1_shape;
