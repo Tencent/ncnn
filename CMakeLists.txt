@@ -263,7 +263,10 @@ else()
         endif()
     else()
         check_cxx_compiler_flag("-mavx" NCNN_COMPILER_SUPPORT_X86_AVX)
-        check_cxx_compiler_flag("-mfma" NCNN_COMPILER_SUPPORT_X86_FMA)
+
+        set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c")
+        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256 _s, _a, _b; _s = _mm256_fmadd_ps(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_FMA)
+
         check_cxx_compiler_flag("-mxop" NCNN_COMPILER_SUPPORT_X86_XOP)
         check_cxx_compiler_flag("-mf16c" NCNN_COMPILER_SUPPORT_X86_F16C)
         check_cxx_compiler_flag("-mfma -mf16c -mavx2" NCNN_COMPILER_SUPPORT_X86_AVX2)
