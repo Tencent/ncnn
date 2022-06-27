@@ -205,9 +205,8 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     // xq @ qk * inv_sqrt_embed_dim_per_head
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
-    Mat xqk_softmax(seqlen, seqlen, num_head, 1u, opt.workspace_allocator);
+    Mat xqk(seqlen, seqlen, num_head, 4u, opt.workspace_allocator);
     {
-        Mat xqk(seqlen, seqlen, num_head, 4u, opt.workspace_allocator);
         // xqk = xq * xk
         // xq  (embed_dim_per_head, seqlen)
         // xk  (embed_dim_per_head, seqlen)
@@ -247,13 +246,11 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         {
             // softmax(xqk)
             {
-                Mat inm = xqk.channel(q);
-                Mat outm = xqk_softmax.channel(q);
+                Mat outm = xqk.channel(q);
 
                 for (int i = 0; i < seqlen; i++)
                 {
-                    float* ptr = inm.row(i);
-                    int8_t* out = outm.row<int8_t>(i);
+                    float* ptr = outm.row(i);
 
                     float max = -FLT_MAX;
                     for (int j = 0; j < seqlen; j++)
@@ -270,7 +267,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
                     for (int j = 0; j < seqlen; j++)
                     {
-                        out[j] = float2int8(ptr[j] / sum * 127.f);
+                        ptr[j] = ptr[j] / sum;
                     }
                 }
             }
@@ -280,7 +277,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     // xqkv int4 @ int8, implement by shift
     Mat xqkv(embed_dim_per_head, num_head, seqlen, 1u, opt.workspace_allocator);
 
-    const float xqkv_out_scale = internal_scales[4] / 127.f / internal_scales[2];
+    const float xqkv_out_scale = internal_scales[4] / internal_scales[2];
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_head; ++q)
     {
@@ -288,7 +285,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         // xqk (seqlen, seqlen)
         // xv  (seqlen, embed_dim_per_head)
         // out (embed_dim_per_head, num_head, seqlen)
-        const Mat xqkm = xqk_softmax.channel(q);
+        const Mat xqkm = xqk.channel(q);
         const Mat xvm = xv.channel(q);
 
         for (int i = 0; i < seqlen; i++)
@@ -297,7 +294,7 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
 
             for (int j = 0; j < embed_dim_per_head; j++)
             {
-                const int8_t* qkptr = xqkm.row<int8_t>(i);
+                const float* qkptr = xqkm.row<float>(i);
                 const int8_t* vptr = xvm.row<int8_t>(j);
 
                 float sum = 0;
