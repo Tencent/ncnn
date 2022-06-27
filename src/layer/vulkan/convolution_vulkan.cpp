@@ -178,11 +178,12 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         padding->create_pipeline(opt);
     }
 
-    if (opt.use_winograd_convolution && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
         bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && num_input % 8 == 0 && num_output % 8 == 0;
 
         // winograd43 transform kernel
+        if (opt.use_winograd43_convolution)
         {
             Mat weight_data_tm;
             weight_data_tm.create(6 * 6, num_input, num_output);
@@ -262,6 +263,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         // winograd43
+        if (opt.use_winograd43_convolution)
         {
             int block_x = 0;
             int block_y = 0;
@@ -392,6 +394,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         // winograd23 transform kernel
+        if (opt.use_winograd23_convolution)
         {
             Mat weight_data_tm;
             weight_data_tm.create(4 * 4, num_input, num_output);
@@ -470,6 +473,7 @@ int Convolution_vulkan::create_pipeline(const Option& _opt)
         }
 
         // winograd23
+        if (opt.use_winograd23_convolution)
         {
             int block_x = 0;
             int block_y = 0;
@@ -975,9 +979,10 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
 
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && num_input >= 16 && num_output >= 16)
     {
         // winograd43
+        if (opt.use_winograd43_convolution)
         {
             if (support_image_storage && opt.use_image_storage)
             {
@@ -992,6 +997,7 @@ int Convolution_vulkan::upload_model(VkTransfer& cmd, const Option& opt)
         }
 
         // winograd23
+        if (opt.use_winograd23_convolution)
         {
             if (support_image_storage && opt.use_image_storage)
             {
@@ -1154,11 +1160,11 @@ int Convolution_vulkan::forward(const VkMat& bottom_blob, VkMat& top_blob, VkCom
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
     {
         bool use_cooperative_matrix = vkdev->info.support_cooperative_matrix_16_8_8() && opt.use_cooperative_matrix && !opt.use_image_storage && !opt.use_shader_pack8 && opt.use_fp16_storage && channels * elempack % 8 == 0 && num_output % 8 == 0;
 
-        bool pre_winograd43 = true;
+        bool pre_winograd43 = opt.use_winograd43_convolution;
         if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || ((w >= 23 && w <= 24) && (h >= 23 && h <= 24))))
             pre_winograd43 = false;
         if (vkdev->info.type() != 0 && (w <= 12 && h <= 12))
@@ -1595,9 +1601,9 @@ int Convolution_vulkan::forward(const VkImageMat& bottom_blob, VkImageMat& top_b
     bool is_conv1x1s1d1 = kernel_w == 1 && kernel_h == 1 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
     bool is_conv3x3s1d1 = kernel_w == 3 && kernel_h == 3 && stride_w == 1 && stride_h == 1 && dilation_w == 1 && dilation_h == 1;
 
-    if (opt.use_winograd_convolution && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
+    if (opt.use_winograd_convolution && (opt.use_winograd23_convolution || opt.use_winograd43_convolution) && is_conv3x3s1d1 && channels * elempack >= 16 && num_output >= 16)
     {
-        bool pre_winograd43 = true;
+        bool pre_winograd43 = opt.use_winograd43_convolution;
         if (vkdev->info.type() == 0 && ((w <= 18 && h <= 18) || ((w >= 23 && w <= 24) && (h >= 23 && h <= 24))))
             pre_winograd43 = false;
         if (vkdev->info.type() != 0 && (w <= 12 && h <= 12))

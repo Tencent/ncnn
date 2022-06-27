@@ -2240,60 +2240,6 @@ static bool string_is_positive_integer(const std::string& t)
     return true;
 }
 
-static unsigned short float32_to_float16(float value)
-{
-    // 1 : 8 : 23
-    union
-    {
-        unsigned int u;
-        float f;
-    } tmp;
-
-    tmp.f = value;
-
-    // 1 : 8 : 23
-    unsigned short sign = (tmp.u & 0x80000000) >> 31;
-    unsigned short exponent = (tmp.u & 0x7F800000) >> 23;
-    unsigned int significand = tmp.u & 0x7FFFFF;
-
-    //     NCNN_LOGE("%d %d %d", sign, exponent, significand);
-
-    // 1 : 5 : 10
-    unsigned short fp16;
-    if (exponent == 0)
-    {
-        // zero or denormal, always underflow
-        fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-    }
-    else if (exponent == 0xFF)
-    {
-        // infinity or NaN
-        fp16 = (sign << 15) | (0x1F << 10) | (significand ? 0x200 : 0x00);
-    }
-    else
-    {
-        // normalized
-        short newexp = exponent + (-127 + 15);
-        if (newexp >= 31)
-        {
-            // overflow, return infinity
-            fp16 = (sign << 15) | (0x1F << 10) | 0x00;
-        }
-        else if (newexp <= 0)
-        {
-            // Some normal fp32 cannot be expressed as normal fp16
-            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-        }
-        else
-        {
-            // normal fp16
-            fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
-        }
-    }
-
-    return fp16;
-}
-
 int Graph::ncnn(const std::string& parampath, const std::string& binpath, const std::string& pypath)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
@@ -2435,31 +2381,6 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
             //             fprintf(paramfp, " @%s=", it.first.c_str());
 
             const Attribute& attr = it.second;
-
-            if (is_type_flag_fp32)
-            {
-                // fp32 -> fp16
-                const float* p = (const float*)attr.data.data();
-                int len = attr.data.size() / 4;
-                for (int i = 0; i < len; i++)
-                {
-                    unsigned short v_fp16 = float32_to_float16(p[i]);
-                    fwrite(&v_fp16, sizeof(v_fp16), 1, binfp);
-                }
-
-                is_type_flag_fp32 = false;
-                continue;
-            }
-
-            if (attr.type == 0 && attr.data == std::vector<char> {0, 0, 0, 0})
-            {
-                // write fp16 flag
-                unsigned int fp16_flag = 0x01306B47;
-                fwrite(&fp16_flag, sizeof(fp16_flag), 1, binfp);
-
-                is_type_flag_fp32 = true;
-                continue;
-            }
 
             fwrite(attr.data.data(), attr.data.size(), 1, binfp);
         }

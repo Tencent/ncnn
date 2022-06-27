@@ -30,17 +30,10 @@ permissions:
 
 jobs:
   linux-gcc-loongarch64:
-    runs-on: ubuntu-20.04
-
-    container:
-      image: quay.io/fedora/fedora:34-x86_64
-      options: --security-opt seccomp=unconfined
+    runs-on: [self-hosted, linux, centos]
 
     steps:
     - uses: actions/checkout@v2
-
-    - name: install-deps
-      run: dnf -y install cmake wget xz
 
     - name: loongarch64-toolchain
       run: |
@@ -57,7 +50,7 @@ jobs:
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/loongarch64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
 
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j 4
 
     - name: test
       run: |
@@ -65,4 +58,4 @@ jobs:
         export LD_LIBRARY_PATH=$GITHUB_WORKSPACE/cross-tools/target/usr/lib64:$LD_LIBRARY_PATH
         export QEMU_STRACE=1
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-loongarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;$GITHUB_WORKSPACE/cross-tools/target/usr" ctest --output-on-failure -j 4

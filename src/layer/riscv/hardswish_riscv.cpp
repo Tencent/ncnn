@@ -37,12 +37,11 @@ HardSwish_riscv::HardSwish_riscv()
 #endif // __riscv_vector
 }
 
-int HardSwish_riscv::forward_inplace(Mat& bottom_top_blob,
-                                     const Option& opt) const
+int HardSwish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if __riscv_vector && __riscv_zfh
     int elembits = bottom_top_blob.elembits();
 
-#if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         return forward_inplace_fp16s(bottom_top_blob, opt);
@@ -51,9 +50,10 @@ int HardSwish_riscv::forward_inplace(Mat& bottom_top_blob,
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -61,7 +61,7 @@ int HardSwish_riscv::forward_inplace(Mat& bottom_top_blob,
         float* ptr = bottom_top_blob.channel(q);
 
 #if __riscv_vector
-        int n = size * elempack;
+        int n = size;
         while (n > 0)
         {
             word_type vl = vsetvl_e32m8(n);
@@ -98,21 +98,21 @@ int HardSwish_riscv::forward_inplace(Mat& bottom_top_blob,
 }
 
 #if __riscv_vector && __riscv_zfh
-int HardSwish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob,
-        const Option& opt) const
+int HardSwish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
-        int n = size * elempack;
+        int n = size;
         while (n > 0)
         {
             word_type vl = vsetvl_e16m8(n);

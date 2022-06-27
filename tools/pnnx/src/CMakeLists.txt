@@ -326,6 +326,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/solve_batch_index.cpp
+    pass_ncnn/convert_to_fp16_model.cpp
 
     pass_ncnn/eliminate_noop.cpp
     pass_ncnn/eliminate_tail_reshape_permute.cpp
@@ -337,6 +338,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_deconvolutiondepthwise_activation.cpp
     pass_ncnn/fuse_innerproduct_activation.cpp
     pass_ncnn/fuse_transpose_matmul.cpp
+    pass_ncnn/insert_reshape_linear.cpp
     pass_ncnn/insert_reshape_pooling.cpp
 
     pass_ncnn/F_adaptive_avg_pool1d.cpp

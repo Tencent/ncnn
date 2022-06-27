@@ -34,91 +34,35 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
 
-#if __mips_msa
-    if (elempack == 4)
-    {
-        if (dims == 1)
-        {
-            int w = bottom_top_blob.w;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < w; i++)
-            {
-                float* ptr = (float*)bottom_top_blob + i * 4;
-
-                v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                v4f32 _a = (v4f32)__msa_ld_w((const float*)a_data + i * 4, 0);
-                v4f32 _b = (v4f32)__msa_ld_w((const float*)b_data + i * 4, 0);
-                _p = __msa_fmadd_w(_a, _p, _b);
-                __msa_st_w((v4i32)_p, ptr, 0);
-            }
-        }
-
-        if (dims == 2)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-
-                v4f32 _a = (v4f32)__msa_ld_w((const float*)a_data + i * 4, 0);
-                v4f32 _b = (v4f32)__msa_ld_w((const float*)b_data + i * 4, 0);
-
-                for (int j = 0; j < w; j++)
-                {
-                    __builtin_prefetch(ptr + 16);
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                    _p = __msa_fmadd_w(_a, _p, _b);
-                    __msa_st_w((v4i32)_p, ptr, 0);
-
-                    ptr += 4;
-                }
-            }
-        }
-
-        if (dims == 3 || dims == 4)
-        {
-            int w = bottom_top_blob.w;
-            int h = bottom_top_blob.h;
-            int d = bottom_top_blob.d;
-            int c = bottom_top_blob.c;
-            int size = w * h * d;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < c; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-
-                v4f32 _a = (v4f32)__msa_ld_w((const float*)a_data + q * 4, 0);
-                v4f32 _b = (v4f32)__msa_ld_w((const float*)b_data + q * 4, 0);
-
-                for (int i = 0; i < size; i++)
-                {
-                    __builtin_prefetch(ptr + 16);
-                    v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
-                    _p = __msa_fmadd_w(_a, _p, _b);
-                    __msa_st_w((v4i32)_p, ptr, 0);
-
-                    ptr += 4;
-                }
-            }
-        }
-
-        return 0;
-    }
-#endif // __mips_msa
-
     if (dims == 1)
     {
-        int w = bottom_top_blob.w;
+        int w = bottom_top_blob.w * elempack;
+
+#if __mips_msa
+        int nn_w = w / 4;
+        int remain_w_start = nn_w * 4;
+#else
+        int remain_w_start = 0;
+#endif // __mips_msa
 
         float* ptr = bottom_top_blob;
 
+#if __mips_msa
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < w; i++)
+        for (int i = 0; i < nn_w; i++)
+        {
+            float* ptr0 = ptr + i * 4;
+
+            v4f32 _p = (v4f32)__msa_ld_w(ptr0, 0);
+            v4f32 _a = (v4f32)__msa_ld_w((const float*)a_data + i * 4, 0);
+            v4f32 _b = (v4f32)__msa_ld_w((const float*)b_data + i * 4, 0);
+            _p = __msa_fmadd_w(_a, _p, _b);
+            __msa_st_w((v4i32)_p, ptr0, 0);
+        }
+#endif // __mips_msa
+
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = remain_w_start; i < w; i++)
         {
             ptr[i] = b_data[i] * ptr[i] + a_data[i];
         }
@@ -126,7 +70,7 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
     if (dims == 2)
     {
-        int w = bottom_top_blob.w;
+        int w = bottom_top_blob.w * elempack;
         int h = bottom_top_blob.h;
 
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -138,8 +82,8 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
             int j = 0;
 #if __mips_msa
-            v4f32 _a = (v4f32)__msa_fill_w_f32(a);
-            v4f32 _b = (v4f32)__msa_fill_w_f32(b);
+            v4f32 _a = elempack == 4 ? (v4f32)__msa_ld_w((const float*)a_data + i * 4, 0) : (v4f32)__msa_fill_w_f32(a);
+            v4f32 _b = elempack == 4 ? (v4f32)__msa_ld_w((const float*)b_data + i * 4, 0) : (v4f32)__msa_fill_w_f32(b);
             for (; j + 3 < w; j += 4)
             {
                 __builtin_prefetch(ptr + 16);
@@ -164,7 +108,7 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
         int h = bottom_top_blob.h;
         int d = bottom_top_blob.d;
         int c = bottom_top_blob.c;
-        int size = w * h * d;
+        int size = w * h * d * elempack;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
@@ -175,8 +119,8 @@ int BatchNorm_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
             int i = 0;
 #if __mips_msa
-            v4f32 _a = (v4f32)__msa_fill_w_f32(a);
-            v4f32 _b = (v4f32)__msa_fill_w_f32(b);
+            v4f32 _a = elempack == 4 ? (v4f32)__msa_ld_w((const float*)a_data + q * 4, 0) : (v4f32)__msa_fill_w_f32(a);
+            v4f32 _b = elempack == 4 ? (v4f32)__msa_ld_w((const float*)b_data + q * 4, 0) : (v4f32)__msa_fill_w_f32(b);
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
