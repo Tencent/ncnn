@@ -1032,11 +1032,11 @@ NCNN_FORCEINLINE void Mat::fill(__m512 _v)
     }
 }
 #endif // __AVX512F__
-NCNN_FORCEINLINE void Mat::fill(__m256 _v, int i)
+NCNN_FORCEINLINE void Mat::fill(__m256 _v, int _i)
 {
     // old gcc cannot overload __m128 and __m256 type
     // add a dummy int parameter for different mangled function symbol
-    (void)i;
+    (void)_i;
     int size = (int)total();
     float* ptr = (float*)data;
     for (int i = 0; i < size; i++)
