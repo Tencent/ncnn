@@ -61,7 +61,7 @@ int main()
     ncnn::Mat m3 = ncnn::Mat::from_apple_nsimage(nsimg, ncnn::Mat::PIXEL_GRAY);
 
     ncnn::Mat gray(256, 256, (size_t)1u, 1);
-    m2.to_pixels((unsigned char*)gray.data, ncnn::Mat::PIXEL_GRAY);
+    m2.to_pixels((unsigned char*)gray.data, ncnn::Mat::PIXEL_RGB2GRAY);
 
     if (memcmp(m.data, gray.data, 256 * 256) != 0)
     {
