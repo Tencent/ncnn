@@ -65,7 +65,7 @@ int main()
 
     if (memcmp(m.data, gray.data, 256 * 256) != 0)
     {
-        fprintf(stderr, "m gray data mismatch\n")
+        fprintf(stderr, "m gray data mismatch\n");
         return -1;
     }
 
@@ -75,7 +75,7 @@ int main()
 
     if (memcmp(m3.data, m4.data, 256 * 256 * sizeof(float)) != 0)
     {
-        fprintf(stderr, "m3 m4 data mismatch\n")
+        fprintf(stderr, "m3 m4 data mismatch\n");
         return -1;
     }
 
