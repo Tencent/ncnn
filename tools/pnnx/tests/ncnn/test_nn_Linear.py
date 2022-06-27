@@ -23,14 +23,17 @@ class Model(nn.Module):
         self.linear_0 = nn.Linear(in_features=64, out_features=16, bias=False)
         self.linear_1 = nn.Linear(in_features=16, out_features=3, bias=True)
 
-    def forward(self, x, y):
+    def forward(self, x, y, z):
         x = self.linear_0(x)
         x = self.linear_1(x)
 
         y = self.linear_0(y)
         y = self.linear_1(y)
 
-        return x, y
+        z = self.linear_0(z)
+        z = self.linear_1(z)
+        z = F.relu(z)
+        return x, y, z
 
 def test():
     net = Model().half().float()
@@ -39,22 +42,23 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(64)
     y = torch.rand(12, 64)
+    z = torch.rand(1, 3, 12, 64)
 
-    a0, a1 = net(x, y)
+    a0, a1, a2 = net(x, y, z)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, z))
     mod.save("test_nn_Linear.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[64],[12,64]")
+    os.system("../../src/pnnx test_nn_Linear.pt inputshape=[64],[12,64],[1,3,12,64]")
 
     # ncnn inference
     import test_nn_Linear_ncnn
-    b0, b1 = test_nn_Linear_ncnn.test_inference()
+    b0, b1, b2 = test_nn_Linear_ncnn.test_inference()
 
-    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4)
+    return torch.allclose(a0, b0, 1e-4, 1e-4) and torch.allclose(a1, b1, 1e-4, 1e-4) and torch.allclose(a2, b2, 1e-4, 1e-4)
 
 if __name__ == "__main__":
     if test():

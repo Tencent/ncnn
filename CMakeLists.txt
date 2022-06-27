@@ -196,6 +196,8 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
     set(CMAKE_REQUIRED_FLAGS "-mloongson-mmi -I${CMAKE_CURRENT_SOURCE_DIR}/src/layer/mips")
     check_cxx_source_compiles("#include \"loongson_mmi.h\"\nint main() { int16x4_t _a, _b; int32x2_t _s = __mmi_pmaddhw(_a, _b); return 0; }" NCNN_COMPILER_SUPPORT_LOONGSON_MMI)
 
+    unset(CMAKE_REQUIRED_FLAGS)
+
     if(NCNN_COMPILER_SUPPORT_MIPS_MSA)
         option(NCNN_MSA "optimize mips platform with msa extension" ON)
     else()
@@ -261,7 +263,10 @@ else()
         endif()
     else()
         check_cxx_compiler_flag("-mavx" NCNN_COMPILER_SUPPORT_X86_AVX)
-        check_cxx_compiler_flag("-mfma" NCNN_COMPILER_SUPPORT_X86_FMA)
+
+        set(CMAKE_REQUIRED_FLAGS "-mfma -mf16c")
+        check_cxx_source_compiles("#include <immintrin.h>\nint main() { __m256 _s, _a, _b; _s = _mm256_fmadd_ps(_a, _b, _s); return 0; }" NCNN_COMPILER_SUPPORT_X86_FMA)
+
         check_cxx_compiler_flag("-mxop" NCNN_COMPILER_SUPPORT_X86_XOP)
         check_cxx_compiler_flag("-mf16c" NCNN_COMPILER_SUPPORT_X86_F16C)
         check_cxx_compiler_flag("-mfma -mf16c -mavx2" NCNN_COMPILER_SUPPORT_X86_AVX2)
