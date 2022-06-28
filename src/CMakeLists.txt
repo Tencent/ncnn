@@ -414,7 +414,7 @@ endif()
 
 if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)")))
     if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM86SVE)
-        set(ARM_MARCH_FLAG_FLAG "-march=armv8.6-a+sve")
+        set(ARM_MARCH_FLAG "-march=armv8.6-a+sve")
         if(NCNN_ARM86SVE2)
             set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+sve2")
         endif()
