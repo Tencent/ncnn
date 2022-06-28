@@ -56,7 +56,6 @@ static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const O
 
         int i = 0;
 #if __AVX512FP16__
-#warning "build __AVX512FP16__"
         for (; i + 15 < size; i += 16)
         {
             __m512 _v_fp32 = _mm512_loadu_ps(ptr);
