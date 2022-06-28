@@ -217,6 +217,7 @@ static unsigned int g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
 #define HWCAP_ASIMDDP  (1 << 20)
 #define HWCAP_SVE      (1 << 22)
 #define HWCAP_ASIMDFHM (1 << 23)
+#define HWCAP2_SVE2    (1 << 1)
 #define HWCAP2_I8MM    (1 << 13)
 #define HWCAP2_BF16    (1 << 14)
 #else
@@ -510,6 +511,25 @@ int cpu_support_arm_sve()
 #if defined __ANDROID__ || defined __linux__
 #if __aarch64__
     return g_hwcaps & HWCAP_SVE;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 i8mm
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sve2()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_SVE2;
 #else
     return 0;
 #endif
