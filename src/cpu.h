@@ -53,6 +53,22 @@ NCNN_EXPORT int cpu_support_arm_vfpv4();
 NCNN_EXPORT int cpu_support_arm_asimdhp();
 // asimddp = aarch64 asimd dot product
 NCNN_EXPORT int cpu_support_arm_asimddp();
+// asimdfhm = aarch64 asimd fhm
+NCNN_EXPORT int cpu_support_arm_asimdfhm();
+// bf16 = aarch64 bf16
+NCNN_EXPORT int cpu_support_arm_bf16();
+// i8mm = aarch64 i8mm
+NCNN_EXPORT int cpu_support_arm_i8mm();
+// sve = aarch64 sve
+NCNN_EXPORT int cpu_support_arm_sve();
+// sve2 = aarch64 sve2
+NCNN_EXPORT int cpu_support_arm_sve2();
+// svebf16 = aarch64 svebf16
+NCNN_EXPORT int cpu_support_arm_svebf16();
+// svei8mm = aarch64 svei8mm
+NCNN_EXPORT int cpu_support_arm_svei8mm();
+// svef32mm = aarch64 svef32mm
+NCNN_EXPORT int cpu_support_arm_svef32mm();
 
 // avx = x86 avx
 NCNN_EXPORT int cpu_support_x86_avx();
