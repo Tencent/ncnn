@@ -50,7 +50,7 @@ FuseModulePassRegister::~FuseModulePassRegister()
     delete pass;
 }
 
-void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& g, Graph& pg)
+void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit::Graph>& g, const std::vector<std::string>& module_operators, Graph& pg)
 {
     for (int i = 1; i < (int)g->inputs().size(); i++)
     {
@@ -179,7 +179,10 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             std::string class_type_str = torch::jit::removeTorchMangle(class_type->str());
 
+            std::string class_type_str_no_torch_prefix = class_type_str.substr(10);
+
             std::string optypename = class_type_str;
+
             for (const auto& ow : get_global_pnnx_fuse_module_passes())
             {
                 if (class_type_str != ow->match_type_str())
@@ -191,7 +194,7 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             if (optypename == class_type_str)
             {
-                optypename = class_type_str.substr(10);
+                optypename = class_type_str_no_torch_prefix;
             }
 
             Operator* op = pg.new_operator(optypename, name);
@@ -212,44 +215,138 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
                 op->outputs.push_back(r);
             }
 
-            for (const auto& ow : get_global_pnnx_fuse_module_passes())
+            // module operator
+            if (std::find(module_operators.begin(), module_operators.end(), class_type_str_no_torch_prefix) != module_operators.end())
             {
-                if (class_type_str != ow->match_type_str())
-                    continue;
-
-                auto class_type = n->input(0)->type()->cast<torch::jit::ClassType>();
-                torch::jit::Function& function = class_type->getMethod(n->s(torch::jit::attr::name));
-
-                std::deque<std::string> module_names; // = split(n->input(0)->node()->s(torch::jit::attr::name), '.');
+                const std::string& function_name = n->s(torch::jit::attr::name);
+                torch::jit::Function& function = class_type->getMethod(function_name);
+                if (function.isGraphFunction())
                 {
-                    auto np = n->input(0)->node();
-                    while (np->hasAttribute(torch::jit::attr::name))
-                    {
-                        module_names.push_front(np->s(torch::jit::attr::name));
-                        np = np->input(0)->node();
-                    }
-                }
-
-                std::string wrapped_name;
-                auto sub_mod = mod;
-                for (auto module_name : module_names)
-                {
-                    if (wrapped_name.size() > 0)
-                        wrapped_name = wrapped_name + "." + module_name;
-                    else
-                        wrapped_name = module_name;
-                    sub_mod = sub_mod.attr(module_name).toModule();
-                }
-
-                op->name = wrapped_name;
+                    int pnnx_moduleop_unknown_index = 0;
 
 #if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
-                ow->write(op, toGraphFunction(function).graph(), sub_mod);
+                    torch::jit::Block* moduleop_block = toGraphFunction(function).graph()->block();
 #else
-                ow->write(op, function.graph(), sub_mod);
+                    torch::jit::Block* moduleop_block = function.graph()->block();
+#endif
+                    for (const auto& mn : moduleop_block->nodes())
+                    {
+                        if (mn->kind() == c10::prim::GetAttr)
+                        {
+                            std::string name = mn->s(torch::jit::attr::name);
+                            //             std::string name = mn->debugName();
+
+                            auto class_type = mn->output(0)->type()->cast<torch::jit::ClassType>();
+
+                            if (!class_type)
+                            {
+                                std::deque<std::string> module_names; // = split(mn->input(0)->node()->s(torch::jit::attr::name), '.');
+                                {
+                                    auto np = n->input(0)->node();
+                                    while (np->hasAttribute(torch::jit::attr::name))
+                                    {
+                                        module_names.push_front(np->s(torch::jit::attr::name));
+                                        np = np->input(0)->node();
+                                    }
+                                }
+                                std::deque<std::string> module_names2;
+                                {
+                                    auto np = mn->input(0)->node();
+                                    while (np->hasAttribute(torch::jit::attr::name))
+                                    {
+                                        module_names2.push_front(np->s(torch::jit::attr::name));
+                                        np = np->input(0)->node();
+                                    }
+                                }
+                                for (auto x : module_names2)
+                                {
+                                    module_names.push_back(x);
+                                }
+
+                                auto sub_mod = mod;
+                                for (auto module_name : module_names)
+                                {
+                                    sub_mod = sub_mod.attr(module_name).toModule();
+                                }
+
+                                std::string wrapped_name;
+                                for (auto module_name : module_names2)
+                                {
+                                    if (wrapped_name.size() > 0)
+                                        wrapped_name = wrapped_name + "." + module_name;
+                                    else
+                                        wrapped_name = module_name;
+                                }
+
+                                if (wrapped_name.empty())
+                                {
+                                    // top-level module
+                                    wrapped_name = name;
+                                }
+                                else
+                                {
+                                    wrapped_name = wrapped_name + "." + name;
+                                }
+
+                                op->attrs[wrapped_name] = sub_mod.attr(name).toTensor();
+                            }
+                        }
+                        else if (mn->kind() == c10::prim::Constant)
+                        {
+                            Parameter p(mn);
+
+                            if (p.type == 8)
+                            {
+                                char name[32];
+                                sprintf(name, "pnnx_%d", pnnx_moduleop_unknown_index++);
+
+                                op->attrs[name] = mn->t(torch::jit::attr::value);
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (const auto& ow : get_global_pnnx_fuse_module_passes())
+                {
+                    if (class_type_str != ow->match_type_str())
+                        continue;
+
+                    auto class_type = n->input(0)->type()->cast<torch::jit::ClassType>();
+                    torch::jit::Function& function = class_type->getMethod(n->s(torch::jit::attr::name));
+
+                    std::deque<std::string> module_names; // = split(n->input(0)->node()->s(torch::jit::attr::name), '.');
+                    {
+                        auto np = n->input(0)->node();
+                        while (np->hasAttribute(torch::jit::attr::name))
+                        {
+                            module_names.push_front(np->s(torch::jit::attr::name));
+                            np = np->input(0)->node();
+                        }
+                    }
+
+                    std::string wrapped_name;
+                    auto sub_mod = mod;
+                    for (auto module_name : module_names)
+                    {
+                        if (wrapped_name.size() > 0)
+                            wrapped_name = wrapped_name + "." + module_name;
+                        else
+                            wrapped_name = module_name;
+                        sub_mod = sub_mod.attr(module_name).toModule();
+                    }
+
+                    op->name = wrapped_name;
+
+#if TORCH_VERSION_MAJOR >= 1 && TORCH_VERSION_MINOR >= 11
+                    ow->write(op, toGraphFunction(function).graph(), sub_mod);
+#else
+                    ow->write(op, function.graph(), sub_mod);
 #endif
 
-                break;
+                    break;
+                }
             }
         }
         // else if (n->kind() == c10::prim::CallFunction)

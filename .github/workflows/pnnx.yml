@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   ubuntu:
-    runs-on: [self-hosted, linux, cvm]
+    runs-on: [self-hosted, linux, centos]
 
     strategy:
       fail-fast: false
@@ -46,7 +46,7 @@ jobs:
     - name: setup pytorch-${{ matrix.torch-version }}
       run: |
         export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
-        pip install torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        pip install --user torch==${{ matrix.torch-version }}+cpu torchvision==${{ matrix.torchvision-version }}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
     - name: cache-torchvision-${{ matrix.torchvision-version }}
       id: cache-torchvision
@@ -73,12 +73,12 @@ jobs:
     - name: build-ncnn
       run: |
         export PYTHONUSERBASE=$GITHUB_WORKSPACE/torch-${{ matrix.torch-version }}
-        pip install pytest setuptools wheel twine
+        pip install --user pytest setuptools wheel twine
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j 4
         cd ..
-        pip install .
+        pip install --user .
 
     - name: build-pnnx
       run: |
