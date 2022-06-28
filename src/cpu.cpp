@@ -212,14 +212,17 @@ static unsigned int g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
 
 #if __aarch64__
 // from arch/arm64/include/uapi/asm/hwcap.h
-#define HWCAP_ASIMD    (1 << 1)
-#define HWCAP_ASIMDHP  (1 << 10)
-#define HWCAP_ASIMDDP  (1 << 20)
-#define HWCAP_SVE      (1 << 22)
-#define HWCAP_ASIMDFHM (1 << 23)
-#define HWCAP2_SVE2    (1 << 1)
-#define HWCAP2_I8MM    (1 << 13)
-#define HWCAP2_BF16    (1 << 14)
+#define HWCAP_ASIMD     (1 << 1)
+#define HWCAP_ASIMDHP   (1 << 10)
+#define HWCAP_ASIMDDP   (1 << 20)
+#define HWCAP_SVE       (1 << 22)
+#define HWCAP_ASIMDFHM  (1 << 23)
+#define HWCAP2_SVE2     (1 << 1)
+#define HWCAP2_SVEI8MM  (1 << 9)
+#define HWCAP2_SVEF32MM (1 << 10)
+#define HWCAP2_SVEBF16  (1 << 12)
+#define HWCAP2_I8MM     (1 << 13)
+#define HWCAP2_BF16     (1 << 14)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_NEON  (1 << 12)
@@ -516,7 +519,7 @@ int cpu_support_arm_sve()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return 0; // no known apple cpu support armv8.6 i8mm
+    return 0; // no known apple cpu support armv8.6 sve
 #else
     return 0;
 #endif
@@ -535,7 +538,64 @@ int cpu_support_arm_sve2()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return 0; // no known apple cpu support armv8.6 i8mm
+    return 0; // no known apple cpu support armv8.6 sve2
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_svebf16()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_SVEBF16;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 svebf16
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_svei8mm()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_SVEI8MM;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 svei8mm
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_svef32mm()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_SVEF32MM;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 svef32mm
 #else
     return 0;
 #endif
