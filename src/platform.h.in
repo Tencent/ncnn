@@ -45,6 +45,14 @@
 #if __aarch64__
 #cmakedefine01 NCNN_ARM82
 #cmakedefine01 NCNN_ARM82DOT
+#cmakedefine01 NCNN_ARM82FP16FML
+#cmakedefine01 NCNN_ARM84BF16
+#cmakedefine01 NCNN_ARM84I8MM
+#cmakedefine01 NCNN_ARM86SVE
+#cmakedefine01 NCNN_ARM86SVE2
+#cmakedefine01 NCNN_ARM86SVEBF16
+#cmakedefine01 NCNN_ARM86SVEI8MM
+#cmakedefine01 NCNN_ARM86SVEF32MM
 #endif // __aarch64__
 #cmakedefine01 NCNN_MSA
 #cmakedefine01 NCNN_MMI
