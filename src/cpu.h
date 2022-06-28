@@ -59,6 +59,8 @@ NCNN_EXPORT int cpu_support_arm_asimdfhm();
 NCNN_EXPORT int cpu_support_arm_bf16();
 // i8mm = aarch64 i8mm
 NCNN_EXPORT int cpu_support_arm_i8mm();
+// sve = aarch64 sve
+NCNN_EXPORT int cpu_support_arm_sve();
 
 // avx = x86 avx
 NCNN_EXPORT int cpu_support_x86_avx();
