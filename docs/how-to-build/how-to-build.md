@@ -268,7 +268,8 @@ export ANDROID_NDK=<your-ndk-root-path>
 
 (optional) remove the hardcoded debug flag in Android NDK [android-ndk issue](https://github.com/android-ndk/ndk/issues/243)
 ```
-# open $ANDROID_NDK/build/cmake/android.toolchain.cmake
+# open $ANDROID_NDK/build/cmake/android.toolchain.cmake for ndk < r23
+# or $ANDROID_NDK/build/cmake/android-legacy.toolchain.cmake for ndk >= r23
 # delete "-g" line
 list(APPEND ANDROID_COMPILER_FLAGS
   -g

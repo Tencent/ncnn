@@ -216,6 +216,92 @@ jobs:
         name: ${{ env.PACKAGENAME }}
         path: ${{ env.PACKAGENAME }}.zip
 
+  ubuntu-2204:
+    needs: [setup]
+    runs-on: ubuntu-22.04
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: apt
+      run: |
+        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: package
+      run: |
+        rm -rf ${{ env.PACKAGENAME }}
+        mkdir -p ${{ env.PACKAGENAME }}
+        cp -r build/install/* ${{ env.PACKAGENAME }}
+        mkdir -p ${{ env.PACKAGENAME }}/bin
+        cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
+        cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
+        cp build/tools/onnx/onnx2ncnn ${{ env.PACKAGENAME }}/bin
+        cp build/tools/darknet/darknet2ncnn ${{ env.PACKAGENAME }}/bin
+        cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
+        cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
+        cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
+        strip -g ${{ env.PACKAGENAME }}/bin/*
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload-zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  ubuntu-2204-shared:
+    needs: [setup]
+    runs-on: ubuntu-22.04
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204-shared
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: apt
+      run: |
+        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j 2
+        cmake --build . --target install
+    - name: package
+      run: |
+        rm -rf ${{ env.PACKAGENAME }}
+        mkdir -p ${{ env.PACKAGENAME }}
+        cp -r -P build/install/* ${{ env.PACKAGENAME }}
+        mkdir -p ${{ env.PACKAGENAME }}/bin
+        cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
+        cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
+        cp build/tools/onnx/onnx2ncnn ${{ env.PACKAGENAME }}/bin
+        cp build/tools/darknet/darknet2ncnn ${{ env.PACKAGENAME }}/bin
+        cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
+        cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
+        cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
+        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
+        strip -g ${{ env.PACKAGENAME }}/bin/*
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload-zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
   openmp-macos:
     runs-on: macos-latest
     steps:
@@ -919,7 +1005,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
@@ -980,7 +1066,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
@@ -1056,7 +1142,7 @@ jobs:
         rm -rf 1.2.189.0/source 1.2.189.0/samples
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
@@ -1136,7 +1222,7 @@ jobs:
         rm -rf 1.2.189.0/source 1.2.189.0/samples
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
@@ -2045,7 +2131,7 @@ jobs:
   release:
     permissions:
       contents: write  # for actions/create-release to create a release
-    needs: [setup, full-source, ubuntu-1804, ubuntu-1804-shared, ubuntu-2004, ubuntu-2004-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared]
+    needs: [setup, full-source, ubuntu-1804, ubuntu-1804-shared, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared]
     runs-on: ubuntu-latest
     steps:
     - name: download
@@ -2113,6 +2199,28 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004-shared
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
+        asset_name: ${{ env.PACKAGENAME }}.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ubuntu-2204
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
+        asset_name: ${{ env.PACKAGENAME }}.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ubuntu-2204-shared
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204-shared
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
