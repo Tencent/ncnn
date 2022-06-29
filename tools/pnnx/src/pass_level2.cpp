@@ -86,7 +86,15 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
     }
 
     if (a.type != b.type)
+    {
+        if (a.type == 2 && b.type == 3)
+            return a.i == b.f;
+
+        if (a.type == 3 && b.type == 2)
+            return a.f == b.i;
+
         return false;
+    }
 
     const int type = a.type;
 
