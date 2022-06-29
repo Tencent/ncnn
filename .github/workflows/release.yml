@@ -1005,7 +1005,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
@@ -1066,7 +1066,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
@@ -1142,7 +1142,7 @@ jobs:
         rm -rf 1.2.189.0/source 1.2.189.0/samples
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
@@ -1222,7 +1222,7 @@ jobs:
         rm -rf 1.2.189.0/source 1.2.189.0/samples
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
