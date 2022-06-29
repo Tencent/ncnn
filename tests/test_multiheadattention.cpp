@@ -150,9 +150,9 @@ int main()
     SRAND(7767517);
 #ifdef NCNN_INT8
     return 0
-        || test_multiheadattention_0()
-        || test_multiheadattention_1()
-        || test_multiheadattention_2();
+           || test_multiheadattention_0()
+           || test_multiheadattention_1()
+           || test_multiheadattention_2();
 #else
     return 0
            || test_multiheadattention_0()
