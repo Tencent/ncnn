@@ -376,6 +376,10 @@ void pass_level1(const torch::jit::Module& mod, const std::shared_ptr<torch::jit
 
             Operator* op = pg.new_operator(n->kind().toDisplayString(), name);
 
+            // always treat inplace op type as non-inplace version
+            if (op->type.size() > 2 && op->type[op->type.size() - 2] != '_' && op->type[op->type.size() - 1] == '_')
+                op->type = op->type.substr(0, op->type.size() - 1);
+
             for (int i = 0; i < (int)n->inputs().size(); i++)
             {
                 const auto& in = n->input(i);
