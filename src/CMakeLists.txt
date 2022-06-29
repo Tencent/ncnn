@@ -474,10 +474,12 @@ endif()
 add_dependencies(ncnn ncnn-generate-spirv)
 
 if(NCNN_INSTALL_SDK)
+    include(GNUInstallDirs)
+
     install(TARGETS ncnn EXPORT ncnn
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib
-        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
     install(FILES
         allocator.h
@@ -506,11 +508,11 @@ if(NCNN_INSTALL_SDK)
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
-        DESTINATION include/ncnn
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ncnn
     )
-    install(EXPORT ncnn DESTINATION lib/cmake/ncnn)
+    install(EXPORT ncnn DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in ncnnConfig.cmake @ONLY)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION lib/cmake/ncnn)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
 endif()
 
 # add ncnn and generate-spirv to a virtual project group

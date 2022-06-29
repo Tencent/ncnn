@@ -535,9 +535,10 @@ else()
 endif()
 set_target_properties(pnnx PROPERTIES MACOSX_RPATH TRUE)
 
-install(TARGETS pnnx RUNTIME DESTINATION bin)
+include(GNUInstallDirs)
+install(TARGETS pnnx RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if (WIN32)
     file(GLOB TORCH_DLL "${TORCH_INSTALL_PREFIX}/lib/*.dll")
-    install(FILES ${TORCH_DLL} DESTINATION bin)
+    install(FILES ${TORCH_DLL} DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
