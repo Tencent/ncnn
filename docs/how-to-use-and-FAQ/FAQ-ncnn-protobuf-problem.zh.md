@@ -5,7 +5,7 @@
 protobuf 有关的报错，一般都是两个原因：
 
 1. 需要的 pb 没安装/`FindProtobuf.cmake`不存在，最终 `find_package` 失败
-2. 系统不止一套 pb，导致 bin/lib/include 三者不匹配。
+2. 系统不止一套 pb，导致 bin/lib/include 三者不匹配
 
 如果你遇到了这些报错，都可以通过本文档解决：
 
@@ -17,6 +17,7 @@ protobuf 有关的报错，一般都是两个原因：
 这个办法包治百病，**不管什么情况一定生效**
 
 1. 编译下载 protobuf，以 3.20.0 版本为例
+
 ```bash
 $ wget https://github.com/protocolbuffers/protobuf/releases/download/v3.20.0/protobuf-cpp-3.20.0.tar.gz
 $ tar xvf protobuf-cpp-3.20.0.tar.gz
@@ -27,6 +28,7 @@ $ make && make install
 注意需要 `--prefix`，不要装到系统里。能遇到这些错，说明本来系统环境就有问题，再给系统环境装 lib 就更乱了。
 
 2. 修改 cmake
+
 找到报错的 CMakeLists.txt，在 `find_package` 前插入 protobuf 路径。
 
 ```bash
@@ -60,6 +62,7 @@ $ sudo yum install protobuf-devel.x86_64 protobuf-compiler.x86_64
 ```
 
 2. 然后设置 C++ 环境
+
 在 LD_LIBRARY_PATH 增加参数
 
 ```bash
@@ -70,7 +73,7 @@ export LD_LIBRARY_PATH=${YOUR_PROTOBUF_LIB_PATH}:$LD_LIBRARY_PATH
 
 1. 先看 protoc 需要的 so 版本号
 ```bash
-$ ldd \`whereis protoc| awk '{print $2}'\` | grep libprotobuf.so
+$ ldd `whereis protoc| awk '{print $2}'` | grep libprotobuf.so
 ```
 
 例如是 libprotobuf.so.10
