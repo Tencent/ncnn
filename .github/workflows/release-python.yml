@@ -50,7 +50,7 @@ jobs:
     - name: brew uninstall libomp
       if: matrix.os == 'macos-11'
       run: |
-        brew uninstall libomp
+        brew uninstall --ignore-dependencies libomp
 
     - name: Build wheels
       uses: pypa/cibuildwheel@2.7.0
