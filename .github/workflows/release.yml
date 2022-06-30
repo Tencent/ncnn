@@ -483,7 +483,7 @@ jobs:
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: build-simulator
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -494,7 +494,7 @@ jobs:
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -537,7 +537,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
@@ -548,7 +548,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: build-simulator
       run: |
         mkdir build-simulator && cd build-simulator
@@ -559,7 +559,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -631,7 +631,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: build-simulator
       run: |
         export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
@@ -645,7 +645,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -722,7 +722,7 @@ jobs:
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: build-simulator
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -733,7 +733,7 @@ jobs:
             -DPERL_EXECUTABLE=/usr/local/bin/perl \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -776,7 +776,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
@@ -787,7 +787,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: build-simulator
       run: |
         mkdir build-simulator && cd build-simulator
@@ -798,7 +798,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -870,7 +870,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: build-simulator
       run: |
         export VULKAN_SDK=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS
@@ -884,7 +884,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/iOS/dynamic/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install/strip
+        cmake --build . --target install
     - name: package-openmp
       run: |
         rm -rf openmp.framework
