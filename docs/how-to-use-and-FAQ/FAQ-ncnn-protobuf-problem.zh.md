@@ -33,12 +33,12 @@ $ make && make install
 
 ```bash
 # 加入下面 6 行
-set(Protobuf_PREFIX_PATH
+set(Protobuf_PATHS
         "/path/to/protobuf/install/bin"
         "/path/to/protobuf/install/lib"
         "/path/to/protobuf/install/include"
 )
-list(APPEND CMAKE_PREFIX_PATH "${Protobuf_PREFIX_PATH}")
+list(APPEND CMAKE_PREFIX_PATH "${Protobuf_PATHS}")
 
 find_package(Protobuf REQUIRED)
 ```
