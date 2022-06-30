@@ -47,11 +47,10 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: install libomp
+    - name: brew uninstall libomp
       if: matrix.os == 'macos-11'
       run: |
-        brew update
-        brew install libomp
+        brew uninstall libomp
 
     - name: Build wheels
       uses: pypa/cibuildwheel@2.7.0
