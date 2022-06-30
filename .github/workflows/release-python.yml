@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
+        os: [ubuntu-20.04, windows-2019, macos-11]
 
     steps:
     - uses: actions/checkout@v3
