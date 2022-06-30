@@ -36,7 +36,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
+        os: [ubuntu-20.04, windows-2019, macos-11]
 
     steps:
     - uses: actions/checkout@v3
@@ -46,6 +46,11 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: '3.x'
+
+    - name: brew uninstall libomp
+      if: matrix.os == 'macos-11'
+      run: |
+        brew uninstall --ignore-dependencies libomp
 
     - name: Build wheels
       uses: pypa/cibuildwheel@2.7.0
