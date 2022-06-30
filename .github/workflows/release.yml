@@ -1009,7 +1009,7 @@ jobs:
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1017,7 +1017,7 @@ jobs:
     - name: build-aarch64
       run: |
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1025,7 +1025,7 @@ jobs:
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1033,7 +1033,7 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1070,7 +1070,7 @@ jobs:
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
@@ -1078,7 +1078,7 @@ jobs:
     - name: build-aarch64
       run: |
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
@@ -1086,7 +1086,7 @@ jobs:
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
@@ -1094,7 +1094,7 @@ jobs:
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
@@ -1147,7 +1147,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1156,7 +1156,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1165,7 +1165,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1174,7 +1174,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
@@ -1227,7 +1227,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
@@ -1236,7 +1236,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
@@ -1245,7 +1245,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
@@ -1254,7 +1254,7 @@ jobs:
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
