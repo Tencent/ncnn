@@ -66,7 +66,7 @@ $ sudo yum install protobuf-devel.x86_64 protobuf-compiler.x86_64
 在 LD_LIBRARY_PATH 增加参数
 
 ```bash
-export LD_LIBRARY_PATH=${YOUR_PROTOBUF_LIB_PATH}:$LD_LIBRARY_PATH
+$ export LD_LIBRARY_PATH=${YOUR_PROTOBUF_LIB_PATH}:$LD_LIBRARY_PATH
 ```
 
 ### 二、遇到 protoc 和 protobuf.so 版本不匹配
