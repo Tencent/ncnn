@@ -37,7 +37,7 @@ jobs:
       run: |
         rm -rf .git
         rm -f /tmp/${{ env.PACKAGENAME }}.zip
-        zip -9 -r /tmp/${{ env.PACKAGENAME }}.zip .
+        zip -9 -y -r /tmp/${{ env.PACKAGENAME }}.zip .
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -67,9 +67,9 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
+        cp -a build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -99,9 +99,9 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r -P build/install/* ${{ env.PACKAGENAME }}
+        cp -a -P build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -131,9 +131,9 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
+        cp -a build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -163,9 +163,9 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r -P build/install/* ${{ env.PACKAGENAME }}
+        cp -a -P build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -195,9 +195,9 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
+        cp -a build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -227,9 +227,9 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r -P build/install/* ${{ env.PACKAGENAME }}
+        cp -a -P build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -279,7 +279,7 @@ jobs:
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -r openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build-x86_64/install/lib/libomp.a openmp-11.0.0.src/build-arm64/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
@@ -334,7 +334,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-macos/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-macos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -346,7 +346,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
@@ -417,7 +417,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-macos/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-macos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
@@ -431,7 +431,7 @@ jobs:
         libtool -static build-x86_64/install/lib/libglslang.a build-x86_64/install/lib/libMachineIndependent.a build-x86_64/install/lib/libGenericCodeGen.a build-x86_64/install/lib/libSPIRV.a build-x86_64/install/lib/libOGLCompiler.a build-x86_64/install/lib/libOSDependent.a -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static build-arm64/install/lib/libglslang.a build-arm64/install/lib/libMachineIndependent.a build-arm64/install/lib/libGenericCodeGen.a build-arm64/install/lib/libSPIRV.a build-arm64/install/lib/libOGLCompiler.a build-arm64/install/lib/libOSDependent.a -o build-arm64/install/lib/libglslang_combined.a
         lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
-        cp -r build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -443,7 +443,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -500,7 +500,7 @@ jobs:
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -r openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build/install/lib/libomp.a openmp-11.0.0.src/build-simulator/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
@@ -570,7 +570,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -582,7 +582,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build-armv7/install/lib/libncnn.a build-arm64/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
@@ -656,7 +656,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
@@ -670,7 +670,7 @@ jobs:
         libtool -static build/install/lib/libglslang.a build/install/lib/libMachineIndependent.a build/install/lib/libGenericCodeGen.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
         libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libMachineIndependent.a build-simulator/install/lib/libGenericCodeGen.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
         lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
-        cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -682,7 +682,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -739,7 +739,7 @@ jobs:
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -r openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build/install/lib/libomp.a openmp-11.0.0.src/build-simulator/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
@@ -809,7 +809,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -821,7 +821,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build-armv7/install/lib/libncnn.a build-arm64/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
@@ -895,7 +895,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
@@ -909,7 +909,7 @@ jobs:
         libtool -static build/install/lib/libglslang.a build/install/lib/libMachineIndependent.a build/install/lib/libGenericCodeGen.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
         libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libMachineIndependent.a build-simulator/install/lib/libGenericCodeGen.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
         lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
-        cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -921,7 +921,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -976,16 +976,12 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/armeabi-v7a
-        mkdir -p ${{ env.PACKAGENAME }}/arm64-v8a
-        mkdir -p ${{ env.PACKAGENAME }}/x86
-        mkdir -p ${{ env.PACKAGENAME }}/x86_64
-        cp -r build-armv7/install/* ${{ env.PACKAGENAME }}/armeabi-v7a/
-        cp -r build-aarch64/install/* ${{ env.PACKAGENAME }}/arm64-v8a/
-        cp -r build-x86/install/* ${{ env.PACKAGENAME }}/x86/
-        cp -r build-x86_64/install/* ${{ env.PACKAGENAME }}/x86_64/
+        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -1037,16 +1033,12 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/armeabi-v7a
-        mkdir -p ${{ env.PACKAGENAME }}/arm64-v8a
-        mkdir -p ${{ env.PACKAGENAME }}/x86
-        mkdir -p ${{ env.PACKAGENAME }}/x86_64
-        cp -r build-armv7/install/* ${{ env.PACKAGENAME }}/armeabi-v7a/
-        cp -r build-aarch64/install/* ${{ env.PACKAGENAME }}/arm64-v8a/
-        cp -r build-x86/install/* ${{ env.PACKAGENAME }}/x86/
-        cp -r build-x86_64/install/* ${{ env.PACKAGENAME }}/x86_64/
+        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -1117,16 +1109,12 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/armeabi-v7a
-        mkdir -p ${{ env.PACKAGENAME }}/arm64-v8a
-        mkdir -p ${{ env.PACKAGENAME }}/x86
-        mkdir -p ${{ env.PACKAGENAME }}/x86_64
-        cp -r build-armv7/install/* ${{ env.PACKAGENAME }}/armeabi-v7a/
-        cp -r build-aarch64/install/* ${{ env.PACKAGENAME }}/arm64-v8a/
-        cp -r build-x86/install/* ${{ env.PACKAGENAME }}/x86/
-        cp -r build-x86_64/install/* ${{ env.PACKAGENAME }}/x86_64/
+        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -1197,16 +1185,12 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/armeabi-v7a
-        mkdir -p ${{ env.PACKAGENAME }}/arm64-v8a
-        mkdir -p ${{ env.PACKAGENAME }}/x86
-        mkdir -p ${{ env.PACKAGENAME }}/x86_64
-        cp -r build-armv7/install/* ${{ env.PACKAGENAME }}/armeabi-v7a/
-        cp -r build-aarch64/install/* ${{ env.PACKAGENAME }}/arm64-v8a/
-        cp -r build-x86/install/* ${{ env.PACKAGENAME }}/x86/
-        cp -r build-x86_64/install/* ${{ env.PACKAGENAME }}/x86_64/
+        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -1266,12 +1250,12 @@ jobs:
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install ${{ env.PACKAGENAME }}/basic
-        cp -r build-simd/install ${{ env.PACKAGENAME }}/simd
-        cp -r build-threads/install ${{ env.PACKAGENAME }}/threads
-        cp -r build-simd-threads/install ${{ env.PACKAGENAME }}/simd-threads
+        cp -a build/install ${{ env.PACKAGENAME }}/basic
+        cp -a build-simd/install ${{ env.PACKAGENAME }}/simd
+        cp -a build-threads/install ${{ env.PACKAGENAME }}/threads
+        cp -a build-simd-threads/install ${{ env.PACKAGENAME }}/simd-threads
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
