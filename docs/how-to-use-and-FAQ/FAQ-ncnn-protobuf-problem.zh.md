@@ -32,15 +32,23 @@ $ make && make install
 找到报错的 CMakeLists.txt，在 `find_package` 前插入 protobuf 路径。
 
 ```bash
-# 加入下面 6 行
-set(Protobuf_PATHS
-        "/path/to/protobuf/install/bin"
-        "/path/to/protobuf/install/lib"
-        "/path/to/protobuf/install/include"
-)
-list(APPEND CMAKE_PREFIX_PATH "${Protobuf_PATHS}")
+# 加入下面 1 行
+list(APPEND CMAKE_PREFIX_PATH "/path/to/install")
 
 find_package(Protobuf REQUIRED)
+...
+```
+
+3. 调整 cmake 选项
+
+`cmake ..` 时，额外加入选项 `-DProtobuf_PROTOC_EXECUTABLE=/path/to/install/bin/protoc`
+
+```bash
+$ cd /path/to/ncnn/build
+$ rm -rf CMakeCache
+# 加入新选项
+$ cmake .. -DProtobuf_PROTOC_EXECUTABLE=/path/to/install/bin/protoc 
+$ ...
 ```
 
 ## （不推荐）自己改环境变量
