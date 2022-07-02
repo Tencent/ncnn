@@ -16,22 +16,29 @@
 #define NCNN_OPTION_H
 
 #include "platform.h"
+#include "c_types.h"
 
+#ifdef __cplusplus
 namespace ncnn {
 
 #if NCNN_VULKAN
-class VkAllocator;
-class PipelineCache;
+using c_types::ncnn_vkallocator_t;
+using c_types::ncnn_pipelinecache_t;
 #endif // NCNN_VULKAN
 
-class Allocator;
-class NCNN_EXPORT Option
+using c_types::ncnn_allocator_t;
+
+struct NCNN_EXPORT Option
 {
 public:
     // default option
     Option();
 
 public:
+#else
+struct NCNN_EXPORT ncnn_option
+{
+#endif // __cplusplus
     // light mode
     // intermediate blob will be recycled when enabled
     // enabled by default
@@ -42,23 +49,23 @@ public:
     int num_threads;
 
     // blob memory allocator
-    Allocator* blob_allocator;
+    ncnn_allocator_t blob_allocator;
 
     // workspace memory allocator
-    Allocator* workspace_allocator;
+    ncnn_allocator_t workspace_allocator;
 
 #if NCNN_VULKAN
     // blob memory allocator
-    VkAllocator* blob_vkallocator;
+    ncnn_vkallocator_t blob_vkallocator;
 
     // workspace memory allocator
-    VkAllocator* workspace_vkallocator;
+    ncnn_vkallocator_t workspace_vkallocator;
 
     // staging memory allocator
-    VkAllocator* staging_vkallocator;
+    ncnn_vkallocator_t staging_vkallocator;
 
     // pipeline cache
-    PipelineCache* pipeline_cache;
+    ncnn_pipelinecache_t pipeline_cache;
 #endif // NCNN_VULKAN
 
     // the time openmp threads busy-wait for more work before going to sleep
@@ -148,6 +155,8 @@ public:
     bool use_reserved_11;
 };
 
+#ifdef __cplusplus
 } // namespace ncnn
+#endif
 
 #endif // NCNN_OPTION_H

@@ -18,46 +18,43 @@
 
 #include "platform.h"
 
-#if NCNN_C_API
+#ifdef NCNN_C_API
+
+#include "c_types.h"
+#include "mat.h"
 
 #include <stddef.h>
 
 #ifdef __cplusplus
+using ncnn::c_types::ncnn_allocator_t;
+using ncnn::c_types::ncnn_option_t;
+using ncnn::c_types::ncnn_mat_t;
+using ncnn::c_types::ncnn_datareader_t;
+using ncnn::c_types::ncnn_modelbin_t;
+using ncnn::c_types::ncnn_layer_t;
 extern "C" {
 #endif
 
 NCNN_EXPORT const char* ncnn_version();
 
 /* allocator api */
-typedef struct __ncnn_allocator_t* ncnn_allocator_t;
-struct NCNN_EXPORT __ncnn_allocator_t
-{
-    void* pthis;
-
-    void* (*fast_malloc)(ncnn_allocator_t allocator, size_t size);
-    void (*fast_free)(ncnn_allocator_t allocator, void* ptr);
-};
-
+typedef struct NCNN_EXPORT ncnn_allocator_ext {
+    void* pdata;
+    void* (*fast_malloc)(void* pdata, size_t size);
+    void (*fast_free)(void* pdata, void* ptr);
+} ncnn_allocator_ext_t;
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create(ncnn_allocator_ext_t);
 NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator();
 NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator();
+NCNN_EXPORT void* ncnn_allocator_fast_malloc(ncnn_allocator_t allocator, size_t size);
+NCNN_EXPORT void ncnn_allocator_fast_free(ncnn_allocator_t allocator, void* ptr);
 NCNN_EXPORT void ncnn_allocator_destroy(ncnn_allocator_t allocator);
 
 /* option api */
-typedef struct __ncnn_option_t* ncnn_option_t;
-
 NCNN_EXPORT ncnn_option_t ncnn_option_create();
-NCNN_EXPORT void ncnn_option_destroy(ncnn_option_t opt);
-
-NCNN_EXPORT int ncnn_option_get_num_threads(const ncnn_option_t opt);
-NCNN_EXPORT void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads);
-
-NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
-NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
 
 /* mat api */
-typedef struct __ncnn_mat_t* ncnn_mat_t;
-
-NCNN_EXPORT ncnn_mat_t ncnn_mat_create();
+NCNN_EXPORT ncnn_mat_t ncnn_mat_create_create();
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator);
@@ -84,18 +81,6 @@ NCNN_EXPORT ncnn_mat_t ncnn_mat_reshape_2d(const ncnn_mat_t mat, int w, int h, n
 NCNN_EXPORT ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c, ncnn_allocator_t allocator);
 NCNN_EXPORT ncnn_mat_t ncnn_mat_reshape_4d(const ncnn_mat_t mat, int w, int h, int d, int c, ncnn_allocator_t allocator);
 
-NCNN_EXPORT int ncnn_mat_get_dims(const ncnn_mat_t mat);
-NCNN_EXPORT int ncnn_mat_get_w(const ncnn_mat_t mat);
-NCNN_EXPORT int ncnn_mat_get_h(const ncnn_mat_t mat);
-NCNN_EXPORT int ncnn_mat_get_d(const ncnn_mat_t mat);
-NCNN_EXPORT int ncnn_mat_get_c(const ncnn_mat_t mat);
-NCNN_EXPORT size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat);
-NCNN_EXPORT int ncnn_mat_get_elempack(const ncnn_mat_t mat);
-NCNN_EXPORT size_t ncnn_mat_get_cstep(const ncnn_mat_t mat);
-NCNN_EXPORT void* ncnn_mat_get_data(const ncnn_mat_t mat);
-
-NCNN_EXPORT void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c);
-
 #if NCNN_PIXEL
 
 /* mat pixel api */
@@ -116,8 +101,8 @@ NCNN_EXPORT void ncnn_mat_to_pixels_resize(const ncnn_mat_t mat, unsigned char* 
 
 NCNN_EXPORT void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, const float* norm_vals);
 
-NCNN_EXPORT void ncnn_convert_packing(const ncnn_mat_t src, ncnn_mat_t* dst, int elempack, const ncnn_option_t opt);
-NCNN_EXPORT void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t* dst, const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_convert_packing(const ncnn_mat_t src, ncnn_mat_t dst, int elempack, const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t dst, const ncnn_option_t opt);
 
 /* blob api */
 typedef struct __ncnn_blob_t* ncnn_blob_t;
@@ -141,66 +126,46 @@ NCNN_EXPORT int ncnn_paramdict_get_type(const ncnn_paramdict_t pd, int id);
 
 NCNN_EXPORT int ncnn_paramdict_get_int(const ncnn_paramdict_t pd, int id, int def);
 NCNN_EXPORT float ncnn_paramdict_get_float(const ncnn_paramdict_t pd, int id, float def);
-NCNN_EXPORT ncnn_mat_t ncnn_paramdict_get_array(const ncnn_paramdict_t pd, int id, const ncnn_mat_t def);
+NCNN_EXPORT ncnn_mat_t ncnn_paramdict_get_array(const ncnn_paramdict_t pd, int id, const ncnn_mat_t* def);
 
 NCNN_EXPORT void ncnn_paramdict_set_int(ncnn_paramdict_t pd, int id, int i);
 NCNN_EXPORT void ncnn_paramdict_set_float(ncnn_paramdict_t pd, int id, float f);
 NCNN_EXPORT void ncnn_paramdict_set_array(ncnn_paramdict_t pd, int id, const ncnn_mat_t v);
 
 /* datareader api */
-typedef struct __ncnn_datareader_t* ncnn_datareader_t;
-struct NCNN_EXPORT __ncnn_datareader_t
-{
-    void* pthis;
-
+typedef struct NCNN_EXPORT ncnn_datareader_ext {
+    void* pdata;
 #if NCNN_STRING
-    int (*scan)(ncnn_datareader_t dr, const char* format, void* p);
+    int (*scan)(void* pdata, const char* format, void* p);
 #endif /* NCNN_STRING */
-    size_t (*read)(ncnn_datareader_t dr, void* buf, size_t size);
-};
-
-NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create();
+    size_t (*read)(void* pdata, void* buf, size_t size);
+} ncnn_datareader_ext_t;
+NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create(ncnn_datareader_ext_t ext);
 #if NCNN_STDIO
 NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create_from_stdio(FILE* fp);
 #endif /* NCNN_STDIO */
 NCNN_EXPORT ncnn_datareader_t ncnn_datareader_create_from_memory(const unsigned char** mem);
+NCNN_EXPORT void ncnn_datareader_scan(ncnn_datareader_t dr, const char* format, void* p);
 NCNN_EXPORT void ncnn_datareader_destroy(ncnn_datareader_t dr);
 
 /* modelbin api */
-typedef struct __ncnn_modelbin_t* ncnn_modelbin_t;
-struct NCNN_EXPORT __ncnn_modelbin_t
-{
-    void* pthis;
+typedef struct NCNN_EXPORT ncnn_modelbin_ext {
+    void* pdata;
+    ncnn_mat_t (*load_1d)(void* pdata, int w, int type);
+    ncnn_mat_t (*load_2d)(void* pdata, int w, int h, int type);
+    ncnn_mat_t (*load_3d)(void* pdata, int w, int h, int c, int type);
+} ncnn_modelbin_ext_t;
+NCNN_EXPORT ncnn_modelbin_t ncnn_modelbin_create(ncnn_modelbin_ext_t ext);
 
-    ncnn_mat_t (*load_1d)(const ncnn_modelbin_t mb, int w, int type);
-    ncnn_mat_t (*load_2d)(const ncnn_modelbin_t mb, int w, int h, int type);
-    ncnn_mat_t (*load_3d)(const ncnn_modelbin_t mb, int w, int h, int c, int type);
-};
-
+NCNN_EXPORT ncnn_mat_t ncnn_modelbin_load_1d(const ncnn_modelbin_t mb, int w, int type);
+NCNN_EXPORT ncnn_mat_t ncnn_modelbin_load_2d(const ncnn_modelbin_t mb, int w, int h, int type);
+NCNN_EXPORT ncnn_mat_t ncnn_modelbin_load_3d(const ncnn_modelbin_t mb, int w, int h, int c, int type);
 NCNN_EXPORT ncnn_modelbin_t ncnn_modelbin_create_from_datareader(const ncnn_datareader_t dr);
-NCNN_EXPORT ncnn_modelbin_t ncnn_modelbin_create_from_mat_array(const ncnn_mat_t* weights, int n);
+NCNN_EXPORT ncnn_modelbin_t ncnn_modelbin_create_from_mat_array(const ncnn_mat_t* weights);
 NCNN_EXPORT void ncnn_modelbin_destroy(ncnn_modelbin_t mb);
 
 /* layer api */
-typedef struct __ncnn_layer_t* ncnn_layer_t;
-struct NCNN_EXPORT __ncnn_layer_t
-{
-    void* pthis;
-
-    int (*load_param)(ncnn_layer_t layer, const ncnn_paramdict_t pd);
-    int (*load_model)(ncnn_layer_t layer, const ncnn_modelbin_t mb);
-
-    int (*create_pipeline)(ncnn_layer_t layer, const ncnn_option_t opt);
-    int (*destroy_pipeline)(ncnn_layer_t layer, const ncnn_option_t opt);
-
-    int (*forward_1)(const ncnn_layer_t layer, const ncnn_mat_t bottom_blob, ncnn_mat_t* top_blob, const ncnn_option_t opt);
-    int (*forward_n)(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t* top_blobs, int n2, const ncnn_option_t opt);
-
-    int (*forward_inplace_1)(const ncnn_layer_t layer, ncnn_mat_t bottom_top_blob, const ncnn_option_t opt);
-    int (*forward_inplace_n)(const ncnn_layer_t layer, ncnn_mat_t* bottom_top_blobs, int n, const ncnn_option_t opt);
-};
-
-NCNN_EXPORT ncnn_layer_t ncnn_layer_create();
+NCNN_EXPORT ncnn_layer_t ncnn_layer_create(ncnn_layer_ext_t ext);
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_typeindex(int typeindex);
 #if NCNN_STRING
 NCNN_EXPORT ncnn_layer_t ncnn_layer_create_by_type(const char* type);

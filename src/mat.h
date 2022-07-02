@@ -39,6 +39,7 @@
 #endif
 
 #include "allocator.h"
+#include "c_types.h"
 #include "option.h"
 #include "platform.h"
 
@@ -55,7 +56,10 @@
 #endif // NCNN_PLATFORM_API
 #endif // NCNN_PIXEL
 
+#ifdef __cplusplus
 namespace ncnn {
+
+using c_types::ncnn_allocator_t;
 
 #if NCNN_VULKAN
 class VkMat;
@@ -63,7 +67,7 @@ class VkImageMat;
 #endif // NCNN_VULKAN
 
 // the three dimension matrix
-class NCNN_EXPORT Mat
+typedef struct NCNN_EXPORT Mat
 {
 public:
     // empty
@@ -310,6 +314,11 @@ public:
     // convenient construct from half precision floating point data
     static Mat from_float16(const unsigned short* data, int size);
 
+#else
+typedef struct NCNN_EXPORT ncnn_mat
+{
+#endif // __cplusplus
+
     // pointer to the data
     void* data;
 
@@ -331,7 +340,7 @@ public:
     int elempack;
 
     // the allocator
-    Allocator* allocator;
+    ncnn_allocator_t allocator;
 
     // the dimension rank
     int dims;
@@ -343,6 +352,7 @@ public:
 
     size_t cstep;
 };
+#ifdef __cplusplus
 
 #if NCNN_VULKAN
 
@@ -1835,5 +1845,6 @@ NCNN_FORCEINLINE VkImageView VkImageMat::imageview() const
 #endif // NCNN_VULKAN
 
 } // namespace ncnn
+#endif // __cplusplus
 
 #endif // NCNN_MAT_H

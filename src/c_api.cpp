@@ -25,7 +25,6 @@
 #include "blob.h"
 #include "datareader.h"
 #include "layer.h"
-#include "mat.h"
 #include "modelbin.h"
 #include "net.h"
 #include "option.h"
@@ -52,281 +51,181 @@ const char* ncnn_version()
 }
 
 /* allocator api */
-class PoolAllocator_c_api : public ncnn::PoolAllocator
+class Allocator_c_api : public ncnn::Allocator
 {
 public:
-    PoolAllocator_c_api(ncnn_allocator_t _allocator)
-        : ncnn::PoolAllocator()
+    Allocator_c_api(ncnn_allocator_ext_t _ext): ncnn::Allocator()
     {
-        allocator = _allocator;
+        ext = _ext;
     }
 
     virtual void* fastMalloc(size_t size)
     {
-        return allocator->fast_malloc(allocator, size);
+        return ext.fast_malloc(ext.pdata, size);
     }
 
     virtual void fastFree(void* ptr)
     {
-        return allocator->fast_free(allocator, ptr);
+        return ext.fast_free(ext.pdata, ptr);
     }
-
 public:
-    ncnn_allocator_t allocator;
+    ncnn_allocator_ext_t ext;
 };
 
-static void* __ncnn_PoolAllocator_fast_malloc(ncnn_allocator_t allocator, size_t size)
+ncnn_allocator_t ncnn_allocator_create(ncnn_allocator_ext_t ext)
 {
-    return ((ncnn::PoolAllocator*)allocator->pthis)->ncnn::PoolAllocator::fastMalloc(size);
-}
-
-static void __ncnn_PoolAllocator_fast_free(ncnn_allocator_t allocator, void* ptr)
-{
-    ((ncnn::PoolAllocator*)allocator->pthis)->ncnn::PoolAllocator::fastFree(ptr);
-}
-
-class UnlockedPoolAllocator_c_api : public ncnn::UnlockedPoolAllocator
-{
-public:
-    UnlockedPoolAllocator_c_api(ncnn_allocator_t _allocator)
-        : ncnn::UnlockedPoolAllocator()
-    {
-        allocator = _allocator;
-    }
-
-    virtual void* fastMalloc(size_t size)
-    {
-        return allocator->fast_malloc(allocator, size);
-    }
-
-    virtual void fastFree(void* ptr)
-    {
-        return allocator->fast_free(allocator, ptr);
-    }
-
-public:
-    ncnn_allocator_t allocator;
-};
-
-static void* __ncnn_UnlockedPoolAllocator_fast_malloc(ncnn_allocator_t allocator, size_t size)
-{
-    return ((ncnn::UnlockedPoolAllocator*)allocator->pthis)->ncnn::UnlockedPoolAllocator::fastMalloc(size);
-}
-
-static void __ncnn_UnlockedPoolAllocator_fast_free(ncnn_allocator_t allocator, void* ptr)
-{
-    ((ncnn::UnlockedPoolAllocator*)allocator->pthis)->ncnn::UnlockedPoolAllocator::fastFree(ptr);
+    return new Allocator_c_api(ext);
 }
 
 ncnn_allocator_t ncnn_allocator_create_pool_allocator()
 {
-    ncnn_allocator_t allocator = (ncnn_allocator_t)malloc(sizeof(struct __ncnn_allocator_t));
-    allocator->pthis = (void*)(new PoolAllocator_c_api(allocator));
-    allocator->fast_malloc = __ncnn_PoolAllocator_fast_malloc;
-    allocator->fast_free = __ncnn_PoolAllocator_fast_free;
-    return allocator;
+    return new ncnn::PoolAllocator();
 }
 
 ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator()
 {
-    ncnn_allocator_t allocator = (ncnn_allocator_t)malloc(sizeof(struct __ncnn_allocator_t));
-    allocator->pthis = (void*)(new UnlockedPoolAllocator_c_api(allocator));
-    allocator->fast_malloc = __ncnn_UnlockedPoolAllocator_fast_malloc;
-    allocator->fast_free = __ncnn_UnlockedPoolAllocator_fast_free;
-    return allocator;
+    return new ncnn::UnlockedPoolAllocator();
+}
+
+void* ncnn_allocator_fast_malloc(ncnn_allocator_t allocator, size_t size)
+{
+    return allocator->fastMalloc(size);
+}
+
+void ncnn_allocator_fast_free(ncnn_allocator_t allocator, void* ptr)
+{
+    allocator->fastFree(ptr);
 }
 
 void ncnn_allocator_destroy(ncnn_allocator_t allocator)
 {
-    delete (Allocator*)allocator->pthis;
-    free(allocator);
+    delete allocator;
 }
 
 /* option api */
 ncnn_option_t ncnn_option_create()
 {
-    return (ncnn_option_t)(new Option());
-}
-
-void ncnn_option_destroy(ncnn_option_t opt)
-{
-    delete (Option*)opt;
-}
-
-int ncnn_option_get_num_threads(const ncnn_option_t opt)
-{
-    return ((const Option*)opt)->num_threads;
-}
-
-void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads)
-{
-    ((Option*)opt)->num_threads = num_threads;
-}
-
-int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt)
-{
-#if NCNN_VULKAN
-    return ((const Option*)opt)->use_vulkan_compute;
-#else
-    (void)opt;
-    return 0;
-#endif
-}
-
-void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute)
-{
-#if NCNN_VULKAN
-    ((Option*)opt)->use_vulkan_compute = use_vulkan_compute;
-#else
-    (void)opt;
-    (void)use_vulkan_compute;
-#endif
+    return Option();
 }
 
 /* mat api */
 ncnn_mat_t ncnn_mat_create()
 {
-    return (ncnn_mat_t)(new Mat());
+    return Mat();
 }
 
 ncnn_mat_t ncnn_mat_create_1d(int w, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, (size_t)4u, (Allocator*)allocator));
+    return Mat(w, (size_t)4u, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_2d(int w, int h, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, (size_t)4u, (Allocator*)allocator));
+    return Mat(w, h, (size_t)4u, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_3d(int w, int h, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, (size_t)4u, (Allocator*)allocator));
+    return Mat(w, h, c, (size_t)4u, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_4d(int w, int h, int d, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, d, c, (size_t)4u, (Allocator*)allocator));
+    return Mat(w, h, d, c, (size_t)4u, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_external_1d(int w, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, data, (size_t)4u, (Allocator*)allocator));
+    return Mat(w, data, (size_t)4u, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_external_2d(int w, int h, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, data, (size_t)4u, (Allocator*)allocator));
+    return Mat(w, h, data, (size_t)4u, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_external_3d(int w, int h, int c, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, data, (size_t)4u, (Allocator*)allocator));
+    return Mat(w, h, c, data, (size_t)4u, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_external_4d(int w, int h, int d, int c, void* data, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, d, c, data, (size_t)4u, (Allocator*)allocator));
+    return Mat(w, h, d, c, data, (size_t)4u, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_1d_elem(int w, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, elemsize, elempack, (Allocator*)allocator));
+    return Mat(w, elemsize, elempack, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_2d_elem(int w, int h, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, elemsize, elempack, (Allocator*)allocator));
+    return Mat(w, h, elemsize, elempack, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_3d_elem(int w, int h, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, elemsize, elempack, (Allocator*)allocator));
+    return Mat(w, h, c, elemsize, elempack, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_4d_elem(int w, int h, int d, int c, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, d, c, elemsize, elempack, (Allocator*)allocator));
+    return Mat(w, h, d, c, elemsize, elempack, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_external_1d_elem(int w, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, data, elemsize, elempack, (Allocator*)allocator));
+    return Mat(w, data, elemsize, elempack, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_external_2d_elem(int w, int h, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, data, elemsize, elempack, (Allocator*)allocator));
+    return Mat(w, h, data, elemsize, elempack, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_external_3d_elem(int w, int h, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, c, data, elemsize, elempack, (Allocator*)allocator));
+    return Mat(w, h, c, data, elemsize, elempack, allocator);
 }
 
 ncnn_mat_t ncnn_mat_create_external_4d_elem(int w, int h, int d, int c, void* data, size_t elemsize, int elempack, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(w, h, d, c, data, elemsize, elempack, (Allocator*)allocator));
+    return Mat(w, h, d, c, data, elemsize, elempack, allocator);
 }
 
-void ncnn_mat_destroy(ncnn_mat_t mat)
-{
-    delete (Mat*)mat;
+void ncnn_mat_destroy(ncnn_mat_t mat) {
+    //calling its destructor
 }
 
 void ncnn_mat_fill_float(ncnn_mat_t mat, float v)
 {
-    ((Mat*)mat)->fill(v);
+    mat.fill(v);
 }
 
 ncnn_mat_t ncnn_mat_clone(const ncnn_mat_t mat, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->clone((Allocator*)allocator)));
+    return mat.clone(allocator);
 }
 
 ncnn_mat_t ncnn_mat_reshape_1d(const ncnn_mat_t mat, int w, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, (Allocator*)allocator)));
+    return mat.reshape(w, allocator);
 }
 
 ncnn_mat_t ncnn_mat_reshape_2d(const ncnn_mat_t mat, int w, int h, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, (Allocator*)allocator)));
+    return mat.reshape(w, h, allocator);
 }
 
 ncnn_mat_t ncnn_mat_reshape_3d(const ncnn_mat_t mat, int w, int h, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, c, (Allocator*)allocator)));
+    return mat.reshape(w, h, c, allocator);
 }
 
 ncnn_mat_t ncnn_mat_reshape_4d(const ncnn_mat_t mat, int w, int h, int d, int c, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(((const Mat*)mat)->reshape(w, h, d, c, (Allocator*)allocator)));
-}
-
-int ncnn_mat_get_dims(const ncnn_mat_t mat)
-{
-    return ((const Mat*)mat)->dims;
-}
-
-int ncnn_mat_get_w(const ncnn_mat_t mat)
-{
-    return ((const Mat*)mat)->w;
-}
-
-int ncnn_mat_get_h(const ncnn_mat_t mat)
-{
-    return ((const Mat*)mat)->h;
-}
-
-int ncnn_mat_get_d(const ncnn_mat_t mat)
-{
-    return ((const Mat*)mat)->d;
-}
-
-int ncnn_mat_get_c(const ncnn_mat_t mat)
-{
-    return ((const Mat*)mat)->c;
+    return mat.reshape(w, h, d, c, allocator);
 }
 
 size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat)
@@ -334,47 +233,27 @@ size_t ncnn_mat_get_elemsize(const ncnn_mat_t mat)
     return ((const Mat*)mat)->elemsize;
 }
 
-int ncnn_mat_get_elempack(const ncnn_mat_t mat)
-{
-    return ((const Mat*)mat)->elempack;
-}
-
-size_t ncnn_mat_get_cstep(const ncnn_mat_t mat)
-{
-    return ((const Mat*)mat)->cstep;
-}
-
-void* ncnn_mat_get_data(const ncnn_mat_t mat)
-{
-    return ((const Mat*)mat)->data;
-}
-
-void* ncnn_mat_get_channel_data(const ncnn_mat_t mat, int c)
-{
-    return ((const Mat*)mat)->channel(c).data;
-}
-
 #if NCNN_PIXEL
 
 /* mat pixel api */
 ncnn_mat_t ncnn_mat_from_pixels(const unsigned char* pixels, int type, int w, int h, int stride, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(Mat::from_pixels(pixels, type, w, h, stride, (Allocator*)allocator)));
+    return (ncnn_mat_t)(Mat(Mat::from_pixels(pixels, type, w, h, stride, allocator)));
 }
 
 ncnn_mat_t ncnn_mat_from_pixels_resize(const unsigned char* pixels, int type, int w, int h, int stride, int target_width, int target_height, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(Mat::from_pixels_resize(pixels, type, w, h, stride, target_width, target_height, (Allocator*)allocator)));
+    return (ncnn_mat_t)(Mat(Mat::from_pixels_resize(pixels, type, w, h, stride, target_width, target_height, allocator)));
 }
 
 ncnn_mat_t ncnn_mat_from_pixels_roi(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(Mat::from_pixels_roi(pixels, type, w, h, stride, roix, roiy, roiw, roih, (Allocator*)allocator)));
+    return (ncnn_mat_t)(Mat(Mat::from_pixels_roi(pixels, type, w, h, stride, roix, roiy, roiw, roih, allocator)));
 }
 
 ncnn_mat_t ncnn_mat_from_pixels_roi_resize(const unsigned char* pixels, int type, int w, int h, int stride, int roix, int roiy, int roiw, int roih, int target_width, int target_height, ncnn_allocator_t allocator)
 {
-    return (ncnn_mat_t)(new Mat(Mat::from_pixels_roi_resize(pixels, type, w, h, stride, roix, roiy, roiw, roih, target_width, target_height, (Allocator*)allocator)));
+    return (ncnn_mat_t)(Mat(Mat::from_pixels_roi_resize(pixels, type, w, h, stride, roix, roiy, roiw, roih, target_width, target_height, allocator)));
 }
 
 void ncnn_mat_to_pixels(const ncnn_mat_t mat, unsigned char* pixels, int type, int stride)
@@ -394,18 +273,14 @@ void ncnn_mat_substract_mean_normalize(ncnn_mat_t mat, const float* mean_vals, c
     ((Mat*)mat)->substract_mean_normalize(mean_vals, norm_vals);
 }
 
-void ncnn_convert_packing(const ncnn_mat_t src, ncnn_mat_t* dst, int elempack, const ncnn_option_t opt)
+void ncnn_convert_packing(const ncnn_mat_t src, ncnn_mat_t dst, int elempack, const ncnn_option_t opt)
 {
-    Mat _dst;
-    ncnn::convert_packing(*(const Mat*)src, _dst, elempack, *(Option*)opt);
-    *dst = (ncnn_mat_t)(new Mat(_dst));
+    ncnn::convert_packing(*(const Mat*)src, *(Mat*)dst, elempack, opt);
 }
 
-void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t* dst, const ncnn_option_t opt)
+void ncnn_flatten(const ncnn_mat_t src, ncnn_mat_t dst, const ncnn_option_t opt)
 {
-    Mat _dst;
-    ncnn::flatten(*(const Mat*)src, _dst, *(Option*)opt);
-    *dst = (ncnn_mat_t)(new Mat(_dst));
+    ncnn::flatten(*(const Mat*)src, *(Mat*)dst, opt);
 }
 
 /* blob api */
@@ -461,9 +336,9 @@ float ncnn_paramdict_get_float(const ncnn_paramdict_t pd, int id, float def)
     return ((const ParamDict*)pd)->get(id, def);
 }
 
-ncnn_mat_t ncnn_paramdict_get_array(ncnn_paramdict_t pd, int id, const ncnn_mat_t def)
+ncnn_mat_t ncnn_paramdict_get_array(ncnn_paramdict_t pd, int id, const ncnn_mat_t* def)
 {
-    return (ncnn_mat_t)(new Mat(((const ParamDict*)pd)->get(id, *(const Mat*)def)));
+    return ((const ParamDict*)pd)->get(id, *def);
 }
 
 void ncnn_paramdict_set_int(ncnn_paramdict_t pd, int id, int i)
@@ -485,394 +360,172 @@ void ncnn_paramdict_set_array(ncnn_paramdict_t pd, int id, ncnn_mat_t v)
 class DataReader_c_api : public ncnn::DataReader
 {
 public:
-    DataReader_c_api(ncnn_datareader_t _dr)
-        : ncnn::DataReader()
+    DataReader_c_api(ncnn_datareader_ext_t _ext): ncnn::DataReader()
     {
-        dr = _dr;
+        ext = _ext;
     }
 
 #if NCNN_STRING
     virtual int scan(const char* format, void* p) const
     {
-        return dr->scan(dr, format, p);
+        return ext.scan(ext.pdata, format, p);
     }
 #endif /* NCNN_STRING */
 
     virtual size_t read(void* buf, size_t size) const
     {
-        return dr->read(dr, buf, size);
+        return ext.read(ext.pdata, buf, size);
     }
 
 public:
-    ncnn_datareader_t dr;
+    ncnn_datareader_ext_t ext;
 };
 
-#if NCNN_STRING
-static int __ncnn_DataReader_scan(ncnn_datareader_t dr, const char* format, void* p)
+
+ncnn_datareader_t ncnn_datareader_create(ncnn_datareader_ext_t ext)
 {
-    return ((ncnn::DataReader*)dr->pthis)->ncnn::DataReader::scan(format, p);
-}
-#endif /* NCNN_STRING */
-
-static size_t __ncnn_DataReader_read(ncnn_datareader_t dr, void* buf, size_t size)
-{
-    return ((ncnn::DataReader*)dr->pthis)->ncnn::DataReader::read(buf, size);
-}
-
-#if NCNN_STDIO
-class DataReaderFromStdio_c_api : public ncnn::DataReaderFromStdio
-{
-public:
-    DataReaderFromStdio_c_api(FILE* fp, ncnn_datareader_t _dr)
-        : ncnn::DataReaderFromStdio(fp)
-    {
-        dr = _dr;
-    }
-
-#if NCNN_STRING
-    virtual int scan(const char* format, void* p) const
-    {
-        return dr->scan(dr, format, p);
-    }
-#endif /* NCNN_STRING */
-
-    virtual size_t read(void* buf, size_t size) const
-    {
-        return dr->read(dr, buf, size);
-    }
-
-public:
-    ncnn_datareader_t dr;
-};
-
-#if NCNN_STRING
-static int __ncnn_DataReaderFromStdio_scan(ncnn_datareader_t dr, const char* format, void* p)
-{
-    return ((ncnn::DataReaderFromStdio*)dr->pthis)->ncnn::DataReaderFromStdio::scan(format, p);
-}
-#endif /* NCNN_STRING */
-
-static size_t __ncnn_DataReaderFromStdio_read(ncnn_datareader_t dr, void* buf, size_t size)
-{
-    return ((ncnn::DataReaderFromStdio*)dr->pthis)->ncnn::DataReaderFromStdio::read(buf, size);
-}
-#endif /* NCNN_STDIO */
-
-class DataReaderFromMemory_c_api : public ncnn::DataReaderFromMemory
-{
-public:
-    DataReaderFromMemory_c_api(const unsigned char*& mem, ncnn_datareader_t _dr)
-        : ncnn::DataReaderFromMemory(mem)
-    {
-        dr = _dr;
-    }
-
-#if NCNN_STRING
-    virtual int scan(const char* format, void* p) const
-    {
-        return dr->scan(dr, format, p);
-    }
-#endif /* NCNN_STRING */
-
-    virtual size_t read(void* buf, size_t size) const
-    {
-        return dr->read(dr, buf, size);
-    }
-
-public:
-    ncnn_datareader_t dr;
-};
-
-#if NCNN_STRING
-static int __ncnn_DataReaderFromMemory_scan(ncnn_datareader_t dr, const char* format, void* p)
-{
-    return ((ncnn::DataReaderFromMemory*)dr->pthis)->ncnn::DataReaderFromMemory::scan(format, p);
-}
-#endif /* NCNN_STRING */
-
-static size_t __ncnn_DataReaderFromMemory_read(ncnn_datareader_t dr, void* buf, size_t size)
-{
-    return ((ncnn::DataReaderFromMemory*)dr->pthis)->ncnn::DataReaderFromMemory::read(buf, size);
-}
-
-ncnn_datareader_t ncnn_datareader_create()
-{
-    ncnn_datareader_t dr = (ncnn_datareader_t)malloc(sizeof(struct __ncnn_datareader_t));
-    dr->pthis = (void*)(new DataReader_c_api(dr));
-#if NCNN_STRING
-    dr->scan = __ncnn_DataReader_scan;
-#endif /* NCNN_STRING */
-    dr->read = __ncnn_DataReader_read;
-    return dr;
+    return new DataReader_c_api(ext);
 }
 
 #if NCNN_STDIO
 ncnn_datareader_t ncnn_datareader_create_from_stdio(FILE* fp)
 {
-    ncnn_datareader_t dr = (ncnn_datareader_t)malloc(sizeof(struct __ncnn_datareader_t));
-    dr->pthis = (void*)(new DataReaderFromStdio_c_api(fp, dr));
-#if NCNN_STRING
-    dr->scan = __ncnn_DataReaderFromStdio_scan;
-#endif /* NCNN_STRING */
-    dr->read = __ncnn_DataReaderFromStdio_read;
-    return dr;
+    return new ncnn::DataReaderFromStdio(fp);
 }
 #endif /* NCNN_STDIO */
 
 ncnn_datareader_t ncnn_datareader_create_from_memory(const unsigned char** mem)
 {
-    ncnn_datareader_t dr = (ncnn_datareader_t)malloc(sizeof(struct __ncnn_datareader_t));
-    dr->pthis = (void*)(new DataReaderFromMemory_c_api(*mem, dr));
+    return new ncnn::DataReaderFromMemory(*mem);
+}
+
 #if NCNN_STRING
-    dr->scan = __ncnn_DataReaderFromMemory_scan;
-#endif /* NCNN_STRING */
-    dr->read = __ncnn_DataReaderFromMemory_read;
-    return dr;
+void ncnn_datareader_scan(ncnn_datareader_t dr, const char* format, void* p)
+{
+    dr->scan(format, p);
+}
+#endif
+
+size_t ncnn_datareader_read(ncnn_datareader_t dr, void* buf, size_t size)
+{
+    return dr->read(buf, size);
 }
 
 void ncnn_datareader_destroy(ncnn_datareader_t dr)
 {
-    delete (DataReader*)dr->pthis;
-    free(dr);
+    delete dr;
 }
 
 /* modelbin api */
-class ModelBinFromDataReader_c_api : public ncnn::ModelBinFromDataReader
+class ModelBin_c_api : public ncnn::ModelBin
 {
 public:
-    ModelBinFromDataReader_c_api(ncnn_modelbin_t _mb, const DataReader& dr)
-        : ncnn::ModelBinFromDataReader(dr)
-    {
-        mb = _mb;
+    ModelBin_c_api(ncnn_modelbin_ext_t _ext): ncnn::ModelBin() {
+        ext = _ext;
     }
 
-    virtual Mat load(int w, int type) const
-    {
-        ncnn_mat_t m = mb->load_1d(mb, w, type);
-        Mat m2 = *(Mat*)m;
-        ncnn_mat_destroy(m);
-        return m2;
+    Mat load(int w, int type) const override {
+        return ext.load_1d(ext.pdata, w, type);
     }
 
-    virtual Mat load(int w, int h, int type) const
-    {
-        ncnn_mat_t m = mb->load_2d(mb, w, h, type);
-        Mat m2 = *(Mat*)m;
-        ncnn_mat_destroy(m);
-        return m2;
+    Mat load(int w, int h, int type) const override {
+        return ext.load_2d(ext.pdata, w, h, type);
     }
 
-    virtual Mat load(int w, int h, int c, int type) const
-    {
-        ncnn_mat_t m = mb->load_3d(mb, w, h, c, type);
-        Mat m2 = *(Mat*)m;
-        ncnn_mat_destroy(m);
-        return m2;
+    Mat load(int w, int h, int c, int type) const override {
+        return ext.load_3d(ext.pdata, w, h, c, type);
     }
-
 public:
-    ncnn_modelbin_t mb;
+    ncnn_modelbin_ext_t ext;
 };
 
-static ncnn_mat_t __ncnn_ModelBinFromDataReader_load_1d(const ncnn_modelbin_t mb, int w, int type)
-{
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBinFromDataReader*)mb->pthis)->ncnn::ModelBinFromDataReader::load(w, type)));
-}
-
-static ncnn_mat_t __ncnn_ModelBinFromDataReader_load_2d(const ncnn_modelbin_t mb, int w, int h, int type)
-{
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBinFromDataReader*)mb->pthis)->ncnn::ModelBin::load(w, h, type)));
-}
-
-static ncnn_mat_t __ncnn_ModelBinFromDataReader_load_3d(const ncnn_modelbin_t mb, int w, int h, int c, int type)
-{
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBinFromDataReader*)mb->pthis)->ncnn::ModelBin::load(w, h, c, type)));
-}
-
-class ModelBinFromMatArray_c_api : public ncnn::ModelBinFromMatArray
-{
-public:
-    ModelBinFromMatArray_c_api(ncnn_modelbin_t _mb, const Mat* weights)
-        : ncnn::ModelBinFromMatArray(weights)
-    {
-        mb = _mb;
-    }
-
-    virtual Mat load(int w, int type) const
-    {
-        ncnn_mat_t m = mb->load_1d(mb, w, type);
-        Mat m2 = *(Mat*)m;
-        ncnn_mat_destroy(m);
-        return m2;
-    }
-
-    virtual Mat load(int w, int h, int type) const
-    {
-        ncnn_mat_t m = mb->load_2d(mb, w, h, type);
-        Mat m2 = *(Mat*)m;
-        ncnn_mat_destroy(m);
-        return m2;
-    }
-
-    virtual Mat load(int w, int h, int c, int type) const
-    {
-        ncnn_mat_t m = mb->load_3d(mb, w, h, c, type);
-        Mat m2 = *(Mat*)m;
-        ncnn_mat_destroy(m);
-        return m2;
-    }
-
-public:
-    ncnn_modelbin_t mb;
-};
-
-static ncnn_mat_t __ncnn_ModelBinFromMatArray_load_1d(const ncnn_modelbin_t mb, int w, int type)
-{
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBinFromMatArray*)mb->pthis)->ncnn::ModelBinFromMatArray::load(w, type)));
-}
-
-static ncnn_mat_t __ncnn_ModelBinFromMatArray_load_2d(const ncnn_modelbin_t mb, int w, int h, int type)
-{
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBinFromMatArray*)mb->pthis)->ncnn::ModelBin::load(w, h, type)));
-}
-
-static ncnn_mat_t __ncnn_ModelBinFromMatArray_load_3d(const ncnn_modelbin_t mb, int w, int h, int c, int type)
-{
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBinFromMatArray*)mb->pthis)->ncnn::ModelBin::load(w, h, c, type)));
-}
 
 ncnn_modelbin_t ncnn_modelbin_create_from_datareader(const ncnn_datareader_t dr)
 {
-    ncnn_modelbin_t mb = (ncnn_modelbin_t)malloc(sizeof(struct __ncnn_modelbin_t));
-    mb->pthis = (void*)(new ModelBinFromDataReader_c_api(mb, *(const DataReader*)dr->pthis));
-    mb->load_1d = __ncnn_ModelBinFromDataReader_load_1d;
-    mb->load_2d = __ncnn_ModelBinFromDataReader_load_2d;
-    mb->load_3d = __ncnn_ModelBinFromDataReader_load_3d;
-    return mb;
+    return new ncnn::ModelBinFromDataReader(*dr);
 }
 
-ncnn_modelbin_t ncnn_modelbin_create_from_mat_array(const ncnn_mat_t* weights, int n)
+ncnn_modelbin_t ncnn_modelbin_create_from_mat_array(const ncnn_mat_t* weights)
 {
-    std::vector<Mat> matarray(n);
-    for (int i = 0; i < n; i++)
-    {
-        matarray[i] = *(const Mat*)weights[i];
-    }
-    ncnn_modelbin_t mb = (ncnn_modelbin_t)malloc(sizeof(struct __ncnn_modelbin_t));
-    mb->pthis = (void*)(new ModelBinFromMatArray_c_api(mb, &matarray[0]));
-    mb->load_1d = __ncnn_ModelBinFromMatArray_load_1d;
-    mb->load_2d = __ncnn_ModelBinFromMatArray_load_2d;
-    mb->load_3d = __ncnn_ModelBinFromMatArray_load_3d;
-    return mb;
+    return new ncnn::ModelBinFromMatArray(weights);
 }
 
 void ncnn_modelbin_destroy(ncnn_modelbin_t mb)
 {
-    delete (ModelBin*)mb->pthis;
-    free(mb);
+    delete mb;
 }
 
-static ncnn_mat_t __ncnn_modelbin_load_1d(const ncnn_modelbin_t mb, int w, int type)
+ncnn_mat_t ncnn_modelbin_load_1d(const ncnn_modelbin_t mb, int w, int type)
 {
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBin*)mb->pthis)->load(w, type)));
+    return mb->load(w, type);
 }
 
-static ncnn_mat_t __ncnn_modelbin_load_2d(const ncnn_modelbin_t mb, int w, int h, int type)
+ncnn_mat_t ncnn_modelbin_load_2d(const ncnn_modelbin_t mb, int w, int h, int type)
 {
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBin*)mb->pthis)->load(w, h, type)));
+    return mb->load(w, h, type);
 }
 
-static ncnn_mat_t __ncnn_modelbin_load_3d(const ncnn_modelbin_t mb, int w, int h, int c, int type)
+ncnn_mat_t ncnn_modelbin_load_3d(const ncnn_modelbin_t mb, int w, int h, int c, int type)
 {
-    return (ncnn_mat_t)(new Mat(((const ncnn::ModelBin*)mb->pthis)->load(w, h, c, type)));
+    return mb->load(w, h, c, type);
 }
 
 /* layer api */
 class Layer_c_api : public Layer
 {
 public:
-    Layer_c_api(ncnn_layer_t _layer)
-        : Layer()
+    Layer_c_api(ncnn_layer_ext_t _ext): Layer()
     {
-        layer = _layer;
+        ext = _ext;
     }
 
     virtual int load_param(const ParamDict& pd)
     {
-        return layer->load_param(layer, (ncnn_paramdict_t)&pd);
+        return ext.load_param(ext.pdata, (ncnn_paramdict_t)&pd);
     }
 
     virtual int load_model(const ModelBin& mb)
     {
-        struct __ncnn_modelbin_t mb0;
-        mb0.pthis = (void*)&mb;
-        mb0.load_1d = __ncnn_modelbin_load_1d;
-        mb0.load_2d = __ncnn_modelbin_load_2d;
-        mb0.load_3d = __ncnn_modelbin_load_3d;
-        return layer->load_model(layer, &mb0);
+        return ext.load_model(ext.pdata, (ncnn_modelbin_t)&mb);
     }
 
     virtual int create_pipeline(const Option& opt)
     {
-        return layer->create_pipeline(layer, (ncnn_option_t)&opt);
+        return ext.create_pipeline(ext.pdata, opt);
     }
 
     virtual int destroy_pipeline(const Option& opt)
     {
-        return layer->destroy_pipeline(layer, (ncnn_option_t)&opt);
+        return ext.destroy_pipeline(ext.pdata, opt);
     }
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
     {
-        const int n = bottom_blobs.size();
-        const int n2 = top_blobs.size();
-        std::vector<ncnn_mat_t> bottom_blobs0(n);
-        for (int i = 0; i < n; i++)
-        {
-            bottom_blobs0[i] = (ncnn_mat_t)&bottom_blobs[i];
-        }
-        std::vector<ncnn_mat_t> top_blobs0(n2, (ncnn_mat_t)0);
-        int ret = layer->forward_n(layer, bottom_blobs0.data(), n, top_blobs0.data(), n2, (ncnn_option_t)&opt);
-        for (int i = 0; i < n2; i++)
-        {
-            top_blobs[i] = *(Mat*)top_blobs0[i];
-            ncnn_mat_destroy(top_blobs0[i]);
-        }
-        return ret;
+        return ext.forward_n(ext.pdata, bottom_blobs.data(), bottom_blobs.size(), top_blobs.data(), top_blobs.size(), opt);
     }
 
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
     {
-        ncnn_mat_t top_blob0 = 0;
-        int ret = layer->forward_1(layer, (ncnn_mat_t)&bottom_blob, &top_blob0, (ncnn_option_t)&opt);
-        top_blob = *(Mat*)top_blob0;
-        ncnn_mat_destroy(top_blob0);
-        return ret;
+        return ext.forward_1(ext.pdata, bottom_blob, top_blob, opt);
     }
 
     virtual int forward_inplace(std::vector<Mat>& bottom_top_blobs, const Option& opt) const
     {
-        const int n = bottom_top_blobs.size();
-        std::vector<ncnn_mat_t> bottom_top_blobs0(n);
-        for (int i = 0; i < n; i++)
-        {
-            bottom_top_blobs0[i] = (ncnn_mat_t)&bottom_top_blobs[i];
-        }
-        return layer->forward_inplace_n(layer, bottom_top_blobs0.data(), n, (ncnn_option_t)&opt);
+        return ext.forward_inplace_n(ext.pdata, bottom_top_blobs.data(), bottom_top_blobs.size(), opt);
     }
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
-        return layer->forward_inplace_1(layer, (ncnn_mat_t)&bottom_top_blob, (ncnn_option_t)&opt);
+        return ext.forward_inplace_1(ext.pdata, bottom_top_blob, opt);
     }
 
 public:
-    ncnn_layer_t layer;
+    ncnn_layer_ext ext;
 };
 
-static int __ncnn_Layer_load_param(ncnn_layer_t layer, const ncnn_paramdict_t pd)
+static int ncnn_layer_load_param(ncnn_layer_t layer, const ncnn_paramdict_t pd)
 {
-    return ((Layer*)layer->pthis)->Layer::load_param(*(const ParamDict*)pd);
+    return layer->load_param(pd);
 }
 
 static int __ncnn_Layer_load_model(ncnn_layer_t layer, const ncnn_modelbin_t mb)
@@ -894,7 +547,7 @@ static int __ncnn_Layer_forward_1(const ncnn_layer_t layer, const ncnn_mat_t bot
 {
     Mat _top_blob;
     int ret = ((const Layer*)layer->pthis)->Layer::forward(*(const Mat*)bottom_blob, _top_blob, *(const Option*)opt);
-    *top_blob = (ncnn_mat_t)(new Mat(_top_blob));
+    *top_blob = (ncnn_mat_t)(Mat(_top_blob));
     return ret;
 }
 
@@ -909,7 +562,7 @@ static int __ncnn_Layer_forward_n(const ncnn_layer_t layer, const ncnn_mat_t* bo
     int ret = ((const Layer*)layer->pthis)->Layer::forward(_bottom_blobs, _top_blobs, *(const Option*)opt);
     for (int i = 0; i < n2; i++)
     {
-        top_blobs[i] = (ncnn_mat_t)(new Mat(_top_blobs[i]));
+        top_blobs[i] = (ncnn_mat_t)(Mat(_top_blobs[i]));
     }
     return ret;
 }
@@ -953,7 +606,7 @@ static int __ncnn_layer_forward_1(const ncnn_layer_t layer, const ncnn_mat_t bot
 {
     Mat _top_blob;
     int ret = ((const Layer*)layer->pthis)->forward(*(const Mat*)bottom_blob, _top_blob, *(const Option*)opt);
-    *top_blob = (ncnn_mat_t)(new Mat(_top_blob));
+    *top_blob = (ncnn_mat_t)(Mat(_top_blob));
     return ret;
 }
 
@@ -968,7 +621,7 @@ static int __ncnn_layer_forward_n(const ncnn_layer_t layer, const ncnn_mat_t* bo
     int ret = ((const Layer*)layer->pthis)->forward(_bottom_blobs, _top_blobs, *(const Option*)opt);
     for (int i = 0; i < n2; i++)
     {
-        top_blobs[i] = (ncnn_mat_t)(new Mat(_top_blobs[i]));
+        top_blobs[i] = (ncnn_mat_t)(Mat(_top_blobs[i]));
     }
     return ret;
 }
@@ -1339,7 +992,7 @@ int ncnn_extractor_extract(ncnn_extractor_t ex, const char* name, ncnn_mat_t* ma
 {
     Mat mat0;
     int ret = ((Extractor*)ex)->extract(name, mat0);
-    *mat = (ncnn_mat_t)(new Mat(mat0));
+    *mat = (ncnn_mat_t)(Mat(mat0));
     return ret;
 }
 #endif /* NCNN_STRING */
@@ -1353,7 +1006,7 @@ int ncnn_extractor_extract_index(ncnn_extractor_t ex, int index, ncnn_mat_t* mat
 {
     Mat mat0;
     int ret = ((Extractor*)ex)->extract(index, mat0);
-    *mat = (ncnn_mat_t)(new Mat(mat0));
+    *mat = (ncnn_mat_t)(Mat(mat0));
     return ret;
 }
 
