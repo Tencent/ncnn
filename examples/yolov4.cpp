@@ -73,17 +73,10 @@ static int init_yolov4(ncnn::Net* yolov4, int* target_size)
     *target_size = 608;
 #endif
 
-    ret = yolov4->load_param(yolov4_param);
-    if (ret != 0)
-    {
-        return ret;
-    }
-
-    ret = yolov4->load_model(yolov4_model);
-    if (ret != 0)
-    {
-        return ret;
-    }
+    if (yolov4->load_param(yolov4_param) == -1)
+        exit(-1);
+    if (yolov4->load_model(yolov4_model) == -1)
+        exit(-1);
 
     return 0;
 }
