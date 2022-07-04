@@ -47,6 +47,7 @@ public:
 
         const torch::jit::Node* convolution = find_node_by_kind(graph, "aten::_convolution");
         const torch::jit::Node* convolution_mode = find_node_by_kind(graph, "aten::_convolution_mode");
+        const torch::jit::Node* pad = find_node_by_kind(graph, "aten::pad");
         const torch::jit::Node* reflection_pad1d = find_node_by_kind(graph, "aten::reflection_pad1d");
         const torch::jit::Node* replication_pad1d = find_node_by_kind(graph, "aten::replication_pad1d");
 
@@ -62,7 +63,26 @@ public:
         op->params["out_channels"] = weight.size(0);
         op->params["kernel_size"] = Parameter{weight.size(2)};
         op->params["stride"] = convolution->namedInput("stride");
-        if (reflection_pad1d)
+        if (pad)
+        {
+            op->params["padding_mode"] = pad->namedInput("mode");
+            op->params["padding"] = pad->namedInput("pad");
+            std::vector<int>& padding = op->params["padding"].ai;
+            if (padding.size() == 2)
+            {
+                // Conv1d only accepts tuple of one integer
+                if (padding[0] == padding[1])
+                {
+                    padding.resize(1);
+                }
+                else if (padding[0] != padding[1])
+                {
+                    padding.resize(0);
+                    op->params["padding"].s = "same";
+                }
+            }
+        }
+        else if (reflection_pad1d)
         {
             op->params["padding_mode"] = "reflect";
             op->params["padding"] = reflection_pad1d->namedInput("padding");
