@@ -126,8 +126,10 @@ static int detect_rfcn(const cv::Mat& bgr, std::vector<Object>& objects)
     // https://github.com/YuwenXiong/py-R-FCN/blob/master/models/pascal_voc/ResNet-50/rfcn_end2end/test_agnostic.prototxt
     // https://1drv.ms/u/s!AoN7vygOjLIQqUWHpY67oaC7mopf
     // resnet50_rfcn_final.caffemodel
-    rfcn.load_param("rfcn_end2end.param");
-    rfcn.load_model("rfcn_end2end.bin");
+    if (!rfcn.load_param("rfcn_end2end.param"))
+        exit(-1);
+    if (!rfcn.load_model("rfcn_end2end.bin"))
+        exit(-1);
 
     const int target_size = 224;
 

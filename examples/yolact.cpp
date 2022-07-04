@@ -127,8 +127,10 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     // original model converted from https://github.com/dbolya/yolact
     // yolact_resnet50_54_800000.pth
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    yolact.load_param("yolact.param");
-    yolact.load_model("yolact.bin");
+    if (!yolact.load_param("yolact.param"))
+        exit(-1);
+    if (!yolact.load_model("yolact.bin"))
+        exit(-1);
 
     const int target_size = 550;
 

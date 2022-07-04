@@ -156,8 +156,10 @@ static int detect_crowd(const cv::Mat& bgr, std::vector<CrowdPoint>& crowd_point
     // model is converted from
     // https://github.com/TencentYoutuResearch/CrowdCounting-P2PNet
     // the ncnn model  https://pan.baidu.com/s/1O1CBgvY6yJkrK8Npxx3VMg pwd: ezhx
-    net.load_param("p2pnet.param");
-    net.load_model("p2pnet.bin");
+    if (!net.load_param("p2pnet.param"))
+        exit(-1);
+    if (!net.load_model("p2pnet.bin"))
+        exit(-1);
 
     int width = bgr.cols;
     int height = bgr.rows;

@@ -226,8 +226,10 @@ static int detect_nanodet(const cv::Mat& bgr, std::vector<Object>& objects)
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
     //     nanodet.load_param("nanodet-plus-m_320.torchscript.ncnn.param");
     //     nanodet.load_model("nanodet-plus-m_320.torchscript.ncnn.bin");
-    nanodet.load_param("nanodet-plus-m_416.torchscript.ncnn.param");
-    nanodet.load_model("nanodet-plus-m_416.torchscript.ncnn.bin");
+    if (!nanodet.load_param("nanodet-plus-m_416.torchscript.ncnn.param"))
+        exit(-1);
+    if (!nanodet.load_model("nanodet-plus-m_416.torchscript.ncnn.bin"))
+        exit(-1);
 
     int width = bgr.cols;
     int height = bgr.rows;
