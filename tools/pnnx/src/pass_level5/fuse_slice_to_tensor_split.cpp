@@ -35,9 +35,9 @@ void fuse_slice_to_tensor_split(Graph& graph)
             Operand* op_in = op->inputs[0];
 
             if (op->params.find("dims") == op->params.end()
-                || op->params.find("starts") == op->params.end()
-                || op->params.find("ends") == op->params.end()
-                || op->params.find("steps") == op->params.end())
+                    || op->params.find("starts") == op->params.end()
+                    || op->params.find("ends") == op->params.end()
+                    || op->params.find("steps") == op->params.end())
                 continue;
 
             if (op->params.at("dims").ai.size() != 1)
@@ -72,9 +72,9 @@ void fuse_slice_to_tensor_split(Graph& graph)
                         continue;
 
                     if (x->params.find("dims") == x->params.end()
-                        || x->params.find("starts") == x->params.end()
-                        || x->params.find("ends") == x->params.end()
-                        || x->params.find("steps") == x->params.end())
+                            || x->params.find("starts") == x->params.end()
+                            || x->params.find("ends") == x->params.end()
+                            || x->params.find("steps") == x->params.end())
                         continue;
 
                     if (x->params.at("dims").ai.size() != 1)
