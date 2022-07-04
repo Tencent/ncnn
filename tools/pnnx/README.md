@@ -49,8 +49,11 @@ net = net.eval()
 
 x = torch.rand(1, 3, 224, 224)
 
+# You could try disabling checking when tracing raises error
+# mod = torch.jit.trace(net, x, check_trace=False)
 mod = torch.jit.trace(net, x)
-torch.jit.save(mod, "resnet18.pt")
+
+mod.save("resnet18.pt")
 ```
 
 2. Convert TorchScript to PNNX
