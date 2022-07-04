@@ -22,6 +22,7 @@
 #include "pass_ncnn/convert_torch_chunk.h"
 #include "pass_ncnn/convert_torch_einsum.h"
 #include "pass_ncnn/convert_torch_split.h"
+#include "pass_ncnn/convert_torch_tensor_split.h"
 #include "pass_ncnn/convert_torch_unbind.h"
 #include "pass_ncnn/convert_Tensor_select.h"
 #include "pass_ncnn/eliminate_output.h"
@@ -90,6 +91,7 @@ void pass_ncnn(Graph& g)
     ncnn::convert_torch_chunk(g);
     ncnn::convert_torch_split(g);
     ncnn::convert_torch_unbind(g);
+    ncnn::convert_torch_tensor_split(g);
     ncnn::convert_torch_einsum(g);
 
     ncnn::convert_Tensor_select(g);

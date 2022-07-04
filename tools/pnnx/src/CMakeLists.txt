@@ -232,6 +232,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_stack.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
+    pass_level2/torch_tensor_split.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
@@ -265,8 +266,8 @@ set(pnnx_pass_level3_SRCS
     pass_level3/eliminate_noop_math.cpp
     pass_level3/eliminate_tuple_pair.cpp
     pass_level3/expand_quantization_modules.cpp
-    pass_level3/fuse_cat_stack_tensors.cpp
-    pass_level3/fuse_chunk_split_unbind_unpack.cpp
+    pass_level3/fuse_opnto1_tensors.cpp
+    pass_level3/fuse_op1ton_unpack.cpp
     pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
@@ -305,6 +306,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_slice_indices.cpp
+    pass_level5/fuse_slice_to_tensor_split.cpp
     pass_level5/fuse_static_conv.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
@@ -319,6 +321,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
     pass_ncnn/convert_torch_split.cpp
+    pass_ncnn/convert_torch_tensor_split.cpp
     pass_ncnn/convert_torch_unbind.cpp
     pass_ncnn/convert_Tensor_select.cpp
     pass_ncnn/eliminate_output.cpp
