@@ -454,7 +454,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
         cv::rectangle(image, obj.rect, cv::Scalar(255, 0, 0));
 
         char text[256];
-        sprintf(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
+        sprintf_s(text, "%s %.1f%%", class_names[obj.label], obj.prob * 100);
 
         int baseLine = 0;
         cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.5, 1, &baseLine);
