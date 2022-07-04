@@ -34,6 +34,7 @@
 #include "pass_level5/fuse_linear_batchnorm1d.h"
 #include "pass_level5/fuse_select_to_unbind.h"
 #include "pass_level5/fuse_slice_indices.h"
+#include "pass_level5/fuse_slice_to_tensor_split.h"
 #include "pass_level5/fuse_static_conv.h"
 #include "pass_level5/normalize_einsum_equation.h"
 #include "pass_level4/dead_code_elimination.h"
@@ -61,6 +62,8 @@ void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_cons
     eliminate_identity_operator(g);
 
     fuse_select_to_unbind(g);
+
+    fuse_slice_to_tensor_split(g);
 
     fuse_static_conv(g);
 
