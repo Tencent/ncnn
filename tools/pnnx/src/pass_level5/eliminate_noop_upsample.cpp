@@ -30,7 +30,7 @@ void eliminate_noop_upsample(Graph& graph)
             Operator* op = graph.ops[i];
 
             if (op->type != "F.upsample" && op->type != "F.upsample_bilinear" && op->type != "F.upsample_nearest" && op->type != "F.interpolate"
-                && op->type != "nn.Upsample" && op->type != "nn.UpsamplingBilinear2d" && op->type != "nn.UpsamplingNearest2d")
+                    && op->type != "nn.Upsample" && op->type != "nn.UpsamplingBilinear2d" && op->type != "nn.UpsamplingNearest2d")
                 continue;
 
             if (op->inputs.size() != 1)
