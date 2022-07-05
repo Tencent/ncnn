@@ -50,6 +50,9 @@ void eliminate_noop_upsample(Graph& graph)
                     scale_factor = op->params.at("scale_factor").af;
                 }
 
+                if (scale_factor.empty())
+                    matched = false;
+
                 for (auto s : scale_factor)
                 {
                     if (s != 1.f)
