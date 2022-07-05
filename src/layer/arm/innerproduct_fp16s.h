@@ -501,28 +501,153 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
 #endif
     }
 
-    Mat weight_data_fp16;
-    ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
-
     // src = inch-outch
     // dst = pb-inch-outch/pb
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (out_elempack == 8)
     {
-        Mat weight_data_r2 = weight_data_fp16.reshape(num_input, num_output);
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-        weight_data_tm.create(num_input, num_output / out_elempack, (size_t)2u * out_elempack, out_elempack);
+        weight_data_tm.create(num_input, num_output / 8, (size_t)16u, 8);
 
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        for (int q = 0; q + 7 < num_output; q += 8)
         {
-            unsigned short* g0 = weight_data_tm.row<unsigned short>(q / out_elempack);
+            unsigned short* g0 = weight_data_tm.row<unsigned short>(q / 8);
 
-            for (int p = 0; p < num_input; p++)
+            const float* k0 = weight_data_r2.row(q);
+            const float* k1 = weight_data_r2.row(q + 1);
+            const float* k2 = weight_data_r2.row(q + 2);
+            const float* k3 = weight_data_r2.row(q + 3);
+            const float* k4 = weight_data_r2.row(q + 4);
+            const float* k5 = weight_data_r2.row(q + 5);
+            const float* k6 = weight_data_r2.row(q + 6);
+            const float* k7 = weight_data_r2.row(q + 7);
+
+            int p = 0;
+            for (; p + 7 < num_input; p += 8)
             {
-                for (int j = 0; j < out_elempack; j++)
-                {
-                    *g0++ = weight_data_r2.row<const unsigned short>(q + j)[p];
-                }
+                // transpose 8x8
+                asm volatile(
+                    "ld1    {v0.4s, v1.4s}, [%0], #32   \n"
+                    "ld1    {v2.4s, v3.4s}, [%1], #32   \n"
+                    "ld1    {v4.4s, v5.4s}, [%2], #32   \n"
+                    "ld1    {v6.4s, v7.4s}, [%3], #32   \n"
+                    "ld1    {v8.4s, v9.4s}, [%4], #32   \n"
+                    "ld1    {v10.4s, v11.4s}, [%5], #32 \n"
+                    "ld1    {v12.4s, v13.4s}, [%6], #32 \n"
+                    "ld1    {v14.4s, v15.4s}, [%7], #32 \n"
+
+                    "fcvtn  v0.4h, v0.4s            \n"
+                    "fcvtn2 v0.8h, v1.4s            \n"
+                    "fcvtn  v1.4h, v2.4s            \n"
+                    "fcvtn2 v1.8h, v3.4s            \n"
+                    "fcvtn  v2.4h, v4.4s            \n"
+                    "fcvtn2 v2.8h, v5.4s            \n"
+                    "fcvtn  v3.4h, v6.4s            \n"
+                    "fcvtn2 v3.8h, v7.4s            \n"
+                    "fcvtn  v4.4h, v8.4s            \n"
+                    "fcvtn2 v4.8h, v9.4s            \n"
+                    "fcvtn  v5.4h, v10.4s           \n"
+                    "fcvtn2 v5.8h, v11.4s           \n"
+                    "fcvtn  v6.4h, v12.4s           \n"
+                    "fcvtn2 v6.8h, v13.4s           \n"
+                    "fcvtn  v7.4h, v14.4s           \n"
+                    "fcvtn2 v7.8h, v15.4s           \n"
+
+                    "zip1   v16.8h, v0.8h, v4.8h    \n"
+                    "zip2   v20.8h, v0.8h, v4.8h    \n"
+                    "zip1   v17.8h, v1.8h, v5.8h    \n"
+                    "zip2   v21.8h, v1.8h, v5.8h    \n"
+                    "zip1   v18.8h, v2.8h, v6.8h    \n"
+                    "zip2   v22.8h, v2.8h, v6.8h    \n"
+                    "zip1   v19.8h, v3.8h, v7.8h    \n"
+                    "zip2   v23.8h, v3.8h, v7.8h    \n"
+
+                    "st4    {v16.8h, v17.8h, v18.8h, v19.8h}, [%8], #64 \n"
+                    "st4    {v20.8h, v21.8h, v22.8h, v23.8h}, [%8], #64 \n"
+                    : "=r"(k0), // %0
+                    "=r"(k1), // %1
+                    "=r"(k2), // %2
+                    "=r"(k3), // %3
+                    "=r"(k4), // %4
+                    "=r"(k5), // %5
+                    "=r"(k6), // %6
+                    "=r"(k7), // %7
+                    "=r"(g0)  // %8
+                    : "0"(k0),
+                    "1"(k1),
+                    "2"(k2),
+                    "3"(k3),
+                    "4"(k4),
+                    "5"(k5),
+                    "6"(k6),
+                    "7"(k7),
+                    "8"(g0)
+                    : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
+            }
+            for (; p < num_input; p++)
+            {
+                g0[0] = float32_to_float16(*k0++);
+                g0[1] = float32_to_float16(*k1++);
+                g0[2] = float32_to_float16(*k2++);
+                g0[3] = float32_to_float16(*k3++);
+                g0[4] = float32_to_float16(*k4++);
+                g0[5] = float32_to_float16(*k5++);
+                g0[6] = float32_to_float16(*k6++);
+                g0[7] = float32_to_float16(*k7++);
+                g0 += 8;
             }
         }
+    }
+#endif // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+
+    if (out_elempack == 4)
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+        weight_data_tm.create(num_input, num_output / 4, (size_t)8u, 4);
+
+        for (int q = 0; q + 3 < num_output; q += 4)
+        {
+            unsigned short* g0 = weight_data_tm.row<unsigned short>(q / 4);
+
+            const float* k0 = weight_data_r2.row(q);
+            const float* k1 = weight_data_r2.row(q + 1);
+            const float* k2 = weight_data_r2.row(q + 2);
+            const float* k3 = weight_data_r2.row(q + 3);
+
+            int p = 0;
+            for (; p + 3 < num_input; p += 4)
+            {
+                // transpose 4x4
+                uint16x4x4_t _p;
+                _p.val[0] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k0)));
+                _p.val[1] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k1)));
+                _p.val[2] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k2)));
+                _p.val[3] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k3)));
+                vst4_u16(g0, _p);
+
+                k0 += 4;
+                k1 += 4;
+                k2 += 4;
+                k3 += 4;
+                g0 += 16;
+            }
+            for (; p < num_input; p++)
+            {
+                g0[0] = float32_to_float16(*k0++);
+                g0[1] = float32_to_float16(*k1++);
+                g0[2] = float32_to_float16(*k2++);
+                g0[3] = float32_to_float16(*k3++);
+                g0 += 4;
+            }
+        }
+    }
+
+    if (out_elempack == 1)
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+        ncnn::cast_float32_to_float16(weight_data_r2, weight_data_tm, opt);
     }
 #else  // (__ARM_FP & 2)
     (void)weight_data;
