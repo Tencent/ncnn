@@ -26,9 +26,7 @@ class Model(nn.Module):
         self.up_3 = nn.UpsamplingNearest2d(scale_factor=1)
 
     def forward(self, x):
-        print(x.shape)
         x = self.up_0(x)
-        print(x.shape)
         x = self.up_1(x)
         x = self.up_2(x)
         x = self.up_3(x)
