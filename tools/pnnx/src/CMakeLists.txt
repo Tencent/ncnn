@@ -292,6 +292,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_einsum.cpp
     pass_level5/eliminate_noop_expression.cpp
     pass_level5/eliminate_noop_pad.cpp
+    pass_level5/eliminate_noop_upsample.cpp
     pass_level5/eliminate_slice.cpp
     pass_level5/eliminate_view_reshape.cpp
     pass_level5/eval_expression.cpp
