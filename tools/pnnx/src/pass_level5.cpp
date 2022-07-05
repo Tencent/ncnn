@@ -21,6 +21,7 @@
 #include "pass_level5/eliminate_noop_einsum.h"
 #include "pass_level5/eliminate_noop_expression.h"
 #include "pass_level5/eliminate_noop_pad.h"
+#include "pass_level5/eliminate_noop_upsample.h"
 #include "pass_level5/eliminate_slice.h"
 #include "pass_level5/eliminate_view_reshape.h"
 #include "pass_level5/eval_expression.h"
@@ -82,6 +83,8 @@ void pass_level5(Graph& g, const std::map<std::string, Attribute>& foldable_cons
     eliminate_noop_cat(g);
 
     eliminate_dropout(g);
+
+    eliminate_noop_upsample(g);
 
     fuse_contiguous_view(g);
 

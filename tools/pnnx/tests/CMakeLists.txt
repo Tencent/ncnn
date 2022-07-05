@@ -245,6 +245,7 @@ pnnx_add_test(vit_b_32)
 
 pnnx_add_test(pnnx_eliminate_noop_cat)
 pnnx_add_test(pnnx_eliminate_noop_math)
+pnnx_add_test(pnnx_eliminate_noop_upsample)
 pnnx_add_test(pnnx_fold_constant)
 pnnx_add_test(pnnx_fuse_conv1d_batchnorm1d)
 pnnx_add_test(pnnx_fuse_conv2d_batchnorm2d)
