@@ -620,12 +620,12 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
             for (; p + 3 < num_input; p += 4)
             {
                 // transpose 4x4
-                float16x4x4_t _p;
-                _p.val[0] = vcvt_f16_f32(vld1q_f32(k0));
-                _p.val[1] = vcvt_f16_f32(vld1q_f32(k1));
-                _p.val[2] = vcvt_f16_f32(vld1q_f32(k2));
-                _p.val[3] = vcvt_f16_f32(vld1q_f32(k3));
-                vst4_f16(g0, _p);
+                uint16x4x4_t _p;
+                _p.val[0] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k0)));
+                _p.val[1] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k1)));
+                _p.val[2] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k2)));
+                _p.val[3] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k3)));
+                vst4_u16(g0, _p);
 
                 k0 += 4;
                 k1 += 4;

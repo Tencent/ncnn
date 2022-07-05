@@ -626,8 +626,8 @@ int InnerProduct_mips::create_pipeline_fp16s(const Option& opt)
                 v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
                 v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
 
-                v8i16 _p0 = __msa_fexdo_h(_r0123_1, _r0123_0);
-                v8i16 _p1 = __msa_fexdo_h(_r0123_3, _r0123_2);
+                v8i16 _p0 = __msa_fexdo_h((v4f32)_r0123_1, (v4f32)_r0123_0);
+                v8i16 _p1 = __msa_fexdo_h((v4f32)_r0123_3, (v4f32)_r0123_2);
 
                 __msa_st_h(_p0, g0, 0);
                 __msa_st_h(_p1, g0 + 8, 0);
