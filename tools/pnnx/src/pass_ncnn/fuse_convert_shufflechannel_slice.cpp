@@ -63,7 +63,7 @@ pnnx.Output             output      2 0 out0 out1
         const std::vector<int>& dims = captured_params.at("dims").ai;
         const std::vector<int>& shape2 = captured_params.at("shape2").ai;
 
-        if (dims != std::vector<int>{1,0,2})
+        if (dims != std::vector<int>{1, 0, 2})
             return false;
 
         if (shape[0] != shape2[2] || shape[1] != shape2[0] || shape[2] != shape2[3] * shape2[4] || shape[1] != 2 || shape2[1] != -1)
