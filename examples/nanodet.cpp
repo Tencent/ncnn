@@ -226,9 +226,9 @@ static int detect_nanodet(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/RangiLyu/nanodet
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    if (!nanodet.load_param("nanodet_m.param"))
+    if (nanodet.load_param("nanodet_m.param"))
         exit(-1);
-    if (!nanodet.load_model("nanodet_m.bin"))
+    if (nanodet.load_model("nanodet_m.bin"))
         exit(-1);
 
     int width = bgr.cols;
