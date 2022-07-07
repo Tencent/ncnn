@@ -57,6 +57,8 @@ void fuse_slice_to_tensor_split(Graph& graph)
             tensor_split_indices.push_back(end);
             slice_n_ops.push_back(op);
 
+            Operator* cur = op;
+
             bool full_dimsize_slice = false;
             while (1)
             {
@@ -96,6 +98,9 @@ void fuse_slice_to_tensor_split(Graph& graph)
                 if (!op2)
                     break;
 
+                if (std::find(graph.ops.begin(), graph.ops.end(), op2) < std::find(graph.ops.begin(), graph.ops.end(), cur))
+                    cur = op2;
+
                 int end2 = op2->params.at("ends").ai[0];
                 if (end2 == -1)
                 {
@@ -116,7 +121,7 @@ void fuse_slice_to_tensor_split(Graph& graph)
             matched = true;
 
             // delete all slice ops and replace with tensor_split
-            Operator* op_tensor_split = graph.new_operator_before("torch.tensor_split", op->name, op);
+            Operator* op_tensor_split = graph.new_operator_before("torch.tensor_split", op->name, cur);
             op_tensor_split->params["dim"] = dim;
             op_tensor_split->params["indices"] = tensor_split_indices;
 
