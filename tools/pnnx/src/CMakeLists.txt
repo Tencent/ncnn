@@ -292,6 +292,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_einsum.cpp
     pass_level5/eliminate_noop_expression.cpp
     pass_level5/eliminate_noop_pad.cpp
+    pass_level5/eliminate_noop_upsample.cpp
     pass_level5/eliminate_slice.cpp
     pass_level5/eliminate_view_reshape.cpp
     pass_level5/eval_expression.cpp
@@ -326,6 +327,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_Tensor_select.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
+    pass_ncnn/fuse_convert_shufflechannel_slice.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/solve_batch_index.cpp
@@ -341,6 +343,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_deconvolutiondepthwise_activation.cpp
     pass_ncnn/fuse_innerproduct_activation.cpp
     pass_ncnn/fuse_transpose_matmul.cpp
+    pass_ncnn/fuse_binaryop_eltwise.cpp
     pass_ncnn/insert_reshape_linear.cpp
     pass_ncnn/insert_reshape_pooling.cpp
 

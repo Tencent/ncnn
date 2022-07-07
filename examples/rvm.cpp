@@ -47,9 +47,9 @@ static int detect_rvm(const cv::Mat& bgr, cv::Mat& pha, cv::Mat& fgr)
     net.opt.use_vulkan_compute = false;
     //original pretrained model from https://github.com/PeterL1n/RobustVideoMatting
     //ncnn model https://pan.baidu.com/s/11iEY2RGfzWFtce8ue7T3JQ password: d9t6
-    if (!net.load_param("rvm_512.param"))
+    if (net.load_param("rvm_512.param"))
         exit(-1);
-    if (!net.load_model("rvm_512.bin"))
+    if (net.load_model("rvm_512.bin"))
         exit(-1);
 
     //if you use another input size,pleaze change input shape

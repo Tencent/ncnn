@@ -591,28 +591,68 @@ int InnerProduct_mips::create_pipeline_fp16s(const Option& opt)
         out_elempack = num_output % 4 == 0 ? 4 : 1;
     }
 
-    Mat weight_data_fp16;
-    ncnn::cast_float32_to_float16(weight_data, weight_data_fp16, opt);
-
     // src = inch-outch
     // dst = pb-inch-outch/pb
+    if (out_elempack == 4)
     {
-        Mat weight_data_r2 = weight_data_fp16.reshape(num_input, num_output);
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
 
-        weight_data_tm.create(num_input, num_output / out_elempack, (size_t)2u * out_elempack, out_elempack);
+        weight_data_tm.create(num_input, num_output / 4, (size_t)8u, 4);
 
-        for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
+        for (int q = 0; q + 3 < num_output; q += 4)
         {
-            unsigned short* g0 = weight_data_tm.row<unsigned short>(q / out_elempack);
+            unsigned short* g0 = weight_data_tm.row<unsigned short>(q / 4);
 
-            for (int p = 0; p < num_input; p++)
+            const float* k0 = weight_data_r2.row(q);
+            const float* k1 = weight_data_r2.row(q + 1);
+            const float* k2 = weight_data_r2.row(q + 2);
+            const float* k3 = weight_data_r2.row(q + 3);
+
+            int p = 0;
+            for (; p + 3 < num_input; p += 4)
             {
-                for (int j = 0; j < out_elempack; j++)
-                {
-                    *g0++ = weight_data_r2.row<const unsigned short>(q + j)[p];
-                }
+                // transpose 4x4
+                v4f32 _r0 = (v4f32)__msa_ld_w(k0, 0);
+                v4f32 _r1 = (v4f32)__msa_ld_w(k1, 0);
+                v4f32 _r2 = (v4f32)__msa_ld_w(k2, 0);
+                v4f32 _r3 = (v4f32)__msa_ld_w(k3, 0);
+
+                v4i32 _r01r = __msa_ilvr_w((v4i32)_r1, (v4i32)_r0);
+                v4i32 _r01l = __msa_ilvl_w((v4i32)_r1, (v4i32)_r0);
+                v4i32 _r23r = __msa_ilvr_w((v4i32)_r3, (v4i32)_r2);
+                v4i32 _r23l = __msa_ilvl_w((v4i32)_r3, (v4i32)_r2);
+                v2i64 _r0123_0 = __msa_ilvr_d((v2i64)_r23r, (v2i64)_r01r);
+                v2i64 _r0123_1 = __msa_ilvl_d((v2i64)_r23r, (v2i64)_r01r);
+                v2i64 _r0123_2 = __msa_ilvr_d((v2i64)_r23l, (v2i64)_r01l);
+                v2i64 _r0123_3 = __msa_ilvl_d((v2i64)_r23l, (v2i64)_r01l);
+
+                v8i16 _p0 = __msa_fexdo_h((v4f32)_r0123_1, (v4f32)_r0123_0);
+                v8i16 _p1 = __msa_fexdo_h((v4f32)_r0123_3, (v4f32)_r0123_2);
+
+                __msa_st_h(_p0, g0, 0);
+                __msa_st_h(_p1, g0 + 8, 0);
+
+                k0 += 4;
+                k1 += 4;
+                k2 += 4;
+                k3 += 4;
+                g0 += 16;
+            }
+            for (; p < num_input; p++)
+            {
+                g0[0] = float32_to_float16(*k0++);
+                g0[1] = float32_to_float16(*k1++);
+                g0[2] = float32_to_float16(*k2++);
+                g0[3] = float32_to_float16(*k3++);
+                g0 += 4;
             }
         }
+    }
+
+    if (out_elempack == 1)
+    {
+        Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+        ncnn::cast_float32_to_float16(weight_data_r2, weight_data_tm, opt);
     }
 
     if (opt.lightmode)

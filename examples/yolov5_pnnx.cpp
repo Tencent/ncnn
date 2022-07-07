@@ -207,9 +207,9 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
 
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    if (!yolov5.load_param("yolov5s.ncnn.param"))
+    if (yolov5.load_param("yolov5s.ncnn.param"))
         exit(-1);
-    if (!yolov5.load_model("yolov5s.ncnn.bin"))
+    if (yolov5.load_model("yolov5s.ncnn.bin"))
         exit(-1);
 
     const int target_size = 640;

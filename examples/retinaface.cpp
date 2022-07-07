@@ -248,9 +248,9 @@ static int detect_retinaface(const cv::Mat& bgr, std::vector<FaceObject>& faceob
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
     //     retinaface.load_param("retinaface-R50.param");
     //     retinaface.load_model("retinaface-R50.bin");
-    if (!retinaface.load_param("mnet.25-opt.param"))
+    if (retinaface.load_param("mnet.25-opt.param"))
         exit(-1);
-    if (!retinaface.load_model("mnet.25-opt.bin"))
+    if (retinaface.load_model("mnet.25-opt.bin"))
         exit(-1);
 
     const float prob_threshold = 0.8f;
