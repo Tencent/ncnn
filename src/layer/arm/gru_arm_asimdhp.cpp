@@ -317,13 +317,10 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             float32x4_t _U = vld1q_f32(gates_data);
             float32x4_t _N = vld1q_f32(gates_data + 4);
 
-            float32x4_t _H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _U), _N), vmulq_f32(_U, vld1q_f32(hidden_ptr)));
+            float32x4_t _H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _U), _N), vmulq_f32(_U, vld1q_f32(hidden_ptr + q)));
 
-            vst1q_f32(hidden_ptr, _H);
-            vst1_f16(output_data, vcvt_f16_f32(_H));
-
-            hidden_ptr += 4;
-            output_data += 4;
+            vst1q_f32(hidden_ptr + q, _H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_H));
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
@@ -333,10 +330,10 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             float U = gates_data[0];
             float N = gates_data[1];
 
-            float H = (1 - U) * N + U * *hidden_ptr;
+            float H = (1 - U) * N + U * hidden_ptr[q];
 
-            *hidden_ptr++ = H;
-            *output_data++ = (__fp16)H;
+            hidden_ptr[q] = H;
+            output_data[q] = (__fp16)H;
         }
     }
 
@@ -651,13 +648,10 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float32x4_t _U = vld1q_f32(gates_data);
             float32x4_t _N = vld1q_f32(gates_data + 4);
 
-            float32x4_t _H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _U), _N), vmulq_f32(_U, vld1q_f32(hidden_ptr)));
+            float32x4_t _H = vaddq_f32(vmulq_f32(vsubq_f32(vdupq_n_f32(1.f), _U), _N), vmulq_f32(_U, vld1q_f32(hidden_ptr + q)));
 
-            vst1q_f32(hidden_ptr, _H);
-            vst1_f16(output_data, vcvt_f16_f32(_H));
-
-            hidden_ptr += 4;
-            output_data += 4;
+            vst1q_f32(hidden_ptr + q, _H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_H));
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
@@ -667,10 +661,10 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float U = gates_data[0];
             float N = gates_data[1];
 
-            float H = (1 - U) * N + U * *hidden_ptr;
+            float H = (1 - U) * N + U * hidden_ptr[q];
 
-            *hidden_ptr++ = H;
-            *output_data++ = (__fp16)H;
+            hidden_ptr[q] = H;
+            output_data[q] = (__fp16)H;
         }
     }
 
