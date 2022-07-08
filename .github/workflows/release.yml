@@ -37,7 +37,7 @@ jobs:
       run: |
         rm -rf .git
         rm -f /tmp/${{ env.PACKAGENAME }}.zip
-        zip -9 -r /tmp/${{ env.PACKAGENAME }}.zip .
+        zip -9 -y -r /tmp/${{ env.PACKAGENAME }}.zip .
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -62,25 +62,14 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/bin
-        cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/onnx/onnx2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/darknet/darknet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
-        strip -g ${{ env.PACKAGENAME }}/bin/*
+        cp -a build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -105,25 +94,14 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r -P build/install/* ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/bin
-        cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/onnx/onnx2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/darknet/darknet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
-        strip -g ${{ env.PACKAGENAME }}/bin/*
+        cp -a -P build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -148,25 +126,14 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install/* ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/bin
-        cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/onnx/onnx2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/darknet/darknet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
-        strip -g ${{ env.PACKAGENAME }}/bin/*
+        cp -a build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -191,25 +158,78 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r -P build/install/* ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/bin
-        cp build/tools/caffe/caffe2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/mxnet/mxnet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/onnx/onnx2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/darknet/darknet2ncnn ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnoptimize ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnn2mem ${{ env.PACKAGENAME }}/bin
-        cp build/tools/ncnnmerge ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2table ${{ env.PACKAGENAME }}/bin
-        cp build/tools/quantize/ncnn2int8 ${{ env.PACKAGENAME }}/bin
-        strip -g ${{ env.PACKAGENAME }}/bin/*
+        cp -a -P build/install/* ${{ env.PACKAGENAME }}
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload-zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  ubuntu-2204:
+    needs: [setup]
+    runs-on: ubuntu-22.04
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: apt
+      run: |
+        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 2
+        cmake --build . --target install/strip
+    - name: package
+      run: |
+        rm -rf ${{ env.PACKAGENAME }}
+        mkdir -p ${{ env.PACKAGENAME }}
+        cp -a build/install/* ${{ env.PACKAGENAME }}
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+    - name: upload-zip
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ env.PACKAGENAME }}
+        path: ${{ env.PACKAGENAME }}.zip
+
+  ubuntu-2204-shared:
+    needs: [setup]
+    runs-on: ubuntu-22.04
+    env:
+      PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204-shared
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: apt
+      run: |
+        sudo apt-get install -y libvulkan-dev libprotobuf-dev protobuf-compiler
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TOOLS=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
+        cmake --build . -j 2
+        cmake --build . --target install/strip
+    - name: package
+      run: |
+        rm -rf ${{ env.PACKAGENAME }}
+        mkdir -p ${{ env.PACKAGENAME }}
+        cp -a -P build/install/* ${{ env.PACKAGENAME }}
+        rm -f ${{ env.PACKAGENAME }}.zip
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -244,7 +264,7 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="x86_64" \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-arm64
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
@@ -253,13 +273,13 @@ jobs:
         cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DCMAKE_OSX_ARCHITECTURES="arm64" \
             -DLIBOMP_ENABLE_SHARED=OFF -DLIBOMP_OMPT_SUPPORT=OFF -DLIBOMP_USE_HWLOC=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: merge-fat-library
       if: steps.cache-openmp.outputs.cache-hit != 'true'
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -r openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-11.0.0.src/build-x86_64/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build-x86_64/install/lib/libomp.a openmp-11.0.0.src/build-arm64/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
@@ -293,7 +313,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-arm64
       run: |
         mkdir build-arm64 && cd build-arm64
@@ -303,7 +323,7 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -314,7 +334,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-macos/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-macos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -326,7 +346,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
@@ -372,7 +392,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-arm64
       run: |
         export VULKAN_SDK=`pwd`/vulkansdk-macos-1.2.189.0/macOS
@@ -386,7 +406,7 @@ jobs:
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 3
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package-openmp
       run: |
         rm -rf openmp.framework
@@ -397,7 +417,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-macos/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-macos/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-macos/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
@@ -411,7 +431,7 @@ jobs:
         libtool -static build-x86_64/install/lib/libglslang.a build-x86_64/install/lib/libMachineIndependent.a build-x86_64/install/lib/libGenericCodeGen.a build-x86_64/install/lib/libSPIRV.a build-x86_64/install/lib/libOGLCompiler.a build-x86_64/install/lib/libOSDependent.a -o build-x86_64/install/lib/libglslang_combined.a
         libtool -static build-arm64/install/lib/libglslang.a build-arm64/install/lib/libMachineIndependent.a build-arm64/install/lib/libGenericCodeGen.a build-arm64/install/lib/libSPIRV.a build-arm64/install/lib/libOGLCompiler.a build-arm64/install/lib/libOSDependent.a -o build-arm64/install/lib/libglslang_combined.a
         lipo -create build-x86_64/install/lib/libglslang_combined.a build-arm64/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
-        cp -r build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -423,7 +443,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build-x86_64/install/lib/libncnn.a build-arm64/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build-x86_64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -480,7 +500,7 @@ jobs:
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -r openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build/install/lib/libomp.a openmp-11.0.0.src/build-simulator/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
@@ -507,11 +527,22 @@ jobs:
         sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
         sudo cp openmp-ios/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp openmp-ios/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: build
+    - name: build-armv7
       run: |
-        mkdir build && cd build
+        mkdir build-armv7 && cd build-armv7
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 3
+        cmake --build . --target install
+    - name: build-arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=0 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
@@ -539,7 +570,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -550,8 +581,8 @@ jobs:
         ln -s Versions/Current/Headers ncnn.framework/Headers
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        lipo -create build-armv7/install/lib/libncnn.a build-arm64/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
@@ -625,7 +656,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-ios/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
@@ -639,7 +670,7 @@ jobs:
         libtool -static build/install/lib/libglslang.a build/install/lib/libMachineIndependent.a build/install/lib/libGenericCodeGen.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
         libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libMachineIndependent.a build-simulator/install/lib/libGenericCodeGen.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
         lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
-        cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -651,7 +682,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -708,7 +739,7 @@ jobs:
       run: |
         rm -rf $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install
-        cp -r openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
+        cp -a openmp-11.0.0.src/build/install/include $GITHUB_WORKSPACE/openmp-install
         mkdir -p $GITHUB_WORKSPACE/openmp-install/lib
         lipo -create openmp-11.0.0.src/build/install/lib/libomp.a openmp-11.0.0.src/build-simulator/install/lib/libomp.a -o $GITHUB_WORKSPACE/openmp-install/lib/libomp.a
     - name: upload
@@ -735,11 +766,22 @@ jobs:
         sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib
         sudo cp openmp-ios-bitcode/include/* $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/include
         sudo cp openmp-ios-bitcode/lib/libomp.a $DEVELOPER_DIR/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/usr/lib
-    - name: build
+    - name: build-armv7
       run: |
-        mkdir build && cd build
+        mkdir build-armv7 && cd build-armv7
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
-            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7;arm64;arm64e" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="armv7" \
+            -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
+            -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
+            -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
+            -DNCNN_BUILD_BENCHMARK=OFF ..
+        cmake --build . -j 3
+        cmake --build . --target install
+    - name: build-arm64
+      run: |
+        mkdir build-arm64 && cd build-arm64
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/ios.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+            -DIOS_PLATFORM=OS -DENABLE_BITCODE=1 -DENABLE_ARC=0 -DENABLE_VISIBILITY=0 -DIOS_ARCH="arm64;arm64e" \
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk/usr/lib/libomp.a" \
@@ -767,7 +809,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -778,8 +820,8 @@ jobs:
         ln -s Versions/Current/Headers ncnn.framework/Headers
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
-        lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        lipo -create build-armv7/install/lib/libncnn.a build-arm64/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
+        cp -a build-arm64/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework ncnn.framework
@@ -853,7 +895,7 @@ jobs:
         ln -s Versions/Current/Resources openmp.framework/Resources
         ln -s Versions/Current/openmp openmp.framework/openmp
         cp openmp-ios-bitcode/lib/libomp.a openmp.framework/Versions/A/openmp
-        cp -r openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
+        cp -a openmp-ios-bitcode/include/* openmp.framework/Versions/A/Headers/
         sed -e 's/__NAME__/openmp/g' -e 's/__IDENTIFIER__/org.llvm.openmp/g' -e 's/__VERSION__/11.0/g' Info.plist > openmp.framework/Versions/A/Resources/Info.plist
     - name: package-glslang
       run: |
@@ -867,7 +909,7 @@ jobs:
         libtool -static build/install/lib/libglslang.a build/install/lib/libMachineIndependent.a build/install/lib/libGenericCodeGen.a build/install/lib/libSPIRV.a build/install/lib/libOGLCompiler.a build/install/lib/libOSDependent.a -o build/install/lib/libglslang_combined.a
         libtool -static build-simulator/install/lib/libglslang.a build-simulator/install/lib/libMachineIndependent.a build-simulator/install/lib/libGenericCodeGen.a build-simulator/install/lib/libSPIRV.a build-simulator/install/lib/libOGLCompiler.a build-simulator/install/lib/libOSDependent.a -o build-simulator/install/lib/libglslang_combined.a
         lipo -create build/install/lib/libglslang_combined.a build-simulator/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
-        cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
+        cp -a build/install/include/glslang glslang.framework/Versions/A/Headers/
         sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
     - name: package
       run: |
@@ -879,7 +921,7 @@ jobs:
         ln -s Versions/Current/Resources ncnn.framework/Resources
         ln -s Versions/Current/ncnn ncnn.framework/ncnn
         lipo -create build/install/lib/libncnn.a build-simulator/install/lib/libncnn.a -o ncnn.framework/Versions/A/ncnn
-        cp -r build/install/include/* ncnn.framework/Versions/A/Headers/
+        cp -a build/install/include/* ncnn.framework/Versions/A/Headers/
         sed -e 's/__NAME__/ncnn/g' -e 's/__IDENTIFIER__/com.tencent.ncnn/g' -e 's/__VERSION__/1.0/g' Info.plist > ncnn.framework/Versions/A/Resources/Info.plist
         rm -f ${{ env.PACKAGENAME }}.zip
         zip -9 -y -r ${{ env.PACKAGENAME }}.zip openmp.framework glslang.framework ncnn.framework
@@ -897,53 +939,49 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-aarch64
       run: |
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/armeabi-v7a
-        mkdir -p ${{ env.PACKAGENAME }}/arm64-v8a
-        mkdir -p ${{ env.PACKAGENAME }}/x86
-        mkdir -p ${{ env.PACKAGENAME }}/x86_64
-        cp -r build-armv7/install/* ${{ env.PACKAGENAME }}/armeabi-v7a/
-        cp -r build-aarch64/install/* ${{ env.PACKAGENAME }}/arm64-v8a/
-        cp -r build-x86/install/* ${{ env.PACKAGENAME }}/x86/
-        cp -r build-x86_64/install/* ${{ env.PACKAGENAME }}/x86_64/
+        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -958,53 +996,49 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-aarch64
       run: |
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-x86
       run: |
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-14 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-21 \
             -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/armeabi-v7a
-        mkdir -p ${{ env.PACKAGENAME }}/arm64-v8a
-        mkdir -p ${{ env.PACKAGENAME }}/x86
-        mkdir -p ${{ env.PACKAGENAME }}/x86_64
-        cp -r build-armv7/install/* ${{ env.PACKAGENAME }}/armeabi-v7a/
-        cp -r build-aarch64/install/* ${{ env.PACKAGENAME }}/arm64-v8a/
-        cp -r build-x86/install/* ${{ env.PACKAGENAME }}/x86/
-        cp -r build-x86_64/install/* ${{ env.PACKAGENAME }}/x86_64/
+        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -1034,57 +1068,53 @@ jobs:
         rm -rf 1.2.189.0/source 1.2.189.0/samples
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-aarch64
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-x86
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/armeabi-v7a
-        mkdir -p ${{ env.PACKAGENAME }}/arm64-v8a
-        mkdir -p ${{ env.PACKAGENAME }}/x86
-        mkdir -p ${{ env.PACKAGENAME }}/x86_64
-        cp -r build-armv7/install/* ${{ env.PACKAGENAME }}/armeabi-v7a/
-        cp -r build-aarch64/install/* ${{ env.PACKAGENAME }}/arm64-v8a/
-        cp -r build-x86/install/* ${{ env.PACKAGENAME }}/x86/
-        cp -r build-x86_64/install/* ${{ env.PACKAGENAME }}/x86_64/
+        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -1114,57 +1144,53 @@ jobs:
         rm -rf 1.2.189.0/source 1.2.189.0/samples
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: ndk-fix-debug
-      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake
+      run: sed -i -e '/^  -g$/d' $ANDROID_HOME/ndk-bundle/build/cmake/android-legacy.toolchain.cmake
     - name: build-armv7
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-armv7 && cd build-armv7
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-aarch64
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-aarch64 && cd build-aarch64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="arm64-v8a" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-x86
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86 && cd build-x86
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-x86_64
       run: |
         export PATH=`pwd`/1.2.189.0/x86_64/bin:$PATH
         mkdir build-x86_64 && cd build-x86_64
-        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
+        cmake -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk-bundle/build/cmake/android.toolchain.cmake -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=install -DNCNN_VERSION_STRING="${{ needs.setup.outputs.VERSION }}" \
             -DANDROID_ABI="x86_64" -DANDROID_PLATFORM=android-24 \
             -DNCNN_VULKAN=ON -DNCNN_BUILD_BENCHMARK=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        mkdir -p ${{ env.PACKAGENAME }}/armeabi-v7a
-        mkdir -p ${{ env.PACKAGENAME }}/arm64-v8a
-        mkdir -p ${{ env.PACKAGENAME }}/x86
-        mkdir -p ${{ env.PACKAGENAME }}/x86_64
-        cp -r build-armv7/install/* ${{ env.PACKAGENAME }}/armeabi-v7a/
-        cp -r build-aarch64/install/* ${{ env.PACKAGENAME }}/arm64-v8a/
-        cp -r build-x86/install/* ${{ env.PACKAGENAME }}/x86/
-        cp -r build-x86_64/install/* ${{ env.PACKAGENAME }}/x86_64/
+        cp -a build-armv7/install ${{ env.PACKAGENAME }}/armeabi-v7a
+        cp -a build-aarch64/install ${{ env.PACKAGENAME }}/arm64-v8a
+        cp -a build-x86/install ${{ env.PACKAGENAME }}/x86
+        cp -a build-x86_64/install ${{ env.PACKAGENAME }}/x86_64
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -1192,7 +1218,7 @@ jobs:
             -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-simd
       run: |
         source emsdk/emsdk_env.sh
@@ -1201,7 +1227,7 @@ jobs:
             -DNCNN_THREADS=OFF -DNCNN_OPENMP=OFF -DNCNN_SIMPLEOMP=OFF -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-threads
       run: |
         source emsdk/emsdk_env.sh
@@ -1210,7 +1236,7 @@ jobs:
             -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: build-simd-threads
       run: |
         source emsdk/emsdk_env.sh
@@ -1219,17 +1245,17 @@ jobs:
             -DNCNN_THREADS=ON -DNCNN_OPENMP=ON -DNCNN_SIMPLEOMP=ON -DNCNN_SIMPLEOCV=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=ON -DNCNN_AVX2=OFF -DNCNN_AVX=OFF \
             -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_BENCHMARK=OFF ..
         cmake --build . -j 2
-        cmake --build . --target install
+        cmake --build . --target install/strip
     - name: package
       run: |
         rm -rf ${{ env.PACKAGENAME }}
         mkdir -p ${{ env.PACKAGENAME }}
-        cp -r build/install ${{ env.PACKAGENAME }}/basic
-        cp -r build-simd/install ${{ env.PACKAGENAME }}/simd
-        cp -r build-threads/install ${{ env.PACKAGENAME }}/threads
-        cp -r build-simd-threads/install ${{ env.PACKAGENAME }}/simd-threads
+        cp -a build/install ${{ env.PACKAGENAME }}/basic
+        cp -a build-simd/install ${{ env.PACKAGENAME }}/simd
+        cp -a build-threads/install ${{ env.PACKAGENAME }}/threads
+        cp -a build-simd-threads/install ${{ env.PACKAGENAME }}/simd-threads
         rm -f ${{ env.PACKAGENAME }}.zip
-        zip -9 -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
+        zip -9 -y -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
       with:
@@ -1294,24 +1320,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}/x64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
@@ -1377,24 +1385,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}/x64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
@@ -1460,24 +1450,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}/x64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
@@ -1543,24 +1515,6 @@ jobs:
         mkdir ${{ env.PACKAGENAME }}/x64
         Copy-Item -Verbose -Recurse -Path "build-x86\install\*" -Destination "${{ env.PACKAGENAME }}\x86"
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
-        Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
@@ -1642,38 +1596,6 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
-        Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
@@ -1755,38 +1677,6 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
-        Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
@@ -1868,38 +1758,6 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
-        Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
@@ -1981,38 +1839,6 @@ jobs:
         Copy-Item -Verbose -Recurse -Path "build-x64\install\*" -Destination "${{ env.PACKAGENAME }}\x64"
         Copy-Item -Verbose -Recurse -Path "build-arm\install\*" -Destination "${{ env.PACKAGENAME }}\arm"
         Copy-Item -Verbose -Recurse -Path "build-arm64\install\*" -Destination "${{ env.PACKAGENAME }}\arm64"
-        Copy-Item -Verbose -Path "build-x86\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x86\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x86\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\caffe\Release\caffe2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\onnx\Release\onnx2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-x64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\x64\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\mxnet\Release\mxnet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\darknet\Release\darknet2ncnn.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnoptimize.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnn2mem.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\Release\ncnnmerge.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2table.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
-        Copy-Item -Verbose -Path "build-arm64\tools\quantize\Release\ncnn2int8.exe" -Destination "${{ env.PACKAGENAME }}\arm64\bin"
         7z a -r ${{ env.PACKAGENAME }}.zip ${{ env.PACKAGENAME }}
     - name: upload-zip
       uses: actions/upload-artifact@v3
@@ -2023,7 +1849,7 @@ jobs:
   release:
     permissions:
       contents: write  # for actions/create-release to create a release
-    needs: [setup, full-source, ubuntu-1804, ubuntu-1804-shared, ubuntu-2004, ubuntu-2004-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared]
+    needs: [setup, full-source, ubuntu-1804, ubuntu-1804-shared, ubuntu-2004, ubuntu-2004-shared, ubuntu-2204, ubuntu-2204-shared, macos, macos-gpu, ios, ios-gpu, ios-bitcode, ios-gpu-bitcode, android, android-shared, android-gpu, android-gpu-shared, webassembly, windows-vs2015, windows-vs2015-shared, windows-vs2017, windows-vs2017-shared, windows-vs2019, windows-vs2019-shared, windows-vs2022, windows-vs2022-shared]
     runs-on: ubuntu-latest
     steps:
     - name: download
@@ -2091,6 +1917,28 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2004-shared
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
+        asset_name: ${{ env.PACKAGENAME }}.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ubuntu-2204
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip
+        asset_name: ${{ env.PACKAGENAME }}.zip
+        asset_content_type: application/zip
+
+    - name: upload-ncnn-ubuntu-2204-shared
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-ubuntu-2204-shared
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: artifacts/${{ env.PACKAGENAME }}/${{ env.PACKAGENAME }}.zip

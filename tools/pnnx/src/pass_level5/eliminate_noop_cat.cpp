@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,13 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "fuse_chunk_split_unbind_unpack.h"
+#include "eliminate_noop_cat.h"
+
 #include <algorithm>
 #include "pass_level2.h"
 
 namespace pnnx {
 
-void fuse_chunk_split_unbind_unpack(Graph& graph)
+void eliminate_noop_cat(Graph& graph)
 {
     while (1)
     {
@@ -28,37 +29,43 @@ void fuse_chunk_split_unbind_unpack(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "torch.chunk" && op->type != "torch.split" && op->type != "torch.unbind")
+            if (op->type != "torch.cat")
                 continue;
 
-            if (op->outputs.size() != 1)
+            if (op->inputs.size() > 1)
                 continue;
 
-            if (op->outputs[0]->consumers.size() != 1)
-                continue;
-
-            Operator* op2 = op->outputs[0]->consumers[0];
-            if (op2->type != "prim::ListUnpack")
-                continue;
-
+            // delete noop-like cat
             matched = true;
 
-            op->outputs[0]->producer = 0;
-            op->outputs[0]->remove_consumer(op2);
+            op->inputs[0]->remove_consumer(op);
 
-            for (auto& x : op2->outputs)
+            Operand* cat_out = op->outputs[0];
+
+            for (auto& x : cat_out->consumers)
             {
-                x->producer = op;
+                for (size_t j = 0; j < x->inputs.size(); j++)
+                {
+                    if (x->inputs[j] == cat_out)
+                        x->inputs[j] = op->inputs[0];
+                }
+
+                op->inputs[0]->consumers.push_back(x);
             }
 
-            op->outputs = op2->outputs;
+            op->inputs[0]->name = cat_out->name;
 
-            op2->inputs.clear();
-            op2->outputs.clear();
+            cat_out->producer = 0;
+            cat_out->consumers.clear();
 
-            graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), op2));
+            graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), cat_out));
+            delete cat_out;
 
-            delete op2;
+            op->inputs.clear();
+            op->outputs.clear();
+
+            graph.ops.erase(graph.ops.begin() + i);
+            delete op;
 
             break;
         }

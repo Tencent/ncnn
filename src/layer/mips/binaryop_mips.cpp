@@ -985,12 +985,12 @@ MAKE_FUNCTION(binary_op_rdiv, y / x, __msa_fdiv_w(y, x))
 
 int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
+#if __mips_msa
+    using namespace BinaryOp_mips_functor;
+
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& bottom_blob1 = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
-
-#if __mips_msa
-    using namespace BinaryOp_mips_functor;
 
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;

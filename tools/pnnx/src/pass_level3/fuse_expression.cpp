@@ -65,7 +65,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return false;
     }
 
-    if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::pow")
+    if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::pow")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
@@ -75,7 +75,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
 
-    if (op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_" || op->type == "aten::rsub")
+    if (op->type == "aten::add" || op->type == "aten::sub" || op->type == "aten::rsub")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
     }
@@ -88,8 +88,11 @@ static bool operand_maybe_tensor(const Operand* operand)
     return true;
 }
 
-static bool operand_is_foldable(const Operand* operand)
+static bool operand_is_foldable(const Operand* operand, const std::map<std::string, Attribute>& foldable_constants)
 {
+    if (foldable_constants.find(operand->name) != foldable_constants.end())
+        return true;
+
     const Operator* op = operand->producer;
 
     if (op->type == "pnnx.Input")
@@ -97,14 +100,14 @@ static bool operand_is_foldable(const Operand* operand)
 
     for (auto x : op->inputs)
     {
-        if (!operand_is_foldable(x))
+        if (!operand_is_foldable(x, foldable_constants))
             return false;
     }
 
     return true;
 }
 
-static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, bool checksubgraph = true)
+static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::map<std::string, Attribute>& foldable_constants, bool checksubgraph = true)
 {
     // fprintf(stderr, "fuse_expression %s\n", operand->name.c_str());
 
@@ -185,7 +188,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
             }
         }
     }
-    else if (checksubgraph && operand_maybe_tensor(operand) && operand_is_foldable(operand))
+    else if (checksubgraph && operand_maybe_tensor(operand) && operand_is_foldable(operand, foldable_constants))
     {
         // fprintf(stderr, "operand_is_foldable %s\n", operand->name.c_str());
 
@@ -209,51 +212,49 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     }
     else if (op->type == "prim::NumToTensor")
     {
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
     }
     else if (op->type == "prim::ListConstruct")
     {
         expr += "[";
         for (int i = 0; i < (int)op->inputs.size() - 1; i++)
         {
-            fuse_expression(graph, op->inputs[i], expr, inputs);
+            fuse_expression(graph, op->inputs[i], expr, inputs, foldable_constants);
             expr += ",";
         }
         if (op->inputs.size() > 0)
         {
-            fuse_expression(graph, op->inputs[op->inputs.size() - 1], expr, inputs);
+            fuse_expression(graph, op->inputs[op->inputs.size() - 1], expr, inputs, foldable_constants);
         }
         expr += "]";
     }
     else if (op->type == "aten::size")
     {
         expr += "size(";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ",";
-        fuse_expression(graph, op->inputs[1], expr, inputs);
+        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
         expr += ")";
     }
     else if (op->type == "aten::Int")
     {
         expr += "int(";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ")";
     }
     else if (op->type == "aten::to" || op->type == "aten::detach" || op->type == "aten::ScalarImplicit")
     {
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
     }
-    else if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::pow" || op->type == "aten::remainder")
+    else if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::pow" || op->type == "aten::remainder")
     {
         std::string mathop = op->type.substr(6);
-        if (mathop == "div_")
-            mathop = "div";
 
         expr += mathop;
         expr += "(";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ",";
-        fuse_expression(graph, op->inputs[1], expr, inputs);
+        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
         expr += ")";
     }
     else if (op->type == "aten::__and__" || op->type == "aten::__or__" || op->type == "aten::__xor__")
@@ -264,28 +265,24 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
 
         expr += mathop;
         expr += "(";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ",";
-        fuse_expression(graph, op->inputs[1], expr, inputs);
+        fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
         expr += ")";
     }
-    else if (op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_")
+    else if (op->type == "aten::add" || op->type == "aten::sub")
     {
         std::string mathop = op->type.substr(6);
-        if (mathop == "add_")
-            mathop = "add";
-        if (mathop == "sub_")
-            mathop = "sub";
 
         expr += mathop;
         expr += "(";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ",";
 
         std::string expr1;
         std::string expr2;
-        fuse_expression(graph, op->inputs[1], expr1, inputs);
-        fuse_expression(graph, op->inputs[2], expr2, inputs);
+        fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants);
 
         if (expr2 == "1")
         {
@@ -308,8 +305,8 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         expr += "sub(";
         std::string expr1;
         std::string expr2;
-        fuse_expression(graph, op->inputs[1], expr1, inputs);
-        fuse_expression(graph, op->inputs[2], expr2, inputs);
+        fuse_expression(graph, op->inputs[1], expr1, inputs, foldable_constants);
+        fuse_expression(graph, op->inputs[2], expr2, inputs, foldable_constants);
 
         if (expr2 == "1")
         {
@@ -326,25 +323,25 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         }
 
         expr += ",";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ")";
     }
     else if (op->type == "aten::sqrt")
     {
         expr += "sqrt(";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ")";
     }
     else if (op->type == "aten::rsqrt")
     {
         expr += "rsqrt(";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ")";
     }
     else if (op->type == "aten::neg")
     {
         expr += "neg(";
-        fuse_expression(graph, op->inputs[0], expr, inputs);
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ")";
     }
     else
@@ -369,7 +366,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     }
 }
 
-void fuse_expression(Graph& graph)
+void fuse_expression(Graph& graph, const std::map<std::string, Attribute>& foldable_constants)
 {
     int pnnx_expr_index = 0;
 
@@ -406,7 +403,7 @@ void fuse_expression(Graph& graph)
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::pow" || op->type == "aten::remainder")
+            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::sub" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::pow" || op->type == "aten::remainder")
             {
                 need_fuse = true;
             }
@@ -419,7 +416,7 @@ void fuse_expression(Graph& graph)
             {
                 std::string expr;
                 std::vector<Operand*> inputs;
-                fuse_expression(graph, op->outputs[0], expr, inputs, false);
+                fuse_expression(graph, op->outputs[0], expr, inputs, foldable_constants, false);
                 //                 fprintf(stderr, "expr = %s\n", expr.c_str());
 
                 // lets rewrite graph

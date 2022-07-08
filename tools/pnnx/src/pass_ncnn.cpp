@@ -22,13 +22,16 @@
 #include "pass_ncnn/convert_torch_chunk.h"
 #include "pass_ncnn/convert_torch_einsum.h"
 #include "pass_ncnn/convert_torch_split.h"
+#include "pass_ncnn/convert_torch_tensor_split.h"
 #include "pass_ncnn/convert_torch_unbind.h"
 #include "pass_ncnn/convert_Tensor_select.h"
 #include "pass_ncnn/eliminate_output.h"
 #include "pass_ncnn/expand_expression.h"
+#include "pass_ncnn/fuse_convert_shufflechannel_slice.h"
 #include "pass_ncnn/insert_split.h"
 #include "pass_ncnn/chain_multi_output.h"
 #include "pass_ncnn/solve_batch_index.h"
+#include "pass_ncnn/convert_to_fp16_model.h"
 
 #include "pass_ncnn/eliminate_noop.h"
 #include "pass_ncnn/eliminate_tail_reshape_permute.h"
@@ -40,6 +43,8 @@
 #include "pass_ncnn/fuse_deconvolutiondepthwise_activation.h"
 #include "pass_ncnn/fuse_innerproduct_activation.h"
 #include "pass_ncnn/fuse_transpose_matmul.h"
+#include "pass_ncnn/fuse_binaryop_eltwise.h"
+#include "pass_ncnn/insert_reshape_linear.h"
 #include "pass_ncnn/insert_reshape_pooling.h"
 
 #include "pass_level4/dead_code_elimination.h"
@@ -77,16 +82,20 @@ void pass_ncnn(Graph& g)
 
     ncnn::chain_multi_output(g);
 
-    ncnn::insert_reshape_pooling(g);
-
     ncnn::solve_batch_index(g);
 
     ncnn::convert_half_to_float(g);
+
+    ncnn::insert_reshape_pooling(g);
+    ncnn::insert_reshape_linear(g);
+
+    ncnn::fuse_convert_shufflechannel_slice(g);
 
     ncnn::convert_torch_cat(g);
     ncnn::convert_torch_chunk(g);
     ncnn::convert_torch_split(g);
     ncnn::convert_torch_unbind(g);
+    ncnn::convert_torch_tensor_split(g);
     ncnn::convert_torch_einsum(g);
 
     ncnn::convert_Tensor_select(g);
@@ -104,6 +113,7 @@ void pass_ncnn(Graph& g)
 
     ncnn::eliminate_noop(g);
     ncnn::fuse_transpose_matmul(g);
+    ncnn::fuse_binaryop_eltwise(g);
     ncnn::fuse_convolution_activation(g);
     ncnn::fuse_convolution1d_activation(g);
     ncnn::fuse_convolutiondepthwise_activation(g);
@@ -124,6 +134,8 @@ void pass_ncnn(Graph& g)
     ncnn::convert_input(g);
 
     ncnn::eliminate_output(g);
+
+    ncnn::convert_to_fp16_model(g);
 }
 
 } // namespace pnnx

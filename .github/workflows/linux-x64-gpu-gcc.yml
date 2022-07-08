@@ -106,7 +106,7 @@ jobs:
         cmake --build . -j 4
 
   linux-gcc-gpu-t4:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, t4]
     steps:
     - uses: actions/checkout@v3
       with:

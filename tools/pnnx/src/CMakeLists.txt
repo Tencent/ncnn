@@ -193,6 +193,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
     pass_level2/torch_clone.cpp
+    pass_level2/torch_complex.cpp
     pass_level2/torch_dequantize.cpp
     pass_level2/torch_einsum.cpp
     pass_level2/torch_empty.cpp
@@ -205,6 +206,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_gather.cpp
     pass_level2/torch_ge.cpp
     pass_level2/torch_gt.cpp
+    pass_level2/torch_imag.cpp
     pass_level2/torch_index_select.cpp
     pass_level2/torch_le.cpp
     pass_level2/torch_logsumexp.cpp
@@ -222,6 +224,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_quantize_per_tensor.cpp
     pass_level2/torch_randn.cpp
     pass_level2/torch_randn_like.cpp
+    pass_level2/torch_real.cpp
     pass_level2/torch_roll.cpp
     pass_level2/torch_scatter_add.cpp
     pass_level2/torch_split.cpp
@@ -229,12 +232,31 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_stack.cpp
     pass_level2/torch_sum.cpp
     pass_level2/torch_permute.cpp
+    pass_level2/torch_tensor_split.cpp
     pass_level2/torch_transpose.cpp
     pass_level2/torch_unbind.cpp
     pass_level2/torch_unsqueeze.cpp
     pass_level2/torch_var.cpp
     pass_level2/torch_zeros.cpp
     pass_level2/torch_zeros_like.cpp
+    pass_level2/torch_fft_irfft.cpp
+    pass_level2/torch_fft_irfft2.cpp
+    pass_level2/torch_fft_irfftn.cpp
+    pass_level2/torch_fft_rfft.cpp
+    pass_level2/torch_fft_rfft2.cpp
+    pass_level2/torch_fft_rfftn.cpp
+    pass_level2/torch_fft_ihfft.cpp
+    pass_level2/torch_fft_ihfft2.cpp
+    pass_level2/torch_fft_ihfftn.cpp
+    pass_level2/torch_fft_hfft.cpp
+    pass_level2/torch_fft_hfft2.cpp
+    pass_level2/torch_fft_hfftn.cpp
+    pass_level2/torch_fft_ifft.cpp
+    pass_level2/torch_fft_ifft2.cpp
+    pass_level2/torch_fft_ifftn.cpp
+    pass_level2/torch_fft_fft.cpp
+    pass_level2/torch_fft_fft2.cpp
+    pass_level2/torch_fft_fftn.cpp
 
     pass_level2/nn_quantized_FloatFunctional.cpp
 )
@@ -244,8 +266,8 @@ set(pnnx_pass_level3_SRCS
     pass_level3/eliminate_noop_math.cpp
     pass_level3/eliminate_tuple_pair.cpp
     pass_level3/expand_quantization_modules.cpp
-    pass_level3/fuse_cat_stack_tensors.cpp
-    pass_level3/fuse_chunk_split_unbind_unpack.cpp
+    pass_level3/fuse_opnto1_tensors.cpp
+    pass_level3/fuse_op1ton_unpack.cpp
     pass_level3/fuse_einsum_operands.cpp
     pass_level3/fuse_expression.cpp
     pass_level3/fuse_index_expression.cpp
@@ -266,9 +288,11 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_dropout.cpp
     pass_level5/eliminate_identity_operator.cpp
     pass_level5/eliminate_maxpool_indices.cpp
+    pass_level5/eliminate_noop_cat.cpp
     pass_level5/eliminate_noop_einsum.cpp
     pass_level5/eliminate_noop_expression.cpp
     pass_level5/eliminate_noop_pad.cpp
+    pass_level5/eliminate_noop_upsample.cpp
     pass_level5/eliminate_slice.cpp
     pass_level5/eliminate_view_reshape.cpp
     pass_level5/eval_expression.cpp
@@ -283,6 +307,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_select_to_unbind.cpp
     pass_level5/fuse_slice_indices.cpp
+    pass_level5/fuse_slice_to_tensor_split.cpp
     pass_level5/fuse_static_conv.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
@@ -297,13 +322,16 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/convert_torch_chunk.cpp
     pass_ncnn/convert_torch_einsum.cpp
     pass_ncnn/convert_torch_split.cpp
+    pass_ncnn/convert_torch_tensor_split.cpp
     pass_ncnn/convert_torch_unbind.cpp
     pass_ncnn/convert_Tensor_select.cpp
     pass_ncnn/eliminate_output.cpp
     pass_ncnn/expand_expression.cpp
+    pass_ncnn/fuse_convert_shufflechannel_slice.cpp
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/solve_batch_index.cpp
+    pass_ncnn/convert_to_fp16_model.cpp
 
     pass_ncnn/eliminate_noop.cpp
     pass_ncnn/eliminate_tail_reshape_permute.cpp
@@ -315,6 +343,8 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_deconvolutiondepthwise_activation.cpp
     pass_ncnn/fuse_innerproduct_activation.cpp
     pass_ncnn/fuse_transpose_matmul.cpp
+    pass_ncnn/fuse_binaryop_eltwise.cpp
+    pass_ncnn/insert_reshape_linear.cpp
     pass_ncnn/insert_reshape_pooling.cpp
 
     pass_ncnn/F_adaptive_avg_pool1d.cpp
@@ -511,9 +541,10 @@ else()
 endif()
 set_target_properties(pnnx PROPERTIES MACOSX_RPATH TRUE)
 
-install(TARGETS pnnx RUNTIME DESTINATION bin)
+include(GNUInstallDirs)
+install(TARGETS pnnx RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if (WIN32)
     file(GLOB TORCH_DLL "${TORCH_INSTALL_PREFIX}/lib/*.dll")
-    install(FILES ${TORCH_DLL} DESTINATION bin)
+    install(FILES ${TORCH_DLL} DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

@@ -38,6 +38,9 @@ static bool type_is_integer(int type)
     if (type == 7) return true;
     if (type == 8) return true;
     if (type == 9) return true;
+    if (type == 10) return false;
+    if (type == 11) return false;
+    if (type == 12) return false;
     return false;
 }
 
@@ -52,6 +55,9 @@ static const char* type_to_string(int type)
     if (type == 7) return "i8";
     if (type == 8) return "u8";
     if (type == 9) return "bool";
+    if (type == 10) return "cp64";
+    if (type == 11) return "cp128";
+    if (type == 12) return "cp32";
     return "null";
 }
 
@@ -66,6 +72,9 @@ static const char* type_to_numpy_string(int type)
     if (type == 7) return "int8";
     if (type == 8) return "uint8";
     if (type == 9) return "bool8";
+    if (type == 10) return "csingle";
+    if (type == 11) return "cdouble";
+    if (type == 12) return "chalf";
     return "null";
 }
 
@@ -80,6 +89,9 @@ static const char* type_to_dtype_string(int type)
     if (type == 7) return "torch.int8";
     if (type == 8) return "torch.uint8";
     if (type == 9) return "torch.bool";
+    if (type == 10) return "torch.complex64";
+    if (type == 11) return "torch.complex128";
+    if (type == 12) return "torch.complex32";
     return "null";
 }
 
@@ -94,6 +106,9 @@ static size_t type_to_elemsize(int type)
     if (type == 7) return 1;
     if (type == 8) return 1;
     if (type == 9) return 1;
+    if (type == 10) return 8;
+    if (type == 11) return 16;
+    if (type == 12) return 4;
     return 0; // null
 }
 
@@ -108,6 +123,9 @@ static int string_to_type(const char* s)
     if (strcmp(s, "i8") == 0) return 7;
     if (strcmp(s, "u8") == 0) return 8;
     if (strcmp(s, "bool") == 0) return 9;
+    if (strcmp(s, "cp64") == 0) return 10;
+    if (strcmp(s, "cp128") == 0) return 11;
+    if (strcmp(s, "cp32") == 0) return 12;
     return 0; // null
 }
 
@@ -125,6 +143,9 @@ int get_at_tensor_type(const at::ScalarType& st)
     if (st == c10::ScalarType::Byte) return 8;
     if (st == c10::ScalarType::QUInt8) return 8;
     if (st == c10::ScalarType::Bool) return 9;
+    if (st == c10::ScalarType::ComplexFloat) return 10;
+    if (st == c10::ScalarType::ComplexDouble) return 11;
+    if (st == c10::ScalarType::ComplexHalf) return 12;
     return 0; // unknown type
 }
 
@@ -2219,60 +2240,6 @@ static bool string_is_positive_integer(const std::string& t)
     return true;
 }
 
-static unsigned short float32_to_float16(float value)
-{
-    // 1 : 8 : 23
-    union
-    {
-        unsigned int u;
-        float f;
-    } tmp;
-
-    tmp.f = value;
-
-    // 1 : 8 : 23
-    unsigned short sign = (tmp.u & 0x80000000) >> 31;
-    unsigned short exponent = (tmp.u & 0x7F800000) >> 23;
-    unsigned int significand = tmp.u & 0x7FFFFF;
-
-    //     NCNN_LOGE("%d %d %d", sign, exponent, significand);
-
-    // 1 : 5 : 10
-    unsigned short fp16;
-    if (exponent == 0)
-    {
-        // zero or denormal, always underflow
-        fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-    }
-    else if (exponent == 0xFF)
-    {
-        // infinity or NaN
-        fp16 = (sign << 15) | (0x1F << 10) | (significand ? 0x200 : 0x00);
-    }
-    else
-    {
-        // normalized
-        short newexp = exponent + (-127 + 15);
-        if (newexp >= 31)
-        {
-            // overflow, return infinity
-            fp16 = (sign << 15) | (0x1F << 10) | 0x00;
-        }
-        else if (newexp <= 0)
-        {
-            // Some normal fp32 cannot be expressed as normal fp16
-            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
-        }
-        else
-        {
-            // normal fp16
-            fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
-        }
-    }
-
-    return fp16;
-}
-
 int Graph::ncnn(const std::string& parampath, const std::string& binpath, const std::string& pypath)
 {
     FILE* paramfp = fopen(parampath.c_str(), "wb");
@@ -2408,37 +2375,11 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
             }
         }
 
-        bool is_type_flag_fp32 = false;
         for (const auto& it : op->attrs)
         {
             //             fprintf(paramfp, " @%s=", it.first.c_str());
 
             const Attribute& attr = it.second;
-
-            if (is_type_flag_fp32)
-            {
-                // fp32 -> fp16
-                const float* p = (const float*)attr.data.data();
-                int len = attr.data.size() / 4;
-                for (int i = 0; i < len; i++)
-                {
-                    unsigned short v_fp16 = float32_to_float16(p[i]);
-                    fwrite(&v_fp16, sizeof(v_fp16), 1, binfp);
-                }
-
-                is_type_flag_fp32 = false;
-                continue;
-            }
-
-            if (attr.type == 0 && attr.data == std::vector<char> {0, 0, 0, 0})
-            {
-                // write fp16 flag
-                unsigned int fp16_flag = 0x01306B47;
-                fwrite(&fp16_flag, sizeof(fp16_flag), 1, binfp);
-
-                is_type_flag_fp32 = true;
-                continue;
-            }
 
             fwrite(attr.data.data(), attr.data.size(), 1, binfp);
         }

@@ -40,8 +40,10 @@ static int detect_mobilenet(const cv::Mat& bgr, std::vector<Object>& objects)
     // model is converted from https://github.com/chuanqi305/MobileNet-SSD
     // and can be downloaded from https://drive.google.com/open?id=0ByaKLD9QaPtucWk0Y0dha1VVY0U
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    mobilenet.load_param("mobilenet_ssd_voc_ncnn.param");
-    mobilenet.load_model("mobilenet_ssd_voc_ncnn.bin");
+    if (mobilenet.load_param("mobilenet_ssd_voc_ncnn.param"))
+        exit(-1);
+    if (mobilenet.load_model("mobilenet_ssd_voc_ncnn.bin"))
+        exit(-1);
 
     const int target_size = 300;
 

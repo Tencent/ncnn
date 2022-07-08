@@ -30,6 +30,10 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 protected:
+#if __mips_msa
+    int create_pipeline_fp16s(const Option& opt);
+    int forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 #if NCNN_INT8
     int create_pipeline_int8_mips(const Option& opt);
     int forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
@@ -37,12 +41,11 @@ protected:
 
 public:
     Layer* flatten;
-    Layer* activation;
+
+    Mat weight_data_tm;
 
 #if NCNN_INT8
-    // int8
-    Mat weight_data_int8;
-    Mat scales_in;
+    Mat scale_in_data;
 #endif
 };
 

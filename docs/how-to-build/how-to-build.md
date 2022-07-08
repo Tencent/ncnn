@@ -268,7 +268,8 @@ export ANDROID_NDK=<your-ndk-root-path>
 
 (optional) remove the hardcoded debug flag in Android NDK [android-ndk issue](https://github.com/android-ndk/ndk/issues/243)
 ```
-# open $ANDROID_NDK/build/cmake/android.toolchain.cmake
+# open $ANDROID_NDK/build/cmake/android.toolchain.cmake for ndk < r23
+# or $ANDROID_NDK/build/cmake/android-legacy.toolchain.cmake for ndk >= r23
 # delete "-g" line
 list(APPEND ANDROID_COMPILER_FLAGS
   -g
@@ -290,6 +291,9 @@ cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" 
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON \
     -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+
+# If you use cmake >= 3.21 and ndk-r23
+# you need to add -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False option for working optimization flags
 
 make -j$(nproc)
 make install
@@ -313,6 +317,9 @@ cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake"\
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="arm64-v8a" \
     -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+
+# If you use cmake >= 3.21 and ndk-r23
+# you need to add -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False option for working optimization flags
 
 make -j$(nproc)
 make install

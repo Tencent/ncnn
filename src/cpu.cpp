@@ -114,10 +114,10 @@ namespace ncnn {
 // its implementation does not parse /proc/self/auxv. Instead it depends
 // on values  that are passed by the kernel at process-init time to the
 // C runtime initialization layer.
-static unsigned int get_elf_hwcap_from_getauxval()
+static unsigned int get_elf_hwcap_from_getauxval(unsigned int type)
 {
 #if __ANDROID_API__ >= 18
-    unsigned int hwcap = getauxval(AT_HWCAP);
+    unsigned int hwcap = getauxval(type);
     if (hwcap)
         return hwcap;
 #endif
@@ -141,7 +141,7 @@ static unsigned int get_elf_hwcap_from_getauxval()
     else
     {
         // Note: getauxval() returns 0 on failure. Doesn't touch errno.
-        result = (unsigned int)(*func)(AT_HWCAP);
+        result = (unsigned int)(*func)(type);
     }
     dlclose(libc_handle);
 
@@ -150,7 +150,7 @@ static unsigned int get_elf_hwcap_from_getauxval()
 #endif // defined __ANDROID__
 
 // extract the ELF HW capabilities bitmap from /proc/self/auxv
-static unsigned int get_elf_hwcap_from_proc_self_auxv()
+static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
 {
     FILE* fp = fopen("/proc/self/auxv", "rb");
     if (!fp)
@@ -184,7 +184,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
         if (entry.tag == 0 && entry.value == 0)
             break;
 
-        if (entry.tag == AT_HWCAP)
+        if (entry.tag == type)
         {
             result = entry.value;
             break;
@@ -196,24 +196,33 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv()
     return result;
 }
 
-static unsigned int get_elf_hwcap()
+static unsigned int get_elf_hwcap(unsigned int type)
 {
 #if defined __ANDROID__
-    unsigned int hwcap = get_elf_hwcap_from_getauxval();
+    unsigned int hwcap = get_elf_hwcap_from_getauxval(type);
     if (hwcap)
         return hwcap;
 #endif
 
-    return get_elf_hwcap_from_proc_self_auxv();
+    return get_elf_hwcap_from_proc_self_auxv(type);
 }
 
-static unsigned int g_hwcaps = get_elf_hwcap();
+static unsigned int g_hwcaps = get_elf_hwcap(AT_HWCAP);
+static unsigned int g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
 
 #if __aarch64__
 // from arch/arm64/include/uapi/asm/hwcap.h
-#define HWCAP_ASIMD   (1 << 1)
-#define HWCAP_ASIMDHP (1 << 10)
-#define HWCAP_ASIMDDP (1 << 20)
+#define HWCAP_ASIMD     (1 << 1)
+#define HWCAP_ASIMDHP   (1 << 10)
+#define HWCAP_ASIMDDP   (1 << 20)
+#define HWCAP_SVE       (1 << 22)
+#define HWCAP_ASIMDFHM  (1 << 23)
+#define HWCAP2_SVE2     (1 << 1)
+#define HWCAP2_SVEI8MM  (1 << 9)
+#define HWCAP2_SVEF32MM (1 << 10)
+#define HWCAP2_SVEBF16  (1 << 12)
+#define HWCAP2_I8MM     (1 << 13)
+#define HWCAP2_BF16     (1 << 14)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
 #define HWCAP_NEON  (1 << 12)
@@ -435,6 +444,158 @@ int cpu_support_arm_asimddp()
 #elif __APPLE__
 #if __aarch64__
     return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_asimdfhm()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps & HWCAP_ASIMDFHM;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_bf16()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_BF16;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 bf16
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_i8mm()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_I8MM;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 i8mm
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sve()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps & HWCAP_SVE;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 sve
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_sve2()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_SVE2;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 sve2
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_svebf16()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_SVEBF16;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 svebf16
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_svei8mm()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_SVEI8MM;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 svei8mm
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
+int cpu_support_arm_svef32mm()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return g_hwcaps2 & HWCAP2_SVEF32MM;
+#else
+    return 0;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0; // no known apple cpu support armv8.6 svef32mm
 #else
     return 0;
 #endif
@@ -680,6 +841,60 @@ static int get_cpu_support_x86_avx512_vnni()
     return cpu_info[2] & (1u << 11);
 }
 
+static int get_cpu_support_x86_avx512_bf16()
+{
+#if !NCNN_AVX512BF16
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    x86_cpuid_sublevel(7, 1, cpu_info);
+    return cpu_info[0] & (1u << 5);
+}
+
+static int get_cpu_support_x86_avx512_fp16()
+{
+#if !NCNN_AVX512FP16
+    return 0;
+#endif
+    unsigned int cpu_info[4] = {0};
+    x86_cpuid(0, cpu_info);
+
+    int nIds = cpu_info[0];
+    if (nIds < 7)
+        return 0;
+
+    x86_cpuid(1, cpu_info);
+    // check AVX XSAVE OSXSAVE
+    if (!(cpu_info[2] & (1u << 28)) || !(cpu_info[2] & (1u << 26)) || !(cpu_info[2] & (1u << 27)))
+        return 0;
+
+    // check XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 6) != 6)
+        return 0;
+
+    // check avx512 XSAVE enabled by kernel
+    if ((x86_get_xcr0() & 0xe0) != 0xe0)
+        return 0;
+
+    x86_cpuid_sublevel(7, 0, cpu_info);
+    return cpu_info[3] & (1u << 23);
+}
+
 static int g_cpu_support_x86_avx = get_cpu_support_x86_avx();
 static int g_cpu_support_x86_fma = get_cpu_support_x86_fma();
 static int g_cpu_support_x86_xop = get_cpu_support_x86_xop();
@@ -688,6 +903,8 @@ static int g_cpu_support_x86_avx2 = get_cpu_support_x86_avx2();
 static int g_cpu_support_x86_avx_vnni = get_cpu_support_x86_avx_vnni();
 static int g_cpu_support_x86_avx512 = get_cpu_support_x86_avx512();
 static int g_cpu_support_x86_avx512_vnni = get_cpu_support_x86_avx512_vnni();
+static int g_cpu_support_x86_avx512_bf16 = get_cpu_support_x86_avx512_bf16();
+static int g_cpu_support_x86_avx512_fp16 = get_cpu_support_x86_avx512_fp16();
 #else  // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 static const int g_cpu_support_x86_avx = 0;
 static const int g_cpu_support_x86_fma = 0;
@@ -697,6 +914,8 @@ static const int g_cpu_support_x86_avx2 = 0;
 static const int g_cpu_support_x86_avx_vnni = 0;
 static const int g_cpu_support_x86_avx512 = 0;
 static const int g_cpu_support_x86_avx512_vnni = 0;
+static const int g_cpu_support_x86_avx512_bf16 = 0;
+static const int g_cpu_support_x86_avx512_fp16 = 0;
 #endif // defined(__i386__) || defined(__x86_64__) || defined(_M_IX86) || defined(_M_X64)
 
 int cpu_support_x86_avx()
@@ -737,6 +956,16 @@ int cpu_support_x86_avx512()
 int cpu_support_x86_avx512_vnni()
 {
     return g_cpu_support_x86_avx512_vnni;
+}
+
+int cpu_support_x86_avx512_bf16()
+{
+    return g_cpu_support_x86_avx512_bf16;
+}
+
+int cpu_support_x86_avx512_fp16()
+{
+    return g_cpu_support_x86_avx512_fp16;
 }
 
 int cpu_support_mips_msa()

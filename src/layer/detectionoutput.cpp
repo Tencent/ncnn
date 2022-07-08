@@ -170,7 +170,7 @@ int DetectionOutput::forward(const std::vector<Mat>& bottom_blobs, std::vector<M
     for (int i = 0; i < num_prior; i++)
     {
         // if score of background class is larger than confidence threshold
-        float score = mxnet_ssd_style ? confidence[i] : confidence[i * num_class_copy];
+        float score = mxnet_ssd_style ? confidence[i] : confidence[static_cast<size_t>(i) * static_cast<size_t>(num_class_copy)];
         if (score >= (1.0 - confidence_threshold))
         {
             continue;
