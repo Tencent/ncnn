@@ -2669,19 +2669,19 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                              : "=r"(_w13)
                              : "0"(_w13), "r"(_k_r8)
                              :);
-                asm volatile("__smlad %0, %2, %3, %0"
+                asm volatile("smlad %0, %2, %3, %0"
                              : "=r"(sum00)
                              : "0"(sum00), "r"(_val02), "r"(_w02)
                              :);
-                asm volatile("__smlad %0, %2, %3, %0"
+                asm volatile("smlad %0, %2, %3, %0"
                              : "=r"(sum01)
                              : "0"(sum01), "r"(_val13), "r"(_w02)
                              :);
-                asm volatile("__smlad %0, %2, %3, %0"
+                asm volatile("smlad %0, %2, %3, %0"
                              : "=r"(sum10)
                              : "0"(sum10), "r"(_val02), "r"(_w13)
                              :);
-                asm volatile("__smlad %0, %2, %3, %0"
+                asm volatile("smlad %0, %2, %3, %0"
                              : "=r"(sum11)
                              : "0"(sum11), "r"(_val13), "r"(_w13)
                              :);
