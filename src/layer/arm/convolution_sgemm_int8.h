@@ -131,7 +131,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
     }
 #endif // __aarch64__
-#else // __ARM_NEON
+#else  // __ARM_NEON
     {
         if (size >= 2)
             tmp.create(2 * maxk, inch, size / 2 + size % 2, 1u, 1, opt.workspace_allocator);
@@ -553,7 +553,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
-#else // __ARM_NEON && __aarch64__
+#else  // __ARM_NEON && __aarch64__
         int remain_size_start = 0;
         int nn_size = (size - remain_size_start) >> 1;
 #endif // __ARM_NEON && __aarch64__
@@ -3180,7 +3180,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                     kptr0 += 4;
                 }
             }
-#else // __ARM_NEON
+#else  // __ARM_NEON
             int nn1 = inch * maxk;
             int sum0 = 0;
             int sum1 = 0;
@@ -3204,7 +3204,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             int sum01[2] = {sum0, sum1};
             _sum = vadd_s32(_sum, vld1_s32(sum01));
             vst1_s32(outptr0, _sum);
-#else // __ARM_NEON
+#else  // __ARM_NEON
             outptr0[0] = sum0;
             outptr0[1] = sum1;
 #endif // __ARM_NEON
@@ -3330,7 +3330,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                     kptr0 += 4;
                 }
             }
-#else // __ARM_NEON
+#else  // __ARM_NEON
             int nn1 = inch * maxk;
 #endif // __ARM_NEON
 
@@ -3379,7 +3379,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
         else
             kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4, (size_t)1u);
     }
-#else // __ARM_NEON
+#else  // __ARM_NEON
     if (outch >= 2)
     {
         {
@@ -3472,7 +3472,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
             }
         }
     }
-#else // __ARM_NEON
+#else  // __ARM_NEON
     for (; q + 1 < outch; q += 2)
     {
         signed char* g00 = kernel_tm.channel(q / 2);
