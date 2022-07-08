@@ -310,16 +310,12 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             float32x4_t _O = sigmoid_ps(_IFOG_4x4.val[2]);
             float32x4_t _G = tanh_ps(_IFOG_4x4.val[3]);
 
-            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_F, vld1q_f32(cell_ptr)), vmulq_f32(_I, _G));
+            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_I, _G));
             float32x4_t _H = vmulq_f32(_O, tanh_ps(_cell2));
 
-            vst1q_f32(cell_ptr, _cell2);
-            vst1q_f32(hidden_ptr, _H);
-            vst1q_f32(output_data, _H);
-
-            cell_ptr += 4;
-            hidden_ptr += 4;
-            output_data += 4;
+            vst1q_f32(cell_ptr + q, _cell2);
+            vst1q_f32(hidden_ptr + q, _H);
+            vst1q_f32(output_data + q, _H);
         }
 #endif // __ARM_NEON
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -337,12 +333,12 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             O = 1.f / (1.f + exp(-O));
             G = tanh(G);
 
-            float cell2 = F * *cell_ptr + I * G;
+            float cell2 = F * cell_ptr[q] + I * G;
             float H = O * tanh(cell2);
 
-            *cell_ptr++ = cell2;
-            *hidden_ptr++ = H;
-            *output_data++ = H;
+            cell_ptr[q] = cell2;
+            hidden_ptr[q] = H;
+            output_data[q] = H;
         }
     }
 
@@ -716,16 +712,12 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float32x4_t _O = sigmoid_ps(_IFOG_4x4.val[2]);
             float32x4_t _G = tanh_ps(_IFOG_4x4.val[3]);
 
-            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_F, vld1q_f32(cell_ptr)), vmulq_f32(_I, _G));
+            float32x4_t _cell2 = vaddq_f32(vmulq_f32(_F, vld1q_f32(cell_ptr + q)), vmulq_f32(_I, _G));
             float32x4_t _H = vmulq_f32(_O, tanh_ps(_cell2));
 
-            vst1q_f32(cell_ptr, _cell2);
-            vst1q_f32(hidden_ptr, _H);
-            vst1_u16(output_data, vcvt_bf16_f32(_H));
-
-            cell_ptr += 4;
-            hidden_ptr += 4;
-            output_data += 4;
+            vst1q_f32(cell_ptr + q, _cell2);
+            vst1q_f32(hidden_ptr + q, _H);
+            vst1_u16(output_data + q, vcvt_bf16_f32(_H));
         }
 #endif // __ARM_NEON
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -743,12 +735,12 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             O = 1.f / (1.f + exp(-O));
             G = tanh(G);
 
-            float cell2 = F * *cell_ptr + I * G;
+            float cell2 = F * cell_ptr[q] + I * G;
             float H = O * tanh(cell2);
 
-            *cell_ptr++ = cell2;
-            *hidden_ptr++ = H;
-            *output_data++ = float32_to_bfloat16(H);
+            cell_ptr[q] = cell2;
+            hidden_ptr[q] = H;
+            output_data[q] = float32_to_bfloat16(H);
         }
     }
 

@@ -151,19 +151,16 @@ static int rnn_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
             float32x4_t _H = vld1q_f32((float*)gates + q);
 
-            vst1q_f32(hidden_ptr, _H);
-            vst1_f16(output_data, vcvt_f16_f32(_H));
-
-            hidden_ptr += 4;
-            output_data += 4;
+            vst1q_f32(hidden_ptr + q, _H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_H));
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
         {
             float H = gates[q];
 
-            *hidden_ptr++ = H;
-            *output_data++ = (__fp16)H;
+            hidden_ptr[q] = H;
+            output_data[q] = (__fp16)H;
         }
     }
 
@@ -369,19 +366,16 @@ static int rnn_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             float32x4_t _H = vld1q_f32((float*)gates + q);
 
-            vst1q_f32(hidden_ptr, _H);
-            vst1_f16(output_data, vcvt_f16_f32(_H));
-
-            hidden_ptr += 4;
-            output_data += 4;
+            vst1q_f32(hidden_ptr + q, _H);
+            vst1_f16(output_data + q, vcvt_f16_f32(_H));
         }
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_num_output_start; q < num_output; q++)
         {
             float H = gates[q];
 
-            *hidden_ptr++ = H;
-            *output_data++ = (__fp16)H;
+            hidden_ptr[q] = H;
+            output_data[q] = (__fp16)H;
         }
     }
 
