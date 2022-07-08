@@ -2639,8 +2639,10 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 #else
                 int8x4_t _val = *((int8x4_t*)tmpptr);
                 int8x4_t _k = *((int8x4_t*)kptr);
-                int8x4_t _val_r8 = __ror(_val, 8);
-                int8x4_t _k_r8 = __ror(_k, 8);
+                int8x4_t _val_r8;
+                int8x4_t _k_r8;
+                asm volatile("ror %0, %2, #8" : "=r"(_val_r8) : "0"(_val_r8), "r"(_val) :);
+                asm volatile("ror %0, %2, #8" : "=r"(_k_r8) : "0"(_k_r8), "r"(_k) :);
                 int16x2_t _val02 = __sxtb16(_val);
                 int16x2_t _w02 = __sxtb16(_k);
                 int16x2_t _val13 = __sxtb16(_val_r8);

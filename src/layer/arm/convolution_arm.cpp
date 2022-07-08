@@ -18,6 +18,9 @@
 #include "cpu.h"
 #include "layer_type.h"
 
+#if __ARM_FEATURE_SIMD32
+#include <arm_acle.h>
+#endif // __ARM_FEATURE_SIMD32
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
