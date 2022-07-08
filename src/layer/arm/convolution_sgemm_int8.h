@@ -2607,6 +2607,9 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 #if __ARM_FEATURE_SIMD32
             for (; j + 1 < nn1; j += 2)
             {
+                // fomit-frame-pointer implied in optimized flag spare one register
+                // let us stay away from error: ‘asm’ operand has impossible constraints
+#if __OPTIMIZE__
                 asm volatile(
                     "ldr    r2, [%0], #4    \n" // int8x4_t _val = *((int8x4_t*)tmpptr); tmpptr += 4;
                     "ldr    r3, [%1], #4    \n" // int8x4_t _k = *((int8x4_t*)kptr); kptr += 4;
@@ -2633,6 +2636,22 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                     "4"(sum10),
                     "5"(sum11)
                     : "memory", "r2", "r3", "r4", "r5");
+#else
+                int8x4_t _val = *((int8x4_t*)tmpptr);
+                int8x4_t _k = *((int8x4_t*)kptr);
+                int8x4_t _val_r8 = __ror(_val, 8);
+                int8x4_t _k_r8 = __ror(_k, 8);
+                int16x2_t _val02 = __sxtb16(_val);
+                int16x2_t _w02 = __sxtb16(_k);
+                int16x2_t _val13 = __sxtb16(_val_r8);
+                int16x2_t _w13 = __sxtb16(_k_r8);
+                sum00 = __smlad(_val02, _w02, sum00);
+                sum01 = __smlad(_val13, _w02, sum01);
+                sum10 = __smlad(_val02, _w13, sum10);
+                sum11 = __smlad(_val13, _w13, sum11);
+                tmpptr += 4;
+                kptr += 4;
+#endif
             }
 #endif // __ARM_FEATURE_SIMD32
             for (; j < nn1; j++)
