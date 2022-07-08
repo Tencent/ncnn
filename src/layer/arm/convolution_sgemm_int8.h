@@ -2604,6 +2604,38 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             int nn1 = inch * maxk;
 
             int j = 0;
+#if __ARM_FEATURE_SIMD32
+            for (; j + 1 < nn1; j += 2)
+            {
+                asm volatile(
+                    "ldr    r2, [%0], #4    \n" // int8x4_t _val = *((int8x4_t*)tmpptr); tmpptr += 4;
+                    "ldr    r3, [%1], #4    \n" // int8x4_t _k = *((int8x4_t*)kptr); kptr += 4;
+                    "ror    r4, r2, #8      \n" // int8x4_t _val_r8 = __ror(_val, 8);
+                    "ror    r5, r3, #8      \n" // int8x4_t _k_r8 = __ror(_k, 8);
+                    "sxtb16 r2, r2          \n" // int16x2_t _val02 = __sxtb16(_val);
+                    "sxtb16 r3, r3          \n" // int16x2_t _w02 = __sxtb16(_k);
+                    "sxtb16 r4, r4          \n" // int16x2_t _val13 = __sxtb16(_val_r8);
+                    "sxtb16 r5, r5          \n" // int16x2_t _w13 = __sxtb16(_k_r8);
+                    "smlad  %2, r2, r3, %2  \n" // sum00 = __smlad(_val02, _w02, sum00);
+                    "smlad  %3, r4, r3, %3  \n" // sum01 = __smlad(_val13, _w02, sum01);
+                    "smlad  %4, r2, r5, %4  \n" // sum10 = __smlad(_val02, _w13, sum10);
+                    "smlad  %5, r4, r5, %5  \n" // sum11 = __smlad(_val13, _w13, sum11);
+                    : "=r"(tmpptr),
+                    "=r"(kptr),
+                    "=r"(sum00),
+                    "=r"(sum01),
+                    "=r"(sum10),
+                    "=r"(sum11)
+                    : "0"(tmpptr),
+                    "1"(kptr),
+                    "2"(sum00),
+                    "3"(sum01),
+                    "4"(sum10),
+                    "5"(sum11)
+                    : "memory", "r2", "r3", "r4", "r5"
+                );
+            }
+#endif // __ARM_FEATURE_SIMD32
             for (; j < nn1; j++)
             {
                 signed char val0 = tmpptr[0];
