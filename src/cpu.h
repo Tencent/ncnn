@@ -45,6 +45,8 @@ public:
 };
 
 // test optional cpu features
+// edsp = armv7 edsp
+NCNN_EXPORT int cpu_support_arm_edsp();
 // neon = armv7 neon or aarch64 asimd
 NCNN_EXPORT int cpu_support_arm_neon();
 // vfpv4 = armv7 fp16 + fma

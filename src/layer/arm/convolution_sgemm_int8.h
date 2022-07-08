@@ -2608,7 +2608,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             for (; j + 1 < nn1; j += 2)
             {
                 // fomit-frame-pointer implied in optimized flag spare one register
-                // let us stay away from error: ‘asm’ operand has impossible constraints
+                // let us stay away from error: ‘asm’ operand has impossible constraints   --- nihui
 #if __OPTIMIZE__
                 asm volatile(
                     "ldr    r2, [%0], #4    \n" // int8x4_t _val = *((int8x4_t*)tmpptr); tmpptr += 4;
