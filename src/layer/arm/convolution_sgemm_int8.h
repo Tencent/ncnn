@@ -2632,8 +2632,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                     "3"(sum01),
                     "4"(sum10),
                     "5"(sum11)
-                    : "memory", "r2", "r3", "r4", "r5"
-                );
+                    : "memory", "r2", "r3", "r4", "r5");
             }
 #endif // __ARM_FEATURE_SIMD32
             for (; j < nn1; j++)
