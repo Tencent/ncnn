@@ -619,7 +619,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             float U = gates_data[0];
             float N = gates_data[1];
 
-            float H = (1 - U) * N + U * hidden_ptr[q]
+            float H = (1 - U) * N + U * hidden_ptr[q];
 
             hidden_ptr[q] = H;
             output_data[q] = H;
