@@ -212,16 +212,16 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                             "paddw      %2, %2, %6      \n" // _sum0 = __mmi_paddw_s(_sum0, _s0y);
                             "paddw      %3, %3, %7      \n" // _sum1 = __mmi_paddw_s(_sum1, _s1y);
 
-                            : "=r"(r0),   // %0
-                            "=r"(k0),     // %1
-                            "=f"(_sum0),  // %2
-                            "=f"(_sum1),  // %3
-                            "=f"(temp0),  // %4
-                            "=f"(temp1),  // %5
-                            "=f"(temp2),  // %6
-                            "=f"(temp3),  // %7
-                            "=f"(temp4),  // %8
-                            "=f"(temp5)   // %9
+                            : "=r"(r0),    // %0
+                            "=r"(k0),    // %1
+                            "=f"(_sum0), // %2
+                            "=f"(_sum1), // %3
+                            "=f"(temp0), // %4
+                            "=f"(temp1), // %5
+                            "=f"(temp2), // %6
+                            "=f"(temp3), // %7
+                            "=f"(temp4), // %8
+                            "=f"(temp5)  // %9
                             : "0"(r0),
                             "1"(k0),
                             "2"(_sum0),
@@ -321,7 +321,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                             "paddw      %2, %2, %5      \n" // _sum01 = __mmi_paddw_s(_sum01, _s01x);
                             "paddw      %2, %2, %6      \n" // _sum01 = __mmi_paddw_s(_sum01, _s01y);
 
-                            : "=r"(r0),   // %0
+                            : "=r"(r0),     // %0
                             "=r"(k0),     // %1
                             "=f"(_sum01), // %2
                             "=f"(temp0),  // %3
@@ -435,7 +435,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                             "paddw      %2, %2, %4      \n" // _sum01 = __mmi_paddw_s(_sum01, _s01x);
                             "paddw      %2, %2, %5      \n" // _sum01 = __mmi_paddw_s(_sum01, _s01y);
 
-                            : "=r"(r0),   // %0
+                            : "=r"(r0),     // %0
                             "=r"(k0),     // %1
                             "=f"(_sum01), // %2
                             "=f"(temp0),  // %3
@@ -517,7 +517,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                             "pmaddhw    %3, %3, %4      \n" // int32x2_t _s0x = __mmi_pmaddhw(_v0, _k0);
                             "paddw      %2, %2, %3      \n" // _sum0 = __mmi_paddw_s(_sum0, _s0x);
 
-                            : "=r"(r0),  // %0
+                            : "=r"(r0),    // %0
                             "=r"(k0),    // %1
                             "=f"(_sum0), // %2
                             "=f"(temp0), // %3
