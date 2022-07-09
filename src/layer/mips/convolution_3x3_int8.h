@@ -76,6 +76,15 @@ static void conv3x3s1_winograd43_transform_kernel_int8_msa(const Mat& kernel, Ma
     // interleave
     // src = 36-inch-outch
     // dst = 2b-inch-36-outch/2b
+#if __mips_msa
+    if (outch >= 4)
+    {
+        if (inch >= 4)
+            kernel_tm_packed.create(inch / 4 + inch % 4, 36, outch / 4 + outch % 4, (size_t)2u * 16, 16);
+        else
+            kernel_tm_packed.create(inch, 36, outch / 4 + outch % 4, (size_t)2u * 4, 4);
+    }
+#else // __mips_msa
     if (outch >= 2)
     {
 #if __mips_loongson_mmi
@@ -87,19 +96,66 @@ static void conv3x3s1_winograd43_transform_kernel_int8_msa(const Mat& kernel, Ma
             kernel_tm_packed.create(inch, 36, outch / 2 + outch % 2, (size_t)2u * 2, 2);
         }
     }
+#endif // __mips_msa
     else
     {
-#if __mips_loongson_mmi
+#if __mips_msa || __mips_loongson_mmi
         if (inch >= 4)
             kernel_tm_packed.create(inch / 4 + inch % 4, 36, outch, (size_t)2u * 4, 4);
         else
-#endif // __mips_loongson_mmi
+#endif // __mips_msa || __mips_loongson_mmi
         {
             kernel_tm_packed.create(inch, 36, outch, (size_t)2u, 1);
         }
     }
 
     int p = 0;
+#if __mips_msa
+    for (; p + 3 < outch; p += 4)
+    {
+        const Mat k0 = kernel_tm.channel(p);
+        const Mat k1 = kernel_tm.channel(p + 1);
+        const Mat k2 = kernel_tm.channel(p + 2);
+        const Mat k3 = kernel_tm.channel(p + 3);
+
+        Mat g0 = kernel_tm_packed.channel(p / 4);
+
+        for (int k = 0; k < 36; k++)
+        {
+            short* g00 = g0.row<short>(k);
+
+            int q = 0;
+            for (; q + 3 < inch; q += 4)
+            {
+                g00[0] = k0.row<const short>(q)[k];
+                g00[1] = k0.row<const short>(q + 1)[k];
+                g00[2] = k0.row<const short>(q + 2)[k];
+                g00[3] = k0.row<const short>(q + 3)[k];
+                g00[4] = k1.row<const short>(q)[k];
+                g00[5] = k1.row<const short>(q + 1)[k];
+                g00[6] = k1.row<const short>(q + 2)[k];
+                g00[7] = k1.row<const short>(q + 3)[k];
+                g00[8] = k2.row<const short>(q)[k];
+                g00[9] = k2.row<const short>(q + 1)[k];
+                g00[10] = k2.row<const short>(q + 2)[k];
+                g00[11] = k2.row<const short>(q + 3)[k];
+                g00[12] = k3.row<const short>(q)[k];
+                g00[13] = k3.row<const short>(q + 1)[k];
+                g00[14] = k3.row<const short>(q + 2)[k];
+                g00[15] = k3.row<const short>(q + 3)[k];
+                g00 += 16;
+            }
+            for (; q < inch; q++)
+            {
+                g00[0] = k0.row<const short>(q)[k];
+                g00[1] = k1.row<const short>(q)[k];
+                g00[2] = k2.row<const short>(q)[k];
+                g00[3] = k3.row<const short>(q)[k];
+                g00 += 4;
+            }
+        }
+    }
+#else // __mips_msa
     for (; p + 1 < outch; p += 2)
     {
         const Mat k0 = kernel_tm.channel(p);
@@ -134,18 +190,23 @@ static void conv3x3s1_winograd43_transform_kernel_int8_msa(const Mat& kernel, Ma
             }
         }
     }
+#endif // __mips_msa
     for (; p < outch; p++)
     {
         const Mat k0 = kernel_tm.channel(p);
 
+#if __mips_msa
+        Mat g0 = kernel_tm_packed.channel(p / 4 + p % 4);
+#else
         Mat g0 = kernel_tm_packed.channel(p / 2 + p % 2);
+#endif
 
         for (int k = 0; k < 36; k++)
         {
             short* g00 = g0.row<short>(k);
 
             int q = 0;
-#if __mips_loongson_mmi
+#if __mips_msa || __mips_loongson_mmi
             for (; q + 3 < inch; q += 4)
             {
                 g00[0] = k0.row<const short>(q)[k];
@@ -154,7 +215,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_msa(const Mat& kernel, Ma
                 g00[3] = k0.row<const short>(q + 3)[k];
                 g00 += 4;
             }
-#endif // __mips_loongson_mmi
+#endif // __mips_msa || __mips_loongson_mmi
             for (; q < inch; q++)
             {
                 g00[0] = k0.row<const short>(q)[k];

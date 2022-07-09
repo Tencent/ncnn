@@ -34,7 +34,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
 
     // permute
     Mat bottom_blob_tm2;
-#if __mips_loongson_mmi
+#if __mips_msa || __mips_loongson_mmi
     if (inch >= 4)
     {
         if (tiles >= 2)
@@ -43,7 +43,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
             bottom_blob_tm2.create(inch / 4 + inch % 4, tiles, batch, 8u, 4, opt.workspace_allocator);
     }
     else
-#endif // __mips_loongson_mmi
+#endif // __mips_msa || __mips_loongson_mmi
     {
         if (tiles >= 2)
             bottom_blob_tm2.create(inch, tiles / 2 + tiles % 2, batch, 4u, 2, opt.workspace_allocator);
@@ -63,16 +63,15 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
             short* tmpptr = tm2.row<short>(i / 2);
 
             const short* r0 = (const short*)bottom_blob_tm + r * tiles + i;
-#if __mips_loongson_mmi
+
+            int q = 0;
+#if __mips_msa || __mips_loongson_mmi
             const short* r1 = (const short*)bottom_blob_tm.channel(1) + r * tiles + i;
             const short* r2 = (const short*)bottom_blob_tm.channel(2) + r * tiles + i;
             const short* r3 = (const short*)bottom_blob_tm.channel(3) + r * tiles + i;
-#endif // __mips_loongson_mmi
-
-            int q = 0;
-#if __mips_loongson_mmi
             for (; q + 3 < inch; q += 4)
             {
+#if __mips_loongson_mmi
                 tmpptr[0] = r0[0];
                 tmpptr[1] = r1[0];
                 tmpptr[2] = r0[1];
@@ -81,13 +80,23 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                 tmpptr[5] = r3[0];
                 tmpptr[6] = r2[1];
                 tmpptr[7] = r3[1];
+#else // __mips_loongson_mmi
+                tmpptr[0] = r0[0];
+                tmpptr[1] = r1[0];
+                tmpptr[2] = r2[0];
+                tmpptr[3] = r3[0];
+                tmpptr[4] = r0[1];
+                tmpptr[5] = r1[1];
+                tmpptr[6] = r2[1];
+                tmpptr[7] = r3[1];
+#endif // __mips_loongson_mmi
                 r0 += bottom_blob_tm.cstep * 4;
                 r1 += bottom_blob_tm.cstep * 4;
                 r2 += bottom_blob_tm.cstep * 4;
                 r3 += bottom_blob_tm.cstep * 4;
                 tmpptr += 8;
             }
-#endif // __mips_loongson_mmi
+#endif // __mips_msa || __mips_loongson_mmi
             for (; q < inch; q++)
             {
                 tmpptr[0] = r0[0];
@@ -101,14 +110,12 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
             short* tmpptr = tm2.row<short>(i / 2 + i % 2);
 
             const short* r0 = (const short*)bottom_blob_tm + r * tiles + i;
-#if __mips_loongson_mmi
+
+            int q = 0;
+#if __mips_msa || __mips_loongson_mmi
             const short* r1 = (const short*)bottom_blob_tm.channel(1) + r * tiles + i;
             const short* r2 = (const short*)bottom_blob_tm.channel(2) + r * tiles + i;
             const short* r3 = (const short*)bottom_blob_tm.channel(3) + r * tiles + i;
-#endif // __mips_loongson_mmi
-
-            int q = 0;
-#if __mips_loongson_mmi
             for (; q + 3 < inch; q += 4)
             {
                 tmpptr[0] = r0[0];
@@ -121,7 +128,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                 r3 += bottom_blob_tm.cstep * 4;
                 tmpptr += 4;
             }
-#endif // __mips_loongson_mmi
+#endif // __mips_msa || __mips_loongson_mmi
             for (; q < inch; q++)
             {
                 tmpptr[0] = r0[0];
@@ -136,10 +143,257 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
 
     top_blob_tm.create(tiles, batch, outch, 4u, 1, opt.workspace_allocator);
 
-    int nn_outch = 0;
-    int remain_outch_start = 0;
+#if __mips_msa
+    int nn_outch = outch >> 2;
+    int remain_outch_start = nn_outch << 2;
 
-    nn_outch = outch >> 1;
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        int p = pp * 4;
+
+        int* output0_tm = top_blob_tm.channel(p);
+        int* output1_tm = top_blob_tm.channel(p + 1);
+        int* output2_tm = top_blob_tm.channel(p + 2);
+        int* output3_tm = top_blob_tm.channel(p + 3);
+
+        const Mat kernel0_tm = kernel_tm.channel(p / 4);
+
+        for (int r = 0; r < batch; r++)
+        {
+            const Mat bb2 = bottom_blob_tm2.channel(r);
+
+            int i = 0;
+            for (; i + 1 < tiles; i += 2)
+            {
+                const short* r0 = bb2.row<const short>(i / 2);
+                const short* k0 = kernel0_tm.row<const short>(r);
+
+                int nn4 = inch / 4;
+                int nn1 = inch % 4;
+
+                v4i32 _sum00 = __msa_fill_w(0);
+                v4i32 _sum10 = __msa_fill_w(0);
+
+                if (nn4 > 0)
+                {
+                    v4i32 _sum01 = __msa_fill_w(0);
+                    v4i32 _sum02 = __msa_fill_w(0);
+                    v4i32 _sum03 = __msa_fill_w(0);
+                    v4i32 _sum11 = __msa_fill_w(0);
+                    v4i32 _sum12 = __msa_fill_w(0);
+                    v4i32 _sum13 = __msa_fill_w(0);
+
+                    int j = 0;
+                    for (; j < nn4; j++)
+                    {
+                        v8i16 _val01 = __msa_ld_h(r0, 0);
+
+                        v8i16 _val0 = (v8i16)__msa_ilvr_d((v2i64)_val01, (v2i64)_val01);
+                        v8i16 _val1 = (v8i16)__msa_ilvl_d((v2i64)_val01, (v2i64)_val01);
+
+                        v8i16 _w0 = __msa_ld_h(k0, 0);
+                        v8i16 _w1 = __msa_ld_h(k0 + 8, 0);
+
+                        v8i16 _extval0 = __msa_clti_s_h(_val0, 0);
+                        v8i16 _extval1 = __msa_clti_s_h(_val1, 0);
+                        v8i16 _extw0 = __msa_clti_s_h(_w0, 0);
+                        v8i16 _extw1 = __msa_clti_s_h(_w1, 0);
+
+                        v4i32 _val0l = (v4i32)__msa_ilvr_h(_extval0, _val0);
+                        v4i32 _val0h = (v4i32)__msa_ilvl_h(_extval0, _val0);
+                        v4i32 _val1l = (v4i32)__msa_ilvr_h(_extval1, _val1);
+                        v4i32 _val1h = (v4i32)__msa_ilvl_h(_extval1, _val1);
+
+                        v4i32 _w0l = (v4i32)__msa_ilvr_h(_extw0, _w0);
+                        v4i32 _w0h = (v4i32)__msa_ilvl_h(_extw0, _w0);
+                        v4i32 _w1l = (v4i32)__msa_ilvr_h(_extw1, _w1);
+                        v4i32 _w1h = (v4i32)__msa_ilvl_h(_extw1, _w1);
+
+                        _sum00 = __msa_maddv_w(_sum00, _val0l, _w0l);
+                        _sum01 = __msa_maddv_w(_sum01, _val0h, _w0h);
+                        _sum02 = __msa_maddv_w(_sum02, _val0l, _w1l);
+                        _sum03 = __msa_maddv_w(_sum03, _val0h, _w1h);
+                        _sum10 = __msa_maddv_w(_sum10, _val1l, _w0l);
+                        _sum11 = __msa_maddv_w(_sum11, _val1h, _w0h);
+                        _sum12 = __msa_maddv_w(_sum12, _val1l, _w1l);
+                        _sum13 = __msa_maddv_w(_sum13, _val1h, _w1h);
+
+                        r0 += 8;
+                        k0 += 16;
+                    }
+
+                    // transpose 4x4
+                    {
+                        v4i32 _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = __msa_ilvr_w(_sum01, _sum00);
+                        _tmp1 = __msa_ilvr_w(_sum03, _sum02);
+                        _tmp2 = __msa_ilvl_w(_sum01, _sum00);
+                        _tmp3 = __msa_ilvl_w(_sum03, _sum02);
+                        _sum00 = (v4i32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp0);
+                        _sum01 = (v4i32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp0);
+                        _sum02 = (v4i32)__msa_ilvr_d((v2i64)_tmp3, (v2i64)_tmp2);
+                        _sum03 = (v4i32)__msa_ilvl_d((v2i64)_tmp3, (v2i64)_tmp2);
+                    }
+                    {
+                        v4i32 _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = __msa_ilvr_w(_sum11, _sum10);
+                        _tmp1 = __msa_ilvr_w(_sum13, _sum12);
+                        _tmp2 = __msa_ilvl_w(_sum11, _sum10);
+                        _tmp3 = __msa_ilvl_w(_sum13, _sum12);
+                        _sum10 = (v4i32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp0);
+                        _sum11 = (v4i32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp0);
+                        _sum12 = (v4i32)__msa_ilvr_d((v2i64)_tmp3, (v2i64)_tmp2);
+                        _sum13 = (v4i32)__msa_ilvl_d((v2i64)_tmp3, (v2i64)_tmp2);
+                    }
+
+                    _sum00 = __msa_addv_w(_sum00, _sum01);
+                    _sum02 = __msa_addv_w(_sum02, _sum03);
+                    _sum10 = __msa_addv_w(_sum10, _sum11);
+                    _sum12 = __msa_addv_w(_sum12, _sum13);
+
+                    _sum00 = __msa_addv_w(_sum00, _sum02);
+                    _sum10 = __msa_addv_w(_sum10, _sum12);
+                }
+
+                for (int j = 0; j < nn1; j++)
+                {
+                    v8i16 _val0 = __msa_fill_h(r0[0]);
+                    v8i16 _val1 = __msa_fill_h(r0[1]);
+                    v8i16 _val = (v8i16)__msa_ilvr_d((v2i64)_val1, (v2i64)_val0);
+
+                    v8i16 _w16 = __msa_ld_h(k0, 0);
+
+                    _w16 = (v8i16)__msa_ilvr_d((v2i64)_w16, (v2i64)_w16);
+
+                    v8i16 _extval = __msa_clti_s_h(_val, 0);
+                    v8i16 _extw16 = __msa_clti_s_h(_w16, 0);
+
+                    v4i32 _vall = (v4i32)__msa_ilvr_h(_extval, _val);
+                    v4i32 _valh = (v4i32)__msa_ilvl_h(_extval, _val);
+                    v4i32 _w0l = (v4i32)__msa_ilvr_h(_extw16, _w16);
+                    v4i32 _w0h = (v4i32)__msa_ilvl_h(_extw16, _w16);
+
+                    _sum00 = __msa_maddv_w(_sum00, _vall, _w0l);
+                    _sum10 = __msa_maddv_w(_sum10, _valh, _w0h);
+
+                    r0 += 2;
+                    k0 += 4;
+                }
+
+                int sum[8];
+                __msa_st_w(_sum00, sum, 0);
+                __msa_st_w(_sum10, sum + 4, 0);
+
+                output0_tm[0] = sum[0];
+                output1_tm[0] = sum[1];
+                output2_tm[0] = sum[2];
+                output3_tm[0] = sum[3];
+                output0_tm[1] = sum[4];
+                output1_tm[1] = sum[5];
+                output2_tm[1] = sum[6];
+                output3_tm[1] = sum[7];
+                output0_tm += 2;
+                output1_tm += 2;
+                output2_tm += 2;
+                output3_tm += 2;
+            }
+            for (; i < tiles; i++)
+            {
+                const short* r0 = bb2.row<const short>(i / 2 + i % 2);
+                const short* k0 = kernel0_tm.row<const short>(r);
+
+                int nn4 = inch / 4;
+                int nn1 = inch % 4;
+
+                v4i32 _sum0 = __msa_fill_w(0);
+
+                if (nn4 > 0)
+                {
+                    v4i32 _sum1 = __msa_fill_w(0);
+                    v4i32 _sum2 = __msa_fill_w(0);
+                    v4i32 _sum3 = __msa_fill_w(0);
+
+                    int j = 0;
+                    for (; j < nn4; j++)
+                    {
+                        v8i16 _val16 = __msa_ld_h(r0, 0);
+
+                        _val16 = (v8i16)__msa_ilvr_d((v2i64)_val16, (v2i64)_val16);
+
+                        v8i16 _w0 = __msa_ld_h(k0, 0);
+                        v8i16 _w1 = __msa_ld_h(k0 + 8, 0);
+
+                        v8i16 _extval16 = __msa_clti_s_h(_val16, 0);
+                        v8i16 _extw0 = __msa_clti_s_h(_w0, 0);
+                        v8i16 _extw1 = __msa_clti_s_h(_w1, 0);
+
+                        v4i32 _val0l = (v4i32)__msa_ilvr_h(_extval16, _val16);
+                        v4i32 _val0h = (v4i32)__msa_ilvl_h(_extval16, _val16);
+
+                        v4i32 _w0l = (v4i32)__msa_ilvr_h(_extw0, _w0);
+                        v4i32 _w0h = (v4i32)__msa_ilvl_h(_extw0, _w0);
+                        v4i32 _w1l = (v4i32)__msa_ilvr_h(_extw1, _w1);
+                        v4i32 _w1h = (v4i32)__msa_ilvl_h(_extw1, _w1);
+
+                        _sum0 = __msa_maddv_w(_sum0, _val0l, _w0l);
+                        _sum1 = __msa_maddv_w(_sum1, _val0h, _w0h);
+                        _sum2 = __msa_maddv_w(_sum2, _val0l, _w1l);
+                        _sum3 = __msa_maddv_w(_sum3, _val0h, _w1h);
+
+                        r0 += 4;
+                        k0 += 16;
+                    }
+
+                    // transpose 4x4
+                    {
+                        v4i32 _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = __msa_ilvr_w(_sum1, _sum0);
+                        _tmp1 = __msa_ilvr_w(_sum3, _sum2);
+                        _tmp2 = __msa_ilvl_w(_sum1, _sum0);
+                        _tmp3 = __msa_ilvl_w(_sum3, _sum2);
+                        _sum0 = (v4i32)__msa_ilvr_d((v2i64)_tmp1, (v2i64)_tmp0);
+                        _sum1 = (v4i32)__msa_ilvl_d((v2i64)_tmp1, (v2i64)_tmp0);
+                        _sum2 = (v4i32)__msa_ilvr_d((v2i64)_tmp3, (v2i64)_tmp2);
+                        _sum3 = (v4i32)__msa_ilvl_d((v2i64)_tmp3, (v2i64)_tmp2);
+                    }
+
+                    _sum0 = __msa_addv_w(_sum0, _sum1);
+                    _sum2 = __msa_addv_w(_sum2, _sum3);
+                    _sum0 = __msa_addv_w(_sum0, _sum2);
+                }
+
+                for (int j = 0; j < nn1; j++)
+                {
+                    v4i32 _val = __msa_fill_w(r0[0]);
+                    v8i16 _w16 = __msa_ld_h(k0, 0);
+
+                    v8i16 _extw16 = __msa_clti_s_h(_w16, 0);
+                    v4i32 _w0l = (v4i32)__msa_ilvr_h(_extw16, _w16);
+
+                    _sum0 = __msa_maddv_w(_sum0, _val, _w0l);
+
+                    r0 += 1;
+                    k0 += 4;
+                }
+
+                int sum[4];
+                __msa_st_w(_sum0, sum, 0);
+
+                output0_tm[0] = sum[0];
+                output1_tm[0] = sum[1];
+                output2_tm[0] = sum[2];
+                output3_tm[0] = sum[3];
+                output0_tm += 1;
+                output1_tm += 1;
+                output2_tm += 1;
+                output3_tm += 1;
+            }
+        }
+    }
+#else // __mips_msa
+    int nn_outch = outch >> 1;
+    int remain_outch_start = nn_outch << 1;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
@@ -375,15 +629,18 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
             }
         }
     }
-
-    remain_outch_start += nn_outch << 1;
+#endif // __mips_msa
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
     {
         int* output0_tm = top_blob_tm.channel(p);
 
+#if __mips_msa
+        const Mat kernel0_tm = kernel_tm.channel(p / 4 + p % 4);
+#else
         const Mat kernel0_tm = kernel_tm.channel(p / 2 + p % 2);
+#endif
 
         for (int r = 0; r < batch; r++)
         {
@@ -398,7 +655,44 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                 int sum0 = 0;
                 int sum1 = 0;
 
-#if __mips_loongson_mmi
+#if __mips_msa
+                int nn4 = inch / 4;
+                int nn1 = inch % 4;
+
+                if (nn4 > 0)
+                {
+                    v4i32 _sum0 = __msa_fill_w(0);
+                    v4i32 _sum1 = __msa_fill_w(0);
+
+                    int j = 0;
+                    for (; j < nn4; j++)
+                    {
+                        v8i16 _val16 = __msa_ld_h(r0, 0);
+
+                        v8i16 _w16 = __msa_ld_h(k0, 0);
+
+                        _w16 = (v8i16)__msa_ilvr_d((v2i64)_w16, (v2i64)_w16);
+
+                        v8i16 _extval16 = __msa_clti_s_h(_val16, 0);
+                        v8i16 _extw16 = __msa_clti_s_h(_w16, 0);
+
+                        v4i32 _val0l = (v4i32)__msa_ilvr_h(_extval16, _val16);
+                        v4i32 _val0h = (v4i32)__msa_ilvl_h(_extval16, _val16);
+
+                        v4i32 _w0l = (v4i32)__msa_ilvr_h(_extw16, _w16);
+                        v4i32 _w0h = (v4i32)__msa_ilvl_h(_extw16, _w16);
+
+                        _sum0 = __msa_maddv_w(_sum0, _val0l, _w0l);
+                        _sum1 = __msa_maddv_w(_sum1, _val0h, _w0h);
+
+                        r0 += 8;
+                        k0 += 4;
+                    }
+
+                    sum0 = _sum0[0] + _sum0[1] + _sum0[2] + _sum0[3];
+                    sum1 = _sum1[0] + _sum1[1] + _sum1[2] + _sum1[3];
+                }
+#elif __mips_loongson_mmi
                 int nn4 = inch / 4;
                 int nn1 = inch % 4;
 
@@ -467,7 +761,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                 }
 #else  // __mips_loongson_mmi
                 int nn1 = inch;
-#endif // __mips_loongson_mmi
+#endif // __mips_msa || __mips_loongson_mmi
 
                 for (int q = 0; q < nn1; q++)
                 {
@@ -493,7 +787,35 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
 
                 int sum = 0;
 
-#if __mips_loongson_mmi
+#if __mips_msa
+                int nn4 = inch / 4;
+                int nn1 = inch % 4;
+
+                if (nn4 > 0)
+                {
+                    v4i32 _sum = __msa_fill_w(0);
+
+                    int j = 0;
+                    for (; j < nn4; j++)
+                    {
+                        v8i16 _val16 = __msa_ld_h(r0, 0);
+                        v8i16 _w16 = __msa_ld_h(k0, 0);
+
+                        v8i16 _extval16 = __msa_clti_s_h(_val16, 0);
+                        v8i16 _extw16 = __msa_clti_s_h(_w16, 0);
+
+                        v4i32 _val0l = (v4i32)__msa_ilvr_h(_extval16, _val16);
+                        v4i32 _w0l = (v4i32)__msa_ilvr_h(_extw16, _w16);
+
+                        _sum = __msa_maddv_w(_sum, _val0l, _w0l);
+
+                        r0 += 4;
+                        k0 += 4;
+                    }
+
+                    sum = _sum[0] + _sum[1] + _sum[2] + _sum[3];
+                }
+#elif __mips_loongson_mmi
                 int nn4 = inch / 4;
                 int nn1 = inch % 4;
 
@@ -540,7 +862,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                 }
 #else  // __mips_loongson_mmi
                 int nn1 = inch;
-#endif // __mips_loongson_mmi
+#endif // __mips_msa || __mips_loongson_mmi
 
                 for (int q = 0; q < nn1; q++)
                 {
