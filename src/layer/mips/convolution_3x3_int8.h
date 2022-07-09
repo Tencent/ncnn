@@ -12,8 +12,20 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd43_transform_kernel_pack8to1_int8_msa(const Mat& kernel, Mat& kernel_tm_pack8to1, int inch, int outch, const Option& opt)
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+void conv3x3s1_winograd43_transform_kernel_int8_loongson_mmi(const Mat& kernel, Mat& kernel_tm_packed, int inch, int outch, const Option& opt);
+#endif
+
+static void conv3x3s1_winograd43_transform_kernel_int8_msa(const Mat& kernel, Mat& kernel_tm_packed, int inch, int outch, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_MMI && !__mips_msa && !__mips_loongson_mmi
+    if (ncnn::cpu_support_loongson_mmi())
+    {
+        conv3x3s1_winograd43_transform_kernel_int8_loongson_mmi(kernel, kernel_tm_packed, inch, outch, opt);
+        return;
+    }
+#endif
+
     // winograd43 transform kernel
     Mat kernel_tm(6 * 6, inch, outch, (size_t)2u);
 
@@ -63,34 +75,62 @@ static void conv3x3s1_winograd43_transform_kernel_pack8to1_int8_msa(const Mat& k
 
     // interleave
     // src = 36-inch-outch
-    // dst = 4b-8a-inch/8a-36-outch/4b
-    kernel_tm_pack8to1.create(8 * inch / 8, 36, outch / 4 + outch % 4, (size_t)2u * 4, 4);
+    // dst = 2b-inch-36-outch/2b
+    if (outch >= 2)
+    {
+#if __mips_loongson_mmi
+        if (inch >= 4)
+            kernel_tm_packed.create(inch / 4 + inch % 4, 36, outch / 2 + outch % 2, (size_t)2u * 8, 8);
+        else
+#endif // __mips_loongson_mmi
+        {
+            kernel_tm_packed.create(inch, 36, outch / 2 + outch % 2, (size_t)2u * 2, 2);
+        }
+    }
+    else
+    {
+#if __mips_loongson_mmi
+        if (inch >= 4)
+            kernel_tm_packed.create(inch / 4 + inch % 4, 36, outch, (size_t)2u * 4, 4);
+        else
+#endif // __mips_loongson_mmi
+        {
+            kernel_tm_packed.create(inch, 36, outch, (size_t)2u, 1);
+        }
+    }
 
     int p = 0;
-    for (; p + 3 < outch; p += 4)
+    for (; p + 1 < outch; p += 2)
     {
         const Mat k0 = kernel_tm.channel(p);
         const Mat k1 = kernel_tm.channel(p + 1);
-        const Mat k2 = kernel_tm.channel(p + 2);
-        const Mat k3 = kernel_tm.channel(p + 3);
 
-        Mat g0 = kernel_tm_pack8to1.channel(p / 4);
+        Mat g0 = kernel_tm_packed.channel(p / 2);
 
         for (int k = 0; k < 36; k++)
         {
             short* g00 = g0.row<short>(k);
 
-            for (int q = 0; q + 7 < inch; q += 8)
+            int q = 0;
+#if __mips_loongson_mmi
+            for (; q + 3 < inch; q += 4)
             {
-                for (int i = 0; i < 8; i++)
-                {
-                    g00[0] = k0.row<const short>(q + i)[k];
-                    g00[1] = k1.row<const short>(q + i)[k];
-                    g00[2] = k2.row<const short>(q + i)[k];
-                    g00[3] = k3.row<const short>(q + i)[k];
-
-                    g00 += 4;
-                }
+                g00[0] = k0.row<const short>(q)[k];
+                g00[1] = k0.row<const short>(q + 1)[k];
+                g00[2] = k1.row<const short>(q)[k];
+                g00[3] = k1.row<const short>(q + 1)[k];
+                g00[4] = k0.row<const short>(q + 2)[k];
+                g00[5] = k0.row<const short>(q + 3)[k];
+                g00[6] = k1.row<const short>(q + 2)[k];
+                g00[7] = k1.row<const short>(q + 3)[k];
+                g00 += 8;
+            }
+#endif // __mips_loongson_mmi
+            for (; q < inch; q++)
+            {
+                g00[0] = k0.row<const short>(q)[k];
+                g00[1] = k1.row<const short>(q)[k];
+                g00 += 2;
             }
         }
     }
@@ -98,26 +138,33 @@ static void conv3x3s1_winograd43_transform_kernel_pack8to1_int8_msa(const Mat& k
     {
         const Mat k0 = kernel_tm.channel(p);
 
-        Mat g0 = kernel_tm_pack8to1.channel(p / 4 + p % 4);
+        Mat g0 = kernel_tm_packed.channel(p / 2 + p % 2);
 
         for (int k = 0; k < 36; k++)
         {
             short* g00 = g0.row<short>(k);
 
-            for (int q = 0; q + 7 < inch; q += 8)
+            int q = 0;
+#if __mips_loongson_mmi
+            for (; q + 3 < inch; q += 4)
             {
-                for (int i = 0; i < 8; i++)
-                {
-                    g00[0] = k0.row<const short>(q + i)[k];
-
-                    g00 += 1;
-                }
+                g00[0] = k0.row<const short>(q)[k];
+                g00[1] = k0.row<const short>(q + 1)[k];
+                g00[2] = k0.row<const short>(q + 2)[k];
+                g00[3] = k0.row<const short>(q + 3)[k];
+                g00 += 4;
+            }
+#endif // __mips_loongson_mmi
+            for (; q < inch; q++)
+            {
+                g00[0] = k0.row<const short>(q)[k];
+                g00 += 1;
             }
         }
     }
 }
 
-static void conv3x3s1_winograd43_pack8to1_int8_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
+static void conv3x3s1_winograd43_int8_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -147,14 +194,14 @@ static void conv3x3s1_winograd43_pack8to1_int8_msa(const Mat& bottom_blob, Mat& 
         const int tiles = w_tiles * h_tiles;
 
         bottom_blob_tm.create(tiles, 36, inch, 2u * elempack, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd43_transform_input_pack8_int8_msa(bottom_blob_bordered, bottom_blob_tm, opt);
+        conv3x3s1_winograd43_transform_input_int8_msa(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
 
     // BEGIN dot
     Mat top_blob_tm;
-    convolution_winograd_dot_pack8to1_int8_msa(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
+    convolution_winograd_dot_int8_msa(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
     // END dot
 
     // BEGIN transform output
