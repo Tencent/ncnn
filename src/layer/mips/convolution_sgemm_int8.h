@@ -448,14 +448,14 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
                 int32x2_t _sum0 = __mmi_pzerow_s();
                 int32x2_t _sum1 = __mmi_pzerow_s();
 
-                double temp0;
-                double temp1;
-                double temp2;
-                double temp3;
-                double temp4;
-                double temp5;
-                double temp6;
-                double temp7;
+                double temp0 = 0;
+                double temp1 = 0;
+                double temp2 = 0;
+                double temp3 = 0;
+                double temp4 = 0;
+                double temp5 = 0;
+                double temp6 = 0;
+                double temp7 = 0;
 
                 uint64_t flag_0x44 = 0x44;
                 uint64_t flag_0xee = 0xee;
@@ -579,12 +579,12 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             {
                 int32x2_t _sum01 = __mmi_pzerow_s();
 
-                double temp0;
-                double temp1;
-                double temp2;
-                double temp3;
-                double temp4;
-                double temp5;
+                double temp0 = 0;
+                double temp1 = 0;
+                double temp2 = 0;
+                double temp3 = 0;
+                double temp4 = 0;
+                double temp5 = 0;
 
                 uint64_t flag_0x44 = 0x44;
                 uint64_t flag_0xee = 0xee;
@@ -735,12 +735,12 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             {
                 int32x2_t _sum01 = __mmi_pzerow_s();
 
-                double temp0;
-                double temp1;
-                double temp2;
-                double temp3;
-                double temp4;
-                double temp5;
+                double temp0 = 0;
+                double temp1 = 0;
+                double temp2 = 0;
+                double temp3 = 0;
+                double temp4 = 0;
+                double temp5 = 0;
 
                 uint64_t flag_0x44 = 0x44;
                 uint64_t flag_0xee = 0xee;
@@ -873,10 +873,10 @@ static void im2col_sgemm_int8_msa(const Mat& bottom_im2col, Mat& top_blob, const
             {
                 int32x2_t _sum0 = __mmi_pzerow_s();
 
-                double temp0;
-                double temp1;
-                double temp2;
-                double temp3;
+                double temp0 = 0;
+                double temp1 = 0;
+                double temp2 = 0;
+                double temp3 = 0;
 
                 int j = 0;
                 for (; j < nn4; j++)
