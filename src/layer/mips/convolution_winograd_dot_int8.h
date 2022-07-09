@@ -80,7 +80,7 @@ static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, co
                 tmpptr[5] = r3[0];
                 tmpptr[6] = r2[1];
                 tmpptr[7] = r3[1];
-#else // __mips_loongson_mmi
+#else  // __mips_loongson_mmi
                 tmpptr[0] = r0[0];
                 tmpptr[1] = r1[0];
                 tmpptr[2] = r2[0];
