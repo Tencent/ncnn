@@ -2604,6 +2604,92 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             int nn1 = inch * maxk;
 
             int j = 0;
+#if __ARM_FEATURE_SIMD32
+            for (; j + 1 < nn1; j += 2)
+            {
+                // fomit-frame-pointer implied in optimized flag spare one register
+                // let us stay away from error: ‘asm’ operand has impossible constraints   --- nihui
+#if __OPTIMIZE__
+                asm volatile(
+                    "ldr    r2, [%0], #4    \n" // int8x4_t _val = *((int8x4_t*)tmpptr); tmpptr += 4;
+                    "ldr    r3, [%1], #4    \n" // int8x4_t _k = *((int8x4_t*)kptr); kptr += 4;
+                    "ror    r4, r2, #8      \n" // int8x4_t _val_r8 = __ror(_val, 8);
+                    "ror    r5, r3, #8      \n" // int8x4_t _k_r8 = __ror(_k, 8);
+                    "sxtb16 r2, r2          \n" // int16x2_t _val02 = __sxtb16(_val);
+                    "sxtb16 r3, r3          \n" // int16x2_t _w02 = __sxtb16(_k);
+                    "sxtb16 r4, r4          \n" // int16x2_t _val13 = __sxtb16(_val_r8);
+                    "sxtb16 r5, r5          \n" // int16x2_t _w13 = __sxtb16(_k_r8);
+                    "smlad  %2, r2, r3, %2  \n" // sum00 = __smlad(_val02, _w02, sum00);
+                    "smlad  %3, r4, r3, %3  \n" // sum01 = __smlad(_val13, _w02, sum01);
+                    "smlad  %4, r2, r5, %4  \n" // sum10 = __smlad(_val02, _w13, sum10);
+                    "smlad  %5, r4, r5, %5  \n" // sum11 = __smlad(_val13, _w13, sum11);
+                    : "=r"(tmpptr),
+                    "=r"(kptr),
+                    "=r"(sum00),
+                    "=r"(sum01),
+                    "=r"(sum10),
+                    "=r"(sum11)
+                    : "0"(tmpptr),
+                    "1"(kptr),
+                    "2"(sum00),
+                    "3"(sum01),
+                    "4"(sum10),
+                    "5"(sum11)
+                    : "memory", "r2", "r3", "r4", "r5");
+#else
+                int _val = *((int*)tmpptr);
+                int _k = *((int*)kptr);
+                int _val_r8;
+                int _k_r8;
+                asm volatile("ror %0, %2, #8"
+                             : "=r"(_val_r8)
+                             : "0"(_val_r8), "r"(_val)
+                             :);
+                asm volatile("ror %0, %2, #8"
+                             : "=r"(_k_r8)
+                             : "0"(_k_r8), "r"(_k)
+                             :);
+                int _val02;
+                int _w02;
+                int _val13;
+                int _w13;
+                asm volatile("sxtb16 %0, %2"
+                             : "=r"(_val02)
+                             : "0"(_val02), "r"(_val)
+                             :);
+                asm volatile("sxtb16 %0, %2"
+                             : "=r"(_w02)
+                             : "0"(_w02), "r"(_k)
+                             :);
+                asm volatile("sxtb16 %0, %2"
+                             : "=r"(_val13)
+                             : "0"(_val13), "r"(_val_r8)
+                             :);
+                asm volatile("sxtb16 %0, %2"
+                             : "=r"(_w13)
+                             : "0"(_w13), "r"(_k_r8)
+                             :);
+                asm volatile("smlad %0, %2, %3, %0"
+                             : "=r"(sum00)
+                             : "0"(sum00), "r"(_val02), "r"(_w02)
+                             :);
+                asm volatile("smlad %0, %2, %3, %0"
+                             : "=r"(sum01)
+                             : "0"(sum01), "r"(_val13), "r"(_w02)
+                             :);
+                asm volatile("smlad %0, %2, %3, %0"
+                             : "=r"(sum10)
+                             : "0"(sum10), "r"(_val02), "r"(_w13)
+                             :);
+                asm volatile("smlad %0, %2, %3, %0"
+                             : "=r"(sum11)
+                             : "0"(sum11), "r"(_val13), "r"(_w13)
+                             :);
+                tmpptr += 4;
+                kptr += 4;
+#endif
+            }
+#endif // __ARM_FEATURE_SIMD32
             for (; j < nn1; j++)
             {
                 signed char val0 = tmpptr[0];

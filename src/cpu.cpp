@@ -225,6 +225,7 @@ static unsigned int g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
 #define HWCAP2_BF16     (1 << 14)
 #else
 // from arch/arm/include/uapi/asm/hwcap.h
+#define HWCAP_EDSP  (1 << 7)
 #define HWCAP_NEON  (1 << 12)
 #define HWCAP_VFPv4 (1 << 16)
 #endif
@@ -374,6 +375,25 @@ int CpuSet::num_enabled() const
     return get_cpu_count();
 }
 #endif
+
+int cpu_support_arm_edsp()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __aarch64__
+    return 0;
+#else
+    return g_hwcaps & HWCAP_EDSP;
+#endif
+#elif __APPLE__
+#if __aarch64__
+    return 0;
+#else
+    return g_hw_cputype == CPU_TYPE_ARM;
+#endif
+#else
+    return 0;
+#endif
+}
 
 int cpu_support_arm_neon()
 {
