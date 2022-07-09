@@ -2375,7 +2375,6 @@ int Graph::ncnn(const std::string& parampath, const std::string& binpath, const 
             }
         }
 
-        bool is_type_flag_fp32 = false;
         for (const auto& it : op->attrs)
         {
             //             fprintf(paramfp, " @%s=", it.first.c_str());

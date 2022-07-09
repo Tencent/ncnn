@@ -65,7 +65,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return false;
     }
 
-    if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::pow")
+    if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::pow")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
@@ -75,7 +75,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]);
     }
 
-    if (op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_" || op->type == "aten::rsub")
+    if (op->type == "aten::add" || op->type == "aten::sub" || op->type == "aten::rsub")
     {
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
     }
@@ -246,11 +246,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     {
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
     }
-    else if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::pow" || op->type == "aten::remainder")
+    else if (op->type == "aten::floor_divide" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::pow" || op->type == "aten::remainder")
     {
         std::string mathop = op->type.substr(6);
-        if (mathop == "div_")
-            mathop = "div";
 
         expr += mathop;
         expr += "(";
@@ -272,13 +270,9 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
         fuse_expression(graph, op->inputs[1], expr, inputs, foldable_constants);
         expr += ")";
     }
-    else if (op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_")
+    else if (op->type == "aten::add" || op->type == "aten::sub")
     {
         std::string mathop = op->type.substr(6);
-        if (mathop == "add_")
-            mathop = "add";
-        if (mathop == "sub_")
-            mathop = "sub";
 
         expr += mathop;
         expr += "(";
@@ -409,7 +403,7 @@ void fuse_expression(Graph& graph, const std::map<std::string, Attribute>& folda
             {
                 need_fuse = true;
             }
-            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::add_" || op->type == "aten::sub" || op->type == "aten::sub_" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::div_" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::pow" || op->type == "aten::remainder")
+            if (op->type == "aten::floor_divide" || op->type == "aten::add" || op->type == "aten::sub" || op->type == "aten::mul" || op->type == "aten::div" || op->type == "aten::sqrt" || op->type == "aten::rsub" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::pow" || op->type == "aten::remainder")
             {
                 need_fuse = true;
             }

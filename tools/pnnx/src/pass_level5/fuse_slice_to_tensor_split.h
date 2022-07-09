@@ -16,6 +16,6 @@
 
 namespace pnnx {
 
-void fuse_cat_stack_tensors(Graph& graph);
+void fuse_slice_to_tensor_split(Graph& graph);
 
 } // namespace pnnx

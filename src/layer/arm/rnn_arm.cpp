@@ -294,11 +294,8 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
 
             float32x4_t _H = vld1q_f32((float*)gates + q);
 
-            vst1q_f32(hidden_ptr, _H);
-            vst1q_f32(output_data, _H);
-
-            hidden_ptr += 4;
-            output_data += 4;
+            vst1q_f32(hidden_ptr + q, _H);
+            vst1q_f32(output_data + q, _H);
         }
 #endif // __ARM_NEON
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -306,8 +303,8 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
         {
             float H = gates[q];
 
-            *hidden_ptr++ = H;
-            *output_data++ = H;
+            hidden_ptr[q] = H;
+            output_data[q] = H;
         }
     }
 
@@ -632,11 +629,8 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
 
             float32x4_t _H = vld1q_f32((float*)gates + q);
 
-            vst1q_f32(hidden_ptr, _H);
-            vst1_u16(output_data, vcvt_bf16_f32(_H));
-
-            hidden_ptr += 4;
-            output_data += 4;
+            vst1q_f32(hidden_ptr + q, _H);
+            vst1_u16(output_data + q, vcvt_bf16_f32(_H));
         }
 #endif // __ARM_NEON
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -644,8 +638,8 @@ static int rnn_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
         {
             float H = gates[q];
 
-            *hidden_ptr++ = H;
-            *output_data++ = float32_to_bfloat16(H);
+            hidden_ptr[q] = H;
+            output_data[q] = float32_to_bfloat16(H);
         }
     }
 

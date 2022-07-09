@@ -26,6 +26,9 @@ def hardswish_forward_2(x):
     out = F.relu6(x + 3., True) / 6.
     return out * x
 
+def hardswish_forward_3(x):
+    return x * F.relu6(x + 3, inplace=True) / 6
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
@@ -35,6 +38,7 @@ class Model(nn.Module):
         y = hardswish_forward_0(y)
         z = hardswish_forward_1(z)
         w = hardswish_forward_2(w)
+        w = hardswish_forward_3(w)
         return x, y, z, w
 
 def test():

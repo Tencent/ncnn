@@ -53,3 +53,6 @@ __pycache__
 *.pyd
 *.egg-info/
 python/setup.py
+
+# Clangd
+.cache/

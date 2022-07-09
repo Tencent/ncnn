@@ -234,7 +234,9 @@ if(NCNN_THREADS)
     set(THREADS_PREFER_PTHREAD_FLAG TRUE)
     find_package(Threads REQUIRED)
 
-    target_link_libraries(ncnn PUBLIC Threads::Threads)
+    if(TARGET Threads::Threads)
+        target_link_libraries(ncnn PUBLIC Threads::Threads)
+    endif()
 
     if(NCNN_SIMPLEOMP OR NCNN_SIMPLESTL)
         target_link_libraries(ncnn PUBLIC pthread)
@@ -411,13 +413,38 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm") OR (CMAKE_SYSTEM_PROCESSOR MA
 endif()
 
 if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)")))
-    if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM82)
+    if(NOT NCNN_RUNTIME_CPU AND NCNN_ARM86SVE)
+        set(ARM_MARCH_FLAG "-march=armv8.6-a+sve")
+        if(NCNN_ARM86SVE2)
+            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+sve2")
+        endif()
+        if(NCNN_ARM86SVEBF16)
+            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+bf16")
+        endif()
+        if(NCNN_ARM86SVEI8MM)
+            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+i8mm")
+        endif()
+        if(NCNN_ARM86SVEF32MM)
+            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+f32mm")
+        endif()
+    elseif(NOT NCNN_RUNTIME_CPU AND (NCNN_ARM84BF16 OR NCNN_ARM84I8MM))
+        set(ARM_MARCH_FLAG "-march=armv8.4-a")
+        if(NCNN_ARM84BF16)
+            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+bf16")
+        endif()
+        if(NCNN_ARM84I8MM)
+            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+i8mm")
+        endif()
+    elseif(NOT NCNN_RUNTIME_CPU AND NCNN_ARM82)
+        set(ARM_MARCH_FLAG "-march=armv8.2-a+fp16")
         if(NCNN_ARM82DOT)
-            target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16+dotprod)
-        else()
-            target_compile_options(ncnn PRIVATE -march=armv8.2-a+fp16)
+            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+dotprod")
+        endif()
+        if(NCNN_ARM82FP16FML)
+            set(ARM_MARCH_FLAG "${ARM_MARCH_FLAG}+fp16fml")
         endif()
     endif()
+    target_compile_options(ncnn PRIVATE ${ARM_MARCH_FLAG})
 endif()
 
 if(NCNN_TARGET_ARCH STREQUAL "mips")
@@ -447,10 +474,12 @@ endif()
 add_dependencies(ncnn ncnn-generate-spirv)
 
 if(NCNN_INSTALL_SDK)
+    include(GNUInstallDirs)
+
     install(TARGETS ncnn EXPORT ncnn
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib
-        RUNTIME DESTINATION bin
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
     install(FILES
         allocator.h
@@ -479,14 +508,18 @@ if(NCNN_INSTALL_SDK)
         ${CMAKE_CURRENT_BINARY_DIR}/layer_shader_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/layer_type_enum.h
         ${CMAKE_CURRENT_BINARY_DIR}/platform.h
-        DESTINATION include/ncnn
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ncnn
     )
-    install(EXPORT ncnn DESTINATION lib/cmake/ncnn)
+    install(EXPORT ncnn DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
     configure_file(${CMAKE_CURRENT_LIST_DIR}/../cmake/ncnnConfig.cmake.in ncnnConfig.cmake @ONLY)
-    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION lib/cmake/ncnn)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnnConfig.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ncnn)
+    # pkgconfig
+    configure_file(ncnn.pc.in ${CMAKE_CURRENT_BINARY_DIR}/ncnn.pc @ONLY)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/ncnn.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
 endif()
 
 # add ncnn and generate-spirv to a virtual project group
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(TARGET ncnn PROPERTY FOLDER "libncnn")
 set_property(TARGET ncnn-generate-spirv PROPERTY FOLDER "libncnn")
+

@@ -31,8 +31,10 @@ static int detect_squeezenet(const cv::Mat& bgr, std::vector<float>& cls_scores)
     squeezenet.opt.use_vulkan_compute = true;
 
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    squeezenet.load_param("squeezenet_v1.1.param");
-    squeezenet.load_model("squeezenet_v1.1.bin");
+    if (squeezenet.load_param("squeezenet_v1.1.param"))
+        exit(-1);
+    if (squeezenet.load_model("squeezenet_v1.1.bin"))
+        exit(-1);
 
     ncnn::Mat in = ncnn::Mat::from_pixels_resize(bgr.data, ncnn::Mat::PIXEL_BGR, bgr.cols, bgr.rows, 227, 227);
 

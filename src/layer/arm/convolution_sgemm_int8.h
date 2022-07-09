@@ -131,8 +131,16 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
     }
 #endif // __aarch64__
+#else  // __ARM_NEON
     {
-#if __aarch64__
+        if (size >= 2)
+            tmp.create(2 * maxk, inch, size / 2 + size % 2, 1u, 1, opt.workspace_allocator);
+        else
+            tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
+    }
+#endif // __ARM_NEON
+    {
+#if __ARM_NEON && __aarch64__
 #if __ARM_FEATURE_DOTPROD
         int nn_size = size >> 4;
         int remain_size_start = 0;
@@ -545,17 +553,17 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
-#else
+#else  // __ARM_NEON && __aarch64__
         int remain_size_start = 0;
         int nn_size = (size - remain_size_start) >> 1;
-#endif
+#endif // __ARM_NEON && __aarch64__
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
         {
             int i = remain_size_start + ii * 2;
 
-#if __aarch64__
+#if __ARM_NEON && __aarch64__
 #if __ARM_FEATURE_DOTPROD
             signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4 + (i % 4) / 2);
 #else
@@ -566,6 +574,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 #endif
 
             int q = 0;
+#if __ARM_NEON
             for (; q + 7 < inch; q += 8)
             {
                 const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
@@ -656,6 +665,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                     img3 += size;
                 }
             }
+#endif // __ARM_NEON
             for (; q < inch; q++)
             {
                 const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
@@ -677,7 +687,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
-#if __aarch64__
+#if __ARM_NEON && __aarch64__
 #if __ARM_FEATURE_DOTPROD
             signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
 #else
@@ -688,6 +698,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 #endif
 
             int q = 0;
+#if __ARM_NEON
             for (; q + 7 < inch; q += 8)
             {
                 const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
@@ -742,46 +753,22 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                     img3 += size;
                 }
             }
-            for (; q < inch; q++)
-            {
-                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-
-                    tmpptr += 1;
-
-                    img0 += size;
-                }
-            }
-        }
-    }
-#else // __ARM_NEON
-    tmp.create(maxk, inch, size, 1u, 1, opt.workspace_allocator);
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            signed char* tmpptr = tmp.channel(i);
-
-            int q = 0;
-            for (; q < inch; q++)
-            {
-                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-
-                    tmpptr += 1;
-
-                    img0 += size;
-                }
-            }
-        }
-    }
 #endif // __ARM_NEON
+            for (; q < inch; q++)
+            {
+                const signed char* img0 = (const signed char*)bottom_im2col.channel(q) + i;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    tmpptr[0] = img0[0];
+
+                    tmpptr += 1;
+
+                    img0 += size;
+                }
+            }
+        }
+    }
 
     int nn_outch = 0;
     int remain_outch_start = 0;
@@ -2592,6 +2579,172 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
     }
 
     remain_outch_start += nn_outch << 2;
+#else // __ARM_NEON
+    nn_outch = outch >> 1;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        int p = pp * 2;
+
+        int* outptr0 = top_blob.channel(p);
+        int* outptr1 = top_blob.channel(p + 1);
+
+        int i = 0;
+        for (; i + 1 < size; i += 2)
+        {
+            const signed char* tmpptr = tmp.channel(i / 2);
+            const signed char* kptr = kernel.channel(p / 2);
+
+            int sum00 = 0;
+            int sum01 = 0;
+            int sum10 = 0;
+            int sum11 = 0;
+
+            int nn1 = inch * maxk;
+
+            int j = 0;
+#if __ARM_FEATURE_SIMD32
+            for (; j + 1 < nn1; j += 2)
+            {
+                // fomit-frame-pointer implied in optimized flag spare one register
+                // let us stay away from error: ‘asm’ operand has impossible constraints   --- nihui
+#if __OPTIMIZE__
+                asm volatile(
+                    "ldr    r2, [%0], #4    \n" // int8x4_t _val = *((int8x4_t*)tmpptr); tmpptr += 4;
+                    "ldr    r3, [%1], #4    \n" // int8x4_t _k = *((int8x4_t*)kptr); kptr += 4;
+                    "ror    r4, r2, #8      \n" // int8x4_t _val_r8 = __ror(_val, 8);
+                    "ror    r5, r3, #8      \n" // int8x4_t _k_r8 = __ror(_k, 8);
+                    "sxtb16 r2, r2          \n" // int16x2_t _val02 = __sxtb16(_val);
+                    "sxtb16 r3, r3          \n" // int16x2_t _w02 = __sxtb16(_k);
+                    "sxtb16 r4, r4          \n" // int16x2_t _val13 = __sxtb16(_val_r8);
+                    "sxtb16 r5, r5          \n" // int16x2_t _w13 = __sxtb16(_k_r8);
+                    "smlad  %2, r2, r3, %2  \n" // sum00 = __smlad(_val02, _w02, sum00);
+                    "smlad  %3, r4, r3, %3  \n" // sum01 = __smlad(_val13, _w02, sum01);
+                    "smlad  %4, r2, r5, %4  \n" // sum10 = __smlad(_val02, _w13, sum10);
+                    "smlad  %5, r4, r5, %5  \n" // sum11 = __smlad(_val13, _w13, sum11);
+                    : "=r"(tmpptr),
+                    "=r"(kptr),
+                    "=r"(sum00),
+                    "=r"(sum01),
+                    "=r"(sum10),
+                    "=r"(sum11)
+                    : "0"(tmpptr),
+                    "1"(kptr),
+                    "2"(sum00),
+                    "3"(sum01),
+                    "4"(sum10),
+                    "5"(sum11)
+                    : "memory", "r2", "r3", "r4", "r5");
+#else
+                int _val = *((int*)tmpptr);
+                int _k = *((int*)kptr);
+                int _val_r8;
+                int _k_r8;
+                asm volatile("ror %0, %2, #8"
+                             : "=r"(_val_r8)
+                             : "0"(_val_r8), "r"(_val)
+                             :);
+                asm volatile("ror %0, %2, #8"
+                             : "=r"(_k_r8)
+                             : "0"(_k_r8), "r"(_k)
+                             :);
+                int _val02;
+                int _w02;
+                int _val13;
+                int _w13;
+                asm volatile("sxtb16 %0, %2"
+                             : "=r"(_val02)
+                             : "0"(_val02), "r"(_val)
+                             :);
+                asm volatile("sxtb16 %0, %2"
+                             : "=r"(_w02)
+                             : "0"(_w02), "r"(_k)
+                             :);
+                asm volatile("sxtb16 %0, %2"
+                             : "=r"(_val13)
+                             : "0"(_val13), "r"(_val_r8)
+                             :);
+                asm volatile("sxtb16 %0, %2"
+                             : "=r"(_w13)
+                             : "0"(_w13), "r"(_k_r8)
+                             :);
+                asm volatile("smlad %0, %2, %3, %0"
+                             : "=r"(sum00)
+                             : "0"(sum00), "r"(_val02), "r"(_w02)
+                             :);
+                asm volatile("smlad %0, %2, %3, %0"
+                             : "=r"(sum01)
+                             : "0"(sum01), "r"(_val13), "r"(_w02)
+                             :);
+                asm volatile("smlad %0, %2, %3, %0"
+                             : "=r"(sum10)
+                             : "0"(sum10), "r"(_val02), "r"(_w13)
+                             :);
+                asm volatile("smlad %0, %2, %3, %0"
+                             : "=r"(sum11)
+                             : "0"(sum11), "r"(_val13), "r"(_w13)
+                             :);
+                tmpptr += 4;
+                kptr += 4;
+#endif
+            }
+#endif // __ARM_FEATURE_SIMD32
+            for (; j < nn1; j++)
+            {
+                signed char val0 = tmpptr[0];
+                signed char val1 = tmpptr[1];
+                signed char w0 = kptr[0];
+                signed char w1 = kptr[1];
+
+                sum00 += val0 * w0;
+                sum01 += val1 * w0;
+                sum10 += val0 * w1;
+                sum11 += val1 * w1;
+
+                tmpptr += 2;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum00;
+            outptr0[1] = sum01;
+            outptr1[0] = sum10;
+            outptr1[1] = sum11;
+            outptr0 += 2;
+            outptr1 += 2;
+        }
+        for (; i < size; i++)
+        {
+            const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
+            const signed char* kptr = kernel.channel(p / 2);
+
+            int sum00 = 0;
+            int sum10 = 0;
+
+            int nn1 = inch * maxk;
+
+            int j = 0;
+            for (; j < nn1; j++)
+            {
+                signed char val0 = tmpptr[0];
+                signed char w0 = kptr[0];
+                signed char w1 = kptr[1];
+
+                sum00 += val0 * w0;
+                sum10 += val0 * w1;
+
+                tmpptr += 1;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum00;
+            outptr1[0] = sum10;
+            outptr0 += 1;
+            outptr1 += 1;
+        }
+    }
+
+    remain_outch_start += nn_outch << 1;
 #endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -2600,8 +2753,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
         int* outptr0 = top_blob.channel(p);
 
         int i = 0;
-#if __ARM_NEON
-#if __aarch64__
+#if __ARM_NEON && __aarch64__
 #if __ARM_FEATURE_DOTPROD
         for (; i + 15 < size; i += 16)
         {
@@ -2982,10 +3134,10 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             vst1q_s32(outptr0, _sum0);
             outptr0 += 4;
         }
-#endif // __aarch64__
+#endif // __ARM_NEON && __aarch64__
         for (; i + 1 < size; i += 2)
         {
-#if __aarch64__
+#if __ARM_NEON && __aarch64__
 #if __ARM_FEATURE_DOTPROD
             const signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4 + (i % 4) / 2);
 #else
@@ -2994,8 +3146,13 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 #else
             const signed char* tmpptr = tmp.channel(i / 2);
 #endif
+#if __ARM_NEON
             const signed char* kptr0 = kernel.channel(p / 4 + p % 4);
+#else
+            const signed char* kptr0 = kernel.channel(p / 2 + p % 2);
+#endif
 
+#if __ARM_NEON
             int nn = (inch / 8) * maxk;
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
@@ -3074,7 +3231,8 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 #endif // __ARM_FEATURE_DOTPROD
             }
 
-            int sum01[2] = {0, 0};
+            int sum0 = 0;
+            int sum1 = 0;
 
             if (nn4 > 0)
             {
@@ -3095,19 +3253,24 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                     signed char w2 = kptr0[2];
                     signed char w3 = kptr0[3];
 
-                    sum01[0] += val0 * w0;
-                    sum01[0] += val1 * w1;
-                    sum01[0] += val2 * w2;
-                    sum01[0] += val3 * w3;
-                    sum01[1] += val4 * w0;
-                    sum01[1] += val5 * w1;
-                    sum01[1] += val6 * w2;
-                    sum01[1] += val7 * w3;
+                    sum0 += val0 * w0;
+                    sum0 += val1 * w1;
+                    sum0 += val2 * w2;
+                    sum0 += val3 * w3;
+                    sum1 += val4 * w0;
+                    sum1 += val5 * w1;
+                    sum1 += val6 * w2;
+                    sum1 += val7 * w3;
 
                     tmpptr += 8;
                     kptr0 += 4;
                 }
             }
+#else  // __ARM_NEON
+            int nn1 = inch * maxk;
+            int sum0 = 0;
+            int sum1 = 0;
+#endif // __ARM_NEON
 
             int j = 0;
             for (; j < nn1; j++)
@@ -3116,21 +3279,26 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                 signed char val1 = tmpptr[1];
                 signed char w = kptr0[0];
 
-                sum01[0] += val0 * w;
-                sum01[1] += val1 * w;
+                sum0 += val0 * w;
+                sum1 += val1 * w;
 
                 tmpptr += 2;
                 kptr0 += 1;
             }
 
+#if __ARM_NEON
+            int sum01[2] = {sum0, sum1};
             _sum = vadd_s32(_sum, vld1_s32(sum01));
-
             vst1_s32(outptr0, _sum);
+#else  // __ARM_NEON
+            outptr0[0] = sum0;
+            outptr0[1] = sum1;
+#endif // __ARM_NEON
             outptr0 += 2;
         }
         for (; i < size; i++)
         {
-#if __aarch64__
+#if __ARM_NEON && __aarch64__
 #if __ARM_FEATURE_DOTPROD
             const signed char* tmpptr = tmp.channel(i / 16 + (i % 16) / 8 + (i % 8) / 4 + (i % 4) / 2 + i % 2);
 #else
@@ -3139,13 +3307,18 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 #else
             const signed char* tmpptr = tmp.channel(i / 2 + i % 2);
 #endif
+#if __ARM_NEON
             const signed char* kptr0 = kernel.channel(p / 4 + p % 4);
+#else
+            const signed char* kptr0 = kernel.channel(p / 2 + p % 2);
+#endif
 
+            int sum = 0;
+#if __ARM_NEON
             int nn = (inch / 8) * maxk;
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-            int sum = 0;
             if (nn > 0)
             {
 #if __ARM_FEATURE_DOTPROD
@@ -3243,31 +3416,10 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                     kptr0 += 4;
                 }
             }
-
-            int j = 0;
-            for (; j < nn1; j++)
-            {
-                signed char val = tmpptr[0];
-                signed char w = kptr0[0];
-
-                sum += val * w;
-
-                tmpptr += 1;
-                kptr0 += 1;
-            }
-
-            outptr0[0] = sum;
-            outptr0 += 1;
-        }
 #else  // __ARM_NEON
-        for (; i < size; i++)
-        {
-            const signed char* tmpptr = tmp.channel(i);
-            const signed char* kptr0 = kernel.channel(p);
-
             int nn1 = inch * maxk;
+#endif // __ARM_NEON
 
-            int sum = 0;
             int j = 0;
             for (; j < nn1; j++)
             {
@@ -3283,7 +3435,6 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             outptr0[0] = sum;
             outptr0 += 1;
         }
-#endif // __ARM_NEON
     }
 }
 
@@ -3299,12 +3450,12 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
 
     const int maxk = kernel_w * kernel_h;
 
-#if __ARM_NEON
     // interleave
     // src = maxk-inch-outch
     // dst = 8a-4b-maxk-inch/8a-outch/4b
     // dst = 4a-4b-2-maxk-inch/8a-outch/4b (arm82)
     Mat kernel = _kernel.reshape(maxk, inch, outch);
+#if __ARM_NEON
     if (outch >= 4)
     {
         if (inch >= 8)
@@ -3314,17 +3465,30 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
         else
             kernel_tm.create(4 * maxk, inch, outch / 4 + outch % 4, (size_t)1u);
     }
+#else  // __ARM_NEON
+    if (outch >= 2)
+    {
+        {
+            kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2, (size_t)1u);
+        }
+    }
+#endif // __ARM_NEON
     else
     {
+#if __ARM_NEON
         if (inch >= 8)
             kernel_tm.create(8 * maxk, inch / 8 + (inch % 8) / 4 + inch % 4, outch, (size_t)1u);
         else if (inch >= 4)
             kernel_tm.create(4 * maxk, inch / 4 + inch % 4, outch, (size_t)1u);
         else
+#endif // __ARM_NEON
+        {
             kernel_tm.create(1 * maxk, inch, outch, (size_t)1u);
+        }
     }
 
     int q = 0;
+#if __ARM_NEON
     for (; q + 3 < outch; q += 4)
     {
         signed char* g00 = kernel_tm.channel(q / 4);
@@ -3340,9 +3504,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
                     for (int j = 0; j < 4; j++)
                     {
                         const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
@@ -3351,9 +3513,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
                     for (int j = 4; j < 8; j++)
                     {
                         const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
@@ -3363,9 +3523,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
                     for (int j = 0; j < 8; j++)
                     {
                         const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
@@ -3381,9 +3539,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
                     for (int j = 0; j < 4; j++)
                     {
                         const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
-
                         g00[0] = k00[k];
-
                         g00++;
                     }
                 }
@@ -3396,20 +3552,42 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
                 for (int i = 0; i < 4; i++)
                 {
                     const signed char* k00 = kernel.channel(q + i).row<const signed char>(p);
-
                     g00[0] = k00[k];
-
                     g00++;
                 }
             }
         }
     }
-    // TODO unroll 2
-    for (; q < outch; q++)
+#else  // __ARM_NEON
+    for (; q + 1 < outch; q += 2)
     {
-        signed char* g00 = kernel_tm.channel(q / 4 + q % 4);
+        signed char* g00 = kernel_tm.channel(q / 2);
 
         int p = 0;
+        for (; p < inch; p++)
+        {
+            for (int k = 0; k < maxk; k++)
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    const signed char* k00 = kernel.channel(q + i).row<const signed char>(p);
+                    g00[0] = k00[k];
+                    g00++;
+                }
+            }
+        }
+    }
+#endif // __ARM_NEON
+    for (; q < outch; q++)
+    {
+#if __ARM_NEON
+        signed char* g00 = kernel_tm.channel(q / 4 + q % 4);
+#else
+        signed char* g00 = kernel_tm.channel(q / 2 + q % 2);
+#endif
+
+        int p = 0;
+#if __ARM_NEON
         for (; p + 7 < inch; p += 8)
         {
             for (int k = 0; k < maxk; k++)
@@ -3417,9 +3595,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
                 for (int j = 0; j < 8; j++)
                 {
                     const signed char* k00 = kernel.channel(q).row<const signed char>(p + j);
-
                     g00[0] = k00[k];
-
                     g00++;
                 }
             }
@@ -3431,28 +3607,22 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
                 for (int j = 0; j < 4; j++)
                 {
                     const signed char* k00 = kernel.channel(q).row<const signed char>(p + j);
-
                     g00[0] = k00[k];
-
                     g00++;
                 }
             }
         }
+#endif // __ARM_NEON
         for (; p < inch; p++)
         {
             for (int k = 0; k < maxk; k++)
             {
                 const signed char* k00 = kernel.channel(q).row<const signed char>(p);
-
                 g00[0] = k00[k];
-
                 g00++;
             }
         }
     }
-#else  // __ARM_NEON
-    kernel_tm = _kernel.reshape(maxk, inch, outch);
-#endif // __ARM_NEON
 }
 
 static void convolution_im2col_sgemm_int8_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)

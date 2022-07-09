@@ -33,10 +33,16 @@ public:
 
     void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
     {
+        const torch::jit::Node* pad = find_node_by_kind(graph, "aten::pad");
         const torch::jit::Node* constant_pad_nd = find_node_by_kind(graph, "aten::constant_pad_nd");
 
-        op->params["padding"] = constant_pad_nd->namedInput("pad");
-        op->params["value"] = constant_pad_nd->namedInput("value");
+        if (!pad)
+        {
+            pad = constant_pad_nd;
+        }
+
+        op->params["padding"] = pad->namedInput("pad");
+        op->params["value"] = pad->namedInput("value");
     }
 };
 
