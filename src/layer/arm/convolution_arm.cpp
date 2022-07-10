@@ -46,6 +46,7 @@ namespace ncnn {
 
 #if NCNN_INT8
 #include "convolution_sgemm_int8.h"
+#include "convolution_winograd_transform_int8.h"
 #include "convolution_1x1_int8.h"
 #include "convolution_3x3_int8.h"
 #include "convolution_int8.h"
@@ -94,6 +95,10 @@ namespace ncnn {
 #include "convolution_sgemm_pack8to4_int8.h"
 #include "convolution_sgemm_pack1to4_int8.h"
 #include "convolution_sgemm_pack8to1_int8.h"
+#include "convolution_winograd_transform_pack4_int8.h"
+#include "convolution_winograd_transform_pack8_int8.h"
+#include "convolution_winograd_dot_pack8to4_int8.h"
+#include "convolution_winograd_dot_pack8to1_int8.h"
 #include "convolution_1x1_pack8to4_int8.h"
 #include "convolution_1x1_pack1to4_int8.h"
 #include "convolution_1x1_pack8to1_int8.h"
