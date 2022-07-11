@@ -1243,250 +1243,278 @@ void resize_bilinear_yuv420sp(const unsigned char* src, int srcw, int srch, unsi
     resize_bilinear_c2(srcUV, srcw / 2, srch / 2, dstUV, w / 2, h / 2);
 }
     
-void resize_nearest_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h) {
-    return resize_nearest_c1(src, srcw, srch, srcw, dst, w, h, w);
+void resize_nearest_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+	return resize_nearest_c1(src, srcw, srch, srcw, dst, w, h, w);
 }
 
-void resize_nearest_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h) {
-    return resize_nearest_c2(src, srcw, srch, srcw * 2, dst, w, h, w * 2);
+void resize_nearest_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+	return resize_nearest_c2(src, srcw, srch, srcw * 2, dst, w, h, w * 2);
 }
 
-void resize_nearest_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h) {
-    return resize_nearest_c3(src, srcw, srch, srcw * 3, dst, w, h, w * 3);
+void resize_nearest_c3(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+	return resize_nearest_c3(src, srcw, srch, srcw * 3, dst, w, h, w * 3);
 }
 
-void resize_nearest_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h) {
-    return resize_nearest_c4(src, srcw, srch, srcw * 4, dst, w, h, w * 4);
+void resize_nearest_c4(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h)
+{
+	return resize_nearest_c4(src, srcw, srch, srcw * 4, dst, w, h, w * 4);
 }
 
 void resize_nearest_c1(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h,
-    int stride) {
-    double scale_x = (double)srcw / w; 
-    double scale_y = (double)srch / h;
+	int stride)
+{
+	double scale_x = (double)srcw / w;
+	double scale_y = (double)srch / h;
 
-    int* buf = new int[w + h];
+	int* buf = new int[w + h];
 
-    int* xofs = buf;     //new int[w];
-    int* yofs = buf + w; //new int[h];
+	int* xofs = buf;     //new int[w];
+	int* yofs = buf + w; //new int[h];
 
-    int sx;
-    int sy;
-    float fx, fy;
+	int sx;
+	int sy;
 
-    for (int dx = 0; dx < w; dx++) {
-        fx = (float)((dx + 0.5) * scale_x);
-        sx = static_cast<int>(floor(fx));
-        if (sx < 0) {
-            sx = 0;
-        }
-        if (sx >= srcw - 1)
-        {
-            sx = srcw - 1;
-        }
+	for (int dx = 0; dx < w; dx++)
+	{
+		sx = static_cast<int>(floor((float)((dx + 0.5) * scale_x)));
 
-        xofs[dx] = sx; 
-    }
+		if (sx < 0)
+		{
+			sx = 0;
+		}
+		if (sx >= srcw - 1)
+		{
+			sx = srcw - 1;
+		}
 
-    for (int dy = 0; dy < h; dy++) {
-        fy = (float)((dy + 0.5) * scale_y);
-        sy = static_cast<int>(floor(fy));
-        if (sy < 0) {
-            sy = 0;
-        }
-        if (sy >= srcw - 1)
-        {
-            sy = srcw - 1;
-        }
+		xofs[dx] = sx;
+	}
 
-        yofs[dy] = sy; 
-    }
+	for (int dy = 0; dy < h; dy++)
+	{
+		sy = static_cast<int>(floor((float)((dy + 0.5) * scale_y)));
 
-    for (int dy = 0; dy < h; dy++) {
-        unsigned char* Dp = dst + stride * (dy);
-        sy = yofs[dy];
-        const unsigned char* Sy = src + srcstride * (sy);
+		if (sy < 0)
+		{
+			sy = 0;
+		}
+		if (sy >= srch - 1)
+		{
+			sy = srch - 1;
+		}
 
-        for (int dx = 0; dx < w; dx++) {
-            sx = xofs[dx];
-            *(Dp++) = *(Sy + sx); 
-        }
-    }
+		yofs[dy] = sy;
+	}
 
-    delete[] buf;
+	for (int dy = 0; dy < h; dy++)
+	{
+		unsigned char* Dp = dst + stride * (dy);
+		sy = yofs[dy];
+		const unsigned char* Sy = src + srcstride * (sy);
+
+		for (int dx = 0; dx < w; dx++)
+		{
+			sx = xofs[dx];
+			*(Dp++) = *(Sy + sx);
+		}
+	}
+
+	delete[] buf;
 }
 
 void resize_nearest_c2(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h,
-    int stride) {
-    double scale_x = (double)srcw / w;
-    double scale_y = (double)srch / h;
+	int stride)
+{
+	double scale_x = (double)srcw / w;
+	double scale_y = (double)srch / h;
 
-    int* buf = new int[w + h];
+	int* buf = new int[w + h];
 
-    int* xofs = buf;     //new int[w];
-    int* yofs = buf + w; //new int[h];
+	int* xofs = buf;     //new int[w];
+	int* yofs = buf + w; //new int[h];
 
-    int sx;
-    int sy;
-    float fx, fy;
+	int sx;
+	int sy;
 
-    for (int dx = 0; dx < w; dx++) {
-        fx = (float)((dx + 0.5) * scale_x);
-        sx = static_cast<int>(floor(fx));
-        if (sx < 0) {
-            sx = 0;
-        }
-        if (sx >= srcw - 1)
-        {
-            sx = srcw - 1;
-        }
+	for (int dx = 0; dx < w; dx++)
+	{
+		sx = static_cast<int>(floor((float)((dx + 0.5) * scale_x)));
 
-        xofs[dx] = sx * 2;
-    }
+		if (sx < 0)
+		{
+			sx = 0;
+		}
+		if (sx >= srcw - 1)
+		{
+			sx = srcw - 1;
+		}
 
-    for (int dy = 0; dy < h; dy++) {
-        fy = (float)((dy + 0.5) * scale_y);
-        sy = static_cast<int>(floor(fy));
-        if (sy < 0) {
-            sy = 0;
-        }
-        if (sy >= srcw - 1)
-        {
-            sy = srcw - 1;
-        }
+		xofs[dx] = sx * 2;
+	}
 
-        yofs[dy] = sy;
-    }
+	for (int dy = 0; dy < h; dy++)
+	{
+		sy = static_cast<int>(floor((float)((dy + 0.5) * scale_y)));
 
-    for (int dy = 0; dy < h; dy++) {
-        unsigned char* Dp = dst + stride * (dy);
-        sy = yofs[dy];
-        const unsigned char* Sy = src + srcstride * (sy);
+		if (sy < 0)
+		{
+			sy = 0;
+		}
+		if (sy >= srch - 1)
+		{
+			sy = srch - 1;
+		}
 
-        for (int dx = 0; dx < w; dx++) {
-            sx = xofs[dx];
-            *(Dp++) = *(Sy + sx);
-            *(Dp++) = *(Sy + sx + 1); 
-        }
-    }
+		yofs[dy] = sy;
+	}
 
-    delete[] buf;
+	for (int dy = 0; dy < h; dy++)
+	{
+		unsigned char* Dp = dst + stride * (dy);
+		sy = yofs[dy];
+		const unsigned char* Sy = src + srcstride * (sy);
+
+		for (int dx = 0; dx < w; dx++)
+		{
+			sx = xofs[dx];
+			*(Dp++) = *(Sy + sx);
+			*(Dp++) = *(Sy + sx + 1);
+		}
+	}
+
+	delete[] buf;
 }
 
 void resize_nearest_c3(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h,
-    int stride) {
-    double scale_x = (double)srcw / w;
-    double scale_y = (double)srch / h;
+	int stride)
+{
+	double scale_x = (double)srcw / w;
+	double scale_y = (double)srch / h;
 
-    int* buf = new int[w + h];
+	int* buf = new int[w + h];
 
-    int* xofs = buf;     //new int[w];
-    int* yofs = buf + w; //new int[h];
+	int* xofs = buf;     //new int[w];
+	int* yofs = buf + w; //new int[h];
 
-    int sx;
-    int sy;
-    float fx, fy;
+	int sx;
+	int sy;
 
-    for (int dx = 0; dx < w; dx++) {
-        fx = (float)((dx + 0.5) * scale_x);
-        sx = static_cast<int>(floor(fx));
-        if (sx < 0) {
-            sx = 0;
-        }
-        if (sx >= srcw - 1)
-        {
-            sx = srcw - 1;
-        }
+	for (int dx = 0; dx < w; dx++)
+	{
+		sx = static_cast<int>(floor((float)((dx + 0.5) * scale_x)));
 
-        xofs[dx] = sx * 3;
-    }
+		if (sx < 0)
+		{
+			sx = 0;
+		}
+		if (sx >= srcw - 1)
+		{
+			sx = srcw - 1;
+		}
 
-    for (int dy = 0; dy < h; dy++) {
-        fy = (float)((dy + 0.5) * scale_y);
-        sy = static_cast<int>(floor(fy));
-        if (sy < 0) {
-            sy = 0;
-        }
-        if (sy >= srcw - 1)
-        {
-            sy = srcw - 1;
-        }
+		xofs[dx] = sx * 3;
+	}
 
-        yofs[dy] = sy;
-    }
+	for (int dy = 0; dy < h; dy++)
+	{
+		sy = static_cast<int>(floor((float)((dy + 0.5) * scale_y)));
 
-    for (int dy = 0; dy < h; dy++) {
-        unsigned char* Dp = dst + stride * (dy);
-        sy = yofs[dy];
-        const unsigned char* Sy = src + srcstride * (sy);
+		if (sy < 0)
+		{
+			sy = 0;
+		}
+		if (sy >= srch - 1)
+		{
+			sy = srch - 1;
+		}
 
-        for (int dx = 0; dx < w; dx++) {
-            sx = xofs[dx];
-            *(Dp++) = *(Sy + sx);
-            *(Dp++) = *(Sy + sx + 1); 
-            *(Dp++) = *(Sy + sx + 2);
-        }
-    }
+		yofs[dy] = sy;
+	}
 
-    delete[] buf;
+	for (int dy = 0; dy < h; dy++)
+	{
+		unsigned char* Dp = dst + stride * (dy);
+		sy = yofs[dy];
+		const unsigned char* Sy = src + srcstride * (sy);
+
+		for (int dx = 0; dx < w; dx++)
+		{
+			sx = xofs[dx];
+			*(Dp++) = *(Sy + sx);
+			*(Dp++) = *(Sy + sx + 1);
+			*(Dp++) = *(Sy + sx + 2);
+		}
+	}
+
+	delete[] buf;
 }
 
 void resize_nearest_c4(const unsigned char* src, int srcw, int srch, int srcstride, unsigned char* dst, int w, int h,
-    int stride) {
-    double scale_x = (double)srcw / w;
-    double scale_y = (double)srch / h;
+	int stride)
+{
+	double scale_x = (double)srcw / w;
+	double scale_y = (double)srch / h;
 
-    int* buf = new int[w + h];
+	int* buf = new int[w + h];
 
-    int* xofs = buf;     //new int[w];
-    int* yofs = buf + w; //new int[h];
+	int* xofs = buf;     //new int[w];
+	int* yofs = buf + w; //new int[h];
 
-    int sx;
-    int sy;
-    float fx, fy;
+	int sx;
+	int sy;
 
-    for (int dx = 0; dx < w; dx++) {
-        fx = (float)((dx + 0.5) * scale_x);
-        sx = static_cast<int>(floor(fx));
-        if (sx < 0) {
-            sx = 0;
-        }
-        if (sx >= srcw - 1)
-        {
-            sx = srcw - 1;
-        }
+	for (int dx = 0; dx < w; dx++)
+	{
+		sx = static_cast<int>(floor((float)((dx + 0.5) * scale_x)));
 
-        xofs[dx] = sx * 4;
-    }
+		if (sx < 0)
+		{
+			sx = 0;
+		}
+		if (sx >= srcw - 1)
+		{
+			sx = srcw - 1;
+		}
 
-    for (int dy = 0; dy < h; dy++) {
-        fy = (float)((dy + 0.5) * scale_y);
-        sy = static_cast<int>(floor(fy));
-        if (sy < 0) {
-            sy = 0;
-        }
-        if (sy >= srcw - 1)
-        {
-            sy = srcw - 1;
-        }
+		xofs[dx] = sx * 4;
+	}
 
-        yofs[dy] = sy;
-    }
+	for (int dy = 0; dy < h; dy++)
+	{
+		sy = static_cast<int>(floor((float)((dy + 0.5) * scale_y)));
 
-    for (int dy = 0; dy < h; dy++) {
-        unsigned char* Dp = dst + stride * (dy);
-        sy = yofs[dy];
-        const unsigned char* Sy = src + srcstride * (sy);
+		if (sy < 0)
+		{
+			sy = 0;
+		}
+		if (sy >= srch - 1)
+		{
+			sy = srch - 1;
+		}
 
-        for (int dx = 0; dx < w; dx++) {
-            sx = xofs[dx];
-            *(Dp++) = *(Sy + sx);
-            *(Dp++) = *(Sy + sx + 1);
-            *(Dp++) = *(Sy + sx + 2);
-            *(Dp++) = *(Sy + sx + 3);
-        }
-    }
+		yofs[dy] = sy;
+	}
 
-    delete[] buf;
+	for (int dy = 0; dy < h; dy++)
+	{
+		unsigned char* Dp = dst + stride * (dy);
+		sy = yofs[dy];
+		const unsigned char* Sy = src + srcstride * (sy);
+
+		for (int dx = 0; dx < w; dx++)
+		{
+			sx = xofs[dx];
+			*(Dp++) = *(Sy + sx);
+			*(Dp++) = *(Sy + sx + 1);
+			*(Dp++) = *(Sy + sx + 2);
+			*(Dp++) = *(Sy + sx + 3);
+		}
+	}
+
+	delete[] buf;
 }
 #endif // NCNN_PIXEL
 
