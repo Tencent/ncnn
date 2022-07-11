@@ -662,21 +662,21 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
                     int _w02 = *((int*)k0);
                     int _w13 = *((int*)(k0 + 2));
                     asm volatile("smlad %0, %2, %3, %0"
-                                : "=r"(sum00)
-                                : "0"(sum00), "r"(_val02), "r"(_w02)
-                                :);
+                                 : "=r"(sum00)
+                                 : "0"(sum00), "r"(_val02), "r"(_w02)
+                                 :);
                     asm volatile("smlad %0, %2, %3, %0"
-                                : "=r"(sum01)
-                                : "0"(sum01), "r"(_val13), "r"(_w02)
-                                :);
+                                 : "=r"(sum01)
+                                 : "0"(sum01), "r"(_val13), "r"(_w02)
+                                 :);
                     asm volatile("smlad %0, %2, %3, %0"
-                                : "=r"(sum10)
-                                : "0"(sum10), "r"(_val02), "r"(_w13)
-                                :);
+                                 : "=r"(sum10)
+                                 : "0"(sum10), "r"(_val02), "r"(_w13)
+                                 :);
                     asm volatile("smlad %0, %2, %3, %0"
-                                : "=r"(sum11)
-                                : "0"(sum11), "r"(_val13), "r"(_w13)
-                                :);
+                                 : "=r"(sum11)
+                                 : "0"(sum11), "r"(_val13), "r"(_w13)
+                                 :);
                     r0 += 4;
                     k0 += 4;
 #endif
