@@ -1679,6 +1679,19 @@ int Convolution_arm::create_pipeline_int8_arm(const Option& opt)
         }
     }
 
+    scale_in_data.create(num_output);
+    for (int p = 0; p < num_output; p++)
+    {
+        // requantize and relu
+        float scale_in;
+        if (weight_data_int8_scales[p] == 0)
+            scale_in = 0;
+        else
+            scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
+
+        scale_in_data[p] = scale_in;
+    }
+
     if (opt.lightmode)
     {
         weight_data.release();
@@ -1788,33 +1801,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         {
             convolution_pack8to4_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
-
-        Mat scale_in_data(num_output);
-        for (int p = 0; p < num_output; p++)
-        {
-            // requantize and relu
-            float scale_in;
-            if (weight_data_int8_scales[p] == 0)
-                scale_in = 0;
-            else
-                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-
-            scale_in_data[p] = scale_in;
-        }
-
-        if (use_int8_requantize)
-        {
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
-        }
-        else
-        {
-            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
     }
 
     if (elempack == 1 && out_elempack_int32 == 4)
@@ -1847,33 +1833,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         {
             convolution_pack1to4_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
-
-        Mat scale_in_data(num_output);
-        for (int p = 0; p < num_output; p++)
-        {
-            // requantize and relu
-            float scale_in;
-            if (weight_data_int8_scales[p] == 0)
-                scale_in = 0;
-            else
-                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-
-            scale_in_data[p] = scale_in;
-        }
-
-        if (use_int8_requantize)
-        {
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
-        }
-        else
-        {
-            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
-        }
     }
 
     if (elempack == 8 && out_elempack_int32 == 1)
@@ -1897,33 +1856,6 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         else
         {
             convolution_pack8to1_int8_neon(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
-        }
-
-        Mat scale_in_data(num_output);
-        for (int p = 0; p < num_output; p++)
-        {
-            // requantize and relu
-            float scale_in;
-            if (weight_data_int8_scales[p] == 0)
-                scale_in = 0;
-            else
-                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-
-            scale_in_data[p] = scale_in;
-        }
-
-        if (use_int8_requantize)
-        {
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
-        }
-        else
-        {
-            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
         }
     }
 #endif // __ARM_NEON
@@ -1950,32 +1882,19 @@ int Convolution_arm::forward_int8_arm(const Mat& bottom_blob, Mat& top_blob, con
         {
             convolution_int8(bottom_blob_bordered, top_blob_int32, weight_data_tm, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, opt);
         }
+    }
 
-        Mat scale_in_data(num_output);
-        for (int p = 0; p < num_output; p++)
+    if (use_int8_requantize)
+    {
+        requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
+    }
+    else
+    {
+        dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
+
+        if (activation)
         {
-            // requantize and relu
-            float scale_in;
-            if (weight_data_int8_scales[p] == 0)
-                scale_in = 0;
-            else
-                scale_in = 1.f / (bottom_blob_int8_scales[0] * weight_data_int8_scales[p]);
-
-            scale_in_data[p] = scale_in;
-        }
-
-        if (use_int8_requantize)
-        {
-            requantize_from_int32_to_int8(top_blob_int32, top_blob, scale_in_data, top_blob_int8_scales, bias_data, activation_type, activation_params, opt);
-        }
-        else
-        {
-            dequantize_from_int32(top_blob_int32, top_blob, scale_in_data, bias_data, opt);
-
-            if (activation)
-            {
-                activation->forward_inplace(top_blob, opt);
-            }
+            activation->forward_inplace(top_blob, opt);
         }
     }
 

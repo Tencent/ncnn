@@ -63,6 +63,10 @@ public:
 
     // fp16
     Mat bias_data_fp16;
+
+#if NCNN_INT8
+    Mat scale_in_data;
+#endif
 };
 
 } // namespace ncnn
