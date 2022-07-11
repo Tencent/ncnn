@@ -367,23 +367,23 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
     };
 
     static const unsigned char colors[19][3] = {
-        {54,  67,  244},
-        {99,  30,  233},
-        {176, 39,  156},
-        {183, 58,  103},
-        {181, 81,  63},
+        {54, 67, 244},
+        {99, 30, 233},
+        {176, 39, 156},
+        {183, 58, 103},
+        {181, 81, 63},
         {243, 150, 33},
         {244, 169, 3},
         {212, 188, 0},
         {136, 150, 0},
-        {80,  175, 76},
-        {74,  195, 139},
-        {57,  220, 205},
-        {59,  235, 255},
-        {7,   193, 255},
-        {0,   152, 255},
-        {34,  87,  255},
-        {72,  85,  121},
+        {80, 175, 76},
+        {74, 195, 139},
+        {57, 220, 205},
+        {59, 235, 255},
+        {7, 193, 255},
+        {0, 152, 255},
+        {34, 87, 255},
+        {72, 85, 121},
         {158, 158, 158},
         {139, 125, 96}
     };
@@ -396,7 +396,7 @@ static void draw_objects(const cv::Mat& bgr, const std::vector<Object>& objects)
     {
         const Object& obj = objects[i];
 
-        const unsigned char *color = colors[color_index % 19];
+        const unsigned char* color = colors[color_index % 19];
         color_index++;
 
         cv::Scalar cc(color[0], color[1], color[2]);
