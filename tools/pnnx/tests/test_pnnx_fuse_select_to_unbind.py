@@ -24,15 +24,18 @@ class Model(nn.Module):
         x0 = torch.select(x, 0, 0)
         x1 = torch.select(x, 0, 1)
         x2 = torch.select(x, 0, 2)
+
+        z4 = torch.select(x, 2, 4)
+        z3 = torch.select(x, 2, 3)
+
         y0 = torch.select(x, 1, 0)
         y1 = torch.select(x, 1, 1)
         y2 = torch.select(x, 1, 2)
         y3 = torch.select(x, 1, 3)
-        z0 = torch.select(x, 2, 0)
-        z1 = torch.select(x, 2, 1)
+
         z2 = torch.select(x, 2, 2)
-        z3 = torch.select(x, 2, 3)
-        z4 = torch.select(x, 2, 4)
+        z1 = torch.select(x, 2, 1)
+        z0 = torch.select(x, 2, 0)
 
         return x0, x1, x2, y0, y1, y2, y3, z0, z1, z2, z3, z4
 

@@ -36,7 +36,7 @@ def test():
 
     torch.manual_seed(0)
     x = torch.rand(1, 16)
-    y = torch.rand(12, 2, 16)
+    y = torch.rand(1, 2, 16)
     z = torch.rand(1, 3, 12, 16)
 
     a = net(x, y, z)
@@ -47,7 +47,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_prelu.pt inputshape=[1,16],[12,2,16],[1,3,12,16]")
+    os.system("../../src/pnnx test_F_prelu.pt inputshape=[1,16],[1,2,16],[1,3,12,16]")
 
     # ncnn inference
     import test_F_prelu_ncnn

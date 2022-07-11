@@ -344,7 +344,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "############# pass_level1\n");
 
     pnnx::Graph pnnx_graph;
-    pnnx::pass_level1(mod, g, pnnx_graph);
+    pnnx::pass_level1(mod, g, module_operators, pnnx_graph);
 
     //     g->dump();
 
@@ -358,7 +358,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_level3\n");
 
-        pnnx::pass_level3(pnnx_graph);
+        pnnx::pass_level3(pnnx_graph, foldable_constants);
 
         fprintf(stderr, "############# pass_level4\n");
 

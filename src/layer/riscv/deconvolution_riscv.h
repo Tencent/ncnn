@@ -37,11 +37,9 @@ protected:
 #endif
 
 public:
-    // packn
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 
     // fp16
-    Mat weight_data_fp16;
     Mat bias_data_fp16;
 };
 

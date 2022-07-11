@@ -60,13 +60,14 @@ pnnx.Output             output      2 0 out out_hidden
 
         // RUN-hidden-input_size
         {
-            op->attrs["1"] = captured_attrs.at("op_0.weight_ih_l0");
             if (bidirectional)
-                op->attrs["2"] = captured_attrs.at("op_0.weight_ih_l0_reverse");
+                op->attrs["1"] = captured_attrs.at("op_0.weight_ih_l0") + captured_attrs.at("op_0.weight_ih_l0_reverse");
+            else
+                op->attrs["1"] = captured_attrs.at("op_0.weight_ih_l0");
         }
 
-        op->attrs["3"] = Attribute();
-        op->attrs["3"].data = {0, 0, 0, 0};
+        op->attrs["2"] = Attribute();
+        op->attrs["2"].data = {0, 0, 0, 0};
         if (captured_params.at("bias").b)
         {
             // reduce bias_ih and bias_hh
@@ -85,8 +86,6 @@ pnnx.Output             output      2 0 out out_hidden
                 memcpy(bias + num_output * 3, bias_hh + num_output * 2, num_output * sizeof(float));
             }
 
-            op->attrs["4"] = Attribute({4, num_output}, new_bias);
-
             if (bidirectional)
             {
                 std::vector<float> new_bias_reverse;
@@ -104,28 +103,32 @@ pnnx.Output             output      2 0 out out_hidden
                     memcpy(bias + num_output * 3, bias_hh + num_output * 2, num_output * sizeof(float));
                 }
 
-                op->attrs["5"] = Attribute({4, num_output}, new_bias_reverse);
+                op->attrs["3"] = Attribute({4, num_output}, new_bias) + Attribute({4, num_output}, new_bias_reverse);
+            }
+            else
+            {
+                op->attrs["3"] = Attribute({4, num_output}, new_bias);
             }
         }
         else
         {
             std::vector<float> bias(4 * num_output, 0.f);
-            op->attrs["4"] = Attribute({4, num_output}, bias);
 
             if (bidirectional)
-            {
-                op->attrs["5"] = Attribute({4, num_output}, bias);
-            }
+                op->attrs["3"] = Attribute({4, num_output}, bias) + Attribute({4, num_output}, bias);
+            else
+                op->attrs["3"] = Attribute({4, num_output}, bias);
         }
 
-        op->attrs["6"] = Attribute();
-        op->attrs["6"].data = {0, 0, 0, 0};
+        op->attrs["4"] = Attribute();
+        op->attrs["4"].data = {0, 0, 0, 0};
 
         // RUN-hidden-hidden
         {
-            op->attrs["7"] = captured_attrs.at("op_0.weight_hh_l0");
             if (bidirectional)
-                op->attrs["8"] = captured_attrs.at("op_0.weight_hh_l0_reverse");
+                op->attrs["5"] = captured_attrs.at("op_0.weight_hh_l0") + captured_attrs.at("op_0.weight_hh_l0_reverse");
+            else
+                op->attrs["5"] = captured_attrs.at("op_0.weight_hh_l0");
         }
     }
 };

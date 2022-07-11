@@ -148,8 +148,13 @@ void main()
     }
     if (op_type == 16)
     {
+#if NCNN_moltenvk
+        res[0] = afpvec4(tanh(vec4(v[0])));
+        res[1] = afpvec4(tanh(vec4(v[1])));
+#else
         res[0] = tanh(v[0]);
         res[1] = tanh(v[1]);
+#endif
     }
 
 #if NCNN_image_shader

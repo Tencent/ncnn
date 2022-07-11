@@ -28,8 +28,9 @@ class Model(nn.Module):
     def forward(self, x, y):
         x = F.layer_norm(x, (24,), self.w3, self.b3)
 
-        y = F.layer_norm(y, (12,16), self.w4, self.b4, eps=1e-3)
-        return x, y
+        y = F.layer_norm(y, (16,), None, None)
+        z = F.layer_norm(y, (12,16), self.w4, self.b4, eps=1e-3)
+        return x, y, z
 
 def test():
     net = Model()

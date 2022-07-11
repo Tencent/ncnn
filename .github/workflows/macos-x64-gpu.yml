@@ -33,6 +33,9 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+permissions:
+  contents: read
+
 jobs:
   macos-clang-gpu:
     runs-on: macos-latest
@@ -44,7 +47,7 @@ jobs:
       run: brew install protobuf opencv3
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: openmp-install
         key: openmp-macos-install-20201213
@@ -75,7 +78,7 @@ jobs:
         hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: swiftshader-install
         key: swiftshader-macos-install-20220211
@@ -112,6 +115,7 @@ jobs:
         cmake --build . -j 3
     - name: test
       run: |
+        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
         export DYLD_LIBRARY_PATH="$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS/lib":$DYLD_LIBRARY_PATH
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 3

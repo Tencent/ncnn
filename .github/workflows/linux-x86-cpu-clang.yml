@@ -25,6 +25,9 @@ on:
 concurrency:
   group: linux-x86-cpu-clang-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-clang:
     runs-on: ubuntu-latest

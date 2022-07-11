@@ -36,6 +36,11 @@ public:
 public:
     ncnn::Layer* padding;
 
+    Mat weight_data_packed;
+    Mat weight_winograd23_data_packed;
+    Mat weight_winograd43_data_packed;
+    Mat bias_data_packed;
+
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
@@ -48,20 +53,21 @@ public:
     Pipeline* pipeline_convolution_gemm;
 
     // winograd23 and winograd43
-    ncnn::Layer* winograd_padding;
-    ncnn::Layer* winograd_crop;
-    VkMat weight_data_gpu_tm;
-    VkImageMat weight_data_gpu_tm_image;
+    VkMat weight_data_gpu_tm_winograd23;
+    VkImageMat weight_data_gpu_tm_winograd23_image;
     Pipeline* pipeline_convolution_3x3s1d1_winograd23_transform_input;
     Pipeline* pipeline_convolution_3x3s1d1_winograd23_gemm;
     Pipeline* pipeline_convolution_3x3s1d1_winograd23_transform_output;
 
+    VkMat weight_data_gpu_tm_winograd43;
+    VkImageMat weight_data_gpu_tm_winograd43_image;
     Pipeline* pipeline_convolution_3x3s1d1_winograd43_transform_input;
     Pipeline* pipeline_convolution_3x3s1d1_winograd43_gemm;
     Pipeline* pipeline_convolution_3x3s1d1_winograd43_transform_output;
 
     // convolution as fc
-    ncnn::Layer* innerproduct;
+    ncnn::Layer* reshape_1x1xw;
+    ncnn::Layer* reshape_w;
 };
 
 } // namespace ncnn

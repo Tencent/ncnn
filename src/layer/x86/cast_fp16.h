@@ -12,6 +12,11 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if NCNN_RUNTIME_CPU && NCNN_AVX512FP16 && __AVX512F__ && !__AVX512FP16__
+void cast_fp32_to_fp16_sse_avx512fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+void cast_fp16_to_fp32_sse_avx512fp16(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
 void cast_fp32_to_fp16_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
 void cast_fp16_to_fp32_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Option& opt);
@@ -19,6 +24,14 @@ void cast_fp16_to_fp32_sse_f16c(const Mat& bottom_blob, Mat& top_blob, const Opt
 
 static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+#if NCNN_RUNTIME_CPU && NCNN_AVX512FP16 && __AVX512F__ && !__AVX512FP16__
+    if (ncnn::cpu_support_x86_avx512_fp16())
+    {
+        cast_fp32_to_fp16_sse_avx512fp16(bottom_blob, top_blob, opt);
+        return;
+    }
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
@@ -42,7 +55,35 @@ static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const O
         unsigned short* outptr = top_blob.channel(q);
 
         int i = 0;
-#if __F16C__
+#if __AVX512FP16__
+        for (; i + 15 < size; i += 16)
+        {
+            __m512 _v_fp32 = _mm512_loadu_ps(ptr);
+            __m256h _v_fp16 = _mm512_cvtxps_ph(_v_fp32);
+            _mm256_storeu_si256((__m256i*)outptr, (__m256i)_v_fp16);
+
+            ptr += 16;
+            outptr += 16;
+        }
+        for (; i + 7 < size; i += 8)
+        {
+            __m256 _v_fp32 = _mm256_loadu_ps(ptr);
+            __m128h _v_fp16 = _mm256_cvtxps_ph(_v_fp32);
+            _mm_storeu_si128((__m128i*)outptr, (__m128i)_v_fp16);
+
+            ptr += 8;
+            outptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __m128 _v_fp32 = _mm_loadu_ps(ptr);
+            __m128h _v_fp16 = _mm_cvtxps_ph(_v_fp32);
+            _mm_storeu_si128((__m128i*)outptr, (__m128i)_v_fp16);
+
+            ptr += 4;
+            outptr += 4;
+        }
+#elif __F16C__
         for (; i + 7 < size; i += 8)
         {
             __m256 _v_fp32 = _mm256_loadu_ps(ptr);
@@ -71,6 +112,14 @@ static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const O
 
 static void cast_fp16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
+#if NCNN_AVX512FP16 && __AVX512F__ && !__AVX512FP16__
+    if (ncnn::cpu_support_x86_avx512_fp16())
+    {
+        cast_fp16_to_fp32_sse_avx512fp16(bottom_blob, top_blob, opt);
+        return;
+    }
+#endif
+
 #if NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
@@ -94,7 +143,35 @@ static void cast_fp16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
         float* outptr = top_blob.channel(q);
 
         int i = 0;
-#if __F16C__
+#if __AVX512FP16__
+        for (; i + 15 < size; i += 16)
+        {
+            __m256h _v_fp16 = (__m256h)_mm256_loadu_si256((const __m256i*)ptr);
+            __m512 _v_fp32 = _mm512_cvtxph_ps(_v_fp16);
+            _mm512_storeu_ps(outptr, _v_fp32);
+
+            ptr += 16;
+            outptr += 16;
+        }
+        for (; i + 7 < size; i += 8)
+        {
+            __m128h _v_fp16 = (__m128h)_mm_loadu_si128((const __m128i*)ptr);
+            __m256 _v_fp32 = _mm256_cvtxph_ps(_v_fp16);
+            _mm256_storeu_ps(outptr, _v_fp32);
+
+            ptr += 8;
+            outptr += 8;
+        }
+        for (; i + 3 < size; i += 4)
+        {
+            __m128h _v_fp16 = (__m128h)_mm_loadu_si128((const __m128i*)ptr);
+            __m128 _v_fp32 = _mm_cvtxph_ps(_v_fp16);
+            _mm_storeu_ps(outptr, _v_fp32);
+
+            ptr += 4;
+            outptr += 4;
+        }
+#elif __F16C__
         for (; i + 7 < size; i += 8)
         {
             __m128i _v_fp16 = _mm_loadu_si128((const __m128i*)ptr);

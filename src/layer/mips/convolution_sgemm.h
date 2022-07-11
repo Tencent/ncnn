@@ -26,7 +26,6 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
     // permute
     Mat tmp;
-#if __mips_msa
     if (size >= 4)
         tmp.create(4 * maxk, inch, size / 4 + size % 4, 4u, 1, opt.workspace_allocator);
     else
@@ -47,7 +46,14 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
                 for (int k = 0; k < maxk; k++)
                 {
+#if __mips_msa
                     __msa_st_w(__msa_ld_w(img0, 0), tmpptr, 0);
+#else
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img0[1];
+                    tmpptr[2] = img0[2];
+                    tmpptr[3] = img0[3];
+#endif
                     img0 += size;
                     tmpptr += 4;
                 }
@@ -74,28 +80,6 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
             }
         }
     }
-#else // __mips_msa
-    tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            float* tmpptr = tmp.channel(i);
-
-            for (int q = 0; q < inch; q++)
-            {
-                const float* img0 = (const float*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-                    img0 += size;
-                    tmpptr += 1;
-                }
-            }
-        }
-    }
-#endif // __mips_msa
 
 #if __mips_msa
     int nn_outch = outch >> 3;
@@ -137,8 +121,8 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
             for (int q = 0; q < nn; q++)
             {
-                __builtin_prefetch(tmpptr + 32);
-                __builtin_prefetch(kptr + 64);
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr + 32);
                 v4f32 _val = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4i32 _w0123 = __msa_ld_w(kptr, 0);
                 v4i32 _w4567 = __msa_ld_w(kptr + 4, 0);
@@ -253,8 +237,8 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
             for (int q = 0; q < nn; q++)
             {
-                __builtin_prefetch(tmpptr + 32);
-                __builtin_prefetch(kptr + 32);
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr + 16);
                 v4f32 _val = (v4f32)__msa_ld_w(tmpptr, 0);
                 v4i32 _w0123 = __msa_ld_w(kptr, 0);
                 _sum0 = __msa_fmadd_w(_sum0, _val, (v4f32)__msa_splati_w(_w0123, 0));
@@ -311,6 +295,96 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
     }
 
     remain_outch_start += nn_outch << 2;
+#else // __mips_msa
+    int nn_outch = outch >> 1;
+    int remain_outch_start = nn_outch << 1;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        int p = pp * 2;
+
+        float* outptr0 = top_blob.channel(p);
+        float* outptr1 = top_blob.channel(p + 1);
+
+        const float zeros[2] = {0.f, 0.f};
+        const float* biasptr = bias ? bias + p : zeros;
+
+        int i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            const float* tmpptr = tmp.channel(i / 4);
+            const float* kptr = kernel.channel(p / 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+            float sum00 = biasptr[0];
+            float sum01 = biasptr[0];
+            float sum02 = biasptr[0];
+            float sum03 = biasptr[0];
+            float sum10 = biasptr[1];
+            float sum11 = biasptr[1];
+            float sum12 = biasptr[1];
+            float sum13 = biasptr[1];
+
+            for (int q = 0; q < nn; q++)
+            {
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr + 8);
+                float k0 = kptr[0];
+                float k1 = kptr[1];
+                sum00 += tmpptr[0] * k0;
+                sum01 += tmpptr[1] * k0;
+                sum02 += tmpptr[2] * k0;
+                sum03 += tmpptr[3] * k0;
+                sum10 += tmpptr[0] * k1;
+                sum11 += tmpptr[1] * k1;
+                sum12 += tmpptr[2] * k1;
+                sum13 += tmpptr[3] * k1;
+                tmpptr += 4;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum00;
+            outptr0[1] = sum01;
+            outptr0[2] = sum02;
+            outptr0[3] = sum03;
+            outptr1[0] = sum10;
+            outptr1[1] = sum11;
+            outptr1[2] = sum12;
+            outptr1[3] = sum13;
+
+            outptr0 += 4;
+            outptr1 += 4;
+        }
+        for (; i < size; i++)
+        {
+            const float* tmpptr = tmp.channel(i / 4 + i % 4);
+            const float* kptr = kernel.channel(p / 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+            float sum0 = biasptr[0];
+            float sum1 = biasptr[1];
+
+            for (int q = 0; q < nn; q++)
+            {
+                __builtin_prefetch(tmpptr + 4);
+                __builtin_prefetch(kptr + 8);
+                sum0 += tmpptr[0] * kptr[0];
+                sum1 += tmpptr[0] * kptr[1];
+                tmpptr++;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum0;
+            outptr1[0] = sum1;
+
+            outptr0++;
+            outptr1++;
+        }
+    }
+#endif // __mips_msa
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
@@ -323,10 +397,15 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
         for (; i + 3 < size; i += 4)
         {
             const float* tmpptr = tmp.channel(i / 4);
+#if __mips_msa
             const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
+#else
+            const float* kptr = kernel.channel(p / 2 + p % 2);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
+#if __mips_msa
             v4f32 _sum0 = __msa_fill_w_f32(bias0);
 
             for (int q = 0; q < nn; q++)
@@ -339,11 +418,40 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
             __msa_st_w((v4i32)_sum0, outptr0, 0);
 
             outptr0 += 4;
+#else
+            float sum0 = bias0;
+            float sum1 = bias0;
+            float sum2 = bias0;
+            float sum3 = bias0;
+
+            for (int q = 0; q < nn; q++)
+            {
+                __builtin_prefetch(tmpptr + 16);
+                __builtin_prefetch(kptr + 4);
+                sum0 += tmpptr[0] * kptr[0];
+                sum1 += tmpptr[1] * kptr[0];
+                sum2 += tmpptr[2] * kptr[0];
+                sum3 += tmpptr[3] * kptr[0];
+                tmpptr += 4;
+                kptr++;
+            }
+
+            outptr0[0] = sum0;
+            outptr0[1] = sum1;
+            outptr0[2] = sum2;
+            outptr0[3] = sum3;
+
+            outptr0 += 4;
+#endif // __mips_msa
         }
         for (; i < size; i++)
         {
             const float* tmpptr = tmp.channel(i / 4 + i % 4);
+#if __mips_msa
             const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
+#else
+            const float* kptr = kernel.channel(p / 2 + p % 2);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
@@ -361,36 +469,6 @@ static void im2col_sgemm_msa(const Mat& bottom_im2col, Mat& top_blob, const Mat&
             outptr0++;
         }
     }
-#else // __mips_msa
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
-        float* outptr0 = top_blob.channel(p);
-
-        const float bias0 = bias ? bias[p] : 0.f;
-
-        for (int i = 0; i < size; i++)
-        {
-            const float* tmpptr = tmp.channel(i);
-            const float* kptr = kernel.channel(p);
-
-            int nn = inch * maxk; // inch always > 0
-
-            float sum0 = bias0;
-
-            for (int q = 0; q < nn; q++)
-            {
-                sum0 += tmpptr[0] * kptr[0];
-                tmpptr++;
-                kptr++;
-            }
-
-            outptr0[0] = sum0;
-
-            outptr0++;
-        }
-    }
-#endif // __mips_msa
 }
 
 static void convolution_im2col_sgemm_transform_kernel_msa(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
@@ -403,8 +481,12 @@ static void convolution_im2col_sgemm_transform_kernel_msa(const Mat& _kernel, Ma
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __mips_msa
     kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + outch % 4);
+#else
+    kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2);
+#endif
 
     int q = 0;
+#if __mips_msa
     for (; q + 7 < outch; q += 8)
     {
         const Mat k0 = kernel.channel(q);
@@ -471,11 +553,38 @@ static void convolution_im2col_sgemm_transform_kernel_msa(const Mat& _kernel, Ma
             }
         }
     }
+#else
+    for (; q + 1 < outch; q += 2)
+    {
+        const Mat k0 = kernel.channel(q);
+        const Mat k1 = kernel.channel(q + 1);
+
+        float* g00 = kernel_tm.channel(q / 2);
+
+        for (int p = 0; p < inch; p++)
+        {
+            const float* k00 = k0.row(p);
+            const float* k10 = k1.row(p);
+
+            for (int k = 0; k < maxk; k++)
+            {
+                g00[0] = k00[k];
+                g00[1] = k10[k];
+
+                g00 += 2;
+            }
+        }
+    }
+#endif // __mips_msa
     for (; q < outch; q++)
     {
         const Mat k0 = kernel.channel(q);
 
+#if __mips_msa
         float* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
+#else
+        float* g00 = kernel_tm.channel(q / 2 + q % 2);
+#endif
 
         for (int p = 0; p < inch; p++)
         {
@@ -489,9 +598,6 @@ static void convolution_im2col_sgemm_transform_kernel_msa(const Mat& _kernel, Ma
             }
         }
     }
-#else
-    kernel_tm = kernel;
-#endif // __mips_msa
 }
 
 static void convolution_im2col_sgemm_msa(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)

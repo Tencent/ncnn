@@ -100,7 +100,13 @@ static int test_deconvolution_0()
             return -1;
     }
 
-    return 0;
+    return 0
+           || test_deconvolution(7, 5, 24, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 32, 24, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 28, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 32, 28, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 26, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 32, 26, 4, 2, 2, 2, 1, 0, 0, 0, 0);
 }
 
 int main()

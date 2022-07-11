@@ -431,11 +431,11 @@ static inline vfloat32m1x8_t vcreate_f32m1x8(vfloat32m1_t v0, vfloat32m1_t v1, v
 #define vfwmacc_vf_f32m4 vfwmaccvf_float32xm4_float16xm2
 #define vfwmacc_vf_f32m8 vfwmaccvf_float32xm8_float16xm4
 
-static inline vfloat32m1_t vfredsum_vs_f32m1_f32m1(vfloat32m1_t dst, vfloat32m1_t a, vfloat32m1_t b, word_type vl)
+static inline vfloat32m1_t vfredusum_vs_f32m1_f32m1(vfloat32m1_t dst, vfloat32m1_t a, vfloat32m1_t b, word_type vl)
 {
     return vfredsumvs_float32xm1(a, b, vl);
 }
-static inline vfloat32m1_t vfredsum_vs_f32m2_f32m1(vfloat32m1_t dst, vfloat32m2_t a, vfloat32m1_t b, word_type vl)
+static inline vfloat32m1_t vfredusum_vs_f32m2_f32m1(vfloat32m1_t dst, vfloat32m2_t a, vfloat32m1_t b, word_type vl)
 {
     float32xm2_u b2;
     b2.m1[0] = b;
@@ -443,7 +443,7 @@ static inline vfloat32m1_t vfredsum_vs_f32m2_f32m1(vfloat32m1_t dst, vfloat32m2_
     b2.v = vfredsumvs_float32xm2(a, b2.v, vl);
     return vfaddvv_float32xm1(b2.m1[0], b2.m1[1], vl);
 }
-static inline vfloat32m1_t vfredsum_vs_f32m4_f32m1(vfloat32m1_t dst, vfloat32m4_t a, vfloat32m1_t b, word_type vl)
+static inline vfloat32m1_t vfredusum_vs_f32m4_f32m1(vfloat32m1_t dst, vfloat32m4_t a, vfloat32m1_t b, word_type vl)
 {
     float32xm4_u b4;
     b4.m1[0] = b;
@@ -453,7 +453,7 @@ static inline vfloat32m1_t vfredsum_vs_f32m4_f32m1(vfloat32m1_t dst, vfloat32m4_
     b4.v = vfredsumvs_float32xm4(a, b4.v, vl);
     return vfaddvv_float32xm1(vfaddvv_float32xm1(b4.m1[0], b4.m1[1], vl), vfaddvv_float32xm1(b4.m1[2], b4.m1[3], vl), vl);
 }
-static inline vfloat32m1_t vfredsum_vs_f32m8_f32m1(vfloat32m1_t dst, vfloat32m8_t a, vfloat32m1_t b, word_type vl)
+static inline vfloat32m1_t vfredusum_vs_f32m8_f32m1(vfloat32m1_t dst, vfloat32m8_t a, vfloat32m1_t b, word_type vl)
 {
     float32xm8_u b8;
     b8.m1[0] = b;
@@ -885,11 +885,11 @@ static inline vfloat16m1x8_t vcreate_f16m1x8(vfloat16m1_t v0, vfloat16m1_t v1, v
 #define vfnmsac_vf_f16m4 vfnmsacvf_float16xm4
 #define vfnmsac_vf_f16m8 vfnmsacvf_float16xm8
 
-static inline vfloat16m1_t vfredsum_vs_f16m1_f16m1(vfloat16m1_t dst, vfloat16m1_t a, vfloat16m1_t b, word_type vl)
+static inline vfloat16m1_t vfredusum_vs_f16m1_f16m1(vfloat16m1_t dst, vfloat16m1_t a, vfloat16m1_t b, word_type vl)
 {
     return vfredsumvs_float16xm1(a, b, vl);
 }
-static inline vfloat16m1_t vfredsum_vs_f16m2_f16m1(vfloat16m1_t dst, vfloat16m2_t a, vfloat16m1_t b, word_type vl)
+static inline vfloat16m1_t vfredusum_vs_f16m2_f16m1(vfloat16m1_t dst, vfloat16m2_t a, vfloat16m1_t b, word_type vl)
 {
     float16xm2_u b2;
     b2.m1[0] = b;
@@ -897,7 +897,7 @@ static inline vfloat16m1_t vfredsum_vs_f16m2_f16m1(vfloat16m1_t dst, vfloat16m2_
     b2.v = vfredsumvs_float16xm2(a, b2.v, vl);
     return vfaddvv_float16xm1(b2.m1[0], b2.m1[1], vl);
 }
-static inline vfloat16m1_t vfredsum_vs_f16m4_f16m1(vfloat16m1_t dst, vfloat16m4_t a, vfloat16m1_t b, word_type vl)
+static inline vfloat16m1_t vfredusum_vs_f16m4_f16m1(vfloat16m1_t dst, vfloat16m4_t a, vfloat16m1_t b, word_type vl)
 {
     float16xm4_u b4;
     b4.m1[0] = b;
@@ -907,7 +907,7 @@ static inline vfloat16m1_t vfredsum_vs_f16m4_f16m1(vfloat16m1_t dst, vfloat16m4_
     b4.v = vfredsumvs_float16xm4(a, b4.v, vl);
     return vfaddvv_float16xm1(vfaddvv_float16xm1(b4.m1[0], b4.m1[1], vl), vfaddvv_float16xm1(b4.m1[2], b4.m1[3], vl), vl);
 }
-static inline vfloat16m1_t vfredsum_vs_f16m8_f16m1(vfloat16m1_t dst, vfloat16m8_t a, vfloat16m1_t b, word_type vl)
+static inline vfloat16m1_t vfredusum_vs_f16m8_f16m1(vfloat16m1_t dst, vfloat16m8_t a, vfloat16m1_t b, word_type vl)
 {
     float16xm8_u b8;
     b8.m1[0] = b;

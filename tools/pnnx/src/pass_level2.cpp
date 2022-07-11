@@ -86,7 +86,15 @@ static bool match_parameter(const Parameter& a, const Parameter& b, std::map<std
     }
 
     if (a.type != b.type)
+    {
+        if (a.type == 2 && b.type == 3)
+            return a.i == b.f;
+
+        if (a.type == 3 && b.type == 2)
+            return a.f == b.i;
+
         return false;
+    }
 
     const int type = a.type;
 
@@ -384,15 +392,27 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
         // lets replace
 
-        // remove all matched_operators
+        // remove all operands inside matched graph
+        std::unordered_map<std::string, Operand*> operands_to_remove;
         for (auto& _x : matched_operators)
         {
-            //             fprintf(stderr, "remove %s\n", _x.second->name.c_str());
-
             Operator* x = (Operator*)_x.second;
             for (auto& r : x->inputs)
             {
                 r->remove_consumer(x);
+
+                bool is_input = false;
+                for (auto& r2 : matched_inputs)
+                {
+                    if (r2.second == r)
+                    {
+                        is_input = true;
+                        break;
+                    }
+                }
+
+                if (!is_input)
+                    operands_to_remove[r->name] = r;
             }
 
             x->inputs.clear();
@@ -400,9 +420,36 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
             for (auto& r : x->outputs)
             {
                 r->producer = 0;
+
+                bool is_output = false;
+                for (auto& r2 : matched_outputs)
+                {
+                    if (r2.second == r)
+                    {
+                        is_output = true;
+                        break;
+                    }
+                }
+
+                if (!is_output)
+                    operands_to_remove[r->name] = r;
             }
 
             x->outputs.clear();
+        }
+        for (auto& _x : operands_to_remove)
+        {
+            Operand* r = _x.second;
+            graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), r));
+            delete r;
+        }
+
+        // remove all matched_operators
+        for (auto& _x : matched_operators)
+        {
+            //             fprintf(stderr, "remove %s\n", _x.second->name.c_str());
+
+            Operator* x = (Operator*)_x.second;
 
             graph.ops.erase(std::find(graph.ops.begin(), graph.ops.end(), x));
 

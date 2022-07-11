@@ -33,13 +33,16 @@ public:
 
 protected:
     int create_group_ops(const Option& opt);
+#if NCNN_INT8
+    int create_pipeline_int8_mips(const Option& opt);
+    int forward_int8_mips(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
+#endif
 
 public:
     Layer* activation;
     std::vector<ncnn::Layer*> group_ops;
 
-    // packing
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn

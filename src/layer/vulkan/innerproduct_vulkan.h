@@ -36,6 +36,9 @@ public:
 public:
     ncnn::Layer* flatten;
 
+    Mat weight_data_packed;
+    Mat bias_data_packed;
+
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
@@ -43,6 +46,9 @@ public:
     VkImageMat bias_data_gpu_image;
 
     Pipeline* pipeline_innerproduct;
+
+    Pipeline* pipeline_innerproduct_sum8;
+    Pipeline* pipeline_innerproduct_reduce_sum8;
 
     Pipeline* pipeline_innerproduct_gemm;
 };
