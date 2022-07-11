@@ -23,20 +23,25 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
     // permute
     Mat bottom_blob_tm2;
 #if __ARM_NEON
-    {
-        if (tiles >= 4)
-            bottom_blob_tm2.create(inch, tiles / 4 + tiles % 4, batch, 8u, 4, opt.workspace_allocator);
-        else // if (tiles >= 1)
-            bottom_blob_tm2.create(inch, tiles, batch, 2u, 1, opt.workspace_allocator);
-    }
+#if __aarch64__
+    if (tiles >= 8)
+        bottom_blob_tm2.create(inch, tiles / 8 + (tiles % 8) / 4 + tiles % 4, batch, 16u, 8, opt.workspace_allocator);
+    else if (tiles >= 4)
+        bottom_blob_tm2.create(inch, tiles / 4 + tiles % 4, batch, 8u, 4, opt.workspace_allocator);
+    else // if (tiles >= 1)
+        bottom_blob_tm2.create(inch, tiles, batch, 2u, 1, opt.workspace_allocator);
 #else
-    {
-        if (tiles >= 2)
-            bottom_blob_tm2.create(inch, tiles / 2 + tiles % 2, batch, 4u, 2, opt.workspace_allocator);
-        else // if (tiles >= 1)
-            bottom_blob_tm2.create(inch, tiles, batch, 2u, 1, opt.workspace_allocator);
-    }
+    if (tiles >= 4)
+        bottom_blob_tm2.create(inch, tiles / 4 + tiles % 4, batch, 8u, 4, opt.workspace_allocator);
+    else // if (tiles >= 1)
+        bottom_blob_tm2.create(inch, tiles, batch, 2u, 1, opt.workspace_allocator);
 #endif
+#else // __ARM_NEON
+    if (tiles >= 2)
+        bottom_blob_tm2.create(inch, tiles / 2 + tiles % 2, batch, 4u, 2, opt.workspace_allocator);
+    else // if (tiles >= 1)
+        bottom_blob_tm2.create(inch, tiles, batch, 2u, 1, opt.workspace_allocator);
+#endif // __ARM_NEON
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int r = 0; r < batch; r++)
@@ -46,10 +51,29 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
         // tile
         int i = 0;
 #if __ARM_NEON
+#if __aarch64__
+        for (; i + 7 < tiles; i += 8)
+        {
+            short* tmpptr = tm2.row<short>(i / 8);
+            const short* r0 = (const short*)bottom_blob_tm + r * tiles + i;
+
+            int q = 0;
+            for (; q < inch; q++)
+            {
+                int16x8_t _r0 = vld1q_s16(r0);
+                vst1q_s16(tmpptr, _r0);
+                r0 += bottom_blob_tm.cstep;
+                tmpptr += 8;
+            }
+        }
+#endif
         for (; i + 3 < tiles; i += 4)
         {
+#if __aarch64__
+            short* tmpptr = tm2.row<short>(i / 8 + (i % 8) / 4);
+#else
             short* tmpptr = tm2.row<short>(i / 4);
-
+#endif
             const short* r0 = (const short*)bottom_blob_tm + r * tiles + i;
 
             int q = 0;
@@ -61,11 +85,10 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
                 tmpptr += 4;
             }
         }
-#else
+#else // __ARM_NEON
         for (; i + 1 < tiles; i += 2)
         {
             short* tmpptr = tm2.row<short>(i / 2);
-
             const short* r0 = (const short*)bottom_blob_tm + r * tiles + i;
 
             int q = 0;
@@ -89,15 +112,18 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
                 tmpptr += 2;
             }
         }
-#endif
+#endif // __ARM_NEON
         for (; i < tiles; i++)
         {
 #if __ARM_NEON
+#if __aarch64__
+            short* tmpptr = tm2.row<short>(i / 8 + (i % 8) / 4 + i % 4);
+#else
             short* tmpptr = tm2.row<short>(i / 4 + i % 4);
+#endif
 #else
             short* tmpptr = tm2.row<short>(i / 2 + i % 2);
 #endif
-
             const short* r0 = (const short*)bottom_blob_tm + r * tiles + i;
 
             int q = 0;
@@ -140,9 +166,91 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
             const Mat bb2 = bottom_blob_tm2.channel(r);
 
             int i = 0;
+#if __aarch64__
+            for (; i + 7 < tiles; i += 8)
+            {
+                const short* r0 = bb2.row<const short>(i / 8);
+                const short* k0 = kernel0_tm.row<const short>(r);
+
+                int32x4_t _sum00 = vdupq_n_s32(0);
+                int32x4_t _sum10 = vdupq_n_s32(0);
+                int32x4_t _sum20 = vdupq_n_s32(0);
+                int32x4_t _sum30 = vdupq_n_s32(0);
+                int32x4_t _sum40 = vdupq_n_s32(0);
+                int32x4_t _sum50 = vdupq_n_s32(0);
+                int32x4_t _sum60 = vdupq_n_s32(0);
+                int32x4_t _sum70 = vdupq_n_s32(0);
+                int32x4_t _sum01 = vdupq_n_s32(0);
+                int32x4_t _sum11 = vdupq_n_s32(0);
+                int32x4_t _sum21 = vdupq_n_s32(0);
+                int32x4_t _sum31 = vdupq_n_s32(0);
+                int32x4_t _sum41 = vdupq_n_s32(0);
+                int32x4_t _sum51 = vdupq_n_s32(0);
+                int32x4_t _sum61 = vdupq_n_s32(0);
+                int32x4_t _sum71 = vdupq_n_s32(0);
+
+                int j = 0;
+                for (; j < inch; j++)
+                {
+                    int16x8_t _val0 = vld1q_s16(r0);
+                    int16x8_t _w0 = vld1q_s16(k0);
+
+                    _sum00 = vmlal_lane_s16(_sum00, vget_low_s16(_val0), vget_low_s16(_w0), 0);
+                    _sum10 = vmlal_lane_s16(_sum10, vget_low_s16(_val0), vget_low_s16(_w0), 1);
+                    _sum20 = vmlal_lane_s16(_sum20, vget_low_s16(_val0), vget_low_s16(_w0), 2);
+                    _sum30 = vmlal_lane_s16(_sum30, vget_low_s16(_val0), vget_low_s16(_w0), 3);
+                    _sum40 = vmlal_lane_s16(_sum40, vget_low_s16(_val0), vget_high_s16(_w0), 0);
+                    _sum50 = vmlal_lane_s16(_sum50, vget_low_s16(_val0), vget_high_s16(_w0), 1);
+                    _sum60 = vmlal_lane_s16(_sum60, vget_low_s16(_val0), vget_high_s16(_w0), 2);
+                    _sum70 = vmlal_lane_s16(_sum70, vget_low_s16(_val0), vget_high_s16(_w0), 3);
+
+                    _sum01 = vmlal_lane_s16(_sum01, vget_high_s16(_val0), vget_low_s16(_w0), 0);
+                    _sum11 = vmlal_lane_s16(_sum11, vget_high_s16(_val0), vget_low_s16(_w0), 1);
+                    _sum21 = vmlal_lane_s16(_sum21, vget_high_s16(_val0), vget_low_s16(_w0), 2);
+                    _sum31 = vmlal_lane_s16(_sum31, vget_high_s16(_val0), vget_low_s16(_w0), 3);
+                    _sum41 = vmlal_lane_s16(_sum41, vget_high_s16(_val0), vget_high_s16(_w0), 0);
+                    _sum51 = vmlal_lane_s16(_sum51, vget_high_s16(_val0), vget_high_s16(_w0), 1);
+                    _sum61 = vmlal_lane_s16(_sum61, vget_high_s16(_val0), vget_high_s16(_w0), 2);
+                    _sum71 = vmlal_lane_s16(_sum71, vget_high_s16(_val0), vget_high_s16(_w0), 3);
+
+                    r0 += 8;
+                    k0 += 8;
+                }
+
+                vst1q_s32(output0_tm, _sum00);
+                vst1q_s32(output0_tm + 4, _sum01);
+                vst1q_s32(output1_tm, _sum10);
+                vst1q_s32(output1_tm + 4, _sum11);
+                vst1q_s32(output2_tm, _sum20);
+                vst1q_s32(output2_tm + 4, _sum21);
+                vst1q_s32(output3_tm, _sum30);
+                vst1q_s32(output3_tm + 4, _sum31);
+                vst1q_s32(output4_tm, _sum40);
+                vst1q_s32(output4_tm + 4, _sum41);
+                vst1q_s32(output5_tm, _sum50);
+                vst1q_s32(output5_tm + 4, _sum51);
+                vst1q_s32(output6_tm, _sum60);
+                vst1q_s32(output6_tm + 4, _sum61);
+                vst1q_s32(output7_tm, _sum70);
+                vst1q_s32(output7_tm + 4, _sum71);
+
+                output0_tm += 8;
+                output1_tm += 8;
+                output2_tm += 8;
+                output3_tm += 8;
+                output4_tm += 8;
+                output5_tm += 8;
+                output6_tm += 8;
+                output7_tm += 8;
+            }
+#endif // __aarch64__
             for (; i + 3 < tiles; i += 4)
             {
+#if __aarch64__
+                const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4);
+#else
                 const short* r0 = bb2.row<const short>(i / 4);
+#endif
                 const short* k0 = kernel0_tm.row<const short>(r);
 
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -220,7 +328,11 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
             }
             for (; i < tiles; i++)
             {
+#if __aarch64__
+                const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4 + i % 4);
+#else
                 const short* r0 = bb2.row<const short>(i / 4 + i % 4);
+#endif
                 const short* k0 = kernel0_tm.row<const short>(r);
 
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -298,9 +410,89 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
             const Mat bb2 = bottom_blob_tm2.channel(r);
 
             int i = 0;
+#if __aarch64__
+            for (; i + 7 < tiles; i += 8)
+            {
+                const short* r0 = bb2.row<const short>(i / 8);
+                const short* k0 = kernel0_tm.row<const short>(r);
+
+                int32x4_t _sum00 = vdupq_n_s32(0);
+                int32x4_t _sum10 = vdupq_n_s32(0);
+                int32x4_t _sum20 = vdupq_n_s32(0);
+                int32x4_t _sum30 = vdupq_n_s32(0);
+                int32x4_t _sum01 = vdupq_n_s32(0);
+                int32x4_t _sum11 = vdupq_n_s32(0);
+                int32x4_t _sum21 = vdupq_n_s32(0);
+                int32x4_t _sum31 = vdupq_n_s32(0);
+
+                int j = 0;
+                for (; j + 1 < inch; j += 2)
+                {
+                    int16x8_t _val01 = vld1q_s16(r0);
+                    int16x8_t _val23 = vld1q_s16(r0 + 8);
+                    int16x8_t _w01 = vld1q_s16(k0);
+
+                    _sum00 = vmlal_lane_s16(_sum00, vget_low_s16(_val01), vget_low_s16(_w01), 0);
+                    _sum10 = vmlal_lane_s16(_sum10, vget_low_s16(_val01), vget_low_s16(_w01), 1);
+                    _sum20 = vmlal_lane_s16(_sum20, vget_low_s16(_val01), vget_low_s16(_w01), 2);
+                    _sum30 = vmlal_lane_s16(_sum30, vget_low_s16(_val01), vget_low_s16(_w01), 3);
+                    _sum01 = vmlal_lane_s16(_sum01, vget_high_s16(_val01), vget_low_s16(_w01), 0);
+                    _sum11 = vmlal_lane_s16(_sum11, vget_high_s16(_val01), vget_low_s16(_w01), 1);
+                    _sum21 = vmlal_lane_s16(_sum21, vget_high_s16(_val01), vget_low_s16(_w01), 2);
+                    _sum31 = vmlal_lane_s16(_sum31, vget_high_s16(_val01), vget_low_s16(_w01), 3);
+
+                    _sum00 = vmlal_lane_s16(_sum00, vget_low_s16(_val23), vget_high_s16(_w01), 0);
+                    _sum10 = vmlal_lane_s16(_sum10, vget_low_s16(_val23), vget_high_s16(_w01), 1);
+                    _sum20 = vmlal_lane_s16(_sum20, vget_low_s16(_val23), vget_high_s16(_w01), 2);
+                    _sum30 = vmlal_lane_s16(_sum30, vget_low_s16(_val23), vget_high_s16(_w01), 3);
+                    _sum01 = vmlal_lane_s16(_sum01, vget_high_s16(_val23), vget_high_s16(_w01), 0);
+                    _sum11 = vmlal_lane_s16(_sum11, vget_high_s16(_val23), vget_high_s16(_w01), 1);
+                    _sum21 = vmlal_lane_s16(_sum21, vget_high_s16(_val23), vget_high_s16(_w01), 2);
+                    _sum31 = vmlal_lane_s16(_sum31, vget_high_s16(_val23), vget_high_s16(_w01), 3);
+
+                    r0 += 16;
+                    k0 += 8;
+                }
+                for (; j < inch; j++)
+                {
+                    int16x8_t _val0 = vld1q_s16(r0);
+                    int16x4_t _w0 = vld1_s16(k0);
+
+                    _sum00 = vmlal_lane_s16(_sum00, vget_low_s16(_val0), _w0, 0);
+                    _sum10 = vmlal_lane_s16(_sum10, vget_low_s16(_val0), _w0, 1);
+                    _sum20 = vmlal_lane_s16(_sum20, vget_low_s16(_val0), _w0, 2);
+                    _sum30 = vmlal_lane_s16(_sum30, vget_low_s16(_val0), _w0, 3);
+                    _sum01 = vmlal_lane_s16(_sum01, vget_high_s16(_val0), _w0, 0);
+                    _sum11 = vmlal_lane_s16(_sum11, vget_high_s16(_val0), _w0, 1);
+                    _sum21 = vmlal_lane_s16(_sum21, vget_high_s16(_val0), _w0, 2);
+                    _sum31 = vmlal_lane_s16(_sum31, vget_high_s16(_val0), _w0, 3);
+
+                    r0 += 8;
+                    k0 += 4;
+                }
+
+                vst1q_s32(output0_tm, _sum00);
+                vst1q_s32(output0_tm + 4, _sum01);
+                vst1q_s32(output1_tm, _sum10);
+                vst1q_s32(output1_tm + 4, _sum11);
+                vst1q_s32(output2_tm, _sum20);
+                vst1q_s32(output2_tm + 4, _sum21);
+                vst1q_s32(output3_tm, _sum30);
+                vst1q_s32(output3_tm + 4, _sum31);
+
+                output0_tm += 8;
+                output1_tm += 8;
+                output2_tm += 8;
+                output3_tm += 8;
+            }
+#endif // __aarch64__
             for (; i + 3 < tiles; i += 4)
             {
+#if __aarch64__
+                const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4);
+#else
                 const short* r0 = bb2.row<const short>(i / 4);
+#endif
                 const short* k0 = kernel0_tm.row<const short>(r);
 
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -352,7 +544,11 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
             }
             for (; i < tiles; i++)
             {
+#if __aarch64__
+                const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4 + i % 4);
+#else
                 const short* r0 = bb2.row<const short>(i / 4 + i % 4);
+#endif
                 const short* k0 = kernel0_tm.row<const short>(r);
 
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -549,9 +745,67 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
 
             int i = 0;
 #if __ARM_NEON
+#if __aarch64__
+            for (; i + 7 < tiles; i += 8)
+            {
+                const short* r0 = bb2.row<const short>(i / 8);
+                const short* k0 = kernel0_tm.row<const short>(r);
+
+                int32x4_t _sum0 = vdupq_n_s32(0);
+                int32x4_t _sum1 = vdupq_n_s32(0);
+                int32x4_t _sum2 = vdupq_n_s32(0);
+                int32x4_t _sum3 = vdupq_n_s32(0);
+
+                int j = 0;
+                for (; j + 3 < inch; j += 4)
+                {
+                    int16x8_t _val01 = vld1q_s16(r0);
+                    int16x8_t _val23 = vld1q_s16(r0 + 8);
+                    int16x8_t _val45 = vld1q_s16(r0 + 16);
+                    int16x8_t _val67 = vld1q_s16(r0 + 24);
+                    int16x4_t _w0123 = vld1_s16(k0);
+
+                    _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_val01), _w0123, 0);
+                    _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_val01), _w0123, 0);
+
+                    _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_val23), _w0123, 1);
+                    _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_val23), _w0123, 1);
+
+                    _sum0 = vmlal_lane_s16(_sum0, vget_low_s16(_val45), _w0123, 2);
+                    _sum1 = vmlal_lane_s16(_sum1, vget_high_s16(_val45), _w0123, 2);
+
+                    _sum2 = vmlal_lane_s16(_sum2, vget_low_s16(_val67), _w0123, 3);
+                    _sum3 = vmlal_lane_s16(_sum3, vget_high_s16(_val67), _w0123, 3);
+
+                    k0 += 4;
+                    r0 += 32;
+                }
+                _sum0 = vaddq_s32(_sum0, _sum2);
+                _sum1 = vaddq_s32(_sum1, _sum3);
+                for (; j < inch; j++)
+                {
+                    int16x8_t _val0 = vld1q_s16(r0);
+                    int16x4_t _w0 = vld1_dup_s16(k0);
+
+                    _sum0 = vmlal_s16(_sum0, _w0, vget_low_s16(_val0));
+                    _sum1 = vmlal_s16(_sum1, _w0, vget_high_s16(_val0));
+
+                    k0 += 1;
+                    r0 += 8;
+                }
+
+                vst1q_s32(output0_tm, _sum0);
+                vst1q_s32(output0_tm + 4, _sum1);
+                output0_tm += 8;
+            }
+#endif // __aarch64__
             for (; i + 3 < tiles; i += 4)
             {
+#if __aarch64__
+                const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4);
+#else
                 const short* r0 = bb2.row<const short>(i / 4);
+#endif
                 const short* k0 = kernel0_tm.row<const short>(r);
 
                 int32x4_t _sum0 = vdupq_n_s32(0);
@@ -642,7 +896,11 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
             for (; i < tiles; i++)
             {
 #if __ARM_NEON
+#if __aarch64__
+                const short* r0 = bb2.row<const short>(i / 8 + (i % 8) / 4 + i % 4);
+#else
                 const short* r0 = bb2.row<const short>(i / 4 + i % 4);
+#endif
 #else
                 const short* r0 = bb2.row<const short>(i / 2 + i % 2);
 #endif
