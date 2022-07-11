@@ -36,7 +36,7 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
     else // if (tiles >= 1)
         bottom_blob_tm2.create(inch, tiles, batch, 2u, 1, opt.workspace_allocator);
 #endif
-#else // __ARM_NEON
+#else  // __ARM_NEON
     if (tiles >= 2)
         bottom_blob_tm2.create(inch, tiles / 2 + tiles % 2, batch, 4u, 2, opt.workspace_allocator);
     else // if (tiles >= 1)
