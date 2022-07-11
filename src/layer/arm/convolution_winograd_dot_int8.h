@@ -631,6 +631,9 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
 #if __ARM_FEATURE_SIMD32
                 for (; j + 1 < inch; j += 2)
                 {
+                    // fomit-frame-pointer implied in optimized flag spare one register
+                    // let us stay away from error: ‘asm’ operand has impossible constraints   --- nihui
+#if __OPTIMIZE__
                     asm volatile(
                         "ldr    r2, [%0], #4    \n" // int16x2_t _val02 = *((int16x2_t*)r0); r0 += 2;
                         "ldr    r3, [%0], #4    \n" // int16x2_t _val13 = *((int16x2_t*)r0); r0 += 2;
@@ -653,6 +656,30 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
                         "4"(sum10),
                         "5"(sum11)
                         : "memory", "r2", "r3", "r4", "r5");
+#else
+                    int _val02 = *((int*)r0);
+                    int _val13 = *((int*)(r0 + 2));
+                    int _w02 = *((int*)k0);
+                    int _w13 = *((int*)(k0 + 2));
+                    asm volatile("smlad %0, %2, %3, %0"
+                                : "=r"(sum00)
+                                : "0"(sum00), "r"(_val02), "r"(_w02)
+                                :);
+                    asm volatile("smlad %0, %2, %3, %0"
+                                : "=r"(sum01)
+                                : "0"(sum01), "r"(_val13), "r"(_w02)
+                                :);
+                    asm volatile("smlad %0, %2, %3, %0"
+                                : "=r"(sum10)
+                                : "0"(sum10), "r"(_val02), "r"(_w13)
+                                :);
+                    asm volatile("smlad %0, %2, %3, %0"
+                                : "=r"(sum11)
+                                : "0"(sum11), "r"(_val13), "r"(_w13)
+                                :);
+                    r0 += 4;
+                    k0 += 4;
+#endif
                 }
 #endif // __ARM_FEATURE_SIMD32
                 for (; j < inch; j++)
