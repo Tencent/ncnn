@@ -63,11 +63,6 @@ public:
 
     // fp16
     Mat bias_data_fp16;
-
-#if NCNN_INT8
-    //     Mat weight_3x3s2_data_int8;
-    std::vector<Mat> weight_3x3_winograd23_data_int8;
-#endif
 };
 
 } // namespace ncnn
