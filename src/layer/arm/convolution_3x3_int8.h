@@ -73,7 +73,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, M
     {
         kernel_tm_packed.create(inch, 36, outch / 4 + outch % 4, (size_t)2u * 4, 4);
     }
-#else // __ARM_NEON
+#else  // __ARM_NEON
     if (outch >= 2)
     {
         kernel_tm_packed.create(inch, 36, outch / 2 + outch % 2, (size_t)2u * 2, 2);
@@ -127,7 +127,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, M
             }
         }
     }
-#else // __ARM_NEON
+#else  // __ARM_NEON
     for (; p + 1 < outch; p += 2)
     {
         const Mat k0 = kernel_tm.channel(p);
