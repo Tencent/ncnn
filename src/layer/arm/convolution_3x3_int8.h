@@ -139,7 +139,18 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, M
         {
             short* g00 = g0.row<short>(k);
 
-            for (int q = 0; q < inch; q++)
+            int q = 0;
+#if __ARM_FEATURE_SIMD32
+            for (; q + 1 < inch; q += 2)
+            {
+                g00[0] = k0.row<const short>(q)[k];
+                g00[2] = k1.row<const short>(q)[k];
+                g00[1] = k0.row<const short>(q + 1)[k];
+                g00[3] = k1.row<const short>(q + 1)[k];
+                g00 += 4;
+            }
+#endif // __ARM_FEATURE_SIMD32
+            for (; q < inch; q++)
             {
                 g00[0] = k0.row<const short>(q)[k];
                 g00[1] = k1.row<const short>(q)[k];

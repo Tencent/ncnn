@@ -69,6 +69,18 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
             const short* r0 = (const short*)bottom_blob_tm + r * tiles + i;
 
             int q = 0;
+#if __ARM_FEATURE_SIMD32
+            for (; q + 1 < inch; q += 2)
+            {
+                tmpptr[0] = r0[0];
+                tmpptr[2] = r0[1];
+                r0 += bottom_blob_tm.cstep;
+                tmpptr[1] = r0[0];
+                tmpptr[3] = r0[1];
+                r0 += bottom_blob_tm.cstep;
+                tmpptr += 4;
+            }
+#endif // __ARM_FEATURE_SIMD32
             for (; q < inch; q++)
             {
                 tmpptr[0] = r0[0];
@@ -419,7 +431,35 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
                 int sum01 = 0;
                 int sum11 = 0;
 
-                for (int j = 0; j < inch; j++)
+                int j = 0;
+#if __ARM_FEATURE_SIMD32
+                for (; j + 1 < inch; j += 2)
+                {
+                    asm volatile(
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _val02 = *((int16x2_t*)r0); r0 += 2;
+                        "ldr    r3, [%0], #4    \n" // int16x2_t _val13 = *((int16x2_t*)r0); r0 += 2;
+                        "ldr    r4, [%1], #4    \n" // int16x2_t _w02 = *((int16x2_t*)k0); k0 += 2;
+                        "ldr    r5, [%1], #4    \n" // int16x2_t _w13 = *((int16x2_t*)k0); k0 += 2;
+                        "smlad  %2, r2, r4, %2  \n" // sum00 = __smlad(_val02, _w02, sum00);
+                        "smlad  %3, r3, r4, %3  \n" // sum01 = __smlad(_val13, _w02, sum01);
+                        "smlad  %4, r2, r5, %4  \n" // sum10 = __smlad(_val02, _w13, sum10);
+                        "smlad  %5, r3, r5, %5  \n" // sum11 = __smlad(_val13, _w13, sum11);
+                        : "=r"(r0),
+                        "=r"(k0),
+                        "=r"(sum00),
+                        "=r"(sum01),
+                        "=r"(sum10),
+                        "=r"(sum11)
+                        : "0"(r0),
+                        "1"(k0),
+                        "2"(sum00),
+                        "3"(sum01),
+                        "4"(sum10),
+                        "5"(sum11)
+                        : "memory", "r2", "r3", "r4", "r5");
+                }
+#endif // __ARM_FEATURE_SIMD32
+                for (; j < inch; j++)
                 {
                     signed short val0 = r0[0];
                     signed short val1 = r0[1];
@@ -451,7 +491,28 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
                 int sum0 = 0;
                 int sum1 = 0;
 
-                for (int j = 0; j < inch; j++)
+                int j = 0;
+#if __ARM_FEATURE_SIMD32
+                for (; j + 1 < inch; j += 2)
+                {
+                    asm volatile(
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _val01 = *((int16x2_t*)r0); r0 += 2;
+                        "ldr    r3, [%1], #4    \n" // int16x2_t _w02 = *((int16x2_t*)k0); k0 += 2;
+                        "ldr    r4, [%1], #4    \n" // int16x2_t _w13 = *((int16x2_t*)k0); k0 += 2;
+                        "smlad  %2, r2, r3, %2  \n" // sum00 = __smlad(_val01, _w02, sum00);
+                        "smlad  %3, r2, r4, %3  \n" // sum01 = __smlad(_val01, _w02, sum01);
+                        : "=r"(r0),
+                        "=r"(k0),
+                        "=r"(sum0),
+                        "=r"(sum1)
+                        : "0"(r0),
+                        "1"(k0),
+                        "2"(sum0),
+                        "3"(sum1)
+                        : "memory", "r2", "r3", "r4");
+                }
+#endif // __ARM_FEATURE_SIMD32
+                for (; j < inch; j++)
                 {
                     signed short val = r0[0];
 
@@ -539,7 +600,28 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
                 int sum0 = 0;
                 int sum1 = 0;
 
-                for (int j = 0; j < inch; j++)
+                int j = 0;
+#if __ARM_FEATURE_SIMD32
+                for (; j + 1 < inch; j += 2)
+                {
+                    asm volatile(
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _val02 = *((int16x2_t*)r0); r0 += 2;
+                        "ldr    r3, [%0], #4    \n" // int16x2_t _val13 = *((int16x2_t*)r0); r0 += 2;
+                        "ldr    r4, [%1], #4    \n" // int16x2_t _w01 = *((int16x2_t*)k0); k0 += 2;
+                        "smlad  %2, r2, r4, %2  \n" // sum00 = __smlad(_val02, _w01, sum00);
+                        "smlad  %3, r3, r4, %3  \n" // sum01 = __smlad(_val13, _w01, sum01);
+                        : "=r"(r0),
+                        "=r"(k0),
+                        "=r"(sum0),
+                        "=r"(sum1)
+                        : "0"(r0),
+                        "1"(k0),
+                        "2"(sum0),
+                        "3"(sum1)
+                        : "memory", "r2", "r3", "r4");
+                }
+#endif // __ARM_FEATURE_SIMD32
+                for (; j < inch; j++)
                 {
                     signed short val0 = r0[0];
                     signed short val1 = r0[1];
@@ -603,6 +685,22 @@ static void convolution_winograd_dot_int8_neon(Mat& bottom_blob_tm, int outch, c
                 sum = vget_lane_s32(_ss, 0);
 #endif
 #endif // __ARM_NEON
+#if __ARM_FEATURE_SIMD32
+                for (; j + 1 < inch; j += 2)
+                {
+                    asm volatile(
+                        "ldr    r2, [%0], #4    \n" // int16x2_t _val = *((int16x2_t*)r0); r0 += 2;
+                        "ldr    r3, [%1], #4    \n" // int16x2_t _w = *((int16x2_t*)k0); k0 += 2;
+                        "smlad  %2, r2, r3, %2  \n" // sum = __smlad(_val, _w, sum);
+                        : "=r"(r0),
+                        "=r"(k0),
+                        "=r"(sum)
+                        : "0"(r0),
+                        "1"(k0),
+                        "2"(sum)
+                        : "memory", "r2", "r3");
+                }
+#endif // __ARM_FEATURE_SIMD32
                 for (; j < inch; j++)
                 {
                     signed short val = r0[0];
