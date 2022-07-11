@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd43_transform_input_int8_msa(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+static void conv3x3s1_winograd43_transform_input_int8_neon(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -121,7 +121,7 @@ static void conv3x3s1_winograd43_transform_input_int8_msa(const Mat& bottom_blob
     }
 }
 
-static void conv3x3s1_winograd43_transform_output_int8_msa(const Mat& top_blob_tm, Mat& top_blob, const Option& opt)
+static void conv3x3s1_winograd43_transform_output_int8_neon(const Mat& top_blob_tm, Mat& top_blob, const Option& opt)
 {
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -165,6 +165,7 @@ static void conv3x3s1_winograd43_transform_output_int8_msa(const Mat& top_blob_t
 
                 int* output0 = out0.row<int>(i * 4) + j * 4;
 
+                // TODO neon optimize
                 for (int m = 0; m < 5; m++)
                 {
                     int tmp02a = output0_tm_1[0] + output0_tm_2[0];
