@@ -127,7 +127,7 @@ static void conv3x3s1_winograd43_transform_kernel_int8_neon(const Mat& kernel, M
             }
         }
     }
-#else  // __ARM_NEON
+#else // __ARM_NEON
     for (; p + 1 < outch; p += 2)
     {
         const Mat k0 = kernel_tm.channel(p);
