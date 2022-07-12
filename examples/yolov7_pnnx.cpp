@@ -202,7 +202,7 @@ static int detect_yolov7(const cv::Mat& bgr, std::vector<Object>& objects)
 
     yolov7.opt.use_vulkan_compute = true;
     // yolov7.opt.use_bf16_storage = true;
-    
+
     // git clone https://github.com/WongKinYiu/yolov7
     // cd yolov7
     // wget https://github.com/WongKinYiu/yolov7/releases/download/v0.1/yolov7.pt
