@@ -320,6 +320,7 @@ int main(int argc, char** argv)
 
     benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
 
+    benchmark("FastestDet", ncnn::Mat(352, 352, 3), opt);
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;
