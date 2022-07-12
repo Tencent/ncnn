@@ -215,6 +215,8 @@ static int detect_yolov7(const cv::Mat& bgr, std::vector<Object>& objects)
     yolov7.opt.use_vulkan_compute = true;
     // yolov7.opt.use_bf16_storage = true;
 
+    // original pretrained model from https://github.com/WongKinYiu/yolov7
+    // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
     yolov7.load_param("yolov7-tiny.param");
     yolov7.load_model("yolov7-tiny.bin");
 
