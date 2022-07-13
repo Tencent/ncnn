@@ -14,18 +14,10 @@
 
 static void deconvolution_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_packed, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    int w = bottom_blob.w;
-    int h = bottom_blob.h;
-    int channels = bottom_blob.c;
-
-    int outw = top_blob.w;
-    int outh = top_blob.h;
     int outch = top_blob.c;
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
-
-    const int maxk = kernel_w * kernel_h;
 
     const float* bias_data_ptr = bias_data;
 
@@ -34,6 +26,15 @@ static void deconvolution_pack8to1_avx(const Mat& bottom_blob, Mat& top_blob, co
     for (int p = 0; p < outch; p++)
     {
         float* outptr = top_blob.channel(p);
+
+        const int maxk = kernel_w * kernel_h;
+
+        // shadowed variable for less openmp task args
+        const int w = bottom_blob.w;
+        const int h = bottom_blob.h;
+        const int channels = bottom_blob.c;
+        const int outw = top_blob.w;
+        const int outh = top_blob.h;
 
         for (int i = 0; i < outh; i++)
         {

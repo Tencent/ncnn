@@ -68,15 +68,10 @@ int DeconvolutionDepthWise::load_model(const ModelBin& mb)
 
 static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data, const Mat& bias_data, int kernel_w, int kernel_h, int stride_w, int stride_h, int dilation_w, int dilation_h, int group, int activation_type, const Mat& activation_params, const Option& opt)
 {
-    const int w = bottom_blob.w;
-    const int h = bottom_blob.h;
     const int inch = bottom_blob.c;
 
     const int outw = top_blob.w;
-    const int outh = top_blob.h;
     const int outch = top_blob.c;
-
-    const int bias_term = bias_data.empty() ? 0 : 1;
 
     const int maxk = kernel_w * kernel_h;
 
@@ -109,9 +104,15 @@ static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const M
             const float* kptr = (const float*)weight_data + maxk * g;
             Mat out = top_blob.channel(g);
 
-            const float bias = bias_term ? bias_data[g] : 0.f;
+            const float bias = bias_data.empty() ? 0.f : bias_data[g];
 
             out.fill(bias);
+
+            // shadowed variable for less openmp task args
+            const int w = bottom_blob.w;
+            const int h = bottom_blob.h;
+            const int outw = top_blob.w;
+            const int outh = top_blob.h;
 
             for (int i = 0; i < h; i++)
             {
@@ -157,9 +158,16 @@ static int deconvolutiondepthwise(const Mat& bottom_blob, Mat& top_blob, const M
                 Mat out = top_blob.channel(g * outch_g + p);
 
                 const float* weight_data_ptr = (const float*)weight_data + maxk * inch_g * outch_g * g;
-                const float bias = bias_term ? bias_data[g * outch_g + p] : 0.f;
+
+                const float bias = bias_data.empty() ? 0.f : bias_data[g * outch_g + p];
 
                 out.fill(bias);
+
+                // shadowed variable for less openmp task args
+                const int w = bottom_blob.w;
+                const int h = bottom_blob.h;
+                const int outw = top_blob.w;
+                const int outh = top_blob.h;
 
                 for (int i = 0; i < h; i++)
                 {
