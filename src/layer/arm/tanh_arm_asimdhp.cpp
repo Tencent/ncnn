@@ -14,6 +14,8 @@
 
 #include "tanh_arm.h"
 
+#include <math.h>
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
@@ -21,8 +23,6 @@
 #include "neon_mathfun_fp16s.h"
 #endif
 #endif // __ARM_NEON
-
-#include <math.h>
 
 namespace ncnn {
 

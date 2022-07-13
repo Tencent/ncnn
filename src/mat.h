@@ -759,16 +759,6 @@ NCNN_EXPORT NCNN_FORCEINLINE float bfloat16_to_float32(unsigned short value)
     tmp.u = value << 16;
     return tmp.f;
 }
-#if __ARM_NEON
-NCNN_EXPORT NCNN_FORCEINLINE uint16x4_t vcvt_bf16_f32(float32x4_t _v)
-{
-    return vshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
-}
-NCNN_EXPORT NCNN_FORCEINLINE float32x4_t vcvt_f32_bf16(uint16x4_t _v)
-{
-    return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
-}
-#endif // __ARM_NEON
 
 // mat process
 enum BorderType

@@ -14,13 +14,14 @@
 
 #include "lstm_arm.h"
 
+#include <math.h>
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
 #include "arm_activation.h"
-
-#include <math.h>
+#include "arm_usability.h"
 
 #include "cpu.h"
 

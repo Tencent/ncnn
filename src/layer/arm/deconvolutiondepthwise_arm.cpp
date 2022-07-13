@@ -21,6 +21,7 @@
 #endif // __ARM_NEON
 
 #include "arm_activation.h"
+#include "arm_usability.h"
 
 #include "cpu.h"
 
