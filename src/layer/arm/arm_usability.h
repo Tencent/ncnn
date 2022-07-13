@@ -26,7 +26,7 @@ static inline signed char float2int8(float v)
 #if __ARM_NEON
 #include <arm_neon.h>
 
-#if !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#if !__ARM_FEATURE_BF16
 static inline uint16x4_t vcvt_bf16_f32(float32x4_t _v)
 {
     return vshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
@@ -35,7 +35,7 @@ static inline float32x4_t vcvt_f32_bf16(uint16x4_t _v)
 {
     return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
 }
-#endif // !__ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#endif // !__ARM_FEATURE_BF16
 
 static inline int8x8_t float2int8(float32x4_t _vlow, float32x4_t _vhigh)
 {
