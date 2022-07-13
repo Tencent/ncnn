@@ -916,7 +916,7 @@ int InnerProduct_arm::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const
 
     if (out_elempack == 4)
     {
-        innerproduct_fp16s_pack4_neon(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
+        innerproduct_pack4_fp16s_neon(bottom_blob_flattened, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
     }
 
     if (out_elempack == 1)
