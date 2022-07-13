@@ -730,7 +730,7 @@ jobs:
     - name: build-arm82
       run: |
         mkdir build-arm82 && cd build-arm82
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
@@ -791,7 +791,7 @@ jobs:
     - name: build-arm82-omp
       run: |
         mkdir build-arm82-omp && cd build-arm82-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
@@ -852,7 +852,7 @@ jobs:
     - name: build-arm82dot-omp
       run: |
         mkdir build-arm82dot-omp && cd build-arm82dot-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
