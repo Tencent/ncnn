@@ -136,9 +136,9 @@ int TanH_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 
             for (int i = 0; i < size; i++)
             {
-                float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+                float32x4_t _p = float2bfloat(vld1_u16(ptr));
                 _p = tanh_ps(_p);
-                vst1_u16(ptr, vcvt_bf16_f32(_p));
+                vst1_u16(ptr, bfloat2float(_p));
                 ptr += 4;
             }
         }
@@ -162,9 +162,9 @@ int TanH_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) con
 #if __ARM_NEON
         for (; nn > 0; nn--)
         {
-            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+            float32x4_t _p = float2bfloat(vld1_u16(ptr));
             _p = tanh_ps(_p);
-            vst1_u16(ptr, vcvt_bf16_f32(_p));
+            vst1_u16(ptr, bfloat2float(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON

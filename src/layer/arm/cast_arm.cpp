@@ -170,8 +170,8 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             {
                 float32x4_t _p0_fp32 = vld1q_f32(ptr);
                 float32x4_t _p1_fp32 = vld1q_f32(ptr + 4);
-                uint16x4_t _p0_fp16 = vcvt_bf16_f32(_p0_fp32);
-                uint16x4_t _p1_fp16 = vcvt_bf16_f32(_p1_fp32);
+                uint16x4_t _p0_fp16 = bfloat2float(_p0_fp32);
+                uint16x4_t _p1_fp16 = bfloat2float(_p1_fp32);
                 uint16x8_t _p_fp16 = vcombine_u16(_p0_fp16, _p1_fp16);
                 vst1q_u16(outptr, _p_fp16);
                 ptr += 8;
@@ -180,7 +180,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             for (; i + 3 < size; i += 4)
             {
                 float32x4_t _p_fp32 = vld1q_f32(ptr);
-                uint16x4_t _p_fp16 = vcvt_bf16_f32(_p_fp32);
+                uint16x4_t _p_fp16 = bfloat2float(_p_fp32);
                 vst1_u16(outptr, _p_fp16);
                 ptr += 4;
                 outptr += 4;
@@ -238,8 +238,8 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             for (; i + 7 < size; i += 8)
             {
                 uint16x8_t _p_fp16 = vld1q_u16(ptr);
-                float32x4_t _p0_fp32 = vcvt_f32_bf16(vget_low_u16(_p_fp16));
-                float32x4_t _p1_fp32 = vcvt_f32_bf16(vget_high_u16(_p_fp16));
+                float32x4_t _p0_fp32 = float2bfloat(vget_low_u16(_p_fp16));
+                float32x4_t _p1_fp32 = float2bfloat(vget_high_u16(_p_fp16));
                 vst1q_f32(outptr, _p0_fp32);
                 vst1q_f32(outptr + 4, _p1_fp32);
                 ptr += 8;
@@ -248,7 +248,7 @@ int Cast_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
             for (; i + 3 < size; i += 4)
             {
                 uint16x4_t _p_fp16 = vld1_u16(ptr);
-                float32x4_t _p_fp32 = vcvt_f32_bf16(_p_fp16);
+                float32x4_t _p_fp32 = float2bfloat(_p_fp16);
                 vst1q_f32(outptr, _p_fp32);
                 ptr += 4;
                 outptr += 4;
