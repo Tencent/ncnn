@@ -64,7 +64,7 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 : "0"(ptr),
                 "1"(outptr)
                 : "memory", "v0", "v1");
-#else // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
+#else  // __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
             asm volatile(
                 "prfm   pldl1keep, [%0, #512]   \n"
                 "ld1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
