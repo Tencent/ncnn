@@ -34,6 +34,47 @@ static ncnn::Mat RandomMat(int w, int h, int elempack)
     return m;
 }
 
+static ncnn::Mat RandomMat_hsv(int w, int h, int elempack)
+{
+    ncnn::Mat m(w, h, (size_t)elempack, elempack);
+
+    unsigned char* p = m;
+    for (int i = 0; i < w * h * elempack; i++)
+    {
+        if (i % elempack == 0)
+        {
+            p[i] = RAND() % 180;
+        }
+        else
+        {
+            p[i] = RAND() % 256;
+        }
+    }
+
+    return m;
+}
+
+static int memcmp_hsv(ncnn::Mat m1, ncnn::Mat m2, int length, int tol)
+{
+    int loss = 0;
+    unsigned char* ptr1 = m1;
+    unsigned char* ptr2 = m2;
+    for (int i = 0; i < length / 3; i++)
+    {
+        if (ptr1[i * 3 + 2] == 0)
+        {
+            loss += tol * 3;
+        }
+        else
+        {
+            loss += abs(ptr1[i * 3] - ptr2[i * 3])
+                    + abs(ptr1[i * 3 + 1] - ptr2[i * 3 + 1])
+                    + abs(ptr1[i * 3 + 2] - ptr2[i * 3 + 2]);
+        }
+    }
+    return (loss > length * tol);
+}
+
 static ncnn::Mat FilledMat(int w, int h, int elempack, unsigned char v)
 {
     ncnn::Mat m(w, h, (size_t)elempack, elempack);
@@ -370,6 +411,70 @@ static int test_mat_pixel_yuv420sp2rgb(int w, int h)
     return 0;
 }
 
+static int test_mat_pixel_hsv(int w, int h)
+{
+    int tol = 2;
+    ncnn::Mat hsv = RandomMat_hsv(w, h, 3);
+
+    // Test 1: hsv <-> rgb
+    ncnn::Mat rgb(w, h, 3u, 3);
+    ncnn::Mat hsv1(w, h, 3u, 3);
+    hsv2rgb(hsv, w, h, w * 3, w * 3, rgb);
+    rgb2hsv(rgb, w, h, w * 3, w * 3, hsv1);
+    if (memcmp_hsv(hsv, hsv1, w * h * 3, tol) != 0)
+    {
+        fprintf(stderr, "test_mat_pixel_hsv hsv<->rgb failed w=%d h=%d tolerance=%d\n", w, h, tol);
+        return -1;
+    }
+
+    // Test 2: hsv <-> bgr
+    ncnn::Mat bgr(w, h, 3u, 3);
+    ncnn::Mat hsv2(w, h, 3u, 3);
+    hsv2bgr(hsv, w, h, w * 3, w * 3, bgr);
+    bgr2hsv(bgr, w, h, w * 3, w * 3, hsv2);
+    if (memcmp_hsv(hsv, hsv2, w * h * 3, tol) != 0)
+    {
+        fprintf(stderr, "test_mat_pixel_hsv hsv<->bgr failed w=%d h=%d tolerance=%d\n", w, h, tol);
+        return -1;
+    }
+
+    // Test 3: hsv <-> gray
+    ncnn::Mat gray = RandomMat(w, h, 1);
+    ncnn::Mat gray1(w, h, 1u, 1);
+    ncnn::Mat hsv3(w, h, 3u, 3);
+    gray2hsv(gray, w, h, w, w * 3, hsv3);
+    hsv2gray(hsv3, w, h, w * 3, w, gray1);
+    if (memcmp(gray, gray1, w * h) != 0)
+    {
+        fprintf(stderr, "test_mat_pixel_hsv hsv<->gray failed w=%d h=%d\n", w, h);
+        return -1;
+    }
+
+    // Test 4: hsv <-> rgba
+    ncnn::Mat rgba(w, h, 4u, 4);
+    ncnn::Mat hsv4(w, h, 3u, 3);
+    hsv2rgba(hsv, w, h, w * 3, w * 4, rgba);
+    rgba2hsv(rgba, w, h, w * 4, w * 3, hsv4);
+    if (memcmp_hsv(hsv, hsv4, w * h * 3, tol) != 0)
+    {
+        fprintf(stderr, "test_mat_pixel_hsv hsv<->rgba failed w=%d h=%d tolerance=%d\n", w, h, tol);
+        return -1;
+    }
+
+    // Test 5: hsv <-> bgra
+    ncnn::Mat bgra(w, h, 4u, 4);
+    ncnn::Mat hsv5(w, h, 3u, 3);
+    hsv2bgra(hsv, w, h, w * 3, w * 4, bgra);
+    bgra2hsv(bgra, w, h, w * 4, w * 3, hsv5);
+    if (memcmp_hsv(hsv, hsv5, w * h * 3, tol) != 0)
+    {
+        fprintf(stderr, "test_mat_pixel_hsv hsv<->bgra failed w=%d h=%d tolerance=%d\n", w, h, tol);
+        return -1;
+    }
+
+    return 0;
+}
+
 static int test_mat_pixel_0()
 {
     return 0
@@ -439,6 +544,14 @@ static int test_mat_pixel_6()
            || test_mat_pixel_yuv420sp2rgb(6, 6);
 }
 
+static int test_mat_pixel_7()
+{
+    return 0
+           || test_mat_pixel_hsv(16, 16)
+           || test_mat_pixel_hsv(15, 15)
+           || test_mat_pixel_hsv(1, 1);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -450,5 +563,6 @@ int main()
            || test_mat_pixel_3()
            || test_mat_pixel_4()
            || test_mat_pixel_5()
-           || test_mat_pixel_6();
+           || test_mat_pixel_6()
+           || test_mat_pixel_7();
 }

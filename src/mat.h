@@ -619,6 +619,26 @@ NCNN_EXPORT void yuv420sp2rgb(const unsigned char* yuv420sp, int w, int h, unsig
 NCNN_EXPORT void yuv420sp2rgb_nv12(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
 // convert yuv420sp(nv21) to rgb with half resize, the faster approximate version
 NCNN_EXPORT void yuv420sp2rgb_half(const unsigned char* yuv420sp, int w, int h, unsigned char* rgb);
+// convert hsv to rgb
+NCNN_EXPORT void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* rgb);
+// convert rgb to hsv
+NCNN_EXPORT void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, int to_stride, unsigned char* hsv);
+// convert hsv to bgr
+NCNN_EXPORT void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* bgr);
+// convert bgr to hsv
+NCNN_EXPORT void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, int to_stride, unsigned char* hsv);
+// convert hsv to gray
+NCNN_EXPORT void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* gray);
+// convert gray to hsv
+NCNN_EXPORT void gray2hsv(const unsigned char* gray, int w, int h, int stride, int to_stride, unsigned char* hsv);
+// convert hsv to rgba
+NCNN_EXPORT void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* rgba);
+// convert rgba to hsv
+NCNN_EXPORT void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, int to_stride, unsigned char* hsv);
+// convert hsv to bgra
+NCNN_EXPORT void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* bgra);
+// convert bgra to hsv
+NCNN_EXPORT void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, int to_stride, unsigned char* hsv);
 // image pixel bilinear resize
 NCNN_EXPORT void resize_bilinear_c1(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
 NCNN_EXPORT void resize_bilinear_c2(const unsigned char* src, int srcw, int srch, unsigned char* dst, int w, int h);
@@ -767,6 +787,19 @@ NCNN_EXPORT NCNN_FORCEINLINE uint16x4_t vcvt_bf16_f32(float32x4_t _v)
 NCNN_EXPORT NCNN_FORCEINLINE float32x4_t vcvt_f32_bf16(uint16x4_t _v)
 {
     return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
+}
+// Look up table (uint32x4_t)
+NCNN_EXPORT inline uint32x4_t vlutq_u32(const uint32_t* _tab, uint16x4_t _v)
+{
+    uint16_t _idx[4];
+    vst1_u16(_idx, _v);
+    uint32_t _elems[4] = {
+        _tab[_idx[0]],
+        _tab[_idx[1]],
+        _tab[_idx[2]],
+        _tab[_idx[3]]
+    };
+    return vld1q_u32(_elems);
 }
 #endif // __ARM_NEON
 

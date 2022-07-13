@@ -2437,6 +2437,2330 @@ void yuv420sp2rgb_half(const unsigned char* yuv, int w, int h, unsigned char* rg
     }
 }
 
+void hsv2rgb(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* rgb)
+{
+    const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    float32_t v_1_30 = 1.f / 30.f;
+    float32_t v_1_255 = 1.f / 255.f;
+    float32_t vf1 = 1.f;
+    uint16_t v1 = 1;
+    uint16_t v2 = 2;
+    uint16_t v4 = 4;
+    float32_t vdescale = 0.5f;
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _hsv = vld3_u8(hsv);
+            uint16x8_t _h16 = vmovl_u8(_hsv.val[0]);
+            uint16x8_t _s16 = vmovl_u8(_hsv.val[1]);
+            uint16x8_t _v16 = vmovl_u8(_hsv.val[2]);
+
+            float32x4_t _hlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_h16)));
+            float32x4_t _hhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_h16)));
+            float32x4_t _slow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_s16)));
+            float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
+            float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
+            float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
+
+            _hlow = vmulq_f32(_hlow, _v_1_30);
+            _hhigh = vmulq_f32(_hhigh, _v_1_30);
+            _slow = vmulq_f32(_slow, _v_1_255);
+            _shigh = vmulq_f32(_shigh, _v_1_255);
+
+            float32x4_t _vectorlow = vcvtq_f32_s32(vcvtq_s32_f32(_hlow));
+            float32x4_t _vectorhigh = vcvtq_f32_s32(vcvtq_s32_f32(_hhigh));
+
+            _hlow = vsubq_f32(_hlow, _vectorlow);
+            _hhigh = vsubq_f32(_hhigh, _vectorhigh);
+
+            uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
+            uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
+            uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
+
+            // vtab2 = v * (_v1 - (s * h))
+            float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
+            float32x4_t _vtab2high = vmulq_f32(_shigh, _hhigh);
+            _vtab2low = vsubq_f32(_vf1, _vtab2low);
+            _vtab2low = vmulq_f32(_vtab2low, _vlow);
+            _vtab2high = vsubq_f32(_vf1, _vtab2high);
+            _vtab2high = vmulq_f32(_vtab2high, _vhigh);
+
+            _vtab2low = vaddq_f32(_vtab2low, _vdescale);
+            _vtab2high = vaddq_f32(_vtab2high, _vdescale);
+            uint32x4_t _vtab2lowi = vcvtq_u32_f32(_vtab2low);
+            uint32x4_t _vtab2highi = vcvtq_u32_f32(_vtab2high);
+            uint16x8_t _vtab2 = vcombine_u16(vmovn_u32(_vtab2lowi), vmovn_u32(_vtab2highi));
+
+            // vtab3 = v * (_v1 - (s * (_v1 - h)))
+            float32x4_t _vtab3low = vsubq_f32(_vf1, _hlow);
+            _vtab3low = vmulq_f32(_vtab3low, _slow);
+            _vtab3low = vsubq_f32(_vf1, _vtab3low);
+            _vtab3low = vmulq_f32(_vtab3low, _vlow);
+            float32x4_t _vtab3high = vsubq_f32(_vf1, _hhigh);
+            _vtab3high = vmulq_f32(_vtab3high, _shigh);
+            _vtab3high = vsubq_f32(_vf1, _vtab3high);
+            _vtab3high = vmulq_f32(_vtab3high, _vhigh);
+
+            _vtab3low = vaddq_f32(_vtab3low, _vdescale);
+            _vtab3high = vaddq_f32(_vtab3high, _vdescale);
+            uint32x4_t _vtab3lowi = vcvtq_u32_f32(_vtab3low);
+            uint32x4_t _vtab3highi = vcvtq_u32_f32(_vtab3high);
+            uint16x8_t _vtab3 = vcombine_u16(vmovn_u32(_vtab3lowi), vmovn_u32(_vtab3highi));
+
+            // vtab1 = v * (_v1 - s)
+            float32x4_t _vtab1low = vsubq_f32(_vf1, _slow);
+            _vtab1low = vmulq_f32(_vtab1low, _vlow);
+            float32x4_t _vtab1high = vsubq_f32(_vf1, _shigh);
+            _vtab1high = vmulq_f32(_vtab1high, _vhigh);
+
+            uint32x4_t _vlowi = vcvtq_u32_f32(_vlow);
+            uint32x4_t _vhighi = vcvtq_u32_f32(_vhigh);
+            uint16x8_t _v = vcombine_u16(vmovn_u32(_vlowi), vmovn_u32(_vhighi));
+
+            _vtab1low = vaddq_f32(_vtab1low, _vdescale);
+            _vtab1high = vaddq_f32(_vtab1high, _vdescale);
+            uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
+            uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
+            uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
+
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+
+            uint8x8x3_t _rgb;
+            _rgb.val[1] = vqmovn_u16(_s);
+            _rgb.val[2] = vqmovn_u16(_h);
+
+            _h = _v;
+
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+
+            _rgb.val[0] = vqmovn_u16(_v);
+            vst3_u8(rgb, _rgb);
+
+            rgb += 3 * 8;
+            hsv += 3 * 8;
+        }
+#else
+        if (nn > 0)
+        {
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld3.u8    {d0-d2}, [%1]!      \n"
+                "vmovl.u8   q8, d0              \n"
+                "vmovl.u8   q9, d1              \n"
+                "vmovl.u8   q10, d2             \n"
+                "vmovl.u16  q0, d16             \n"
+                "vmovl.u16  q1, d17             \n"
+                "vmovl.u16  q2, d18             \n"
+                "vmovl.u16  q3, d19             \n"
+                "vmovl.u16  q8, d20             \n"
+                "vmovl.u16  q9, d21             \n"
+                "vcvt.f32.u32    q0, q0         \n"
+                "vcvt.f32.u32    q1, q1         \n"
+                "vcvt.f32.u32    q2, q2         \n"
+                "vcvt.f32.u32    q3, q3         \n"
+                "vcvt.f32.u32    q8, q8         \n"
+                "vcvt.f32.u32    q9, q9         \n"
+                "vdup.f32    q4, %9             \n"
+                "vmul.f32    q0, q0, q4         \n"
+                "vmul.f32    q1, q1, q4         \n"
+                "vdup.f32    q4, %10            \n"
+                "vmul.f32    q2, q2, q4         \n"
+                "vmul.f32    q3, q3, q4         \n"
+                "vdup.f32    q4, %11            \n"
+                "vcvt.u32.f32    q10, q0        \n"
+                "vcvt.u32.f32    q11, q1        \n"
+                "vcvt.f32.u32    q10, q10       \n"
+                "vcvt.f32.u32    q11, q11       \n"
+                "vsub.f32   q0, q0, q10         \n"
+                "vsub.f32   q1, q1, q11         \n"
+                "vcvt.u32.f32    q10, q10       \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vmovn.i32  d20, q10            \n"
+                "vmovn.i32  d21, q11            \n"
+                "vmul.f32   q11, q2, q0         \n"
+                "vmul.f32   q12, q3, q1         \n"
+                "vsub.f32   q11, q4, q11        \n"
+                "vmul.f32   q11, q11, q8        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q9        \n"
+                "vdup.32    q5, %12             \n"
+                "vadd.f32   q11, q11, q5        \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vmovn.i32  d22, q11            \n"
+                "vmovn.i32  d23, q12            \n"
+                "vsub.f32   q12, q4, q0         \n"
+                "vmul.f32   q12, q12, q2        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q8        \n"
+                "vsub.f32   q0, q4, q1          \n"
+                "vmul.f32   q0, q0, q3          \n"
+                "vsub.f32   q0, q4, q0          \n"
+                "vmul.f32   q0, q0, q9          \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vmovn.i32  d24, q12            \n"
+                "vmovn.i32  d25, q0             \n"
+                "vsub.f32   q0, q4, q2          \n"
+                "vmul.f32   q0, q0, q8          \n"
+                "vsub.f32   q1, q4, q3          \n"
+                "vmul.f32   q1, q1, q9          \n"
+                "vcvt.u32.f32    q8, q8         \n"
+                "vcvt.u32.f32    q9, q9         \n"
+                "vmovn.i32  d16, q8             \n"
+                "vmovn.i32  d17, q9             \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vadd.f32   q1, q1, q5          \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vcvt.u32.f32    q1, q1         \n"
+                "vmovn.i32  d18, q0             \n"
+                "vmovn.i32  d19, q1             \n"
+                "vdup.u16   q4, %6              \n"
+                "vdup.u16   q5, %7              \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
+                "vqmovn.u16 d5, q2              \n"
+                "vqmovn.u16 d6, q0              \n"
+                "vmov       q0, q8              \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
+                "vqmovn.u16 d4, q8              \n"
+                "subs       %0, #1              \n"
+                "vst3.u8    {d4-d6}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(rgb)  // %2
+                : "0"(nn),
+                "1"(hsv),
+                "2"(rgb),
+                "r"(v1),      // %6
+                "r"(v2),      // %7
+                "r"(v4),      // %8
+                "r"(v_1_30),  // %9
+                "r"(v_1_255), // %10
+                "r"(vf1),     // %11
+                "r"(vdescale) // %12
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
+        }
+#endif // __aarch64__
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            float hh = hsv[0] * 2.0f;
+            float s = hsv[1] * (1.0f / 255.0f);
+            float v = hsv[2];
+
+            float r, g, b;
+            if (s == 0)
+            {
+                r = g = b = v;
+            }
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
+                hh /= 60.f;
+                int sector = (int)(hh);
+                hh -= sector;
+                float tab[4];
+                tab[0] = v;
+                tab[1] = v * (1.f - s);
+                tab[2] = v * (1.f - s * hh);
+                tab[3] = v * (1.f - s * (1.f - hh));
+
+                r = tab[sector_data[sector][0]];
+                g = tab[sector_data[sector][1]];
+                b = tab[sector_data[sector][2]];
+            }
+
+            rgb[0] = SATURATE_CAST_UCHAR(r + 0.5);
+            rgb[1] = SATURATE_CAST_UCHAR(g + 0.5);
+            rgb[2] = SATURATE_CAST_UCHAR(b + 0.5);
+
+            hsv += 3;
+            rgb += 3;
+        }
+#undef SATURATE_CAST_UCHAR
+
+        hsv += wgap;
+        rgb += to_wgap;
+    }
+}
+
+void rgb2hsv(const unsigned char* rgb, int w, int h, int stride, int to_stride, unsigned char* hsv)
+{
+    const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    const int hsv_shift = 12;
+    static uint32_t _hdiv_table[256];
+    static uint32_t _sdiv_table[256];
+    static volatile bool initialized = false;
+
+    if (!initialized)
+    {
+        _hdiv_table[0] = _sdiv_table[0] = 0;
+        for (int i = 1; i < 256; i++)
+        {
+            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6. * i) + 0.5);
+            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1. * i) + 0.5);
+        }
+        initialized = true;
+    }
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            // expand all to 16 bits
+            uint8x8x3_t _rgb = vld3_u8(rgb);
+            uint16x8_t _r16 = vmovl_u8(_rgb.val[0]);
+            uint16x8_t _g16 = vmovl_u8(_rgb.val[1]);
+            uint16x8_t _b16 = vmovl_u8(_rgb.val[2]);
+
+            // v = max{r, g, b}  vmin = min{r, g, b}
+            uint16x8_t _v = vmaxq_u16(vmaxq_u16(_r16, _g16), _b16);
+            uint16x8_t _vmin = vminq_u16(vminq_u16(_r16, _g16), _b16);
+
+            // diff = v - vmin
+            uint16x8_t _diff = vsubq_u16(_v, _vmin);
+            uint16x8_t _diff2 = vshlq_n_u16(_diff, 1);
+            uint16x8_t _diff4 = vshlq_n_u16(_diff, 2);
+            uint16x8_t _diff6 = vshlq_n_u16(_diff, 3);
+            _diff6 = vsubq_u16(_diff6, _diff2);
+
+            // sdiv = sdiv_table[v]
+            uint32x4_t _sdivlow = vlutq_u32(_sdiv_table, vget_low_u16(_v));
+            uint32x4_t _sdivhigh = vlutq_u32(_sdiv_table, vget_high_u16(_v));
+
+            // s = (diff * sdiv) >> hsv_shift;
+            uint32x4_t _slow = vmulq_u32(vmovl_u16(vget_low_u16(_diff)), _sdivlow);
+            uint32x4_t _shigh = vmulq_u32(vmovl_u16(vget_high_u16(_diff)), _sdivhigh);
+            _slow = vrshrq_n_u32(_slow, hsv_shift);
+            _shigh = vrshrq_n_u32(_shigh, hsv_shift);
+            uint16x8_t _s = vcombine_u16(vmovn_u32(_slow), vmovn_u32(_shigh));
+
+            uint16x8_t _gb = vcgtq_u16(_b16, _g16);
+            _gb = vandq_u16(_gb, _diff6);
+            _gb = vaddq_u16(_gb, _g16);
+            _gb = vsubq_u16(_gb, _b16);
+            uint16x8_t _br = vaddq_u16(_diff2, _b16);
+            _br = vsubq_u16(_br, _r16);
+            uint16x8_t _rg = vaddq_u16(_diff4, _r16);
+            _rg = vsubq_u16(_rg, _g16);
+
+            uint16x8_t _vr = vceqq_u16(_v, _r16);
+            uint16x8_t _vg = vceqq_u16(_v, _g16);
+
+            // _h16 = (_vr & _gb) + ((~_vr) & ((_vg & _br) + ((~_vg) & _rg)))
+            _br = vandq_u16(_br, _vg);
+            _vg = vmvnq_u16(_vg);
+            _rg = vandq_u16(_rg, _vg);
+            _br = vaddq_u16(_br, _rg);
+
+            uint16x8_t _h16 = vandq_u16(_vr, _gb);
+            _vr = vmvnq_u16(_vr);
+            _vr = vandq_u16(_vr, _br);
+            _h16 = vaddq_u16(_h16, _vr);
+
+            // hdiv = hdiv_table[diff]
+            uint32x4_t _hdivlow = vlutq_u32(_hdiv_table, vget_low_u16(_diff));
+            uint32x4_t _hdivhigh = vlutq_u32(_hdiv_table, vget_high_u16(_diff));
+
+            // _h = (_h * _hdiv) >> hsv_shift;
+            uint32x4_t _hlow = vmulq_u32(vmovl_u16(vget_low_u16(_h16)), _hdivlow);
+            uint32x4_t _hhigh = vmulq_u32(vmovl_u16(vget_high_u16(_h16)), _hdivhigh);
+            _hlow = vrshrq_n_u32(_hlow, hsv_shift);
+            _hhigh = vrshrq_n_u32(_hhigh, hsv_shift);
+            uint16x8_t _h = vcombine_u16(vmovn_u32(_hlow), vmovn_u32(_hhigh));
+
+            uint8x8x3_t _hsv;
+            _hsv.val[0] = vmovn_u16(_h);
+            _hsv.val[1] = vmovn_u16(_s);
+            _hsv.val[2] = vmovn_u16(_v);
+
+            vst3_u8(hsv, _hsv);
+
+            rgb += 3 * 8;
+            hsv += 3 * 8;
+        }
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            int r = int(rgb[0]);
+            int g = int(rgb[1]);
+            int b = int(rgb[2]);
+
+            int vmax = std::max(std::max(r, g), b);
+            int vmin = std::min(std::min(r, g), b);
+            int diff = vmax - vmin;
+
+            float hh, s;
+            if (diff == 0)
+            {
+                hh = 0.f;
+            }
+            else if (vmax == r)
+            {
+                hh = float(g - b) * 30.f / diff;
+            }
+            else if (vmax == g)
+            {
+                hh = float(b - r) * 30.f / diff + 60.f;
+            }
+            else
+            {
+                hh = float(r - g) * 30.f / diff + 120.f;
+            }
+
+            if (hh < 0)
+            {
+                hh += 180.f;
+            }
+
+            if (vmax == 0)
+            {
+                s = 0.f;
+            }
+            else
+            {
+                s = float(diff) * 255.f / vmax;
+            }
+
+            hsv[0] = SATURATE_CAST_UCHAR(hh + 0.5);
+            hsv[1] = SATURATE_CAST_UCHAR(s + 0.5);
+            hsv[2] = SATURATE_CAST_UCHAR(vmax);
+
+            rgb += 3;
+            hsv += 3;
+        }
+
+#undef SATURATE_CAST_UCHAR
+        rgb += wgap;
+        hsv += to_wgap;
+    }
+}
+
+void hsv2bgr(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* bgr)
+{
+    const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    float32_t v_1_30 = 1.f / 30.f;
+    float32_t v_1_255 = 1.f / 255.f;
+    float32_t vf1 = 1.f;
+    uint16_t v1 = 1;
+    uint16_t v2 = 2;
+    uint16_t v4 = 4;
+    float32_t vdescale = 0.5f;
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _hsv = vld3_u8(hsv);
+            uint16x8_t _h16 = vmovl_u8(_hsv.val[0]);
+            uint16x8_t _s16 = vmovl_u8(_hsv.val[1]);
+            uint16x8_t _v16 = vmovl_u8(_hsv.val[2]);
+
+            float32x4_t _hlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_h16)));
+            float32x4_t _hhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_h16)));
+            float32x4_t _slow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_s16)));
+            float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
+            float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
+            float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
+
+            _hlow = vmulq_f32(_hlow, _v_1_30);
+            _hhigh = vmulq_f32(_hhigh, _v_1_30);
+            _slow = vmulq_f32(_slow, _v_1_255);
+            _shigh = vmulq_f32(_shigh, _v_1_255);
+
+            float32x4_t _vectorlow = vcvtq_f32_s32(vcvtq_s32_f32(_hlow));
+            float32x4_t _vectorhigh = vcvtq_f32_s32(vcvtq_s32_f32(_hhigh));
+
+            _hlow = vsubq_f32(_hlow, _vectorlow);
+            _hhigh = vsubq_f32(_hhigh, _vectorhigh);
+
+            uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
+            uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
+            uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
+
+            // vtab2 = v * (_v1 - (s * h))
+            float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
+            float32x4_t _vtab2high = vmulq_f32(_shigh, _hhigh);
+            _vtab2low = vsubq_f32(_vf1, _vtab2low);
+            _vtab2low = vmulq_f32(_vtab2low, _vlow);
+            _vtab2high = vsubq_f32(_vf1, _vtab2high);
+            _vtab2high = vmulq_f32(_vtab2high, _vhigh);
+
+            _vtab2low = vaddq_f32(_vtab2low, _vdescale);
+            _vtab2high = vaddq_f32(_vtab2high, _vdescale);
+            uint32x4_t _vtab2lowi = vcvtq_u32_f32(_vtab2low);
+            uint32x4_t _vtab2highi = vcvtq_u32_f32(_vtab2high);
+            uint16x8_t _vtab2 = vcombine_u16(vmovn_u32(_vtab2lowi), vmovn_u32(_vtab2highi));
+
+            // vtab3 = v * (_v1 - (s * (_v1 - h)))
+            float32x4_t _vtab3low = vsubq_f32(_vf1, _hlow);
+            _vtab3low = vmulq_f32(_vtab3low, _slow);
+            _vtab3low = vsubq_f32(_vf1, _vtab3low);
+            _vtab3low = vmulq_f32(_vtab3low, _vlow);
+            float32x4_t _vtab3high = vsubq_f32(_vf1, _hhigh);
+            _vtab3high = vmulq_f32(_vtab3high, _shigh);
+            _vtab3high = vsubq_f32(_vf1, _vtab3high);
+            _vtab3high = vmulq_f32(_vtab3high, _vhigh);
+
+            _vtab3low = vaddq_f32(_vtab3low, _vdescale);
+            _vtab3high = vaddq_f32(_vtab3high, _vdescale);
+            uint32x4_t _vtab3lowi = vcvtq_u32_f32(_vtab3low);
+            uint32x4_t _vtab3highi = vcvtq_u32_f32(_vtab3high);
+            uint16x8_t _vtab3 = vcombine_u16(vmovn_u32(_vtab3lowi), vmovn_u32(_vtab3highi));
+
+            // vtab1 = v * (_v1 - s)
+            float32x4_t _vtab1low = vsubq_f32(_vf1, _slow);
+            _vtab1low = vmulq_f32(_vtab1low, _vlow);
+            float32x4_t _vtab1high = vsubq_f32(_vf1, _shigh);
+            _vtab1high = vmulq_f32(_vtab1high, _vhigh);
+
+            uint32x4_t _vlowi = vcvtq_u32_f32(_vlow);
+            uint32x4_t _vhighi = vcvtq_u32_f32(_vhigh);
+            uint16x8_t _v = vcombine_u16(vmovn_u32(_vlowi), vmovn_u32(_vhighi));
+
+            _vtab1low = vaddq_f32(_vtab1low, _vdescale);
+            _vtab1high = vaddq_f32(_vtab1high, _vdescale);
+            uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
+            uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
+            uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
+
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+
+            uint8x8x3_t _bgr;
+            _bgr.val[1] = vqmovn_u16(_s);
+            _bgr.val[0] = vqmovn_u16(_h);
+
+            _h = _v;
+
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+
+            _bgr.val[2] = vqmovn_u16(_v);
+            vst3_u8(bgr, _bgr);
+
+            bgr += 3 * 8;
+            hsv += 3 * 8;
+        }
+#else
+        if (nn > 0)
+        {
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld3.u8    {d0-d2}, [%1]!      \n"
+                "vmovl.u8   q8, d0              \n"
+                "vmovl.u8   q9, d1              \n"
+                "vmovl.u8   q10, d2             \n"
+                "vmovl.u16  q0, d16             \n"
+                "vmovl.u16  q1, d17             \n"
+                "vmovl.u16  q2, d18             \n"
+                "vmovl.u16  q3, d19             \n"
+                "vmovl.u16  q8, d20             \n"
+                "vmovl.u16  q9, d21             \n"
+                "vcvt.f32.u32    q0, q0         \n"
+                "vcvt.f32.u32    q1, q1         \n"
+                "vcvt.f32.u32    q2, q2         \n"
+                "vcvt.f32.u32    q3, q3         \n"
+                "vcvt.f32.u32    q8, q8         \n"
+                "vcvt.f32.u32    q9, q9         \n"
+                "vdup.f32    q4, %9             \n"
+                "vmul.f32    q0, q0, q4         \n"
+                "vmul.f32    q1, q1, q4         \n"
+                "vdup.f32    q4, %10            \n"
+                "vmul.f32    q2, q2, q4         \n"
+                "vmul.f32    q3, q3, q4         \n"
+                "vdup.f32    q4, %11            \n"
+                "vcvt.u32.f32    q10, q0        \n"
+                "vcvt.u32.f32    q11, q1        \n"
+                "vcvt.f32.u32    q10, q10       \n"
+                "vcvt.f32.u32    q11, q11       \n"
+                "vsub.f32   q0, q0, q10         \n"
+                "vsub.f32   q1, q1, q11         \n"
+                "vcvt.u32.f32    q10, q10       \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vmovn.i32  d20, q10            \n"
+                "vmovn.i32  d21, q11            \n"
+                "vmul.f32   q11, q2, q0         \n"
+                "vmul.f32   q12, q3, q1         \n"
+                "vsub.f32   q11, q4, q11        \n"
+                "vmul.f32   q11, q11, q8        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q9        \n"
+                "vdup.32    q5, %12             \n"
+                "vadd.f32   q11, q11, q5        \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vmovn.i32  d22, q11            \n"
+                "vmovn.i32  d23, q12            \n"
+                "vsub.f32   q12, q4, q0         \n"
+                "vmul.f32   q12, q12, q2        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q8        \n"
+                "vsub.f32   q0, q4, q1          \n"
+                "vmul.f32   q0, q0, q3          \n"
+                "vsub.f32   q0, q4, q0          \n"
+                "vmul.f32   q0, q0, q9          \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vmovn.i32  d24, q12            \n"
+                "vmovn.i32  d25, q0             \n"
+                "vsub.f32   q0, q4, q2          \n"
+                "vmul.f32   q0, q0, q8          \n"
+                "vsub.f32   q1, q4, q3          \n"
+                "vmul.f32   q1, q1, q9          \n"
+                "vcvt.u32.f32    q8, q8         \n"
+                "vcvt.u32.f32    q9, q9         \n"
+                "vmovn.i32  d16, q8             \n"
+                "vmovn.i32  d17, q9             \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vadd.f32   q1, q1, q5          \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vcvt.u32.f32    q1, q1         \n"
+                "vmovn.i32  d18, q0             \n"
+                "vmovn.i32  d19, q1             \n"
+                "vdup.u16   q4, %6              \n"
+                "vdup.u16   q5, %7              \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
+                "vqmovn.u16 d5, q2              \n"
+                "vqmovn.u16 d4, q0              \n"
+                "vmov       q0, q8              \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
+                "vqmovn.u16 d6, q8              \n"
+                "subs       %0, #1              \n"
+                "vst3.u8    {d4-d6}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(bgr)  // %2
+                : "0"(nn),
+                "1"(hsv),
+                "2"(bgr),
+                "r"(v1),      // %6
+                "r"(v2),      // %7
+                "r"(v4),      // %8
+                "r"(v_1_30),  // %9
+                "r"(v_1_255), // %10
+                "r"(vf1),     // %11
+                "r"(vdescale) // %12
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
+        }
+#endif // __aarch64__
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            float hh = hsv[0] * 2.0f;
+            float s = hsv[1] * (1.0f / 255.0f);
+            float v = hsv[2];
+
+            float r, g, b;
+            if (s == 0)
+            {
+                r = g = b = v;
+            }
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
+                hh /= 60.f;
+                int sector = (int)(hh);
+                hh -= sector;
+                float tab[4];
+                tab[0] = v;
+                tab[1] = v * (1.f - s);
+                tab[2] = v * (1.f - s * hh);
+                tab[3] = v * (1.f - s * (1.f - hh));
+
+                r = tab[sector_data[sector][0]];
+                g = tab[sector_data[sector][1]];
+                b = tab[sector_data[sector][2]];
+            }
+
+            bgr[0] = SATURATE_CAST_UCHAR(b + 0.5);
+            bgr[1] = SATURATE_CAST_UCHAR(g + 0.5);
+            bgr[2] = SATURATE_CAST_UCHAR(r + 0.5);
+
+            hsv += 3;
+            bgr += 3;
+        }
+#undef SATURATE_CAST_UCHAR
+
+        hsv += wgap;
+        bgr += to_wgap;
+    }
+}
+
+void bgr2hsv(const unsigned char* bgr, int w, int h, int stride, int to_stride, unsigned char* hsv)
+{
+    const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    const int hsv_shift = 12;
+    static uint32_t _hdiv_table[256];
+    static uint32_t _sdiv_table[256];
+    static volatile bool initialized = false;
+
+    if (!initialized)
+    {
+        _hdiv_table[0] = _sdiv_table[0] = 0;
+        for (int i = 1; i < 256; i++)
+        {
+            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6. * i) + 0.5);
+            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1. * i) + 0.5);
+        }
+        initialized = true;
+    }
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            // expand all to 16 bits
+            uint8x8x3_t _bgr = vld3_u8(bgr);
+            uint16x8_t _b16 = vmovl_u8(_bgr.val[0]);
+            uint16x8_t _g16 = vmovl_u8(_bgr.val[1]);
+            uint16x8_t _r16 = vmovl_u8(_bgr.val[2]);
+
+            // v = max{r, g, b}  vmin = min{r, g, b}
+            uint16x8_t _v = vmaxq_u16(vmaxq_u16(_r16, _g16), _b16);
+            uint16x8_t _vmin = vminq_u16(vminq_u16(_r16, _g16), _b16);
+
+            // diff = v - vmin
+            uint16x8_t _diff = vsubq_u16(_v, _vmin);
+            uint16x8_t _diff2 = vshlq_n_u16(_diff, 1);
+            uint16x8_t _diff4 = vshlq_n_u16(_diff, 2);
+            uint16x8_t _diff6 = vshlq_n_u16(_diff, 3);
+            _diff6 = vsubq_u16(_diff6, _diff2);
+
+            // sdiv = sdiv_table[v]
+            uint32x4_t _sdivlow = vlutq_u32(_sdiv_table, vget_low_u16(_v));
+            uint32x4_t _sdivhigh = vlutq_u32(_sdiv_table, vget_high_u16(_v));
+
+            // s = (diff * sdiv) >> hsv_shift;
+            uint32x4_t _slow = vmulq_u32(vmovl_u16(vget_low_u16(_diff)), _sdivlow);
+            uint32x4_t _shigh = vmulq_u32(vmovl_u16(vget_high_u16(_diff)), _sdivhigh);
+            _slow = vrshrq_n_u32(_slow, hsv_shift);
+            _shigh = vrshrq_n_u32(_shigh, hsv_shift);
+            uint16x8_t _s = vcombine_u16(vmovn_u32(_slow), vmovn_u32(_shigh));
+
+            uint16x8_t _gb = vcgtq_u16(_b16, _g16);
+            _gb = vandq_u16(_gb, _diff6);
+            _gb = vaddq_u16(_gb, _g16);
+            _gb = vsubq_u16(_gb, _b16);
+            uint16x8_t _br = vaddq_u16(_diff2, _b16);
+            _br = vsubq_u16(_br, _r16);
+            uint16x8_t _rg = vaddq_u16(_diff4, _r16);
+            _rg = vsubq_u16(_rg, _g16);
+
+            uint16x8_t _vr = vceqq_u16(_v, _r16);
+            uint16x8_t _vg = vceqq_u16(_v, _g16);
+
+            // _h16 = (_vr & _gb) + ((~_vr) & ((_vg & _br) + ((~_vg) & _rg)))
+            _br = vandq_u16(_br, _vg);
+            _vg = vmvnq_u16(_vg);
+            _rg = vandq_u16(_rg, _vg);
+            _br = vaddq_u16(_br, _rg);
+
+            uint16x8_t _h16 = vandq_u16(_vr, _gb);
+            _vr = vmvnq_u16(_vr);
+            _vr = vandq_u16(_vr, _br);
+            _h16 = vaddq_u16(_h16, _vr);
+
+            // hdiv = hdiv_table[diff]
+            uint32x4_t _hdivlow = vlutq_u32(_hdiv_table, vget_low_u16(_diff));
+            uint32x4_t _hdivhigh = vlutq_u32(_hdiv_table, vget_high_u16(_diff));
+
+            // _h = (_h * _hdiv) >> hsv_shift;
+            uint32x4_t _hlow = vmulq_u32(vmovl_u16(vget_low_u16(_h16)), _hdivlow);
+            uint32x4_t _hhigh = vmulq_u32(vmovl_u16(vget_high_u16(_h16)), _hdivhigh);
+            _hlow = vrshrq_n_u32(_hlow, hsv_shift);
+            _hhigh = vrshrq_n_u32(_hhigh, hsv_shift);
+            uint16x8_t _h = vcombine_u16(vmovn_u32(_hlow), vmovn_u32(_hhigh));
+
+            uint8x8x3_t _hsv;
+            _hsv.val[0] = vmovn_u16(_h);
+            _hsv.val[1] = vmovn_u16(_s);
+            _hsv.val[2] = vmovn_u16(_v);
+
+            vst3_u8(hsv, _hsv);
+
+            bgr += 3 * 8;
+            hsv += 3 * 8;
+        }
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            int b = int(bgr[0]);
+            int g = int(bgr[1]);
+            int r = int(bgr[2]);
+
+            int vmax = std::max(std::max(r, g), b);
+            int vmin = std::min(std::min(r, g), b);
+            int diff = vmax - vmin;
+
+            float hh, s;
+            if (diff == 0)
+            {
+                hh = 0.f;
+            }
+            else if (vmax == r)
+            {
+                hh = float(g - b) * 30.f / diff;
+            }
+            else if (vmax == g)
+            {
+                hh = float(b - r) * 30.f / diff + 60.f;
+            }
+            else
+            {
+                hh = float(r - g) * 30.f / diff + 120.f;
+            }
+
+            if (hh < 0)
+            {
+                hh += 180.f;
+            }
+
+            if (vmax == 0)
+            {
+                s = 0.f;
+            }
+            else
+            {
+                s = float(diff) * 255.f / vmax;
+            }
+
+            hsv[0] = SATURATE_CAST_UCHAR(hh + 0.5);
+            hsv[1] = SATURATE_CAST_UCHAR(s + 0.5);
+            hsv[2] = SATURATE_CAST_UCHAR(vmax);
+
+            bgr += 3;
+            hsv += 3;
+        }
+
+#undef SATURATE_CAST_UCHAR
+        bgr += wgap;
+        hsv += to_wgap;
+    }
+}
+
+void hsv2gray(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* gray)
+{
+    const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    // coeffs for r g b = 0.299f, 0.587f, 0.114f
+    uint8x8_t _R2Y = vdup_n_u8(77);
+    uint8x8_t _G2Y = vdup_n_u8(150);
+    uint8x8_t _B2Y = vdup_n_u8(29);
+
+    float32_t v_1_30 = 1.f / 30.f;
+    float32_t v_1_255 = 1.f / 255.f;
+    float32_t vf1 = 1.f;
+    uint16_t v1 = 1;
+    uint16_t v2 = 2;
+    uint16_t v4 = 4;
+    float32_t vdescale = 0.5f;
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _hsv = vld3_u8(hsv);
+            uint16x8_t _h16 = vmovl_u8(_hsv.val[0]);
+            uint16x8_t _s16 = vmovl_u8(_hsv.val[1]);
+            uint16x8_t _v16 = vmovl_u8(_hsv.val[2]);
+
+            float32x4_t _hlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_h16)));
+            float32x4_t _hhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_h16)));
+            float32x4_t _slow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_s16)));
+            float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
+            float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
+            float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
+
+            _hlow = vmulq_f32(_hlow, _v_1_30);
+            _hhigh = vmulq_f32(_hhigh, _v_1_30);
+            _slow = vmulq_f32(_slow, _v_1_255);
+            _shigh = vmulq_f32(_shigh, _v_1_255);
+
+            float32x4_t _vectorlow = vcvtq_f32_s32(vcvtq_s32_f32(_hlow));
+            float32x4_t _vectorhigh = vcvtq_f32_s32(vcvtq_s32_f32(_hhigh));
+
+            _hlow = vsubq_f32(_hlow, _vectorlow);
+            _hhigh = vsubq_f32(_hhigh, _vectorhigh);
+
+            uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
+            uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
+            uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
+
+            // vtab2 = v * (_v1 - (s * h))
+            float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
+            float32x4_t _vtab2high = vmulq_f32(_shigh, _hhigh);
+            _vtab2low = vsubq_f32(_vf1, _vtab2low);
+            _vtab2low = vmulq_f32(_vtab2low, _vlow);
+            _vtab2high = vsubq_f32(_vf1, _vtab2high);
+            _vtab2high = vmulq_f32(_vtab2high, _vhigh);
+
+            _vtab2low = vaddq_f32(_vtab2low, _vdescale);
+            _vtab2high = vaddq_f32(_vtab2high, _vdescale);
+            uint32x4_t _vtab2lowi = vcvtq_u32_f32(_vtab2low);
+            uint32x4_t _vtab2highi = vcvtq_u32_f32(_vtab2high);
+            uint16x8_t _vtab2 = vcombine_u16(vmovn_u32(_vtab2lowi), vmovn_u32(_vtab2highi));
+
+            // vtab3 = v * (_v1 - (s * (_v1 - h)))
+            float32x4_t _vtab3low = vsubq_f32(_vf1, _hlow);
+            _vtab3low = vmulq_f32(_vtab3low, _slow);
+            _vtab3low = vsubq_f32(_vf1, _vtab3low);
+            _vtab3low = vmulq_f32(_vtab3low, _vlow);
+            float32x4_t _vtab3high = vsubq_f32(_vf1, _hhigh);
+            _vtab3high = vmulq_f32(_vtab3high, _shigh);
+            _vtab3high = vsubq_f32(_vf1, _vtab3high);
+            _vtab3high = vmulq_f32(_vtab3high, _vhigh);
+
+            _vtab3low = vaddq_f32(_vtab3low, _vdescale);
+            _vtab3high = vaddq_f32(_vtab3high, _vdescale);
+            uint32x4_t _vtab3lowi = vcvtq_u32_f32(_vtab3low);
+            uint32x4_t _vtab3highi = vcvtq_u32_f32(_vtab3high);
+            uint16x8_t _vtab3 = vcombine_u16(vmovn_u32(_vtab3lowi), vmovn_u32(_vtab3highi));
+
+            // vtab1 = v * (_v1 - s)
+            float32x4_t _vtab1low = vsubq_f32(_vf1, _slow);
+            _vtab1low = vmulq_f32(_vtab1low, _vlow);
+            float32x4_t _vtab1high = vsubq_f32(_vf1, _shigh);
+            _vtab1high = vmulq_f32(_vtab1high, _vhigh);
+
+            uint32x4_t _vlowi = vcvtq_u32_f32(_vlow);
+            uint32x4_t _vhighi = vcvtq_u32_f32(_vhigh);
+            uint16x8_t _v = vcombine_u16(vmovn_u32(_vlowi), vmovn_u32(_vhighi));
+
+            _vtab1low = vaddq_f32(_vtab1low, _vdescale);
+            _vtab1high = vaddq_f32(_vtab1high, _vdescale);
+            uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
+            uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
+            uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
+
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+
+            // r = v, g = s, b = h
+            uint16x8_t _y16 = vmull_u8(vmovn_u16(_s), _G2Y);
+            _y16 = vmlal_u8(_y16, vmovn_u16(_h), _B2Y);
+
+            _h = _v;
+
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+
+            _y16 = vmlal_u8(_y16, vmovn_u16(_v), _R2Y);
+            _y16 = vshrq_n_u16(_y16, 8);
+            vst1_u8(gray, vmovn_u16(_y16));
+
+            hsv += 3 * 8;
+            gray += 8;
+        }
+#else
+        if (nn > 0)
+        {
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld3.u8    {d0-d2}, [%1]!      \n"
+                "vmovl.u8   q8, d0              \n"
+                "vmovl.u8   q9, d1              \n"
+                "vmovl.u8   q10, d2             \n"
+                "vmovl.u16  q0, d16             \n"
+                "vmovl.u16  q1, d17             \n"
+                "vmovl.u16  q2, d18             \n"
+                "vmovl.u16  q3, d19             \n"
+                "vmovl.u16  q8, d20             \n"
+                "vmovl.u16  q9, d21             \n"
+                "vcvt.f32.u32    q0, q0         \n"
+                "vcvt.f32.u32    q1, q1         \n"
+                "vcvt.f32.u32    q2, q2         \n"
+                "vcvt.f32.u32    q3, q3         \n"
+                "vcvt.f32.u32    q8, q8         \n"
+                "vcvt.f32.u32    q9, q9         \n"
+                "vdup.f32    q4, %9             \n"
+                "vmul.f32    q0, q0, q4         \n"
+                "vmul.f32    q1, q1, q4         \n"
+                "vdup.f32    q4, %10            \n"
+                "vmul.f32    q2, q2, q4         \n"
+                "vmul.f32    q3, q3, q4         \n"
+                "vdup.f32    q4, %11            \n"
+                "vcvt.u32.f32    q10, q0        \n"
+                "vcvt.u32.f32    q11, q1        \n"
+                "vcvt.f32.u32    q10, q10       \n"
+                "vcvt.f32.u32    q11, q11       \n"
+                "vsub.f32   q0, q0, q10         \n"
+                "vsub.f32   q1, q1, q11         \n"
+                "vcvt.u32.f32    q10, q10       \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vmovn.i32  d20, q10            \n"
+                "vmovn.i32  d21, q11            \n"
+                "vmul.f32   q11, q2, q0         \n"
+                "vmul.f32   q12, q3, q1         \n"
+                "vsub.f32   q11, q4, q11        \n"
+                "vmul.f32   q11, q11, q8        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q9        \n"
+                "vdup.32    q5, %12             \n"
+                "vadd.f32   q11, q11, q5        \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vmovn.i32  d22, q11            \n"
+                "vmovn.i32  d23, q12            \n"
+                "vsub.f32   q12, q4, q0         \n"
+                "vmul.f32   q12, q12, q2        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q8        \n"
+                "vsub.f32   q0, q4, q1          \n"
+                "vmul.f32   q0, q0, q3          \n"
+                "vsub.f32   q0, q4, q0          \n"
+                "vmul.f32   q0, q0, q9          \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vmovn.i32  d24, q12            \n"
+                "vmovn.i32  d25, q0             \n"
+                "vsub.f32   q0, q4, q2          \n"
+                "vmul.f32   q0, q0, q8          \n"
+                "vsub.f32   q1, q4, q3          \n"
+                "vmul.f32   q1, q1, q9          \n"
+                "vcvt.u32.f32    q8, q8         \n"
+                "vcvt.u32.f32    q9, q9         \n"
+                "vmovn.i32  d16, q8             \n"
+                "vmovn.i32  d17, q9             \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vadd.f32   q1, q1, q5          \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vcvt.u32.f32    q1, q1         \n"
+                "vmovn.i32  d18, q0             \n"
+                "vmovn.i32  d19, q1             \n"
+                "vdup.u16   q4, %6              \n"
+                "vdup.u16   q5, %7              \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
+                "vqmovn.u16 d4, q2              \n"
+                "vmull.u8   q2, d4, %14         \n"
+                "vqmovn.u16 d0, q0              \n"
+                "vmlal.u8   q2, d0, %15         \n"
+                "vmov       q0, q8              \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
+                "vqmovn.u16 d16, q8             \n"
+                "vmlal.u8   q2, d16, %13        \n"
+                "vshr.u16   q2, q2, #8          \n"
+                "vqmovn.u16 d4, q2              \n"
+                "subs       %0, #1              \n"
+                "vst1.u8    {d4}, [%2]!         \n"
+                "bne        0b                  \n"
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(gray) // %2
+                : "0"(nn),
+                "1"(hsv),
+                "2"(gray),
+                "r"(v1),       // %6
+                "r"(v2),       // %7
+                "r"(v4),       // %8
+                "r"(v_1_30),   // %9
+                "r"(v_1_255),  // %10
+                "r"(vf1),      // %11
+                "r"(vdescale), // %12
+                "w"(_R2Y),     // %13
+                "w"(_G2Y),     // %14
+                "w"(_B2Y)      // %15
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
+        }
+#endif // __aarch64__
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            float hh = hsv[0] * 2.0f;
+            float s = hsv[1] * (1.0f / 255.0f);
+            float v = hsv[2];
+
+            float r, g, b;
+            if (s == 0)
+            {
+                r = g = b = v;
+            }
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
+                hh /= 60.f;
+                int sector = (int)(hh);
+                hh -= sector;
+                float tab[4];
+                tab[0] = v;
+                tab[1] = v * (1.f - s);
+                tab[2] = v * (1.f - s * hh);
+                tab[3] = v * (1.f - s * (1.f - hh));
+
+                r = tab[sector_data[sector][0]];
+                g = tab[sector_data[sector][1]];
+                b = tab[sector_data[sector][2]];
+            }
+
+            *gray = SATURATE_CAST_UCHAR(r * 0.299f + g * 0.587f + b * 0.114f + 0.5);
+
+            hsv += 3;
+            gray += 1;
+        }
+#undef SATURATE_CAST_UCHAR
+
+        hsv += wgap;
+        gray += to_wgap;
+    }
+}
+
+void gray2hsv(const unsigned char* gray, int w, int h, int stride, int to_stride, unsigned char* hsv)
+{
+    const int wgap = stride - w;
+    const int to_wgap = to_stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    uint8x8_t _v0 = vdup_n_u8(0);
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _hsv;
+            _hsv.val[0] = _v0;
+            _hsv.val[1] = _v0;
+            _hsv.val[2] = vld1_u8(gray);
+
+            vst3_u8(hsv, _hsv);
+
+            gray += 8;
+            hsv += 3 * 8;
+        }
+#endif // __ARM_NEON
+        for (; remain > 0; remain--)
+        {
+            hsv[0] = 0;
+            hsv[1] = 0;
+            hsv[2] = *gray;
+
+            gray += 1;
+            hsv += 3;
+        }
+
+        gray += wgap;
+        hsv += to_wgap;
+    }
+}
+
+void hsv2rgba(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* rgba)
+{
+    const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    float32_t v_1_30 = 1.f / 30.f;
+    float32_t v_1_255 = 1.f / 255.f;
+    float32_t vf1 = 1.f;
+    uint16_t v1 = 1;
+    uint16_t v2 = 2;
+    uint16_t v4 = 4;
+    float32_t vdescale = 0.5f;
+    uint8_t v255 = 255;
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _hsv = vld3_u8(hsv);
+            uint16x8_t _h16 = vmovl_u8(_hsv.val[0]);
+            uint16x8_t _s16 = vmovl_u8(_hsv.val[1]);
+            uint16x8_t _v16 = vmovl_u8(_hsv.val[2]);
+
+            float32x4_t _hlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_h16)));
+            float32x4_t _hhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_h16)));
+            float32x4_t _slow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_s16)));
+            float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
+            float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
+            float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
+
+            _hlow = vmulq_f32(_hlow, _v_1_30);
+            _hhigh = vmulq_f32(_hhigh, _v_1_30);
+            _slow = vmulq_f32(_slow, _v_1_255);
+            _shigh = vmulq_f32(_shigh, _v_1_255);
+
+            float32x4_t _vectorlow = vcvtq_f32_s32(vcvtq_s32_f32(_hlow));
+            float32x4_t _vectorhigh = vcvtq_f32_s32(vcvtq_s32_f32(_hhigh));
+
+            _hlow = vsubq_f32(_hlow, _vectorlow);
+            _hhigh = vsubq_f32(_hhigh, _vectorhigh);
+
+            uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
+            uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
+            uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
+
+            // vtab2 = v * (_v1 - (s * h))
+            float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
+            float32x4_t _vtab2high = vmulq_f32(_shigh, _hhigh);
+            _vtab2low = vsubq_f32(_vf1, _vtab2low);
+            _vtab2low = vmulq_f32(_vtab2low, _vlow);
+            _vtab2high = vsubq_f32(_vf1, _vtab2high);
+            _vtab2high = vmulq_f32(_vtab2high, _vhigh);
+
+            _vtab2low = vaddq_f32(_vtab2low, _vdescale);
+            _vtab2high = vaddq_f32(_vtab2high, _vdescale);
+            uint32x4_t _vtab2lowi = vcvtq_u32_f32(_vtab2low);
+            uint32x4_t _vtab2highi = vcvtq_u32_f32(_vtab2high);
+            uint16x8_t _vtab2 = vcombine_u16(vmovn_u32(_vtab2lowi), vmovn_u32(_vtab2highi));
+
+            // vtab3 = v * (_v1 - (s * (_v1 - h)))
+            float32x4_t _vtab3low = vsubq_f32(_vf1, _hlow);
+            _vtab3low = vmulq_f32(_vtab3low, _slow);
+            _vtab3low = vsubq_f32(_vf1, _vtab3low);
+            _vtab3low = vmulq_f32(_vtab3low, _vlow);
+            float32x4_t _vtab3high = vsubq_f32(_vf1, _hhigh);
+            _vtab3high = vmulq_f32(_vtab3high, _shigh);
+            _vtab3high = vsubq_f32(_vf1, _vtab3high);
+            _vtab3high = vmulq_f32(_vtab3high, _vhigh);
+
+            _vtab3low = vaddq_f32(_vtab3low, _vdescale);
+            _vtab3high = vaddq_f32(_vtab3high, _vdescale);
+            uint32x4_t _vtab3lowi = vcvtq_u32_f32(_vtab3low);
+            uint32x4_t _vtab3highi = vcvtq_u32_f32(_vtab3high);
+            uint16x8_t _vtab3 = vcombine_u16(vmovn_u32(_vtab3lowi), vmovn_u32(_vtab3highi));
+
+            // vtab1 = v * (_v1 - s)
+            float32x4_t _vtab1low = vsubq_f32(_vf1, _slow);
+            _vtab1low = vmulq_f32(_vtab1low, _vlow);
+            float32x4_t _vtab1high = vsubq_f32(_vf1, _shigh);
+            _vtab1high = vmulq_f32(_vtab1high, _vhigh);
+
+            uint32x4_t _vlowi = vcvtq_u32_f32(_vlow);
+            uint32x4_t _vhighi = vcvtq_u32_f32(_vhigh);
+            uint16x8_t _v = vcombine_u16(vmovn_u32(_vlowi), vmovn_u32(_vhighi));
+
+            _vtab1low = vaddq_f32(_vtab1low, _vdescale);
+            _vtab1high = vaddq_f32(_vtab1high, _vdescale);
+            uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
+            uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
+            uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
+
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+
+            uint8x8x4_t _rgba;
+            _rgba.val[1] = vqmovn_u16(_s);
+            _rgba.val[2] = vqmovn_u16(_h);
+
+            _h = _v;
+
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+
+            _rgba.val[0] = vqmovn_u16(_v);
+            _rgba.val[3] = vdup_n_u8(v255);
+            vst4_u8(rgba, _rgba);
+
+            hsv += 3 * 8;
+            rgba += 4 * 8;
+        }
+#else
+        if (nn > 0)
+        {
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld3.u8    {d0-d2}, [%1]!      \n"
+                "vmovl.u8   q8, d0              \n"
+                "vmovl.u8   q9, d1              \n"
+                "vmovl.u8   q10, d2             \n"
+                "vmovl.u16  q0, d16             \n"
+                "vmovl.u16  q1, d17             \n"
+                "vmovl.u16  q2, d18             \n"
+                "vmovl.u16  q3, d19             \n"
+                "vmovl.u16  q8, d20             \n"
+                "vmovl.u16  q9, d21             \n"
+                "vcvt.f32.u32    q0, q0         \n"
+                "vcvt.f32.u32    q1, q1         \n"
+                "vcvt.f32.u32    q2, q2         \n"
+                "vcvt.f32.u32    q3, q3         \n"
+                "vcvt.f32.u32    q8, q8         \n"
+                "vcvt.f32.u32    q9, q9         \n"
+                "vdup.f32    q4, %9             \n"
+                "vmul.f32    q0, q0, q4         \n"
+                "vmul.f32    q1, q1, q4         \n"
+                "vdup.f32    q4, %10            \n"
+                "vmul.f32    q2, q2, q4         \n"
+                "vmul.f32    q3, q3, q4         \n"
+                "vdup.f32    q4, %11            \n"
+                "vcvt.u32.f32    q10, q0        \n"
+                "vcvt.u32.f32    q11, q1        \n"
+                "vcvt.f32.u32    q10, q10       \n"
+                "vcvt.f32.u32    q11, q11       \n"
+                "vsub.f32   q0, q0, q10         \n"
+                "vsub.f32   q1, q1, q11         \n"
+                "vcvt.u32.f32    q10, q10       \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vmovn.i32  d20, q10            \n"
+                "vmovn.i32  d21, q11            \n"
+                "vmul.f32   q11, q2, q0         \n"
+                "vmul.f32   q12, q3, q1         \n"
+                "vsub.f32   q11, q4, q11        \n"
+                "vmul.f32   q11, q11, q8        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q9        \n"
+                "vdup.32    q5, %12             \n"
+                "vadd.f32   q11, q11, q5        \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vmovn.i32  d22, q11            \n"
+                "vmovn.i32  d23, q12            \n"
+                "vsub.f32   q12, q4, q0         \n"
+                "vmul.f32   q12, q12, q2        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q8        \n"
+                "vsub.f32   q0, q4, q1          \n"
+                "vmul.f32   q0, q0, q3          \n"
+                "vsub.f32   q0, q4, q0          \n"
+                "vmul.f32   q0, q0, q9          \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vmovn.i32  d24, q12            \n"
+                "vmovn.i32  d25, q0             \n"
+                "vsub.f32   q0, q4, q2          \n"
+                "vmul.f32   q0, q0, q8          \n"
+                "vsub.f32   q1, q4, q3          \n"
+                "vmul.f32   q1, q1, q9          \n"
+                "vcvt.u32.f32    q8, q8         \n"
+                "vcvt.u32.f32    q9, q9         \n"
+                "vmovn.i32  d16, q8             \n"
+                "vmovn.i32  d17, q9             \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vadd.f32   q1, q1, q5          \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vcvt.u32.f32    q1, q1         \n"
+                "vmovn.i32  d18, q0             \n"
+                "vmovn.i32  d19, q1             \n"
+                "vdup.u16   q4, %6              \n"
+                "vdup.u16   q5, %7              \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
+                "vqmovn.u16 d5, q2              \n"
+                "vqmovn.u16 d6, q0              \n"
+                "vmov       q0, q8              \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
+                "vqmovn.u16 d4, q8              \n"
+                "vdup.u8    d7, %13             \n"
+                "subs       %0, #1              \n"
+                "vst4.u8    {d4-d7}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(rgba) // %2
+                : "0"(nn),
+                "1"(hsv),
+                "2"(rgba),
+                "r"(v1),       // %6
+                "r"(v2),       // %7
+                "r"(v4),       // %8
+                "r"(v_1_30),   // %9
+                "r"(v_1_255),  // %10
+                "r"(vf1),      // %11
+                "r"(vdescale), // %12
+                "r"(v255)      // %13
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
+        }
+#endif // __aarch64__
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            float hh = hsv[0] * 2.0f;
+            float s = hsv[1] * (1.0f / 255.0f);
+            float v = hsv[2];
+
+            float r, g, b;
+            if (s == 0)
+            {
+                r = g = b = v;
+            }
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
+                hh /= 60.f;
+                int sector = (int)(hh);
+                hh -= sector;
+                float tab[4];
+                tab[0] = v;
+                tab[1] = v * (1.f - s);
+                tab[2] = v * (1.f - s * hh);
+                tab[3] = v * (1.f - s * (1.f - hh));
+
+                r = tab[sector_data[sector][0]];
+                g = tab[sector_data[sector][1]];
+                b = tab[sector_data[sector][2]];
+            }
+
+            rgba[0] = SATURATE_CAST_UCHAR(r + 0.5);
+            rgba[1] = SATURATE_CAST_UCHAR(g + 0.5);
+            rgba[2] = SATURATE_CAST_UCHAR(b + 0.5);
+            rgba[3] = 255;
+
+            hsv += 3;
+            rgba += 4;
+        }
+#undef SATURATE_CAST_UCHAR
+
+        hsv += wgap;
+        rgba += to_wgap;
+    }
+}
+
+void rgba2hsv(const unsigned char* rgba, int w, int h, int stride, int to_stride, unsigned char* hsv)
+{
+    const int wgap = stride - w * 4;
+    const int to_wgap = to_stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    const int hsv_shift = 12;
+    static uint32_t _hdiv_table[256];
+    static uint32_t _sdiv_table[256];
+    static volatile bool initialized = false;
+
+    if (!initialized)
+    {
+        _hdiv_table[0] = _sdiv_table[0] = 0;
+        for (int i = 1; i < 256; i++)
+        {
+            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6. * i) + 0.5);
+            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1. * i) + 0.5);
+        }
+        initialized = true;
+    }
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            // expand all to 16 bits
+            uint8x8x4_t _rgba = vld4_u8(rgba);
+            uint16x8_t _r16 = vmovl_u8(_rgba.val[0]);
+            uint16x8_t _g16 = vmovl_u8(_rgba.val[1]);
+            uint16x8_t _b16 = vmovl_u8(_rgba.val[2]);
+
+            // v = max{r, g, b}  vmin = min{r, g, b}
+            uint16x8_t _v = vmaxq_u16(vmaxq_u16(_r16, _g16), _b16);
+            uint16x8_t _vmin = vminq_u16(vminq_u16(_r16, _g16), _b16);
+
+            // diff = v - vmin
+            uint16x8_t _diff = vsubq_u16(_v, _vmin);
+            uint16x8_t _diff2 = vshlq_n_u16(_diff, 1);
+            uint16x8_t _diff4 = vshlq_n_u16(_diff, 2);
+            uint16x8_t _diff6 = vshlq_n_u16(_diff, 3);
+            _diff6 = vsubq_u16(_diff6, _diff2);
+
+            // sdiv = sdiv_table[v]
+            uint32x4_t _sdivlow = vlutq_u32(_sdiv_table, vget_low_u16(_v));
+            uint32x4_t _sdivhigh = vlutq_u32(_sdiv_table, vget_high_u16(_v));
+
+            // s = (diff * sdiv) >> hsv_shift;
+            uint32x4_t _slow = vmulq_u32(vmovl_u16(vget_low_u16(_diff)), _sdivlow);
+            uint32x4_t _shigh = vmulq_u32(vmovl_u16(vget_high_u16(_diff)), _sdivhigh);
+            _slow = vrshrq_n_u32(_slow, hsv_shift);
+            _shigh = vrshrq_n_u32(_shigh, hsv_shift);
+            uint16x8_t _s = vcombine_u16(vmovn_u32(_slow), vmovn_u32(_shigh));
+
+            uint16x8_t _gb = vcgtq_u16(_b16, _g16);
+            _gb = vandq_u16(_gb, _diff6);
+            _gb = vaddq_u16(_gb, _g16);
+            _gb = vsubq_u16(_gb, _b16);
+            uint16x8_t _br = vaddq_u16(_diff2, _b16);
+            _br = vsubq_u16(_br, _r16);
+            uint16x8_t _rg = vaddq_u16(_diff4, _r16);
+            _rg = vsubq_u16(_rg, _g16);
+
+            uint16x8_t _vr = vceqq_u16(_v, _r16);
+            uint16x8_t _vg = vceqq_u16(_v, _g16);
+
+            // _h16 = (_vr & _gb) + ((~_vr) & ((_vg & _br) + ((~_vg) & _rg)))
+            _br = vandq_u16(_br, _vg);
+            _vg = vmvnq_u16(_vg);
+            _rg = vandq_u16(_rg, _vg);
+            _br = vaddq_u16(_br, _rg);
+
+            uint16x8_t _h16 = vandq_u16(_vr, _gb);
+            _vr = vmvnq_u16(_vr);
+            _vr = vandq_u16(_vr, _br);
+            _h16 = vaddq_u16(_h16, _vr);
+
+            // hdiv = hdiv_table[diff]
+            uint32x4_t _hdivlow = vlutq_u32(_hdiv_table, vget_low_u16(_diff));
+            uint32x4_t _hdivhigh = vlutq_u32(_hdiv_table, vget_high_u16(_diff));
+
+            // _h = (_h * _hdiv) >> hsv_shift;
+            uint32x4_t _hlow = vmulq_u32(vmovl_u16(vget_low_u16(_h16)), _hdivlow);
+            uint32x4_t _hhigh = vmulq_u32(vmovl_u16(vget_high_u16(_h16)), _hdivhigh);
+            _hlow = vrshrq_n_u32(_hlow, hsv_shift);
+            _hhigh = vrshrq_n_u32(_hhigh, hsv_shift);
+            uint16x8_t _h = vcombine_u16(vmovn_u32(_hlow), vmovn_u32(_hhigh));
+
+            uint8x8x3_t _hsv;
+            _hsv.val[0] = vmovn_u16(_h);
+            _hsv.val[1] = vmovn_u16(_s);
+            _hsv.val[2] = vmovn_u16(_v);
+
+            vst3_u8(hsv, _hsv);
+
+            rgba += 4 * 8;
+            hsv += 3 * 8;
+        }
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            int r = int(rgba[0]);
+            int g = int(rgba[1]);
+            int b = int(rgba[2]);
+
+            int vmax = std::max(std::max(r, g), b);
+            int vmin = std::min(std::min(r, g), b);
+            int diff = vmax - vmin;
+
+            float hh, s;
+            if (diff == 0)
+            {
+                hh = 0.f;
+            }
+            else if (vmax == r)
+            {
+                hh = float(g - b) * 30.f / diff;
+            }
+            else if (vmax == g)
+            {
+                hh = float(b - r) * 30.f / diff + 60.f;
+            }
+            else
+            {
+                hh = float(r - g) * 30.f / diff + 120.f;
+            }
+
+            if (hh < 0)
+            {
+                hh += 180.f;
+            }
+
+            if (vmax == 0)
+            {
+                s = 0.f;
+            }
+            else
+            {
+                s = float(diff) * 255.f / vmax;
+            }
+
+            hsv[0] = SATURATE_CAST_UCHAR(hh + 0.5);
+            hsv[1] = SATURATE_CAST_UCHAR(s + 0.5);
+            hsv[2] = SATURATE_CAST_UCHAR(vmax);
+
+            rgba += 4;
+            hsv += 3;
+        }
+
+#undef SATURATE_CAST_UCHAR
+        rgba += wgap;
+        hsv += to_wgap;
+    }
+}
+
+void hsv2bgra(const unsigned char* hsv, int w, int h, int stride, int to_stride, unsigned char* bgra)
+{
+    const int wgap = stride - w * 3;
+    const int to_wgap = to_stride - w * 4;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    float32_t v_1_30 = 1.f / 30.f;
+    float32_t v_1_255 = 1.f / 255.f;
+    float32_t vf1 = 1.f;
+    uint16_t v1 = 1;
+    uint16_t v2 = 2;
+    uint16_t v4 = 4;
+    float32_t vdescale = 0.5f;
+    uint8_t v255 = 255;
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+#if __aarch64__
+        float32x4_t _v_1_30 = vdupq_n_f32(v_1_30);
+        float32x4_t _v_1_255 = vdupq_n_f32(v_1_255);
+        float32x4_t _vf1 = vdupq_n_f32(vf1);
+        float32x4_t _vdescale = vdupq_n_f32(vdescale);
+        uint16x8_t _v1 = vdupq_n_u16(v1);
+        uint16x8_t _v2 = vdupq_n_u16(v2);
+        uint16x8_t _v4 = vdupq_n_u16(v4);
+        for (; nn > 0; nn--)
+        {
+            uint8x8x3_t _hsv = vld3_u8(hsv);
+            uint16x8_t _h16 = vmovl_u8(_hsv.val[0]);
+            uint16x8_t _s16 = vmovl_u8(_hsv.val[1]);
+            uint16x8_t _v16 = vmovl_u8(_hsv.val[2]);
+
+            float32x4_t _hlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_h16)));
+            float32x4_t _hhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_h16)));
+            float32x4_t _slow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_s16)));
+            float32x4_t _shigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_s16)));
+            float32x4_t _vlow = vcvtq_f32_u32(vmovl_u16(vget_low_u16(_v16)));
+            float32x4_t _vhigh = vcvtq_f32_u32(vmovl_u16(vget_high_u16(_v16)));
+
+            _hlow = vmulq_f32(_hlow, _v_1_30);
+            _hhigh = vmulq_f32(_hhigh, _v_1_30);
+            _slow = vmulq_f32(_slow, _v_1_255);
+            _shigh = vmulq_f32(_shigh, _v_1_255);
+
+            float32x4_t _vectorlow = vcvtq_f32_s32(vcvtq_s32_f32(_hlow));
+            float32x4_t _vectorhigh = vcvtq_f32_s32(vcvtq_s32_f32(_hhigh));
+
+            _hlow = vsubq_f32(_hlow, _vectorlow);
+            _hhigh = vsubq_f32(_hhigh, _vectorhigh);
+
+            uint32x4_t _vectorlowi = vcvtq_u32_f32(_vectorlow);
+            uint32x4_t _vectorhighi = vcvtq_u32_f32(_vectorhigh);
+            uint16x8_t _vector = vcombine_u16(vmovn_u32(_vectorlowi), vmovn_u32(_vectorhighi));
+
+            // vtab2 = v * (_v1 - (s * h))
+            float32x4_t _vtab2low = vmulq_f32(_slow, _hlow);
+            float32x4_t _vtab2high = vmulq_f32(_shigh, _hhigh);
+            _vtab2low = vsubq_f32(_vf1, _vtab2low);
+            _vtab2low = vmulq_f32(_vtab2low, _vlow);
+            _vtab2high = vsubq_f32(_vf1, _vtab2high);
+            _vtab2high = vmulq_f32(_vtab2high, _vhigh);
+
+            _vtab2low = vaddq_f32(_vtab2low, _vdescale);
+            _vtab2high = vaddq_f32(_vtab2high, _vdescale);
+            uint32x4_t _vtab2lowi = vcvtq_u32_f32(_vtab2low);
+            uint32x4_t _vtab2highi = vcvtq_u32_f32(_vtab2high);
+            uint16x8_t _vtab2 = vcombine_u16(vmovn_u32(_vtab2lowi), vmovn_u32(_vtab2highi));
+
+            // vtab3 = v * (_v1 - (s * (_v1 - h)))
+            float32x4_t _vtab3low = vsubq_f32(_vf1, _hlow);
+            _vtab3low = vmulq_f32(_vtab3low, _slow);
+            _vtab3low = vsubq_f32(_vf1, _vtab3low);
+            _vtab3low = vmulq_f32(_vtab3low, _vlow);
+            float32x4_t _vtab3high = vsubq_f32(_vf1, _hhigh);
+            _vtab3high = vmulq_f32(_vtab3high, _shigh);
+            _vtab3high = vsubq_f32(_vf1, _vtab3high);
+            _vtab3high = vmulq_f32(_vtab3high, _vhigh);
+
+            _vtab3low = vaddq_f32(_vtab3low, _vdescale);
+            _vtab3high = vaddq_f32(_vtab3high, _vdescale);
+            uint32x4_t _vtab3lowi = vcvtq_u32_f32(_vtab3low);
+            uint32x4_t _vtab3highi = vcvtq_u32_f32(_vtab3high);
+            uint16x8_t _vtab3 = vcombine_u16(vmovn_u32(_vtab3lowi), vmovn_u32(_vtab3highi));
+
+            // vtab1 = v * (_v1 - s)
+            float32x4_t _vtab1low = vsubq_f32(_vf1, _slow);
+            _vtab1low = vmulq_f32(_vtab1low, _vlow);
+            float32x4_t _vtab1high = vsubq_f32(_vf1, _shigh);
+            _vtab1high = vmulq_f32(_vtab1high, _vhigh);
+
+            uint32x4_t _vlowi = vcvtq_u32_f32(_vlow);
+            uint32x4_t _vhighi = vcvtq_u32_f32(_vhigh);
+            uint16x8_t _v = vcombine_u16(vmovn_u32(_vlowi), vmovn_u32(_vhighi));
+
+            _vtab1low = vaddq_f32(_vtab1low, _vdescale);
+            _vtab1high = vaddq_f32(_vtab1high, _vdescale);
+            uint32x4_t _vtab1lowi = vcvtq_u32_f32(_vtab1low);
+            uint32x4_t _vtab1highi = vcvtq_u32_f32(_vtab1high);
+            uint16x8_t _vtab1 = vcombine_u16(vmovn_u32(_vtab1lowi), vmovn_u32(_vtab1highi));
+
+            uint16x8_t _h = vbslq_u16(vcgtq_u16(_v2, _vector), _vtab1,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _vtab3,
+                                                vbslq_u16(vcgeq_u16(_v4, _vector), _v, _vtab2)));
+
+            uint16x8_t _s = vbslq_u16(vcgtq_u16(_v1, _vector), _vtab3,
+                                      vbslq_u16(vcgeq_u16(_v2, _vector), _v,
+                                                vbslq_u16(vcgtq_u16(_v4, _vector), _vtab2, _vtab1)));
+
+            uint8x8x4_t _bgra;
+            _bgra.val[1] = vqmovn_u16(_s);
+            _bgra.val[0] = vqmovn_u16(_h);
+
+            _h = _v;
+
+            _v = vbslq_u16(vcgtq_u16(_v1, _vector), _h,
+                           vbslq_u16(vcgtq_u16(_v2, _vector), _vtab2,
+                                     vbslq_u16(vcgtq_u16(_v4, _vector), _vtab1,
+                                               vbslq_u16(vcgeq_u16(_v4, _vector), _vtab3, _h))));
+
+            _bgra.val[2] = vqmovn_u16(_v);
+            _bgra.val[3] = vdup_n_u8(v255);
+            vst4_u8(bgra, _bgra);
+
+            hsv += 3 * 8;
+            bgra += 4 * 8;
+        }
+#else
+        if (nn > 0)
+        {
+            asm volatile(
+                "0:                             \n"
+                "pld        [%1, #256]          \n"
+                "vld3.u8    {d0-d2}, [%1]!      \n"
+                "vmovl.u8   q8, d0              \n"
+                "vmovl.u8   q9, d1              \n"
+                "vmovl.u8   q10, d2             \n"
+                "vmovl.u16  q0, d16             \n"
+                "vmovl.u16  q1, d17             \n"
+                "vmovl.u16  q2, d18             \n"
+                "vmovl.u16  q3, d19             \n"
+                "vmovl.u16  q8, d20             \n"
+                "vmovl.u16  q9, d21             \n"
+                "vcvt.f32.u32    q0, q0         \n"
+                "vcvt.f32.u32    q1, q1         \n"
+                "vcvt.f32.u32    q2, q2         \n"
+                "vcvt.f32.u32    q3, q3         \n"
+                "vcvt.f32.u32    q8, q8         \n"
+                "vcvt.f32.u32    q9, q9         \n"
+                "vdup.f32    q4, %9             \n"
+                "vmul.f32    q0, q0, q4         \n"
+                "vmul.f32    q1, q1, q4         \n"
+                "vdup.f32    q4, %10            \n"
+                "vmul.f32    q2, q2, q4         \n"
+                "vmul.f32    q3, q3, q4         \n"
+                "vdup.f32    q4, %11            \n"
+                "vcvt.u32.f32    q10, q0        \n"
+                "vcvt.u32.f32    q11, q1        \n"
+                "vcvt.f32.u32    q10, q10       \n"
+                "vcvt.f32.u32    q11, q11       \n"
+                "vsub.f32   q0, q0, q10         \n"
+                "vsub.f32   q1, q1, q11         \n"
+                "vcvt.u32.f32    q10, q10       \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vmovn.i32  d20, q10            \n"
+                "vmovn.i32  d21, q11            \n"
+                "vmul.f32   q11, q2, q0         \n"
+                "vmul.f32   q12, q3, q1         \n"
+                "vsub.f32   q11, q4, q11        \n"
+                "vmul.f32   q11, q11, q8        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q9        \n"
+                "vdup.32    q5, %12             \n"
+                "vadd.f32   q11, q11, q5        \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vcvt.u32.f32    q11, q11       \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vmovn.i32  d22, q11            \n"
+                "vmovn.i32  d23, q12            \n"
+                "vsub.f32   q12, q4, q0         \n"
+                "vmul.f32   q12, q12, q2        \n"
+                "vsub.f32   q12, q4, q12        \n"
+                "vmul.f32   q12, q12, q8        \n"
+                "vsub.f32   q0, q4, q1          \n"
+                "vmul.f32   q0, q0, q3          \n"
+                "vsub.f32   q0, q4, q0          \n"
+                "vmul.f32   q0, q0, q9          \n"
+                "vadd.f32   q12, q12, q5        \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vcvt.u32.f32    q12, q12       \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vmovn.i32  d24, q12            \n"
+                "vmovn.i32  d25, q0             \n"
+                "vsub.f32   q0, q4, q2          \n"
+                "vmul.f32   q0, q0, q8          \n"
+                "vsub.f32   q1, q4, q3          \n"
+                "vmul.f32   q1, q1, q9          \n"
+                "vcvt.u32.f32    q8, q8         \n"
+                "vcvt.u32.f32    q9, q9         \n"
+                "vmovn.i32  d16, q8             \n"
+                "vmovn.i32  d17, q9             \n"
+                "vadd.f32   q0, q0, q5          \n"
+                "vadd.f32   q1, q1, q5          \n"
+                "vcvt.u32.f32    q0, q0         \n"
+                "vcvt.u32.f32    q1, q1         \n"
+                "vmovn.i32  d18, q0             \n"
+                "vmovn.i32  d19, q1             \n"
+                "vdup.u16   q4, %6              \n"
+                "vdup.u16   q5, %7              \n"
+                "vdup.u16   q7, %8              \n"
+                "vcge.u16   q0, q7, q10         \n"
+                "vbsl       q0, q8, q11         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q0, q5, q10         \n"
+                "vbsl       q0, q9, q1          \n"
+                "vcgt.u16   q2, q7, q10         \n"
+                "vbsl       q2, q11, q9         \n"
+                "vcge.u16   q1, q5, q10         \n"
+                "vbsl       q1, q8, q2          \n"
+                "vcgt.u16   q2, q4, q10         \n"
+                "vbsl       q2, q12, q1         \n"
+                "vqmovn.u16 d5, q2              \n"
+                "vqmovn.u16 d4, q0              \n"
+                "vmov       q0, q8              \n"
+                "vcge.u16   q1, q7, q10         \n"
+                "vbsl       q1, q12, q0         \n"
+                "vcgt.u16   q8, q7, q10         \n"
+                "vbsl       q8, q9, q1          \n"
+                "vcgt.u16   q1, q5, q10         \n"
+                "vbsl       q1, q11, q8         \n"
+                "vcgt.u16   q8, q4, q10         \n"
+                "vbsl       q8, q0, q1          \n"
+                "vqmovn.u16 d6, q8              \n"
+                "vdup.u8    d7, %13             \n"
+                "subs       %0, #1              \n"
+                "vst4.u8    {d4-d7}, [%2]!      \n"
+                "bne        0b                  \n"
+                : "=r"(nn),  // %0
+                "=r"(hsv), // %1
+                "=r"(bgra) // %2
+                : "0"(nn),
+                "1"(hsv),
+                "2"(bgra),
+                "r"(v1),       // %6
+                "r"(v2),       // %7
+                "r"(v4),       // %8
+                "r"(v_1_30),   // %9
+                "r"(v_1_255),  // %10
+                "r"(vf1),      // %11
+                "r"(vdescale), // %12
+                "r"(v255)      // %13
+                : "cc", "memory", "q0", "q1", "q2", "q3", "q4", "q5", "q7", "q8", "q9", "q10", "q11", "q12");
+        }
+#endif // __aarch64__
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            float hh = hsv[0] * 2.0f;
+            float s = hsv[1] * (1.0f / 255.0f);
+            float v = hsv[2];
+
+            float r, g, b;
+            if (s == 0)
+            {
+                r = g = b = v;
+            }
+            else
+            {
+                static const int sector_data[][3] = {{0, 3, 1},
+                    {2, 0, 1},
+                    {1, 0, 3},
+                    {1, 2, 0},
+                    {3, 1, 0},
+                    {0, 1, 2}
+                };
+                hh /= 60.f;
+                int sector = (int)(hh);
+                hh -= sector;
+                float tab[4];
+                tab[0] = v;
+                tab[1] = v * (1.f - s);
+                tab[2] = v * (1.f - s * hh);
+                tab[3] = v * (1.f - s * (1.f - hh));
+
+                r = tab[sector_data[sector][0]];
+                g = tab[sector_data[sector][1]];
+                b = tab[sector_data[sector][2]];
+            }
+
+            bgra[0] = SATURATE_CAST_UCHAR(b + 0.5);
+            bgra[1] = SATURATE_CAST_UCHAR(g + 0.5);
+            bgra[2] = SATURATE_CAST_UCHAR(r + 0.5);
+            bgra[3] = 255;
+
+            hsv += 3;
+            bgra += 4;
+        }
+#undef SATURATE_CAST_UCHAR
+
+        hsv += wgap;
+        bgra += to_wgap;
+    }
+}
+
+void bgra2hsv(const unsigned char* bgra, int w, int h, int stride, int to_stride, unsigned char* hsv)
+{
+    const int wgap = stride - w * 4;
+    const int to_wgap = to_stride - w * 3;
+    if (wgap == 0)
+    {
+        w = w * h;
+        h = 1;
+    }
+
+#if __ARM_NEON
+    const int hsv_shift = 12;
+    static uint32_t _hdiv_table[256];
+    static uint32_t _sdiv_table[256];
+    static volatile bool initialized = false;
+
+    if (!initialized)
+    {
+        _hdiv_table[0] = _sdiv_table[0] = 0;
+        for (int i = 1; i < 256; i++)
+        {
+            _hdiv_table[i] = (uint32_t)((180 << hsv_shift) / (6. * i) + 0.5);
+            _sdiv_table[i] = (uint32_t)((255 << hsv_shift) / (1. * i) + 0.5);
+        }
+        initialized = true;
+    }
+#endif // __ARM_NEON
+
+    for (int y = 0; y < h; y++)
+    {
+#if __ARM_NEON
+        int nn = w >> 3;
+        int remain = w - (nn << 3);
+#else
+        int remain = w;
+#endif // __ARM_NEON
+
+#if __ARM_NEON
+        for (; nn > 0; nn--)
+        {
+            // expand all to 16 bits
+            uint8x8x4_t _bgra = vld4_u8(bgra);
+            uint16x8_t _b16 = vmovl_u8(_bgra.val[0]);
+            uint16x8_t _g16 = vmovl_u8(_bgra.val[1]);
+            uint16x8_t _r16 = vmovl_u8(_bgra.val[2]);
+
+            // v = max{r, g, b}  vmin = min{r, g, b}
+            uint16x8_t _v = vmaxq_u16(vmaxq_u16(_r16, _g16), _b16);
+            uint16x8_t _vmin = vminq_u16(vminq_u16(_r16, _g16), _b16);
+
+            // diff = v - vmin
+            uint16x8_t _diff = vsubq_u16(_v, _vmin);
+            uint16x8_t _diff2 = vshlq_n_u16(_diff, 1);
+            uint16x8_t _diff4 = vshlq_n_u16(_diff, 2);
+            uint16x8_t _diff6 = vshlq_n_u16(_diff, 3);
+            _diff6 = vsubq_u16(_diff6, _diff2);
+
+            // sdiv = sdiv_table[v]
+            uint32x4_t _sdivlow = vlutq_u32(_sdiv_table, vget_low_u16(_v));
+            uint32x4_t _sdivhigh = vlutq_u32(_sdiv_table, vget_high_u16(_v));
+
+            // s = (diff * sdiv) >> hsv_shift;
+            uint32x4_t _slow = vmulq_u32(vmovl_u16(vget_low_u16(_diff)), _sdivlow);
+            uint32x4_t _shigh = vmulq_u32(vmovl_u16(vget_high_u16(_diff)), _sdivhigh);
+            _slow = vrshrq_n_u32(_slow, hsv_shift);
+            _shigh = vrshrq_n_u32(_shigh, hsv_shift);
+            uint16x8_t _s = vcombine_u16(vmovn_u32(_slow), vmovn_u32(_shigh));
+
+            uint16x8_t _gb = vcgtq_u16(_b16, _g16);
+            _gb = vandq_u16(_gb, _diff6);
+            _gb = vaddq_u16(_gb, _g16);
+            _gb = vsubq_u16(_gb, _b16);
+            uint16x8_t _br = vaddq_u16(_diff2, _b16);
+            _br = vsubq_u16(_br, _r16);
+            uint16x8_t _rg = vaddq_u16(_diff4, _r16);
+            _rg = vsubq_u16(_rg, _g16);
+
+            uint16x8_t _vr = vceqq_u16(_v, _r16);
+            uint16x8_t _vg = vceqq_u16(_v, _g16);
+
+            // _h16 = (_vr & _gb) + ((~_vr) & ((_vg & _br) + ((~_vg) & _rg)))
+            _br = vandq_u16(_br, _vg);
+            _vg = vmvnq_u16(_vg);
+            _rg = vandq_u16(_rg, _vg);
+            _br = vaddq_u16(_br, _rg);
+
+            uint16x8_t _h16 = vandq_u16(_vr, _gb);
+            _vr = vmvnq_u16(_vr);
+            _vr = vandq_u16(_vr, _br);
+            _h16 = vaddq_u16(_h16, _vr);
+
+            // hdiv = hdiv_table[diff]
+            uint32x4_t _hdivlow = vlutq_u32(_hdiv_table, vget_low_u16(_diff));
+            uint32x4_t _hdivhigh = vlutq_u32(_hdiv_table, vget_high_u16(_diff));
+
+            // _h = (_h * _hdiv) >> hsv_shift;
+            uint32x4_t _hlow = vmulq_u32(vmovl_u16(vget_low_u16(_h16)), _hdivlow);
+            uint32x4_t _hhigh = vmulq_u32(vmovl_u16(vget_high_u16(_h16)), _hdivhigh);
+            _hlow = vrshrq_n_u32(_hlow, hsv_shift);
+            _hhigh = vrshrq_n_u32(_hhigh, hsv_shift);
+            uint16x8_t _h = vcombine_u16(vmovn_u32(_hlow), vmovn_u32(_hhigh));
+
+            uint8x8x3_t _hsv;
+            _hsv.val[0] = vmovn_u16(_h);
+            _hsv.val[1] = vmovn_u16(_s);
+            _hsv.val[2] = vmovn_u16(_v);
+
+            vst3_u8(hsv, _hsv);
+
+            bgra += 4 * 8;
+            hsv += 3 * 8;
+        }
+#endif // __ARM_NEON
+#define SATURATE_CAST_UCHAR(X) (unsigned char)::std::min(::std::max((int)(X), 0), 255);
+        for (; remain > 0; remain--)
+        {
+            int b = int(bgra[0]);
+            int g = int(bgra[1]);
+            int r = int(bgra[2]);
+
+            int vmax = std::max(std::max(r, g), b);
+            int vmin = std::min(std::min(r, g), b);
+            int diff = vmax - vmin;
+
+            float hh, s;
+            if (diff == 0)
+            {
+                hh = 0.f;
+            }
+            else if (vmax == r)
+            {
+                hh = float(g - b) * 30.f / diff;
+            }
+            else if (vmax == g)
+            {
+                hh = float(b - r) * 30.f / diff + 60.f;
+            }
+            else
+            {
+                hh = float(r - g) * 30.f / diff + 120.f;
+            }
+
+            if (hh < 0)
+            {
+                hh += 180.f;
+            }
+
+            if (vmax == 0)
+            {
+                s = 0.f;
+            }
+            else
+            {
+                s = float(diff) * 255.f / vmax;
+            }
+
+            hsv[0] = SATURATE_CAST_UCHAR(hh + 0.5);
+            hsv[1] = SATURATE_CAST_UCHAR(s + 0.5);
+            hsv[2] = SATURATE_CAST_UCHAR(vmax);
+
+            bgra += 4;
+            hsv += 3;
+        }
+
+#undef SATURATE_CAST_UCHAR
+        bgra += wgap;
+        hsv += to_wgap;
+    }
+}
+
 Mat Mat::from_pixels(const unsigned char* pixels, int type, int w, int h, Allocator* allocator)
 {
     int type_from = type & PIXEL_FORMAT_MASK;
