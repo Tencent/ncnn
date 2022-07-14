@@ -130,7 +130,17 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
         for (; i < size; i++)
         {
 #if __ARM_FEATURE_BF16_VECTOR_ARITHMETIC
-            *outptr++ = vcvth_bf16_f32(*ptr++);
+            asm volatile(
+                "ldr    s0, [%0], #4    \n"
+                "bfcvt  h0, s0          \n"
+                "str    h0, [%1], #2    \n"
+                : "=r"(ptr),  // %0
+                "=r"(outptr) // %1
+                : "0"(ptr),
+                "1"(outptr)
+                : "memory", "s0");
+            // because intrinsic cause ndk clang crash
+            // *outptr++ = vcvth_bf16_f32(*ptr++);
 #else
             *outptr++ = float32_to_bfloat16(*ptr++);
 #endif
