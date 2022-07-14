@@ -14,13 +14,14 @@
 
 #include "lstm_arm.h"
 
+#include <math.h>
+
 #if __ARM_NEON
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
 #include "arm_activation.h"
-
-#include <math.h>
+#include "arm_usability.h"
 
 #include "cpu.h"
 
@@ -564,7 +565,7 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const unsigned short* weight_hc_IFOG = weight_hc.row<const unsigned short>(q);
 
 #if __ARM_NEON
-            float32x4_t _IFOG = vcvt_f32_bf16(vld1_u16(bias_c_IFOG));
+            float32x4_t _IFOG = float2bfloat(vld1_u16(bias_c_IFOG));
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             float32x4_t _sum2 = vdupq_n_f32(0.f);
             float32x4_t _sum3 = vdupq_n_f32(0.f);
@@ -579,12 +580,12 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 #if __ARM_NEON
             for (; i + 3 < size; i += 4)
             {
-                float32x4_t _xi = vcvt_f32_bf16(vld1_u16(x + i));
+                float32x4_t _xi = float2bfloat(vld1_u16(x + i));
 
-                float32x4_t _weight_xc_IFOG_0 = vcvt_f32_bf16(vld1_u16(weight_xc_IFOG));
-                float32x4_t _weight_xc_IFOG_1 = vcvt_f32_bf16(vld1_u16(weight_xc_IFOG + 4));
-                float32x4_t _weight_xc_IFOG_2 = vcvt_f32_bf16(vld1_u16(weight_xc_IFOG + 8));
-                float32x4_t _weight_xc_IFOG_3 = vcvt_f32_bf16(vld1_u16(weight_xc_IFOG + 12));
+                float32x4_t _weight_xc_IFOG_0 = float2bfloat(vld1_u16(weight_xc_IFOG));
+                float32x4_t _weight_xc_IFOG_1 = float2bfloat(vld1_u16(weight_xc_IFOG + 4));
+                float32x4_t _weight_xc_IFOG_2 = float2bfloat(vld1_u16(weight_xc_IFOG + 8));
+                float32x4_t _weight_xc_IFOG_3 = float2bfloat(vld1_u16(weight_xc_IFOG + 12));
 
 #if __aarch64__
                 _IFOG = vfmaq_laneq_f32(_IFOG, _weight_xc_IFOG_0, _xi, 0);
@@ -606,8 +607,8 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 #if __ARM_NEON
                 unsigned short xi = x[i];
 
-                float32x4_t _xi = vcvt_f32_bf16(vdup_n_u16(xi));
-                float32x4_t _weight_xc_IFOG = vcvt_f32_bf16(vld1_u16(weight_xc_IFOG));
+                float32x4_t _xi = float2bfloat(vdup_n_u16(xi));
+                float32x4_t _weight_xc_IFOG = float2bfloat(vld1_u16(weight_xc_IFOG));
                 _IFOG = vmlaq_f32(_IFOG, _weight_xc_IFOG, _xi);
 #else
                 float xi = bfloat16_to_float32(x[i]);
@@ -627,10 +628,10 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             {
                 float32x4_t _h_cont = vld1q_f32((const float*)hidden_state + i);
 
-                float32x4_t _weight_hc_IFOG_0 = vcvt_f32_bf16(vld1_u16(weight_hc_IFOG));
-                float32x4_t _weight_hc_IFOG_1 = vcvt_f32_bf16(vld1_u16(weight_hc_IFOG + 4));
-                float32x4_t _weight_hc_IFOG_2 = vcvt_f32_bf16(vld1_u16(weight_hc_IFOG + 8));
-                float32x4_t _weight_hc_IFOG_3 = vcvt_f32_bf16(vld1_u16(weight_hc_IFOG + 12));
+                float32x4_t _weight_hc_IFOG_0 = float2bfloat(vld1_u16(weight_hc_IFOG));
+                float32x4_t _weight_hc_IFOG_1 = float2bfloat(vld1_u16(weight_hc_IFOG + 4));
+                float32x4_t _weight_hc_IFOG_2 = float2bfloat(vld1_u16(weight_hc_IFOG + 8));
+                float32x4_t _weight_hc_IFOG_3 = float2bfloat(vld1_u16(weight_hc_IFOG + 12));
 
 #if __aarch64__
                 _IFOG = vfmaq_laneq_f32(_IFOG, _weight_hc_IFOG_0, _h_cont, 0);
@@ -653,7 +654,7 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
 #if __ARM_NEON
                 float32x4_t _h_cont = vdupq_n_f32(h_cont);
-                float32x4_t _weight_hc_IFOG = vcvt_f32_bf16(vld1_u16(weight_hc_IFOG));
+                float32x4_t _weight_hc_IFOG = float2bfloat(vld1_u16(weight_hc_IFOG));
                 _IFOG = vmlaq_f32(_IFOG, _weight_hc_IFOG, _h_cont);
 #else
                 I += bfloat16_to_float32(weight_hc_IFOG[0]) * h_cont;
@@ -717,7 +718,7 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
             vst1q_f32(cell_ptr + q, _cell2);
             vst1q_f32(hidden_ptr + q, _H);
-            vst1_u16(output_data + q, vcvt_bf16_f32(_H));
+            vst1_u16(output_data + q, bfloat2float(_H));
         }
 #endif // __ARM_NEON
         #pragma omp parallel for num_threads(opt.num_threads)

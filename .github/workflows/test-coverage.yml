@@ -730,7 +730,7 @@ jobs:
     - name: build-arm82
       run: |
         mkdir build-arm82 && cd build-arm82
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
@@ -791,7 +791,7 @@ jobs:
     - name: build-arm82-omp
       run: |
         mkdir build-arm82-omp && cd build-arm82-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
@@ -852,7 +852,7 @@ jobs:
     - name: build-arm82dot-omp
       run: |
         mkdir build-arm82dot-omp && cd build-arm82dot-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
@@ -871,6 +871,67 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-arm82dot-omp/lcov.info
+
+  linux-gcc-arm84:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v3
+      with:
+        path: qemu-install
+        key: qemu-aarch64-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
+        make -j2
+        make install
+
+    - name: aarch64-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-aarch64-linux-gnu
+
+    - name: build-arm84
+      run: |
+        mkdir build-arm84 && cd build-arm84
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=ON -DNCNN_ARM84BF16=ON -DNCNN_ARM84I8MM=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build-arm84
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build-arm84
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm84/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build-arm84/lcov.info
 
   linux-gcc-mipsisa32r6el:
     runs-on: ubuntu-20.04

@@ -164,10 +164,10 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
 
             for (int j = 0; j < nn; j++)
             {
-                float32x4_t _val0 = vcvt_f32_bf16(vld1_u16(tmpptr));
-                float32x4_t _val1 = vcvt_f32_bf16(vld1_u16(tmpptr + 4));
-                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr0));
-                float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(kptr0 + 4));
+                float32x4_t _val0 = float2bfloat(vld1_u16(tmpptr));
+                float32x4_t _val1 = float2bfloat(vld1_u16(tmpptr + 4));
+                float32x4_t _w0 = float2bfloat(vld1_u16(kptr0));
+                float32x4_t _w1 = float2bfloat(vld1_u16(kptr0 + 4));
 
                 _sum00 = vmlaq_laneq_f32(_sum00, _w0, _val0, 0);
                 _sum01 = vmlaq_laneq_f32(_sum01, _w0, _val0, 1);
@@ -190,22 +190,22 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
                 kptr0 += 8;
             }
 
-            vst1_u16(outptr0, vcvt_bf16_f32(_sum00));
-            vst1_u16(outptr0 + 4, vcvt_bf16_f32(_sum01));
-            vst1_u16(outptr0 + 8, vcvt_bf16_f32(_sum02));
-            vst1_u16(outptr0 + 12, vcvt_bf16_f32(_sum03));
-            vst1_u16(outptr0 + 16, vcvt_bf16_f32(_sum04));
-            vst1_u16(outptr0 + 20, vcvt_bf16_f32(_sum05));
-            vst1_u16(outptr0 + 24, vcvt_bf16_f32(_sum06));
-            vst1_u16(outptr0 + 28, vcvt_bf16_f32(_sum07));
-            vst1_u16(outptr1, vcvt_bf16_f32(_sum10));
-            vst1_u16(outptr1 + 4, vcvt_bf16_f32(_sum11));
-            vst1_u16(outptr1 + 8, vcvt_bf16_f32(_sum12));
-            vst1_u16(outptr1 + 12, vcvt_bf16_f32(_sum13));
-            vst1_u16(outptr1 + 16, vcvt_bf16_f32(_sum14));
-            vst1_u16(outptr1 + 20, vcvt_bf16_f32(_sum15));
-            vst1_u16(outptr1 + 24, vcvt_bf16_f32(_sum16));
-            vst1_u16(outptr1 + 28, vcvt_bf16_f32(_sum17));
+            vst1_u16(outptr0, bfloat2float(_sum00));
+            vst1_u16(outptr0 + 4, bfloat2float(_sum01));
+            vst1_u16(outptr0 + 8, bfloat2float(_sum02));
+            vst1_u16(outptr0 + 12, bfloat2float(_sum03));
+            vst1_u16(outptr0 + 16, bfloat2float(_sum04));
+            vst1_u16(outptr0 + 20, bfloat2float(_sum05));
+            vst1_u16(outptr0 + 24, bfloat2float(_sum06));
+            vst1_u16(outptr0 + 28, bfloat2float(_sum07));
+            vst1_u16(outptr1, bfloat2float(_sum10));
+            vst1_u16(outptr1 + 4, bfloat2float(_sum11));
+            vst1_u16(outptr1 + 8, bfloat2float(_sum12));
+            vst1_u16(outptr1 + 12, bfloat2float(_sum13));
+            vst1_u16(outptr1 + 16, bfloat2float(_sum14));
+            vst1_u16(outptr1 + 20, bfloat2float(_sum15));
+            vst1_u16(outptr1 + 24, bfloat2float(_sum16));
+            vst1_u16(outptr1 + 28, bfloat2float(_sum17));
             outptr0 += 32;
             outptr1 += 32;
         }
@@ -227,9 +227,9 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
 
             for (int j = 0; j < nn; j++)
             {
-                float32x4_t _val = vcvt_f32_bf16(vld1_u16(tmpptr));
-                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr0));
-                float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(kptr0 + 4));
+                float32x4_t _val = float2bfloat(vld1_u16(tmpptr));
+                float32x4_t _w0 = float2bfloat(vld1_u16(kptr0));
+                float32x4_t _w1 = float2bfloat(vld1_u16(kptr0 + 4));
 
                 _sum00 = vmlaq_laneq_f32(_sum00, _w0, _val, 0);
                 _sum01 = vmlaq_laneq_f32(_sum01, _w0, _val, 1);
@@ -244,14 +244,14 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
                 kptr0 += 8;
             }
 
-            vst1_u16(outptr0, vcvt_bf16_f32(_sum00));
-            vst1_u16(outptr0 + 4, vcvt_bf16_f32(_sum01));
-            vst1_u16(outptr0 + 8, vcvt_bf16_f32(_sum02));
-            vst1_u16(outptr0 + 12, vcvt_bf16_f32(_sum03));
-            vst1_u16(outptr1, vcvt_bf16_f32(_sum10));
-            vst1_u16(outptr1 + 4, vcvt_bf16_f32(_sum11));
-            vst1_u16(outptr1 + 8, vcvt_bf16_f32(_sum12));
-            vst1_u16(outptr1 + 12, vcvt_bf16_f32(_sum13));
+            vst1_u16(outptr0, bfloat2float(_sum00));
+            vst1_u16(outptr0 + 4, bfloat2float(_sum01));
+            vst1_u16(outptr0 + 8, bfloat2float(_sum02));
+            vst1_u16(outptr0 + 12, bfloat2float(_sum03));
+            vst1_u16(outptr1, bfloat2float(_sum10));
+            vst1_u16(outptr1 + 4, bfloat2float(_sum11));
+            vst1_u16(outptr1 + 8, bfloat2float(_sum12));
+            vst1_u16(outptr1 + 12, bfloat2float(_sum13));
             outptr0 += 16;
             outptr1 += 16;
         }
@@ -268,8 +268,8 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
             for (int j = 0; j < nn; j++)
             {
                 float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(tmpptr[0]));
-                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr0));
-                float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(kptr0 + 4));
+                float32x4_t _w0 = float2bfloat(vld1_u16(kptr0));
+                float32x4_t _w1 = float2bfloat(vld1_u16(kptr0 + 4));
                 _sum0 = vmlaq_f32(_sum0, _val, _w0);
                 _sum1 = vmlaq_f32(_sum1, _val, _w1);
 
@@ -277,8 +277,8 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
                 kptr0 += 8;
             }
 
-            vst1_u16(outptr0, vcvt_bf16_f32(_sum0));
-            vst1_u16(outptr1, vcvt_bf16_f32(_sum1));
+            vst1_u16(outptr0, bfloat2float(_sum0));
+            vst1_u16(outptr1, bfloat2float(_sum1));
             outptr0 += 4;
             outptr1 += 4;
         }
@@ -317,9 +317,9 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
 
             for (int j = 0; j < nn; j++)
             {
-                float32x4_t _val0 = vcvt_f32_bf16(vld1_u16(tmpptr));
-                float32x4_t _val1 = vcvt_f32_bf16(vld1_u16(tmpptr + 4));
-                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr0));
+                float32x4_t _val0 = float2bfloat(vld1_u16(tmpptr));
+                float32x4_t _val1 = float2bfloat(vld1_u16(tmpptr + 4));
+                float32x4_t _w0 = float2bfloat(vld1_u16(kptr0));
 
 #if __aarch64__
                 _sum0 = vmlaq_laneq_f32(_sum0, _w0, _val0, 0);
@@ -345,14 +345,14 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
                 kptr0 += 4;
             }
 
-            vst1_u16(outptr0, vcvt_bf16_f32(_sum0));
-            vst1_u16(outptr0 + 4, vcvt_bf16_f32(_sum1));
-            vst1_u16(outptr0 + 8, vcvt_bf16_f32(_sum2));
-            vst1_u16(outptr0 + 12, vcvt_bf16_f32(_sum3));
-            vst1_u16(outptr0 + 16, vcvt_bf16_f32(_sum4));
-            vst1_u16(outptr0 + 20, vcvt_bf16_f32(_sum5));
-            vst1_u16(outptr0 + 24, vcvt_bf16_f32(_sum6));
-            vst1_u16(outptr0 + 28, vcvt_bf16_f32(_sum7));
+            vst1_u16(outptr0, bfloat2float(_sum0));
+            vst1_u16(outptr0 + 4, bfloat2float(_sum1));
+            vst1_u16(outptr0 + 8, bfloat2float(_sum2));
+            vst1_u16(outptr0 + 12, bfloat2float(_sum3));
+            vst1_u16(outptr0 + 16, bfloat2float(_sum4));
+            vst1_u16(outptr0 + 20, bfloat2float(_sum5));
+            vst1_u16(outptr0 + 24, bfloat2float(_sum6));
+            vst1_u16(outptr0 + 28, bfloat2float(_sum7));
             outptr0 += 32;
 #else
             float sum0_0 = biasptr[0];
@@ -495,8 +495,8 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
 
             for (int j = 0; j < nn; j++)
             {
-                float32x4_t _val = vcvt_f32_bf16(vld1_u16(tmpptr));
-                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr0));
+                float32x4_t _val = float2bfloat(vld1_u16(tmpptr));
+                float32x4_t _w0 = float2bfloat(vld1_u16(kptr0));
 
 #if __aarch64__
                 _sum0 = vmlaq_laneq_f32(_sum0, _w0, _val, 0);
@@ -514,10 +514,10 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
                 kptr0 += 4;
             }
 
-            vst1_u16(outptr0, vcvt_bf16_f32(_sum0));
-            vst1_u16(outptr0 + 4, vcvt_bf16_f32(_sum1));
-            vst1_u16(outptr0 + 8, vcvt_bf16_f32(_sum2));
-            vst1_u16(outptr0 + 12, vcvt_bf16_f32(_sum3));
+            vst1_u16(outptr0, bfloat2float(_sum0));
+            vst1_u16(outptr0 + 4, bfloat2float(_sum1));
+            vst1_u16(outptr0 + 8, bfloat2float(_sum2));
+            vst1_u16(outptr0 + 12, bfloat2float(_sum3));
             outptr0 += 16;
 #else
             float sum0_0 = biasptr[0];
@@ -606,14 +606,14 @@ static void im2col_sgemm_pack1to4_bf16s_neon(const Mat& bottom_im2col, Mat& top_
             for (int j = 0; j < nn; j++)
             {
                 float32x4_t _val = vdupq_n_f32(bfloat16_to_float32(tmpptr[0]));
-                float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr0));
+                float32x4_t _w0 = float2bfloat(vld1_u16(kptr0));
                 _sum = vmlaq_f32(_sum, _val, _w0);
 
                 tmpptr += 1;
                 kptr0 += 4;
             }
 
-            vst1_u16(outptr0, vcvt_bf16_f32(_sum));
+            vst1_u16(outptr0, bfloat2float(_sum));
             outptr0 += 4;
 #else
             float sum0 = biasptr[0];
