@@ -58,13 +58,13 @@ namespace ncnn {
 // pack8to4
 void im2col_sgemm_pack8to4_int8_neon_i8mm(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
-//     NCNN_LOGE("im2col_sgemm_pack8to4_int8_neon_i8mm");
+    //     NCNN_LOGE("im2col_sgemm_pack8to4_int8_neon_i8mm");
     im2col_sgemm_pack8to4_int8_neon(bottom_im2col, top_blob, kernel, opt);
 }
 
 void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_i8mm(const Mat& kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
-//     NCNN_LOGE("convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_i8mm");
+    //     NCNN_LOGE("convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon_i8mm");
     convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
 }
 
