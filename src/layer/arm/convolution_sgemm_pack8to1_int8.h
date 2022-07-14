@@ -344,7 +344,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 "0:                                 \n"
 
-                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%9], #64 \n" // _val0 _val1 _val1 _val3
+                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%9], #64 \n"  // _val0 _val1 _val1 _val3
                 "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%10], #64 \n" // _w01 _w23 _w45 _w67
 
                 "smmla  v0.4s, v16.16b, v20.16b     \n"
@@ -457,7 +457,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 "0:                                 \n"
 
-                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%9], #64 \n" // _val0 _val1 _val2 _val3
+                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%9], #64 \n"  // _val0 _val1 _val2 _val3
                 "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%10], #64 \n" // _w01 _w23 _w45 _w67
 
                 "sdot   v0.4s, v20.16b, v16.4b[0]   \n"
