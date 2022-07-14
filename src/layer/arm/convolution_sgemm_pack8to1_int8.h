@@ -97,7 +97,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0 //__ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%0] \n"
@@ -152,7 +152,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0 //__ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
                         "ld1    {v0.16b, v1.16b}, [%0]      \n"
@@ -217,7 +217,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 for (int k = 0; k < maxk; k++)
                 {
 #if __aarch64__
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0 //__ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]   \n"
                         "ld1    {v0.16b}, [%0]          \n"
@@ -340,7 +340,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0 //__ARM_FEATURE_MATMUL_INT8
             asm volatile(
                 "eor    v0.16b, v0.16b, v0.16b      \n"
                 "eor    v1.16b, v1.16b, v1.16b      \n"
@@ -453,7 +453,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "9"(tmpptr),
                 "10"(kptr0)
                 : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
-#else  // __ARM_FEATURE_MATMUL_INT8
+#else // __ARM_FEATURE_MATMUL_INT8
 
 #if 0
             asm volatile(
@@ -587,7 +587,6 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "10"(kptr0)
                 : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #endif
-
 
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
@@ -727,7 +726,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0  //__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -874,7 +873,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0  //__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -972,7 +971,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0  //__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum01 = vdupq_n_s32(0);
             int32x4_t _sum23 = vdupq_n_s32(0);
             int32x4_t _sum45 = vdupq_n_s32(0);
@@ -2249,7 +2248,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const M
         {
             for (int k = 0; k < maxk; k++)
             {
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0 //__ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 8; i++)
                 {
                     for (int j = 0; j < 8; j++)
@@ -2313,7 +2312,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const M
         {
             for (int k = 0; k < maxk; k++)
             {
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0 //__ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 8; j++)
