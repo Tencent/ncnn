@@ -114,7 +114,6 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
             // float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
-                
         }
 
         if (keep)
