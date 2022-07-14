@@ -1603,7 +1603,10 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const M
     // dst = 4a-4b-2-maxk-inch/8a-outch/4b (arm82)
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __ARM_FEATURE_DOTPROD
-    kernel_tm.create(64 * maxk, inch / 8, outch / 8 + (outch % 8) / 4, (size_t)1u);
+    if (outch > 8)
+        kernel_tm.create(64 * maxk, inch / 8, outch / 8 + (outch % 8) / 4, (size_t)1u);
+    else
+        kernel_tm.create(32 * maxk, inch / 8, outch / 4, (size_t)1u);
 #else
     kernel_tm.create(32 * maxk, inch / 8, outch / 4, (size_t)1u);
 #endif
