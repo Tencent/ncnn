@@ -12,19 +12,36 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __ARM_NEON && __aarch64__ && !__ARM_FEATURE_DOTPROD
+#if !(__ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD)
+#if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
+void im2col_sgemm_pack8to1_int8_neon_i8mm(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon_i8mm(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD
 void im2col_sgemm_pack8to1_int8_neon_asimddp(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
 void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon_asimddp(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h);
+#endif
 #endif
 
 static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __ARM_NEON && __aarch64__ && !__ARM_FEATURE_DOTPROD
+#if !(__ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD)
+#if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
+    if (ncnn::cpu_support_arm_i8mm())
+    {
+        im2col_sgemm_pack8to1_int8_neon_i8mm(bottom_im2col, top_blob, kernel, opt);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD
     if (ncnn::cpu_support_arm_asimddp())
     {
         im2col_sgemm_pack8to1_int8_neon_asimddp(bottom_im2col, top_blob, kernel, opt);
         return;
     }
+#endif
 #endif
 
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);
@@ -80,7 +97,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%0] \n"
@@ -135,7 +152,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
                         "ld1    {v0.16b, v1.16b}, [%0]      \n"
@@ -200,7 +217,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 for (int k = 0; k < maxk; k++)
                 {
 #if __aarch64__
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]   \n"
                         "ld1    {v0.16b}, [%0]          \n"
@@ -323,7 +340,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
             asm volatile(
                 "eor    v0.16b, v0.16b, v0.16b      \n"
                 "eor    v1.16b, v1.16b, v1.16b      \n"
@@ -437,6 +454,8 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "10"(kptr0)
                 : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #else  // __ARM_FEATURE_MATMUL_INT8
+
+#if 0
             asm volatile(
                 "eor    v0.16b, v0.16b, v0.16b      \n"
                 "eor    v1.16b, v1.16b, v1.16b      \n"
@@ -567,6 +586,138 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "9"(tmpptr),
                 "10"(kptr0)
                 : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
+#endif
+
+
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+            int32x4_t _sum4 = vdupq_n_s32(0);
+            int32x4_t _sum5 = vdupq_n_s32(0);
+            int32x4_t _sum6 = vdupq_n_s32(0);
+            int32x4_t _sum7 = vdupq_n_s32(0);
+
+            int32x4_t _sum8 = vdupq_n_s32(0);
+            int32x4_t _sum9 = vdupq_n_s32(0);
+            int32x4_t _suma = vdupq_n_s32(0);
+            int32x4_t _sumb = vdupq_n_s32(0);
+            int32x4_t _sumc = vdupq_n_s32(0);
+            int32x4_t _sumd = vdupq_n_s32(0);
+            int32x4_t _sume = vdupq_n_s32(0);
+            int32x4_t _sumf = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0123_l = vld1q_s8(tmpptr);
+                int8x16_t _val0123_h = vld1q_s8(tmpptr + 16);
+                int8x16_t _val4567_l = vld1q_s8(tmpptr + 32);
+                int8x16_t _val4567_h = vld1q_s8(tmpptr + 48);
+
+                int8x16_t _w0123_l = vld1q_s8(kptr0);
+                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
+                int8x16_t _w4567_l = vld1q_s8(kptr0 + 32);
+                int8x16_t _w4567_h = vld1q_s8(kptr0 + 48);
+
+                _sum0 = vdotq_laneq_s32(_sum0, _w0123_l, _val0123_l, 0);
+                _sum1 = vdotq_laneq_s32(_sum1, _w0123_l, _val0123_l, 1);
+                _sum2 = vdotq_laneq_s32(_sum2, _w0123_l, _val0123_l, 2);
+                _sum3 = vdotq_laneq_s32(_sum3, _w0123_l, _val0123_l, 3);
+                _sum4 = vdotq_laneq_s32(_sum4, _w0123_l, _val0123_h, 0);
+                _sum5 = vdotq_laneq_s32(_sum5, _w0123_l, _val0123_h, 1);
+                _sum6 = vdotq_laneq_s32(_sum6, _w0123_l, _val0123_h, 2);
+                _sum7 = vdotq_laneq_s32(_sum7, _w0123_l, _val0123_h, 3);
+
+                _sum0 = vdotq_laneq_s32(_sum0, _w0123_h, _val4567_l, 0);
+                _sum1 = vdotq_laneq_s32(_sum1, _w0123_h, _val4567_l, 1);
+                _sum2 = vdotq_laneq_s32(_sum2, _w0123_h, _val4567_l, 2);
+                _sum3 = vdotq_laneq_s32(_sum3, _w0123_h, _val4567_l, 3);
+                _sum4 = vdotq_laneq_s32(_sum4, _w0123_h, _val4567_h, 0);
+                _sum5 = vdotq_laneq_s32(_sum5, _w0123_h, _val4567_h, 1);
+                _sum6 = vdotq_laneq_s32(_sum6, _w0123_h, _val4567_h, 2);
+                _sum7 = vdotq_laneq_s32(_sum7, _w0123_h, _val4567_h, 3);
+
+                _sum8 = vdotq_laneq_s32(_sum8, _w4567_l, _val0123_l, 0);
+                _sum9 = vdotq_laneq_s32(_sum9, _w4567_l, _val0123_l, 1);
+                _suma = vdotq_laneq_s32(_suma, _w4567_l, _val0123_l, 2);
+                _sumb = vdotq_laneq_s32(_sumb, _w4567_l, _val0123_l, 3);
+                _sumc = vdotq_laneq_s32(_sumc, _w4567_l, _val0123_h, 0);
+                _sumd = vdotq_laneq_s32(_sumd, _w4567_l, _val0123_h, 1);
+                _sume = vdotq_laneq_s32(_sume, _w4567_l, _val0123_h, 2);
+                _sumf = vdotq_laneq_s32(_sumf, _w4567_l, _val0123_h, 3);
+
+                _sum8 = vdotq_laneq_s32(_sum8, _w4567_h, _val4567_l, 0);
+                _sum9 = vdotq_laneq_s32(_sum9, _w4567_h, _val4567_l, 1);
+                _suma = vdotq_laneq_s32(_suma, _w4567_h, _val4567_l, 2);
+                _sumb = vdotq_laneq_s32(_sumb, _w4567_h, _val4567_l, 3);
+                _sumc = vdotq_laneq_s32(_sumc, _w4567_h, _val4567_h, 0);
+                _sumd = vdotq_laneq_s32(_sumd, _w4567_h, _val4567_h, 1);
+                _sume = vdotq_laneq_s32(_sume, _w4567_h, _val4567_h, 2);
+                _sumf = vdotq_laneq_s32(_sumf, _w4567_h, _val4567_h, 3);
+
+                tmpptr += 64;
+                kptr0 += 64;
+            }
+
+            // transpose 4x4
+            int32x4_t _sum01_0 = vtrn1q_s32(_sum0, _sum1);
+            int32x4_t _sum01_1 = vtrn2q_s32(_sum0, _sum1);
+            int32x4_t _sum23_0 = vtrn1q_s32(_sum2, _sum3);
+            int32x4_t _sum23_1 = vtrn2q_s32(_sum2, _sum3);
+            int32x4_t _sum45_0 = vtrn1q_s32(_sum4, _sum5);
+            int32x4_t _sum45_1 = vtrn2q_s32(_sum4, _sum5);
+            int32x4_t _sum67_0 = vtrn1q_s32(_sum6, _sum7);
+            int32x4_t _sum67_1 = vtrn2q_s32(_sum6, _sum7);
+            _sum0 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum01_0), vreinterpretq_s64_s32(_sum23_0)));
+            _sum1 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum01_1), vreinterpretq_s64_s32(_sum23_1)));
+            _sum2 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum01_0), vreinterpretq_s64_s32(_sum23_0)));
+            _sum3 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum01_1), vreinterpretq_s64_s32(_sum23_1)));
+            _sum4 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum45_0), vreinterpretq_s64_s32(_sum67_0)));
+            _sum5 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum45_1), vreinterpretq_s64_s32(_sum67_1)));
+            _sum6 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum45_0), vreinterpretq_s64_s32(_sum67_0)));
+            _sum7 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum45_1), vreinterpretq_s64_s32(_sum67_1)));
+
+            int32x4_t _sum89_0 = vtrn1q_s32(_sum8, _sum9);
+            int32x4_t _sum89_1 = vtrn2q_s32(_sum8, _sum9);
+            int32x4_t _sumab_0 = vtrn1q_s32(_suma, _sumb);
+            int32x4_t _sumab_1 = vtrn2q_s32(_suma, _sumb);
+            int32x4_t _sumcd_0 = vtrn1q_s32(_sumc, _sumd);
+            int32x4_t _sumcd_1 = vtrn2q_s32(_sumc, _sumd);
+            int32x4_t _sumef_0 = vtrn1q_s32(_sume, _sumf);
+            int32x4_t _sumef_1 = vtrn2q_s32(_sume, _sumf);
+            _sum8 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum89_0), vreinterpretq_s64_s32(_sumab_0)));
+            _sum9 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum89_1), vreinterpretq_s64_s32(_sumab_1)));
+            _suma = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum89_0), vreinterpretq_s64_s32(_sumab_0)));
+            _sumb = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum89_1), vreinterpretq_s64_s32(_sumab_1)));
+            _sumc = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sumcd_0), vreinterpretq_s64_s32(_sumef_0)));
+            _sumd = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sumcd_1), vreinterpretq_s64_s32(_sumef_1)));
+            _sume = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sumcd_0), vreinterpretq_s64_s32(_sumef_0)));
+            _sumf = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sumcd_1), vreinterpretq_s64_s32(_sumef_1)));
+
+            vst1q_s32(outptr0, _sum0);
+            vst1q_s32(outptr1, _sum1);
+            vst1q_s32(outptr2, _sum2);
+            vst1q_s32(outptr3, _sum3);
+            vst1q_s32(outptr4, _sum8);
+            vst1q_s32(outptr5, _sum9);
+            vst1q_s32(outptr6, _suma);
+            vst1q_s32(outptr7, _sumb);
+            vst1q_s32(outptr0 + 4, _sum4);
+            vst1q_s32(outptr1 + 4, _sum5);
+            vst1q_s32(outptr2 + 4, _sum6);
+            vst1q_s32(outptr3 + 4, _sum7);
+            vst1q_s32(outptr4 + 4, _sumc);
+            vst1q_s32(outptr5 + 4, _sumd);
+            vst1q_s32(outptr6 + 4, _sume);
+            vst1q_s32(outptr7 + 4, _sumf);
+            outptr0 += 8;
+            outptr1 += 8;
+            outptr2 += 8;
+            outptr3 += 8;
+            outptr4 += 8;
+            outptr5 += 8;
+            outptr6 += 8;
+            outptr7 += 8;
 #endif // __ARM_FEATURE_MATMUL_INT8
         }
         for (; i + 3 < size; i += 4)
@@ -576,7 +727,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -723,7 +874,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -821,7 +972,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum01 = vdupq_n_s32(0);
             int32x4_t _sum23 = vdupq_n_s32(0);
             int32x4_t _sum45 = vdupq_n_s32(0);
@@ -2048,12 +2199,22 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
 static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __ARM_NEON && __aarch64__ && !__ARM_FEATURE_DOTPROD
+#if !(__ARM_FEATURE_MATMUL_INT8 || __ARM_FEATURE_DOTPROD)
+#if NCNN_RUNTIME_CPU && NCNN_ARM84I8MM && __aarch64__ && !__ARM_FEATURE_MATMUL_INT8
+    if (ncnn::cpu_support_arm_i8mm())
+    {
+        convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon_i8mm(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
+        return;
+    }
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_ARM82DOT && __aarch64__ && !__ARM_FEATURE_DOTPROD
     if (ncnn::cpu_support_arm_asimddp())
     {
         convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon_asimddp(_kernel, kernel_tm, inch, outch, kernel_w, kernel_h);
         return;
     }
+#endif
 #endif
 
     const int maxk = kernel_w * kernel_h;
@@ -2088,7 +2249,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const M
         {
             for (int k = 0; k < maxk; k++)
             {
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 8; i++)
                 {
                     for (int j = 0; j < 8; j++)
@@ -2152,7 +2313,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const M
         {
             for (int k = 0; k < maxk; k++)
             {
-#if __ARM_FEATURE_MATMUL_INT8
+#if 0//__ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 8; j++)
@@ -2204,7 +2365,11 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const M
     // TODO unroll 2
     for (; q < outch; q++)
     {
+#if __ARM_FEATURE_DOTPROD
+        signed char* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
+#else
         signed char* g00 = kernel_tm.channel(q / 4 + q % 4);
+#endif
 
         for (int p = 0; p + 7 < inch; p += 8)
         {
