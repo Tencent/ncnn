@@ -134,7 +134,7 @@ static void cast_fp32_to_bf16_neon(const Mat& bottom_blob, Mat& top_blob, const 
                 "ldr    s0, [%0], #4    \n"
                 "bfcvt  h0, s0          \n"
                 "str    h0, [%1], #2    \n"
-                : "=r"(ptr),  // %0
+                : "=r"(ptr),   // %0
                 "=r"(outptr) // %1
                 : "0"(ptr),
                 "1"(outptr)
