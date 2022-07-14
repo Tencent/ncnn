@@ -105,7 +105,7 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
         {
             const Object& b = faceobjects[picked[j]];
 
-            if (!agnostic && a.label != b.label) 
+            if (!agnostic && a.label != b.label)
                 continue;
 
             // intersection over union
