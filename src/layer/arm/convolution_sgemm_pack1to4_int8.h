@@ -674,7 +674,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0 //__ARM_FEATURE_MATMUL_INT8
             asm volatile(
                 "eor    v0.16b, v0.16b, v0.16b      \n"
                 "eor    v1.16b, v1.16b, v1.16b      \n"
@@ -739,7 +739,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "3"(tmpptr),
                 "4"(kptr0)
                 : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
-#else  // __ARM_FEATURE_MATMUL_INT8
+#else // __ARM_FEATURE_MATMUL_INT8
 #if 0
             asm volatile(
                 "eor    v0.16b, v0.16b, v0.16b      \n"
@@ -1030,7 +1030,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0 //__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -1087,7 +1087,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             outptr0 += 16;
             outptr1 += 16;
-#else  // __ARM_FEATURE_MATMUL_INT8
+#else // __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -1227,7 +1227,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0  //__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -1398,7 +1398,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0//__ARM_FEATURE_MATMUL_INT8
+#if 0  //__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum01 = vdupq_n_s32(0);
             int32x4_t _sum23 = vdupq_n_s32(0);
             int32x4_t _sum45 = vdupq_n_s32(0);
