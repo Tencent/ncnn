@@ -97,7 +97,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if 0 //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%0] \n"
@@ -152,7 +152,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if 0 //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #256]       \n"
                         "ld1    {v0.16b, v1.16b}, [%0]      \n"
@@ -217,7 +217,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 for (int k = 0; k < maxk; k++)
                 {
 #if __aarch64__
-#if 0 //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #128]   \n"
                         "ld1    {v0.16b}, [%0]          \n"
@@ -340,7 +340,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if 0 //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
             asm volatile(
                 "eor    v0.16b, v0.16b, v0.16b      \n"
                 "eor    v1.16b, v1.16b, v1.16b      \n"
@@ -387,49 +387,31 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "bne    0b                          \n"
 
                 "uzp1   v16.4s, v0.4s, v2.4s        \n"
-                "uzp2   v17.4s, v0.4s, v2.4s        \n"
-                "uzp1   v18.4s, v4.4s, v6.4s        \n"
-                "uzp2   v19.4s, v4.4s, v6.4s        \n"
+                "uzp2   v18.4s, v0.4s, v2.4s        \n"
                 "uzp1   v20.4s, v1.4s, v3.4s        \n"
-                "uzp2   v21.4s, v1.4s, v3.4s        \n"
-                "uzp1   v22.4s, v5.4s, v7.4s        \n"
+                "uzp2   v22.4s, v1.4s, v3.4s        \n"
+                "uzp1   v17.4s, v4.4s, v6.4s        \n"
+                "uzp2   v19.4s, v4.4s, v6.4s        \n"
+                "uzp1   v21.4s, v5.4s, v7.4s        \n"
                 "uzp2   v23.4s, v5.4s, v7.4s        \n"
 
-                "trn1   v0.2d, v16.2d, v17.2d       \n"
-                "trn1   v1.2d, v18.2d, v19.2d       \n"
-                "trn2   v2.2d, v16.2d, v17.2d       \n"
-                "trn2   v3.2d, v18.2d, v19.2d       \n"
-                "trn1   v4.2d, v20.2d, v21.2d       \n"
-                "trn1   v5.2d, v22.2d, v23.2d       \n"
-                "trn2   v6.2d, v20.2d, v21.2d       \n"
-                "trn2   v7.2d, v22.2d, v23.2d       \n"
+                "uzp1   v0.4s, v8.4s, v10.4s        \n"
+                "uzp2   v2.4s, v8.4s, v10.4s        \n"
+                "uzp1   v4.4s, v9.4s, v11.4s        \n"
+                "uzp2   v6.4s, v9.4s, v11.4s        \n"
+                "uzp1   v1.4s, v12.4s, v14.4s       \n"
+                "uzp2   v3.4s, v12.4s, v14.4s       \n"
+                "uzp1   v5.4s, v13.4s, v15.4s       \n"
+                "uzp2   v7.4s, v13.4s, v15.4s       \n"
 
-                "uzp1   v16.4s, v8.4s, v10.4s       \n"
-                "uzp2   v17.4s, v8.4s, v10.4s       \n"
-                "uzp1   v18.4s, v12.4s, v14.4s      \n"
-                "uzp2   v19.4s, v12.4s, v14.4s      \n"
-                "uzp1   v20.4s, v9.4s, v11.4s       \n"
-                "uzp2   v21.4s, v9.4s, v11.4s       \n"
-                "uzp1   v22.4s, v13.4s, v15.4s      \n"
-                "uzp2   v23.4s, v13.4s, v15.4s      \n"
-
-                "trn1   v8.2d, v16.2d, v17.2d       \n"
-                "trn1   v9.2d, v18.2d, v19.2d       \n"
-                "trn2   v10.2d, v16.2d, v17.2d      \n"
-                "trn2   v11.2d, v18.2d, v19.2d      \n"
-                "trn1   v12.2d, v20.2d, v21.2d      \n"
-                "trn1   v13.2d, v22.2d, v23.2d      \n"
-                "trn2   v14.2d, v20.2d, v21.2d      \n"
-                "trn2   v15.2d, v22.2d, v23.2d      \n"
-
-                "st1    {v0.4s, v1.4s}, [%0], #32   \n"
-                "st1    {v2.4s, v3.4s}, [%1], #32   \n"
-                "st1    {v4.4s, v5.4s}, [%2], #32   \n"
-                "st1    {v6.4s, v7.4s}, [%3], #32   \n"
-                "st1    {v8.4s, v9.4s}, [%4], #32   \n"
-                "st1    {v10.4s, v11.4s}, [%5], #32 \n"
-                "st1    {v12.4s, v13.4s}, [%6], #32 \n"
-                "st1    {v14.4s, v15.4s}, [%7], #32 \n"
+                "st1    {v16.4s, v17.4s}, [%0], #32 \n"
+                "st1    {v18.4s, v19.4s}, [%1], #32 \n"
+                "st1    {v20.4s, v21.4s}, [%2], #32 \n"
+                "st1    {v22.4s, v23.4s}, [%3], #32 \n"
+                "st1    {v0.4s, v1.4s}, [%4], #32   \n"
+                "st1    {v2.4s, v3.4s}, [%5], #32   \n"
+                "st1    {v4.4s, v5.4s}, [%6], #32   \n"
+                "st1    {v6.4s, v7.4s}, [%7], #32   \n"
                 : "=r"(outptr0),
                 "=r"(outptr1),
                 "=r"(outptr2),
@@ -454,8 +436,6 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "10"(kptr0)
                 : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #else // __ARM_FEATURE_MATMUL_INT8
-
-#if 0
             asm volatile(
                 "eor    v0.16b, v0.16b, v0.16b      \n"
                 "eor    v1.16b, v1.16b, v1.16b      \n"
@@ -586,137 +566,6 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "9"(tmpptr),
                 "10"(kptr0)
                 : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
-#endif
-
-            int32x4_t _sum0 = vdupq_n_s32(0);
-            int32x4_t _sum1 = vdupq_n_s32(0);
-            int32x4_t _sum2 = vdupq_n_s32(0);
-            int32x4_t _sum3 = vdupq_n_s32(0);
-            int32x4_t _sum4 = vdupq_n_s32(0);
-            int32x4_t _sum5 = vdupq_n_s32(0);
-            int32x4_t _sum6 = vdupq_n_s32(0);
-            int32x4_t _sum7 = vdupq_n_s32(0);
-
-            int32x4_t _sum8 = vdupq_n_s32(0);
-            int32x4_t _sum9 = vdupq_n_s32(0);
-            int32x4_t _suma = vdupq_n_s32(0);
-            int32x4_t _sumb = vdupq_n_s32(0);
-            int32x4_t _sumc = vdupq_n_s32(0);
-            int32x4_t _sumd = vdupq_n_s32(0);
-            int32x4_t _sume = vdupq_n_s32(0);
-            int32x4_t _sumf = vdupq_n_s32(0);
-
-            for (int j = 0; j < nn; j++)
-            {
-                int8x16_t _val0123_l = vld1q_s8(tmpptr);
-                int8x16_t _val0123_h = vld1q_s8(tmpptr + 16);
-                int8x16_t _val4567_l = vld1q_s8(tmpptr + 32);
-                int8x16_t _val4567_h = vld1q_s8(tmpptr + 48);
-
-                int8x16_t _w0123_l = vld1q_s8(kptr0);
-                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
-                int8x16_t _w4567_l = vld1q_s8(kptr0 + 32);
-                int8x16_t _w4567_h = vld1q_s8(kptr0 + 48);
-
-                _sum0 = vdotq_laneq_s32(_sum0, _w0123_l, _val0123_l, 0);
-                _sum1 = vdotq_laneq_s32(_sum1, _w0123_l, _val0123_l, 1);
-                _sum2 = vdotq_laneq_s32(_sum2, _w0123_l, _val0123_l, 2);
-                _sum3 = vdotq_laneq_s32(_sum3, _w0123_l, _val0123_l, 3);
-                _sum4 = vdotq_laneq_s32(_sum4, _w0123_l, _val0123_h, 0);
-                _sum5 = vdotq_laneq_s32(_sum5, _w0123_l, _val0123_h, 1);
-                _sum6 = vdotq_laneq_s32(_sum6, _w0123_l, _val0123_h, 2);
-                _sum7 = vdotq_laneq_s32(_sum7, _w0123_l, _val0123_h, 3);
-
-                _sum0 = vdotq_laneq_s32(_sum0, _w0123_h, _val4567_l, 0);
-                _sum1 = vdotq_laneq_s32(_sum1, _w0123_h, _val4567_l, 1);
-                _sum2 = vdotq_laneq_s32(_sum2, _w0123_h, _val4567_l, 2);
-                _sum3 = vdotq_laneq_s32(_sum3, _w0123_h, _val4567_l, 3);
-                _sum4 = vdotq_laneq_s32(_sum4, _w0123_h, _val4567_h, 0);
-                _sum5 = vdotq_laneq_s32(_sum5, _w0123_h, _val4567_h, 1);
-                _sum6 = vdotq_laneq_s32(_sum6, _w0123_h, _val4567_h, 2);
-                _sum7 = vdotq_laneq_s32(_sum7, _w0123_h, _val4567_h, 3);
-
-                _sum8 = vdotq_laneq_s32(_sum8, _w4567_l, _val0123_l, 0);
-                _sum9 = vdotq_laneq_s32(_sum9, _w4567_l, _val0123_l, 1);
-                _suma = vdotq_laneq_s32(_suma, _w4567_l, _val0123_l, 2);
-                _sumb = vdotq_laneq_s32(_sumb, _w4567_l, _val0123_l, 3);
-                _sumc = vdotq_laneq_s32(_sumc, _w4567_l, _val0123_h, 0);
-                _sumd = vdotq_laneq_s32(_sumd, _w4567_l, _val0123_h, 1);
-                _sume = vdotq_laneq_s32(_sume, _w4567_l, _val0123_h, 2);
-                _sumf = vdotq_laneq_s32(_sumf, _w4567_l, _val0123_h, 3);
-
-                _sum8 = vdotq_laneq_s32(_sum8, _w4567_h, _val4567_l, 0);
-                _sum9 = vdotq_laneq_s32(_sum9, _w4567_h, _val4567_l, 1);
-                _suma = vdotq_laneq_s32(_suma, _w4567_h, _val4567_l, 2);
-                _sumb = vdotq_laneq_s32(_sumb, _w4567_h, _val4567_l, 3);
-                _sumc = vdotq_laneq_s32(_sumc, _w4567_h, _val4567_h, 0);
-                _sumd = vdotq_laneq_s32(_sumd, _w4567_h, _val4567_h, 1);
-                _sume = vdotq_laneq_s32(_sume, _w4567_h, _val4567_h, 2);
-                _sumf = vdotq_laneq_s32(_sumf, _w4567_h, _val4567_h, 3);
-
-                tmpptr += 64;
-                kptr0 += 64;
-            }
-
-            // transpose 4x4
-            int32x4_t _sum01_0 = vtrn1q_s32(_sum0, _sum1);
-            int32x4_t _sum01_1 = vtrn2q_s32(_sum0, _sum1);
-            int32x4_t _sum23_0 = vtrn1q_s32(_sum2, _sum3);
-            int32x4_t _sum23_1 = vtrn2q_s32(_sum2, _sum3);
-            int32x4_t _sum45_0 = vtrn1q_s32(_sum4, _sum5);
-            int32x4_t _sum45_1 = vtrn2q_s32(_sum4, _sum5);
-            int32x4_t _sum67_0 = vtrn1q_s32(_sum6, _sum7);
-            int32x4_t _sum67_1 = vtrn2q_s32(_sum6, _sum7);
-            _sum0 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum01_0), vreinterpretq_s64_s32(_sum23_0)));
-            _sum1 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum01_1), vreinterpretq_s64_s32(_sum23_1)));
-            _sum2 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum01_0), vreinterpretq_s64_s32(_sum23_0)));
-            _sum3 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum01_1), vreinterpretq_s64_s32(_sum23_1)));
-            _sum4 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum45_0), vreinterpretq_s64_s32(_sum67_0)));
-            _sum5 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum45_1), vreinterpretq_s64_s32(_sum67_1)));
-            _sum6 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum45_0), vreinterpretq_s64_s32(_sum67_0)));
-            _sum7 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum45_1), vreinterpretq_s64_s32(_sum67_1)));
-
-            int32x4_t _sum89_0 = vtrn1q_s32(_sum8, _sum9);
-            int32x4_t _sum89_1 = vtrn2q_s32(_sum8, _sum9);
-            int32x4_t _sumab_0 = vtrn1q_s32(_suma, _sumb);
-            int32x4_t _sumab_1 = vtrn2q_s32(_suma, _sumb);
-            int32x4_t _sumcd_0 = vtrn1q_s32(_sumc, _sumd);
-            int32x4_t _sumcd_1 = vtrn2q_s32(_sumc, _sumd);
-            int32x4_t _sumef_0 = vtrn1q_s32(_sume, _sumf);
-            int32x4_t _sumef_1 = vtrn2q_s32(_sume, _sumf);
-            _sum8 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum89_0), vreinterpretq_s64_s32(_sumab_0)));
-            _sum9 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum89_1), vreinterpretq_s64_s32(_sumab_1)));
-            _suma = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum89_0), vreinterpretq_s64_s32(_sumab_0)));
-            _sumb = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum89_1), vreinterpretq_s64_s32(_sumab_1)));
-            _sumc = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sumcd_0), vreinterpretq_s64_s32(_sumef_0)));
-            _sumd = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sumcd_1), vreinterpretq_s64_s32(_sumef_1)));
-            _sume = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sumcd_0), vreinterpretq_s64_s32(_sumef_0)));
-            _sumf = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sumcd_1), vreinterpretq_s64_s32(_sumef_1)));
-
-            vst1q_s32(outptr0, _sum0);
-            vst1q_s32(outptr1, _sum1);
-            vst1q_s32(outptr2, _sum2);
-            vst1q_s32(outptr3, _sum3);
-            vst1q_s32(outptr4, _sum8);
-            vst1q_s32(outptr5, _sum9);
-            vst1q_s32(outptr6, _suma);
-            vst1q_s32(outptr7, _sumb);
-            vst1q_s32(outptr0 + 4, _sum4);
-            vst1q_s32(outptr1 + 4, _sum5);
-            vst1q_s32(outptr2 + 4, _sum6);
-            vst1q_s32(outptr3 + 4, _sum7);
-            vst1q_s32(outptr4 + 4, _sumc);
-            vst1q_s32(outptr5 + 4, _sumd);
-            vst1q_s32(outptr6 + 4, _sume);
-            vst1q_s32(outptr7 + 4, _sumf);
-            outptr0 += 8;
-            outptr1 += 8;
-            outptr2 += 8;
-            outptr3 += 8;
-            outptr4 += 8;
-            outptr5 += 8;
-            outptr6 += 8;
-            outptr7 += 8;
 #endif // __ARM_FEATURE_MATMUL_INT8
         }
         for (; i + 3 < size; i += 4)
@@ -726,7 +575,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if 0  //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -764,23 +613,14 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int32x4x2_t _sum46 = vuzpq_s32(_sum4, _sum6);
             int32x4x2_t _sum57 = vuzpq_s32(_sum5, _sum7);
 
-            _sum0 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum02.val[0]), vreinterpretq_s64_s32(_sum02.val[1])));
-            _sum1 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum02.val[0]), vreinterpretq_s64_s32(_sum02.val[1])));
-            _sum2 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum13.val[0]), vreinterpretq_s64_s32(_sum13.val[1])));
-            _sum3 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum13.val[0]), vreinterpretq_s64_s32(_sum13.val[1])));
-            _sum4 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum46.val[0]), vreinterpretq_s64_s32(_sum46.val[1])));
-            _sum5 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum46.val[0]), vreinterpretq_s64_s32(_sum46.val[1])));
-            _sum6 = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum57.val[0]), vreinterpretq_s64_s32(_sum57.val[1])));
-            _sum7 = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum57.val[0]), vreinterpretq_s64_s32(_sum57.val[1])));
-
-            vst1q_s32(outptr0, _sum0);
-            vst1q_s32(outptr1, _sum1);
-            vst1q_s32(outptr2, _sum2);
-            vst1q_s32(outptr3, _sum3);
-            vst1q_s32(outptr4, _sum4);
-            vst1q_s32(outptr5, _sum5);
-            vst1q_s32(outptr6, _sum6);
-            vst1q_s32(outptr7, _sum7);
+            vst1q_s32(outptr0, _sum02.val[0]);
+            vst1q_s32(outptr1, _sum02.val[1]);
+            vst1q_s32(outptr2, _sum13.val[0]);
+            vst1q_s32(outptr3, _sum13.val[1]);
+            vst1q_s32(outptr4, _sum46.val[0]);
+            vst1q_s32(outptr5, _sum46.val[1]);
+            vst1q_s32(outptr6, _sum57.val[0]);
+            vst1q_s32(outptr7, _sum57.val[1]);
             outptr0 += 4;
             outptr1 += 4;
             outptr2 += 4;
@@ -873,7 +713,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if 0  //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -900,12 +740,12 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int32x4x2_t _sum23 = vuzpq_s32(_sum2, _sum3);
 
             vst1_s32(outptr0, vget_low_s32(_sum01.val[0]));
-            vst1_s32(outptr1, vget_high_s32(_sum01.val[0]));
-            vst1_s32(outptr2, vget_low_s32(_sum01.val[1]));
+            vst1_s32(outptr1, vget_low_s32(_sum01.val[1]));
+            vst1_s32(outptr2, vget_high_s32(_sum01.val[0]));
             vst1_s32(outptr3, vget_high_s32(_sum01.val[1]));
             vst1_s32(outptr4, vget_low_s32(_sum23.val[0]));
-            vst1_s32(outptr5, vget_high_s32(_sum23.val[0]));
-            vst1_s32(outptr6, vget_low_s32(_sum23.val[1]));
+            vst1_s32(outptr5, vget_low_s32(_sum23.val[1]));
+            vst1_s32(outptr6, vget_high_s32(_sum23.val[0]));
             vst1_s32(outptr7, vget_high_s32(_sum23.val[1]));
             outptr0 += 2;
             outptr1 += 2;
@@ -971,7 +811,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if 0  //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum01 = vdupq_n_s32(0);
             int32x4_t _sum23 = vdupq_n_s32(0);
             int32x4_t _sum45 = vdupq_n_s32(0);
@@ -1080,6 +920,57 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+            int32x4_t _sum4 = vdupq_n_s32(0);
+            int32x4_t _sum5 = vdupq_n_s32(0);
+            int32x4_t _sum6 = vdupq_n_s32(0);
+            int32x4_t _sum7 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _val2 = vld1q_s8(tmpptr + 32);
+                int8x16_t _val3 = vld1q_s8(tmpptr + 48);
+
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
+                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
+                _sum4 = vmmlaq_s32(_sum4, _val2, _w01);
+                _sum5 = vmmlaq_s32(_sum5, _val2, _w23);
+                _sum6 = vmmlaq_s32(_sum6, _val3, _w01);
+                _sum7 = vmmlaq_s32(_sum7, _val3, _w23);
+
+                tmpptr += 64;
+                kptr0 += 32;
+            }
+
+            int32x4x2_t _sum02 = vuzpq_s32(_sum0, _sum2);
+            int32x4x2_t _sum13 = vuzpq_s32(_sum1, _sum3);
+            int32x4x2_t _sum46 = vuzpq_s32(_sum4, _sum6);
+            int32x4x2_t _sum57 = vuzpq_s32(_sum5, _sum7);
+
+            vst1q_s32(outptr0, _sum02.val[0]);
+            vst1q_s32(outptr1, _sum02.val[1]);
+            vst1q_s32(outptr2, _sum13.val[0]);
+            vst1q_s32(outptr3, _sum13.val[1]);
+            vst1q_s32(outptr0 + 4, _sum46.val[0]);
+            vst1q_s32(outptr1 + 4, _sum46.val[1]);
+            vst1q_s32(outptr2 + 4, _sum57.val[0]);
+            vst1q_s32(outptr3 + 4, _sum57.val[1]);
+            outptr0 += 8;
+            outptr1 += 8;
+            outptr2 += 8;
+            outptr3 += 8;
+#else  // __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -1149,6 +1040,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
             outptr1 += 8;
             outptr2 += 8;
             outptr3 += 8;
+#endif // __ARM_FEATURE_MATMUL_INT8
         }
 #endif
         for (; i + 3 < size; i += 4)
@@ -1163,7 +1055,40 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+            int32x4_t _sum2 = vdupq_n_s32(0);
+            int32x4_t _sum3 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
+                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
+
+                tmpptr += 32;
+                kptr0 += 32;
+            }
+
+            int32x4x2_t _sum02 = vuzpq_s32(_sum0, _sum2);
+            int32x4x2_t _sum13 = vuzpq_s32(_sum1, _sum3);
+
+            vst1q_s32(outptr0, _sum02.val[0]);
+            vst1q_s32(outptr1, _sum02.val[1]);
+            vst1q_s32(outptr2, _sum13.val[0]);
+            vst1q_s32(outptr3, _sum13.val[1]);
+            outptr0 += 4;
+            outptr1 += 4;
+            outptr2 += 4;
+            outptr3 += 4;
+#elif __ARM_FEATURE_DOTPROD
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -1431,7 +1356,34 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn = inch * maxk; // inch always > 0
 
 #if __aarch64__
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vdupq_n_s32(0);
+            int32x4_t _sum1 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val = vld1q_s8(tmpptr);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum0 = vmmlaq_s32(_sum0, _val, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val, _w23);
+
+                tmpptr += 16;
+                kptr0 += 32;
+            }
+
+            int32x4x2_t _sum01 = vuzpq_s32(_sum0, _sum1);
+
+            vst1_s32(outptr0, vget_low_s32(_sum01.val[0]));
+            vst1_s32(outptr1, vget_low_s32(_sum01.val[1]));
+            vst1_s32(outptr2, vget_high_s32(_sum01.val[0]));
+            vst1_s32(outptr3, vget_high_s32(_sum01.val[1]));
+            outptr0 += 2;
+            outptr1 += 2;
+            outptr2 += 2;
+            outptr3 += 2;
+#elif __ARM_FEATURE_DOTPROD
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
 
@@ -1733,7 +1685,36 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum01 = vdupq_n_s32(0);
+            int32x4_t _sum23 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x8_t _val0 = vld1_s8(tmpptr);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                int8x16_t _val = vcombine_s8(_val0, _val0);
+
+                _sum01 = vdotq_s32(_sum01, _val, _w01);
+                _sum23 = vdotq_s32(_sum23, _val, _w23);
+
+                tmpptr += 8;
+                kptr0 += 32;
+            }
+
+            int32x4_t _s0123 = vpaddq_s32(_sum01, _sum23);
+
+            vst1q_lane_s32(outptr0, _s0123, 0);
+            vst1q_lane_s32(outptr1, _s0123, 1);
+            vst1q_lane_s32(outptr2, _s0123, 2);
+            vst1q_lane_s32(outptr3, _s0123, 3);
+            outptr0 += 1;
+            outptr1 += 1;
+            outptr2 += 1;
+            outptr3 += 1;
+#elif __ARM_FEATURE_DOTPROD
             int32x4_t _sum0 = vdupq_n_s32(0);
 
             for (int j = 0; j < nn; j++)
@@ -1859,6 +1840,45 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x2_t _sum0 = vdup_n_s32(0);
+            int32x2_t _sum1 = vdup_n_s32(0);
+            int32x2_t _sum2 = vdup_n_s32(0);
+            int32x2_t _sum3 = vdup_n_s32(0);
+            int32x2_t _sum4 = vdup_n_s32(0);
+            int32x2_t _sum5 = vdup_n_s32(0);
+            int32x2_t _sum6 = vdup_n_s32(0);
+            int32x2_t _sum7 = vdup_n_s32(0);
+
+            int j = 0;
+            for (; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _val2 = vld1q_s8(tmpptr + 32);
+                int8x16_t _val3 = vld1q_s8(tmpptr + 48);
+                int8x8_t _w = vld1_s8(kptr0);
+
+                _sum0 = vdot_s32(_sum0, vget_low_s8(_val0), _w);
+                _sum1 = vdot_s32(_sum1, vget_high_s8(_val0), _w);
+                _sum2 = vdot_s32(_sum2, vget_low_s8(_val1), _w);
+                _sum3 = vdot_s32(_sum3, vget_high_s8(_val1), _w);
+                _sum4 = vdot_s32(_sum4, vget_low_s8(_val2), _w);
+                _sum5 = vdot_s32(_sum5, vget_high_s8(_val2), _w);
+                _sum6 = vdot_s32(_sum6, vget_low_s8(_val3), _w);
+                _sum7 = vdot_s32(_sum7, vget_high_s8(_val3), _w);
+
+                tmpptr += 64;
+                kptr0 += 8;
+            }
+
+            int32x4_t _ss = vpaddq_s32(vcombine_s32(_sum0, _sum1), vcombine_s32(_sum2, _sum3));
+            int32x4_t _ss2 = vpaddq_s32(vcombine_s32(_sum4, _sum5), vcombine_s32(_sum6, _sum7));
+
+            vst1q_s32(outptr0, _ss);
+            vst1q_s32(outptr0 + 4, _ss2);
+            outptr0 += 8;
+#else // __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -1888,6 +1908,7 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
             vst1q_s32(outptr0, _sum0);
             vst1q_s32(outptr0 + 4, _sum1);
             outptr0 += 8;
+#endif // __ARM_FEATURE_MATMUL_INT8
         }
 #endif // __ARM_FEATURE_DOTPROD
         for (; i + 3 < size; i += 4)
@@ -1902,7 +1923,33 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x2_t _sum0 = vdup_n_s32(0);
+            int32x2_t _sum1 = vdup_n_s32(0);
+            int32x2_t _sum2 = vdup_n_s32(0);
+            int32x2_t _sum3 = vdup_n_s32(0);
+
+            int j = 0;
+            for (; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x8_t _w = vld1_s8(kptr0);
+
+                _sum0 = vdot_s32(_sum0, vget_low_s8(_val0), _w);
+                _sum1 = vdot_s32(_sum1, vget_high_s8(_val0), _w);
+                _sum2 = vdot_s32(_sum2, vget_low_s8(_val1), _w);
+                _sum3 = vdot_s32(_sum3, vget_high_s8(_val1), _w);
+
+                tmpptr += 32;
+                kptr0 += 8;
+            }
+
+            int32x4_t _ss = vpaddq_s32(vcombine_s32(_sum0, _sum1), vcombine_s32(_sum2, _sum3));
+
+            vst1q_s32(outptr0, _ss);
+            outptr0 += 4;
+#elif __ARM_FEATURE_DOTPROD
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
 
@@ -2024,7 +2071,28 @@ static void im2col_sgemm_pack8to1_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int nn = inch * maxk; // inch always > 0
 
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x2_t _sum0 = vdup_n_s32(0);
+            int32x2_t _sum1 = vdup_n_s32(0);
+
+            int j = 0;
+            for (; j < nn; j++)
+            {
+                int8x16_t _val = vld1q_s8(tmpptr);
+                int8x8_t _w = vld1_s8(kptr0);
+
+                _sum0 = vdot_s32(_sum0, vget_low_s8(_val), _w);
+                _sum1 = vdot_s32(_sum1, vget_high_s8(_val), _w);
+
+                tmpptr += 16;
+                kptr0 += 8;
+            }
+
+            int32x2_t _ss = vpadd_s32(_sum0, _sum1);
+
+            vst1_s32(outptr0, _ss);
+            outptr0 += 2;
+#elif __ARM_FEATURE_DOTPROD
             int32x2_t _sum0 = vdup_n_s32(0);
             int32x2_t _sum1 = vdup_n_s32(0);
 
@@ -2226,7 +2294,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const M
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __ARM_FEATURE_DOTPROD
     if (outch >= 8)
-        kernel_tm.create(32 * maxk, inch / 8, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)1u);
+        kernel_tm.create(64 * maxk, inch / 8, outch / 8 + (outch % 8) / 4 + outch % 4, (size_t)1u);
     else if (outch >= 4)
         kernel_tm.create(32 * maxk, inch / 8, outch / 4 + outch % 4, (size_t)1u);
     else
@@ -2248,7 +2316,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const M
         {
             for (int k = 0; k < maxk; k++)
             {
-#if 0 //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 8; i++)
                 {
                     for (int j = 0; j < 8; j++)
@@ -2312,7 +2380,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_int8_neon(const M
         {
             for (int k = 0; k < maxk; k++)
             {
-#if 0 //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 8; j++)
