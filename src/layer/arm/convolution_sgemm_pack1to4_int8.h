@@ -903,7 +903,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             _sumd = _sumdx;
             _sume = _sumex;
             _sumf = _sumfx;
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
@@ -1145,7 +1145,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             _sum5 = _sum5x;
             _sum6 = _sum6x;
             _sum7 = _sum7x;
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
@@ -1310,7 +1310,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             _sum1 = _sum1x;
             _sum2 = _sum2x;
             _sum3 = _sum3x;
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val01_l_h = vld1q_s8(tmpptr);
@@ -1467,7 +1467,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int32x4_t _sum0 = vpaddq_s32(_sum01, _sum23);
             int32x4_t _sum1 = vpaddq_s32(_sum45, _sum67);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
 
@@ -1886,7 +1886,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             _sum5 = _sum5x;
             _sum6 = _sum6x;
             _sum7 = _sum7x;
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
@@ -3439,7 +3439,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon(const M
                         g00++;
                     }
                 }
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 4; j++)
