@@ -168,6 +168,87 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
+#if __ARM_FEATURE_MATMUL_INT8
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img1[0];
+                    tmpptr[2] = img2[0];
+                    tmpptr[3] = img3[0];
+                    tmpptr[4] = img4[0];
+                    tmpptr[5] = img5[0];
+                    tmpptr[6] = img6[0];
+                    tmpptr[7] = img7[0];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[1];
+                    tmpptr[1] = img1[1];
+                    tmpptr[2] = img2[1];
+                    tmpptr[3] = img3[1];
+                    tmpptr[4] = img4[1];
+                    tmpptr[5] = img5[1];
+                    tmpptr[6] = img6[1];
+                    tmpptr[7] = img7[1];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[2];
+                    tmpptr[1] = img1[2];
+                    tmpptr[2] = img2[2];
+                    tmpptr[3] = img3[2];
+                    tmpptr[4] = img4[2];
+                    tmpptr[5] = img5[2];
+                    tmpptr[6] = img6[2];
+                    tmpptr[7] = img7[2];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[3];
+                    tmpptr[1] = img1[3];
+                    tmpptr[2] = img2[3];
+                    tmpptr[3] = img3[3];
+                    tmpptr[4] = img4[3];
+                    tmpptr[5] = img5[3];
+                    tmpptr[6] = img6[3];
+                    tmpptr[7] = img7[3];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[4];
+                    tmpptr[1] = img1[4];
+                    tmpptr[2] = img2[4];
+                    tmpptr[3] = img3[4];
+                    tmpptr[4] = img4[4];
+                    tmpptr[5] = img5[4];
+                    tmpptr[6] = img6[4];
+                    tmpptr[7] = img7[4];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[5];
+                    tmpptr[1] = img1[5];
+                    tmpptr[2] = img2[5];
+                    tmpptr[3] = img3[5];
+                    tmpptr[4] = img4[5];
+                    tmpptr[5] = img5[5];
+                    tmpptr[6] = img6[5];
+                    tmpptr[7] = img7[5];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[6];
+                    tmpptr[1] = img1[6];
+                    tmpptr[2] = img2[6];
+                    tmpptr[3] = img3[6];
+                    tmpptr[4] = img4[6];
+                    tmpptr[5] = img5[6];
+                    tmpptr[6] = img6[6];
+                    tmpptr[7] = img7[6];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[7];
+                    tmpptr[1] = img1[7];
+                    tmpptr[2] = img2[7];
+                    tmpptr[3] = img3[7];
+                    tmpptr[4] = img4[7];
+                    tmpptr[5] = img5[7];
+                    tmpptr[6] = img6[7];
+                    tmpptr[7] = img7[7];
+                    tmpptr += 8;
+#else
                     asm volatile(
                         "ld1    {v0.8b}, [%0]               \n"
                         "ld1    {v1.8b}, [%1]               \n"
@@ -198,6 +279,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         "7"(img7),
                         "8"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7");
+#endif
                     img0 += size;
                     img1 += size;
                     img2 += size;
@@ -292,7 +374,47 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img1[0];
+                    tmpptr[2] = img2[0];
+                    tmpptr[3] = img3[0];
+                    tmpptr[4] = img4[0];
+                    tmpptr[5] = img5[0];
+                    tmpptr[6] = img6[0];
+                    tmpptr[7] = img7[0];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[1];
+                    tmpptr[1] = img1[1];
+                    tmpptr[2] = img2[1];
+                    tmpptr[3] = img3[1];
+                    tmpptr[4] = img4[1];
+                    tmpptr[5] = img5[1];
+                    tmpptr[6] = img6[1];
+                    tmpptr[7] = img7[1];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[2];
+                    tmpptr[1] = img1[2];
+                    tmpptr[2] = img2[2];
+                    tmpptr[3] = img3[2];
+                    tmpptr[4] = img4[2];
+                    tmpptr[5] = img5[2];
+                    tmpptr[6] = img6[2];
+                    tmpptr[7] = img7[2];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[3];
+                    tmpptr[1] = img1[3];
+                    tmpptr[2] = img2[3];
+                    tmpptr[3] = img3[3];
+                    tmpptr[4] = img4[3];
+                    tmpptr[5] = img5[3];
+                    tmpptr[6] = img6[3];
+                    tmpptr[7] = img7[3];
+                    tmpptr += 8;
+#elif __ARM_FEATURE_DOTPROD
                     tmpptr[0] = img0[0];
                     tmpptr[1] = img1[0];
                     tmpptr[2] = img2[0];
@@ -473,7 +595,27 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 for (int k = 0; k < maxk; k++)
                 {
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img1[0];
+                    tmpptr[2] = img2[0];
+                    tmpptr[3] = img3[0];
+                    tmpptr[4] = img4[0];
+                    tmpptr[5] = img5[0];
+                    tmpptr[6] = img6[0];
+                    tmpptr[7] = img7[0];
+                    tmpptr += 8;
+
+                    tmpptr[0] = img0[1];
+                    tmpptr[1] = img1[1];
+                    tmpptr[2] = img2[1];
+                    tmpptr[3] = img3[1];
+                    tmpptr[4] = img4[1];
+                    tmpptr[5] = img5[1];
+                    tmpptr[6] = img6[1];
+                    tmpptr[7] = img7[1];
+                    tmpptr += 8;
+#elif __ARM_FEATURE_DOTPROD
                     tmpptr[0] = img0[0];
                     tmpptr[1] = img1[0];
                     tmpptr[2] = img2[0];
@@ -674,153 +816,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0 //__ARM_FEATURE_MATMUL_INT8
-            asm volatile(
-                "eor    v0.16b, v0.16b, v0.16b      \n"
-                "eor    v1.16b, v1.16b, v1.16b      \n"
-                "eor    v2.16b, v2.16b, v2.16b      \n"
-                "eor    v3.16b, v3.16b, v3.16b      \n"
-                "eor    v4.16b, v4.16b, v4.16b      \n"
-                "eor    v5.16b, v5.16b, v5.16b      \n"
-                "eor    v6.16b, v6.16b, v6.16b      \n"
-                "eor    v7.16b, v7.16b, v7.16b      \n"
-                "eor    v8.16b, v8.16b, v8.16b      \n"
-                "eor    v9.16b, v9.16b, v9.16b      \n"
-                "eor    v10.16b, v10.16b, v10.16b   \n"
-                "eor    v11.16b, v11.16b, v11.16b   \n"
-                "eor    v12.16b, v12.16b, v12.16b   \n"
-                "eor    v13.16b, v13.16b, v13.16b   \n"
-                "eor    v14.16b, v14.16b, v14.16b   \n"
-                "eor    v15.16b, v15.16b, v15.16b   \n"
-
-                "0:                                 \n"
-
-                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%3], #64 \n" // _val0 _val1 _val1 _val3
-                "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%4], #64 \n" // _w01 _w23 _w45 _w67
-
-                "smmla  v0.4s, v16.16b, v20.16b     \n"
-                "smmla  v1.4s, v16.16b, v21.16b     \n"
-                "smmla  v2.4s, v17.16b, v20.16b     \n"
-                "smmla  v3.4s, v17.16b, v21.16b     \n"
-                "smmla  v4.4s, v18.16b, v20.16b     \n"
-                "smmla  v5.4s, v18.16b, v21.16b     \n"
-                "smmla  v6.4s, v19.16b, v20.16b     \n"
-                "smmla  v7.4s, v19.16b, v21.16b     \n"
-
-                "subs   %w2, %w2, #1                \n"
-
-                "smmla  v8.4s, v16.16b, v22.16b     \n"
-                "smmla  v9.4s, v16.16b, v23.16b     \n"
-                "smmla  v10.4s, v17.16b, v22.16b    \n"
-                "smmla  v11.4s, v17.16b, v23.16b    \n"
-                "smmla  v12.4s, v18.16b, v22.16b    \n"
-                "smmla  v13.4s, v18.16b, v23.16b    \n"
-                "smmla  v14.4s, v19.16b, v22.16b    \n"
-                "smmla  v15.4s, v19.16b, v23.16b    \n"
-
-                "bne    0b                          \n"
-
-                "st2    {v0.2d, v1.2d}, [%0], #32   \n"
-                "st2    {v2.2d, v3.2d}, [%0], #32   \n"
-                "st2    {v4.2d, v5.2d}, [%0], #32   \n"
-                "st2    {v6.2d, v7.2d}, [%0], #32   \n"
-                "st2    {v8.2d, v9.2d}, [%1], #32   \n"
-                "st2    {v10.2d, v11.2d}, [%1], #32 \n"
-                "st2    {v12.2d, v13.2d}, [%1], #32 \n"
-                "st2    {v14.2d, v15.2d}, [%1], #32 \n"
-                : "=r"(outptr0),
-                "=r"(outptr1),
-                "=r"(nn),
-                "=r"(tmpptr),
-                "=r"(kptr0)
-                : "0"(outptr0),
-                "1"(outptr1),
-                "2"(nn),
-                "3"(tmpptr),
-                "4"(kptr0)
-                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
-#else // __ARM_FEATURE_MATMUL_INT8
-#if 0
-            asm volatile(
-                "eor    v0.16b, v0.16b, v0.16b      \n"
-                "eor    v1.16b, v1.16b, v1.16b      \n"
-                "eor    v2.16b, v2.16b, v2.16b      \n"
-                "eor    v3.16b, v3.16b, v3.16b      \n"
-                "eor    v4.16b, v4.16b, v4.16b      \n"
-                "eor    v5.16b, v5.16b, v5.16b      \n"
-                "eor    v6.16b, v6.16b, v6.16b      \n"
-                "eor    v7.16b, v7.16b, v7.16b      \n"
-                "eor    v8.16b, v8.16b, v8.16b      \n"
-                "eor    v9.16b, v9.16b, v9.16b      \n"
-                "eor    v10.16b, v10.16b, v10.16b   \n"
-                "eor    v11.16b, v11.16b, v11.16b   \n"
-                "eor    v12.16b, v12.16b, v12.16b   \n"
-                "eor    v13.16b, v13.16b, v13.16b   \n"
-                "eor    v14.16b, v14.16b, v14.16b   \n"
-                "eor    v15.16b, v15.16b, v15.16b   \n"
-
-                "0:                                 \n"
-
-                "ld1    {v16.16b, v17.16b, v18.16b, v19.16b}, [%3], #64 \n" // _val0 _val1 _val2 _val3
-                "ld1    {v20.16b, v21.16b, v22.16b, v23.16b}, [%4], #64 \n" // _w01 _w23 _w45 _w67
-
-                "sdot   v0.4s, v20.16b, v16.4b[0]   \n"
-                "sdot   v1.4s, v20.16b, v16.4b[1]   \n"
-                "sdot   v2.4s, v20.16b, v16.4b[2]   \n"
-                "sdot   v3.4s, v20.16b, v16.4b[3]   \n"
-                "sdot   v4.4s, v20.16b, v17.4b[0]   \n"
-                "sdot   v5.4s, v20.16b, v17.4b[1]   \n"
-                "sdot   v6.4s, v20.16b, v17.4b[2]   \n"
-                "sdot   v7.4s, v20.16b, v17.4b[3]   \n"
-
-                "sdot   v0.4s, v21.16b, v18.4b[0]   \n"
-                "sdot   v1.4s, v21.16b, v18.4b[1]   \n"
-                "sdot   v2.4s, v21.16b, v18.4b[2]   \n"
-                "sdot   v3.4s, v21.16b, v18.4b[3]   \n"
-                "sdot   v4.4s, v21.16b, v19.4b[0]   \n"
-                "sdot   v5.4s, v21.16b, v19.4b[1]   \n"
-                "sdot   v6.4s, v21.16b, v19.4b[2]   \n"
-                "sdot   v7.4s, v21.16b, v19.4b[3]   \n"
-
-                "subs   %w2, %w2, #1                \n"
-
-                "sdot   v8.4s, v22.16b, v16.4b[0]   \n"
-                "sdot   v9.4s, v22.16b, v16.4b[1]   \n"
-                "sdot   v10.4s, v22.16b, v16.4b[2]  \n"
-                "sdot   v11.4s, v22.16b, v16.4b[3]  \n"
-                "sdot   v12.4s, v22.16b, v17.4b[0]  \n"
-                "sdot   v13.4s, v22.16b, v17.4b[1]  \n"
-                "sdot   v14.4s, v22.16b, v17.4b[2]  \n"
-                "sdot   v15.4s, v22.16b, v17.4b[3]  \n"
-
-                "sdot   v8.4s, v23.16b, v18.4b[0]   \n"
-                "sdot   v9.4s, v23.16b, v18.4b[1]   \n"
-                "sdot   v10.4s, v23.16b, v18.4b[2]  \n"
-                "sdot   v11.4s, v23.16b, v18.4b[3]  \n"
-                "sdot   v12.4s, v23.16b, v19.4b[0]  \n"
-                "sdot   v13.4s, v23.16b, v19.4b[1]  \n"
-                "sdot   v14.4s, v23.16b, v19.4b[2]  \n"
-                "sdot   v15.4s, v23.16b, v19.4b[3]  \n"
-
-                "bne    0b                          \n"
-
-                "st1    {v0.4s, v1.4s, v2.4s, v3.4s}, [%0], #64 \n"
-                "st1    {v4.4s, v5.4s, v6.4s, v7.4s}, [%0], #64 \n"
-                "st1    {v8.4s, v9.4s, v10.4s, v11.4s}, [%1], #64 \n"
-                "st1    {v12.4s, v13.4s, v14.4s, v15.4s}, [%1], #64 \n"
-                : "=r"(outptr0),
-                "=r"(outptr1),
-                "=r"(nn),
-                "=r"(tmpptr),
-                "=r"(kptr0)
-                : "0"(outptr0),
-                "1"(outptr1),
-                "2"(nn),
-                "3"(tmpptr),
-                "4"(kptr0)
-                : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
-#endif
-
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -839,6 +834,76 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int32x4_t _sume = vdupq_n_s32(0);
             int32x4_t _sumf = vdupq_n_s32(0);
 
+#if __ARM_FEATURE_MATMUL_INT8
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _val2 = vld1q_s8(tmpptr + 32);
+                int8x16_t _val3 = vld1q_s8(tmpptr + 48);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+                int8x16_t _w45 = vld1q_s8(kptr0 + 32);
+                int8x16_t _w67 = vld1q_s8(kptr0 + 48);
+
+                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
+                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
+                _sum4 = vmmlaq_s32(_sum4, _val2, _w01);
+                _sum5 = vmmlaq_s32(_sum5, _val2, _w23);
+                _sum6 = vmmlaq_s32(_sum6, _val3, _w01);
+                _sum7 = vmmlaq_s32(_sum7, _val3, _w23);
+
+                _sum8 = vmmlaq_s32(_sum8, _val0, _w45);
+                _sum9 = vmmlaq_s32(_sum9, _val0, _w67);
+                _suma = vmmlaq_s32(_suma, _val1, _w45);
+                _sumb = vmmlaq_s32(_sumb, _val1, _w67);
+                _sumc = vmmlaq_s32(_sumc, _val2, _w45);
+                _sumd = vmmlaq_s32(_sumd, _val2, _w67);
+                _sume = vmmlaq_s32(_sume, _val3, _w45);
+                _sumf = vmmlaq_s32(_sumf, _val3, _w67);
+
+                tmpptr += 64;
+                kptr0 += 64;
+            }
+
+            int32x4_t _sum0x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum1x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum2x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+            int32x4_t _sum3x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+            int32x4_t _sum4x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum4), vreinterpretq_s64_s32(_sum5)));
+            int32x4_t _sum5x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum4), vreinterpretq_s64_s32(_sum5)));
+            int32x4_t _sum6x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum6), vreinterpretq_s64_s32(_sum7)));
+            int32x4_t _sum7x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum6), vreinterpretq_s64_s32(_sum7)));
+
+            int32x4_t _sum8x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum8), vreinterpretq_s64_s32(_sum9)));
+            int32x4_t _sum9x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum8), vreinterpretq_s64_s32(_sum9)));
+            int32x4_t _sumax = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_suma), vreinterpretq_s64_s32(_sumb)));
+            int32x4_t _sumbx = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_suma), vreinterpretq_s64_s32(_sumb)));
+            int32x4_t _sumcx = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sumc), vreinterpretq_s64_s32(_sumd)));
+            int32x4_t _sumdx = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sumc), vreinterpretq_s64_s32(_sumd)));
+            int32x4_t _sumex = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sume), vreinterpretq_s64_s32(_sumf)));
+            int32x4_t _sumfx = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sume), vreinterpretq_s64_s32(_sumf)));
+
+            _sum0 = _sum0x;
+            _sum1 = _sum1x;
+            _sum2 = _sum2x;
+            _sum3 = _sum3x;
+            _sum4 = _sum4x;
+            _sum5 = _sum5x;
+            _sum6 = _sum6x;
+            _sum7 = _sum7x;
+
+            _sum8 = _sum8x;
+            _sum9 = _sum9x;
+            _suma = _sumax;
+            _sumb = _sumbx;
+            _sumc = _sumcx;
+            _sumd = _sumdx;
+            _sume = _sumex;
+            _sumf = _sumfx;
+#else // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
@@ -890,6 +955,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 64;
                 kptr0 += 64;
             }
+#endif // __ARM_FEATURE_MATMUL_INT8
 
             for (int j = 0; j < nn4; j++)
             {
@@ -921,7 +987,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             }
 
             int j = 0;
-#if 0
             for (; j + 3 < nn1; j += 4)
             {
                 int8x8x4_t _val4 = vld4_s8(tmpptr);
@@ -932,8 +997,11 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 int8x16_t _val0123 = vcombine_s8(_val0145.val[0], _val2367.val[0]);
                 int8x16_t _val4567 = vcombine_s8(_val0145.val[1], _val2367.val[1]);
 
-                int8x16_t _w0 = vld1q_s8(kptr0);
-                int8x16_t _w1 = vld1q_s8(kptr0 + 16);
+                // 0123 4567 0123 4567 0123 4567 0123 4567  ->  0000111122223333
+                int32x4x2_t _w = vld2q_s32((const int*)kptr0);
+
+                int8x16_t _w0 = vreinterpretq_s8_s32(_w.val[0]);
+                int8x16_t _w1 = vreinterpretq_s8_s32(_w.val[1]);
 
                 int8x8x2_t _w01 = vuzp_s8(vget_low_s8(_w0), vget_high_s8(_w0));
                 int8x8x2_t _w0123 = vuzp_s8(_w01.val[0], _w01.val[1]);
@@ -964,7 +1032,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 32;
                 kptr0 += 32;
             }
-#endif
             for (; j < nn1; j++)
             {
                 int16x4_t _val0 = vdup_n_s16(tmpptr[0]);
@@ -1018,8 +1085,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             vst1q_s32(outptr1 + 28, _sumf);
             outptr0 += 32;
             outptr1 += 32;
-
-#endif // __ARM_FEATURE_MATMUL_INT8
         }
         for (; i + 3 < size; i += 4)
         {
@@ -1030,7 +1095,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0 //__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
@@ -1040,6 +1104,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int32x4_t _sum6 = vdupq_n_s32(0);
             int32x4_t _sum7 = vdupq_n_s32(0);
 
+#if __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0 = vld1q_s8(tmpptr);
@@ -1063,40 +1128,24 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 kptr0 += 64;
             }
 
-            int64x2x2_t _sum01;
-            _sum01.val[0] = vreinterpretq_s64_s32(_sum0);
-            _sum01.val[1] = vreinterpretq_s64_s32(_sum1);
+            int32x4_t _sum0x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum1x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum2x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+            int32x4_t _sum3x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+            int32x4_t _sum4x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum4), vreinterpretq_s64_s32(_sum5)));
+            int32x4_t _sum5x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum4), vreinterpretq_s64_s32(_sum5)));
+            int32x4_t _sum6x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum6), vreinterpretq_s64_s32(_sum7)));
+            int32x4_t _sum7x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum6), vreinterpretq_s64_s32(_sum7)));
 
-            int64x2x2_t _sum23;
-            _sum23.val[0] = vreinterpretq_s64_s32(_sum2);
-            _sum23.val[1] = vreinterpretq_s64_s32(_sum3);
-
-            int64x2x2_t _sum45;
-            _sum45.val[0] = vreinterpretq_s64_s32(_sum4);
-            _sum45.val[1] = vreinterpretq_s64_s32(_sum5);
-
-            int64x2x2_t _sum67;
-            _sum67.val[0] = vreinterpretq_s64_s32(_sum6);
-            _sum67.val[1] = vreinterpretq_s64_s32(_sum7);
-
-            vst2q_s64((int64_t*)outptr0, _sum01);
-            vst2q_s64((int64_t*)(outptr0 + 8), _sum23);
-
-            vst2q_s64((int64_t*)outptr1, _sum45);
-            vst2q_s64((int64_t*)(outptr1 + 8), _sum67);
-
-            outptr0 += 16;
-            outptr1 += 16;
+            _sum0 = _sum0x;
+            _sum1 = _sum1x;
+            _sum2 = _sum2x;
+            _sum3 = _sum3x;
+            _sum4 = _sum4x;
+            _sum5 = _sum5x;
+            _sum6 = _sum6x;
+            _sum7 = _sum7x;
 #else // __ARM_FEATURE_MATMUL_INT8
-            int32x4_t _sum0 = vdupq_n_s32(0);
-            int32x4_t _sum1 = vdupq_n_s32(0);
-            int32x4_t _sum2 = vdupq_n_s32(0);
-            int32x4_t _sum3 = vdupq_n_s32(0);
-            int32x4_t _sum4 = vdupq_n_s32(0);
-            int32x4_t _sum5 = vdupq_n_s32(0);
-            int32x4_t _sum6 = vdupq_n_s32(0);
-            int32x4_t _sum7 = vdupq_n_s32(0);
-
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
@@ -1127,6 +1176,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 32;
                 kptr0 += 64;
             }
+#endif // __ARM_FEATURE_MATMUL_INT8
 
             for (int j = 0; j < nn4; j++)
             {
@@ -1149,17 +1199,20 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             }
 
             int j = 0;
-#if 0
             for (; j + 3 < nn1; j += 4)
             {
+                // 0123 0123 0123 0123  ->  0000111122223333
                 int8x16_t _val = vld1q_s8(tmpptr);
 
                 int8x8x2_t _val01 = vuzp_s8(vget_low_s8(_val), vget_high_s8(_val));
                 int8x8x2_t _val0123 = vuzp_s8(_val01.val[0], _val01.val[1]);
                 int8x16_t _val0123f = vcombine_s8(_val0123.val[0], _val0123.val[1]);
 
-                int8x16_t _w0 = vld1q_s8(kptr0);
-                int8x16_t _w1 = vld1q_s8(kptr0 + 16);
+                // 0123 4567 0123 4567 0123 4567 0123 4567  ->  0000111122223333
+                int32x4x2_t _w = vld2q_s32((const int*)kptr0);
+
+                int8x16_t _w0 = vreinterpretq_s8_s32(_w.val[0]);
+                int8x16_t _w1 = vreinterpretq_s8_s32(_w.val[1]);
 
                 int8x8x2_t _w01 = vuzp_s8(vget_low_s8(_w0), vget_high_s8(_w0));
                 int8x8x2_t _w0123 = vuzp_s8(_w01.val[0], _w01.val[1]);
@@ -1182,7 +1235,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 16;
                 kptr0 += 32;
             }
-#endif
             for (; j < nn1; j++)
             {
                 int16x4_t _val0 = vdup_n_s16(tmpptr[0]);
@@ -1216,7 +1268,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             vst1q_s32(outptr1 + 12, _sum7);
             outptr0 += 16;
             outptr1 += 16;
-#endif // __ARM_FEATURE_MATMUL_INT8
         }
         for (; i + 1 < size; i += 2)
         {
@@ -1227,12 +1278,12 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0  //__ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
             int32x4_t _sum2 = vdupq_n_s32(0);
             int32x4_t _sum3 = vdupq_n_s32(0);
 
+#if __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val = vld1q_s8(tmpptr);
@@ -1250,25 +1301,16 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 kptr0 += 64;
             }
 
-            int64x2x2_t _sum01;
-            _sum01.val[0] = vreinterpretq_s64_s32(_sum0);
-            _sum01.val[1] = vreinterpretq_s64_s32(_sum1);
+            int32x4_t _sum0x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum1x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum2x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+            int32x4_t _sum3x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
 
-            int64x2x2_t _sum23;
-            _sum23.val[0] = vreinterpretq_s64_s32(_sum2);
-            _sum23.val[1] = vreinterpretq_s64_s32(_sum3);
-
-            vst2q_s64((int64_t*)outptr0, _sum01);
-            vst2q_s64((int64_t*)outptr1, _sum23);
-
-            outptr0 += 8;
-            outptr1 += 8;
-#else  // __ARM_FEATURE_MATMUL_INT8
-            int32x4_t _sum0 = vdupq_n_s32(0);
-            int32x4_t _sum1 = vdupq_n_s32(0);
-            int32x4_t _sum2 = vdupq_n_s32(0);
-            int32x4_t _sum3 = vdupq_n_s32(0);
-
+            _sum0 = _sum0x;
+            _sum1 = _sum1x;
+            _sum2 = _sum2x;
+            _sum3 = _sum3x;
+#else // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val01_l_h = vld1q_s8(tmpptr);
@@ -1290,6 +1332,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 16;
                 kptr0 += 64;
             }
+#endif // __ARM_FEATURE_MATMUL_INT8
 
             if (nn4 > 0)
             {
@@ -1387,7 +1430,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             vst1q_s32(outptr1 + 4, _sum3);
             outptr0 += 8;
             outptr1 += 8;
-#endif // __ARM_FEATURE_MATMUL_INT8
         }
         for (; i < size; i++)
         {
@@ -1398,7 +1440,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0  //__ARM_FEATURE_MATMUL_INT8
+#if __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum01 = vdupq_n_s32(0);
             int32x4_t _sum23 = vdupq_n_s32(0);
             int32x4_t _sum45 = vdupq_n_s32(0);
@@ -1423,14 +1465,9 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 kptr0 += 64;
             }
 
-            int32x4_t _s0123 = vpaddq_s32(_sum01, _sum23);
-            int32x4_t _s4567 = vpaddq_s32(_sum45, _sum67);
-
-            vst1q_s32(outptr0, _s0123);
-            vst1q_s32(outptr1, _s4567);
-            outptr0 += 4;
-            outptr1 += 4;
-#else  // __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum0 = vpaddq_s32(_sum01, _sum23);
+            int32x4_t _sum1 = vpaddq_s32(_sum45, _sum67);
+#else // __ARM_FEATURE_MATMUL_INT8
             int32x4_t _sum0 = vdupq_n_s32(0);
             int32x4_t _sum1 = vdupq_n_s32(0);
 
@@ -1450,6 +1487,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 8;
                 kptr0 += 64;
             }
+#endif // __ARM_FEATURE_MATMUL_INT8
 
             if (nn4 > 0)
             {
@@ -1525,7 +1563,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             vst1q_s32(outptr1, _sum1);
             outptr0 += 4;
             outptr1 += 4;
-#endif // __ARM_FEATURE_MATMUL_INT8
         }
     }
 #else  // __ARM_FEATURE_DOTPROD
@@ -1808,6 +1845,48 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int32x4_t _sum6 = vdupq_n_s32(0);
             int32x4_t _sum7 = vdupq_n_s32(0);
 
+#if __ARM_FEATURE_MATMUL_INT8
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _val2 = vld1q_s8(tmpptr + 32);
+                int8x16_t _val3 = vld1q_s8(tmpptr + 48);
+
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
+                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
+                _sum4 = vmmlaq_s32(_sum4, _val2, _w01);
+                _sum5 = vmmlaq_s32(_sum5, _val2, _w23);
+                _sum6 = vmmlaq_s32(_sum6, _val3, _w01);
+                _sum7 = vmmlaq_s32(_sum7, _val3, _w23);
+
+                tmpptr += 64;
+                kptr0 += 32;
+            }
+
+            int32x4_t _sum0x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum1x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum2x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+            int32x4_t _sum3x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+            int32x4_t _sum4x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum4), vreinterpretq_s64_s32(_sum5)));
+            int32x4_t _sum5x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum4), vreinterpretq_s64_s32(_sum5)));
+            int32x4_t _sum6x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum6), vreinterpretq_s64_s32(_sum7)));
+            int32x4_t _sum7x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum6), vreinterpretq_s64_s32(_sum7)));
+
+            _sum0 = _sum0x;
+            _sum1 = _sum1x;
+            _sum2 = _sum2x;
+            _sum3 = _sum3x;
+            _sum4 = _sum4x;
+            _sum5 = _sum5x;
+            _sum6 = _sum6x;
+            _sum7 = _sum7x;
+#else // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
@@ -1841,6 +1920,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 64;
                 kptr0 += 32;
             }
+#endif // __ARM_FEATURE_MATMUL_INT8
 
             for (int j = 0; j < nn4; j++)
             {
@@ -1950,6 +2030,33 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int32x4_t _sum2 = vdupq_n_s32(0);
             int32x4_t _sum3 = vdupq_n_s32(0);
 
+#if __ARM_FEATURE_MATMUL_INT8
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val0 = vld1q_s8(tmpptr);
+                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
+                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
+                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
+                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
+
+                tmpptr += 32;
+                kptr0 += 32;
+            }
+
+            int32x4_t _sum0x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum1x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
+            int32x4_t _sum2x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+            int32x4_t _sum3x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
+
+            _sum0 = _sum0x;
+            _sum1 = _sum1x;
+            _sum2 = _sum2x;
+            _sum3 = _sum3x;
+#else
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
@@ -1971,6 +2078,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 32;
                 kptr0 += 32;
             }
+#endif
 
             for (int j = 0; j < nn4; j++)
             {
@@ -2450,15 +2558,34 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int32x4_t _sum00 = vdupq_n_s32(0);
             int32x4_t _sum10 = vdupq_n_s32(0);
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            for (int j = 0; j < nn; j++)
+            {
+                int8x16_t _val = vld1q_s8(tmpptr);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                _sum00 = vmmlaq_s32(_sum00, _val, _w01);
+                _sum10 = vmmlaq_s32(_sum10, _val, _w23);
+
+                tmpptr += 16;
+                kptr0 += 32;
+            }
+
+            int32x4_t _sum00x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum00), vreinterpretq_s64_s32(_sum10)));
+            int32x4_t _sum10x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum00), vreinterpretq_s64_s32(_sum10)));
+
+            _sum00 = _sum00x;
+            _sum10 = _sum10x;
+#else
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val01_l_h = vld1q_s8(tmpptr);
                 int8x16_t _w0123_l = vld1q_s8(kptr0);
+                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
                 _sum00 = vdotq_laneq_s32(_sum00, _w0123_l, _val01_l_h, 0);
                 _sum10 = vdotq_laneq_s32(_sum10, _w0123_l, _val01_l_h, 1);
-
-                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
                 _sum00 = vdotq_laneq_s32(_sum00, _w0123_h, _val01_l_h, 2);
                 _sum10 = vdotq_laneq_s32(_sum10, _w0123_h, _val01_l_h, 3);
@@ -2466,6 +2593,7 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 tmpptr += 16;
                 kptr0 += 32;
             }
+#endif
 
             if (nn4 > 0)
             {
@@ -2994,21 +3122,39 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
             int32x4_t _sum0 = vdupq_n_s32(0);
 #if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+            int32x4_t _sum23 = vdupq_n_s32(0);
+
+            for (int j = 0; j < nn; j++)
+            {
+                int8x8_t _val0 = vld1_s8(tmpptr);
+                int8x16_t _w01 = vld1q_s8(kptr0);
+                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
+
+                int8x16_t _val = vcombine_s8(_val0, _val0);
+
+                _sum0 = vdotq_s32(_sum0, _val, _w01);
+                _sum23 = vdotq_s32(_sum23, _val, _w23);
+
+                tmpptr += 8;
+                kptr0 += 32;
+            }
+
+            _sum0 = vpaddq_s32(_sum0, _sum23);
+#else
             for (int j = 0; j < nn; j++)
             {
                 int8x8_t _val0_l_h = vld1_s8(tmpptr);
-
                 int8x16_t _w0123_l = vld1q_s8(kptr0);
-
-                _sum0 = vdotq_lane_s32(_sum0, _w0123_l, _val0_l_h, 0);
-
                 int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
 
+                _sum0 = vdotq_lane_s32(_sum0, _w0123_l, _val0_l_h, 0);
                 _sum0 = vdotq_lane_s32(_sum0, _w0123_h, _val0_l_h, 1);
 
                 tmpptr += 8;
                 kptr0 += 32;
             }
+#endif
 
             if (nn4 > 0)
             {
@@ -3283,6 +3429,17 @@ static void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon(const M
         {
             for (int k = 0; k < maxk; k++)
             {
+#if __ARM_FEATURE_MATMUL_INT8
+                for (int i = 0; i < 8; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
+                        g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+#else // __ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 4; j++)
@@ -3319,6 +3476,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon(const M
                         g00++;
                     }
                 }
+#endif // __ARM_FEATURE_MATMUL_INT8
             }
         }
         for (; p + 3 < inch; p += 4)
@@ -3363,7 +3521,17 @@ static void convolution_im2col_sgemm_transform_kernel_pack1to4_int8_neon(const M
         {
             for (int k = 0; k < maxk; k++)
             {
-#if __ARM_FEATURE_DOTPROD
+#if __ARM_FEATURE_MATMUL_INT8
+                for (int i = 0; i < 4; i++)
+                {
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const signed char* k00 = kernel.channel(q + i).row<const signed char>(p + j);
+                        g00[0] = k00[k];
+                        g00++;
+                    }
+                }
+#elif __ARM_FEATURE_DOTPROD
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 4; j++)
