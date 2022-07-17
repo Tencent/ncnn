@@ -178,85 +178,44 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                 for (int k = 0; k < maxk; k++)
                 {
 #if __ARM_FEATURE_MATMUL_INT8
-                    tmpptr[0] = img0[0];
-                    tmpptr[1] = img1[0];
-                    tmpptr[2] = img2[0];
-                    tmpptr[3] = img3[0];
-                    tmpptr[4] = img4[0];
-                    tmpptr[5] = img5[0];
-                    tmpptr[6] = img6[0];
-                    tmpptr[7] = img7[0];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[1];
-                    tmpptr[1] = img1[1];
-                    tmpptr[2] = img2[1];
-                    tmpptr[3] = img3[1];
-                    tmpptr[4] = img4[1];
-                    tmpptr[5] = img5[1];
-                    tmpptr[6] = img6[1];
-                    tmpptr[7] = img7[1];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[2];
-                    tmpptr[1] = img1[2];
-                    tmpptr[2] = img2[2];
-                    tmpptr[3] = img3[2];
-                    tmpptr[4] = img4[2];
-                    tmpptr[5] = img5[2];
-                    tmpptr[6] = img6[2];
-                    tmpptr[7] = img7[2];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[3];
-                    tmpptr[1] = img1[3];
-                    tmpptr[2] = img2[3];
-                    tmpptr[3] = img3[3];
-                    tmpptr[4] = img4[3];
-                    tmpptr[5] = img5[3];
-                    tmpptr[6] = img6[3];
-                    tmpptr[7] = img7[3];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[4];
-                    tmpptr[1] = img1[4];
-                    tmpptr[2] = img2[4];
-                    tmpptr[3] = img3[4];
-                    tmpptr[4] = img4[4];
-                    tmpptr[5] = img5[4];
-                    tmpptr[6] = img6[4];
-                    tmpptr[7] = img7[4];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[5];
-                    tmpptr[1] = img1[5];
-                    tmpptr[2] = img2[5];
-                    tmpptr[3] = img3[5];
-                    tmpptr[4] = img4[5];
-                    tmpptr[5] = img5[5];
-                    tmpptr[6] = img6[5];
-                    tmpptr[7] = img7[5];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[6];
-                    tmpptr[1] = img1[6];
-                    tmpptr[2] = img2[6];
-                    tmpptr[3] = img3[6];
-                    tmpptr[4] = img4[6];
-                    tmpptr[5] = img5[6];
-                    tmpptr[6] = img6[6];
-                    tmpptr[7] = img7[6];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[7];
-                    tmpptr[1] = img1[7];
-                    tmpptr[2] = img2[7];
-                    tmpptr[3] = img3[7];
-                    tmpptr[4] = img4[7];
-                    tmpptr[5] = img5[7];
-                    tmpptr[6] = img6[7];
-                    tmpptr[7] = img7[7];
-                    tmpptr += 8;
+                    asm volatile(
+                        "ld1    {v0.8b}, [%0]               \n"
+                        "ld1    {v1.8b}, [%1]               \n"
+                        "ld1    {v2.8b}, [%2]               \n"
+                        "ld1    {v3.8b}, [%3]               \n"
+                        "ld1    {v4.8b}, [%4]               \n"
+                        "ld1    {v5.8b}, [%5]               \n"
+                        "ld1    {v6.8b}, [%6]               \n"
+                        "ld1    {v7.8b}, [%7]               \n"
+                        "zip1   v8.8b, v0.8b, v4.8b         \n"
+                        "zip1   v9.8b, v1.8b, v5.8b         \n"
+                        "zip1   v10.8b, v2.8b, v6.8b        \n"
+                        "zip1   v11.8b, v3.8b, v7.8b        \n"
+                        "zip2   v0.8b, v0.8b, v4.8b         \n"
+                        "zip2   v1.8b, v1.8b, v5.8b         \n"
+                        "zip2   v2.8b, v2.8b, v6.8b         \n"
+                        "zip2   v3.8b, v3.8b, v7.8b         \n"
+                        "st4    {v8.8b, v9.8b, v10.8b, v11.8b}, [%8], #32 \n"
+                        "st4    {v0.8b, v1.8b, v2.8b, v3.8b}, [%8], #32 \n"
+                        : "=r"(img0), // %0
+                        "=r"(img1),
+                        "=r"(img2),
+                        "=r"(img3),
+                        "=r"(img4),
+                        "=r"(img5),
+                        "=r"(img6),
+                        "=r"(img7),
+                        "=r"(tmpptr) // %8
+                        : "0"(img0),
+                        "1"(img1),
+                        "2"(img2),
+                        "3"(img3),
+                        "4"(img4),
+                        "5"(img5),
+                        "6"(img6),
+                        "7"(img7),
+                        "8"(tmpptr)
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
 #else
                     asm volatile(
                         "ld1    {v0.8b}, [%0]               \n"
@@ -1695,300 +1654,6 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
         int i = 0;
 #if __aarch64__
 #if __ARM_FEATURE_DOTPROD
-#if 0
-        for (; i + 15 < size; i += 16)
-        {
-            const signed char* tmpptr = tmp.channel(i / 16);
-            const signed char* kptr0 = kernel.channel(p / 4);
-
-            int nn = (inch / 8) * maxk;
-            int nn4 = ((inch % 8) / 4) * maxk;
-            int nn1 = (inch % 4) * maxk;
-
-            asm volatile(
-                "eor    v16.16b, v16.16b, v16.16b   \n"
-                "eor    v17.16b, v17.16b, v17.16b   \n"
-                "eor    v18.16b, v18.16b, v18.16b   \n"
-                "eor    v19.16b, v19.16b, v19.16b   \n"
-                "eor    v20.16b, v20.16b, v20.16b   \n"
-                "eor    v21.16b, v21.16b, v21.16b   \n"
-                "eor    v22.16b, v22.16b, v22.16b   \n"
-                "eor    v23.16b, v23.16b, v23.16b   \n"
-                "eor    v24.16b, v24.16b, v24.16b   \n"
-                "eor    v25.16b, v25.16b, v25.16b   \n"
-                "eor    v26.16b, v26.16b, v26.16b   \n"
-                "eor    v27.16b, v27.16b, v27.16b   \n"
-                "eor    v28.16b, v28.16b, v28.16b   \n"
-                "eor    v29.16b, v29.16b, v29.16b   \n"
-                "eor    v30.16b, v30.16b, v30.16b   \n"
-                "eor    v31.16b, v31.16b, v31.16b   \n"
-
-                "cmp    %w4, #0                     \n"
-                "beq    1f                          \n"
-
-                "ld1    {v8.16b}, [%8], #16         \n" // _w0123_l
-
-                "ld1    {v0.16b}, [%7], #16         \n" // _val0123_l
-
-                "0:                                 \n"
-
-                "ld1    {v1.16b}, [%7], #16         \n" // _val4567_l
-
-                "sdot   v16.4s, v8.16b, v0.4b[0]    \n"
-                "sdot   v17.4s, v8.16b, v0.4b[1]    \n"
-                "sdot   v18.4s, v8.16b, v0.4b[2]    \n"
-                "sdot   v19.4s, v8.16b, v0.4b[3]    \n"
-
-                "ld1    {v2.16b}, [%7], #16         \n" // _val891011_l
-
-                "sdot   v20.4s, v8.16b, v1.4b[0]    \n"
-                "sdot   v21.4s, v8.16b, v1.4b[1]    \n"
-                "sdot   v22.4s, v8.16b, v1.4b[2]    \n"
-                "sdot   v23.4s, v8.16b, v1.4b[3]    \n"
-
-                "ld1    {v3.16b}, [%7], #16         \n" // _val12131415_l
-
-                "sdot   v24.4s, v8.16b, v2.4b[0]    \n"
-                "sdot   v25.4s, v8.16b, v2.4b[1]    \n"
-
-                "ld1    {v9.16b}, [%8], #16         \n" // _w0123_h
-
-                "sdot   v26.4s, v8.16b, v2.4b[2]    \n"
-                "sdot   v27.4s, v8.16b, v2.4b[3]    \n"
-
-                "ld1    {v4.16b}, [%7], #16         \n" // _val0123_h
-
-                "sdot   v28.4s, v8.16b, v3.4b[0]    \n"
-                "sdot   v29.4s, v8.16b, v3.4b[1]    \n"
-                "sdot   v30.4s, v8.16b, v3.4b[2]    \n"
-                "sdot   v31.4s, v8.16b, v3.4b[3]    \n"
-
-                "ld1    {v5.16b}, [%7], #16         \n" // _val4567_h
-
-                "sdot   v16.4s, v9.16b, v4.4b[0]    \n"
-                "sdot   v17.4s, v9.16b, v4.4b[1]    \n"
-                "sdot   v18.4s, v9.16b, v4.4b[2]    \n"
-                "sdot   v19.4s, v9.16b, v4.4b[3]    \n"
-
-                "ld1    {v6.16b}, [%7], #16         \n" // _val891011_h
-
-                "sdot   v20.4s, v9.16b, v5.4b[0]    \n"
-                "sdot   v21.4s, v9.16b, v5.4b[1]    \n"
-                "sdot   v22.4s, v9.16b, v5.4b[2]    \n"
-                "sdot   v23.4s, v9.16b, v5.4b[3]    \n"
-
-                "ld1    {v7.16b}, [%7], #16         \n" // _val12131415_h
-
-                "sdot   v24.4s, v9.16b, v6.4b[0]    \n"
-                "sdot   v25.4s, v9.16b, v6.4b[1]    \n"
-
-                "ld1    {v8.16b}, [%8], #16         \n" // _w0123_l
-
-                "sdot   v26.4s, v9.16b, v6.4b[2]    \n"
-                "sdot   v27.4s, v9.16b, v6.4b[3]    \n"
-
-                "ld1    {v0.16b}, [%7], #16         \n" // _val0123_l
-
-                "sdot   v28.4s, v9.16b, v7.4b[0]    \n"
-                "sdot   v29.4s, v9.16b, v7.4b[1]    \n"
-
-                "subs   %w4, %w4, #1                \n"
-
-                "sdot   v30.4s, v9.16b, v7.4b[2]    \n"
-                "sdot   v31.4s, v9.16b, v7.4b[3]    \n"
-
-                "bne    0b                          \n"
-
-                "sub    %7, %7, #16                 \n"
-                "sub    %8, %8, #16                 \n"
-
-                "1:                                 \n"
-
-                "cmp    %w5, #0                     \n"
-                "beq    3f                          \n"
-
-                "2:                                 \n"
-
-                "ld1    {v8.16b}, [%8], #16         \n"
-
-                "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%7], #64 \n"
-
-                "sdot   v16.4s, v8.16b, v0.4b[0]    \n"
-                "sdot   v17.4s, v8.16b, v0.4b[1]    \n"
-                "sdot   v18.4s, v8.16b, v0.4b[2]    \n"
-                "sdot   v19.4s, v8.16b, v0.4b[3]    \n"
-                "sdot   v20.4s, v8.16b, v1.4b[0]    \n"
-                "sdot   v21.4s, v8.16b, v1.4b[1]    \n"
-                "sdot   v22.4s, v8.16b, v1.4b[2]    \n"
-                "sdot   v23.4s, v8.16b, v1.4b[3]    \n"
-                "sdot   v24.4s, v8.16b, v2.4b[0]    \n"
-                "sdot   v25.4s, v8.16b, v2.4b[1]    \n"
-                "sdot   v26.4s, v8.16b, v2.4b[2]    \n"
-                "sdot   v27.4s, v8.16b, v2.4b[3]    \n"
-                "sdot   v28.4s, v8.16b, v3.4b[0]    \n"
-                "sdot   v29.4s, v8.16b, v3.4b[1]    \n"
-
-                "subs   %w5, %w5, #1                \n"
-
-                "sdot   v30.4s, v8.16b, v3.4b[2]    \n"
-                "sdot   v31.4s, v8.16b, v3.4b[3]    \n"
-
-                "bne    2b                          \n"
-
-                "3:                                 \n"
-
-                "lsr    w4, %w6, #2                 \n" // w4 = nn1 >> 2
-                "cmp    w4, #0                      \n"
-                "beq    5f                          \n"
-
-                "4:                                 \n"
-
-                "ld1    {v8.8b, v9.8b}, [%8], #16   \n"
-
-                "ld4    {v0.16b, v1.16b, v2.16b, v3.16b}, [%7], #64 \n"
-
-                "uzp1   v10.8b, v8.8b, v9.8b        \n"
-                "uzp2   v11.8b, v8.8b, v9.8b        \n"
-
-                "uzp1   v4.16b, v0.16b, v1.16b      \n"
-                "uzp2   v5.16b, v0.16b, v1.16b      \n"
-                "uzp1   v6.16b, v2.16b, v3.16b      \n"
-                "uzp2   v7.16b, v2.16b, v3.16b      \n"
-
-                "uzp1   v8.8b, v10.8b, v11.8b       \n"
-                "uzp2   v9.8b, v10.8b, v11.8b       \n"
-
-                "uzp1   v0.16b, v4.16b, v5.16b      \n" // 0 1 4 5
-                "uzp2   v1.16b, v4.16b, v5.16b      \n" // 8 9 c d
-
-                "mov    v8.d[1], v9.d[0]            \n" // _w
-
-                "uzp1   v2.16b, v6.16b, v7.16b      \n" // 2 3 6 7
-                "uzp2   v3.16b, v6.16b, v7.16b      \n" // a b e f
-
-                "sdot   v16.4s, v8.16b, v0.4b[0]    \n"
-                "sdot   v17.4s, v8.16b, v0.4b[1]    \n"
-                "sdot   v18.4s, v8.16b, v2.4b[0]    \n"
-                "sdot   v19.4s, v8.16b, v2.4b[1]    \n"
-                "sdot   v20.4s, v8.16b, v0.4b[2]    \n"
-                "sdot   v21.4s, v8.16b, v0.4b[3]    \n"
-                "sdot   v22.4s, v8.16b, v2.4b[2]    \n"
-                "sdot   v23.4s, v8.16b, v2.4b[3]    \n"
-                "sdot   v24.4s, v8.16b, v1.4b[0]    \n"
-                "sdot   v25.4s, v8.16b, v1.4b[1]    \n"
-                "sdot   v26.4s, v8.16b, v3.4b[0]    \n"
-                "sdot   v27.4s, v8.16b, v3.4b[1]    \n"
-                "sdot   v28.4s, v8.16b, v1.4b[2]    \n"
-                "sdot   v29.4s, v8.16b, v1.4b[3]    \n"
-                "sdot   v30.4s, v8.16b, v3.4b[2]    \n"
-                "sdot   v31.4s, v8.16b, v3.4b[3]    \n"
-
-                "subs   w4, w4, #1                  \n"
-                "bne    4b                          \n"
-
-                "5:                                 \n"
-
-                "and    w4, %w6, #3                 \n" // w4 = remain = nn1 & 3
-                "cmp    w4, #0                      \n" // w4 > 0
-                "beq    7f                          \n"
-
-                "6:                                 \n"
-
-                "ld1    {v1.8b}, [%8]               \n"
-                "ld1    {v0.16b}, [%7]              \n"
-
-                "sshll  v1.8h, v1.8b, #0            \n"
-                "sshll  v2.8h, v0.8b, #0            \n"
-                "sshll2 v3.8h, v0.16b, #0           \n"
-
-                "smlal  v16.4s, v1.4h, v2.h[0]      \n"
-                "smlal  v17.4s, v1.4h, v2.h[1]      \n"
-                "smlal  v18.4s, v1.4h, v2.h[2]      \n"
-                "smlal  v19.4s, v1.4h, v2.h[3]      \n"
-                "smlal  v20.4s, v1.4h, v2.h[4]      \n"
-                "smlal  v21.4s, v1.4h, v2.h[5]      \n"
-                "smlal  v22.4s, v1.4h, v2.h[6]      \n"
-                "smlal  v23.4s, v1.4h, v2.h[7]      \n"
-                "smlal  v24.4s, v1.4h, v3.h[0]      \n"
-                "smlal  v25.4s, v1.4h, v3.h[1]      \n"
-                "smlal  v26.4s, v1.4h, v3.h[2]      \n"
-                "smlal  v27.4s, v1.4h, v3.h[3]      \n"
-                "smlal  v28.4s, v1.4h, v3.h[4]      \n"
-                "smlal  v29.4s, v1.4h, v3.h[5]      \n"
-                "smlal  v30.4s, v1.4h, v3.h[6]      \n"
-                "smlal  v31.4s, v1.4h, v3.h[7]      \n"
-
-                "add    %7, %7, #16                 \n"
-                "add    %8, %8, #4                  \n"
-
-                "subs   w4, w4, #1                  \n"
-                "bne    6b                          \n"
-
-                "7:                                 \n"
-
-                // transpose 4x16
-                "trn1   v0.4s, v16.4s, v17.4s       \n"
-                "trn2   v1.4s, v16.4s, v17.4s       \n"
-                "trn1   v2.4s, v18.4s, v19.4s       \n"
-                "trn2   v3.4s, v18.4s, v19.4s       \n"
-                "trn1   v4.4s, v20.4s, v21.4s       \n"
-                "trn2   v5.4s, v20.4s, v21.4s       \n"
-                "trn1   v6.4s, v22.4s, v23.4s       \n"
-                "trn2   v7.4s, v22.4s, v23.4s       \n"
-                "trn1   v8.4s, v24.4s, v25.4s       \n"
-                "trn2   v9.4s, v24.4s, v25.4s       \n"
-                "trn1   v10.4s, v26.4s, v27.4s      \n"
-                "trn2   v11.4s, v26.4s, v27.4s      \n"
-                "trn1   v12.4s, v28.4s, v29.4s      \n"
-                "trn2   v13.4s, v28.4s, v29.4s      \n"
-                "trn1   v14.4s, v30.4s, v31.4s      \n"
-                "trn2   v15.4s, v30.4s, v31.4s      \n"
-
-                "trn1   v16.2d, v0.2d, v2.2d        \n"
-                "trn2   v24.2d, v0.2d, v2.2d        \n"
-                "trn1   v20.2d, v1.2d, v3.2d        \n"
-                "trn2   v28.2d, v1.2d, v3.2d        \n"
-
-                "trn1   v17.2d, v4.2d, v6.2d        \n"
-                "trn2   v25.2d, v4.2d, v6.2d        \n"
-                "trn1   v21.2d, v5.2d, v7.2d        \n"
-                "trn2   v29.2d, v5.2d, v7.2d        \n"
-
-                "trn1   v18.2d, v8.2d, v10.2d       \n"
-                "trn2   v26.2d, v8.2d, v10.2d       \n"
-                "trn1   v22.2d, v9.2d, v11.2d       \n"
-                "trn2   v30.2d, v9.2d, v11.2d       \n"
-
-                "trn1   v19.2d, v12.2d, v14.2d      \n"
-                "trn2   v27.2d, v12.2d, v14.2d      \n"
-                "trn1   v23.2d, v13.2d, v15.2d      \n"
-                "trn2   v31.2d, v13.2d, v15.2d      \n"
-
-                "st1    {v16.4s, v17.4s, v18.4s, v19.4s}, [%0], #64 \n"
-                "st1    {v20.4s, v21.4s, v22.4s, v23.4s}, [%1], #64 \n"
-                "st1    {v24.4s, v25.4s, v26.4s, v27.4s}, [%2], #64 \n"
-                "st1    {v28.4s, v29.4s, v30.4s, v31.4s}, [%3], #64 \n"
-                : "=r"(outptr0),
-                "=r"(outptr1),
-                "=r"(outptr2),
-                "=r"(outptr3),
-                "=r"(nn),
-                "=r"(nn4),
-                "=r"(nn1),
-                "=r"(tmpptr),
-                "=r"(kptr0)
-                : "0"(outptr0),
-                "1"(outptr1),
-                "2"(outptr2),
-                "3"(outptr3),
-                "4"(nn),
-                "5"(nn4),
-                "6"(nn1),
-                "7"(tmpptr),
-                "8"(kptr0)
-                : "memory", "x4", "x5", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-        }
-#endif
         for (; i + 7 < size; i += 8)
         {
             const signed char* tmpptr = tmp.channel(i / 8);

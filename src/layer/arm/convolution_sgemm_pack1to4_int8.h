@@ -169,85 +169,44 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 for (int k = 0; k < maxk; k++)
                 {
 #if __ARM_FEATURE_MATMUL_INT8
-                    tmpptr[0] = img0[0];
-                    tmpptr[1] = img1[0];
-                    tmpptr[2] = img2[0];
-                    tmpptr[3] = img3[0];
-                    tmpptr[4] = img4[0];
-                    tmpptr[5] = img5[0];
-                    tmpptr[6] = img6[0];
-                    tmpptr[7] = img7[0];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[1];
-                    tmpptr[1] = img1[1];
-                    tmpptr[2] = img2[1];
-                    tmpptr[3] = img3[1];
-                    tmpptr[4] = img4[1];
-                    tmpptr[5] = img5[1];
-                    tmpptr[6] = img6[1];
-                    tmpptr[7] = img7[1];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[2];
-                    tmpptr[1] = img1[2];
-                    tmpptr[2] = img2[2];
-                    tmpptr[3] = img3[2];
-                    tmpptr[4] = img4[2];
-                    tmpptr[5] = img5[2];
-                    tmpptr[6] = img6[2];
-                    tmpptr[7] = img7[2];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[3];
-                    tmpptr[1] = img1[3];
-                    tmpptr[2] = img2[3];
-                    tmpptr[3] = img3[3];
-                    tmpptr[4] = img4[3];
-                    tmpptr[5] = img5[3];
-                    tmpptr[6] = img6[3];
-                    tmpptr[7] = img7[3];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[4];
-                    tmpptr[1] = img1[4];
-                    tmpptr[2] = img2[4];
-                    tmpptr[3] = img3[4];
-                    tmpptr[4] = img4[4];
-                    tmpptr[5] = img5[4];
-                    tmpptr[6] = img6[4];
-                    tmpptr[7] = img7[4];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[5];
-                    tmpptr[1] = img1[5];
-                    tmpptr[2] = img2[5];
-                    tmpptr[3] = img3[5];
-                    tmpptr[4] = img4[5];
-                    tmpptr[5] = img5[5];
-                    tmpptr[6] = img6[5];
-                    tmpptr[7] = img7[5];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[6];
-                    tmpptr[1] = img1[6];
-                    tmpptr[2] = img2[6];
-                    tmpptr[3] = img3[6];
-                    tmpptr[4] = img4[6];
-                    tmpptr[5] = img5[6];
-                    tmpptr[6] = img6[6];
-                    tmpptr[7] = img7[6];
-                    tmpptr += 8;
-
-                    tmpptr[0] = img0[7];
-                    tmpptr[1] = img1[7];
-                    tmpptr[2] = img2[7];
-                    tmpptr[3] = img3[7];
-                    tmpptr[4] = img4[7];
-                    tmpptr[5] = img5[7];
-                    tmpptr[6] = img6[7];
-                    tmpptr[7] = img7[7];
-                    tmpptr += 8;
+                    asm volatile(
+                        "ld1    {v0.8b}, [%0]               \n"
+                        "ld1    {v1.8b}, [%1]               \n"
+                        "ld1    {v2.8b}, [%2]               \n"
+                        "ld1    {v3.8b}, [%3]               \n"
+                        "ld1    {v4.8b}, [%4]               \n"
+                        "ld1    {v5.8b}, [%5]               \n"
+                        "ld1    {v6.8b}, [%6]               \n"
+                        "ld1    {v7.8b}, [%7]               \n"
+                        "zip1   v8.8b, v0.8b, v4.8b         \n"
+                        "zip1   v9.8b, v1.8b, v5.8b         \n"
+                        "zip1   v10.8b, v2.8b, v6.8b        \n"
+                        "zip1   v11.8b, v3.8b, v7.8b        \n"
+                        "zip2   v0.8b, v0.8b, v4.8b         \n"
+                        "zip2   v1.8b, v1.8b, v5.8b         \n"
+                        "zip2   v2.8b, v2.8b, v6.8b         \n"
+                        "zip2   v3.8b, v3.8b, v7.8b         \n"
+                        "st4    {v8.8b, v9.8b, v10.8b, v11.8b}, [%8], #32 \n"
+                        "st4    {v0.8b, v1.8b, v2.8b, v3.8b}, [%8], #32 \n"
+                        : "=r"(img0), // %0
+                        "=r"(img1),
+                        "=r"(img2),
+                        "=r"(img3),
+                        "=r"(img4),
+                        "=r"(img5),
+                        "=r"(img6),
+                        "=r"(img7),
+                        "=r"(tmpptr) // %8
+                        : "0"(img0),
+                        "1"(img1),
+                        "2"(img2),
+                        "3"(img3),
+                        "4"(img4),
+                        "5"(img5),
+                        "6"(img6),
+                        "7"(img7),
+                        "8"(tmpptr)
+                        : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
 #else
                     asm volatile(
                         "ld1    {v0.8b}, [%0]               \n"
