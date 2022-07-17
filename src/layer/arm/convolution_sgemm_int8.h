@@ -1042,7 +1042,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                 "5:                                 \n"
 
                 "and    w4, %w10, #3                 \n" // w4 = remain = nn1 & 3
-                "cmp    w4, #0                      \n" // w4 > 0
+                "cmp    w4, #0                      \n"  // w4 > 0
                 "beq    7f                          \n"
 
                 "6:                                 \n"
