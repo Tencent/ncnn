@@ -216,7 +216,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                         "7"(img7),
                         "8"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11");
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "ld1    {v0.8b}, [%0]               \n"
                         "ld1    {v1.8b}, [%1]               \n"
@@ -873,7 +873,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                 "trn2  v29.2d, v14.2d, v29.2d       \n"
                 "trn1  v30.2d, v15.2d, v31.2d       \n"
                 "trn2  v31.2d, v15.2d, v31.2d       \n"
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 "0:                                 \n"
 
                 "ld1    {v0.16b, v1.16b, v2.16b, v3.16b}, [%11], #64 \n"   // _val0123_l _val4567_l _val0123_h _val4567_h
@@ -1900,7 +1900,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             _sum1 = _sum1x;
             _sum2 = _sum2x;
             _sum3 = _sum3x;
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val0123_l = vld1q_s8(tmpptr);
@@ -2452,7 +2452,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 
             _sum00 = _sum00x;
             _sum10 = _sum10x;
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x16_t _val01_l_h = vld1q_s8(tmpptr);
@@ -3039,7 +3039,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
             }
 
             _sum0 = vpaddq_s32(_sum0, _sum23);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
             for (int j = 0; j < nn; j++)
             {
                 int8x8_t _val0_l_h = vld1_s8(tmpptr);
@@ -3492,7 +3492,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
 
                 _sum0 = vpaddq_s32(vcombine_s32(_s0, _s1), vcombine_s32(_s2, _s3));
                 _sum1 = vpaddq_s32(vcombine_s32(_s4, _s5), vcombine_s32(_s6, _s7));
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _sum2 = vdupq_n_s32(0);
                 int32x4_t _sum3 = vdupq_n_s32(0);
 
@@ -3602,7 +3602,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                 }
 
                 _sum0 = vpaddq_s32(vcombine_s32(_s0, _s1), vcombine_s32(_s2, _s3));
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int32x4_t _sum1 = vdupq_n_s32(0);
 
                 int j = 0;
@@ -3839,7 +3839,7 @@ static void im2col_sgemm_int8_neon(const Mat& bottom_im2col, Mat& top_blob, cons
                 }
 
                 _sum = vpadd_s32(_s0, _s1);
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 int32x2_t _sum0 = vdup_n_s32(0);
                 int32x2_t _sum1 = vdup_n_s32(0);
 

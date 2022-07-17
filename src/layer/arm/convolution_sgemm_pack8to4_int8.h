@@ -107,7 +107,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3");
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld2    {v0.4s, v1.4s}, [%0], #32   \n"
@@ -190,7 +190,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
-#else // __aarch64__
+#else  // __aarch64__
         int remain_size_start = 0;
         int nn_size = (size - remain_size_start) >> 1;
 #endif // __aarch64__
@@ -248,7 +248,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         "1"(tmpptr)
                         : "memory", "v0");
 #endif
-#else // __aarch64__
+#else  // __aarch64__
                     asm volatile(
                         "pld        [%0, #128]          \n"
                         "vld1.s8    {d0-d1}, [%0 :64]   \n"
@@ -1632,7 +1632,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const M
                         g00++;
                     }
                 }
-#else // __ARM_FEATURE_MATMUL_INT8
+#else  // __ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 4; j++)
