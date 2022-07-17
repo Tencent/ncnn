@@ -4146,6 +4146,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_neon(const Mat& _kern
     // src = maxk-inch-outch
     // dst = 8a-4b-maxk-inch/8a-outch/4b
     // dst = 4a-4b-2aa-2bb-maxk-inch/8a-outch/8b (arm82)
+    // dst = 8a-8b-maxk-inch/8a-outch/8b (arm84)
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __ARM_NEON
 #if __ARM_FEATURE_DOTPROD
