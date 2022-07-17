@@ -816,7 +816,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             int nn4 = ((inch % 8) / 4) * maxk;
             int nn1 = (inch % 4) * maxk;
 
-#if 0
             asm volatile(
                 "eor    v16.16b, v16.16b, v16.16b   \n"
                 "eor    v17.16b, v17.16b, v17.16b   \n"
@@ -978,24 +977,22 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
                 "4:                                 \n"
 
-                "ld4    {v0.8b, v1.8b, v2.8b, v3.8b}, [%5], #32 \n"
+                "ld2    {v0.4s, v1.4s}, [%5], #32   \n"
                 "ld2    {v8.4s, v9.4s}, [%6], #32   \n"
 
-                "uzp1   v4.8b, v0.8b, v1.8b         \n"
-                "uzp2   v5.8b, v0.8b, v1.8b         \n"
-                "uzp1   v6.8b, v2.8b, v3.8b         \n"
-                "uzp2   v7.8b, v2.8b, v3.8b         \n"
-                "mov    v2.d[0], v4.d[0]            \n"
-                "mov    v2.d[1], v6.d[0]            \n"
-                "mov    v3.d[0], v5.d[0]            \n"
-                "mov    v3.d[1], v7.d[0]            \n"
+                "uzp1   v2.16b, v0.16b, v1.16b      \n"
+                "uzp2   v3.16b, v0.16b, v1.16b      \n"
+                "uzp1   v0.16b, v2.16b, v3.16b      \n"
+                "uzp2   v1.16b, v2.16b, v3.16b      \n"
+                "uzp1   v2.4s, v0.4s, v1.4s         \n" // _val0123
+                "uzp2   v3.4s, v0.4s, v1.4s         \n" // _val4567
 
                 "uzp1   v10.16b, v8.16b, v9.16b     \n"
                 "uzp2   v11.16b, v8.16b, v9.16b     \n"
                 "uzp1   v8.16b, v10.16b, v11.16b    \n"
                 "uzp2   v9.16b, v10.16b, v11.16b    \n"
-                "uzp1   v10.4s, v8.4s, v8.4s        \n" // _w0123f
-                "uzp2   v11.4s, v9.4s, v9.4s        \n" // _w4567f
+                "uzp1   v10.4s, v8.4s, v9.4s        \n" // _w0123f
+                "uzp2   v11.4s, v8.4s, v9.4s        \n" // _w4567f
 
                 "sdot   v16.4s, v10.16b, v2.4b[0]   \n"
                 "sdot   v17.4s, v10.16b, v2.4b[1]   \n"
@@ -1077,301 +1074,6 @@ static void im2col_sgemm_pack1to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                 "5"(tmpptr),
                 "6"(kptr0)
                 : "memory", "x4", "x5", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30", "v31");
-#else
-            int32x4_t _sum0 = vdupq_n_s32(0);
-            int32x4_t _sum1 = vdupq_n_s32(0);
-            int32x4_t _sum2 = vdupq_n_s32(0);
-            int32x4_t _sum3 = vdupq_n_s32(0);
-            int32x4_t _sum4 = vdupq_n_s32(0);
-            int32x4_t _sum5 = vdupq_n_s32(0);
-            int32x4_t _sum6 = vdupq_n_s32(0);
-            int32x4_t _sum7 = vdupq_n_s32(0);
-
-            int32x4_t _sum8 = vdupq_n_s32(0);
-            int32x4_t _sum9 = vdupq_n_s32(0);
-            int32x4_t _suma = vdupq_n_s32(0);
-            int32x4_t _sumb = vdupq_n_s32(0);
-            int32x4_t _sumc = vdupq_n_s32(0);
-            int32x4_t _sumd = vdupq_n_s32(0);
-            int32x4_t _sume = vdupq_n_s32(0);
-            int32x4_t _sumf = vdupq_n_s32(0);
-
-#if __ARM_FEATURE_MATMUL_INT8
-            for (int j = 0; j < nn; j++)
-            {
-                int8x16_t _val0 = vld1q_s8(tmpptr);
-                int8x16_t _val1 = vld1q_s8(tmpptr + 16);
-                int8x16_t _val2 = vld1q_s8(tmpptr + 32);
-                int8x16_t _val3 = vld1q_s8(tmpptr + 48);
-                int8x16_t _w01 = vld1q_s8(kptr0);
-                int8x16_t _w23 = vld1q_s8(kptr0 + 16);
-                int8x16_t _w45 = vld1q_s8(kptr0 + 32);
-                int8x16_t _w67 = vld1q_s8(kptr0 + 48);
-
-                _sum0 = vmmlaq_s32(_sum0, _val0, _w01);
-                _sum1 = vmmlaq_s32(_sum1, _val0, _w23);
-                _sum2 = vmmlaq_s32(_sum2, _val1, _w01);
-                _sum3 = vmmlaq_s32(_sum3, _val1, _w23);
-                _sum4 = vmmlaq_s32(_sum4, _val2, _w01);
-                _sum5 = vmmlaq_s32(_sum5, _val2, _w23);
-                _sum6 = vmmlaq_s32(_sum6, _val3, _w01);
-                _sum7 = vmmlaq_s32(_sum7, _val3, _w23);
-
-                _sum8 = vmmlaq_s32(_sum8, _val0, _w45);
-                _sum9 = vmmlaq_s32(_sum9, _val0, _w67);
-                _suma = vmmlaq_s32(_suma, _val1, _w45);
-                _sumb = vmmlaq_s32(_sumb, _val1, _w67);
-                _sumc = vmmlaq_s32(_sumc, _val2, _w45);
-                _sumd = vmmlaq_s32(_sumd, _val2, _w67);
-                _sume = vmmlaq_s32(_sume, _val3, _w45);
-                _sumf = vmmlaq_s32(_sumf, _val3, _w67);
-
-                tmpptr += 64;
-                kptr0 += 64;
-            }
-
-            int32x4_t _sum0x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
-            int32x4_t _sum1x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum0), vreinterpretq_s64_s32(_sum1)));
-            int32x4_t _sum2x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
-            int32x4_t _sum3x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum2), vreinterpretq_s64_s32(_sum3)));
-            int32x4_t _sum4x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum4), vreinterpretq_s64_s32(_sum5)));
-            int32x4_t _sum5x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum4), vreinterpretq_s64_s32(_sum5)));
-            int32x4_t _sum6x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum6), vreinterpretq_s64_s32(_sum7)));
-            int32x4_t _sum7x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum6), vreinterpretq_s64_s32(_sum7)));
-
-            int32x4_t _sum8x = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sum8), vreinterpretq_s64_s32(_sum9)));
-            int32x4_t _sum9x = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sum8), vreinterpretq_s64_s32(_sum9)));
-            int32x4_t _sumax = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_suma), vreinterpretq_s64_s32(_sumb)));
-            int32x4_t _sumbx = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_suma), vreinterpretq_s64_s32(_sumb)));
-            int32x4_t _sumcx = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sumc), vreinterpretq_s64_s32(_sumd)));
-            int32x4_t _sumdx = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sumc), vreinterpretq_s64_s32(_sumd)));
-            int32x4_t _sumex = vreinterpretq_s32_s64(vtrn1q_s64(vreinterpretq_s64_s32(_sume), vreinterpretq_s64_s32(_sumf)));
-            int32x4_t _sumfx = vreinterpretq_s32_s64(vtrn2q_s64(vreinterpretq_s64_s32(_sume), vreinterpretq_s64_s32(_sumf)));
-
-            _sum0 = _sum0x;
-            _sum1 = _sum1x;
-            _sum2 = _sum2x;
-            _sum3 = _sum3x;
-            _sum4 = _sum4x;
-            _sum5 = _sum5x;
-            _sum6 = _sum6x;
-            _sum7 = _sum7x;
-
-            _sum8 = _sum8x;
-            _sum9 = _sum9x;
-            _suma = _sumax;
-            _sumb = _sumbx;
-            _sumc = _sumcx;
-            _sumd = _sumdx;
-            _sume = _sumex;
-            _sumf = _sumfx;
-#else  // __ARM_FEATURE_MATMUL_INT8
-            for (int j = 0; j < nn; j++)
-            {
-                int8x16_t _val0123_l = vld1q_s8(tmpptr);
-                int8x16_t _val4567_l = vld1q_s8(tmpptr + 16);
-                int8x16_t _val0123_h = vld1q_s8(tmpptr + 32);
-                int8x16_t _val4567_h = vld1q_s8(tmpptr + 48);
-
-                int8x16_t _w0123_l = vld1q_s8(kptr0);
-                int8x16_t _w0123_h = vld1q_s8(kptr0 + 16);
-                int8x16_t _w4567_l = vld1q_s8(kptr0 + 32);
-                int8x16_t _w4567_h = vld1q_s8(kptr0 + 48);
-
-                _sum0 = vdotq_laneq_s32(_sum0, _w0123_l, _val0123_l, 0);
-                _sum1 = vdotq_laneq_s32(_sum1, _w0123_l, _val0123_l, 1);
-                _sum2 = vdotq_laneq_s32(_sum2, _w0123_l, _val0123_l, 2);
-                _sum3 = vdotq_laneq_s32(_sum3, _w0123_l, _val0123_l, 3);
-                _sum4 = vdotq_laneq_s32(_sum4, _w0123_l, _val4567_l, 0);
-                _sum5 = vdotq_laneq_s32(_sum5, _w0123_l, _val4567_l, 1);
-                _sum6 = vdotq_laneq_s32(_sum6, _w0123_l, _val4567_l, 2);
-                _sum7 = vdotq_laneq_s32(_sum7, _w0123_l, _val4567_l, 3);
-
-                _sum0 = vdotq_laneq_s32(_sum0, _w0123_h, _val0123_h, 0);
-                _sum1 = vdotq_laneq_s32(_sum1, _w0123_h, _val0123_h, 1);
-                _sum2 = vdotq_laneq_s32(_sum2, _w0123_h, _val0123_h, 2);
-                _sum3 = vdotq_laneq_s32(_sum3, _w0123_h, _val0123_h, 3);
-                _sum4 = vdotq_laneq_s32(_sum4, _w0123_h, _val4567_h, 0);
-                _sum5 = vdotq_laneq_s32(_sum5, _w0123_h, _val4567_h, 1);
-                _sum6 = vdotq_laneq_s32(_sum6, _w0123_h, _val4567_h, 2);
-                _sum7 = vdotq_laneq_s32(_sum7, _w0123_h, _val4567_h, 3);
-
-                _sum8 = vdotq_laneq_s32(_sum8, _w4567_l, _val0123_l, 0);
-                _sum9 = vdotq_laneq_s32(_sum9, _w4567_l, _val0123_l, 1);
-                _suma = vdotq_laneq_s32(_suma, _w4567_l, _val0123_l, 2);
-                _sumb = vdotq_laneq_s32(_sumb, _w4567_l, _val0123_l, 3);
-                _sumc = vdotq_laneq_s32(_sumc, _w4567_l, _val4567_l, 0);
-                _sumd = vdotq_laneq_s32(_sumd, _w4567_l, _val4567_l, 1);
-                _sume = vdotq_laneq_s32(_sume, _w4567_l, _val4567_l, 2);
-                _sumf = vdotq_laneq_s32(_sumf, _w4567_l, _val4567_l, 3);
-
-                _sum8 = vdotq_laneq_s32(_sum8, _w4567_h, _val0123_h, 0);
-                _sum9 = vdotq_laneq_s32(_sum9, _w4567_h, _val0123_h, 1);
-                _suma = vdotq_laneq_s32(_suma, _w4567_h, _val0123_h, 2);
-                _sumb = vdotq_laneq_s32(_sumb, _w4567_h, _val0123_h, 3);
-                _sumc = vdotq_laneq_s32(_sumc, _w4567_h, _val4567_h, 0);
-                _sumd = vdotq_laneq_s32(_sumd, _w4567_h, _val4567_h, 1);
-                _sume = vdotq_laneq_s32(_sume, _w4567_h, _val4567_h, 2);
-                _sumf = vdotq_laneq_s32(_sumf, _w4567_h, _val4567_h, 3);
-
-                tmpptr += 64;
-                kptr0 += 64;
-            }
-#endif // __ARM_FEATURE_MATMUL_INT8
-
-            for (int j = 0; j < nn4; j++)
-            {
-                int8x16_t _val0123 = vld1q_s8(tmpptr);
-                int8x16_t _val4567 = vld1q_s8(tmpptr + 16);
-                int8x16_t _w0 = vld1q_s8(kptr0);
-                int8x16_t _w1 = vld1q_s8(kptr0 + 16);
-
-                _sum0 = vdotq_laneq_s32(_sum0, _w0, _val0123, 0);
-                _sum1 = vdotq_laneq_s32(_sum1, _w0, _val0123, 1);
-                _sum2 = vdotq_laneq_s32(_sum2, _w0, _val0123, 2);
-                _sum3 = vdotq_laneq_s32(_sum3, _w0, _val0123, 3);
-                _sum4 = vdotq_laneq_s32(_sum4, _w0, _val4567, 0);
-                _sum5 = vdotq_laneq_s32(_sum5, _w0, _val4567, 1);
-                _sum6 = vdotq_laneq_s32(_sum6, _w0, _val4567, 2);
-                _sum7 = vdotq_laneq_s32(_sum7, _w0, _val4567, 3);
-
-                _sum8 = vdotq_laneq_s32(_sum8, _w1, _val0123, 0);
-                _sum9 = vdotq_laneq_s32(_sum9, _w1, _val0123, 1);
-                _suma = vdotq_laneq_s32(_suma, _w1, _val0123, 2);
-                _sumb = vdotq_laneq_s32(_sumb, _w1, _val0123, 3);
-                _sumc = vdotq_laneq_s32(_sumc, _w1, _val4567, 0);
-                _sumd = vdotq_laneq_s32(_sumd, _w1, _val4567, 1);
-                _sume = vdotq_laneq_s32(_sume, _w1, _val4567, 2);
-                _sumf = vdotq_laneq_s32(_sumf, _w1, _val4567, 3);
-
-                tmpptr += 32;
-                kptr0 += 32;
-            }
-
-            int j = 0;
-            for (; j + 3 < nn1; j += 4)
-            {
-                // 04040404 15151515 26262626 37373737
-                int8x8x4_t _val4 = vld4_s8(tmpptr);
-
-                // 0246024602460246 1357135713571357
-                // 0404040415151515 2626262637373737
-                // 0000111122223333 4444555566667777
-
-                // 00001111 44445555
-                // 22223333 66667777
-                int8x8x2_t _val0145 = vuzp_s8(_val4.val[0], _val4.val[1]);
-                int8x8x2_t _val2367 = vuzp_s8(_val4.val[2], _val4.val[3]);
-
-                // 0000111122223333
-                // 4444555566667777
-                int8x16_t _val0123 = vcombine_s8(_val0145.val[0], _val2367.val[0]);
-                int8x16_t _val4567 = vcombine_s8(_val0145.val[1], _val2367.val[1]);
-
-                // 0123 4567 0123 4567 0123 4567 0123 4567  ->  0000111122223333
-                int32x4x2_t _w = vld2q_s32((const int*)kptr0);
-
-                int8x16_t _w0 = vreinterpretq_s8_s32(_w.val[0]);
-                int8x16_t _w1 = vreinterpretq_s8_s32(_w.val[1]);
-
-                // 0123 0123 0123 0123
-                // 4567 4567 4567 4567
-
-                // 01010101 45454545
-                // 23232323 67676767
-
-                // 0202 0202 4646 4646
-                // 1313 1313 5757 5757
-
-                // 0000 4444 1111 5555
-                // 2222 6666 3333 7777
-
-                // 0000 1111 2222 3333
-                // 4444 5555 6666 7777
-
-                int8x8x2_t _w01 = vuzp_s8(vget_low_s8(_w0), vget_high_s8(_w0));
-                int8x8x2_t _w0123 = vuzp_s8(_w01.val[0], _w01.val[1]);
-                int8x16_t _w0123f = vcombine_s8(_w0123.val[0], _w0123.val[1]);
-
-                int8x8x2_t _w45 = vuzp_s8(vget_low_s8(_w1), vget_high_s8(_w1));
-                int8x8x2_t _w4567 = vuzp_s8(_w45.val[0], _w45.val[1]);
-                int8x16_t _w4567f = vcombine_s8(_w4567.val[0], _w4567.val[1]);
-
-                _sum0 = vdotq_laneq_s32(_sum0, _w0123f, _val0123, 0);
-                _sum1 = vdotq_laneq_s32(_sum1, _w0123f, _val0123, 1);
-                _sum2 = vdotq_laneq_s32(_sum2, _w0123f, _val0123, 2);
-                _sum3 = vdotq_laneq_s32(_sum3, _w0123f, _val0123, 3);
-                _sum4 = vdotq_laneq_s32(_sum4, _w0123f, _val4567, 0);
-                _sum5 = vdotq_laneq_s32(_sum5, _w0123f, _val4567, 1);
-                _sum6 = vdotq_laneq_s32(_sum6, _w0123f, _val4567, 2);
-                _sum7 = vdotq_laneq_s32(_sum7, _w0123f, _val4567, 3);
-
-                _sum8 = vdotq_laneq_s32(_sum8, _w4567f, _val0123, 0);
-                _sum9 = vdotq_laneq_s32(_sum9, _w4567f, _val0123, 1);
-                _suma = vdotq_laneq_s32(_suma, _w4567f, _val0123, 2);
-                _sumb = vdotq_laneq_s32(_sumb, _w4567f, _val0123, 3);
-                _sumc = vdotq_laneq_s32(_sumc, _w4567f, _val4567, 0);
-                _sumd = vdotq_laneq_s32(_sumd, _w4567f, _val4567, 1);
-                _sume = vdotq_laneq_s32(_sume, _w4567f, _val4567, 2);
-                _sumf = vdotq_laneq_s32(_sumf, _w4567f, _val4567, 3);
-
-                tmpptr += 32;
-                kptr0 += 32;
-            }
-            for (; j < nn1; j++)
-            {
-                int16x4_t _val0 = vdup_n_s16(tmpptr[0]);
-                int16x4_t _val1 = vdup_n_s16(tmpptr[1]);
-                int16x4_t _val2 = vdup_n_s16(tmpptr[2]);
-                int16x4_t _val3 = vdup_n_s16(tmpptr[3]);
-                int16x4_t _val4 = vdup_n_s16(tmpptr[4]);
-                int16x4_t _val5 = vdup_n_s16(tmpptr[5]);
-                int16x4_t _val6 = vdup_n_s16(tmpptr[6]);
-                int16x4_t _val7 = vdup_n_s16(tmpptr[7]);
-
-                int16x8_t _w01 = vmovl_s8(vld1_s8(kptr0));
-
-                _sum0 = vmlal_s16(_sum0, _val0, vget_low_s16(_w01));
-                _sum1 = vmlal_s16(_sum1, _val1, vget_low_s16(_w01));
-                _sum2 = vmlal_s16(_sum2, _val2, vget_low_s16(_w01));
-                _sum3 = vmlal_s16(_sum3, _val3, vget_low_s16(_w01));
-                _sum4 = vmlal_s16(_sum4, _val4, vget_low_s16(_w01));
-                _sum5 = vmlal_s16(_sum5, _val5, vget_low_s16(_w01));
-                _sum6 = vmlal_s16(_sum6, _val6, vget_low_s16(_w01));
-                _sum7 = vmlal_s16(_sum7, _val7, vget_low_s16(_w01));
-
-                _sum8 = vmlal_s16(_sum8, _val0, vget_high_s16(_w01));
-                _sum9 = vmlal_s16(_sum9, _val1, vget_high_s16(_w01));
-                _suma = vmlal_s16(_suma, _val2, vget_high_s16(_w01));
-                _sumb = vmlal_s16(_sumb, _val3, vget_high_s16(_w01));
-                _sumc = vmlal_s16(_sumc, _val4, vget_high_s16(_w01));
-                _sumd = vmlal_s16(_sumd, _val5, vget_high_s16(_w01));
-                _sume = vmlal_s16(_sume, _val6, vget_high_s16(_w01));
-                _sumf = vmlal_s16(_sumf, _val7, vget_high_s16(_w01));
-
-                tmpptr += 8;
-                kptr0 += 8;
-            }
-
-            vst1q_s32(outptr0, _sum0);
-            vst1q_s32(outptr0 + 4, _sum1);
-            vst1q_s32(outptr0 + 8, _sum2);
-            vst1q_s32(outptr0 + 12, _sum3);
-            vst1q_s32(outptr0 + 16, _sum4);
-            vst1q_s32(outptr0 + 20, _sum5);
-            vst1q_s32(outptr0 + 24, _sum6);
-            vst1q_s32(outptr0 + 28, _sum7);
-            vst1q_s32(outptr1, _sum8);
-            vst1q_s32(outptr1 + 4, _sum9);
-            vst1q_s32(outptr1 + 8, _suma);
-            vst1q_s32(outptr1 + 12, _sumb);
-            vst1q_s32(outptr1 + 16, _sumc);
-            vst1q_s32(outptr1 + 20, _sumd);
-            vst1q_s32(outptr1 + 24, _sume);
-            vst1q_s32(outptr1 + 28, _sumf);
-            outptr0 += 32;
-            outptr1 += 32;
-#endif
         }
         for (; i + 3 < size; i += 4)
         {
