@@ -107,7 +107,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3");
-#else
+#else // __ARM_FEATURE_MATMUL_INT8
                     asm volatile(
                         "prfm   pldl1keep, [%0, #512]       \n"
                         "ld2    {v0.4s, v1.4s}, [%0], #32   \n"
@@ -122,7 +122,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1", "v2", "v3");
-#endif
+#endif // __ARM_FEATURE_MATMUL_INT8
                     img0 += size * 8;
                 }
             }
@@ -182,7 +182,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0", "v1");
-#endif // __ARM_FEATURE_DOTPROD
+#endif
                     img0 += size * 8;
                 }
             }
@@ -190,10 +190,10 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
 
         remain_size_start += nn_size << 2;
         nn_size = (size - remain_size_start) >> 1;
-#else
+#else // __aarch64__
         int remain_size_start = 0;
         int nn_size = (size - remain_size_start) >> 1;
-#endif
+#endif // __aarch64__
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
@@ -247,8 +247,8 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "v0");
-#endif // __ARM_FEATURE_DOTPROD
-#else
+#endif
+#else // __aarch64__
                     asm volatile(
                         "pld        [%0, #128]          \n"
                         "vld1.s8    {d0-d1}, [%0 :64]   \n"
@@ -258,7 +258,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
                         : "0"(img0),
                         "1"(tmpptr)
                         : "memory", "q0");
-#endif
+#endif // __aarch64__
                     img0 += size * 8;
                 }
             }
@@ -869,7 +869,7 @@ static void im2col_sgemm_pack8to4_int8_neon(const Mat& bottom_im2col, Mat& top_b
             outptr0 += 32;
 #endif // __ARM_FEATURE_MATMUL_INT8
         }
-#endif
+#endif // __ARM_FEATURE_DOTPROD
         for (; i + 3 < size; i += 4)
         {
 #if __ARM_FEATURE_DOTPROD
@@ -1632,7 +1632,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const M
                         g00++;
                     }
                 }
-#else
+#else // __ARM_FEATURE_MATMUL_INT8
                 for (int i = 0; i < 4; i++)
                 {
                     for (int j = 0; j < 4; j++)
@@ -1669,7 +1669,7 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to4_int8_neon(const M
                         g00++;
                     }
                 }
-#endif
+#endif // __ARM_FEATURE_MATMUL_INT8
             }
         }
     }
