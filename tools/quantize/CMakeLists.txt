@@ -1,3 +1,4 @@
+set(CMAKE_CXX_STANDARD 11)
 
 if(NCNN_PIXEL)
     if(NOT NCNN_SIMPLEOCV)
@@ -34,7 +35,7 @@ if(NCNN_PIXEL)
     set_property(TARGET ncnn2table PROPERTY FOLDER "tools/optimization")
 endif()
 
-add_executable(ncnn2int8 ncnn2int8.cpp)
+add_executable(ncnn2int8 ncnn2int8.cpp net_quantize.cpp ../modelwriter.cpp)
 target_link_libraries(ncnn2int8 PRIVATE ncnn)
 
 # add ncnn2int8 tool to a virtual project group
