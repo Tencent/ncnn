@@ -121,6 +121,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
             // assert affine_size == w
+            
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
