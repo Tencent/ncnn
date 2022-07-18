@@ -132,3 +132,15 @@ jobs:
       env:
         LD_LIBRARY_PATH: /data/action/install/lib64
       run: cd build && ctest --output-on-failure -j 4
+
+  linux-gcc-no-sse:
+    runs-on: [self-hosted, linux, centos]
+    steps:
+    - uses: actions/checkout@v3
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DNCNN_SSE2=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 4
+    - name: test
+      run: cd build && ctest --output-on-failure -j 4
