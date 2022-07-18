@@ -60,9 +60,10 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 _fsum = _mm256_add_ps(_fsum, _fLoad);
             }
 
-            const float* q = (const float*)&_fsum;
+            // const float* q = (const float*)&_fsum;
 
-            sum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+            // sum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+            sum = _mm256_reduce_add_ps(_fsum);
 
             // var
             float mean = sum / (w * 8);
@@ -77,8 +78,9 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
             }
 
-            q = (const float*)&_fsqsum;
-            sqsum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+            // q = (const float*)&_fsqsum;
+            // sqsum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+            sqsum = _mm256_reduce_add_ps(_fsqsum);
 
             float var = sqsum / (w * 8);
 
@@ -198,11 +200,11 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             if (affine_size == w)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int qq = 0; qq < channels; qq++)
+                for (int q = 0; q < channels; q++)
                 {
                     for (int i = 0; i < h; i++)
                     {
-                        float* ptr = bottom_top_blob.channel(qq).row(i);
+                        float* ptr = bottom_top_blob.channel(q).row(i);
 
                         __m256 _fLoad;
 
@@ -269,9 +271,9 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             else // if (affine_size == size)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int qq = 0; qq < channels; qq++)
+                for (int q = 0; q < channels; q++)
                 {
-                    float* ptr = bottom_top_blob.channel(qq);
+                    float* ptr = bottom_top_blob.channel(q);
                     // int ssize = size;
 
                     __m256 _fLoad;
@@ -364,31 +366,33 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             for (int i = 0; i < w; i++)
             {
-                _fLoad = _mm_load_ps(ptr + (i << 2));
+                _fLoad = _mm_load_ps(ptr + (i * 4));
                 _fsum = _mm_add_ps(_fsum, _fLoad);
             }
 
-            const float* q = (const float*)&_fsum;
+            // const float* q = (const float*)&_fsum;
 
-            sum = q[0] + q[1] + q[2] + q[3];
+            // sum = q[0] + q[1] + q[2] + q[3];
+            sum = _mm_reduce_add_ps(_fsum);
 
             // var
-            float mean = sum / (w << 2);
+            float mean = sum / (w * 4);
             __m128 _mean = _mm_set1_ps(mean);
             __m128 _fsqsum = _mm_setzero_ps();
 
             for (int i = 0; i < w; i++)
             {
-                _fLoad = _mm_load_ps(ptr + (i << 2));
+                _fLoad = _mm_load_ps(ptr + (i * 4));
                 _fLoad = _mm_sub_ps(_fLoad, _mean);
                 _fLoad = _mm_mul_ps(_fLoad, _fLoad);
                 _fsqsum = _mm_add_ps(_fsqsum, _fLoad);
             }
 
-            q = (const float*)&_fsqsum;
-            sqsum = q[0] + q[1] + q[2] + q[3];
+            // q = (const float*)&_fsqsum;
+            // sqsum = q[0] + q[1] + q[2] + q[3];
+            sqsum = _mm_reduce_add_ps(_fsqsum);
 
-            float var = sqsum / (w << 2);
+            float var = sqsum / (w * 4);
 
             float a = static_cast<float>(1.f / (sqrt(var + eps)));
             float b = -mean * a;
@@ -400,26 +404,26 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 for (int i = 0; i < w; i++)
                 {
-                    _fLoad = _mm_load_ps(ptr + (i << 2));
+                    _fLoad = _mm_load_ps(ptr + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
 
-                    _gamma = _mm_load_ps((const float*)gamma_data + (i << 2));
-                    _beta = _mm_load_ps((const float*)beta_data + (i << 2));
+                    _gamma = _mm_load_ps((const float*)gamma_data + (i * 4));
+                    _beta = _mm_load_ps((const float*)beta_data + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _gamma);
                     _fLoad = _mm_add_ps(_fLoad, _beta);
 
-                    _mm_store_ps(ptr + (i << 2), _fLoad);
+                    _mm_store_ps(ptr + (i * 4), _fLoad);
                 }
             }
             else
             {
                 for (int i = 0; i < w; i++)
                 {
-                    _fLoad = _mm_load_ps(ptr + (i << 2));
+                    _fLoad = _mm_load_ps(ptr + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
-                    _mm_store_ps(ptr + (i << 2), _fLoad);
+                    _mm_store_ps(ptr + (i * 4), _fLoad);
                 }
             }
         }
@@ -442,7 +446,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int j = 0; j < w; j++)
                 {
-                    _fLoad = _mm_load_ps(ptr + (j << 2));
+                    _fLoad = _mm_load_ps(ptr + (j * 4));
                     _fsum = _mm_add_ps(_fsum, _fLoad);
                 }
 
@@ -453,7 +457,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int j = 0; j < w; j++)
                 {
-                    _fLoad = _mm_load_ps(ptr + (j << 2));
+                    _fLoad = _mm_load_ps(ptr + (j * 4));
                     _fLoad = _mm_sub_ps(_fLoad, _mean);
                     _fLoad = _mm_mul_ps(_fLoad, _fLoad);
                     _fsqsum = _mm_add_ps(_fsqsum, _fLoad);
@@ -470,7 +474,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int j = 0; j < w; j++)
                     {
-                        _fLoad = _mm_load_ps(ptr + (j << 2));
+                        _fLoad = _mm_load_ps(ptr + (j * 4));
                         _fLoad = _mm_mul_ps(_fLoad, _a);
                         _fLoad = _mm_sub_ps(_fLoad, _b);
 
@@ -479,17 +483,17 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         _fLoad = _mm_mul_ps(_fLoad, _gamma);
                         _fLoad = _mm_add_ps(_fLoad, _beta);
 
-                        _mm_store_ps(ptr + (j << 2), _fLoad);
+                        _mm_store_ps(ptr + (j * 4), _fLoad);
                     }
                 }
                 else
                 {
                     for (int j = 0; j < w; j++)
                     {
-                        _fLoad = _mm_load_ps(ptr + (j << 2));
+                        _fLoad = _mm_load_ps(ptr + (j * 4));
                         _fLoad = _mm_mul_ps(_fLoad, _a);
                         _fLoad = _mm_sub_ps(_fLoad, _b);
-                        _mm_store_ps(ptr + (j << 2), _fLoad);
+                        _mm_store_ps(ptr + (j * 4), _fLoad);
                     }
                 }
             }
@@ -505,11 +509,11 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             if (affine_size == w)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int qq = 0; qq < channels; qq++)
+                for (int q = 0; q < channels; q++)
                 {
                     for (int i = 0; i < h; i++)
                     {
-                        float* ptr = bottom_top_blob.channel(qq).row(i);
+                        float* ptr = bottom_top_blob.channel(q).row(i);
 
                         __m128 _fLoad;
 
@@ -518,7 +522,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                         for (int j = 0; j < w; j++)
                         {
-                            _fLoad = _mm_load_ps(ptr + (j << 2));
+                            _fLoad = _mm_load_ps(ptr + (j * 4));
                             _fsum = _mm_add_ps(_fsum, _fLoad);
                         }
 
@@ -529,7 +533,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                         for (int j = 0; j < w; j++)
                         {
-                            _fLoad = _mm_load_ps(ptr + (j << 2));
+                            _fLoad = _mm_load_ps(ptr + (j * 4));
                             _fLoad = _mm_sub_ps(_fLoad, _mean);
                             _fLoad = _mm_mul_ps(_fLoad, _fLoad);
                             _fsqsum = _mm_add_ps(_fsqsum, _fLoad);
@@ -546,7 +550,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         {
                             for (int j = 0; j < w; j++)
                             {
-                                _fLoad = _mm_load_ps(ptr + (j << 2));
+                                _fLoad = _mm_load_ps(ptr + (j * 4));
                                 _fLoad = _mm_mul_ps(_fLoad, _a);
                                 _fLoad = _mm_sub_ps(_fLoad, _b);
 
@@ -555,17 +559,17 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                                 _fLoad = _mm_mul_ps(_fLoad, _gamma);
                                 _fLoad = _mm_add_ps(_fLoad, _beta);
 
-                                _mm_store_ps(ptr + (j << 2), _fLoad);
+                                _mm_store_ps(ptr + (j * 4), _fLoad);
                             }
                         }
                         else
                         {
                             for (int j = 0; j < w; j++)
                             {
-                                _fLoad = _mm_load_ps(ptr + (j << 2));
+                                _fLoad = _mm_load_ps(ptr + (j * 4));
                                 _fLoad = _mm_mul_ps(_fLoad, _a);
                                 _fLoad = _mm_sub_ps(_fLoad, _b);
-                                _mm_store_ps(ptr + (j << 2), _fLoad);
+                                _mm_store_ps(ptr + (j * 4), _fLoad);
                             }
                         }
                     }
@@ -575,9 +579,9 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             else // if (affine_size == size)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int qq = 0; qq < channels; qq++)
+                for (int q = 0; q < channels; q++)
                 {
-                    float* ptr = bottom_top_blob.channel(qq);
+                    float* ptr = bottom_top_blob.channel(q);
 
                     __m128 _fLoad;
 
@@ -587,7 +591,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                     for (int j = 0; j < size; j++)
                     {
-                        _fLoad = _mm_load_ps(ptr + (j << 2));
+                        _fLoad = _mm_load_ps(ptr + (j * 4));
                         _fsum = _mm_add_ps(_fsum, _fLoad);
                     }
 
@@ -598,7 +602,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                     for (int j = 0; j < size; j++)
                     {
-                        _fLoad = _mm_load_ps(ptr + (j << 2));
+                        _fLoad = _mm_load_ps(ptr + (j * 4));
                         _fLoad = _mm_sub_ps(_fLoad, _mean);
 
                         _fLoad = _mm_mul_ps(_fLoad, _fLoad);
@@ -616,7 +620,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     {
                         for (int j = 0; j < size; j++)
                         {
-                            _fLoad = _mm_load_ps(ptr + (j << 2));
+                            _fLoad = _mm_load_ps(ptr + (j * 4));
                             _fLoad = _mm_mul_ps(_fLoad, _a);
                             _fLoad = _mm_sub_ps(_fLoad, _b);
 
@@ -625,17 +629,17 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                             _fLoad = _mm_mul_ps(_fLoad, _gamma);
                             _fLoad = _mm_add_ps(_fLoad, _beta);
 
-                            _mm_store_ps(ptr + (j << 2), _fLoad);
+                            _mm_store_ps(ptr + (j * 4), _fLoad);
                         }
                     }
                     else
                     {
                         for (int j = 0; j < size; j++)
                         {
-                            _fLoad = _mm_load_ps(ptr + (j << 2));
+                            _fLoad = _mm_load_ps(ptr + (j * 4));
                             _fLoad = _mm_mul_ps(_fLoad, _a);
                             _fLoad = _mm_sub_ps(_fLoad, _b);
-                            _mm_store_ps(ptr + (j << 2), _fLoad);
+                            _mm_store_ps(ptr + (j * 4), _fLoad);
                         }
                     }
                 }
@@ -659,12 +663,12 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     if (affine_size == w)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < channels; qq++)
+        for (int q = 0; q < channels; q++)
         {
             for (int i = 0; i < h; i++)
             {
-                float* ptr = bottom_top_blob.channel(qq).row(i);
-                int ww = w >> 3;
+                float* ptr = bottom_top_blob.channel(q).row(i);
+                int ww = w / 8;
                 int remainw = ww * 8;
 
                 __m256 _fLoad;
@@ -681,9 +685,10 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _fsum = _mm256_add_ps(_fsum, _fLoad);
                 }
 
-                const float* q = (const float*)&_fsum;
+                // const float* q = (const float*)&_fsum;
 
-                sum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+                // sum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+                sum = _mm256_reduce_add_ps(_fsum);
 
                 for (int i = remainw; i < w; i++)
                     sum += ptr[i];
@@ -701,8 +706,9 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
                 }
 
-                q = (const float*)&_fsqsum;
-                sqsum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+                // q = (const float*)&_fsqsum;
+                // sqsum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+                sqsum = _mm256_reduce_add_ps(_fsqsum);
 
                 for (int i = remainw; i < w; i++)
                 {
@@ -758,11 +764,11 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     else // if (affine_size == size)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < channels; qq++)
+        for (int q = 0; q < channels; q++)
         {
             {
-                float* ptr = bottom_top_blob.channel(qq);
-                int ssize = size >> 3;
+                float* ptr = bottom_top_blob.channel(q);
+                int ssize = size / 8;
                 int remain_size = ssize * 8;
 
                 __m256 _fLoad;
@@ -779,9 +785,10 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _fsum = _mm256_add_ps(_fsum, _fLoad);
                 }
 
-                const float* q = (const float*)&_fsum;
+                // const float* q = (const float*)&_fsum;
 
-                sum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+                // sum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+                sum = _mm256_reduce_add_ps(_fsum);
 
                 for (int i = remain_size; i < size; i++)
                     sum += ptr[i];
@@ -799,8 +806,9 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
                 }
 
-                q = (const float*)&_fsqsum;
-                sqsum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+                // q = (const float*)&_fsqsum;
+                // sqsum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
+                sqsum = _mm256_reduce_add_ps(_fsqsum);
 
                 for (int i = remain_size; i < size; i++)
                 {
@@ -859,14 +867,14 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     if (affine_size == w)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < channels; qq++)
+        for (int q = 0; q < channels; q++)
         {
             for (int i = 0; i < h; i++)
             {
-                float* ptr = bottom_top_blob.channel(qq).row(i);
+                float* ptr = bottom_top_blob.channel(q).row(i);
 
-                int ww = w >> 2;
-                int remainw = ww << 2;
+                int ww = w / 4;
+                int remainw = ww * 4;
 
                 __m128 _fLoad;
 
@@ -878,12 +886,13 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int j = 0; j < ww; j++)
                 {
-                    _fLoad = _mm_load_ps(ptr + (j << 2));
+                    _fLoad = _mm_load_ps(ptr + (j * 4));
                     _fsum = _mm_add_ps(_fsum, _fLoad);
                 }
 
-                const float* q = (const float*)&_fsum;
-                sum = q[0] + q[1] + q[2] + q[3];
+                // const float* q = (const float*)&_fsum;
+                // sum = q[0] + q[1] + q[2] + q[3];
+                sum = _mm_reduce_add_ps(_fsum);
 
                 for (int j = remainw; j < w; j++)
                     sum += ptr[j];
@@ -900,8 +909,11 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _fsqsum = _mm_add_ps(_fsqsum, _fLoad);
                 }
 
-                q = (const float*)&_fsqsum;
-                sqsum = q[0] + q[1] + q[2] + q[3];
+                // q = (const float*)&_fsqsum;
+                // sqsum = q[0] + q[1] + q[2] + q[3];
+                sqsum = _mm_reduce_add_ps(_fsqsum);
+
+
                 for (int j = remainw; j < w; j++)
                 {
                     sqsum += (ptr[j] - mean) * (ptr[j] - mean);
@@ -918,16 +930,16 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int j = 0; j < ww; j++)
                     {
-                        _fLoad = _mm_load_ps(ptr + (j << 2));
+                        _fLoad = _mm_load_ps(ptr + (j * 4));
                         _fLoad = _mm_mul_ps(_fLoad, _a);
                         _fLoad = _mm_add_ps(_fLoad, _b);
 
-                        _gamma = _mm_load_ps((const float*)gamma_data + (j << 2));
-                        _beta = _mm_load_ps((const float*)beta_data + (j << 2));
+                        _gamma = _mm_load_ps((const float*)gamma_data + (j * 4));
+                        _beta = _mm_load_ps((const float*)beta_data + (j * 4));
                         _fLoad = _mm_mul_ps(_fLoad, _gamma);
                         _fLoad = _mm_add_ps(_fLoad, _beta);
 
-                        _mm_store_ps(ptr + (j << 2), _fLoad);
+                        _mm_store_ps(ptr + (j * 4), _fLoad);
                     }
 
                     for (int j = remainw; j < w; j++)
@@ -939,10 +951,10 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int j = 0; j < ww; j++)
                     {
-                        _fLoad = _mm_load_ps(ptr + (j << 2));
+                        _fLoad = _mm_load_ps(ptr + (j * 4));
                         _fLoad = _mm_mul_ps(_fLoad, _a);
                         _fLoad = _mm_add_ps(_fLoad, _b);
-                        _mm_store_ps(ptr + (j << 2), _fLoad);
+                        _mm_store_ps(ptr + (j * 4), _fLoad);
                     }
                     for (int j = remainw; j < w; j++)
                     {
@@ -956,11 +968,11 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     else // if (affine_size == size)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < channels; qq++)
+        for (int q = 0; q < channels; q++)
         {
-            float* ptr = bottom_top_blob.channel(qq);
-            int ssize = size >> 2;
-            int remainsize = ssize << 2;
+            float* ptr = bottom_top_blob.channel(q);
+            int ssize = size / 4;
+            int remainsize = ssize * 4;
 
             __m128 _fLoad;
 
@@ -972,12 +984,14 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             for (int i = 0; i < ssize; i++)
             {
-                _fLoad = _mm_load_ps(ptr + (i << 2));
+                _fLoad = _mm_load_ps(ptr + (i * 4));
                 _fsum = _mm_add_ps(_fsum, _fLoad);
             }
-            const float* q = (const float*)&_fsum;
 
-            sum = q[0] + q[1] + q[2] + q[3];
+            // const float* q = (const float*)&_fsum;
+
+            // sum = q[0] + q[1] + q[2] + q[3];
+            sum = _mm_reduce_add_ps(_fsum);
 
             for (int i = remainsize; i < size; i++)
                 sum += ptr[i];
@@ -988,14 +1002,15 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             for (int i = 0; i < ssize; i++)
             {
-                _fLoad = _mm_load_ps(ptr + (i << 2));
+                _fLoad = _mm_load_ps(ptr + (i * 4));
                 _fLoad = _mm_sub_ps(_fLoad, _mean);
                 _fLoad = _mm_mul_ps(_fLoad, _fLoad);
                 _fsqsum = _mm_add_ps(_fsqsum, _fLoad);
             }
 
-            q = (const float*)&_fsqsum;
-            sqsum = q[0] + q[1] + q[2] + q[3];
+            // q = (const float*)&_fsqsum;
+            // sqsum = q[0] + q[1] + q[2] + q[3];
+            sqsum = _mm_reduce_add_ps(_fsqsum);
 
             for (int i = remainsize; i < size; i++)
             {
@@ -1014,7 +1029,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 for (int i = 0; i < ssize; i++)
                 {
-                    _fLoad = _mm_loadu_ps(ptr + (i << 2));
+                    _fLoad = _mm_loadu_ps(ptr + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
 
@@ -1023,7 +1038,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _fLoad = _mm_mul_ps(_fLoad, _gamma);
                     _fLoad = _mm_add_ps(_fLoad, _beta);
 
-                    _mm_store_ps(ptr + (i << 2), _fLoad);
+                    _mm_store_ps(ptr + (i * 4), _fLoad);
                 }
                 for (int i = remainsize; i < size; i++)
                 {
@@ -1034,10 +1049,10 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 for (int i = 0; i < size; i++)
                 {
-                    _fLoad = _mm_loadu_ps(ptr + (i << 2));
+                    _fLoad = _mm_loadu_ps(ptr + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
-                    _mm_store_ps(ptr + (i << 2), _fLoad);
+                    _mm_store_ps(ptr + (i * 4), _fLoad);
                 }
                 for (int i = remainsize; i < size; i++)
                 {
