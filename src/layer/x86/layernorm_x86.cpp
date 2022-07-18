@@ -913,7 +913,6 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 // sqsum = q[0] + q[1] + q[2] + q[3];
                 sqsum = _mm_reduce_add_ps(_fsqsum);
 
-
                 for (int j = remainw; j < w; j++)
                 {
                     sqsum += (ptr[j] - mean) * (ptr[j] - mean);
