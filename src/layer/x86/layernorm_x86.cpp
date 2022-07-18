@@ -56,7 +56,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             for (int i = 0; i < w; i++)
             {
-                _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                 _fsum = _mm256_add_ps(_fsum, _fLoad);
             }
 
@@ -65,13 +65,13 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             sum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
 
             // var
-            float mean = sum / (w << 3);
+            float mean = sum / (w * 8);
             __m256 _mean = _mm256_set1_ps(mean);
             __m256 _fsqsum = _mm256_setzero_ps();
 
             for (int i = 0; i < w; i++)
             {
-                _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                 _fLoad = _mm256_sub_ps(_fLoad, _mean);
                 _fLoad = _mm256_mul_ps(_fLoad, _fLoad);
                 _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
@@ -80,7 +80,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             q = (const float*)&_fsqsum;
             sqsum = q[0] + q[1] + q[2] + q[3] + q[4] + q[5] + q[6] + q[7];
 
-            float var = sqsum / (w << 3);
+            float var = sqsum / (w * 8);
 
             float a = static_cast<float>(1.f / (sqrt(var + eps)));
             float b = -mean * a;
@@ -92,26 +92,26 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 for (int i = 0; i < w; i++)
                 {
-                    _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                    _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                     _fLoad = _mm256_mul_ps(_fLoad, _a);
                     _fLoad = _mm256_add_ps(_fLoad, _b);
 
-                    _gamma = _mm256_loadu_ps((const float*)gamma_data + (i << 3));
-                    _beta = _mm256_loadu_ps((const float*)beta_data + (i << 3));
+                    _gamma = _mm256_loadu_ps((const float*)gamma_data + (i * 8));
+                    _beta = _mm256_loadu_ps((const float*)beta_data + (i * 8));
                     _fLoad = _mm256_mul_ps(_fLoad, _gamma);
                     _fLoad = _mm256_add_ps(_fLoad, _beta);
 
-                    _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                    _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                 }
             }
             else
             {
                 for (int i = 0; i < w; i++)
                 {
-                    _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                    _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                     _fLoad = _mm256_mul_ps(_fLoad, _a);
                     _fLoad = _mm256_add_ps(_fLoad, _b);
-                    _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                    _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                 }
             }
         }
@@ -135,7 +135,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int i = 0; i < w; i++)
                 {
-                    _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                    _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                     _fsum = _mm256_add_ps(_fsum, _fLoad);
                 }
 
@@ -146,7 +146,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int i = 0; i < w; i++)
                 {
-                    _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                    _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                     _fLoad = _mm256_sub_ps(_fLoad, _mean);
                     _fLoad = _mm256_mul_ps(_fLoad, _fLoad);
                     _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
@@ -164,7 +164,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int i = 0; i < w; i++)
                     {
-                        _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                        _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                         _fLoad = _mm256_mul_ps(_fLoad, _a);
                         _fLoad = _mm256_sub_ps(_fLoad, _b);
 
@@ -173,17 +173,17 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         _fLoad = _mm256_mul_ps(_fLoad, _gamma);
                         _fLoad = _mm256_add_ps(_fLoad, _beta);
 
-                        _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                        _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                     }
                 }
                 else
                 {
                     for (int i = 0; i < w; i++)
                     {
-                        _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                        _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                         _fLoad = _mm256_mul_ps(_fLoad, _a);
                         _fLoad = _mm256_sub_ps(_fLoad, _b);
-                        _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                        _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                     }
                 }
             }
@@ -212,7 +212,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                         for (int i = 0; i < w; i++)
                         {
-                            _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                            _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                             _fsum = _mm256_add_ps(_fsum, _fLoad);
                         }
 
@@ -223,7 +223,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                         for (int i = 0; i < w; i++)
                         {
-                            _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                            _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                             _fLoad = _mm256_sub_ps(_fLoad, _mean);
                             _fLoad = _mm256_mul_ps(_fLoad, _fLoad);
                             _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
@@ -241,7 +241,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         {
                             for (int j = 0; j < w; j++)
                             {
-                                _fLoad = _mm256_loadu_ps(ptr + (j << 3));
+                                _fLoad = _mm256_loadu_ps(ptr + (j * 8));
                                 _fLoad = _mm256_mul_ps(_fLoad, _a);
                                 _fLoad = _mm256_sub_ps(_fLoad, _b);
 
@@ -250,17 +250,17 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                                 _fLoad = _mm256_mul_ps(_fLoad, _gamma);
                                 _fLoad = _mm256_add_ps(_fLoad, _beta);
 
-                                _mm256_storeu_ps(ptr + (j << 3), _fLoad);
+                                _mm256_storeu_ps(ptr + (j * 8), _fLoad);
                             }
                         }
                         else
                         {
                             for (int j = 0; j < w; j++)
                             {
-                                _fLoad = _mm256_loadu_ps(ptr + (j << 3));
+                                _fLoad = _mm256_loadu_ps(ptr + (j * 8));
                                 _fLoad = _mm256_mul_ps(_fLoad, _a);
                                 _fLoad = _mm256_sub_ps(_fLoad, _b);
-                                _mm256_storeu_ps(ptr + (j << 3), _fLoad);
+                                _mm256_storeu_ps(ptr + (j * 8), _fLoad);
                             }
                         }
                     }
@@ -282,7 +282,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                     for (int i = 0; i < size; i++)
                     {
-                        _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                        _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                         _fsum = _mm256_add_ps(_fsum, _fLoad);
                     }
 
@@ -295,7 +295,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                     for (int i = 0; i < size; i++)
                     {
-                        _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                        _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                         _fLoad = _mm256_sub_ps(_fLoad, _mean);
                         _fLoad = _mm256_mul_ps(_fLoad, _fLoad);
                         _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
@@ -317,28 +317,28 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     {
                         for (int i = 0; i < size; i++)
                         {
-                            _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                            _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                             _fLoad = _mm256_mul_ps(_fLoad, _a);
                             _fLoad = _mm256_sub_ps(_fLoad, _b);
 
-                            // _gamma = _mm256_loadu_ps((const float*)gamma_data + (i << 3));
-                            // _beta = _mm256_loadu_ps((const float*)beta_data + (i << 3));
+                            // _gamma = _mm256_loadu_ps((const float*)gamma_data + (i * 8));
+                            // _beta = _mm256_loadu_ps((const float*)beta_data + (i * 8));
                             _gamma = _mm256_set1_ps(((const float*)gamma_data)[i]);
                             _beta = _mm256_set1_ps(((const float*)beta_data)[i]);
                             _fLoad = _mm256_mul_ps(_fLoad, _gamma);
                             _fLoad = _mm256_add_ps(_fLoad, _beta);
 
-                            _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                            _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                         }
                     }
                     else
                     {
                         for (int i = 0; i < size; i++)
                         {
-                            _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                            _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                             _fLoad = _mm256_mul_ps(_fLoad, _a);
                             _fLoad = _mm256_sub_ps(_fLoad, _b);
-                            _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                            _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                         }
                     }
                 }
@@ -666,7 +666,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 float* ptr = bottom_top_blob.channel(qq).row(i);
                 int ww = w >> 3;
-                int remainw = ww << 3;
+                int remainw = ww * 8;
 
                 __m256 _fLoad;
 
@@ -678,7 +678,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int i = 0; i < ww; i++)
                 {
-                    _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                    _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                     _fsum = _mm256_add_ps(_fsum, _fLoad);
                 }
 
@@ -696,7 +696,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int i = 0; i < ww; i++)
                 {
-                    _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                    _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                     _fLoad = _mm256_sub_ps(_fLoad, _mean);
                     _fLoad = _mm256_mul_ps(_fLoad, _fLoad);
                     _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
@@ -722,16 +722,16 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int i = 0; i < ww; i++)
                     {
-                        _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                        _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                         _fLoad = _mm256_mul_ps(_fLoad, _a);
                         _fLoad = _mm256_add_ps(_fLoad, _b);
 
-                        _gamma = _mm256_loadu_ps((const float*)gamma_data + (i << 3));
-                        _beta = _mm256_loadu_ps((const float*)beta_data + (i << 3));
+                        _gamma = _mm256_loadu_ps((const float*)gamma_data + (i * 8));
+                        _beta = _mm256_loadu_ps((const float*)beta_data + (i * 8));
                         _fLoad = _mm256_mul_ps(_fLoad, _gamma);
                         _fLoad = _mm256_add_ps(_fLoad, _beta);
 
-                        _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                        _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                     }
 
                     for (int i = remainw; i < w; i++)
@@ -743,10 +743,10 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int i = 0; i < ww; i++)
                     {
-                        _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                        _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                         _fLoad = _mm256_mul_ps(_fLoad, _a);
                         _fLoad = _mm256_add_ps(_fLoad, _b);
-                        _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                        _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                     }
                     for (int i = remainw; i < w; i++)
                     {
@@ -764,7 +764,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 float* ptr = bottom_top_blob.channel(qq);
                 int ssize = size >> 3;
-                int remain_size = ssize << 3;
+                int remain_size = ssize * 8;
 
                 __m256 _fLoad;
 
@@ -776,7 +776,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int i = 0; i < ssize; i++)
                 {
-                    _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                    _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                     _fsum = _mm256_add_ps(_fsum, _fLoad);
                 }
 
@@ -794,7 +794,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int i = 0; i < ssize; i++)
                 {
-                    _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                    _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                     _fLoad = _mm256_sub_ps(_fLoad, _mean);
                     _fLoad = _mm256_mul_ps(_fLoad, _fLoad);
                     _fsqsum = _mm256_add_ps(_fsqsum, _fLoad);
@@ -820,16 +820,16 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int i = 0; i < ssize; i++)
                     {
-                        _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                        _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                         _fLoad = _mm256_mul_ps(_fLoad, _a);
                         _fLoad = _mm256_add_ps(_fLoad, _b);
 
-                        _gamma = _mm256_loadu_ps((const float*)gamma_data + (i << 3));
-                        _beta = _mm256_loadu_ps((const float*)beta_data + (i << 3));
+                        _gamma = _mm256_loadu_ps((const float*)gamma_data + (i * 8));
+                        _beta = _mm256_loadu_ps((const float*)beta_data + (i * 8));
                         _fLoad = _mm256_mul_ps(_fLoad, _gamma);
                         _fLoad = _mm256_add_ps(_fLoad, _beta);
 
-                        _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                        _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                     }
 
                     for (int i = remain_size; i < size; i++)
@@ -841,10 +841,10 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int i = 0; i < ssize; i++)
                     {
-                        _fLoad = _mm256_loadu_ps(ptr + (i << 3));
+                        _fLoad = _mm256_loadu_ps(ptr + (i * 8));
                         _fLoad = _mm256_mul_ps(_fLoad, _a);
                         _fLoad = _mm256_add_ps(_fLoad, _b);
-                        _mm256_storeu_ps(ptr + (i << 3), _fLoad);
+                        _mm256_storeu_ps(ptr + (i * 8), _fLoad);
                     }
                     for (int i = remain_size; i < size; i++)
                     {
@@ -1019,8 +1019,8 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
 
-                    _gamma = _mm_load_ps((const float*)gamma_data + (i << 3));
-                    _beta = _mm_load_ps((const float*)beta_data + (i << 3));
+                    _gamma = _mm_load_ps((const float*)gamma_data + (i * 8));
+                    _beta = _mm_load_ps((const float*)beta_data + (i * 8));
                     _fLoad = _mm_mul_ps(_fLoad, _gamma);
                     _fLoad = _mm_add_ps(_fLoad, _beta);
 
