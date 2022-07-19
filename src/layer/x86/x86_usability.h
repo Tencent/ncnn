@@ -490,6 +490,29 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
     const __m128 x32 = _mm_max_ss(x64, _mm_shuffle_ps(x64, x64, 0x55));
     return _mm_cvtss_f32(x32);
 }
+
+#ifndef __FMA__
+static NCNN_FORCEINLINE __m512 _mm512_comp_fmadd_ps(__m512 _a, const __m512 _b, const __m512 _c)
+{
+    return _mm512_add_ps(_mm512_mul_ps(_a, _b), _c);
+}
+static NCNN_FORCEINLINE __m512 _mm512_comp_fnmadd_ps(__m512 _a, const __m512 _b, const __m512 _c)
+{
+    return _mm512_sub_ps(_c, _mm512_mul_ps(_a, _b));
+}
+#else
+static NCNN_FORCEINLINE __m512 _mm512_comp_fmadd_ps(__m512 _a, const __m512 _b, const __m512 _c)
+{
+    return _mm512_fmadd_ps(_a, _b, _c);
+}
+static NCNN_FORCEINLINE __m512 _mm512_comp_fnmadd_ps(__m512 _a, const __m512 _b, const __m512 _c)
+{
+    // return -a * b + c
+    return _mm512_fnmadd_ps(_a, _b, _c);
+}
+#endif
+
+
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
