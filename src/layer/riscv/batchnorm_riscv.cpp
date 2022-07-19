@@ -22,13 +22,14 @@
 #endif
 #endif // __riscv_vector
 
+#include "riscv_usability.h"
+
 namespace ncnn {
 
 BatchNorm_riscv::BatchNorm_riscv()
 {
 #if __riscv_vector
-//    support_packing = true;
-//TODO: packing support
+    support_packing = true;
 #endif
 }
 
@@ -61,29 +62,61 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             n -= vl;
         }
     }
+
+    const int packn = csrr_vlenb() / 4;
     if (dims == 2)
     {
-        int w = bottom_top_blob.w * elempack;
+        int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < h; i++)
+        if (elempack == 1)
         {
-            float* ptr = bottom_top_blob.row(i);
-            float a = a_data[i];
-            float b = b_data[i];
-
-            int n = w;
-            while (n > 0)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
             {
-                word_type vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                _p = vfmul_vf_f32m8(_p, b, vl);
-                _p = vfadd_vf_f32m8(_p, a, vl);
-                vse32_v_f32m8(ptr, _p, vl);
+                float* ptr = bottom_top_blob.row(i);
+                float a = a_data[i];
+                float b = b_data[i];
 
-                ptr += vl;
-                n -= vl;
+                int n = w;
+                while (n > 0)
+                {
+                    word_type vl = vsetvl_e32m8(n);
+                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                    _p = vfmul_vf_f32m8(_p, b, vl);
+                    _p = vfadd_vf_f32m8(_p, a, vl);
+                    vse32_v_f32m8(ptr, _p, vl);
+
+                    ptr += vl;
+                    n -= vl;
+                }
+            }
+        }
+        else if (elempack == packn)
+        {
+            const word_type vl = vsetvl_e32m1(packn);
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                float* ptr = bottom_top_blob.row(i);
+                const float* ptr_a = a_data;
+                ptr_a += i * elempack;
+                const float* ptr_b = b_data;
+                ptr_b += i * elempack;
+                int n = w * elempack;
+
+                vfloat32m1_t _a = vle32_v_f32m1(ptr_a, vl);
+                vfloat32m1_t _b = vle32_v_f32m1(ptr_b, vl);
+                while (n > 0)
+                {
+                    vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
+                    _p = vfmadd_vv_f32m1(_p, _b, _a, vl);
+                    vse32_v_f32m1(ptr, _p, vl);
+
+                    ptr += vl;
+                    n -= vl;
+                }
             }
         }
     }
@@ -93,26 +126,54 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         int h = bottom_top_blob.h;
         int d = bottom_top_blob.d;
         int c = bottom_top_blob.c;
-        int size = w * h * d * elempack;
-
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < c; q++)
+        int size = w * h * d;
+        if (elempack == 1)
         {
-            float* ptr = bottom_top_blob.channel(q);
-            float a = a_data[q];
-            float b = b_data[q];
-
-            int n = size;
-            while (n > 0)
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < c; q++)
             {
-                word_type vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                _p = vfmul_vf_f32m8(_p, b, vl);
-                _p = vfadd_vf_f32m8(_p, a, vl);
-                vse32_v_f32m8(ptr, _p, vl);
+                float* ptr = bottom_top_blob.channel(q);
+                float a = a_data[q];
+                float b = b_data[q];
 
-                ptr += vl;
-                n -= vl;
+                int n = size;
+                while (n > 0)
+                {
+                    word_type vl = vsetvl_e32m8(n);
+                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                    _p = vfmul_vf_f32m8(_p, b, vl);
+                    _p = vfadd_vf_f32m8(_p, a, vl);
+                    vse32_v_f32m8(ptr, _p, vl);
+
+                    ptr += vl;
+                    n -= vl;
+                }
+            }
+        }
+        else if (elempack == packn)
+        {
+            size = size * elempack;
+            const word_type vl = vsetvl_e32m1(packn);
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < c; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                const float* ptr_a = (const float*) a_data + q * elempack;
+                const float* ptr_b = (const float*) b_data + q * elempack;
+
+                vfloat32m1_t _a = vle32_v_f32m1(ptr_a, vl);
+                vfloat32m1_t _b = vle32_v_f32m1(ptr_b, vl);
+
+                int n = size;
+                while (n > 0)
+                {
+                    vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
+                    _p = vfmadd_vv_f32m1(_p, _b, _a, vl);
+                    vse32_v_f32m1(ptr, _p, vl);
+
+                    ptr += vl;
+                    n -= vl;
+                }
             }
         }
     }
