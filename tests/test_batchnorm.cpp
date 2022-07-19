@@ -104,4 +104,3 @@ int main()
            || test_batchnorm_2()
            || test_batchnorm_3();
 }
-

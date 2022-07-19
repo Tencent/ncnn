@@ -512,7 +512,6 @@ static NCNN_FORCEINLINE __m512 _mm512_comp_fnmadd_ps(__m512 _a, const __m512 _b,
 }
 #endif
 
-
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
