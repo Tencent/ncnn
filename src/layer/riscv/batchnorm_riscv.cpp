@@ -49,14 +49,16 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             word_type vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-            vfloat32m8_t _a = vle32_v_f32m8(a_data, vl);
-            vfloat32m8_t _b = vle32_v_f32m8(b_data, vl);
+            vfloat32m8_t _a = vle32_v_f32m8(ptr_a, vl);
+            vfloat32m8_t _b = vle32_v_f32m8(ptr_b, vl);
 
             _p = vfmadd_vv_f32m8(_p, _b, _a, vl);
 
             vse32_v_f32m8(ptr, _p, vl);
 
             ptr += vl;
+            ptr_a += vl;
+            ptr_b += vl;
             n -= vl;
         }
     }
