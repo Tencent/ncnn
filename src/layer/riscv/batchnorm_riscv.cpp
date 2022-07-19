@@ -22,6 +22,8 @@
 #endif
 #endif // __riscv_vector
 
+#include "riscv_usability.h"
+
 namespace ncnn {
 
 BatchNorm_riscv::BatchNorm_riscv()
@@ -96,8 +98,10 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             for (int i = 0; i < h; i++)
             {
                 float* ptr = bottom_top_blob.row(i);
-                const float* ptr_a = a_data + i * elempack;
-                const float* ptr_b = b_data + i * elempack;
+                const float* ptr_a = a_data;
+                ptr_a += i * elempack;
+                const float* ptr_b = b_data;
+                ptr_b += i * elempack;
                 int n = w * elempack;
 
                 vfloat32m1_t _a = vle32_v_f32m1(ptr_a, vl);
@@ -152,8 +156,10 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             for (int q = 0; q < c; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
-                const float* ptr_a = a_data + q * elempack;
-                const float* ptr_b = b_data + q * elempack;
+                const float* ptr_a = a_data;
+                ptr_a += q * elempack;
+                const float* ptr_b = b_data;
+                ptr_b += q * elempack;
 
                 vfloat32m1_t _a = vle32_v_f32m1(ptr_a, vl);
                 vfloat32m1_t _b = vle32_v_f32m1(ptr_b, vl);
@@ -161,7 +167,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 int n = size;
                 while (n > 0)
                 {
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                    vfloat32m1_t _p = vle32_v_f32m1(ptr, vl);
                     _p = vfmadd_vv_f32m1(_p, _b, _a, vl);
                     vse32_v_f32m1(ptr, _p, vl);
 
