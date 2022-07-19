@@ -38,6 +38,308 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        if (dims == 1)
+        {
+            int w = bottom_top_blob.w;
+
+            float* ptr = (float*)bottom_top_blob;
+
+            __m512 _fLoad;
+
+            // mean
+            float sum = 0.f;
+            float sqsum = 0.f;
+
+            __m512 _fsum = _mm512_setzero_ps();
+
+            for (int i = 0; i < w; i++)
+            {
+                _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                _fsum = _mm512_add_ps(_fsum, _fLoad);
+            }
+
+            sum = _mm512_reduce_add_ps(_fsum);
+
+            // var
+            float mean = sum / (w * 16);
+            __m512 _mean = _mm512_set1_ps(mean);
+            __m512 _fsqsum = _mm512_setzero_ps();
+
+            for (int i = 0; i < w; i++)
+            {
+                _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                _fLoad = _mm512_sub_ps(_fLoad, _mean);
+                _fLoad = _mm512_mul_ps(_fLoad, _fLoad);
+                _fsqsum = _mm512_add_ps(_fsqsum, _fLoad);
+            }
+
+            sqsum = _mm512_reduce_add_ps(_fsqsum);
+
+            float var = sqsum / (w * 16);
+
+            float a = static_cast<float>(1.f / (sqrt(var + eps)));
+            float b = -mean * a;
+            __m512 _a = _mm512_set1_ps(a);
+            __m512 _b = _mm512_set1_ps(b);
+            __m512 _gamma, _beta;
+
+            if (affine)
+            {
+                for (int i = 0; i < w; i++)
+                {
+                    _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                    _fLoad = _mm512_mul_ps(_fLoad, _a);
+                    _fLoad = _mm512_add_ps(_fLoad, _b);
+
+                    _gamma = _mm512_loadu_ps((const float*)gamma_data + (i * 16));
+                    _beta = _mm512_loadu_ps((const float*)beta_data + (i * 16));
+                    _fLoad = _mm512_mul_ps(_fLoad, _gamma);
+                    _fLoad = _mm512_add_ps(_fLoad, _beta);
+
+                    _mm512_storeu_ps(ptr + (i * 16), _fLoad);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < w; i++)
+                {
+                    _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                    _fLoad = _mm512_mul_ps(_fLoad, _a);
+                    _fLoad = _mm512_add_ps(_fLoad, _b);
+                    _mm512_storeu_ps(ptr + (i * 16), _fLoad);
+                }
+            }
+        }
+
+        if (dims == 2)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            // assert affine_size == w
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                float* ptr = bottom_top_blob.row(i);
+
+                __m512 _fLoad;
+
+                // mean
+                __m512 _fsum = _mm512_setzero_ps();
+
+                for (int i = 0; i < w; i++)
+                {
+                    _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                    _fsum = _mm512_add_ps(_fsum, _fLoad);
+                }
+
+                // var
+                __m512 _size = _mm512_set1_ps((float)w);
+                __m512 _mean = _mm512_div_ps(_fsum, _size);
+                __m512 _fsqsum = _mm512_setzero_ps();
+
+                for (int i = 0; i < w; i++)
+                {
+                    _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                    _fLoad = _mm512_sub_ps(_fLoad, _mean);
+                    _fLoad = _mm512_mul_ps(_fLoad, _fLoad);
+                    _fsqsum = _mm512_add_ps(_fsqsum, _fLoad);
+                }
+
+                __m512 _var = _mm512_div_ps(_fsqsum, _size);
+
+                __m512 _eps = _mm512_set1_ps(eps);
+                __m512 _a = _mm512_add_ps(_var, _eps);
+                _a = _mm512_sqrt_ps(_a);
+                _a = _mm512_rcp14_ps(_a);
+                __m512 _b = _mm512_mul_ps(_mean, _a);
+                __m512 _gamma, _beta;
+
+                if (affine)
+                {
+                    for (int i = 0; i < w; i++)
+                    {
+                        _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                        _fLoad = _mm512_mul_ps(_fLoad, _a);
+                        _fLoad = _mm512_sub_ps(_fLoad, _b);
+
+                        _gamma = _mm512_set1_ps(((const float*)gamma_data)[i]);
+                        _beta = _mm512_set1_ps(((const float*)beta_data)[i]);
+                        _fLoad = _mm512_mul_ps(_fLoad, _gamma);
+                        _fLoad = _mm512_add_ps(_fLoad, _beta);
+
+                        _mm512_storeu_ps(ptr + (i * 16), _fLoad);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < w; i++)
+                    {
+                        _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                        _fLoad = _mm512_mul_ps(_fLoad, _a);
+                        _fLoad = _mm512_sub_ps(_fLoad, _b);
+                        _mm512_storeu_ps(ptr + (i * 16), _fLoad);
+                    }
+                }
+            }
+        }
+
+        if (dims == 3)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            int channels = bottom_top_blob.c;
+            int size = w * h;
+
+            if (affine_size == w)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    for (int i = 0; i < h; i++)
+                    {
+                        float* ptr = bottom_top_blob.channel(q).row(i);
+
+                        __m512 _fLoad;
+
+                        // mean
+                        __m512 _fsum = _mm512_setzero_ps();
+
+                        for (int i = 0; i < w; i++)
+                        {
+                            _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                            _fsum = _mm512_add_ps(_fsum, _fLoad);
+                        }
+
+                        // var
+                        __m512 _size = _mm512_set1_ps((float)w);
+                        __m512 _mean = _mm512_div_ps(_fsum, _size);
+                        __m512 _fsqsum = _mm512_setzero_ps();
+
+                        for (int i = 0; i < w; i++)
+                        {
+                            _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                            _fLoad = _mm512_sub_ps(_fLoad, _mean);
+                            _fLoad = _mm512_mul_ps(_fLoad, _fLoad);
+                            _fsqsum = _mm512_add_ps(_fsqsum, _fLoad);
+                        }
+
+                        __m512 _var = _mm512_div_ps(_fsqsum, _size);
+
+                        __m512 _eps = _mm512_set1_ps(eps);
+                        __m512 _a = _mm512_add_ps(_var, _eps);
+                        _a = _mm512_sqrt_ps(_a);
+                        _a = _mm512_rcp14_ps(_a);
+                        __m512 _b = _mm512_mul_ps(_mean, _a);
+                        __m512 _gamma, _beta;
+
+                        if (affine)
+                        {
+                            for (int j = 0; j < w; j++)
+                            {
+                                _fLoad = _mm512_loadu_ps(ptr + (j * 16));
+                                _fLoad = _mm512_mul_ps(_fLoad, _a);
+                                _fLoad = _mm512_sub_ps(_fLoad, _b);
+
+                                _gamma = _mm512_set1_ps(((const float*)gamma_data)[j]);
+                                _beta = _mm512_set1_ps(((const float*)beta_data)[j]);
+                                _fLoad = _mm512_mul_ps(_fLoad, _gamma);
+                                _fLoad = _mm512_add_ps(_fLoad, _beta);
+
+                                _mm512_storeu_ps(ptr + (j * 16), _fLoad);
+                            }
+                        }
+                        else
+                        {
+                            for (int j = 0; j < w; j++)
+                            {
+                                _fLoad = _mm512_loadu_ps(ptr + (j * 16));
+                                _fLoad = _mm512_mul_ps(_fLoad, _a);
+                                _fLoad = _mm512_sub_ps(_fLoad, _b);
+                                _mm512_storeu_ps(ptr + (j * 16), _fLoad);
+                            }
+                        }
+                    }
+                }
+            }
+
+            else // if (affine_size == size)
+            {
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    float* ptr = bottom_top_blob.channel(q);
+
+                    __m512 _fLoad;
+
+                    // mean
+                    __m512 _fsum = _mm512_setzero_ps();
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                        _fsum = _mm512_add_ps(_fsum, _fLoad);
+                    }
+
+
+                    // var
+                    __m512 _size = _mm512_set1_ps((float)size);
+                    __m512 _mean = _mm512_div_ps(_fsum, _size);
+                    __m512 _fsqsum = _mm512_setzero_ps();
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                        _fLoad = _mm512_sub_ps(_fLoad, _mean);
+                        _fLoad = _mm512_mul_ps(_fLoad, _fLoad);
+                        _fsqsum = _mm512_add_ps(_fsqsum, _fLoad);
+                    }
+
+
+                    __m512 _var = _mm512_div_ps(_fsqsum, _size);
+
+                    __m512 _eps = _mm512_set1_ps(eps);
+                    __m512 _a = _mm512_add_ps(_var, _eps);
+                    _a = _mm512_sqrt_ps(_a);
+                    _a = _mm512_rcp14_ps(_a);
+                    __m512 _b = _mm512_mul_ps(_mean, _a);
+                    __m512 _gamma, _beta;
+
+                    if (affine)
+                    {
+                        for (int i = 0; i < size; i++)
+                        {
+                            _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                            _fLoad = _mm512_mul_ps(_fLoad, _a);
+                            _fLoad = _mm512_sub_ps(_fLoad, _b);
+
+                            _gamma = _mm512_set1_ps(((const float*)gamma_data)[i]);
+                            _beta = _mm512_set1_ps(((const float*)beta_data)[i]);
+                            _fLoad = _mm512_mul_ps(_fLoad, _gamma);
+                            _fLoad = _mm512_add_ps(_fLoad, _beta);
+
+                            _mm512_storeu_ps(ptr + (i * 16), _fLoad);
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < size; i++)
+                        {
+                            _fLoad = _mm512_loadu_ps(ptr + (i * 16));
+                            _fLoad = _mm512_mul_ps(_fLoad, _a);
+                            _fLoad = _mm512_sub_ps(_fLoad, _b);
+                            _mm512_storeu_ps(ptr + (i * 16), _fLoad);
+                        }
+                    }
+                }
+            }
+        }
+        return 0;
+    }
+#endif
     if (elempack == 8)
     {
         if (dims == 1)
