@@ -55,7 +55,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 __m512 _b = _mm512_loadu_ps((const float*)b_data + i * 16);
 
                 __m512 _p = _mm512_loadu_ps(ptr);
-                _p = _mm512_comp_fmadd_ps(_p, _b, _a);
+                _p = _mm512_fmadd_ps(_p, _b, _a);
                 _mm512_storeu_ps(ptr, _p);
             }
         }
@@ -76,7 +76,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 for (int j = 0; j < w; j++)
                 {
                     __m512 _p = _mm512_loadu_ps(ptr);
-                    _p = _mm512_comp_fmadd_ps(_p, _b, _a);
+                    _p = _mm512_fmadd_ps(_p, _b, _a);
                     _mm512_storeu_ps(ptr, _p);
 
                     ptr += 16;
@@ -103,7 +103,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 for (int i = 0; i < size; i++)
                 {
                     __m512 _p = _mm512_loadu_ps(ptr);
-                    _p = _mm512_comp_fmadd_ps(_p, _b, _a);
+                    _p = _mm512_fmadd_ps(_p, _b, _a);
                     _mm512_storeu_ps(ptr, _p);
 
                     ptr += 16;
