@@ -284,7 +284,6 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         _fsum = _mm512_add_ps(_fsum, _fLoad);
                     }
 
-
                     // var
                     __m512 _size = _mm512_set1_ps((float)size);
                     __m512 _mean = _mm512_div_ps(_fsum, _size);
@@ -297,7 +296,6 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         _fLoad = _mm512_mul_ps(_fLoad, _fLoad);
                         _fsqsum = _mm512_add_ps(_fsqsum, _fLoad);
                     }
-
 
                     __m512 _var = _mm512_div_ps(_fsqsum, _size);
 
