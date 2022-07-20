@@ -31,6 +31,91 @@ LayerNorm_riscv::LayerNorm_riscv()
 #endif
 }
 
+#if __riscv_vector
+static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine_size, int affine)
+{
+    float sum = 0.f;
+    float sqsum = 0.f;
+    vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
+    vfloat32m1_t _sqsum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
+    {
+        int n = w;
+        float* ptr_sum = ptr;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e32m8(n);
+            vfloat32m8_t _p = vle32_v_f32m8(ptr_sum, vl);
+            _sum = vfredusum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
+            // _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
+            ptr_sum += vl;
+            n -= vl;
+        }
+    }
+    sum = vfmv_f_s_f32m1_f32(_sum);
+    float mean = sum / w;
+
+    {
+        int n = w;
+        float* ptr_sqsum = ptr;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e32m8(n);
+            vfloat32m8_t _p = vle32_v_f32m8(ptr_sqsum, vl);
+            _p = vfsub_vf_f32m8(_p, mean, vl);
+            _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
+            n -= vl;
+            ptr_sqsum += vl;
+        }
+    }
+    sqsum = vfmv_f_s_f32m1_f32(_sqsum);
+    float var = sqsum / w;
+    // the var maybe minus due to accuracy
+    //float var = sqsum / w - mean * mean;
+    float a = static_cast<float>(1.f / (sqrt(var + eps)));
+    float b = -mean * a;
+
+    {
+        int n = w;
+        float* ptr_store = ptr;
+        const float* ptr_gamma = gamma_data;
+        const float* ptr_beta = beta_data;
+        if (affine)
+        {
+            while (n > 0)
+            {
+                word_type vl = vsetvl_e32m8(n);
+                vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
+                _p = vfmul_vf_f32m8(_p, a, vl);
+                vfloat32m8_t _gamma = vle32_v_f32m8(ptr_gamma, vl);
+                _p = vfadd_vf_f32m8(_p, b, vl);
+                vfloat32m8_t _beta = vle32_v_f32m8(ptr_beta, vl);
+                _p = vfmadd_vv_f32m8(_p, _gamma, _beta, vl);
+                vse32_v_f32m8(ptr_store, _p, vl);
+
+                n -= vl;
+                ptr_store += vl;
+                ptr_gamma += vl;
+                ptr_beta += vl;
+            }
+        }
+        else
+        {
+            while (n > 0)
+            {
+                word_type vl = vsetvl_e32m8(n);
+                vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
+                _p = vfmul_vf_f32m8(_p, a, vl);
+                _p = vfadd_vf_f32m8(_p, b, vl);
+                vse32_v_f32m8(ptr_store, _p, vl);
+                n -= vl;
+                ptr_store += vl;
+            }
+        }
+    }
+    return 0;
+}
+#endif // __riscv_vector
+
 int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
 // x = (x - mean) / sqrt(var + eps) * gamma + beta
@@ -41,84 +126,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     {
         float* ptr = bottom_top_blob;
 
-        // mean and var
-        float sum = 0.f;
-        float sqsum = 0.f;
-        vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
-        vfloat32m1_t _sqsum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
-
-        {
-            int n = w;
-            float* ptr_sum = ptr;
-            while (n > 0)
-            {
-                word_type vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr_sum, vl);
-                _sum = vfredosum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
-                // _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
-                ptr_sum += vl;
-                n -= vl;
-            }
-        }
-        sum = vfmv_f_s_f32m1_f32(_sum);
-        float mean = sum / w;
-
-        {
-            int n = w;
-            float* ptr_sqsum = ptr;
-            while (n > 0)
-            {
-                word_type vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr_sqsum, vl);
-                _p = vfsub_vf_f32m8(_p, mean, vl);
-                _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
-                n -= vl;
-                ptr_sqsum += vl;
-            }
-        }
-        sqsum = vfmv_f_s_f32m1_f32(_sqsum);
-        float var = sqsum / w;
-        // the var maybe minus due to accuracy
-        //float var = sqsum / w - mean * mean;
-        float a = static_cast<float>(1.f / (sqrt(var + eps)));
-        float b = -mean * a;
-
-        {
-            int n = w;
-            float* ptr_store = ptr;
-            const float* ptr_gamma = gamma_data;
-            const float* ptr_beta = beta_data;
-            if (affine)
-            {
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
-                    _p = vfmul_vf_f32m8(_p, a, vl);
-                    vfloat32m8_t _gamma = vle32_v_f32m8(ptr_gamma, vl);
-                    _p = vfadd_vf_f32m8(_p, b, vl);
-                    vfloat32m8_t _beta = vle32_v_f32m8(ptr_beta, vl);
-                    _p = vfmadd_vv_f32m8(_p, _gamma, _beta, vl);
-                    vse32_v_f32m8(ptr_store, _p, vl);
-
-                    n -= vl;
-                    ptr_store += vl;
-                }
-            }
-            else
-            {
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
-                    _p = vfmul_vf_f32m8(_p, a, vl);
-                    _p = vfadd_vf_f32m8(_p, b, vl);
-                    vse32_v_f32m8(ptr_store, _p, vl);
-                    n -= vl;
-                    ptr_store += vl;
-                }
-            }
-        }
+        return layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine);
     }
 
     if (dims == 2)
@@ -131,87 +139,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         for (int i = 0; i < h; i++)
         {
             float* ptr = bottom_top_blob.row(i);
-
-            // mean and var
-            float sum = 0.f;
-            float sqsum = 0.f;
-            vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
-            vfloat32m1_t _sqsum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
-
-            {
-                int n = w;
-                float* ptr_sum = ptr;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr_sum, vl);
-                    _sum = vfredosum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
-                    // _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
-                    ptr_sum += vl;
-                    n -= vl;
-                }
-            }
-            sum = vfmv_f_s_f32m1_f32(_sum);
-            float mean = sum / w;
-            float tmp = 0.f;
-
-            {
-                int n = w;
-                float* ptr_sqsum = ptr;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr_sqsum, vl);
-                    _p = vfsub_vf_f32m8(_p, mean, vl);
-                    _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
-                    n -= vl;
-                    ptr_sqsum += vl;
-                }
-            }
-            sqsum = vfmv_f_s_f32m1_f32(_sqsum);
-            float var = sqsum / w;
-            // the var maybe minus due to accuracy
-            //float var = sqsum / w - mean * mean;
-
-            float a = static_cast<float>(1.f / (sqrt(var + eps)));
-            float b = -mean * a;
-
-            {
-                int n = w;
-                float* ptr_store = ptr;
-                const float* ptr_gamma = gamma_data;
-                const float* ptr_beta = beta_data;
-                if (affine)
-                {
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n);
-                        vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
-                        _p = vfmul_vf_f32m8(_p, a, vl);
-                        vfloat32m8_t _gamma = vle32_v_f32m8(ptr_gamma, vl);
-                        _p = vfadd_vf_f32m8(_p, b, vl);
-                        vfloat32m8_t _beta = vle32_v_f32m8(ptr_beta, vl);
-                        _p = vfmadd_vv_f32m8(_p, _gamma, _beta, vl);
-                        vse32_v_f32m8(ptr_store, _p, vl);
-
-                        n -= vl;
-                        ptr_store += vl;
-                    }
-                }
-                else
-                {
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n);
-                        vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
-                        _p = vfmul_vf_f32m8(_p, a, vl);
-                        _p = vfadd_vf_f32m8(_p, b, vl);
-                        vse32_v_f32m8(ptr_store, _p, vl);
-                        n -= vl;
-                        ptr_store += vl;
-                    }
-                }
-            }
+            layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine);
         }
     }
     if (dims == 3)
@@ -230,84 +158,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 {
                     float* ptr = bottom_top_blob.channel(q).row(i);
 
-                    // mean and var
-                    float sum = 0.f;
-                    float sqsum = 0.f;
-                    vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
-                    vfloat32m1_t _sqsum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
-                    {
-                        int n = w;
-                        float* ptr_sum = ptr;
-                        while (n > 0)
-                        {
-                            word_type vl = vsetvl_e32m8(n);
-                            vfloat32m8_t _p = vle32_v_f32m8(ptr_sum, vl);
-                            _sum = vfredosum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
-                            // _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
-                            ptr_sum += vl;
-                            n -= vl;
-                        }
-                    }
-                    sum = vfmv_f_s_f32m1_f32(_sum);
-                    float mean = sum / w;
-
-                    {
-                        int n = w;
-                        float* ptr_sqsum = ptr;
-                        while (n > 0)
-                        {
-                            word_type vl = vsetvl_e32m8(n);
-                            vfloat32m8_t _p = vle32_v_f32m8(ptr_sqsum, vl);
-                            _p = vfsub_vf_f32m8(_p, mean, vl);
-                            _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
-                            n -= vl;
-                            ptr_sqsum += vl;
-                        }
-                    }
-                    sqsum = vfmv_f_s_f32m1_f32(_sqsum);
-                    float var = sqsum / w;
-                    // the var maybe minus due to accuracy
-                    //float var = sqsum / w - mean * mean;
-
-                    float a = static_cast<float>(1.f / (sqrt(var + eps)));
-                    float b = -mean * a;
-
-                    {
-                        int n = w;
-                        float* ptr_store = ptr;
-                        const float* ptr_gamma = gamma_data;
-                        const float* ptr_beta = beta_data;
-                        if (affine)
-                        {
-                            while (n > 0)
-                            {
-                                word_type vl = vsetvl_e32m8(n);
-                                vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
-                                _p = vfmul_vf_f32m8(_p, a, vl);
-                                vfloat32m8_t _gamma = vle32_v_f32m8(ptr_gamma, vl);
-                                _p = vfadd_vf_f32m8(_p, b, vl);
-                                vfloat32m8_t _beta = vle32_v_f32m8(ptr_beta, vl);
-                                _p = vfmadd_vv_f32m8(_p, _gamma, _beta, vl);
-                                vse32_v_f32m8(ptr_store, _p, vl);
-
-                                n -= vl;
-                                ptr_store += vl;
-                            }
-                        }
-                        else
-                        {
-                            while (n > 0)
-                            {
-                                word_type vl = vsetvl_e32m8(n);
-                                vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
-                                _p = vfmul_vf_f32m8(_p, a, vl);
-                                _p = vfadd_vf_f32m8(_p, b, vl);
-                                vse32_v_f32m8(ptr_store, _p, vl);
-                                n -= vl;
-                                ptr_store += vl;
-                            }
-                        }
-                    }
+                    layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine);
                 }
             }
         }
