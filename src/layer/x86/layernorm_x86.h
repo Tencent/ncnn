@@ -10,21 +10,11 @@ class LayerNorm_x86 : virtual public LayerNorm
 public:
     LayerNorm_x86();
 
-    virtual int load_param(const ParamDict& pd);
-
-    virtual int load_model(const ModelBin& mb);
-
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-public:
-    // param
-    int affine_size;
-    float eps;
-    int affine;
-
-    // model
-    Mat gamma_data;
-    Mat beta_data;
+protected:
+    void fast_1d_layer_norm(float* ptr, int size) const;
+    void fast_fmadd_fmadd(float* ptr, float a, float b, int size) const;
 };
 
 } // namespace ncnn
