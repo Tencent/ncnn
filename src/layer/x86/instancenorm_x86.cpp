@@ -45,7 +45,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if(elempack == 16)
+    if (elempack == 16)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
@@ -83,7 +83,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
             _a = _mm512_rcp14_ps(_a);
             __m512 _b = _mm512_mul_ps(_mean, _a);
 
-            if(affine)
+            if (affine)
             {
                 __m512 _gamma = _mm512_loadu_ps((const float*)gamma_data + (q * 16));
                 __m512 _beta = _mm512_loadu_ps((const float*)beta_data + (q * 16));
@@ -105,7 +105,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         return 0;
     }
 #endif
-    if(elempack == 8)
+    if (elempack == 8)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
@@ -142,7 +142,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
             _a = _mm256_rsqrt_ps(_a);
             __m256 _b = _mm256_mul_ps(_mean, _a);
 
-            if(affine)
+            if (affine)
             {
                 __m256 _gamma = _mm256_loadu_ps((const float*)gamma_data + (q * 8));
                 __m256 _beta = _mm256_loadu_ps((const float*)beta_data + (q * 8));
@@ -165,7 +165,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
     }
 
 #endif
-    if(elempack == 4)
+    if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
@@ -202,7 +202,7 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
             _a = _mm_rsqrt_ps(_a);
             __m128 _b = _mm_mul_ps(_mean, _a);
 
-            if(affine)
+            if (affine)
             {
                 __m128 _gamma = _mm_load_ps((const float*)gamma_data + (q * 4));
                 __m128 _beta = _mm_load_ps((const float*)beta_data + (q * 4));
@@ -491,9 +491,6 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
     }
     return 0;
 #endif // __SSE2__
-
 }
 
 } // namespace ncnn
-
-
