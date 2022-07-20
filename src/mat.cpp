@@ -244,9 +244,9 @@ void Mat::create(int _w, size_t _elemsize, Allocator* _allocator)
 
     cstep = w;
 
-    if (total() > 0)
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    if (totalsize > 0)
     {
-        size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
         else
@@ -279,9 +279,9 @@ void Mat::create(int _w, int _h, size_t _elemsize, Allocator* _allocator)
 
     cstep = (size_t)w * h;
 
-    if (total() > 0)
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    if (totalsize > 0)
     {
-        size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
         else
@@ -314,9 +314,9 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, Allocator* _allocator
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0)
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    if (totalsize > 0)
     {
-        size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
         else
@@ -349,9 +349,9 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, Allocator* _a
 
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
-    if (total() > 0)
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    if (totalsize > 0)
     {
-        size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
         else
@@ -384,9 +384,9 @@ void Mat::create(int _w, size_t _elemsize, int _elempack, Allocator* _allocator)
 
     cstep = w;
 
-    if (total() > 0)
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    if (totalsize > 0)
     {
-        size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
         else
@@ -419,9 +419,9 @@ void Mat::create(int _w, int _h, size_t _elemsize, int _elempack, Allocator* _al
 
     cstep = (size_t)w * h;
 
-    if (total() > 0)
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    if (totalsize > 0)
     {
-        size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
         else
@@ -454,9 +454,9 @@ void Mat::create(int _w, int _h, int _c, size_t _elemsize, int _elempack, Alloca
 
     cstep = alignSize((size_t)w * h * elemsize, 16) / elemsize;
 
-    if (total() > 0)
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    if (totalsize > 0)
     {
-        size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
         else
@@ -489,9 +489,9 @@ void Mat::create(int _w, int _h, int _d, int _c, size_t _elemsize, int _elempack
 
     cstep = alignSize((size_t)w * h * d * elemsize, 16) / elemsize;
 
-    if (total() > 0)
+    size_t totalsize = alignSize(total() * elemsize, 4);
+    if (totalsize > 0)
     {
-        size_t totalsize = alignSize(total() * elemsize, 4);
         if (allocator)
             data = allocator->fastMalloc(totalsize + (int)sizeof(*refcount));
         else
