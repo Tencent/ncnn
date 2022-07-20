@@ -1328,12 +1328,12 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 for (int i = 0; i < ssize; i++)
                 {
-                    _fLoad = _mm_loadu_ps(ptr + (i * 4));
+                    _fLoad = _mm_load_ps(ptr + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
 
-                    _gamma = _mm_load_ps((const float*)gamma_data + (i * 8));
-                    _beta = _mm_load_ps((const float*)beta_data + (i * 8));
+                    _gamma = _mm_load_ps((const float*)gamma_data + (i * 4));
+                    _beta = _mm_load_ps((const float*)beta_data + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _gamma);
                     _fLoad = _mm_add_ps(_fLoad, _beta);
 
@@ -1348,7 +1348,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 for (int i = 0; i < size; i++)
                 {
-                    _fLoad = _mm_loadu_ps(ptr + (i * 4));
+                    _fLoad = _mm_load_ps(ptr + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
                     _mm_store_ps(ptr + (i * 4), _fLoad);
