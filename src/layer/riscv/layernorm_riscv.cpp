@@ -182,7 +182,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
         return layernorm_rvv_pack1_procedure(w * elempack, ptr, gamma_data, beta_data, eps, affine_size, affine);
     }
-    if(elempack == 1)
+    if (elempack == 1)
     {
         if (dims == 2)
         {
@@ -205,7 +205,6 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             int size = w * h;
             if (affine_size == w)
             {
-
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -306,108 +305,102 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                         }
                     }
                 }
-
             }
-
         }
     }
 
     if (elempack == packn)
-    { 
+    {
         if (dims == 2)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
             // assert affine_size == w
-             
+
+            const word_type vl = vsetvl_e32m1(packn);
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                float* ptr = bottom_top_blob.row(i);
+                layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
+            }
+        }
+        if (dims == 3)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            int channels = bottom_top_blob.c;
+            int size = w * h;
+
+            if (affine_size == w)
+            {
                 const word_type vl = vsetvl_e32m1(packn);
                 #pragma omp parallel for num_threads(opt.num_threads)
-                for (int i = 0; i < h; i++)
+                for (int q = 0; q < channels; q++)
                 {
-                    float* ptr = bottom_top_blob.row(i);
-                    layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
-                }
-            
-        }
-    if (dims == 3)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-        int size = w * h;
-
-        if (affine_size == w)
-        {
-        
-            const word_type vl = vsetvl_e32m1(packn);
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                for (int i = 0; i < h; i++)
-                {
-                    float* ptr = bottom_top_blob.channel(q).row(i);
-
-                    layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
-                }
-            }
-            
-        }
-        else // if (affine_size == size)
-        {
-            const word_type vl = vsetvl_e32m1(packn);
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-                // mean and var
-                vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vsetvlmax_e32m1());
-                vfloat32m1_t _sqsum = vfmv_v_f_f32m1(0.f, vsetvlmax_e32m1());
-                for (int i = 0; i < size; i++)
-                {
-                    vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
-                    _sum = vfadd_vv_f32m1(_p, _sum, vl);
-                    // _sqsum = vfmadd_vv_f32m1(_p,_p,_sqsum,vl);
-                }
-                vfloat32m1_t _mean = vfdiv_vf_f32m1(_sum, size, vl);
-                for (int i = 0; i < size; i++)
-                {
-                    vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
-                    _p = vfsub_vv_f32m1(_p, _mean, vl);
-                    _sqsum = vfmadd_vv_f32m1(_p, _p, _sqsum, vl);
-                }
-                vfloat32m1_t _var = vfdiv_vf_f32m1(_sqsum, size, vl);
-
-                // the var maybe minus due to accuracy
-                //float var = sqsum / w - mean * mean;
-                vfloat32m1_t _a = vfrdiv_vf_f32m1(vfsqrt_v_f32m1(vfadd_vf_f32m1(_var, eps, vl), vl), 1.f, vl);
-                vfloat32m1_t _b = vfmul_vv_f32m1(vfsgnjn_vv_f32m1(_mean, _mean, vl), _a, vl);
-                if (affine)
-                {
-                    for (int i = 0; i < size; i++)
+                    for (int i = 0; i < h; i++)
                     {
-                        const int offset = vl * i;
-                        vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
-                        _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
-                        _p = vfmul_vf_f32m1(_p, gamma_data[i], vl);
-                        _p = vfadd_vf_f32m1(_p, beta_data[i], vl);
-                        vse32_v_f32m1(ptr + offset, _p, vl);
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < size; i++)
-                    {
-                        const int offset = vl * i;
-                        vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
-                        _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
-                        vse32_v_f32m1(ptr + offset, _p, vl);
+                        float* ptr = bottom_top_blob.channel(q).row(i);
+
+                        layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
                     }
                 }
             }
-        
+            else // if (affine_size == size)
+            {
+                const word_type vl = vsetvl_e32m1(packn);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    float* ptr = bottom_top_blob.channel(q);
+                    // mean and var
+                    vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vsetvlmax_e32m1());
+                    vfloat32m1_t _sqsum = vfmv_v_f_f32m1(0.f, vsetvlmax_e32m1());
+                    for (int i = 0; i < size; i++)
+                    {
+                        vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
+                        _sum = vfadd_vv_f32m1(_p, _sum, vl);
+                        // _sqsum = vfmadd_vv_f32m1(_p,_p,_sqsum,vl);
+                    }
+                    vfloat32m1_t _mean = vfdiv_vf_f32m1(_sum, size, vl);
+                    for (int i = 0; i < size; i++)
+                    {
+                        vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
+                        _p = vfsub_vv_f32m1(_p, _mean, vl);
+                        _sqsum = vfmadd_vv_f32m1(_p, _p, _sqsum, vl);
+                    }
+                    vfloat32m1_t _var = vfdiv_vf_f32m1(_sqsum, size, vl);
+
+                    // the var maybe minus due to accuracy
+                    //float var = sqsum / w - mean * mean;
+                    vfloat32m1_t _a = vfrdiv_vf_f32m1(vfsqrt_v_f32m1(vfadd_vf_f32m1(_var, eps, vl), vl), 1.f, vl);
+                    vfloat32m1_t _b = vfmul_vv_f32m1(vfsgnjn_vv_f32m1(_mean, _mean, vl), _a, vl);
+                    if (affine)
+                    {
+                        for (int i = 0; i < size; i++)
+                        {
+                            const int offset = vl * i;
+                            vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
+                            _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
+                            _p = vfmul_vf_f32m1(_p, gamma_data[i], vl);
+                            _p = vfadd_vf_f32m1(_p, beta_data[i], vl);
+                            vse32_v_f32m1(ptr + offset, _p, vl);
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < size; i++)
+                        {
+                            const int offset = vl * i;
+                            vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
+                            _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
+                            vse32_v_f32m1(ptr + offset, _p, vl);
+                        }
+                    }
+                }
+            }
         }
     }
-}
 
 #else  // __riscv_vector
     return LayerNorm::forward_inplace(bottom_top_blob, opt);
