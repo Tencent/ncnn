@@ -38,8 +38,8 @@ static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int af
 static int test_layernorm_0()
 {
     return 0
-        //    || test_layernorm(RandomMat(6, 4, 2), 6, 0.01f, 0)
-        //    || test_layernorm(RandomMat(4, 5, 6), 4, 0.01f, 0)
+           || test_layernorm(RandomMat(6, 4, 2), 6, 0.01f, 0)
+           || test_layernorm(RandomMat(4, 5, 6), 4, 0.01f, 0)
            || test_layernorm(RandomMat(3, 3, 8), 3, 0.002f, 0)
            || test_layernorm(RandomMat(5, 6, 12), 5, 0.02f, 0)
            || test_layernorm(RandomMat(6, 7, 24), 6, 0.001f, 0)
