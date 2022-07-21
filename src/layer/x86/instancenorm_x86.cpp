@@ -490,7 +490,8 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
     }
     return 0;
 #endif // __SSE2__
+
+    return InstanceNorm::forward_inplace(bottom_top_blob, opt);
 }
 
-return InstanceNorm::forward_inplace(bottom_top_blob, opt);
 } // namespace ncnn
