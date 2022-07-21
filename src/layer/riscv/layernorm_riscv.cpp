@@ -180,7 +180,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     {
         float* ptr = bottom_top_blob;
 
-        return layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine);
+        return layernorm_rvv_pack1_procedure(w * elempack, ptr, gamma_data, beta_data, eps, affine_size, affine);
     }
     if(elempack == 1)
     {
