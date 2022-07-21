@@ -43,11 +43,15 @@ static int test_layernorm_0()
            || test_layernorm(RandomMat(3, 3, 8), 3, 0.002f, 0)
            || test_layernorm(RandomMat(5, 6, 12), 5, 0.02f, 0)
            || test_layernorm(RandomMat(6, 7, 24), 6, 0.001f, 0)
+           || test_layernorm(RandomMat(5, 6, 16), 5, 0.02f, 0)
+           || test_layernorm(RandomMat(6, 7, 32), 6, 0.001f, 0)
            || test_layernorm(RandomMat(6, 4, 2), 6, 0.01f, 1)
            || test_layernorm(RandomMat(4, 5, 6), 4, 0.01f, 1)
            || test_layernorm(RandomMat(3, 3, 8), 3, 0.002f, 1)
            || test_layernorm(RandomMat(5, 6, 12), 5, 0.02f, 1)
-           || test_layernorm(RandomMat(6, 7, 24), 6, 0.001f, 1);
+           || test_layernorm(RandomMat(6, 7, 24), 6, 0.001f, 1)
+           || test_layernorm(RandomMat(5, 6, 16), 5, 0.02f, 1)
+           || test_layernorm(RandomMat(6, 7, 32), 6, 0.001f, 1);
 }
 
 static int test_layernorm_1()
@@ -58,11 +62,15 @@ static int test_layernorm_1()
            || test_layernorm(RandomMat(3, 3, 8), 9, 0.002f, 0)
            || test_layernorm(RandomMat(5, 6, 12), 30, 0.02f, 0)
            || test_layernorm(RandomMat(6, 7, 24), 42, 0.001f, 0)
+           || test_layernorm(RandomMat(5, 6, 16), 30, 0.02f, 0)
+           || test_layernorm(RandomMat(6, 7, 32), 42, 0.001f, 0)
            || test_layernorm(RandomMat(6, 4, 2), 24, 0.01f, 1)
            || test_layernorm(RandomMat(4, 5, 6), 20, 0.01f, 1)
            || test_layernorm(RandomMat(3, 3, 8), 9, 0.002f, 1)
            || test_layernorm(RandomMat(5, 6, 12), 30, 0.02f, 1)
-           || test_layernorm(RandomMat(6, 7, 24), 42, 0.001f, 1);
+           || test_layernorm(RandomMat(6, 7, 24), 42, 0.001f, 1)
+           || test_layernorm(RandomMat(5, 6, 16), 30, 0.02f, 1)
+           || test_layernorm(RandomMat(6, 7, 32), 42, 0.001f, 1);
 }
 
 static int test_layernorm_2()
@@ -73,11 +81,15 @@ static int test_layernorm_2()
            || test_layernorm(RandomMat(3, 8), 3, 0.002f, 0)
            || test_layernorm(RandomMat(6, 12), 6, 0.02f, 0)
            || test_layernorm(RandomMat(7, 24), 7, 0.001f, 0)
+           || test_layernorm(RandomMat(6, 16), 6, 0.02f, 0)
+           || test_layernorm(RandomMat(7, 32), 7, 0.001f, 0)
            || test_layernorm(RandomMat(4, 2), 4, 0.01f, 1)
            || test_layernorm(RandomMat(5, 6), 5, 0.01f, 1)
            || test_layernorm(RandomMat(3, 8), 3, 0.002f, 1)
            || test_layernorm(RandomMat(6, 12), 6, 0.02f, 1)
-           || test_layernorm(RandomMat(7, 24), 7, 0.001f, 1);
+           || test_layernorm(RandomMat(7, 24), 7, 0.001f, 1)
+           || test_layernorm(RandomMat(6, 16), 6, 0.02f, 1)
+           || test_layernorm(RandomMat(7, 32), 7, 0.001f, 1);
 }
 
 static int test_layernorm_3()
@@ -88,11 +100,15 @@ static int test_layernorm_3()
            || test_layernorm(RandomMat(8), 8, 0.002f, 0)
            || test_layernorm(RandomMat(12), 12, 0.02f, 0)
            || test_layernorm(RandomMat(24), 24, 0.001f, 0)
+           || test_layernorm(RandomMat(16), 16, 0.02f, 0)
+           || test_layernorm(RandomMat(32), 32, 0.001f, 0)
            || test_layernorm(RandomMat(2), 2, 0.01f, 1)
            || test_layernorm(RandomMat(6), 6, 0.01f, 1)
            || test_layernorm(RandomMat(8), 8, 0.002f, 1)
            || test_layernorm(RandomMat(12), 12, 0.02f, 1)
-           || test_layernorm(RandomMat(24), 24, 0.001f, 1);
+           || test_layernorm(RandomMat(24), 24, 0.001f, 1)
+           || test_layernorm(RandomMat(16), 16, 0.001f, 1)
+           || test_layernorm(RandomMat(32), 32, 0.001f, 1);
 }
 
 int main()
