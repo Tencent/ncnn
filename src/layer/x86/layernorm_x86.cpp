@@ -161,7 +161,7 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float a, float b, int elemco
     }
 }
 
-static void fast_mean_packed(float* ptr, float* mean, int elempack, int elemcount, int size)
+static NCNN_FORCEINLINE void fast_mean_packed(float* ptr, float* mean, int elempack, int elemcount, int size)
 {
     int i = 0;
     if (elempack == 4)
@@ -178,6 +178,7 @@ static void fast_mean_packed(float* ptr, float* mean, int elempack, int elemcoun
     }
     else if (elempack == 8)
     {
+#if __AVX__
         __m256 _sum = _mm256_setzero_ps();
         __m256 _elemcount = _mm256_set1_ps(float(elemcount));
         for (; i < size; i += 8, ptr += 8)
@@ -187,9 +188,11 @@ static void fast_mean_packed(float* ptr, float* mean, int elempack, int elemcoun
         }
         __m256 _mean = _mm256_div_ps(_sum, _elemcount);
         _mm256_storeu_ps(mean, _mean);
+#endif
     }
     else if (elempack == 16)
     {
+#if __AVX512F__
         __m512 _sum = _mm512_setzero_ps();
         __m512 _elemcount = _mm512_set1_ps(float(elemcount));
         for (; i < size; i += 16, ptr += 16)
@@ -199,10 +202,11 @@ static void fast_mean_packed(float* ptr, float* mean, int elempack, int elemcoun
         }
         __m512 _mean = _mm512_div_ps(_sum, _elemcount);
         _mm512_storeu_ps(mean, _mean);
+#endif
     }
 }
 
-static void fast_var_packed(float* ptr, float* var, float* mean, int elempack, int elemcount, int size)
+static NCNN_FORCEINLINE void fast_var_packed(float* ptr, float* var, float* mean, int elempack, int elemcount, int size)
 {
     int i = 0;
     if (elempack == 4)
@@ -222,6 +226,7 @@ static void fast_var_packed(float* ptr, float* var, float* mean, int elempack, i
     }
     else if (elempack == 8)
     {
+#if __AVX__
         __m256 _mean = _mm256_loadu_ps(mean);
         __m256 _sq_sum = _mm256_setzero_ps();
         __m256 _elemcount = _mm256_set1_ps(float(elemcount));
@@ -234,9 +239,11 @@ static void fast_var_packed(float* ptr, float* var, float* mean, int elempack, i
         }
         __m256 _var = _mm256_div_ps(_sq_sum, _elemcount);
         _mm256_storeu_ps(var, _var);
+#endif
     }
     else if (elempack == 16)
     {
+#if __AVX512F__
         __m512 _mean = _mm512_loadu_ps(mean);
         __m512 _sq_sum = _mm512_setzero_ps();
         __m512 _elemcount = _mm512_set1_ps(float(elemcount));
@@ -249,10 +256,11 @@ static void fast_var_packed(float* ptr, float* var, float* mean, int elempack, i
         }
         __m512 _var = _mm512_div_ps(_sq_sum, _elemcount);
         _mm512_storeu_ps(var, _var);
+#endif
     }
 }
 
-static void fast_fmadd_packed(float* ptr, float* a, float* b, int elempack, int size)
+static NCNN_FORCEINLINE void fast_fmadd_packed(float* ptr, float* a, float* b, int elempack, int size)
 {
     int i = 0;
     if (elempack == 4)
@@ -269,6 +277,7 @@ static void fast_fmadd_packed(float* ptr, float* a, float* b, int elempack, int 
     }
     else if (elempack == 8)
     {
+#if __AVX__
         __m256 _a = _mm256_loadu_ps(a);
         __m256 _b = _mm256_loadu_ps(b);
         for (; i < size; i += 8, ptr += 8)
@@ -282,9 +291,11 @@ static void fast_fmadd_packed(float* ptr, float* a, float* b, int elempack, int 
 #endif
             _mm256_storeu_ps(ptr, _cur);
         }
+#endif
     }
     else if (elempack == 16)
     {
+#if __AVX512F__
         __m512 _a = _mm512_loadu_ps(a);
         __m512 _b = _mm512_loadu_ps(b);
         for (; i < size; i += 16, ptr += 16)
@@ -293,6 +304,7 @@ static void fast_fmadd_packed(float* ptr, float* a, float* b, int elempack, int 
             _cur = _mm512_fmadd_ps(_cur, _a, _b);
             _mm512_storeu_ps(ptr, _cur);
         }
+#endif
     }
 }
 
@@ -371,7 +383,7 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float a, float
     }
 }
 
-void LayerNorm_x86::fast_fmadd_fmadd_packed(float* ptr, float* a, float* b, int elempack, int size) const
+void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd_packed(float* ptr, float* a, float* b, int elempack, int size) const
 {
     int i = 0;
     auto gamma = static_cast<const float*>(gamma_data);
@@ -394,9 +406,10 @@ void LayerNorm_x86::fast_fmadd_fmadd_packed(float* ptr, float* a, float* b, int 
     }
     else if (elempack == 8)
     {
+#if __AVX__
         __m256 _a = _mm256_loadu_ps(a);
         __m256 _b = _mm256_loadu_ps(b);
-        for (; i < size; i += 8, ptr += 8, ++gamma,++beta)
+        for (; i < size; i += 8, ptr += 8, ++gamma, ++beta)
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
             __m256 _gamma = _mm256_set1_ps(*gamma);
@@ -412,12 +425,14 @@ void LayerNorm_x86::fast_fmadd_fmadd_packed(float* ptr, float* a, float* b, int 
 #endif
             _mm256_storeu_ps(ptr, _cur);
         }
+#endif
     }
     else if (elempack == 16)
     {
+#if __AVX512F__
         __m512 _a = _mm512_loadu_ps(a);
         __m512 _b = _mm512_loadu_ps(b);
-        for (; i < size; i += 16, ptr += 16, ++gamma,++beta)
+        for (; i < size; i += 16, ptr += 16, ++gamma, ++beta)
         {
             __m512 _cur = _mm512_loadu_ps(ptr);
             __m512 _gamma = _mm512_set1_ps(*gamma);
@@ -426,6 +441,7 @@ void LayerNorm_x86::fast_fmadd_fmadd_packed(float* ptr, float* a, float* b, int 
             _cur = _mm512_fmadd_ps(_cur, _gamma, _beta);
             _mm512_storeu_ps(ptr, _cur);
         }
+#endif
     }
 }
 
@@ -448,7 +464,7 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm(float* ptr, int elemcoun
     }
 }
 
-void LayerNorm_x86::fast_1d_layer_norm_packed(float* ptr, int elempack, int elemcount, int size) const
+void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm_packed(float* ptr, int elempack, int elemcount, int size) const
 {
     float mean[16], var[16];
     fast_mean_packed(ptr, mean, elempack, elemcount, size);
@@ -473,6 +489,7 @@ void LayerNorm_x86::fast_1d_layer_norm_packed(float* ptr, int elempack, int elem
     }
     else if (elempack == 8)
     {
+#if __AVX__
         __m256 _a = _mm256_set1_ps(1.0f);
         __m256 _eps = _mm256_set1_ps(eps);
         __m256 _b = _mm256_setzero_ps();
@@ -490,9 +507,11 @@ void LayerNorm_x86::fast_1d_layer_norm_packed(float* ptr, int elempack, int elem
 #endif
         _mm256_storeu_ps(a, _a);
         _mm256_storeu_ps(b, _b);
+#endif
     }
     else if (elempack == 16)
     {
+#if __AVX512F__
         __m512 _a = _mm512_set1_ps(1.0f);
         __m512 _eps = _mm512_set1_ps(eps);
         __m512 _b = _mm512_setzero_ps();
@@ -505,6 +524,7 @@ void LayerNorm_x86::fast_1d_layer_norm_packed(float* ptr, int elempack, int elem
 
         _mm512_storeu_ps(a, _a);
         _mm512_storeu_ps(b, _b);
+#endif
     }
 
     if (affine)
@@ -576,7 +596,7 @@ int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_unpacked(Mat& bottom_top_blo
     return 0;
 }
 
-int LayerNorm_x86::forward_inplace_packed(Mat& bottom_top_blob, const Option& opt) const
+int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_packed(Mat& bottom_top_blob, const Option& opt) const
 {
     int elempack = bottom_top_blob.elempack;
     int w = bottom_top_blob.w;
