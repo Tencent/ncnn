@@ -148,7 +148,7 @@ static inline int layernorm_rvv_packn_procedure(int w, float* ptr, const float* 
             vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
             _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
             _p = vfmul_vf_f32m1(_p, gamma_data[i], vl);
-            _p = vfadd_vf_f32m1(_p, beta_data[i])
+            _p = vfadd_vf_f32m1(_p, beta_data[i], vl);
                  vse32_v_f32m1(ptr + offset, _p, vl);
         }
     }
@@ -375,7 +375,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                             _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
                             _p = vfmul_vf_f32m1(_p, gamma_data[i], vl);
                             _p = vfadd_vf_f32m1(_p, beta_data[i], vl);
-                                 vse32_v_f32m1(ptr + offset, _p, vl);
+                            vse32_v_f32m1(ptr + offset, _p, vl);
                         }
                     }
                     else
