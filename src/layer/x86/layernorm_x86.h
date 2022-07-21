@@ -31,4 +31,3 @@ public:
 } // namespace ncnn
 
 #endif // LAYER_LAYERNORM_X86_H
-

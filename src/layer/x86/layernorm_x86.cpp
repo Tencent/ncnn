@@ -1366,4 +1366,3 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 }
 
 } // namespace ncnn
-
