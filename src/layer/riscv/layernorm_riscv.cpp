@@ -28,7 +28,7 @@ namespace ncnn {
 LayerNorm_riscv::LayerNorm_riscv()
 {
 #if __riscv_vector
-    support_packing = true;
+    // support_packing = true;
 #endif
 }
 
@@ -318,6 +318,8 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
                                 n -= vl;
                                 ptr_store += vl;
+                                ptr_gamma += vl;
+                                ptr_beta += vl;
                             }
                         }
                         else
