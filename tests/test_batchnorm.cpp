@@ -52,7 +52,9 @@ static int test_batchnorm_0()
            || test_batchnorm(RandomMat(7, 8, 9, 12), 0.f)
            || test_batchnorm(RandomMat(7, 8, 9, 12), 0.001f)
            || test_batchnorm(RandomMat(3, 4, 5, 13), 0.f)
-           || test_batchnorm(RandomMat(3, 4, 5, 13), 0.001f);
+           || test_batchnorm(RandomMat(3, 4, 5, 13), 0.f)
+           || test_batchnorm(RandomMat(3, 4, 6, 32), 0.f)
+           || test_batchnorm(RandomMat(3, 4, 5, 32), 0.001f);
 }
 
 static int test_batchnorm_1()
@@ -63,7 +65,9 @@ static int test_batchnorm_1()
            || test_batchnorm(RandomMat(7, 9, 12), 0.f)
            || test_batchnorm(RandomMat(7, 9, 12), 0.001f)
            || test_batchnorm(RandomMat(3, 5, 13), 0.f)
-           || test_batchnorm(RandomMat(3, 5, 13), 0.001f);
+           || test_batchnorm(RandomMat(3, 5, 13), 0.001f)
+           || test_batchnorm(RandomMat(3, 5, 16), 0.001f)
+           || test_batchnorm(RandomMat(3, 5, 32), 0.001f);
 }
 
 static int test_batchnorm_2()
@@ -74,7 +78,9 @@ static int test_batchnorm_2()
            || test_batchnorm(RandomMat(17, 12), 0.f)
            || test_batchnorm(RandomMat(17, 12), 0.001f)
            || test_batchnorm(RandomMat(19, 15), 0.f)
-           || test_batchnorm(RandomMat(19, 15), 0.001f);
+           || test_batchnorm(RandomMat(19, 15), 0.001f)
+           || test_batchnorm(RandomMat(128, 16), 0.f)
+           || test_batchnorm(RandomMat(16, 128), 0.001f);
 }
 
 static int test_batchnorm_3()
