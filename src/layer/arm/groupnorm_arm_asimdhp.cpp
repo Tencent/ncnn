@@ -44,7 +44,7 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             float32x4_t _sum0 = vdupq_n_f32(0.f);
             float32x4_t _sum1 = vdupq_n_f32(0.f);
             float32x4_t _sqsum0 = vdupq_n_f32(0.f);
-            float32x4_t _sqsum1 = vdupq_n_f32(0.f);     
+            float32x4_t _sqsum1 = vdupq_n_f32(0.f);
 
             for (int q = 0; q < channels_per_group; q++)
             {
@@ -79,7 +79,7 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             }
             float32x4_t _var_eps0 = vfmaq_f32(_eps, _sqsum0, _div_size);
             float32x4_t _var_eps1 = vfmaq_f32(_eps, _sqsum1, _div_size);
-                
+
             float32x4_t _reciprocal0 = vrsqrteq_f32(_var_eps0);
             float32x4_t _reciprocal1 = vrsqrteq_f32(_var_eps1);
             _reciprocal0 = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_var_eps0, _reciprocal0), _reciprocal0), _reciprocal0);
@@ -157,14 +157,14 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
                 }
             }
             float32x4_t _mean = vmulq_f32(_sum, _div_size);
-            
+
             for (int q = 0; q < channels_per_group; q++)
             {
                 const __fp16* ptr = bottom_top_blob_g.channel(q);
                 for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
-                    float32x4_t _tmp = vsubq_f32(_p,_mean);
+                    float32x4_t _tmp = vsubq_f32(_p, _mean);
                     _sqsum = vfmaq_f32(_sqsum, _tmp, _tmp);
                     ptr += 4;
                 }
@@ -221,7 +221,7 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             int i = 0;
 #if __ARM_NEON
             float32x4_t _sum = vdupq_n_f32(0.f);
-            for(; i + 3 < size; i += 4)
+            for (; i + 3 < size; i += 4)
             {
                 float32x4_t _p = vcvt_f32_f16(vld1_f16(ptr));
                 _sum = vaddq_f32(_sum, _p);
@@ -229,13 +229,13 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
             }
             sum = vaddvq_f32(_sum);
 #endif // __ARM_NEON
-            for(; i < size; i++)
+            for (; i < size; i++)
             {
                 sum += *ptr++;
             }
         }
 
-        float mean = sum / (channels_per_group * size); 
+        float mean = sum / (channels_per_group * size);
 
         for (int q = 0; q < channels_per_group; q++)
         {
