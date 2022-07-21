@@ -182,14 +182,13 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
         return layernorm_rvv_pack1_procedure(w * elempack, ptr, gamma_data, beta_data, eps, affine_size, affine);
     }
-
-    if (dims == 2)
+    if (elempack == 1)
     {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        // assert affine_size == w
-        if (elempack == 1)
+        if (dims == 2)
         {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            // assert affine_size == w
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
@@ -197,27 +196,14 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine);
             }
         }
-        if (elempack == packn)
-        {
-            const word_type vl = vsetvl_e32m1(packn);
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int i = 0; i < h; i++)
-            {
-                float* ptr = bottom_top_blob.row(i);
-                layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
-            }
-        }
-    }
-    if (dims == 3)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int channels = bottom_top_blob.c;
-        int size = w * h;
 
-        if (affine_size == w)
+        if (dims == 3)
         {
-            if (elempack == 1)
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            int channels = bottom_top_blob.c;
+            int size = w * h;
+            if (affine_size == w)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
@@ -230,24 +216,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     }
                 }
             }
-            if (elempack == packn)
-            {
-                const word_type vl = vsetvl_e32m1(packn);
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    for (int i = 0; i < h; i++)
-                    {
-                        float* ptr = bottom_top_blob.channel(q).row(i);
-
-                        layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
-                    }
-                }
-            }
-        }
-        else // if (affine_size == size)
-        {
-            if (elempack == 1)
+            else // if (affine_size == size)
             {
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
@@ -337,7 +306,47 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     }
                 }
             }
-            if (elempack == packn)
+        }
+    }
+
+    if (elempack == packn)
+    {
+        if (dims == 2)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            // assert affine_size == w
+
+            const word_type vl = vsetvl_e32m1(packn);
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                float* ptr = bottom_top_blob.row(i);
+                layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
+            }
+        }
+        if (dims == 3)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            int channels = bottom_top_blob.c;
+            int size = w * h;
+
+            if (affine_size == w)
+            {
+                const word_type vl = vsetvl_e32m1(packn);
+                #pragma omp parallel for num_threads(opt.num_threads)
+                for (int q = 0; q < channels; q++)
+                {
+                    for (int i = 0; i < h; i++)
+                    {
+                        float* ptr = bottom_top_blob.channel(q).row(i);
+
+                        layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
+                    }
+                }
+            }
+            else // if (affine_size == size)
             {
                 const word_type vl = vsetvl_e32m1(packn);
                 #pragma omp parallel for num_threads(opt.num_threads)
