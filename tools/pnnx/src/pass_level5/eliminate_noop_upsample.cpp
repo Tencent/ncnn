@@ -66,6 +66,16 @@ void eliminate_noop_upsample(Graph& graph)
             if (!op->inputs[0]->shape.empty() && op->inputs[0]->shape == op->outputs[0]->shape)
             {
                 matched = true;
+
+                // dynamic shape comparison always fail
+                for (auto s : op->inputs[0]->shape)
+                {
+                    if (s == -1)
+                    {
+                        matched = false;
+                        break;
+                    }
+                }
             }
 
             // delete noop-like upsample
