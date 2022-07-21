@@ -107,7 +107,7 @@ static NCNN_FORCEINLINE float fast_var(float* ptr, int size, float mean)
     return sq_sum / size;
 }
 
-static void fast_fmadd(float* ptr, float a, float b, int size)
+static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float a, float b, int size)
 {
     int i = 0;
 #if __SSE2__
@@ -165,11 +165,11 @@ namespace ncnn {
 LayerNorm_x86::LayerNorm_x86()
 {
 #if __SSE2__
-    support_packing = false;
+    support_packing = true;
 #endif // __SSE2__
 }
 
-void LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float a, float b, int size) const
+void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float a, float b, int size) const
 {
     int i = 0;
     auto gamma = static_cast<const float*>(gamma_data);
@@ -235,7 +235,7 @@ void LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float a, float b, int size) con
     }
 }
 
-void LayerNorm_x86::fast_1d_layer_norm(float* ptr, int size) const
+void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm(float* ptr, int size) const
 {
     // mean and var
     float sum = fast_sum(ptr, size);
@@ -255,13 +255,13 @@ void LayerNorm_x86::fast_1d_layer_norm(float* ptr, int size) const
     }
 }
 
-int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_unpacked(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
 
     if (dims == 1)
     {
-        int size = bottom_top_blob.w * bottom_top_blob.elempack;
+        int size = bottom_top_blob.w;
         float* ptr = bottom_top_blob;
         fast_1d_layer_norm(ptr, size);
     }
@@ -270,12 +270,12 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
-
+        int size = w;
 #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; ++i)
         {
             float* ptr = bottom_top_blob.row(i);
-            int size = w * bottom_top_blob.elempack;
+
             fast_1d_layer_norm(ptr, size);
         }
     }
@@ -285,12 +285,12 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
         int channels = bottom_top_blob.c;
-        int size = w * h * bottom_top_blob.elempack;
+        int size = w * h;
 
         if (affine_size == w)
         {
-            size = w * bottom_top_blob.elempack;
-            // #pragma omp parallel for num_threads(opt.num_threads)
+            size = w;
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 for (int i = 0; i < h; i++)
@@ -302,7 +302,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         }
         else // if (affine_size == size)
         {
-            // #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -312,6 +312,19 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
 
     return 0;
+}
+
+int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
+{
+    if (bottom_top_blob.elempack == 1)
+    {
+        return forward_inplace_unpacked(bottom_top_blob, opt);
+    }
+    else
+    {
+        fprintf(stderr, "Packed forward not implemented!\n");
+        return -1;
+    }
 }
 
 } // namespace ncnn
