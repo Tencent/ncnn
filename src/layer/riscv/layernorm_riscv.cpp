@@ -33,7 +33,7 @@ LayerNorm_riscv::LayerNorm_riscv()
 }
 
 #if __riscv_vector
-static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine_size, int affine)
+static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine)
 {
     float sum = 0.f;
     float sqsum = 0.f;
@@ -47,7 +47,7 @@ static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* 
             word_type vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr_sum, vl);
             _sum = vfredusum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
-            // _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
+            // _sqsum = vfredusum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
             ptr_sum += vl;
             n -= vl;
         }
@@ -63,7 +63,7 @@ static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* 
             word_type vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr_sqsum, vl);
             _p = vfsub_vf_f32m8(_p, mean, vl);
-            _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
+            _sqsum = vfredusum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
             n -= vl;
             ptr_sqsum += vl;
         }
@@ -116,7 +116,7 @@ static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* 
     return 0;
 }
 
-static inline int layernorm_rvv_packn_procedure(int w, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine_size, int affine, const word_type vl)
+static inline int layernorm_rvv_packn_procedure(int w, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const word_type vl)
 {
     // mean and var
     vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
@@ -180,7 +180,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
     {
         float* ptr = bottom_top_blob;
 
-        return layernorm_rvv_pack1_procedure(w * elempack, ptr, gamma_data, beta_data, eps, affine_size, affine);
+        return layernorm_rvv_pack1_procedure(w * elempack, ptr, gamma_data, beta_data, eps, affine);
     }
     if (elempack == 1)
     {
@@ -193,7 +193,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             for (int i = 0; i < h; i++)
             {
                 float* ptr = bottom_top_blob.row(i);
-                layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine);
+                layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine);
             }
         }
 
@@ -212,7 +212,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     {
                         float* ptr = bottom_top_blob.channel(q).row(i);
 
-                        layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine);
+                        layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine);
                     }
                 }
             }
@@ -222,88 +222,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
-
-                    // mean and var
-                    float sum = 0.f;
-                    float sqsum = 0.f;
-                    vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
-                    vfloat32m1_t _sqsum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
-                    {
-                        int n = size;
-                        float* ptr_sum = ptr;
-                        while (n > 0)
-                        {
-                            word_type vl = vsetvl_e32m8(n);
-                            vfloat32m8_t _p = vle32_v_f32m8(ptr_sum, vl);
-                            _sum = vfredosum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
-                            // _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
-                            ptr_sum += vl;
-                            n -= vl;
-                        }
-                    }
-                    sum = vfmv_f_s_f32m1_f32(_sum);
-
-                    float mean = sum / size;
-                    {
-                        int n = size;
-                        float* ptr_sqsum = ptr;
-                        while (n > 0)
-                        {
-                            word_type vl = vsetvl_e32m8(n);
-                            vfloat32m8_t _p = vle32_v_f32m8(ptr_sqsum, vl);
-                            _p = vfsub_vf_f32m8(_p, mean, vl);
-                            _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
-                            n -= vl;
-                            ptr_sqsum += vl;
-                        }
-                    }
-                    sqsum = vfmv_f_s_f32m1_f32(_sqsum);
-
-                    float var = sqsum / size;
-                    // the var maybe minus due to accuracy
-                    //float var = sqsum / size - mean * mean;
-
-                    float a = static_cast<float>(1.f / (sqrt(var + eps)));
-                    float b = -mean * a;
-
-                    {
-                        int n = size;
-                        float* ptr_store = ptr;
-                        const float* ptr_gamma = gamma_data;
-                        const float* ptr_beta = beta_data;
-                        if (affine)
-                        {
-                            while (n > 0)
-                            {
-                                word_type vl = vsetvl_e32m8(n);
-                                vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
-                                _p = vfmul_vf_f32m8(_p, a, vl);
-                                vfloat32m8_t _gamma = vle32_v_f32m8(ptr_gamma, vl);
-                                _p = vfadd_vf_f32m8(_p, b, vl);
-                                vfloat32m8_t _beta = vle32_v_f32m8(ptr_beta, vl);
-                                _p = vfmadd_vv_f32m8(_p, _gamma, _beta, vl);
-                                vse32_v_f32m8(ptr_store, _p, vl);
-
-                                n -= vl;
-                                ptr_store += vl;
-                                ptr_gamma += vl;
-                                ptr_beta += vl;
-                            }
-                        }
-                        else
-                        {
-                            while (n > 0)
-                            {
-                                word_type vl = vsetvl_e32m8(n);
-                                vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
-                                _p = vfmul_vf_f32m8(_p, a, vl);
-                                _p = vfadd_vf_f32m8(_p, b, vl);
-                                vse32_v_f32m8(ptr_store, _p, vl);
-                                n -= vl;
-                                ptr_store += vl;
-                            }
-                        }
-                    }
+                    layernorm_rvv_pack1_procedure(size, ptr, gamma_data, beta_data, eps, affine);
                 }
             }
         }
@@ -311,18 +230,18 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
     if (elempack == packn)
     {
+        const word_type vl = vsetvl_e32m1(packn);
         if (dims == 2)
         {
             int w = bottom_top_blob.w;
             int h = bottom_top_blob.h;
             // assert affine_size == w
 
-            const word_type vl = vsetvl_e32m1(packn);
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
                 float* ptr = bottom_top_blob.row(i);
-                layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
+                layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine, vl);
             }
         }
         if (dims == 3)
@@ -334,7 +253,6 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
             if (affine_size == w)
             {
-                const word_type vl = vsetvl_e32m1(packn);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -342,61 +260,17 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     {
                         float* ptr = bottom_top_blob.channel(q).row(i);
 
-                        layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine_size, affine, vl);
+                        layernorm_rvv_packn_procedure(w, ptr, gamma_data, beta_data, eps, affine, vl);
                     }
                 }
             }
             else // if (affine_size == size)
             {
-                const word_type vl = vsetvl_e32m1(packn);
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
-                    // mean and var
-                    vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vsetvlmax_e32m1());
-                    vfloat32m1_t _sqsum = vfmv_v_f_f32m1(0.f, vsetvlmax_e32m1());
-                    for (int i = 0; i < size; i++)
-                    {
-                        vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
-                        _sum = vfadd_vv_f32m1(_p, _sum, vl);
-                        // _sqsum = vfmadd_vv_f32m1(_p,_p,_sqsum,vl);
-                    }
-                    vfloat32m1_t _mean = vfdiv_vf_f32m1(_sum, size, vl);
-                    for (int i = 0; i < size; i++)
-                    {
-                        vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
-                        _p = vfsub_vv_f32m1(_p, _mean, vl);
-                        _sqsum = vfmadd_vv_f32m1(_p, _p, _sqsum, vl);
-                    }
-                    vfloat32m1_t _var = vfdiv_vf_f32m1(_sqsum, size, vl);
-
-                    // the var maybe minus due to accuracy
-                    //float var = sqsum / w - mean * mean;
-                    vfloat32m1_t _a = vfrdiv_vf_f32m1(vfsqrt_v_f32m1(vfadd_vf_f32m1(_var, eps, vl), vl), 1.f, vl);
-                    vfloat32m1_t _b = vfmul_vv_f32m1(vfsgnjn_vv_f32m1(_mean, _mean, vl), _a, vl);
-                    if (affine)
-                    {
-                        for (int i = 0; i < size; i++)
-                        {
-                            const int offset = vl * i;
-                            vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
-                            _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
-                            _p = vfmul_vf_f32m1(_p, gamma_data[i], vl);
-                            _p = vfadd_vf_f32m1(_p, beta_data[i], vl);
-                            vse32_v_f32m1(ptr + offset, _p, vl);
-                        }
-                    }
-                    else
-                    {
-                        for (int i = 0; i < size; i++)
-                        {
-                            const int offset = vl * i;
-                            vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
-                            _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
-                            vse32_v_f32m1(ptr + offset, _p, vl);
-                        }
-                    }
+                    layernorm_rvv_packn_procedure(size, ptr, gamma_data, beta_data, eps, affine, vl);
                 }
             }
         }
