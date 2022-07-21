@@ -950,7 +950,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
 #endif // __SSE2__
 
-    if (dims != 4)
+    if (dims != 3)
         return LayerNorm::forward_inplace(bottom_top_blob, opt);
 
 #if __SSE2__
@@ -1361,8 +1361,9 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         }
     }
 
-#endif // __SSE2__
     return 0;
+#endif // __SSE2__
+    return LayerNorm::forward_inplace(bottom_top_blob, opt);
 }
 
 } // namespace ncnn
