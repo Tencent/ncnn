@@ -1186,7 +1186,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int j = 0; j < ww; j++)
                 {
-                    _fLoad = _mm_load_ps(ptr + (j * 4));
+                    _fLoad = _mm_loadu_ps(ptr + (j * 4));
                     _fsum = _mm_add_ps(_fsum, _fLoad);
                 }
 
@@ -1204,6 +1204,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 for (int j = 0; j < ww; j++)
                 {
+                    _fLoad = _mm_loadu_ps(ptr + (j * 4));
                     _fLoad = _mm_sub_ps(_fLoad, _mean);
                     _fLoad = _mm_mul_ps(_fLoad, _fLoad);
                     _fsqsum = _mm_add_ps(_fsqsum, _fLoad);
@@ -1229,16 +1230,16 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int j = 0; j < ww; j++)
                     {
-                        _fLoad = _mm_load_ps(ptr + (j * 4));
+                        _fLoad = _mm_loadu_ps(ptr + (j * 4));
                         _fLoad = _mm_mul_ps(_fLoad, _a);
                         _fLoad = _mm_add_ps(_fLoad, _b);
 
-                        _gamma = _mm_load_ps((const float*)gamma_data + (j * 4));
-                        _beta = _mm_load_ps((const float*)beta_data + (j * 4));
+                        _gamma = _mm_loadu_ps((const float*)gamma_data + (j * 4));
+                        _beta = _mm_loadu_ps((const float*)beta_data + (j * 4));
                         _fLoad = _mm_mul_ps(_fLoad, _gamma);
                         _fLoad = _mm_add_ps(_fLoad, _beta);
 
-                        _mm_store_ps(ptr + (j * 4), _fLoad);
+                        _mm_storeu_ps(ptr + (j * 4), _fLoad);
                     }
 
                     for (int j = remainw; j < w; j++)
@@ -1250,10 +1251,10 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 {
                     for (int j = 0; j < ww; j++)
                     {
-                        _fLoad = _mm_load_ps(ptr + (j * 4));
+                        _fLoad = _mm_loadu_ps(ptr + (j * 4));
                         _fLoad = _mm_mul_ps(_fLoad, _a);
                         _fLoad = _mm_add_ps(_fLoad, _b);
-                        _mm_store_ps(ptr + (j * 4), _fLoad);
+                        _mm_storeu_ps(ptr + (j * 4), _fLoad);
                     }
                     for (int j = remainw; j < w; j++)
                     {
@@ -1283,7 +1284,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             for (int i = 0; i < ssize; i++)
             {
-                _fLoad = _mm_load_ps(ptr + (i * 4));
+                _fLoad = _mm_loadu_ps(ptr + (i * 4));
                 _fsum = _mm_add_ps(_fsum, _fLoad);
             }
 
@@ -1301,7 +1302,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             for (int i = 0; i < ssize; i++)
             {
-                _fLoad = _mm_load_ps(ptr + (i * 4));
+                _fLoad = _mm_loadu_ps(ptr + (i * 4));
                 _fLoad = _mm_sub_ps(_fLoad, _mean);
                 _fLoad = _mm_mul_ps(_fLoad, _fLoad);
                 _fsqsum = _mm_add_ps(_fsqsum, _fLoad);
@@ -1328,16 +1329,16 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             {
                 for (int i = 0; i < ssize; i++)
                 {
-                    _fLoad = _mm_load_ps(ptr + (i * 4));
+                    _fLoad = _mm_loadu_ps(ptr + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
 
-                    _gamma = _mm_load_ps((const float*)gamma_data + (i * 4));
-                    _beta = _mm_load_ps((const float*)beta_data + (i * 4));
+                    _gamma = _mm_loadu_ps((const float*)gamma_data + (i * 4));
+                    _beta = _mm_loadu_ps((const float*)beta_data + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _gamma);
                     _fLoad = _mm_add_ps(_fLoad, _beta);
 
-                    _mm_store_ps(ptr + (i * 4), _fLoad);
+                    _mm_storeu_ps(ptr + (i * 4), _fLoad);
                 }
                 for (int i = remainsize; i < size; i++)
                 {
@@ -1346,12 +1347,12 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             }
             else
             {
-                for (int i = 0; i < size; i++)
+                for (int i = 0; i < ssize; i++)
                 {
-                    _fLoad = _mm_load_ps(ptr + (i * 4));
+                    _fLoad = _mm_loadu_ps(ptr + (i * 4));
                     _fLoad = _mm_mul_ps(_fLoad, _a);
                     _fLoad = _mm_add_ps(_fLoad, _b);
-                    _mm_store_ps(ptr + (i * 4), _fLoad);
+                    _mm_storeu_ps(ptr + (i * 4), _fLoad);
                 }
                 for (int i = remainsize; i < size; i++)
                 {
@@ -1360,7 +1361,6 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             }
         }
     }
-
     return 0;
 #endif // __SSE2__
     return LayerNorm::forward_inplace(bottom_top_blob, opt);
