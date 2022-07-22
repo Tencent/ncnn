@@ -10,7 +10,7 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-static NCNN_FORCEINLINE void fast_mean_packed(float* ptr, float* mean, int elempack, int elemcount, int size)
+static NCNN_FORCEINLINE void fast_mean(float* ptr, float* mean, int elempack, int elemcount, int size)
 {
     int i = 0;
 
@@ -101,7 +101,7 @@ static NCNN_FORCEINLINE void fast_mean_packed(float* ptr, float* mean, int elemp
     }
 }
 
-static NCNN_FORCEINLINE void fast_var_packed(float* ptr, float* var, float* mean, int elempack, int elemcount, int size)
+static NCNN_FORCEINLINE void fast_var(float* ptr, float* var, float* mean, int elempack, int elemcount, int size)
 {
     int i = 0;
 #if __SSE2__
@@ -207,7 +207,7 @@ static NCNN_FORCEINLINE void fast_var_packed(float* ptr, float* var, float* mean
     }
 }
 
-static NCNN_FORCEINLINE void fast_fmadd_packed(float* ptr, float* a, float* b, int elempack, int elemcount, int size)
+static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elempack, int elemcount, int size)
 {
     int i = 0;
 
@@ -418,8 +418,8 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float* a, floa
 void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm(float* ptr, int elempack, int elemcount, int size) const
 {
     float mean[16], var[16];
-    fast_mean_packed(ptr, mean, elempack, elemcount, size);
-    fast_var_packed(ptr, var, mean, elempack, elemcount, size);
+    fast_mean(ptr, mean, elempack, elemcount, size);
+    fast_var(ptr, var, mean, elempack, elemcount, size);
     float *a = var, *b = mean;
 
 #if __SSE2__
@@ -484,7 +484,7 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm(float* ptr, int elempack
     }
     else
     {
-        fast_fmadd_packed(ptr, a, b, elempack, elemcount, size);
+        fast_fmadd(ptr, a, b, elempack, elemcount, size);
     }
 }
 
