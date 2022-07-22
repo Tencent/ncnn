@@ -46,6 +46,15 @@ Mat ModelBin::load(int w, int h, int c, int type) const
     return m.reshape(w, h, c);
 }
 
+Mat ModelBin::load(int w, int h, int d, int c, int type) const
+{
+    Mat m = load(w * h * d * c, type);
+    if (m.empty())
+        return m;
+
+    return m.reshape(w, h, d, c);
+}
+
 class ModelBinFromDataReaderPrivate
 {
 public:
