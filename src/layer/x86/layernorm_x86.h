@@ -13,13 +13,8 @@ public:
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
 protected:
-    NCNN_FORCEINLINE void fast_1d_layer_norm(float* ptr, int elemcount) const;
-    NCNN_FORCEINLINE void fast_1d_layer_norm_packed(float* ptr, int elempack, int elemcount, int size) const;
-    NCNN_FORCEINLINE void fast_fmadd_fmadd(float* ptr, float a, float b, int elemcount) const;
-    NCNN_FORCEINLINE void fast_fmadd_fmadd_packed(float* ptr, float* a, float* b, int elempack, int size) const;
-
-    NCNN_FORCEINLINE int forward_inplace_unpacked(Mat& bottom_top_blob, const Option& opt) const;
-    NCNN_FORCEINLINE int forward_inplace_packed(Mat& bottom_top_blob, const Option& opt) const;
+    NCNN_FORCEINLINE void fast_1d_layer_norm(float* ptr, int elempack, int elemcount, int size) const;
+    NCNN_FORCEINLINE void fast_fmadd_fmadd(float* ptr, float* a, float* b, int elempack, int elemcount, int size) const;
 };
 
 } // namespace ncnn
