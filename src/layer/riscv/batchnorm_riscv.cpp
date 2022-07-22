@@ -35,9 +35,9 @@ BatchNorm_riscv::BatchNorm_riscv()
 
 int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if __riscv_vector
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
-#if __riscv_vector
     if (dims == 1)
     {
         int n = bottom_top_blob.w * elempack;
@@ -61,15 +61,15 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             ptr_b += vl;
             n -= vl;
         }
+        return 0;
     }
 
-    const int packn = csrr_vlenb() / 4;
-    if (dims == 2)
+    if (elempack == 1)
     {
+
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
-
-        if (elempack == 1)
+        if (dims == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
@@ -91,11 +91,47 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     n -= vl;
                 }
             }
-        }
-        else if (elempack == packn)
+        } 
+        if (dims == 3 || dims == 4)
         {
-            const word_type vl = vsetvl_e32m1(packn);
+            int d = bottom_top_blob.d;
+            int c = bottom_top_blob.c;
+            int size = w * h * d;
 
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < c; q++)
+            {
+                float* ptr = bottom_top_blob.channel(q);
+                float a = a_data[q];
+                float b = b_data[q];
+
+                int n = size;
+                while (n > 0)
+                {
+                    word_type vl = vsetvl_e32m8(n);
+                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+                    _p = vfmul_vf_f32m8(_p, b, vl);
+                    _p = vfadd_vf_f32m8(_p, a, vl);
+                    vse32_v_f32m8(ptr, _p, vl);
+
+                    ptr += vl;
+                    n -= vl;
+                }
+            }
+     
+        }
+        return 0;
+    }
+
+    const int packn = csrr_vlenb() / 4;
+    if (elempack == packn)
+    {
+        int w = bottom_top_blob.w;
+        int h = bottom_top_blob.h;
+
+        const word_type vl = vsetvl_e32m1(packn);
+        if (dims == 2)
+        {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int i = 0; i < h; i++)
             {
@@ -119,41 +155,13 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 }
             }
         }
-    }
-    if (dims == 3 || dims == 4)
-    {
-        int w = bottom_top_blob.w;
-        int h = bottom_top_blob.h;
-        int d = bottom_top_blob.d;
-        int c = bottom_top_blob.c;
-        int size = w * h * d;
-        if (elempack == 1)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < c; q++)
-            {
-                float* ptr = bottom_top_blob.channel(q);
-                float a = a_data[q];
-                float b = b_data[q];
 
-                int n = size;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    _p = vfmul_vf_f32m8(_p, b, vl);
-                    _p = vfadd_vf_f32m8(_p, a, vl);
-                    vse32_v_f32m8(ptr, _p, vl);
-
-                    ptr += vl;
-                    n -= vl;
-                }
-            }
-        }
-        else if (elempack == packn)
+        if (dims == 3 || dims == 4)
         {
-            size = size * elempack;
-            const word_type vl = vsetvl_e32m1(packn);
+            int d = bottom_top_blob.d;
+            int c = bottom_top_blob.c;
+            int size = w * h * d * elempack;
+            
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
@@ -175,9 +183,12 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     n -= vl;
                 }
             }
+            
         }
+
     }
-#else
+
+ #else
     return BatchNorm::forward_inplace(bottom_top_blob, opt);
 #endif
     return 0;
