@@ -66,7 +66,6 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
     if (elempack == 1)
     {
-
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
         if (dims == 2)
@@ -91,7 +90,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     n -= vl;
                 }
             }
-        } 
+        }
         if (dims == 3 || dims == 4)
         {
             int d = bottom_top_blob.d;
@@ -118,7 +117,6 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     n -= vl;
                 }
             }
-     
         }
         return 0;
     }
@@ -161,13 +159,13 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             int d = bottom_top_blob.d;
             int c = bottom_top_blob.c;
             int size = w * h * d * elempack;
-            
+
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < c; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
-                const float* ptr_a = (const float*) a_data + q * elempack;
-                const float* ptr_b = (const float*) b_data + q * elempack;
+                const float* ptr_a = (const float*)a_data + q * elempack;
+                const float* ptr_b = (const float*)b_data + q * elempack;
 
                 vfloat32m1_t _a = vle32_v_f32m1(ptr_a, vl);
                 vfloat32m1_t _b = vle32_v_f32m1(ptr_b, vl);
@@ -183,12 +181,10 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     n -= vl;
                 }
             }
-            
         }
-
     }
 
- #else
+#else
     return BatchNorm::forward_inplace(bottom_top_blob, opt);
 #endif
     return 0;
