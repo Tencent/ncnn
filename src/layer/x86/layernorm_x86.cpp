@@ -1,5 +1,5 @@
 #include "layernorm_x86.h"
-
+#include "x86_usability.h"
 #include <math.h>
 #include <cpu.h>
 
@@ -34,7 +34,7 @@ static NCNN_FORCEINLINE float fast_mean(float* ptr, int elemcount)
             __m256 _cur = _mm256_loadu_ps(ptr);
             _sum = _mm256_add_ps(_sum, _cur);
         }
-        sum += _sum[0] + _sum[1] + _sum[2] + _sum[3] + _sum[4] + _sum[5] + _sum[6] + _sum[7];
+        sum += _mm256_reduce_add_ps(_sum);
     }
 #endif // __AVX__
     {
@@ -44,7 +44,7 @@ static NCNN_FORCEINLINE float fast_mean(float* ptr, int elemcount)
             __m128 _cur = _mm_loadu_ps(ptr);
             _sum = _mm_add_ps(_sum, _cur);
         }
-        sum += _sum[0] + _sum[1] + _sum[2] + _sum[3];
+        sum += _mm_reduce_add_ps(_sum);
     }
 #endif // __SSE2__
     for (; i < elemcount; ++i, ++ptr)
@@ -84,7 +84,7 @@ static NCNN_FORCEINLINE float fast_var(float* ptr, int elemcount, float mean)
             _cur = _mm256_mul_ps(_cur, _cur);
             _sq_sum = _mm256_add_ps(_sq_sum, _cur);
         }
-        sq_sum += _sq_sum[0] + _sq_sum[1] + _sq_sum[2] + _sq_sum[3] + _sq_sum[4] + _sq_sum[5] + _sq_sum[6] + _sq_sum[7];
+        sq_sum += _mm256_reduce_add_ps(_sq_sum);
     }
 #endif // __AVX__
     {
@@ -97,7 +97,7 @@ static NCNN_FORCEINLINE float fast_var(float* ptr, int elemcount, float mean)
             _cur = _mm_mul_ps(_cur, _cur);
             _sq_sum = _mm_add_ps(_sq_sum, _cur);
         }
-        sq_sum += _sq_sum[0] + _sq_sum[1] + _sq_sum[2] + _sq_sum[3];
+        sq_sum += _mm_reduce_add_ps(_sq_sum);
     }
 #endif // __SSE2__
     for (; i < elemcount; ++i, ++ptr)
@@ -133,12 +133,7 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float a, float b, int elemco
         for (; i + 8 <= elemcount; i += 8, ptr += 8)
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
-#if __FMA__
-            _cur = _mm256_fmadd_ps(_cur, _a, _b);
-#else
-            _cur = _mm256_mul_ps(_cur, _a);
-            _cur = _mm256_add_ps(_cur, _b);
-#endif
+            _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
             _mm256_storeu_ps(ptr, _cur);
         }
     }
@@ -149,8 +144,7 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float a, float b, int elemco
         for (; i + 4 <= elemcount; i += 4, ptr += 4)
         {
             __m128 _cur = _mm_loadu_ps(ptr);
-            _cur = _mm_mul_ps(_cur, _a);
-            _cur = _mm_add_ps(_cur, _b);
+            _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
             _mm_storeu_ps(ptr, _cur);
         }
     }
@@ -218,8 +212,7 @@ static NCNN_FORCEINLINE void fast_var_packed(float* ptr, float* var, float* mean
         {
             __m128 _cur = _mm_loadu_ps(ptr);
             _cur = _mm_sub_ps(_cur, _mean);
-            _cur = _mm_mul_ps(_cur, _cur);
-            _sq_sum = _mm_add_ps(_sq_sum, _cur);
+            _sq_sum = _mm_comp_fmadd_ps(_cur, _cur, _sq_sum);
         }
         __m128 _var = _mm_div_ps(_sq_sum, _elemcount);
         _mm_storeu_ps(var, _var);
@@ -234,8 +227,7 @@ static NCNN_FORCEINLINE void fast_var_packed(float* ptr, float* var, float* mean
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
             _cur = _mm256_sub_ps(_cur, _mean);
-            _cur = _mm256_mul_ps(_cur, _cur);
-            _sq_sum = _mm256_add_ps(_sq_sum, _cur);
+            _sq_sum = _mm256_comp_fmadd_ps(_cur, _cur, _sq_sum);
         }
         __m256 _var = _mm256_div_ps(_sq_sum, _elemcount);
         _mm256_storeu_ps(var, _var);
@@ -251,8 +243,7 @@ static NCNN_FORCEINLINE void fast_var_packed(float* ptr, float* var, float* mean
         {
             __m512 _cur = _mm512_loadu_ps(ptr);
             _cur = _mm512_sub_ps(_cur, _mean);
-            _cur = _mm512_mul_ps(_cur, _cur);
-            _sq_sum = _mm512_add_ps(_sq_sum, _cur);
+            _sq_sum = _mm512_fmadd_ps(_cur, _cur, _sq_sum);
         }
         __m512 _var = _mm512_div_ps(_sq_sum, _elemcount);
         _mm512_storeu_ps(var, _var);
@@ -270,8 +261,7 @@ static NCNN_FORCEINLINE void fast_fmadd_packed(float* ptr, float* a, float* b, i
         for (; i < size; i += 4, ptr += 4)
         {
             __m128 _cur = _mm_loadu_ps(ptr);
-            _cur = _mm_mul_ps(_cur, _a);
-            _cur = _mm_add_ps(_cur, _b);
+            _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
             _mm_storeu_ps(ptr, _cur);
         }
     }
@@ -283,12 +273,7 @@ static NCNN_FORCEINLINE void fast_fmadd_packed(float* ptr, float* a, float* b, i
         for (; i < size; i += 8, ptr += 8)
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
-#if __FMA__
-            _cur = _mm256_fmadd_ps(_cur, _a, _b);
-#else
-            _cur = _mm256_mul_ps(_cur, _a);
-            _cur = _mm256_add_ps(_cur, _b);
-#endif
+            _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
             _mm256_storeu_ps(ptr, _cur);
         }
 #endif
@@ -320,8 +305,8 @@ LayerNorm_x86::LayerNorm_x86()
 void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float a, float b, int elemcount) const
 {
     int i = 0;
-    auto gamma = static_cast<const float*>(gamma_data);
-    auto beta = static_cast<const float*>(beta_data);
+    const float* gamma = static_cast<const float*>(gamma_data);
+    const float* beta = static_cast<const float*>(beta_data);
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
@@ -348,15 +333,8 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float a, float
             __m256 _cur = _mm256_loadu_ps(ptr);
             __m256 _gamma = _mm256_loadu_ps(gamma);
             __m256 _beta = _mm256_loadu_ps(beta);
-#if __FMA__
-            _cur = _mm256_fmadd_ps(_cur, _a, _b);
-            _cur = _mm256_fmadd_ps(_cur, _gamma, _beta);
-#else
-            _cur = _mm256_mul_ps(_cur, _a);
-            _cur = _mm256_add_ps(_cur, _b);
-            _cur = _mm256_mul_ps(_cur, _gamma);
-            _cur = _mm256_add_ps(_cur, _beta);
-#endif
+            _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
+            _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
             _mm256_storeu_ps(ptr, _cur);
         }
     }
@@ -369,10 +347,8 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float a, float
             __m128 _cur = _mm_loadu_ps(ptr);
             __m128 _gamma = _mm_loadu_ps(gamma);
             __m128 _beta = _mm_loadu_ps(beta);
-            _cur = _mm_mul_ps(_cur, _a);
-            _cur = _mm_add_ps(_cur, _b);
-            _cur = _mm_mul_ps(_cur, _gamma);
-            _cur = _mm_add_ps(_cur, _beta);
+            _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
+            _cur = _mm_comp_fmadd_ps(_cur, _gamma, _beta);
             _mm_storeu_ps(ptr, _cur);
         }
     }
@@ -386,8 +362,8 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float a, float
 void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd_packed(float* ptr, float* a, float* b, int elempack, int size) const
 {
     int i = 0;
-    auto gamma = static_cast<const float*>(gamma_data);
-    auto beta = static_cast<const float*>(beta_data);
+    const float* gamma = static_cast<const float*>(gamma_data);
+    const float* beta = static_cast<const float*>(beta_data);
     if (elempack == 4)
     {
         __m128 _a = _mm_loadu_ps(a);
@@ -397,10 +373,8 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd_packed(float* ptr, float* 
             __m128 _cur = _mm_loadu_ps(ptr);
             __m128 _gamma = _mm_set1_ps(*gamma);
             __m128 _beta = _mm_set1_ps(*beta);
-            _cur = _mm_mul_ps(_cur, _a);
-            _cur = _mm_add_ps(_cur, _b);
-            _cur = _mm_mul_ps(_cur, _gamma);
-            _cur = _mm_add_ps(_cur, _beta);
+            _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
+            _cur = _mm_comp_fmadd_ps(_cur, _gamma, _beta);
             _mm_storeu_ps(ptr, _cur);
         }
     }
@@ -414,15 +388,8 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd_packed(float* ptr, float* 
             __m256 _cur = _mm256_loadu_ps(ptr);
             __m256 _gamma = _mm256_set1_ps(*gamma);
             __m256 _beta = _mm256_set1_ps(*beta);
-#if __FMA__
-            _cur = _mm256_fmadd_ps(_cur, _a, _b);
-            _cur = _mm256_fmadd_ps(_cur, _gamma, _beta);
-#else
-            _cur = _mm256_mul_ps(_cur, _a);
-            _cur = _mm256_add_ps(_cur, _b);
-            _cur = _mm256_mul_ps(_cur, _gamma);
-            _cur = _mm256_add_ps(_cur, _beta);
-#endif
+            _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
+            _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
             _mm256_storeu_ps(ptr, _cur);
         }
 #endif
@@ -480,9 +447,8 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm_packed(float* ptr, int e
         _var = _mm_add_ps(_var, _eps);
         __m128 _sqrt_var = _mm_sqrt_ps(_var);
         _a = _mm_div_ps(_a, _sqrt_var);
-        __m128 _mean_a = _mm_loadu_ps(mean);
-        _mean_a = _mm_mul_ps(_mean_a, _a);
-        _b = _mm_sub_ps(_b, _mean_a);
+        __m128 _mean = _mm_loadu_ps(mean);
+        _b = _mm_comp_fnmadd_ps(_mean, _a, _b);
 
         _mm_storeu_ps(a, _a);
         _mm_storeu_ps(b, _b);
@@ -497,14 +463,8 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm_packed(float* ptr, int e
         _var = _mm256_add_ps(_var, _eps);
         __m256 _sqrt_var = _mm256_sqrt_ps(_var);
         _a = _mm256_div_ps(_a, _sqrt_var);
-#if __FMA__
         __m256 _mean = _mm256_loadu_ps(mean);
-        _b = _mm256_fnmadd_ps(_mean, _a, _b);
-#else
-        __m256 _mean_a = _mm256_loadu_ps(mean);
-        _mean_a = _mm256_mul_ps(_mean_a, _a);
-        _b = _mm256_sub_ps(_b, _mean_a);
-#endif
+        _b = _mm256_comp_fnmadd_ps(_mean, _a, _b);
         _mm256_storeu_ps(a, _a);
         _mm256_storeu_ps(b, _b);
 #endif
@@ -553,7 +513,7 @@ int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_unpacked(Mat& bottom_top_blo
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
         int elemcount = w * bottom_top_blob.elempack;
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; ++i)
         {
             float* ptr = bottom_top_blob.row(i);
@@ -572,7 +532,7 @@ int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_unpacked(Mat& bottom_top_blo
         if (affine_size == w)
         {
             elemcount = w * bottom_top_blob.elempack;
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 for (int i = 0; i < h; i++)
@@ -584,7 +544,7 @@ int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_unpacked(Mat& bottom_top_blo
         }
         else // if (affine_elemcount == elemcount)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 float* ptr = bottom_top_blob.channel(q);
@@ -605,7 +565,7 @@ int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_packed(Mat& bottom_top_blob,
     // Now, bottoms_top_blob.dims >= 2
     if (bottom_top_blob.dims == 2)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; ++i)
         {
             float* ptr = bottom_top_blob.row(i);
@@ -617,7 +577,7 @@ int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_packed(Mat& bottom_top_blob,
         int channels = bottom_top_blob.c;
         if (affine_size == w)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 for (int i = 0; i < h; ++i)
@@ -629,7 +589,7 @@ int NCNN_FORCEINLINE LayerNorm_x86::forward_inplace_packed(Mat& bottom_top_blob,
         }
         else // if(affine_size == w * h)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 float* ptr = bottom_top_blob.channel(q);
