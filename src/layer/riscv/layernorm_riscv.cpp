@@ -132,13 +132,14 @@ static inline int layernorm_rvv_packn_procedure(int w, float* ptr, const float* 
     {
         vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
         _p = vfsub_vv_f32m1(_p, _mean, vl);
-        _sqsum = vfmadd_vv_f32m1(_p, _p, _sqsum, vl);
+        _sqsum = vfmacc_vv_f32m1(_sqsum, _p, _p, vl);
     }
     vfloat32m1_t _var = vfdiv_vf_f32m1(_sqsum, w, vl);
 
     // the var maybe minus due to accuracy
     //float var = sqsum / w - mean * mean;
     vfloat32m1_t _a = vfrdiv_vf_f32m1(vfsqrt_v_f32m1(vfadd_vf_f32m1(_var, eps, vl), vl), 1.f, vl);
+    // how about vfrsqrt7.v?
     vfloat32m1_t _b = vfmul_vv_f32m1(vfsgnjn_vv_f32m1(_mean, _mean, vl), _a, vl);
     if (affine)
     {
