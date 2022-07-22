@@ -198,18 +198,14 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
                         v2_cond = (h_low >= 0 && w_high <= w - 1);
                         v3_cond = (h_high <= h - 1 && w_low >= 0);
                         v4_cond = (h_high <= h - 1 && w_high <= w - 1);
-                        if (v1_cond) {
+                        if (v1_cond)
                             v1_pos = h_low * w + w_low;
-                        }
-                        if (v2_cond) {
+                        if (v2_cond)
                             v2_pos = h_low * w + w_high;
-                        }
-                        if (v3_cond) {
+                        if (v3_cond)
                             v3_pos = h_high * w + w_low;
-                        }
-                        if (v4_cond) {
+                        if (v4_cond)
                             v4_pos = h_high * w + w_high;
-                        }
 
                         w1 = hh * hw;
                         w2 = hh * lw;
@@ -223,21 +219,17 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
                         float val = 0.f;
                         if (cond) {
                             float v1 = 0.f;
-                            if (v1_cond) {
+                            if (v1_cond)
                                 v1 = data_im_channel_ptr[v1_pos];
-                            }
                             float v2 = 0.f;
-                            if (v2_cond) {
+                            if (v2_cond)
                                 v2 = data_im_channel_ptr[v2_pos];
-                            }
                             float v3 = 0.f;
-                            if (v3_cond) {
+                            if (v3_cond)
                                 v3 = data_im_channel_ptr[v3_pos];
-                            }
                             float v4 = 0.f;
-                            if (v4_cond) {
+                            if (v4_cond)
                                 v4 = data_im_channel_ptr[v4_pos];
-                            }
                             val = w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4;
                         }
                         *data_col_ptr = val * mask_;
