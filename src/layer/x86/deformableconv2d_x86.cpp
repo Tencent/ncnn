@@ -22,6 +22,9 @@ DeformableConv2D_x86::DeformableConv2D_x86()
 {
     one_blob_only = false;
     support_inplace = false;
+
+    inner_product = 0;
+    permute = 0;
 }
 
 int DeformableConv2D_x86::load_model(const ModelBin& mb)
@@ -56,6 +59,52 @@ int DeformableConv2D_x86::load_model(const ModelBin& mb)
         }
     }
     weight_data_t = weight_data_t.reshape(in_c * kernel_w * kernel_h, num_output);
+    return 0;
+}
+
+int DeformableConv2D_x86::create_pipeline(const Option& opt)
+{
+    {
+        inner_product = ncnn::create_layer(ncnn::LayerType::InnerProduct);
+        ncnn::ParamDict pd;
+        pd.set(0, num_output);
+        pd.set(1, bias_term);
+        pd.set(2, weight_data_size);
+        pd.set(9, activation_type);
+        pd.set(10, activation_params);
+        inner_product->load_param(pd);
+        ncnn::Mat weights[2];
+        weights[0] = weight_data_t;
+        if (bias_term)
+            weights[1] = bias_data;
+        inner_product->load_model(ncnn::ModelBinFromMatArray(weights));
+        inner_product->create_pipeline(opt);
+
+        permute = ncnn::create_layer(ncnn::LayerType::Permute);
+        ncnn::ParamDict permute_pd;
+        permute_pd.set(0, 1);
+        permute->load_param(permute_pd);
+        permute->create_pipeline(opt);
+    }
+
+    return 0;
+}
+
+int DeformableConv2D_x86::destroy_pipeline(const Option& opt)
+{
+    if (inner_product)
+    {
+        inner_product->destroy_pipeline(opt);
+        delete inner_product;
+        inner_product = 0;
+    }
+    if (permute)
+    {
+        permute->destroy_pipeline(opt);
+        delete permute;
+        permute = 0;
+    }
+
     return 0;
 }
 
@@ -200,47 +249,11 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
         }
     }
     im2col = im2col.reshape(kernel_h * kernel_w * in_c, out_h * out_w);
-
     // call InnerProduct
-    ncnn::Layer* innerProduct = ncnn::create_layer(ncnn::LayerType::InnerProduct);
-
-    // set param
-    ncnn::ParamDict pd;
-    pd.set(0, num_output);
-    pd.set(1, bias_term);
-    pd.set(2, weight_data_size);
-    pd.set(9, activation_type);
-    pd.set(10, activation_params);
-    innerProduct->load_param(pd);
-
-    // set weights
-    ncnn::Mat weights[2];
-    weights[0] = weight_data_t;
-    if (bias_term)
-    {
-        weights[1] = bias_data;
-    }
-    innerProduct->load_model(ncnn::ModelBinFromMatArray(weights));
-    innerProduct->create_pipeline(opt);
-
-    // forward
-    innerProduct->forward(im2col, output, opt);
-    innerProduct->destroy_pipeline(opt);
-    delete innerProduct;
-
+    inner_product->forward(im2col, output, opt);
     ncnn::Mat output_t;
     // call Permute
-    ncnn::Layer* permute = ncnn::create_layer(ncnn::LayerType::Permute);
-
-    // set param
-    ncnn::ParamDict permute_pd;
-    permute_pd.set(0, 1);
-    permute->load_param(permute_pd);
-    permute->create_pipeline(opt);
-    // forward
     permute->forward(output, output_t, opt);
-    permute->destroy_pipeline(opt);
-    delete permute;
     output_t = output_t.reshape(out_w, out_h, num_output);
     top_blobs[0] = output_t;
     return 0;
