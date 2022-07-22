@@ -13,87 +13,73 @@
 static NCNN_FORCEINLINE void fast_mean(float* ptr, float* mean, int elempack, int elemcount, int size)
 {
     int i = 0;
-
+    float sum = 0.0f;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16)
+    if (elempack == 16 || elempack == 1)
     {
         __m512 _sum = _mm512_setzero_ps();
-        __m512 _elemcount = _mm512_set1_ps(float(elemcount));
-        for (; i < size; i += 16, ptr += 16)
+        for (; i + 16 <= size; i += 16, ptr += 16)
         {
             __m512 _cur = _mm512_loadu_ps(ptr);
             _sum = _mm512_add_ps(_sum, _cur);
         }
-        __m512 _mean = _mm512_div_ps(_sum, _elemcount);
-        _mm512_storeu_ps(mean, _mean);
+        if (elempack == 16)
+        {
+            __m512 _elemcount = _mm512_set1_ps(float(elemcount));
+            __m512 _mean = _mm512_div_ps(_sum, _elemcount);
+            _mm512_storeu_ps(mean, _mean);
+        }
+        else
+        {
+            sum += _mm512_reduce_add_ps(_sum);
+        }
     }
 #endif // __AVX512F__
-    if (elempack == 8)
+    if (elempack == 8 || elempack == 1)
     {
         __m256 _sum = _mm256_setzero_ps();
-        __m256 _elemcount = _mm256_set1_ps(float(elemcount));
-        for (; i < size; i += 8, ptr += 8)
+        for (; i + 8 <= size; i += 8, ptr += 8)
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
             _sum = _mm256_add_ps(_sum, _cur);
         }
-        __m256 _mean = _mm256_div_ps(_sum, _elemcount);
-        _mm256_storeu_ps(mean, _mean);
+        if (elempack == 8)
+        {
+            __m256 _elemcount = _mm256_set1_ps(float(elemcount));
+            __m256 _mean = _mm256_div_ps(_sum, _elemcount);
+            _mm256_storeu_ps(mean, _mean);
+        }
+        else
+        {
+            sum += _mm256_reduce_add_ps(_sum);
+        }
     }
 #endif // __AVX__
-    if (elempack == 4)
+    if (elempack == 4 || elempack == 1)
     {
         __m128 _sum = _mm_setzero_ps();
-        __m128 _elemcount = _mm_set1_ps(float(elemcount));
-        for (; i < size; i += 4, ptr += 4)
+        for (; i + 4 <= size; i += 4, ptr += 4)
         {
             __m128 _cur = _mm_loadu_ps(ptr);
             _sum = _mm_add_ps(_sum, _cur);
         }
-        __m128 _mean = _mm_div_ps(_sum, _elemcount);
-        _mm_storeu_ps(mean, _mean);
+        if (elempack == 4)
+        {
+            __m128 _elemcount = _mm_set1_ps(float(elemcount));
+            __m128 _mean = _mm_div_ps(_sum, _elemcount);
+            _mm_storeu_ps(mean, _mean);
+        }
+        else
+        {
+            sum += _mm_reduce_add_ps(_sum);
+        }
     }
 #endif // __SSE2__
     if (elempack == 1)
     {
-        float sum = 0.0f;
-        int i = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-        {
-            __m512 _sum = _mm512_setzero_ps();
-            for (; i + 16 <= elemcount; i += 16, ptr += 16)
-            {
-                __m512 _cur = _mm512_loadu_ps(ptr);
-                _sum = _mm512_add_ps(_sum, _cur);
-            }
-            sum += _mm512_reduce_add_ps(_sum);
-        }
-#endif // __AVX512F__
-        {
-            __m256 _sum = _mm256_setzero_ps();
-            for (; i + 8 <= elemcount; i += 8, ptr += 8)
-            {
-                __m256 _cur = _mm256_loadu_ps(ptr);
-                _sum = _mm256_add_ps(_sum, _cur);
-            }
-            sum += _mm256_reduce_add_ps(_sum);
-        }
-#endif // __AVX__
-        {
-            __m128 _sum = _mm_setzero_ps();
-            for (; i + 4 <= elemcount; i += 4, ptr += 4)
-            {
-                __m128 _cur = _mm_loadu_ps(ptr);
-                _sum = _mm_add_ps(_sum, _cur);
-            }
-            sum += _mm_reduce_add_ps(_sum);
-        }
-#endif // __SSE2__
-        for (; i < elemcount; ++i, ++ptr)
+        for (; i < size; ++i, ++ptr)
         {
             sum += *ptr;
         }
@@ -104,103 +90,82 @@ static NCNN_FORCEINLINE void fast_mean(float* ptr, float* mean, int elempack, in
 static NCNN_FORCEINLINE void fast_var(float* ptr, float* var, float* mean, int elempack, int elemcount, int size)
 {
     int i = 0;
+    float sq_sum = 0.0f;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16)
+    if (elempack == 16 || elempack == 1)
     {
-        __m512 _mean = _mm512_loadu_ps(mean);
+        __m512 _mean = elempack == 1 ? _mm512_set1_ps(*mean) : _mm512_loadu_ps(mean);
         __m512 _sq_sum = _mm512_setzero_ps();
-        __m512 _elemcount = _mm512_set1_ps(float(elemcount));
-        for (; i < size; i += 16, ptr += 16)
+        for (; i + 16 <= size; i += 16, ptr += 16)
         {
             __m512 _cur = _mm512_loadu_ps(ptr);
             _cur = _mm512_sub_ps(_cur, _mean);
             _sq_sum = _mm512_fmadd_ps(_cur, _cur, _sq_sum);
         }
-        __m512 _var = _mm512_div_ps(_sq_sum, _elemcount);
-        _mm512_storeu_ps(var, _var);
+        if (elempack == 16)
+        {
+            __m512 _elemcount = _mm512_set1_ps(float(elemcount));
+            __m512 _var = _mm512_div_ps(_sq_sum, _elemcount);
+            _mm512_storeu_ps(var, _var);
+        }
+        else
+        {
+            sq_sum += _mm512_reduce_add_ps(_sq_sum);
+        }
     }
 #endif // __AVX512F__
-    if (elempack == 8)
+    if (elempack == 8 || elempack == 1)
     {
-        __m256 _mean = _mm256_loadu_ps(mean);
+        __m256 _mean = elempack == 1 ? _mm256_set1_ps(*mean) : _mm256_loadu_ps(mean);
         __m256 _sq_sum = _mm256_setzero_ps();
-        __m256 _elemcount = _mm256_set1_ps(float(elemcount));
-        for (; i < size; i += 8, ptr += 8)
+        for (; i + 8 <= size; i += 8, ptr += 8)
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
             _cur = _mm256_sub_ps(_cur, _mean);
             _sq_sum = _mm256_comp_fmadd_ps(_cur, _cur, _sq_sum);
         }
-        __m256 _var = _mm256_div_ps(_sq_sum, _elemcount);
-        _mm256_storeu_ps(var, _var);
+        if (elempack == 8)
+        {
+            __m256 _elemcount = _mm256_set1_ps(float(elemcount));
+            __m256 _var = _mm256_div_ps(_sq_sum, _elemcount);
+            _mm256_storeu_ps(var, _var);
+        }
+        else
+        {
+            sq_sum += _mm256_reduce_add_ps(_sq_sum);
+        }
     }
 #endif // __AVX__
-    if (elempack == 4)
+    if (elempack == 4 || elempack == 1)
     {
-        __m128 _mean = _mm_loadu_ps(mean);
+        __m128 _mean = elempack == 1 ? _mm_set1_ps(*mean) : _mm_loadu_ps(mean);
         __m128 _sq_sum = _mm_setzero_ps();
-        __m128 _elemcount = _mm_set1_ps(float(elemcount));
-        for (; i < size; i += 4, ptr += 4)
+        for (; i + 4 <= size; i += 4, ptr += 4)
         {
             __m128 _cur = _mm_loadu_ps(ptr);
             _cur = _mm_sub_ps(_cur, _mean);
             _sq_sum = _mm_comp_fmadd_ps(_cur, _cur, _sq_sum);
         }
-        __m128 _var = _mm_div_ps(_sq_sum, _elemcount);
-        _mm_storeu_ps(var, _var);
+        if (elempack == 4)
+        {
+            __m128 _elemcount = _mm_set1_ps(float(elemcount));
+            __m128 _var = _mm_div_ps(_sq_sum, _elemcount);
+            _mm_storeu_ps(var, _var);
+        }
+        else
+        {
+            sq_sum += _mm_reduce_add_ps(_sq_sum);
+        }
     }
 #endif // __SSE2__
     if (elempack == 1)
     {
-        float sq_sum = 0.0f;
-        int i = 0;
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
+        float _mean = *mean;
+        for (; i < size; ++i, ++ptr)
         {
-            __m512 _mean = _mm512_set1_ps(*mean);
-            __m512 _sq_sum = _mm512_setzero_ps();
-            for (; i + 16 <= elemcount; i += 16, ptr += 16)
-            {
-                __m512 _cur = _mm512_loadu_ps(ptr);
-                _cur = _mm512_sub_ps(_cur, _mean);
-                _cur = _mm512_mul_ps(_cur, _cur);
-                _sq_sum = _mm512_add_ps(_sq_sum, _cur);
-            }
-            sq_sum += _mm512_reduce_add_ps(_sq_sum);
-        }
-#endif // __AVX512F__
-        {
-            __m256 _mean = _mm256_set1_ps(*mean);
-            __m256 _sq_sum = _mm256_setzero_ps();
-            for (; i + 8 <= elemcount; i += 8, ptr += 8)
-            {
-                __m256 _cur = _mm256_loadu_ps(ptr);
-                _cur = _mm256_sub_ps(_cur, _mean);
-                _cur = _mm256_mul_ps(_cur, _cur);
-                _sq_sum = _mm256_add_ps(_sq_sum, _cur);
-            }
-            sq_sum += _mm256_reduce_add_ps(_sq_sum);
-        }
-#endif // __AVX__
-        {
-            __m128 _mean = _mm_set1_ps(*mean);
-            __m128 _sq_sum = _mm_setzero_ps();
-            for (; i + 4 <= elemcount; i += 4, ptr += 4)
-            {
-                __m128 _cur = _mm_loadu_ps(ptr);
-                _cur = _mm_sub_ps(_cur, _mean);
-                _cur = _mm_mul_ps(_cur, _cur);
-                _sq_sum = _mm_add_ps(_sq_sum, _cur);
-            }
-            sq_sum += _mm_reduce_add_ps(_sq_sum);
-        }
-#endif // __SSE2__
-        for (; i < elemcount; ++i, ++ptr)
-        {
-            float tmp = *ptr - *mean;
+            float tmp = *ptr - _mean;
             sq_sum += tmp * tmp;
         }
         *var = sq_sum / elemcount;
@@ -214,11 +179,11 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elem
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16)
+    if (elempack == 16 || elempack == 1)
     {
-        __m512 _a = _mm512_loadu_ps(a);
-        __m512 _b = _mm512_loadu_ps(b);
-        for (; i < size; i += 16, ptr += 16)
+        __m512 _a = elempack == 1 ? _mm512_set1_ps(*a) : _mm512_loadu_ps(a);
+        __m512 _b = elempack == 1 ? _mm512_set1_ps(*b) : _mm512_loadu_ps(b);
+        for (; i + 16 <= size; i += 16, ptr += 16)
         {
             __m512 _cur = _mm512_loadu_ps(ptr);
             _cur = _mm512_fmadd_ps(_cur, _a, _b);
@@ -226,11 +191,11 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elem
         }
     }
 #endif // __AVX512F__
-    if (elempack == 8)
+    if (elempack == 8 || elempack == 1)
     {
-        __m256 _a = _mm256_loadu_ps(a);
-        __m256 _b = _mm256_loadu_ps(b);
-        for (; i < size; i += 8, ptr += 8)
+        __m256 _a = elempack == 1 ? _mm256_set1_ps(*a) : _mm256_loadu_ps(a);
+        __m256 _b = elempack == 1 ? _mm256_set1_ps(*b) : _mm256_loadu_ps(b);
+        for (; i + 8 <= size; i += 8, ptr += 8)
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
             _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
@@ -238,11 +203,11 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elem
         }
     }
 #endif // __AVX__
-    if (elempack == 4)
+    if (elempack == 4 || elempack == 1)
     {
-        __m128 _a = _mm_loadu_ps(a);
-        __m128 _b = _mm_loadu_ps(b);
-        for (; i < size; i += 4, ptr += 4)
+        __m128 _a = elempack == 1 ? _mm_set1_ps(*a) : _mm_loadu_ps(a);
+        __m128 _b = elempack == 1 ? _mm_set1_ps(*b) : _mm_loadu_ps(b);
+        for (; i + 4 <= size; i += 4, ptr += 4)
         {
             __m128 _cur = _mm_loadu_ps(ptr);
             _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
@@ -252,44 +217,6 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elem
 #endif // __SSE2__
     if (elempack == 1)
     {
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-        {
-            // 512 bit FMA instructions are included in AVX512F.
-            __m512 _a = _mm512_set1_ps(*a);
-            __m512 _b = _mm512_set1_ps(*b);
-            for (; i + 16 <= elemcount; i += 16, ptr += 16)
-            {
-                __m512 _cur = _mm512_loadu_ps(ptr);
-                _cur = _mm512_fmadd_ps(_cur, _a, _b);
-                _mm512_storeu_ps(ptr, _cur);
-            }
-        }
-#endif // __AVX512F__
-        {
-            // 256 bit FMA instructions are not included in AVX1
-            __m256 _a = _mm256_set1_ps(*a);
-            __m256 _b = _mm256_set1_ps(*b);
-            for (; i + 8 <= elemcount; i += 8, ptr += 8)
-            {
-                __m256 _cur = _mm256_loadu_ps(ptr);
-                _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
-                _mm256_storeu_ps(ptr, _cur);
-            }
-        }
-#endif // __AVX__
-        {
-            __m128 _a = _mm_set1_ps(*a);
-            __m128 _b = _mm_set1_ps(*b);
-            for (; i + 4 <= elemcount; i += 4, ptr += 4)
-            {
-                __m128 _cur = _mm_loadu_ps(ptr);
-                _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
-                _mm_storeu_ps(ptr, _cur);
-            }
-        }
-#endif // __SSE2__
         for (; i < elemcount; ++i, ++ptr)
         {
             *ptr = (*ptr) * (*a) + (*b);
@@ -319,11 +246,25 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float* a, floa
     {
         __m512 _a = _mm512_loadu_ps(a);
         __m512 _b = _mm512_loadu_ps(b);
-        for (; i < size; i += 16, ptr += 16, ++gamma, ++beta)
+        for (; i + 16 <= size; i += 16, ptr += 16, ++gamma, ++beta)
         {
             __m512 _cur = _mm512_loadu_ps(ptr);
             __m512 _gamma = _mm512_set1_ps(*gamma);
             __m512 _beta = _mm512_set1_ps(*beta);
+            _cur = _mm512_fmadd_ps(_cur, _a, _b);
+            _cur = _mm512_fmadd_ps(_cur, _gamma, _beta);
+            _mm512_storeu_ps(ptr, _cur);
+        }
+    }
+    else if (elempack == 1)
+    {
+        __m512 _a = _mm512_set1_ps(*a);
+        __m512 _b = _mm512_set1_ps(*b);
+        for (; i + 16 <= elemcount; i += 16, ptr += 16, gamma += 16, beta += 16)
+        {
+            __m512 _cur = _mm512_loadu_ps(ptr);
+            __m512 _gamma = _mm512_loadu_ps(gamma);
+            __m512 _beta = _mm512_loadu_ps(beta);
             _cur = _mm512_fmadd_ps(_cur, _a, _b);
             _cur = _mm512_fmadd_ps(_cur, _gamma, _beta);
             _mm512_storeu_ps(ptr, _cur);
@@ -334,11 +275,25 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float* a, floa
     {
         __m256 _a = _mm256_loadu_ps(a);
         __m256 _b = _mm256_loadu_ps(b);
-        for (; i < size; i += 8, ptr += 8, ++gamma, ++beta)
+        for (; i + 8 <= size; i += 8, ptr += 8, ++gamma, ++beta)
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
             __m256 _gamma = _mm256_set1_ps(*gamma);
             __m256 _beta = _mm256_set1_ps(*beta);
+            _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
+            _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
+            _mm256_storeu_ps(ptr, _cur);
+        }
+    }
+    else if (elempack == 1)
+    {
+        __m256 _a = _mm256_set1_ps(*a);
+        __m256 _b = _mm256_set1_ps(*b);
+        for (; i + 8 <= elemcount; i += 8, ptr += 8, gamma += 8, beta += 8)
+        {
+            __m256 _cur = _mm256_loadu_ps(ptr);
+            __m256 _gamma = _mm256_loadu_ps(gamma);
+            __m256 _beta = _mm256_loadu_ps(beta);
             _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
             _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
             _mm256_storeu_ps(ptr, _cur);
@@ -349,7 +304,7 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float* a, floa
     {
         __m128 _a = _mm_loadu_ps(a);
         __m128 _b = _mm_loadu_ps(b);
-        for (; i < size; i += 4, ptr += 4, ++gamma, ++beta)
+        for (; i + 4 <= size; i += 4, ptr += 4, ++gamma, ++beta)
         {
             __m128 _cur = _mm_loadu_ps(ptr);
             __m128 _gamma = _mm_set1_ps(*gamma);
@@ -359,55 +314,23 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float* a, floa
             _mm_storeu_ps(ptr, _cur);
         }
     }
+    else if (elempack == 1)
+    {
+        __m128 _a = _mm_set1_ps(*a);
+        __m128 _b = _mm_set1_ps(*b);
+        for (; i + 4 <= elemcount; i += 4, ptr += 4, gamma += 4, beta += 4)
+        {
+            __m128 _cur = _mm_loadu_ps(ptr);
+            __m128 _gamma = _mm_loadu_ps(gamma);
+            __m128 _beta = _mm_loadu_ps(beta);
+            _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
+            _cur = _mm_comp_fmadd_ps(_cur, _gamma, _beta);
+            _mm_storeu_ps(ptr, _cur);
+        }
+    }
 #endif // __SSE2__
     if (elempack == 1)
     {
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-        {
-            __m512 _a = _mm512_set1_ps(*a);
-            __m512 _b = _mm512_set1_ps(*b);
-            for (; i + 16 <= elemcount; i += 16, ptr += 16, gamma += 16, beta += 16)
-            {
-                __m512 _cur = _mm512_loadu_ps(ptr);
-                __m512 _gamma = _mm512_loadu_ps(gamma);
-                __m512 _beta = _mm512_loadu_ps(beta);
-                _cur = _mm512_fmadd_ps(_cur, _a, _b);
-                _cur = _mm512_fmadd_ps(_cur, _gamma, _beta);
-                _mm512_storeu_ps(ptr, _cur);
-            }
-        }
-#endif // __AVX512F__
-        {
-            __m256 _a = _mm256_set1_ps(*a);
-            __m256 _b = _mm256_set1_ps(*b);
-
-            for (; i + 8 <= elemcount; i += 8, ptr += 8, gamma += 8, beta += 8)
-            {
-                __m256 _cur = _mm256_loadu_ps(ptr);
-                __m256 _gamma = _mm256_loadu_ps(gamma);
-                __m256 _beta = _mm256_loadu_ps(beta);
-                _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
-                _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
-                _mm256_storeu_ps(ptr, _cur);
-            }
-        }
-#endif // __AVX__
-        {
-            __m128 _a = _mm_set1_ps(*a);
-            __m128 _b = _mm_set1_ps(*b);
-            for (; i + 4 <= elemcount; i += 4, ptr += 4, gamma += 4, beta += 4)
-            {
-                __m128 _cur = _mm_loadu_ps(ptr);
-                __m128 _gamma = _mm_loadu_ps(gamma);
-                __m128 _beta = _mm_loadu_ps(beta);
-                _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
-                _cur = _mm_comp_fmadd_ps(_cur, _gamma, _beta);
-                _mm_storeu_ps(ptr, _cur);
-            }
-        }
-#endif // __SSE2__
         for (; i < elemcount; ++i, ++ptr, ++gamma, ++beta)
         {
             *ptr = ((*ptr) * (*a) + (*b)) * (*gamma) + (*beta);
