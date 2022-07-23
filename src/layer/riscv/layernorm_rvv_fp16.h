@@ -151,8 +151,8 @@ static inline int layernorm_rvv_packn_fp16s_procedure(int size, __fp16* ptr, con
 
 static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, const float* gamma_data, const float* beta_data, float eps, int affine)
 {
-    float sum = 0.f;
-    float sqsum = 0.f;
+    __fp16 sum = 0.f;
+    __fp16 sqsum = 0.f;
     vfloat16m1_t _sum = vfmv_s_f_f16m1(vundefined_f16m1(), 0.f, vsetvlmax_e32m1());
     vfloat16m1_t _sqsum = vfmv_s_f_f16m1(vundefined_f16m1(), 0.f, vsetvlmax_e32m1());
     {
@@ -169,7 +169,7 @@ static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, co
         }
     }
     sum = vfmv_f_s_f16m1_f16(_sum);
-    float mean = sum / size;
+    __fp16 mean = sum / size;
 
     {
         int n = size;
@@ -185,11 +185,11 @@ static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, co
         }
     }
     sqsum = vfmv_f_s_f16m1_f16(_sqsum);
-    float var = sqsum / size;
+    __fp16 var = sqsum / size;
     // the var maybe minus due to accuracy
     //float var = sqsum / size - mean * mean;
-    float a = static_cast<float>(1.f / (sqrt(var + eps)));
-    float b = -mean * a;
+    __fp16 a = static_cast<__fp16>(1.f / (sqrt(var + eps)));
+    __fp16 b = static_cast<__fp16>(-mean * a);
 
     {
         int n = size;
@@ -219,7 +219,7 @@ static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, co
         {
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                word_type vl = vsetvl_e16m8(n);
                 vfloat16m8_t _p = vle16_v_f16m8(ptr_store, vl);
                 _p = vfmul_vf_f16m8(_p, a, vl);
                 _p = vfadd_vf_f16m8(_p, b, vl);
