@@ -24,12 +24,13 @@
 #endif
 #endif // __riscv_vector
 
+#include "riscv_usability.h"
+
 namespace ncnn {
 InstanceNorm_riscv::InstanceNorm_riscv()
 {
 #if __riscv_vector
-// support_packing = true;
-#warning "TODO: packing. Should not be merged to mainline at this moment";
+    support_packing = true;
 #endif
 }
 
@@ -121,8 +122,61 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                 }
             }
         }
+        return 0;
     }
 
+    const int packn = csrr_vlenb() / 4;
+    if (elempack == packn)
+    {
+        const word_type vl = vsetvl_e32m1(packn);
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int q = 0; q < c; q++)
+        {
+            float* ptr = bottom_top_blob.channel(q);
+            vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
+            vfloat32m1_t _sqsum = vfmv_v_f_f32m1(0.f, vl);
+
+            for (int i = 0; i < size; i++)
+            {
+                vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
+                _sum = vfadd_vv_f32m1(_p, _sum, vl);
+                // _sqsum = vfmadd_vv_f32m1(_p,_p,_sqsum,vl);
+            }
+            vfloat32m1_t _mean = vfdiv_vf_f32m1(_sum, size, vl);
+            for (int i = 0; i < size; i++)
+            {
+                vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
+                _p = vfsub_vv_f32m1(_p, _mean, vl);
+                _sqsum = vfmadd_vv_f32m1(_p, _p, _sqsum, vl);
+            }
+            vfloat32m1_t _var = vfdiv_vf_f32m1(_sqsum, size, vl);
+            // the var maybe minus due to accuracy
+            //float var = sqsum / size - mean * mean;
+
+            vfloat32m1_t _a;
+            vfloat32m1_t _b;
+            if (affine)
+            {
+                vfloat32m1_t _gamma = vle32_v_f32m1((const float*)gamma_data + q * vl, vl);
+                vfloat32m1_t _beta = vle32_v_f32m1((const float*)beta_data + q * vl, vl);
+                _a = vfdiv_vv_f32m1(_gamma, vfsqrt_v_f32m1(vfadd_vf_f32m1(_var, eps, vl), vl), vl);
+                _b = vfnmsub_vv_f32m1(_a, _mean, _beta, vl);
+            }
+            else
+            {
+                _a = vfrdiv_vf_f32m1(vfsqrt_v_f32m1(vfadd_vf_f32m1(_var, eps, vl), vl), 1.f, vl);
+                _b = vfmul_vv_f32m1(_a, _mean, vl);
+                _b = vfsgnjn_vv_f32m1(_b, _b, vl);
+            }
+            for (int i = 0; i < size; i++)
+            {
+                vfloat32m1_t _p = vle32_v_f32m1(ptr + i * vl, vl);
+                _p = vfmadd_vv_f32m1(_p, _a, _b, vl);
+                vse32_v_f32m1(ptr + i * vl, _p, vl);
+            }
+        }
+        return 0;
+    }
 #else
     return InstanceNorm::forward_inplace(bottom_top_blob, opt);
 #endif // __riscv_vector
