@@ -28,6 +28,7 @@ public:
 protected:
 #if __riscv_vector && __riscv_zfh
     int forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const;
+    int forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) const;
 #endif
 };
 
