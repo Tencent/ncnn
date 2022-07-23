@@ -495,6 +495,7 @@ set(pnnx_SRCS
     pass_level5.cpp
 
     pass_ncnn.cpp
+    save_ncnn.cpp
 
     ${pnnx_pass_level0_SRCS}
     ${pnnx_pass_level1_SRCS}
@@ -512,6 +513,8 @@ endif()
 
 add_executable(pnnx ${pnnx_SRCS})
 
+target_compile_definitions(pnnx PRIVATE BUILD_PNNX)
+
 if(PNNX_COVERAGE)
     target_compile_options(pnnx PUBLIC -coverage -fprofile-arcs -ftest-coverage)
     target_link_libraries(pnnx PUBLIC -coverage -lgcov)
@@ -528,7 +531,7 @@ endif()
 if(WIN32)
     target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES})
 else()
-    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} pthread dl)
+    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} protobuf pthread dl)
 endif()
 
 #set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
@@ -548,3 +551,42 @@ if (WIN32)
     file(GLOB TORCH_DLL "${TORCH_INSTALL_PREFIX}/lib/*.dll")
     install(FILES ${TORCH_DLL} DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
+
+
+# pnnx2ncnn
+set(pnnx2ncnn_SRCS
+    ir.cpp
+    storezip.cpp
+    pass_level2.cpp
+    pass_level3.cpp
+    pass_level4.cpp
+    pass_level5.cpp
+    pass_ncnn.cpp
+    save_ncnn.cpp
+    pnnx2ncnn.cpp
+
+    ${pnnx_pass_level3_SRCS}
+    ${pnnx_pass_level4_SRCS}
+    ${pnnx_pass_level5_SRCS}
+
+    ${pnnx_pass_ncnn_SRCS}
+)
+
+add_executable(pnnx2ncnn ${pnnx2ncnn_SRCS})
+
+# pnnx2onnx
+find_package(Protobuf)
+protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+
+set(pnnx2onnx_SRCS
+    ir.cpp
+    storezip.cpp
+    save_onnx.cpp
+    pnnx2onnx.cpp
+    ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
+)
+
+add_executable(pnnx2onnx ${pnnx2onnx_SRCS})
+target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
+

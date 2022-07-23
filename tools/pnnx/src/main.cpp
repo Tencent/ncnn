@@ -39,6 +39,9 @@
 #include "pass_level5.h"
 
 #include "pass_ncnn.h"
+#include "save_ncnn.h"
+
+#include "save_onnx.h"
 
 static std::string get_basename(const std::string& path)
 {
@@ -406,7 +409,7 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph);
 
-        pnnx_graph.ncnn(ncnnparampath, ncnnbinpath, ncnnpypath);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath);
     }
 
     //     pnnx::Graph pnnx_graph2;

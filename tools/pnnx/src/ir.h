@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#if BUILD_PNNX
 namespace torch {
 namespace jit {
 struct Value;
@@ -29,6 +30,7 @@ struct Node;
 namespace at {
 class Tensor;
 }
+#endif // BUILD_PNNX
 
 namespace pnnx {
 
@@ -114,8 +116,10 @@ public:
     {
     }
 
+#if BUILD_PNNX
     Parameter(const torch::jit::Node* value_node);
     Parameter(const torch::jit::Value* value);
+#endif // BUILD_PNNX
 
     static Parameter parse_from_string(const std::string& value);
 
@@ -142,7 +146,9 @@ public:
     {
     }
 
+#if BUILD_PNNX
     Attribute(const at::Tensor& t);
+#endif // BUILD_PNNX
 
     Attribute(const std::initializer_list<int>& shape, const std::vector<float>& t);
 
@@ -213,8 +219,6 @@ public:
 
     int python(const std::string& pypath, const std::string& binpath);
 
-    int ncnn(const std::string& parampath, const std::string& binpath, const std::string& pypath);
-
     int parse(const std::string& param);
 
     Operator* new_operator(const std::string& type, const std::string& name);
@@ -223,11 +227,14 @@ public:
 
     Operator* new_operator_after(const std::string& type, const std::string& name, const Operator* cur);
 
+#if BUILD_PNNX
     Operand* new_operand(const torch::jit::Value* v);
+#endif
 
     Operand* new_operand(const std::string& name);
 
     Operand* get_operand(const std::string& name);
+    const Operand* get_operand(const std::string& name) const;
 
     std::vector<Operator*> ops;
     std::vector<Operand*> operands;
