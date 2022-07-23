@@ -33,14 +33,14 @@ LayerNorm_riscv::LayerNorm_riscv()
 }
 
 #if __riscv_vector
-static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine)
+static inline int layernorm_rvv_pack1_procedure(int size, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine)
 {
     float sum = 0.f;
     float sqsum = 0.f;
     vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
     vfloat32m1_t _sqsum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
     {
-        int n = w;
+        int n = size;
         float* ptr_sum = ptr;
         while (n > 0)
         {
@@ -53,10 +53,10 @@ static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* 
         }
     }
     sum = vfmv_f_s_f32m1_f32(_sum);
-    float mean = sum / w;
+    float mean = sum / size;
 
     {
-        int n = w;
+        int n = size;
         float* ptr_sqsum = ptr;
         while (n > 0)
         {
@@ -69,14 +69,14 @@ static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* 
         }
     }
     sqsum = vfmv_f_s_f32m1_f32(_sqsum);
-    float var = sqsum / w;
+    float var = sqsum / size;
     // the var maybe minus due to accuracy
-    //float var = sqsum / w - mean * mean;
+    //float var = sqsum / size - mean * mean;
     float a = static_cast<float>(1.f / (sqrt(var + eps)));
     float b = -mean * a;
 
     {
-        int n = w;
+        int n = size;
         float* ptr_store = ptr;
         const float* ptr_gamma = gamma_data;
         const float* ptr_beta = beta_data;
@@ -116,34 +116,34 @@ static inline int layernorm_rvv_pack1_procedure(int w, float* ptr, const float* 
     return 0;
 }
 
-static inline int layernorm_rvv_packn_procedure(int w, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const word_type vl)
+static inline int layernorm_rvv_packn_procedure(int size, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const word_type vl)
 {
     // mean and var
     vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
     vfloat32m1_t _sqsum = vfmv_v_f_f32m1(0.f, vl);
-    for (int i = 0; i < w; i++)
+    for (int i = 0; i < size; i++)
     {
         vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
         _sum = vfadd_vv_f32m1(_p, _sum, vl);
         // _sqsum = vfmadd_vv_f32m1(_p,_p,_sqsum,vl);
     }
-    vfloat32m1_t _mean = vfdiv_vf_f32m1(_sum, w, vl);
-    for (int i = 0; i < w; i++)
+    vfloat32m1_t _mean = vfdiv_vf_f32m1(_sum, size, vl);
+    for (int i = 0; i < size; i++)
     {
         vfloat32m1_t _p = vle32_v_f32m1(ptr + vl * i, vl);
         _p = vfsub_vv_f32m1(_p, _mean, vl);
         _sqsum = vfmacc_vv_f32m1(_sqsum, _p, _p, vl);
     }
-    vfloat32m1_t _var = vfdiv_vf_f32m1(_sqsum, w, vl);
+    vfloat32m1_t _var = vfdiv_vf_f32m1(_sqsum, size, vl);
 
     // the var maybe minus due to accuracy
-    //float var = sqsum / w - mean * mean;
+    //float var = sqsum / size - mean * mean;
     vfloat32m1_t _a = vfrdiv_vf_f32m1(vfsqrt_v_f32m1(vfadd_vf_f32m1(_var, eps, vl), vl), 1.f, vl);
     // how about vfrsqrt7.v?
     vfloat32m1_t _b = vfmul_vv_f32m1(vfsgnjn_vv_f32m1(_mean, _mean, vl), _a, vl);
     if (affine)
     {
-        for (int i = 0; i < w; i++)
+        for (int i = 0; i < size; i++)
         {
             const int offset = vl * i;
             vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
@@ -155,7 +155,7 @@ static inline int layernorm_rvv_packn_procedure(int w, float* ptr, const float* 
     }
     else
     {
-        for (int i = 0; i < w; i++)
+        for (int i = 0; i < size; i++)
         {
             const int offset = vl * i;
             vfloat32m1_t _p = vle32_v_f32m1(ptr + offset, vl);
