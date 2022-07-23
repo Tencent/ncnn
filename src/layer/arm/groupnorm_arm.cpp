@@ -44,7 +44,7 @@ int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
     {
-        return forward_inplace_fp16s(bottom_top_blob,opt);
+        return forward_inplace_fp16s(bottom_top_blob, opt);
     }
 #endif
 
@@ -57,23 +57,22 @@ int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int h = bottom_top_blob.h;
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
-
     int channels_per_group = channels / group;
 
-#if __ARM_NEON__
+#if __ARM_NEON
     if (elempack == 4)
     {
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
-             Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
+            Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
 
-             // mean and var
-             float32x4_t _sum = vdupq_n_f32(0.f);
-             float32x4_t _sqsum = vdupq_n_f32(0.f);
+            // mean and var
+            float32x4_t _sum = vdupq_n_f32(0.f);
+            float32x4_t _sqsum = vdupq_n_f32(0.f);
 
-             for (int q = 0; q < channels_per_group; q++)
-             {
+            for (int q = 0; q < channels_per_group; q++)
+            {
                 const float* ptr = bottom_top_blob_g.channel(q);
                 for (int i = 0; i < size; i++)
                 {
@@ -81,12 +80,12 @@ int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _sum = vaddq_f32(_sum, _p);
                     ptr += 4;
                 }
-             }
-             float32x4_t _div_size = vdupq_n_f32(1.f / (channels_per_group * size));
-             float32x4_t _mean = vmulq_f32(_sum, _div_size);
+            }
+            float32x4_t _div_size = vdupq_n_f32(1.f / (channels_per_group * size));
+            float32x4_t _mean = vmulq_f32(_sum, _div_size);
 
-             for (int q = 0; q < channels_per_group; q++)
-             {
+            for (int q = 0; q < channels_per_group; q++)
+            {
                 const float* ptr = bottom_top_blob_g.channel(q);
                 for (int i = 0; i < size; i++)
                 {
@@ -95,11 +94,11 @@ int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     _sqsum = vmlaq_f32(_sqsum, _tmp, _tmp);
                     ptr += 4;
                 }
-             }
-             float32x4_t _var_eps = vmlaq_f32(vdupq_n_f32(eps), _sqsum, _div_size);
+            }
+            float32x4_t _var_eps = vmlaq_f32(vdupq_n_f32(eps), _sqsum, _div_size);
 
-             float32x4_t _reciprocal = vrsqrteq_f32(_var_eps);
-             _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_var_eps, _reciprocal), _reciprocal), _reciprocal);
+            float32x4_t _reciprocal = vrsqrteq_f32(_var_eps);
+            _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_var_eps, _reciprocal), _reciprocal), _reciprocal);
 
             for (int q = 0; q < channels_per_group; q++)
             {
@@ -241,7 +240,6 @@ int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
 
     return 0;
-    
 }
 
 #if NCNN_BF16
@@ -251,7 +249,6 @@ int GroupNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
     int h = bottom_top_blob.h;
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
-
     int channels_per_group = channels / group;
 
 #if __ARM_NEON
@@ -260,28 +257,28 @@ int GroupNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int g = 0; g < group; g++)
         {
-             Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
+            Mat bottom_top_blob_g = bottom_top_blob.channel_range(g * channels_per_group, channels_per_group);
 
-             // mean and var
-             float32x4_t _sum = vdupq_n_f32(0.f);
-             float32x4_t _sqsum = vdupq_n_f32(0.f);
+            // mean and var
+            float32x4_t _sum = vdupq_n_f32(0.f);
+            float32x4_t _sqsum = vdupq_n_f32(0.f);
 
-             for (int q = 0; q < channels_per_group; q++)
-             {
-                unsigned short* ptr = bottom_top_blob_g.channel(q);
+            for (int q = 0; q < channels_per_group; q++)
+            {
+                const unsigned short* ptr = bottom_top_blob_g.channel(q);
                 for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = float2bfloat(vld1_u16(ptr));
                     _sum = vaddq_f32(_sum, _p);
                     ptr += 4;
                 }
-             }
-             float32x4_t _div_size = vdupq_n_f32(1.f / (channels_per_group * size));
-             float32x4_t _mean = vmulq_f32(_sum, _div_size);
+            }
+            float32x4_t _div_size = vdupq_n_f32(1.f / (channels_per_group * size));
+            float32x4_t _mean = vmulq_f32(_sum, _div_size);
 
-             for (int q = 0; q < channels_per_group; q++)
-             {
-                unsigned short* ptr = bottom_top_blob_g.channel(q);
+            for (int q = 0; q < channels_per_group; q++)
+            {
+                const unsigned short* ptr = bottom_top_blob_g.channel(q);
                 for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = float2bfloat(vld1_u16(ptr));
@@ -289,11 +286,11 @@ int GroupNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                     _sqsum = vmlaq_f32(_sqsum, _tmp, _tmp);
                     ptr += 4;
                 }
-             }
-             float32x4_t _var_eps = vmlaq_f32(vdupq_n_f32(eps), _sqsum, _div_size);
+            }
+            float32x4_t _var_eps = vmlaq_f32(vdupq_n_f32(eps), _sqsum, _div_size);
 
-             float32x4_t _reciprocal = vrsqrteq_f32(_var_eps);
-             _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_var_eps, _reciprocal), _reciprocal), _reciprocal);
+            float32x4_t _reciprocal = vrsqrteq_f32(_var_eps);
+            _reciprocal = vmulq_f32(vrsqrtsq_f32(vmulq_f32(_var_eps, _reciprocal), _reciprocal), _reciprocal);
 
             for (int q = 0; q < channels_per_group; q++)
             {
@@ -339,7 +336,7 @@ int GroupNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         float sqsum = 0.f;
         for (int q = 0; q < channels_per_group; q++)
         {
-            unsigned short* ptr = bottom_top_blob_g.channel(q);
+            const unsigned short* ptr = bottom_top_blob_g.channel(q);
             int i = 0;
 #if __ARM_NEON
             float32x4_t _sum = vdupq_n_f32(0.f);
@@ -367,7 +364,7 @@ int GroupNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
 
         for (int q = 0; q < channels_per_group; q++)
         {
-            unsigned short* ptr = bottom_top_blob_g.channel(q);
+            const unsigned short* ptr = bottom_top_blob_g.channel(q);
             int i = 0;
 #if __ARM_NEON
             float32x4_t _sqsum = vdupq_n_f32(0.f);

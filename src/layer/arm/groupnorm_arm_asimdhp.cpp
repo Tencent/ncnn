@@ -27,7 +27,6 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
     int h = bottom_top_blob.h;
     int size = w * h;
     int elempack = bottom_top_blob.elempack;
-
     int channels_per_group = channels / group;
 
     if (elempack == 8)
