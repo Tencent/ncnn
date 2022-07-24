@@ -32,6 +32,9 @@ void eliminate_noop_pad(Graph& graph)
             if (op->type != "F.pad")
                 continue;
 
+            if (op->params.find("pad") == op->params.end())
+                continue;
+
             const std::vector<int>& pad = op->params.at("pad").ai;
 
             bool noop_pad = true;

@@ -44,6 +44,13 @@ jobs:
         cmake --build . -j 2
     - name: test
       run: cd build && ctest --output-on-failure -j 2
+    - name: build-nosse
+      run: |
+        mkdir build-nosse && cd build-nosse
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.gcc-m32.toolchain.cmake -DNCNN_RUNTIME_CPU=OFF -DNCNN_SSE2=OFF -DNCNN_AVX=OFF -DNCNN_BUILD_TESTS=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j 2
+    - name: test-nosse
+      run: cd build-nosse && ctest --output-on-failure -j 2
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared

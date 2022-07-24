@@ -1984,7 +1984,7 @@ int VkAndroidHardwareBufferImageAllocator::init()
     bufferProperties.sType = VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_PROPERTIES_ANDROID;
     bufferProperties.pNext = &bufferFormatProperties;
 
-    ret = vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
+    ret = vkdev->vkGetAndroidHardwareBufferPropertiesANDROID(vkdev->vkdevice(), hb, &bufferProperties);
     if (ret != VK_SUCCESS)
     {
         NCNN_LOGE("vkGetAndroidHardwareBufferPropertiesANDROID failed %d", ret);

@@ -471,6 +471,11 @@ if(NCNN_COVERAGE)
     target_link_libraries(ncnn PUBLIC -coverage -lgcov)
 endif()
 
+if(NCNN_ASAN)
+    target_compile_options(ncnn PUBLIC -fsanitize=address)
+    target_link_libraries(ncnn PUBLIC -fsanitize=address)
+endif()
+
 add_dependencies(ncnn ncnn-generate-spirv)
 
 if(NCNN_INSTALL_SDK)
