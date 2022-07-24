@@ -428,7 +428,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
     else if (dims == 2)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; ++i)
         {
             float* ptr = bottom_top_blob.row(i);
@@ -439,7 +439,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         if (affine_size == w)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 for (int i = 0; i < h; ++i)
@@ -451,7 +451,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         }
         else // if(affine_size == w * h)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 float* ptr = bottom_top_blob.channel(q);
