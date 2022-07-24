@@ -42,12 +42,74 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #if __AVX512F__
     if (elempack == 16)
     {
-        Mat tmp;
-        convert_packing(bottom_top_blob, tmp, 8, opt);
+        if (dims == 1)
+        {
+            int w = bottom_top_blob.w;
 
-        forward_inplace(tmp, opt);
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < w; i++)
+            {
+                float* ptr = (float*)bottom_top_blob + i * 16;
 
-        convert_packing(tmp, bottom_top_blob, 16, opt);
+                __m512 _a = _mm512_loadu_ps((const float*)a_data + i * 16);
+                __m512 _b = _mm512_loadu_ps((const float*)b_data + i * 16);
+
+                __m512 _p = _mm512_loadu_ps(ptr);
+                _p = _mm512_fmadd_ps(_p, _b, _a);
+                _mm512_storeu_ps(ptr, _p);
+            }
+        }
+
+        if (dims == 2)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int i = 0; i < h; i++)
+            {
+                __m512 _a = _mm512_loadu_ps((const float*)a_data + i * 16);
+                __m512 _b = _mm512_loadu_ps((const float*)b_data + i * 16);
+
+                float* ptr = bottom_top_blob.row(i);
+
+                for (int j = 0; j < w; j++)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _p = _mm512_fmadd_ps(_p, _b, _a);
+                    _mm512_storeu_ps(ptr, _p);
+
+                    ptr += 16;
+                }
+            }
+        }
+
+        if (dims == 3 || dims == 4)
+        {
+            int w = bottom_top_blob.w;
+            int h = bottom_top_blob.h;
+            int d = bottom_top_blob.d;
+            int c = bottom_top_blob.c;
+            int size = w * h * d;
+
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < c; q++)
+            {
+                __m512 _a = _mm512_loadu_ps((const float*)a_data + q * 16);
+                __m512 _b = _mm512_loadu_ps((const float*)b_data + q * 16);
+
+                float* ptr = bottom_top_blob.channel(q);
+
+                for (int i = 0; i < size; i++)
+                {
+                    __m512 _p = _mm512_loadu_ps(ptr);
+                    _p = _mm512_fmadd_ps(_p, _b, _a);
+                    _mm512_storeu_ps(ptr, _p);
+
+                    ptr += 16;
+                }
+            }
+        }
 
         return 0;
     }
