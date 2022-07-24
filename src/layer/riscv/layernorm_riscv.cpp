@@ -174,6 +174,47 @@ static inline int layernorm_rvv_packn_procedure(int size, float* ptr, const floa
 
     return 0;
 }
+#else
+static inline int layernorm_scalar_procedure(int size, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine)
+{
+    // mean and var
+    float sum = 0.f;
+    float sqsum = 0.f;
+    for (int i = 0; i < size; i++)
+    {
+        sum += ptr[i];
+        //sqsum += ptr[i] * ptr[i];
+    }
+    float mean = sum / size;
+    float tmp = 0.f;
+    for (int i = 0; i < size; i++)
+    {
+        tmp = ptr[i] - mean;
+        sqsum += tmp * tmp;
+    }
+    float var = sqsum / size;
+    // the var maybe minus due to accuracy
+    //float var = sqsum / size - mean * mean;
+
+    float a = static_cast<float>(1.f / (sqrt(var + eps)));
+    float b = -mean * a;
+
+    if (affine)
+    {
+        for (int i = 0; i < size; i++)
+        {
+            ptr[i] = (ptr[i] * a + b) * gamma_data[i] + beta_data[i];
+        }
+    }
+    else
+    {
+        for (int i = 0; i < size; i++)
+        {
+            ptr[i] = ptr[i] * a + b;
+        }
+    }
+    return 0;
+}
 #endif // __riscv_vector
 
 int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -193,16 +234,22 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
     int elempack = bottom_top_blob.elempack;
     const int packn = csrr_vlenb() / 4;
+#endif // __riscv_vector
     int dims = bottom_top_blob.dims;
     int w = bottom_top_blob.w;
 
     if (dims == 1)
     {
         float* ptr = bottom_top_blob;
-
+#if __riscv_vector
         return layernorm_rvv_pack1_procedure(w * elempack, ptr, gamma_data, beta_data, eps, affine);
+#else
+        return layernorm_scalar_procedure(w, ptr, gamma_data, beta_data, eps, affine);
+#endif // __riscv_vector
     }
+#if __riscv_vector
     if (elempack == 1)
+#endif
     {
         if (dims == 2)
         {
@@ -213,7 +260,11 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             for (int i = 0; i < h; i++)
             {
                 float* ptr = bottom_top_blob.row(i);
+#if __riscv_vector
                 layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine);
+#else
+                layernorm_scalar_procedure(w, ptr, gamma_data, beta_data, eps, affine);
+#endif // __riscv_vector
             }
         }
 
@@ -231,8 +282,11 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     for (int i = 0; i < h; i++)
                     {
                         float* ptr = bottom_top_blob.channel(q).row(i);
-
+#if __riscv_vector
                         layernorm_rvv_pack1_procedure(w, ptr, gamma_data, beta_data, eps, affine);
+#else
+                        layernorm_scalar_procedure(w, ptr, gamma_data, beta_data, eps, affine);
+#endif // __riscv_vector
                     }
                 }
             }
@@ -242,12 +296,17 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 for (int q = 0; q < channels; q++)
                 {
                     float* ptr = bottom_top_blob.channel(q);
+#if __riscv_vector
                     layernorm_rvv_pack1_procedure(size, ptr, gamma_data, beta_data, eps, affine);
+#else
+                    layernorm_scalar_procedure(size, ptr, gamma_data, beta_data, eps, affine);
+#endif // __riscv_vector
                 }
             }
         }
     }
 
+#if __riscv_vector
     if (elempack == packn)
     {
         const word_type vl = vsetvl_e32m1(packn);
@@ -295,9 +354,6 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             }
         }
     }
-
-#else  // __riscv_vector
-    return LayerNorm::forward_inplace(bottom_top_blob, opt);
 #endif // __riscv_vector
     return 0;
 }
