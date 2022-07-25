@@ -124,7 +124,8 @@ int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                         bool v2_cond = false;
                         bool v3_cond = false;
                         bool v4_cond = false;
-                        if (cond) {
+                        if (cond)
+                        {
                             h_low = floor(h_im);
                             w_low = floor(w_im);
                             h_high = h_low + 1;
@@ -149,7 +150,8 @@ int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                         for (int c_im = 0; c_im < in_c; c_im++)
                         {
                             float val = 0.f;
-                            if (cond) {
+                            if (cond)
+                            {
                                 float v1 = 0.f;
                                 if (v1_cond)
                                     v1 = bottom_blob.channel(c_im).row(h_low)[w_low];
