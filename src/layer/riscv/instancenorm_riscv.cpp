@@ -50,16 +50,20 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
             return forward_inplace_fp16s(bottom_top_blob, opt);
     }
     int elempack = bottom_top_blob.elempack;
-
+#endif // __riscv_vector
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
     int c = bottom_top_blob.c;
     int size = w * h;
 
     int dims = bottom_top_blob.dims;
+#if __riscv_vector
     if (elempack == 1)
+#endif // __riscv_vector
     {
+#if __riscv_vector
         size = elempack * size;
+#endif
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
@@ -68,6 +72,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
             // mean and var
             float sum = 0.f;
             float sqsum = 0.f;
+#if __riscv_vector
             vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
             vfloat32m1_t _sqsum = vfmv_s_f_f32m1(vundefined_f32m1(), 0.f, vsetvlmax_e32m1());
             {
@@ -84,7 +89,15 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                 }
             }
             sum = vfmv_f_s_f32m1_f32(_sum);
+#else
+            for (int i = 0; i < size; i++)
+            {
+                sum += ptr[i];
+                //sqsum += ptr[i] * ptr[i];
+            }
+#endif // __riscv_vector
             float mean = sum / size;
+#if __riscv_vecotr
             {
                 int n = size;
                 float* ptr_sqsum = ptr;
@@ -99,6 +112,14 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                 }
             }
             sqsum = vfmv_f_s_f32m1_f32(_sqsum);
+#else
+            float tmp = 0.f;
+            for (int i = 0; i < size; i++)
+            {
+                tmp = ptr[i] - mean;
+                sqsum += tmp * tmp;
+            }
+#endif // __riscv_vector
             float var = sqsum / size;
             // the var maybe minus due to accuracy
             //float var = sqsum / size - mean * mean;
@@ -118,6 +139,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                 a = static_cast<float>(1.f / (sqrt(var + eps)));
                 b = -mean * a;
             }
+#if __riscv_vector
             {
                 int n = size;
                 float* ptr_store = ptr;
@@ -132,10 +154,17 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                     ptr_store += vl;
                 }
             }
+#else
+            for (int i = 0; i < size; i++)
+            {
+                ptr[i] = ptr[i] * a + b;
+            }
+#endif // __riscv_vector
         }
         return 0;
     }
 
+#if __riscv_vector
     const int packn = csrr_vlenb() / 4;
     if (elempack == packn)
     {
@@ -188,8 +217,6 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
         }
         return 0;
     }
-#else
-    return InstanceNorm::forward_inplace(bottom_top_blob, opt);
 #endif // __riscv_vector
     return 0;
 }
