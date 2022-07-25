@@ -11,10 +11,6 @@ public:
     LayerNorm_x86();
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
-
-protected:
-    NCNN_FORCEINLINE void fast_1d_layer_norm(float* ptr, int elempack, int elemcount, int size) const;
-    NCNN_FORCEINLINE void fast_fmadd_fmadd(float* ptr, float* a, float* b, int elempack, int elemcount, int size) const;
 };
 
 } // namespace ncnn

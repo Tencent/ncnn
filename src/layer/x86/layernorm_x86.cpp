@@ -233,11 +233,11 @@ LayerNorm_x86::LayerNorm_x86()
 #endif // __SSE2__
 }
 
-void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float* a, float* b, int elempack, int elemcount, int size) const
+NCNN_FORCEINLINE static void fast_fmadd_fmadd(float* ptr, float* a, float* b, const float* gamma, const float* beta, int elempack, int elemcount, int size)
 {
     int i = 0;
-    const float* gamma = static_cast<const float*>(gamma_data);
-    const float* beta = static_cast<const float*>(beta_data);
+    // const float* gamma = static_cast<const float*>(gamma_data);
+    // const float* beta = static_cast<const float*>(beta_data);
 
 #if __SSE2__
 #if __AVX__
@@ -338,7 +338,7 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_fmadd_fmadd(float* ptr, float* a, floa
     }
 }
 
-void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm(float* ptr, int elempack, int elemcount, int size) const
+NCNN_FORCEINLINE static void fast_1d_layer_norm(float* ptr, int elempack, int elemcount, int size, const float* gamma, const float* beta, int affine, float eps)
 {
     float mean[16], var[16];
     fast_mean(ptr, mean, elempack, elemcount, size);
@@ -403,7 +403,7 @@ void NCNN_FORCEINLINE LayerNorm_x86::fast_1d_layer_norm(float* ptr, int elempack
 
     if (affine)
     {
-        fast_fmadd_fmadd(ptr, a, b, elempack, elemcount, size);
+        fast_fmadd_fmadd(ptr, a, b, gamma, beta, elempack, elemcount, size);
     }
     else
     {
@@ -419,43 +419,46 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int h = bottom_top_blob.h;
     int channels = bottom_top_blob.c;
 
+    const float* gamma = static_cast<const float*>(gamma_data);
+    const float* beta = static_cast<const float*>(beta_data);
+
     if (dims == 1)
     {
         int elemcount = w * elempack;
         float* ptr = bottom_top_blob;
         // 1D layer norm is special. Treat them as unpacked.
-        fast_1d_layer_norm(ptr, 1, elemcount, elemcount);
+        fast_1d_layer_norm(ptr, 1, elemcount, elemcount, gamma, beta, affine, eps);
     }
     else if (dims == 2)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; ++i)
         {
             float* ptr = bottom_top_blob.row(i);
-            fast_1d_layer_norm(ptr, elempack, w, w * elempack);
+            fast_1d_layer_norm(ptr, elempack, w, w * elempack, gamma, beta, affine, eps);
         }
     }
     else if (dims == 3)
     {
         if (affine_size == w)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 for (int i = 0; i < h; ++i)
                 {
                     float* ptr = bottom_top_blob.channel(q).row(i);
-                    fast_1d_layer_norm(ptr, elempack, w, w * elempack);
+                    fast_1d_layer_norm(ptr, elempack, w, w * elempack, gamma, beta, affine, eps);
                 }
             }
         }
         else // if(affine_size == w * h)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 float* ptr = bottom_top_blob.channel(q);
-                fast_1d_layer_norm(ptr, elempack, w * h, w * h * elempack);
+                fast_1d_layer_norm(ptr, elempack, w * h, w * h * elempack, gamma, beta, affine, eps);
             }
         }
     }
