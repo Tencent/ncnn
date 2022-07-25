@@ -17,6 +17,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -24,9 +27,9 @@ namespace ncnn {
 
 HardSigmoid_mips::HardSigmoid_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int HardSigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -44,7 +47,7 @@ int HardSigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         v4f32 _zero = (v4f32)__msa_fill_w(0);
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
         v4f32 _alpha = (v4f32)__msa_fill_w_f32(alpha);
@@ -60,7 +63,7 @@ int HardSigmoid_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
 
             ptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
         for (; i < size; i++)
         {
             if (*ptr < lower)

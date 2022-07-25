@@ -19,10 +19,14 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mxu2.h>
+#endif // __mips_mxu2
 
 #include <math.h>
 #include <stdint.h>
 
+#if __mips_msa || __mips_mxu2
 namespace ncnn {
 
 typedef union
@@ -33,17 +37,9 @@ typedef union
 
 } // namespace ncnn
 
-#if __mips_msa
 /* declare some mips constants with union */
 #define _MIPS_FLOAT_CONST(Name, Val) \
     static const ncnn::FloatInt Name = {.f = Val}
-
-/* float type data load instructions */
-static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
-{
-    ncnn::FloatInt fi_tmpval = {.f = val};
-    return (v4f32)__msa_fill_w(fi_tmpval.i);
-}
 
 static NCNN_FORCEINLINE float __msa_reduce_fadd_w(v4f32 _v)
 {
@@ -55,6 +51,15 @@ static NCNN_FORCEINLINE int __msa_reduce_add_w(v4i32 _v)
 {
     // TODO find a more efficient way
     return _v[0] + _v[1] + _v[2] + _v[3];
+}
+#endif // __mips_msa || __mips_mxu2
+
+#if __mips_msa
+/* float type data load instructions */
+static NCNN_FORCEINLINE v4f32 __msa_fill_w_f32(float val)
+{
+    ncnn::FloatInt fi_tmpval = {.f = val};
+    return (v4f32)__msa_fill_w(fi_tmpval.i);
 }
 
 static NCNN_FORCEINLINE int __msa_cfcmsa_msacsr()

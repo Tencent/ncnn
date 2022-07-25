@@ -17,21 +17,24 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
 namespace ncnn {
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 #include "padding_pack4.h"
 #include "padding_pack8_int8.h"
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 Padding_mips::Padding_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
@@ -55,7 +58,7 @@ int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4)
     {
         if (dims == 1)
@@ -180,7 +183,7 @@ int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
             }
         }
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
@@ -197,7 +200,7 @@ int Padding_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Option& o
         return ret;
 
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         out_elempack = top_blob_unpacked.c % 4 == 0 ? 4 : 1;
@@ -219,7 +222,7 @@ int Padding_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 8)
     {
         if (dims == 1)
@@ -353,7 +356,7 @@ int Padding_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
             }
         }
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     Mat bottom_blob_unpacked = bottom_blob;
     if (elempack != 1)
@@ -370,7 +373,7 @@ int Padding_mips::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opti
         return ret;
 
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         out_elempack = top_blob_unpacked.c % 8 == 0 ? 8 : 1;

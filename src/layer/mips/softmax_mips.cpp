@@ -21,6 +21,10 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
 namespace ncnn {
 
@@ -64,14 +68,14 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
         float* maxptr = max;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         int nn = size >> 2;
         int remain = size - (nn << 2);
 #else
         int remain = size;
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         for (; nn > 0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -84,7 +88,7 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
             maxptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         for (; remain > 0; remain--)
         {
@@ -105,14 +109,14 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
         float* sumptr = sum;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         int nn = size >> 2;
         int remain = size - (nn << 2);
 #else
         int remain = size;
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         for (; nn > 0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -123,7 +127,7 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
             sumptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         for (; remain > 0; remain--)
         {
@@ -140,14 +144,14 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
         float* sumptr = sum;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         int nn = size >> 2;
         int remain = size - (nn << 2);
 #else
         int remain = size;
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         for (; nn > 0; nn--)
         {
             v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -158,7 +162,7 @@ int Softmax_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 4;
             sumptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         for (; remain > 0; remain--)
         {

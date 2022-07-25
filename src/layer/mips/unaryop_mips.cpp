@@ -20,14 +20,18 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
 namespace ncnn {
 
 UnaryOp_mips::UnaryOp_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 template<typename Op>
@@ -48,7 +52,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
         float* ptr = a.channel(q);
 
         int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
@@ -57,7 +61,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
         for (; i < size; i++)
         {
             *ptr = op.func(*ptr);
@@ -76,12 +80,12 @@ struct unary_op_abs
     {
         return (float)fabs(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return (v4f32)__msa_bclri_w((v4u32)x, 31);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_neg
@@ -90,12 +94,12 @@ struct unary_op_neg
     {
         return -x;
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return (v4f32)__msa_bnegi_w((v4u32)x, 31);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_floor
@@ -104,7 +108,7 @@ struct unary_op_floor
     {
         return (float)floor(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         // TODO msa optimize
@@ -121,7 +125,7 @@ struct unary_op_floor
         // __msa_ctcmsa_msacsr(old_msacsr);
         // return y;
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_ceil
@@ -130,7 +134,7 @@ struct unary_op_ceil
     {
         return (float)ceil(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         // TODO msa optimize
@@ -147,7 +151,7 @@ struct unary_op_ceil
         // __msa_ctcmsa_msacsr(old_msacsr);
         // return y;
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_square
@@ -156,12 +160,12 @@ struct unary_op_square
     {
         return x * x;
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return __msa_fmul_w(x, x);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_sqrt
@@ -170,12 +174,12 @@ struct unary_op_sqrt
     {
         return (float)sqrt(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return __msa_fsqrt_w(x);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_rsqrt
@@ -184,12 +188,12 @@ struct unary_op_rsqrt
     {
         return (float)(1.f / sqrt(x));
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return __msa_frsqrt_w(x);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_exp
@@ -198,12 +202,12 @@ struct unary_op_exp
     {
         return (float)exp(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return exp_ps(x);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_log
@@ -212,12 +216,12 @@ struct unary_op_log
     {
         return (float)log(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return log_ps(x);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_sin
@@ -226,7 +230,7 @@ struct unary_op_sin
     {
         return (float)sin(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         // TODO msa optimize
@@ -238,7 +242,7 @@ struct unary_op_sin
         tmp[3] = sin(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_cos
@@ -247,7 +251,7 @@ struct unary_op_cos
     {
         return (float)cos(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         // TODO msa optimize
@@ -259,7 +263,7 @@ struct unary_op_cos
         tmp[3] = cos(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_tan
@@ -268,7 +272,7 @@ struct unary_op_tan
     {
         return (float)tan(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         // TODO msa optimize
@@ -280,7 +284,7 @@ struct unary_op_tan
         tmp[3] = tan(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_asin
@@ -289,7 +293,7 @@ struct unary_op_asin
     {
         return (float)asin(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         // TODO msa optimize
@@ -301,7 +305,7 @@ struct unary_op_asin
         tmp[3] = asin(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_acos
@@ -310,7 +314,7 @@ struct unary_op_acos
     {
         return (float)acos(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         // TODO msa optimize
@@ -322,7 +326,7 @@ struct unary_op_acos
         tmp[3] = acos(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_atan
@@ -331,7 +335,7 @@ struct unary_op_atan
     {
         return (float)atan(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         // TODO msa optimize
@@ -343,7 +347,7 @@ struct unary_op_atan
         tmp[3] = atan(tmp[3]);
         return (v4f32)__msa_ld_w(tmp, 0);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_reciprocal
@@ -352,12 +356,12 @@ struct unary_op_reciprocal
     {
         return 1.f / x;
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return __msa_frcp_w(x);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 struct unary_op_tanh
@@ -366,12 +370,12 @@ struct unary_op_tanh
     {
         return (float)tanh(x);
     }
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     v4f32 func_pack4(const v4f32& x) const
     {
         return tanh_ps(x);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 };
 
 } // namespace UnaryOp_mips_functor

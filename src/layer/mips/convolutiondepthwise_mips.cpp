@@ -19,6 +19,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_activation.h"
 #include "mips_usability.h"
@@ -27,16 +30,16 @@ namespace ncnn {
 
 #include "convolutiondepthwise_3x3.h"
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 #include "convolutiondepthwise_3x3_pack4.h"
 #include "convolutiondepthwise_5x5_pack4.h"
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 ConvolutionDepthWise_mips::ConvolutionDepthWise_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 
     activation = 0;
 }
@@ -62,21 +65,21 @@ int ConvolutionDepthWise_mips::create_pipeline(const Option& opt)
     if (channels == group && group == num_output)
     {
         int elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         if (opt.use_packing_layout)
         {
             elempack = channels % 4 == 0 ? 4 : 1;
         }
 #endif
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         // pack4
         if (elempack == 4)
         {
             Mat weight_data_r2 = weight_data.reshape(maxk, group);
             convert_packing(weight_data_r2, weight_data_tm, 4, opt);
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         if (elempack == 1)
         {
@@ -247,7 +250,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -262,7 +265,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
     // depth-wise
     if (channels * elempack == group && group == num_output)
     {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         if (elempack == 4)
         {
             if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -361,7 +364,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
                 }
             }
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         if (elempack == 1)
         {
@@ -451,7 +454,7 @@ int ConvolutionDepthWise_mips::forward(const Mat& bottom_blob, Mat& top_blob, co
 
     int g_elempack = 1;
     int out_g_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         g_elempack = channels_g % 4 == 0 ? 4 : 1;

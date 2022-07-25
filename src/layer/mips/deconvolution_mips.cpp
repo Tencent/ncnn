@@ -19,23 +19,26 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_activation.h"
 #include "mips_usability.h"
 
 namespace ncnn {
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 #include "deconvolution_pack4.h"
 #include "deconvolution_pack1to4.h"
 #include "deconvolution_pack4to1.h"
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 Deconvolution_mips::Deconvolution_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int Deconvolution_mips::create_pipeline(const Option& opt)
@@ -62,7 +65,7 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
 
     int elempack = 1;
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         elempack = num_input % 4 == 0 ? 4 : 1;
@@ -101,7 +104,7 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
         }
     }
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     // pack4
     if (elempack == 4 && out_elempack == 4)
     {
@@ -116,7 +119,7 @@ int Deconvolution_mips::create_pipeline(const Option& opt)
     if (elempack == 4 && out_elempack == 1)
     {
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
@@ -155,7 +158,7 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     int outw = (w - 1) * stride_w + kernel_extent_w + output_pad_right;
     int outh = (h - 1) * stride_h + kernel_extent_h + output_pad_bottom;
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -178,7 +181,7 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
     const int maxk = kernel_w * kernel_h;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4 && out_elempack == 4)
     {
         {
@@ -199,7 +202,7 @@ int Deconvolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             deconvolution_pack4to1_msa(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     if (elempack == 1 && out_elempack == 1)
     {

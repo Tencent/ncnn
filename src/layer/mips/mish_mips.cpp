@@ -18,6 +18,10 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
 #include <math.h>
 
@@ -25,7 +29,7 @@ namespace ncnn {
 
 Mish_mips::Mish_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
 #endif
 }
@@ -45,7 +49,7 @@ int Mish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         v4f32 _one = (v4f32)__msa_fill_w_f32(1.f);
         for (; i + 3 < size; i += 4)
         {
@@ -56,7 +60,7 @@ int Mish_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
         for (; i < size; i++)
         {
             *ptr = *ptr * tanh(log(exp(*ptr) + 1.f));

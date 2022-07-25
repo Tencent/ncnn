@@ -17,6 +17,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -24,9 +27,9 @@ namespace ncnn {
 
 Dropout_mips::Dropout_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int Dropout_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -49,7 +52,7 @@ int Dropout_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         float* ptr = bottom_top_blob.channel(q);
 
         int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         v4f32 _scale = (v4f32)__msa_fill_w_f32(scale);
         for (; i + 3 < size; i += 4)
         {
@@ -60,7 +63,7 @@ int Dropout_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
         for (; i < size; i++)
         {
             *ptr = *ptr * scale;

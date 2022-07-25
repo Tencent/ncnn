@@ -21,6 +21,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_activation.h"
 #include "mips_usability.h"
@@ -44,7 +47,7 @@ namespace ncnn {
 #include "convolution_int8.h"
 #endif // NCNN_INT8
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 #include "convolution_pack4.h"
 #include "convolution_pack1to4.h"
 #include "convolution_pack4to1.h"
@@ -76,13 +79,13 @@ namespace ncnn {
 #include "convolution_3x3_pack8to4_int8.h"
 #include "convolution_3x3_pack8to1_int8.h"
 #endif // NCNN_INT8
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 Convolution_mips::Convolution_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 
     activation = 0;
 }
@@ -142,7 +145,7 @@ int Convolution_mips::create_pipeline(const Option& opt)
 
     int elempack = 1;
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         elempack = num_input % 4 == 0 ? 4 : 1;
@@ -150,7 +153,7 @@ int Convolution_mips::create_pipeline(const Option& opt)
     }
 #endif
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     // pack4
     if (elempack == 4 && out_elempack == 4)
     {
@@ -195,7 +198,7 @@ int Convolution_mips::create_pipeline(const Option& opt)
             convolution_transform_kernel_packed_msa(weight_data, weight_data_tm, num_input, num_output, kernel_w, kernel_h, elempack, out_elempack);
         }
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     // pack1
     if (elempack == 1 && out_elempack == 1)
@@ -316,7 +319,7 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
     int outw = (w - kernel_extent_w) / stride_w + 1;
     int outh = (h - kernel_extent_h) / stride_h + 1;
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -330,7 +333,7 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 
     const int num_input = channels * elempack;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4 && out_elempack == 4)
     {
         if (kernel_w == 1 && kernel_h == 1 && dilation_w == 1 && dilation_h == 1 && stride_w == 1 && stride_h == 1)
@@ -449,7 +452,7 @@ int Convolution_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
             convolution_pack4to1_msa(bottom_blob_bordered, top_blob, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     if (elempack == 1 && out_elempack == 1)
     {

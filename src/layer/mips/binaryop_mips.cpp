@@ -20,14 +20,18 @@
 #include <msa.h>
 #include "msa_mathfun.h"
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#include "msa_mathfun.h"
+#endif // __mips_mxu2
 
 namespace ncnn {
 
 BinaryOp_mips::BinaryOp_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 template<typename Op>
@@ -55,7 +59,7 @@ static int binary_op_2_3_4_20(const Mat& a, const Mat& b, Mat& c, const Option& 
         float* outptr = c.channel(q);
 
         int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         v4f32 _a0 = __msa_fill_w_f32(a0);
         for (; i + 3 < size; i += 4)
         {
@@ -66,7 +70,7 @@ static int binary_op_2_3_4_20(const Mat& a, const Mat& b, Mat& c, const Option& 
             ptr += 4;
             outptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
         for (; i < size; i++)
         {
             *outptr = op(a0, *ptr);
@@ -103,7 +107,7 @@ static int binary_op_6_11_16_25(const Mat& a, const Mat& b, Mat& c, const Option
         float* outptr = c.channel(q);
 
         int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         v4f32 _b0 = __msa_fill_w_f32(b0);
         for (; i + 3 < size; i += 4)
         {
@@ -114,7 +118,7 @@ static int binary_op_6_11_16_25(const Mat& a, const Mat& b, Mat& c, const Option
             ptr += 4;
             outptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
         for (; i < size; i++)
         {
             *outptr = op(*ptr, b0);
@@ -151,7 +155,7 @@ static int binary_op_7_13_19_29(const Mat& a, const Mat& b, Mat& c, const Option
         float* outptr = c.channel(q);
 
         int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
@@ -164,7 +168,7 @@ static int binary_op_7_13_19_29(const Mat& a, const Mat& b, Mat& c, const Option
             ptr1 += 4;
             outptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
         for (; i < size; i++)
         {
             *outptr = op(*ptr, *ptr1);
@@ -177,7 +181,7 @@ static int binary_op_7_13_19_29(const Mat& a, const Mat& b, Mat& c, const Option
     return 0;
 }
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 // broadcasting rule
 // https://github.com/Tencent/ncnn/wiki/binaryop-broadcasting
 
@@ -898,7 +902,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
 
     return 0;
 }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 template<typename Op>
 static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
@@ -918,7 +922,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
         float* ptr = a.channel(q);
 
         int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         v4f32 _b = __msa_fill_w_f32(b);
         for (; i + 3 < size; i += 4)
         {
@@ -928,7 +932,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
             __msa_st_w((v4i32)_p, ptr, 0);
             ptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
         for (; i < size; i++)
         {
             *ptr = op(*ptr, b);
@@ -941,7 +945,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_mips_functor {
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
 #define MAKE_FUNCTION(NAME, IMPL, IMPL4)                       \
     struct NAME                                                \
     {                                                          \
@@ -963,7 +967,7 @@ namespace BinaryOp_mips_functor {
             return IMPL;                                       \
         }                                                      \
     };
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
 // clang-format off
 // *INDENT-OFF*
@@ -985,7 +989,7 @@ MAKE_FUNCTION(binary_op_rdiv, y / x, __msa_fdiv_w(y, x))
 
 int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     using namespace BinaryOp_mips_functor;
 
     const Mat& bottom_blob = bottom_blobs[0];
@@ -1024,7 +1028,7 @@ int BinaryOp_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat
         if (op_type == Operation_RDIV)
             return binary_op_pack4<binary_op_div>(bottom_blob1, bottom_blob, top_blob, opt);
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     return BinaryOp::forward(bottom_blobs, top_blobs, opt);
 }

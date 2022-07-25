@@ -17,6 +17,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_activation.h"
 #include "mips_usability.h"
@@ -25,9 +28,9 @@ namespace ncnn {
 
 Convolution1D_mips::Convolution1D_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int Convolution1D_mips::create_pipeline(const Option& opt)
@@ -39,7 +42,7 @@ int Convolution1D_mips::create_pipeline(const Option& opt)
 
     int elempack = 1;
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         elempack = num_input % 4 == 0 ? 4 : 1;
@@ -104,7 +107,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     h = bottom_blob_bordered.h;
 
     int out_elempack = 1;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (opt.use_packing_layout)
     {
         out_elempack = num_output % 4 == 0 ? 4 : 1;
@@ -119,7 +122,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
     if (top_blob.empty())
         return -100;
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     if (elempack == 4 && out_elempack == 4)
     {
         {
@@ -262,7 +265,7 @@ int Convolution1D_mips::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             }
         }
     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
     if (elempack == 1 && out_elempack == 1)
     {

@@ -17,6 +17,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -38,14 +41,14 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
         float bias = bias_ptr[q];
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         int nn = size >> 2;
         int remain = size - (nn << 2);
 #else
         int remain = size;
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
         v4f32 _bias = (v4f32)__msa_fill_w_f32(bias);
         for (; nn > 0; nn--)
         {
@@ -55,7 +58,7 @@ int Bias_mips::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             ptr += 4;
         }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
 
         for (; remain > 0; remain--)
         {

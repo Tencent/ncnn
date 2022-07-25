@@ -17,6 +17,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif // __mips_msa
+#if __mips_mxu2
+#include <mips_mxu2_fix.h>
+#endif // __mips_mxu2
 
 #include "mips_usability.h"
 
@@ -24,9 +27,9 @@ namespace ncnn {
 
 Eltwise_mips::Eltwise_mips()
 {
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
     support_packing = true;
-#endif // __mips_msa
+#endif
 }
 
 int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -55,7 +58,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             float* outptr = top_blob.channel(q);
 
             int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -67,7 +70,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 ptr1 += 4;
                 outptr += 4;
             }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
             for (; i < size; i++)
             {
                 *outptr = *ptr * *ptr1;
@@ -88,7 +91,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 float* outptr = top_blob.channel(q);
 
                 int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
@@ -99,7 +102,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     ptr += 4;
                     outptr += 4;
                 }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
                 for (; i < size; i++)
                 {
                     *outptr *= *ptr;
@@ -124,7 +127,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 float* outptr = top_blob.channel(q);
 
                 int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -136,7 +139,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     ptr1 += 4;
                     outptr += 4;
                 }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
                 for (; i < size; i++)
                 {
                     *outptr = *ptr + *ptr1;
@@ -157,7 +160,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     float* outptr = top_blob.channel(q);
 
                     int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
                     for (; i + 3 < size; i += 4)
                     {
                         v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
@@ -168,7 +171,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                         ptr += 4;
                         outptr += 4;
                     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
                     for (; i < size; i++)
                     {
                         *outptr += *ptr;
@@ -185,10 +188,10 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             const Mat& bottom_blob1 = bottom_blobs[1];
             float coeff0 = coeffs[0];
             float coeff1 = coeffs[1];
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             v4f32 _coeff0 = (v4f32)__msa_fill_w_f32(coeff0);
             v4f32 _coeff1 = (v4f32)__msa_fill_w_f32(coeff1);
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
@@ -197,7 +200,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 float* outptr = top_blob.channel(q);
 
                 int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -210,7 +213,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     ptr1 += 4;
                     outptr += 4;
                 }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
                 for (; i < size; i++)
                 {
                     *outptr = *ptr * coeff0 + *ptr1 * coeff1;
@@ -225,9 +228,9 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             {
                 const Mat& bottom_blob1 = bottom_blobs[b];
                 float coeff = coeffs[b];
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
                 v4f32 _coeff = (v4f32)__msa_fill_w_f32(coeff);
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
@@ -235,7 +238,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     float* outptr = top_blob.channel(q);
 
                     int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
                     for (; i + 3 < size; i += 4)
                     {
                         v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
@@ -246,7 +249,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                         ptr += 4;
                         outptr += 4;
                     }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
                     for (; i < size; i++)
                     {
                         *outptr += *ptr * coeff;
@@ -270,7 +273,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             float* outptr = top_blob.channel(q);
 
             int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
             for (; i + 3 < size; i += 4)
             {
                 v4f32 _p = (v4f32)__msa_ld_w(ptr, 0);
@@ -282,7 +285,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 ptr1 += 4;
                 outptr += 4;
             }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
             for (; i < size; i++)
             {
                 *outptr = std::max(*ptr, *ptr1);
@@ -303,7 +306,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                 float* outptr = top_blob.channel(q);
 
                 int i = 0;
-#if __mips_msa
+#if __mips_msa || __mips_mxu2
                 for (; i + 3 < size; i += 4)
                 {
                     v4f32 _p = (v4f32)__msa_ld_w(outptr, 0);
@@ -314,7 +317,7 @@ int Eltwise_mips::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
                     ptr += 4;
                     outptr += 4;
                 }
-#endif // __mips_msa
+#endif // __mips_msa || __mips_mxu2
                 for (; i < size; i++)
                 {
                     *outptr = std::max(*ptr, *outptr);
