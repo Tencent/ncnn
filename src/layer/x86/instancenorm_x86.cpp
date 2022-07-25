@@ -376,8 +376,8 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         __m256 _a256 = _mm256_set1_ps(a);
         __m256 _b256 = _mm256_set1_ps(b);
 
-#endif // __AVX512F__
-        // __m256 _fLoad256 = _mm256_setzero_ps();
+#endif // __AVX512F__ \
+// __m256 _fLoad256 = _mm256_setzero_ps();
 
         for (; i + 7 < size; i += 8)
         {
@@ -394,8 +394,8 @@ int InstanceNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         __m128 _a128 = _mm_set1_ps(a);
         __m128 _b128 = _mm_set1_ps(b);
 
-#endif // __AVX__
-        // __m128 _fLoad128 = _mm_setzero_ps();
+#endif // __AVX__ \
+// __m128 _fLoad128 = _mm_setzero_ps();
 
         for (; i + 3 < size; i += 4)
         {
