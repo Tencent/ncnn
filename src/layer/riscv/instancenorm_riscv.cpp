@@ -221,7 +221,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
     return 0;
 }
 
-#if __riscv_zfh
+#if __riscv_vector && __riscv_zfh
 int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
     // x = (x - mean) / (sqrt(var + eps)) * gamma + beta
@@ -513,6 +513,6 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
     return 0;
 }
 
-#endif // __riscv_zfh
+#endif // __riscv_vector && __riscv_zfh
 
 } // namespace ncnn
