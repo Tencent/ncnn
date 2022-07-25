@@ -50,15 +50,16 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             return forward_inplace_fp16s(bottom_top_blob, opt);
     }
 #endif
-
-    int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
+#endif // __riscv_vector
+    int dims = bottom_top_blob.dims;
     if (dims == 1)
     {
-        int n = bottom_top_blob.w * elempack;
         float* ptr = bottom_top_blob;
+#if __riscv_vector
         const float* ptr_a = a_data;
         const float* ptr_b = b_data;
+        int n = bottom_top_blob.w * elempack;
         while (n > 0)
         {
             word_type vl = vsetvl_e32m8(n);
@@ -76,10 +77,20 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             ptr_b += vl;
             n -= vl;
         }
+#else
+        int w = bottom_top_blob.w;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int i = 0; i < w; i++)
+        {
+            ptr[i] = b_data[i] * ptr[i] + a_data[i];
+        }
+#endif // __riscv_vector
         return 0;
     }
 
+#if __riscv_vector
     if (elempack == 1)
+#endif
     {
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
@@ -92,6 +103,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 float a = a_data[i];
                 float b = b_data[i];
 
+#if __riscv_vector
                 int n = w;
                 while (n > 0)
                 {
@@ -104,6 +116,12 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     ptr += vl;
                     n -= vl;
                 }
+#else
+                for (int j = 0; j < w; j++)
+                {
+                    ptr[j] = b * ptr[j] + a;
+                }
+#endif // __riscv_vector
             }
         }
         if (dims == 3 || dims == 4)
@@ -119,6 +137,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 float a = a_data[q];
                 float b = b_data[q];
 
+#if __riscv_vector
                 int n = size;
                 while (n > 0)
                 {
@@ -131,11 +150,18 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                     ptr += vl;
                     n -= vl;
                 }
+#else
+                for (int i = 0; i < size; i++)
+                {
+                    ptr[i] = b * ptr[i] + a;
+                }
+#endif // __riscv_vector
             }
         }
         return 0;
     }
 
+#if __riscv_vector
     const int packn = csrr_vlenb() / 4;
     if (elempack == packn)
     {
@@ -198,9 +224,6 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             }
         }
     }
-
-#else
-    return BatchNorm::forward_inplace(bottom_top_blob, opt);
 #endif
     return 0;
 }
