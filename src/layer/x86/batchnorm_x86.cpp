@@ -33,7 +33,6 @@ BatchNorm_x86::BatchNorm_x86()
 
 int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-
     int dims = bottom_top_blob.dims;
     int c = bottom_top_blob.c;
     int d = bottom_top_blob.d;
@@ -45,7 +44,7 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     int size;
 
     // determine the loops and the size
-    if(dims == 2)
+    if (dims == 2)
     {
         loops = h;
         size = w * elempack;
@@ -55,7 +54,6 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         loops = c;
         size = d * h * w * elempack;
     }
-
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < loops; q++)
@@ -199,4 +197,3 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 }
 
 } // namespace ncnn
-
