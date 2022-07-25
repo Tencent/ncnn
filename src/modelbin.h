@@ -36,6 +36,8 @@ public:
     virtual Mat load(int w, int h, int type) const;
     // load dim
     virtual Mat load(int w, int h, int c, int type) const;
+    // load cube
+    virtual Mat load(int w, int h, int d, int c, int type) const;
 };
 
 class ModelBinFromDataReaderPrivate;
