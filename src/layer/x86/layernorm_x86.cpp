@@ -31,73 +31,117 @@ static NCNN_FORCEINLINE void fast_mean(float* ptr, float* mean, int elempack, in
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16 || elempack == 1)
+    __m512 _sum_512 = _mm512_setzero_ps();
+    for (; i + 16 <= size; i += 16, ptr += 16)
     {
-        __m512 _sum = _mm512_setzero_ps();
-        for (; i + 16 <= size; i += 16, ptr += 16)
-        {
-            __m512 _cur = _mm512_loadu_ps(ptr);
-            _sum = _mm512_add_ps(_sum, _cur);
-        }
-        if (elempack == 16)
-        {
-            __m512 _elemcount = _mm512_set1_ps(float(elemcount));
-            __m512 _mean = _mm512_div_ps(_sum, _elemcount);
-            _mm512_storeu_ps(mean, _mean);
-        }
-        else
-        {
-            sum += _mm512_reduce_add_ps(_sum);
-        }
+        __m512 _cur = _mm512_loadu_ps(ptr);
+        _sum_512 = _mm512_add_ps(_sum_512, _cur);
     }
 #endif // __AVX512F__
-    if (elempack == 8 || elempack == 1)
+    __m256 _sum_256 = _mm256_setzero_ps();
+    for (; i + 8 <= size; i += 8, ptr += 8)
     {
-        __m256 _sum = _mm256_setzero_ps();
-        for (; i + 8 <= size; i += 8, ptr += 8)
-        {
-            __m256 _cur = _mm256_loadu_ps(ptr);
-            _sum = _mm256_add_ps(_sum, _cur);
-        }
-        if (elempack == 8)
-        {
-            __m256 _elemcount = _mm256_set1_ps(float(elemcount));
-            __m256 _mean = _mm256_div_ps(_sum, _elemcount);
-            _mm256_storeu_ps(mean, _mean);
-        }
-        else
-        {
-            sum += _mm256_reduce_add_ps(_sum);
-        }
+        __m256 _cur = _mm256_loadu_ps(ptr);
+        _sum_256 = _mm256_add_ps(_sum_256, _cur);
     }
 #endif // __AVX__
-    if (elempack == 4 || elempack == 1)
+    __m128 _sum_128 = _mm_setzero_ps();
+    for (; i + 4 <= size; i += 4, ptr += 4)
     {
-        __m128 _sum = _mm_setzero_ps();
-        for (; i + 4 <= size; i += 4, ptr += 4)
-        {
-            __m128 _cur = _mm_loadu_ps(ptr);
-            _sum = _mm_add_ps(_sum, _cur);
-        }
-        if (elempack == 4)
-        {
-            __m128 _elemcount = _mm_set1_ps(float(elemcount));
-            __m128 _mean = _mm_div_ps(_sum, _elemcount);
-            _mm_storeu_ps(mean, _mean);
-        }
-        else
-        {
-            sum += _mm_reduce_add_ps(_sum);
-        }
+        __m128 _cur = _mm_loadu_ps(ptr);
+        _sum_128 = _mm_add_ps(_sum_128, _cur);
     }
 #endif // __SSE2__
+    for (; i < size; ++i, ++ptr)
+    {
+        sum += *ptr;
+    }
+
+    if (elempack == 16)
+    {
+        __m512 _mean = _mm512_div_ps(_sum_512, _mm512_set1_ps((float)elemcount));
+        _mm512_storeu_ps(mean, _mean);
+    }
+    if (elempack == 8)
+    {
+#if __AVX512F__
+        {
+            __m256 _low = _mm512_castps512_ps256(_sum_512);
+            __m256 _high = _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(_sum_512), 1));
+            _sum_256 = _mm256_add_ps(_sum_256, _high);
+            _sum_256 = _mm256_add_ps(_sum_256, _low);
+        }
+#endif // __AVX512F__
+        __m256 _mean = _mm256_div_ps(_sum_256, _mm256_set1_ps((float)elemcount));
+        _mm256_storeu_ps(mean, _mean);
+        // duplicate until len is 16
+        _mm256_storeu_ps(mean + 8, _mean);
+    }
+    if (elempack == 4)
+    {
+#if __AVX__
+#if __AVX512F__
+        {
+            __m256 _low = _mm512_castps512_ps256(_sum_512);
+            __m256 _high = _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(_sum_512), 1));
+            _sum_256 = _mm256_add_ps(_sum_256, _high);
+            _sum_256 = _mm256_add_ps(_sum_256, _low);
+        }
+#endif // __AVX512F__
+        {
+            __m128 _low = _mm256_castps256_ps128(_sum_256);
+            __m128 _high = _mm256_extractf128_ps(_sum_256, 1);
+            _sum_128 = _mm_add_ps(_sum_128, _low);
+            _sum_128 = _mm_add_ps(_sum_128, _high);
+        }
+#endif // __AVX__
+        __m128 _mean = _mm_div_ps(_sum_128, _mm_set1_ps((float)elemcount));
+        _mm_storeu_ps(mean, _mean);
+        // duplicate until len is 16
+        _mm_storeu_ps(mean + 4, _mean);
+        _mm_storeu_ps(mean + 8, _mean);
+        _mm_storeu_ps(mean + 12, _mean);
+    }
     if (elempack == 1)
     {
-        for (; i < size; ++i, ++ptr)
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        sum += _mm512_reduce_add_ps(_sum_512);
+#endif // __AVX512F__
+        sum += _mm256_reduce_add_ps(_sum_256);
+#endif // __AVX__
+        sum += _mm_reduce_add_ps(_sum_128);
+#endif // __SSE2__
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
         {
-            sum += *ptr;
+            _mm512_storeu_ps(mean, _mm512_set1_ps(sum / elemcount));
+            return;
         }
-        *mean = sum / elemcount;
+#endif // __AVX512F__
+        {
+            __m256 _mean = _mm256_set1_ps(sum / elemcount);
+            _mm256_storeu_ps(mean, _mean);
+            _mm256_storeu_ps(mean + 8, _mean);
+            return;
+        }
+#endif // __AVX__
+        {
+            __m128 _mean = _mm_set1_ps(sum / elemcount);
+            _mm_storeu_ps(mean, _mean);
+            _mm_storeu_ps(mean + 4, _mean);
+            _mm_storeu_ps(mean + 8, _mean);
+            _mm_storeu_ps(mean + 12, _mean);
+            return;
+        }
+#endif // __SSE2__
+        float _mean = sum / elemcount;
+        for (int i = 0; i < 16; ++i)
+        {
+            mean[i] = _mean;
+        }
     }
 }
 
@@ -108,88 +152,129 @@ static NCNN_FORCEINLINE void fast_var(float* ptr, float* var, float* mean, int e
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16 || elempack == 1)
+    __m512 _mean_512 = _mm512_loadu_ps(mean);
+    __m512 _sq_sum_512 = _mm512_setzero_ps();
+    for (; i + 16 <= size; i += 16, ptr += 16)
     {
-        __m512 _mean = elempack == 1 ? _mm512_set1_ps(*mean) : _mm512_loadu_ps(mean);
-        __m512 _sq_sum = _mm512_setzero_ps();
-        for (; i + 16 <= size; i += 16, ptr += 16)
-        {
-            __m512 _cur = _mm512_loadu_ps(ptr);
-            _cur = _mm512_sub_ps(_cur, _mean);
-            _sq_sum = _mm512_fmadd_ps(_cur, _cur, _sq_sum);
-        }
-        if (elempack == 16)
-        {
-            __m512 _elemcount = _mm512_set1_ps(float(elemcount));
-            __m512 _var = _mm512_div_ps(_sq_sum, _elemcount);
-            _mm512_storeu_ps(var, _var);
-        }
-        else
-        {
-            sq_sum += _mm512_reduce_add_ps(_sq_sum);
-        }
+        __m512 _cur = _mm512_loadu_ps(ptr);
+        _cur = _mm512_sub_ps(_cur, _mean_512);
+        _sq_sum_512 = _mm512_fmadd_ps(_cur, _cur, _sq_sum_512);
     }
 #endif // __AVX512F__
-    if (elempack == 8 || elempack == 1)
+    __m256 _mean_256 = _mm256_loadu_ps(mean);
+    __m256 _sq_sum_256 = _mm256_setzero_ps();
+    for (; i + 8 <= size; i += 8, ptr += 8)
     {
-        __m256 _mean = elempack == 1 ? _mm256_set1_ps(*mean) : _mm256_loadu_ps(mean);
-        __m256 _sq_sum = _mm256_setzero_ps();
-        for (; i + 8 <= size; i += 8, ptr += 8)
-        {
-            __m256 _cur = _mm256_loadu_ps(ptr);
-            _cur = _mm256_sub_ps(_cur, _mean);
-            _sq_sum = _mm256_comp_fmadd_ps(_cur, _cur, _sq_sum);
-        }
-        if (elempack == 8)
-        {
-            __m256 _elemcount = _mm256_set1_ps(float(elemcount));
-            __m256 _var = _mm256_div_ps(_sq_sum, _elemcount);
-            _mm256_storeu_ps(var, _var);
-        }
-        else
-        {
-            sq_sum += _mm256_reduce_add_ps(_sq_sum);
-        }
+        __m256 _cur = _mm256_loadu_ps(ptr);
+        _cur = _mm256_sub_ps(_cur, _mean_256);
+        _sq_sum_256 = _mm256_comp_fmadd_ps(_cur, _cur, _sq_sum_256);
     }
 #endif // __AVX__
-    if (elempack == 4 || elempack == 1)
+    __m128 _mean_128 = _mm_loadu_ps(mean);
+    __m128 _sq_sum_128 = _mm_setzero_ps();
+    for (; i + 4 <= size; i += 4, ptr += 4)
     {
-        __m128 _mean = elempack == 1 ? _mm_set1_ps(*mean) : _mm_loadu_ps(mean);
-        __m128 _sq_sum = _mm_setzero_ps();
-        for (; i + 4 <= size; i += 4, ptr += 4)
-        {
-            __m128 _cur = _mm_loadu_ps(ptr);
-            _cur = _mm_sub_ps(_cur, _mean);
-            _sq_sum = _mm_comp_fmadd_ps(_cur, _cur, _sq_sum);
-        }
-        if (elempack == 4)
-        {
-            __m128 _elemcount = _mm_set1_ps(float(elemcount));
-            __m128 _var = _mm_div_ps(_sq_sum, _elemcount);
-            _mm_storeu_ps(var, _var);
-        }
-        else
-        {
-            sq_sum += _mm_reduce_add_ps(_sq_sum);
-        }
+        __m128 _cur = _mm_loadu_ps(ptr);
+        _cur = _mm_sub_ps(_cur, _mean_128);
+        _sq_sum_128 = _mm_comp_fmadd_ps(_cur, _cur, _sq_sum_128);
     }
 #endif // __SSE2__
+    float _mean = *mean;
+    for (; i < size; ++i, ++ptr)
+    {
+        float tmp = *ptr - _mean;
+        sq_sum += tmp * tmp;
+    }
+
+    if (elempack == 16)
+    {
+        __m512 _var = _mm512_div_ps(_sq_sum_512, _mm512_set1_ps((float)elemcount));
+        _mm512_storeu_ps(var, _var);
+    }
+    if (elempack == 8)
+    {
+#if __AVX512F__
+        {
+            __m256 _low = _mm512_castps512_ps256(_sq_sum_512);
+            __m256 _high = _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(_sq_sum_512), 1));
+            _sq_sum_256 = _mm256_add_ps(_sq_sum_256, _low);
+            _sq_sum_256 = _mm256_add_ps(_sq_sum_256, _high);
+        }
+#endif // __AVX512F__
+        __m256 _var = _mm256_div_ps(_sq_sum_256, _mm256_set1_ps((float)elemcount));
+        _mm256_storeu_ps(var, _var);
+        _mm256_storeu_ps(var + 8, _var);
+    }
+    if (elempack == 4)
+    {
+#if __AVX__
+#if __AVX512F__
+        {
+            __m256 _low = _mm512_castps512_ps256(_sq_sum_512);
+            __m256 _high = _mm256_castpd_ps(_mm512_extractf64x4_pd(_mm512_castps_pd(_sq_sum_512), 1));
+            _sq_sum_256 = _mm256_add_ps(_sq_sum_256, _high);
+            _sq_sum_256 = _mm256_add_ps(_sq_sum_256, _low);
+        }
+#endif // __AVX512F__
+        {
+            __m128 _low = _mm256_castps256_ps128(_sq_sum_256);
+            __m128 _high = _mm256_extractf128_ps(_sq_sum_256, 1);
+            _sq_sum_128 = _mm_add_ps(_sq_sum_128, _low);
+            _sq_sum_128 = _mm_add_ps(_sq_sum_128, _high);
+        }
+#endif // __AVX__
+        __m128 _var = _mm_div_ps(_sq_sum_128, _mm_set1_ps((float)elemcount));
+        _mm_storeu_ps(var, _var);
+        _mm_storeu_ps(var + 4, _var);
+        _mm_storeu_ps(var + 8, _var);
+        _mm_storeu_ps(var + 12, _var);
+    }
     if (elempack == 1)
     {
-        float _mean = *mean;
-        for (; i < size; ++i, ++ptr)
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+        sq_sum += _mm512_reduce_add_ps(_sq_sum_512);
+#endif // __AVX512F__
+        sq_sum += _mm256_reduce_add_ps(_sq_sum_256);
+#endif // __AVX__
+        sq_sum += _mm_reduce_add_ps(_sq_sum_128);
+#endif // __SSE2__
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
         {
-            float tmp = *ptr - _mean;
-            sq_sum += tmp * tmp;
+            _mm512_storeu_ps(var, _mm512_set1_ps(sq_sum / elemcount));
+            return;
         }
-        *var = sq_sum / elemcount;
+#endif // __AVX512F__
+        {
+            __m256 _var = _mm256_set1_ps(sq_sum / elemcount);
+            _mm256_storeu_ps(var, _var);
+            _mm256_storeu_ps(var + 8, _var);
+            return;
+        }
+#endif // __AVX__
+        {
+            __m128 _var = _mm_set1_ps(sq_sum / elemcount);
+            _mm_storeu_ps(var, _var);
+            _mm_storeu_ps(var + 4, _var);
+            _mm_storeu_ps(var + 8, _var);
+            _mm_storeu_ps(var + 12, _var);
+            return;
+        }
+#endif // __SSE2__
+        float _var = sq_sum / elemcount;
+        for (int i = 0; i < 16; ++i)
+        {
+            var[i] = _var;
+        }
     }
 }
 
 static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elempack, int elemcount, int size)
 {
     int i = 0;
-
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
@@ -445,7 +530,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
     else if (dims == 2)
     {
-        #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; ++i)
         {
             float* ptr = bottom_top_blob.row(i);
@@ -456,7 +541,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         if (affine_size == w)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 for (int i = 0; i < h; ++i)
@@ -468,7 +553,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         }
         else // if(affine_size == w * h)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 float* ptr = bottom_top_blob.channel(q);
