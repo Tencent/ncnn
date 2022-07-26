@@ -27,44 +27,29 @@ DeformableConv2D_x86::DeformableConv2D_x86()
     permute = 0;
 }
 
-int DeformableConv2D_x86::load_model(const ModelBin& mb)
-{
-    weight_data = mb.load(weight_data_size, 0);
-    if (weight_data.empty())
-        return -100;
-
-    if (bias_term)
-    {
-        bias_data = mb.load(num_output, 1);
-        if (bias_data.empty())
-            return -100;
-    }
-
-    const int in_c = weight_data_size / (num_output * kernel_h * kernel_w);
-    weight_data = weight_data.reshape(kernel_w * kernel_h, in_c, num_output);
-    weight_data_t.create(in_c, kernel_w * kernel_h, num_output);
-    if (weight_data_t.empty())
-        return -100;
-    for (int q = 0; q < num_output; q++)
-    {
-        const Mat m = weight_data.channel(q);
-        float* outptr = weight_data_t.channel(q);
-
-        for (int i = 0; i < kernel_w * kernel_h; i++)
-        {
-            for (int j = 0; j < in_c; j++)
-            {
-                *outptr++ = m.row(j)[i];
-            }
-        }
-    }
-    weight_data_t = weight_data_t.reshape(in_c * kernel_w * kernel_h, num_output);
-    return 0;
-}
-
 int DeformableConv2D_x86::create_pipeline(const Option& opt)
 {
+    const int in_c = weight_data_size / (num_output * kernel_h * kernel_w);
     {
+        weight_data = weight_data.reshape(kernel_w * kernel_h, in_c, num_output);
+        weight_data_t.create(in_c, kernel_w * kernel_h, num_output);
+        if (weight_data_t.empty())
+            return -100;
+        for (int q = 0; q < num_output; q++)
+        {
+            const Mat m = weight_data.channel(q);
+            float* outptr = weight_data_t.channel(q);
+
+            for (int i = 0; i < kernel_w * kernel_h; i++)
+            {
+                for (int j = 0; j < in_c; j++)
+                {
+                    *outptr++ = m.row(j)[i];
+                }
+            }
+        }
+        weight_data_t = weight_data_t.reshape(in_c * kernel_w * kernel_h, num_output);
+
         inner_product = ncnn::create_layer(ncnn::LayerType::InnerProduct);
         ncnn::ParamDict pd;
         pd.set(0, num_output);

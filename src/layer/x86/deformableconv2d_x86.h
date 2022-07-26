@@ -24,8 +24,6 @@ class DeformableConv2D_x86 : virtual public DeformableConv2D
 public:
     DeformableConv2D_x86();
 
-    virtual int load_model(const ModelBin& mb);
-
     virtual int create_pipeline(const Option& opt);
     virtual int destroy_pipeline(const Option& opt);
 
