@@ -56,12 +56,14 @@ static NCNN_FORCEINLINE void fast_mean(float* ptr, float* mean, int elempack, in
     {
         sum += *ptr;
     }
-
+#if __AVX512F__
     if (elempack == 16)
     {
         __m512 _mean = _mm512_div_ps(_sum_512, _mm512_set1_ps((float)elemcount));
         _mm512_storeu_ps(mean, _mean);
     }
+#endif // __AVX512F__
+#if __AVX__
     if (elempack == 8)
     {
 #if __AVX512F__
@@ -77,6 +79,8 @@ static NCNN_FORCEINLINE void fast_mean(float* ptr, float* mean, int elempack, in
         // duplicate until len is 16
         _mm256_storeu_ps(mean + 8, _mean);
     }
+#endif // __AVX__
+#if __SSE2__
     if (elempack == 4)
     {
 #if __AVX__
@@ -102,6 +106,7 @@ static NCNN_FORCEINLINE void fast_mean(float* ptr, float* mean, int elempack, in
         _mm_storeu_ps(mean + 8, _mean);
         _mm_storeu_ps(mean + 12, _mean);
     }
+#endif // __SSE2__
     if (elempack == 1)
     {
 #if __SSE2__
@@ -186,11 +191,14 @@ static NCNN_FORCEINLINE void fast_var(float* ptr, float* var, float* mean, int e
         sq_sum += tmp * tmp;
     }
 
+#if __AVX512F__
     if (elempack == 16)
     {
         __m512 _var = _mm512_div_ps(_sq_sum_512, _mm512_set1_ps((float)elemcount));
         _mm512_storeu_ps(var, _var);
     }
+#endif // __AVX512F__
+#if __AVX__
     if (elempack == 8)
     {
 #if __AVX512F__
@@ -205,6 +213,8 @@ static NCNN_FORCEINLINE void fast_var(float* ptr, float* var, float* mean, int e
         _mm256_storeu_ps(var, _var);
         _mm256_storeu_ps(var + 8, _var);
     }
+#endif // __AVX__
+#if __SSE2__
     if (elempack == 4)
     {
 #if __AVX__
@@ -229,6 +239,7 @@ static NCNN_FORCEINLINE void fast_var(float* ptr, float* var, float* mean, int e
         _mm_storeu_ps(var + 8, _var);
         _mm_storeu_ps(var + 12, _var);
     }
+#endif // __SSE2__
     if (elempack == 1)
     {
 #if __SSE2__
@@ -587,7 +598,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     }
     else if (dims == 2)
     {
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; ++i)
         {
             float* ptr = bottom_top_blob.row(i);
@@ -598,7 +609,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
     {
         if (affine_size == w)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 for (int i = 0; i < h; ++i)
@@ -610,7 +621,7 @@ int LayerNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         }
         else // if(affine_size == w * h)
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; ++q)
             {
                 float* ptr = bottom_top_blob.channel(q);
