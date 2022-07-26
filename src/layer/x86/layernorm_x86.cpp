@@ -502,7 +502,8 @@ NCNN_FORCEINLINE static void fast_1d_layer_norm(float* ptr, int elempack, int el
     fast_var(ptr, var, mean, elempack, elemcount, size);
     float *a = var, *b = mean;
 
-    do {
+    do
+    {
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
