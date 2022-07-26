@@ -123,8 +123,8 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             }
             else if (elempack == 4)
             {
-                _a128 = _mm_load_ps((const float*)a_data + i * 4);
-                _b128 = _mm_load_ps((const float*)b_data + i * 4);
+                _a128 = _mm_loadu_ps((const float*)a_data + i * 4);
+                _b128 = _mm_loadu_ps((const float*)b_data + i * 4);
             }
 #endif // __SSE2__
 
@@ -234,8 +234,8 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             }
             else if (elempack == 4)
             {
-                _a128 = _mm_load_ps((const float*)a_data + q * 4);
-                _b128 = _mm_load_ps((const float*)b_data + q * 4);
+                _a128 = _mm_loadu_ps((const float*)a_data + q * 4);
+                _b128 = _mm_loadu_ps((const float*)b_data + q * 4);
             }
 #endif // __SSE2__
 
