@@ -272,16 +272,15 @@ static NCNN_FORCEINLINE void fast_var(float* ptr, float* var, float* mean, int e
     }
 }
 
-static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elempack, int elemcount, int size)
+static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int size)
 {
     int i = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16 || elempack == 1)
     {
-        __m512 _a = elempack == 1 ? _mm512_set1_ps(*a) : _mm512_loadu_ps(a);
-        __m512 _b = elempack == 1 ? _mm512_set1_ps(*b) : _mm512_loadu_ps(b);
+        __m512 _a = _mm512_loadu_ps(a);
+        __m512 _b = _mm512_loadu_ps(b);
         for (; i + 16 <= size; i += 16, ptr += 16)
         {
             __m512 _cur = _mm512_loadu_ps(ptr);
@@ -290,10 +289,9 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elem
         }
     }
 #endif // __AVX512F__
-    if (elempack == 8 || elempack == 1)
     {
-        __m256 _a = elempack == 1 ? _mm256_set1_ps(*a) : _mm256_loadu_ps(a);
-        __m256 _b = elempack == 1 ? _mm256_set1_ps(*b) : _mm256_loadu_ps(b);
+        __m256 _a = _mm256_loadu_ps(a);
+        __m256 _b = _mm256_loadu_ps(b);
         for (; i + 8 <= size; i += 8, ptr += 8)
         {
             __m256 _cur = _mm256_loadu_ps(ptr);
@@ -302,10 +300,9 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elem
         }
     }
 #endif // __AVX__
-    if (elempack == 4 || elempack == 1)
     {
-        __m128 _a = elempack == 1 ? _mm_set1_ps(*a) : _mm_loadu_ps(a);
-        __m128 _b = elempack == 1 ? _mm_set1_ps(*b) : _mm_loadu_ps(b);
+        __m128 _a = _mm_loadu_ps(a);
+        __m128 _b = _mm_loadu_ps(b);
         for (; i + 4 <= size; i += 4, ptr += 4)
         {
             __m128 _cur = _mm_loadu_ps(ptr);
@@ -314,12 +311,9 @@ static NCNN_FORCEINLINE void fast_fmadd(float* ptr, float* a, float* b, int elem
         }
     }
 #endif // __SSE2__
-    if (elempack == 1)
+    for (; i < size; ++i, ++ptr)
     {
-        for (; i < elemcount; ++i, ++ptr)
-        {
-            *ptr = (*ptr) * (*a) + (*b);
-        }
+        *ptr = (*ptr) * (*a) + (*b);
     }
 }
 
@@ -332,105 +326,158 @@ LayerNorm_x86::LayerNorm_x86()
 #endif // __SSE2__
 }
 
-NCNN_FORCEINLINE static void fast_fmadd_fmadd(float* ptr, float* a, float* b, const float* gamma, const float* beta, int elempack, int elemcount, int size)
+NCNN_FORCEINLINE static void fast_fmadd_fmadd(float* ptr, float* a, float* b, const float* gamma, const float* beta, int elempack, int size)
 {
     int i = 0;
-    // const float* gamma = static_cast<const float*>(gamma_data);
-    // const float* beta = static_cast<const float*>(beta_data);
-
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16)
     {
         __m512 _a = _mm512_loadu_ps(a);
         __m512 _b = _mm512_loadu_ps(b);
-        for (; i + 16 <= size; i += 16, ptr += 16, ++gamma, ++beta)
+        if (elempack == 16)
         {
-            __m512 _cur = _mm512_loadu_ps(ptr);
-            __m512 _gamma = _mm512_set1_ps(*gamma);
-            __m512 _beta = _mm512_set1_ps(*beta);
-            _cur = _mm512_fmadd_ps(_cur, _a, _b);
-            _cur = _mm512_fmadd_ps(_cur, _gamma, _beta);
-            _mm512_storeu_ps(ptr, _cur);
+            for (; i + 16 <= size; i += 16, ptr += 16, ++gamma, ++beta)
+            {
+                __m512 _cur = _mm512_loadu_ps(ptr);
+                __m512 _gamma = _mm512_set1_ps(*gamma);
+                __m512 _beta = _mm512_set1_ps(*beta);
+                _cur = _mm512_fmadd_ps(_cur, _a, _b);
+                _cur = _mm512_fmadd_ps(_cur, _gamma, _beta);
+                _mm512_storeu_ps(ptr, _cur);
+            }
         }
-    }
-    else if (elempack == 1)
-    {
-        __m512 _a = _mm512_set1_ps(*a);
-        __m512 _b = _mm512_set1_ps(*b);
-        for (; i + 16 <= elemcount; i += 16, ptr += 16, gamma += 16, beta += 16)
+        else if (elempack == 8)
         {
-            __m512 _cur = _mm512_loadu_ps(ptr);
-            __m512 _gamma = _mm512_loadu_ps(gamma);
-            __m512 _beta = _mm512_loadu_ps(beta);
-            _cur = _mm512_fmadd_ps(_cur, _a, _b);
-            _cur = _mm512_fmadd_ps(_cur, _gamma, _beta);
-            _mm512_storeu_ps(ptr, _cur);
+            for (; i + 16 <= size; i += 16, ptr += 16, gamma += 2, beta += 2)
+            {
+                __m512 _cur = _mm512_loadu_ps(ptr);
+                __m512 _gamma_0 = _mm512_set1_ps(gamma[0]);
+                __m512 _gamma_1 = _mm512_set1_ps(gamma[1]);
+                __m512 _beta_0 = _mm512_set1_ps(beta[0]);
+                __m512 _beta_1 = _mm512_set1_ps(beta[1]);
+                _gamma_0 = _mm512_mask_blend_ps(0xFF00, _gamma_0, _gamma_1);
+                _beta_0 = _mm512_mask_blend_ps(0xFF00, _beta_0, _beta_1);
+                _cur = _mm512_fmadd_ps(_cur, _a, _b);
+                _cur = _mm512_fmadd_ps(_cur, _gamma_0, _beta_0);
+                _mm512_storeu_ps(ptr, _cur);
+            }
+        }
+        else if (elempack == 4)
+        {
+            for (; i + 16 <= size; i += 16, ptr += 16, gamma += 4, beta += 4)
+            {
+                __m512 _cur = _mm512_loadu_ps(ptr);
+                __m512 _gamma_0 = _mm512_set1_ps(gamma[0]);
+                __m512 _gamma_1 = _mm512_set1_ps(gamma[1]);
+                __m512 _gamma_2 = _mm512_set1_ps(gamma[2]);
+                __m512 _gamma_3 = _mm512_set1_ps(gamma[3]);
+                __m512 _beta_0 = _mm512_set1_ps(beta[0]);
+                __m512 _beta_1 = _mm512_set1_ps(beta[1]);
+                __m512 _beta_2 = _mm512_set1_ps(beta[2]);
+                __m512 _beta_3 = _mm512_set1_ps(beta[3]);
+                _gamma_0 = _mm512_mask_blend_ps(0x00F0, _gamma_0, _gamma_1);
+                _gamma_0 = _mm512_mask_blend_ps(0x0F00, _gamma_0, _gamma_2);
+                _gamma_0 = _mm512_mask_blend_ps(0xF000, _gamma_0, _gamma_3);
+                _beta_0 = _mm512_mask_blend_ps(0x00F0, _beta_0, _beta_1);
+                _beta_0 = _mm512_mask_blend_ps(0x0F00, _beta_0, _beta_2);
+                _beta_0 = _mm512_mask_blend_ps(0xF000, _beta_0, _beta_3);
+                _cur = _mm512_fmadd_ps(_cur, _a, _b);
+                _cur = _mm512_fmadd_ps(_cur, _gamma_0, _beta_0);
+                _mm512_storeu_ps(ptr, _cur);
+            }
+        }
+        else if (elempack == 1)
+        {
+            for (; i + 16 <= size; i += 16, ptr += 16, gamma += 16, beta += 16)
+            {
+                __m512 _cur = _mm512_loadu_ps(ptr);
+                __m512 _gamma = _mm512_loadu_ps(gamma);
+                __m512 _beta = _mm512_loadu_ps(beta);
+                _cur = _mm512_fmadd_ps(_cur, _a, _b);
+                _cur = _mm512_fmadd_ps(_cur, _gamma, _beta);
+                _mm512_storeu_ps(ptr, _cur);
+            }
         }
     }
 #endif // __AVX512F__
-    if (elempack == 8)
     {
         __m256 _a = _mm256_loadu_ps(a);
         __m256 _b = _mm256_loadu_ps(b);
-        for (; i + 8 <= size; i += 8, ptr += 8, ++gamma, ++beta)
+        if (elempack == 8)
         {
-            __m256 _cur = _mm256_loadu_ps(ptr);
-            __m256 _gamma = _mm256_set1_ps(*gamma);
-            __m256 _beta = _mm256_set1_ps(*beta);
-            _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
-            _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
-            _mm256_storeu_ps(ptr, _cur);
+            for (; i + 8 <= size; i += 8, ptr += 8, ++gamma, ++beta)
+            {
+                __m256 _cur = _mm256_loadu_ps(ptr);
+                __m256 _gamma = _mm256_set1_ps(*gamma);
+                __m256 _beta = _mm256_set1_ps(*beta);
+                _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
+                _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
+                _mm256_storeu_ps(ptr, _cur);
+            }
         }
-    }
-    else if (elempack == 1)
-    {
-        __m256 _a = _mm256_set1_ps(*a);
-        __m256 _b = _mm256_set1_ps(*b);
-        for (; i + 8 <= elemcount; i += 8, ptr += 8, gamma += 8, beta += 8)
+        else if (elempack == 4)
         {
-            __m256 _cur = _mm256_loadu_ps(ptr);
-            __m256 _gamma = _mm256_loadu_ps(gamma);
-            __m256 _beta = _mm256_loadu_ps(beta);
-            _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
-            _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
-            _mm256_storeu_ps(ptr, _cur);
+            for (; i + 8 <= size; i += 8, ptr += 8, gamma += 2, beta += 2)
+            {
+                __m256 _cur = _mm256_loadu_ps(ptr);
+                __m256 _gamma_0 = _mm256_set1_ps(gamma[0]);
+                __m256 _gamma_1 = _mm256_set1_ps(gamma[1]);
+                __m256 _beta_0 = _mm256_set1_ps(beta[0]);
+                __m256 _beta_1 = _mm256_set1_ps(beta[1]);
+                _gamma_0 = _mm256_blend_ps(_gamma_0, _gamma_1, 0xF0);
+                _beta_0 = _mm256_blend_ps(_beta_0, _beta_1, 0xF0);
+                _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
+                _cur = _mm256_comp_fmadd_ps(_cur, _gamma_0, _beta_0);
+                _mm256_storeu_ps(ptr, _cur);
+            }
+        }
+        else if (elempack == 1)
+        {
+            for (; i + 8 <= size; i += 8, ptr += 8, gamma += 8, beta += 8)
+            {
+                __m256 _cur = _mm256_loadu_ps(ptr);
+                __m256 _gamma = _mm256_loadu_ps(gamma);
+                __m256 _beta = _mm256_loadu_ps(beta);
+                _cur = _mm256_comp_fmadd_ps(_cur, _a, _b);
+                _cur = _mm256_comp_fmadd_ps(_cur, _gamma, _beta);
+                _mm256_storeu_ps(ptr, _cur);
+            }
         }
     }
 #endif // __AVX__
-    if (elempack == 4)
     {
         __m128 _a = _mm_loadu_ps(a);
         __m128 _b = _mm_loadu_ps(b);
-        for (; i + 4 <= size; i += 4, ptr += 4, ++gamma, ++beta)
+        if (elempack == 4)
         {
-            __m128 _cur = _mm_loadu_ps(ptr);
-            __m128 _gamma = _mm_set1_ps(*gamma);
-            __m128 _beta = _mm_set1_ps(*beta);
-            _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
-            _cur = _mm_comp_fmadd_ps(_cur, _gamma, _beta);
-            _mm_storeu_ps(ptr, _cur);
+            for (; i + 4 <= size; i += 4, ptr += 4, ++gamma, ++beta)
+            {
+                __m128 _cur = _mm_loadu_ps(ptr);
+                __m128 _gamma = _mm_set1_ps(*gamma);
+                __m128 _beta = _mm_set1_ps(*beta);
+                _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
+                _cur = _mm_comp_fmadd_ps(_cur, _gamma, _beta);
+                _mm_storeu_ps(ptr, _cur);
+            }
         }
-    }
-    else if (elempack == 1)
-    {
-        __m128 _a = _mm_set1_ps(*a);
-        __m128 _b = _mm_set1_ps(*b);
-        for (; i + 4 <= elemcount; i += 4, ptr += 4, gamma += 4, beta += 4)
+        else if (elempack == 1)
         {
-            __m128 _cur = _mm_loadu_ps(ptr);
-            __m128 _gamma = _mm_loadu_ps(gamma);
-            __m128 _beta = _mm_loadu_ps(beta);
-            _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
-            _cur = _mm_comp_fmadd_ps(_cur, _gamma, _beta);
-            _mm_storeu_ps(ptr, _cur);
+            for (; i + 4 <= size; i += 4, ptr += 4, gamma += 4, beta += 4)
+            {
+                __m128 _cur = _mm_loadu_ps(ptr);
+                __m128 _gamma = _mm_loadu_ps(gamma);
+                __m128 _beta = _mm_loadu_ps(beta);
+                _cur = _mm_comp_fmadd_ps(_cur, _a, _b);
+                _cur = _mm_comp_fmadd_ps(_cur, _gamma, _beta);
+                _mm_storeu_ps(ptr, _cur);
+            }
         }
     }
 #endif // __SSE2__
     if (elempack == 1)
     {
-        for (; i < elemcount; ++i, ++ptr, ++gamma, ++beta)
+        for (; i < size; ++i, ++ptr, ++gamma, ++beta)
         {
             *ptr = ((*ptr) * (*a) + (*b)) * (*gamma) + (*beta);
         }
@@ -444,69 +491,79 @@ NCNN_FORCEINLINE static void fast_1d_layer_norm(float* ptr, int elempack, int el
     fast_var(ptr, var, mean, elempack, elemcount, size);
     float *a = var, *b = mean;
 
+    do {
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-    if (elempack == 16)
-    {
-        __m512 _a = _mm512_set1_ps(1.0f);
-        __m512 _eps = _mm512_set1_ps(eps);
-        __m512 _b = _mm512_setzero_ps();
-        __m512 _var = _mm512_loadu_ps(var);
-        _var = _mm512_add_ps(_var, _eps);
-        __m512 _sqrt_var = _mm512_sqrt_ps(_var);
-        _a = _mm512_div_ps(_a, _sqrt_var);
-        __m512 _mean = _mm512_loadu_ps(mean);
-        _b = _mm512_fnmadd_ps(_mean, _a, _b);
+        {
+            __m512 _a = _mm512_set1_ps(1.0f);
+            __m512 _eps = _mm512_set1_ps(eps);
+            __m512 _b = _mm512_setzero_ps();
+            __m512 _var = _mm512_loadu_ps(var);
+            _var = _mm512_add_ps(_var, _eps);
+            __m512 _sqrt_var = _mm512_sqrt_ps(_var);
+            _a = _mm512_div_ps(_a, _sqrt_var);
+            __m512 _mean = _mm512_loadu_ps(mean);
+            _b = _mm512_fnmadd_ps(_mean, _a, _b);
 
-        _mm512_storeu_ps(a, _a);
-        _mm512_storeu_ps(b, _b);
-    }
+            _mm512_storeu_ps(a, _a);
+            _mm512_storeu_ps(b, _b);
+            break;
+        }
 #endif // __AVX512F__
-    if (elempack == 8)
-    {
-        __m256 _a = _mm256_set1_ps(1.0f);
-        __m256 _eps = _mm256_set1_ps(eps);
-        __m256 _b = _mm256_setzero_ps();
-        __m256 _var = _mm256_loadu_ps(var);
-        _var = _mm256_add_ps(_var, _eps);
-        __m256 _sqrt_var = _mm256_sqrt_ps(_var);
-        _a = _mm256_div_ps(_a, _sqrt_var);
-        __m256 _mean = _mm256_loadu_ps(mean);
-        _b = _mm256_comp_fnmadd_ps(_mean, _a, _b);
-        _mm256_storeu_ps(a, _a);
-        _mm256_storeu_ps(b, _b);
-    }
+        {
+            __m256 _a = _mm256_set1_ps(1.0f);
+            __m256 _eps = _mm256_set1_ps(eps);
+            __m256 _b = _mm256_setzero_ps();
+            __m256 _var = _mm256_loadu_ps(var);
+            _var = _mm256_add_ps(_var, _eps);
+            __m256 _sqrt_var = _mm256_sqrt_ps(_var);
+            _a = _mm256_div_ps(_a, _sqrt_var);
+            __m256 _mean = _mm256_loadu_ps(mean);
+            _b = _mm256_comp_fnmadd_ps(_mean, _a, _b);
+            _mm256_storeu_ps(a, _a);
+            _mm256_storeu_ps(a + 8, _a);
+            _mm256_storeu_ps(b, _b);
+            _mm256_storeu_ps(b + 8, _b);
+            break;
+        }
 #endif // __AVX__
-    if (elempack == 4)
-    {
-        __m128 _a = _mm_set1_ps(1.0f);
-        __m128 _eps = _mm_set1_ps(eps);
-        __m128 _b = _mm_setzero_ps();
-        __m128 _var = _mm_loadu_ps(var);
-        _var = _mm_add_ps(_var, _eps);
-        __m128 _sqrt_var = _mm_sqrt_ps(_var);
-        _a = _mm_div_ps(_a, _sqrt_var);
-        __m128 _mean = _mm_loadu_ps(mean);
-        _b = _mm_comp_fnmadd_ps(_mean, _a, _b);
+        {
+            __m128 _a = _mm_set1_ps(1.0f);
+            __m128 _eps = _mm_set1_ps(eps);
+            __m128 _b = _mm_setzero_ps();
+            __m128 _var = _mm_loadu_ps(var);
+            _var = _mm_add_ps(_var, _eps);
+            __m128 _sqrt_var = _mm_sqrt_ps(_var);
+            _a = _mm_div_ps(_a, _sqrt_var);
+            __m128 _mean = _mm_loadu_ps(mean);
+            _b = _mm_comp_fnmadd_ps(_mean, _a, _b);
 
-        _mm_storeu_ps(a, _a);
-        _mm_storeu_ps(b, _b);
-    }
+            _mm_storeu_ps(a, _a);
+            _mm_storeu_ps(a + 4, _a);
+            _mm_storeu_ps(a + 8, _a);
+            _mm_storeu_ps(a + 12, _a);
+            _mm_storeu_ps(b, _b);
+            _mm_storeu_ps(b + 4, _b);
+            _mm_storeu_ps(b + 8, _b);
+            _mm_storeu_ps(b + 12, _b);
+            break;
+        }
 #endif // __SSE2__
-    if (elempack == 1)
-    {
-        *a = static_cast<float>(1.0f / sqrt(*var + eps));
-        *b = -*mean * (*a);
-    }
+        for (int i = 0; i < 16; ++i)
+        {
+            a[i] = static_cast<float>(1.0f / sqrt(var[i] + eps));
+            b[i] = -mean[i] * (a[i]);
+        }
+    } while (0);
 
     if (affine)
     {
-        fast_fmadd_fmadd(ptr, a, b, gamma, beta, elempack, elemcount, size);
+        fast_fmadd_fmadd(ptr, a, b, gamma, beta, elempack, size);
     }
     else
     {
-        fast_fmadd(ptr, a, b, elempack, elemcount, size);
+        fast_fmadd(ptr, a, b, size);
     }
 }
 
