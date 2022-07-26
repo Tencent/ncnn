@@ -82,9 +82,8 @@ int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<
     if (output.empty())
         return -100;
 
-    Mat weight_flatten = weight_data.reshape(weight_data_size);
-    const float* weight_ptr = weight_flatten;
-    const float* bias_ptr = weight_flatten;
+    const float* weight_ptr = weight_data;
+    const float* bias_ptr = weight_data;
     if (bias_term)
         bias_ptr = bias_data;
 
