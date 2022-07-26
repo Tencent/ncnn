@@ -220,18 +220,10 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
                         float val = 0.f;
                         if (cond)
                         {
-                            float v1 = 0.f;
-                            if (v1_cond)
-                                v1 = data_im_channel_ptr[v1_pos];
-                            float v2 = 0.f;
-                            if (v2_cond)
-                                v2 = data_im_channel_ptr[v2_pos];
-                            float v3 = 0.f;
-                            if (v3_cond)
-                                v3 = data_im_channel_ptr[v3_pos];
-                            float v4 = 0.f;
-                            if (v4_cond)
-                                v4 = data_im_channel_ptr[v4_pos];
+                            float v1 = v1_cond ? data_im_channel_ptr[v1_pos] : 0.f;
+                            float v2 = v2_cond ? data_im_channel_ptr[v2_pos] : 0.f;
+                            float v3 = v3_cond ? data_im_channel_ptr[v3_pos] : 0.f;
+                            float v4 = v4_cond ? data_im_channel_ptr[v4_pos] : 0.f;
                             val = w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4;
                         }
                         *data_col_ptr = val * mask_;

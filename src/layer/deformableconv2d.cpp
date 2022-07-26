@@ -82,8 +82,9 @@ int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<
     if (output.empty())
         return -100;
 
-    const float* weight_ptr = weight_data;
-    const float* bias_ptr = weight_data;
+    Mat weight_flatten = weight_data.reshape(weight_data_size);
+    const float* weight_ptr = weight_flatten;
+    const float* bias_ptr = weight_flatten;
     if (bias_term)
         bias_ptr = bias_data;
 
@@ -152,18 +153,10 @@ int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                             float val = 0.f;
                             if (cond)
                             {
-                                float v1 = 0.f;
-                                if (v1_cond)
-                                    v1 = bottom_blob.channel(c_im).row(h_low)[w_low];
-                                float v2 = 0.f;
-                                if (v2_cond)
-                                    v2 = bottom_blob.channel(c_im).row(h_low)[w_high];
-                                float v3 = 0.f;
-                                if (v3_cond)
-                                    v3 = bottom_blob.channel(c_im).row(h_high)[w_low];
-                                float v4 = 0.f;
-                                if (v4_cond)
-                                    v4 = bottom_blob.channel(c_im).row(h_high)[w_high];
+                                float v1 = v1_cond ? bottom_blob.channel(c_im).row(h_low)[w_low] : 0.f;
+                                float v2 = v2_cond ? bottom_blob.channel(c_im).row(h_low)[w_high] : 0.f;
+                                float v3 = v3_cond ? bottom_blob.channel(c_im).row(h_high)[w_low] : 0.f;
+                                float v4 = v4_cond ? bottom_blob.channel(c_im).row(h_high)[w_high] : 0.f;
                                 val = w1 * v1 + w2 * v2 + w3 * v3 + w4 * v4;
                             }
                             sum += val * mask_ * weight_ptr[((oc * in_c + c_im) * kernel_h + i) * kernel_w + j];

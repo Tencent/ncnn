@@ -48,7 +48,7 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
         weights[1] = RandomMat(outch);
 
     float epsilon = 0.001;
-    int ret = test_layer<ncnn::DeformableConv2D>("DeformableConv2D", pd, weights, a, epsilon);
+    int ret = test_layer<ncnn::DeformableConv2D>("DeformableConv2D", pd, weights, a, 1, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_deformableconv2d failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
