@@ -70,7 +70,7 @@ static int test_layernorm_1()
            || test_layernorm(RandomMat(5, 6, 12), 30, 0.02f, 1)
            || test_layernorm(RandomMat(4, 7, 16), 28, 0.02f, 1)
            || test_layernorm(RandomMat(6, 7, 24), 42, 0.001f, 1)
-           || test_layernorm(RandomMat(5, 8, 24), 40, 0.001f, 1);
+           || test_layernorm(RandomMat(5, 8, 32), 40, 0.001f, 1);
 }
 
 static int test_layernorm_2()
