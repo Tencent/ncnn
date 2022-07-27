@@ -226,7 +226,7 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
                 _sum = vaddq_f32(_sum, _p);
                 ptr += 4;
             }
-            sum = vaddvq_f32(_sum);
+            sum += vaddvq_f32(_sum);
 #endif // __ARM_NEON
             for (; i < size; i++)
             {
@@ -250,7 +250,7 @@ int GroupNorm_arm::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
                 _sqsum = vmlaq_f32(_sqsum, _tmp, _tmp);
                 ptr += 4;
             }
-            sqsum = vaddvq_f32(_sqsum);
+            sqsum += vaddvq_f32(_sqsum);
 #endif // __ARM_NEON
             for (; i < size; i++)
             {
