@@ -53,7 +53,7 @@ jobs:
         brew uninstall --ignore-dependencies libomp
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.8.0
+      uses: pypa/cibuildwheel@v2.8.1
       env:
         CIBW_ARCHS_MACOS: x86_64 universal2 arm64
         CIBW_ARCHS_LINUX: x86_64 i686
@@ -103,7 +103,7 @@ jobs:
         platforms: all
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.8.0
+      uses: pypa/cibuildwheel@v2.8.1
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -138,7 +138,7 @@ jobs:
         name: artifact
         path: dist
 
-    - uses: pypa/gh-action-pypi-publish@v1.5.0
+    - uses: pypa/gh-action-pypi-publish@v1.5.1
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}

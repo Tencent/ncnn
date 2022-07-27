@@ -46,6 +46,15 @@ Mat ModelBin::load(int w, int h, int c, int type) const
     return m.reshape(w, h, c);
 }
 
+Mat ModelBin::load(int w, int h, int d, int c, int type) const
+{
+    Mat m = load(w * h * d * c, type);
+    if (m.empty())
+        return m;
+
+    return m.reshape(w, h, d, c);
+}
+
 class ModelBinFromDataReaderPrivate
 {
 public:
@@ -121,14 +130,14 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             {
                 std::vector<unsigned short> float16_weights;
                 float16_weights.resize(align_data_size);
-                nread = d->dr.read(float16_weights.data(), align_data_size);
+                nread = d->dr.read(&float16_weights[0], align_data_size);
                 if (nread != align_data_size)
                 {
                     NCNN_LOGE("ModelBin read float16_weights failed %zd", nread);
                     return Mat();
                 }
 
-                m = Mat::from_float16(float16_weights.data(), w);
+                m = Mat::from_float16(&float16_weights[0], w);
             }
 
             return m;
@@ -149,7 +158,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             {
                 std::vector<signed char> int8_weights;
                 int8_weights.resize(align_data_size);
-                nread = d->dr.read(int8_weights.data(), align_data_size);
+                nread = d->dr.read(&int8_weights[0], align_data_size);
                 if (nread != align_data_size)
                 {
                     NCNN_LOGE("ModelBin read int8_weights failed %zd", nread);
@@ -160,7 +169,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
                 if (m.empty())
                     return m;
 
-                memcpy(m.data, int8_weights.data(), w);
+                memcpy(m.data, &int8_weights[0], w);
             }
 
             return m;
@@ -210,7 +219,7 @@ Mat ModelBinFromDataReader::load(int w, int type) const
             size_t align_weight_data_size = alignSize(w * sizeof(unsigned char), 4);
             std::vector<unsigned char> index_array;
             index_array.resize(align_weight_data_size);
-            nread = d->dr.read(index_array.data(), align_weight_data_size);
+            nread = d->dr.read(&index_array[0], align_weight_data_size);
             if (nread != align_weight_data_size)
             {
                 NCNN_LOGE("ModelBin read index_array failed %zd", nread);
