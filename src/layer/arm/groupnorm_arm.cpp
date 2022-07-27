@@ -189,7 +189,7 @@ int GroupNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #else
             float32x2_t _sq2 = vadd_f32(vget_low_f32(_sqsum), vget_high_f32(_sqsum));
             _sq2 = vpadd_f32(_sq2, _sq2);
-            sqsum = vget_lane_f32(_sq2, 0);
+            sqsum += vget_lane_f32(_sq2, 0);
 #endif
 #endif // __ARM_NEON
             for (; i < size; i++)
@@ -347,11 +347,11 @@ int GroupNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 ptr += 4;
             }
 #if __aarch64__
-            sum = vaddvq_f32(_sum);
+            sum += vaddvq_f32(_sum);
 #else
             float32x2_t _s2 = vadd_f32(vget_low_f32(_sum), vget_high_f32(_sum));
             _s2 = vpadd_f32(_s2, _s2);
-            sum = vget_lane_f32(_s2, 0);
+            sum += vget_lane_f32(_s2, 0);
 #endif
 #endif // __ARM_NEON
             for (; i < size; i++)
@@ -377,11 +377,11 @@ int GroupNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
                 ptr += 4;
             }
 #if __aarch64__
-            sqsum = vaddvq_f32(_sqsum);
+            sqsum += vaddvq_f32(_sqsum);
 #else
             float32x2_t _sq2 = vadd_f32(vget_low_f32(_sqsum), vget_high_f32(_sqsum));
             _sq2 = vpadd_f32(_sq2, _sq2);
-            sqsum = vget_lane_f32(_sq2, 0);
+            sqsum += vget_lane_f32(_sq2, 0);
 #endif
 #endif // __ARM_NEON
             for (; i < size; i++)
