@@ -31,13 +31,13 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
 {
     const int in_c = weight_data_size / (num_output * kernel_h * kernel_w);
     {
-        weight_data = weight_data.reshape(kernel_w * kernel_h, in_c, num_output);
+        Mat weight_3d = weight_data.reshape(kernel_w * kernel_h, in_c, num_output);
         weight_data_t.create(in_c, kernel_w * kernel_h, num_output);
         if (weight_data_t.empty())
             return -100;
         for (int q = 0; q < num_output; q++)
         {
-            const Mat m = weight_data.channel(q);
+            const Mat m = weight_3d.channel(q);
             float* outptr = weight_data_t.channel(q);
 
             for (int i = 0; i < kernel_w * kernel_h; i++)
@@ -48,6 +48,7 @@ int DeformableConv2D_x86::create_pipeline(const Option& opt)
                 }
             }
         }
+        weight_3d.release();
         weight_data_t = weight_data_t.reshape(in_c * kernel_w * kernel_h, num_output);
 
         inner_product = ncnn::create_layer(ncnn::LayerType::InnerProduct);
