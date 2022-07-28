@@ -441,7 +441,7 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
 {
     int p0 = ftell(bp);
 
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
     if (gen_random_weight)
         Randomize(data_flattened, a, b);
 
@@ -493,7 +493,7 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, fl
 {
     int p0 = ftell(bp);
 
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
     if (gen_random_weight)
         Randomize(data_flattened, a, b);
 
@@ -1594,6 +1594,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", w)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
+            fprintf_param_value(" 11=%d", d)
             fwrite_weight_data(op->data, bp);
         }
         else if (layer->type == "MultiHeadAttention")
