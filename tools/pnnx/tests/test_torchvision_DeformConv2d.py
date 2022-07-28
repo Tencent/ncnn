@@ -31,7 +31,7 @@ class Model(nn.Module):
         offset = self.conv_0(x)
         x1 = self.conv_1(x, offset)
 
-        mask = self.conv_2(x)
+        mask = F.sigmoid(self.conv_2(x))
         x2 = self.conv_3(x, offset, mask)
         return x1, x2
 
