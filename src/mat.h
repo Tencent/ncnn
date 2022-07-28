@@ -30,11 +30,7 @@
 #include <msa.h>
 #endif
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "layer/riscv/riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "cpu.h" // cpu_riscv_vlenb()
 #endif
 
