@@ -165,3 +165,7 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
     pnnx_ncnn_add_test(F_mish)
     pnnx_ncnn_add_test(nn_Mish)
 endif()
+
+if(TorchVision_FOUND)
+    pnnx_ncnn_add_test(torchvision_DeformConv2d)
+endif()
