@@ -559,5 +559,3 @@ endif()
 if(NCNN_PYTHON)
     add_subdirectory(python)
 endif()
-
-add_subdirectory(mytest)
