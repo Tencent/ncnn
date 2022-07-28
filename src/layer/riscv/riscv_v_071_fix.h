@@ -300,6 +300,15 @@ static inline vfloat32m1x8_t vcreate_f32m1x8(vfloat32m1_t v0, vfloat32m1_t v1, v
 #define vfdiv_vf_f32m4_m(mask, merged, a, b, vl) vfdivvf_mask_float32xm4(merged, a, b, mask, vl)
 #define vfdiv_vf_f32m8_m(mask, merged, a, b, vl) vfdivvf_mask_float32xm8(merged, a, b, mask, vl)
 
+#define vfmadd_vv_f32m1                          vfmaddvv_float32xm1
+#define vfmadd_vv_f32m2                          vfmaddvv_float32xm2
+#define vfmadd_vv_f32m4                          vfmaddvv_float32xm4
+#define vfmadd_vv_f32m8                          vfmaddvv_float32xm8
+#define vfmadd_vf_f32m1                          vfmaddvf_float32xm1
+#define vfmadd_vf_f32m2                          vfmaddvf_float32xm2
+#define vfmadd_vf_f32m4                          vfmaddvf_float32xm4
+#define vfmadd_vf_f32m8                          vfmaddvf_float32xm8
+
 #define vfmax_vv_f32m1                           vfmaxvv_float32xm1
 #define vfmax_vv_f32m2                           vfmaxvv_float32xm2
 #define vfmax_vv_f32m4                           vfmaxvv_float32xm4
@@ -767,6 +776,15 @@ static inline vfloat16m1x8_t vcreate_f16m1x8(vfloat16m1_t v0, vfloat16m1_t v1, v
 #define vfdiv_vf_f16m2_m(mask, merged, a, b, vl) vfdivvf_mask_float16xm2(merged, a, b, mask, vl)
 #define vfdiv_vf_f16m4_m(mask, merged, a, b, vl) vfdivvf_mask_float16xm4(merged, a, b, mask, vl)
 #define vfdiv_vf_f16m8_m(mask, merged, a, b, vl) vfdivvf_mask_float16xm8(merged, a, b, mask, vl)
+
+#define vfmadd_vv_f16m1                          vfmaddvv_float16xm1
+#define vfmadd_vv_f16m2                          vfmaddvv_float16xm2
+#define vfmadd_vv_f16m4                          vfmaddvv_float16xm4
+#define vfmadd_vv_f16m8                          vfmaddvv_float16xm8
+#define vfmadd_vf_f16m1                          vfmaddvf_float16xm1
+#define vfmadd_vf_f16m2                          vfmaddvf_float16xm2
+#define vfmadd_vf_f16m4                          vfmaddvf_float16xm4
+#define vfmadd_vf_f16m8                          vfmaddvf_float16xm8
 
 #define vfmax_vv_f16m1                           vfmaxvv_float16xm1
 #define vfmax_vv_f16m2                           vfmaxvv_float16xm2
