@@ -167,5 +167,5 @@ if(Torch_VERSION VERSION_GREATER_EQUAL "1.9")
 endif()
 
 if(TorchVision_FOUND)
-    pnnx_add_test(torchvision_DeformConv2d)
+    pnnx_ncnn_add_test(torchvision_DeformConv2d)
 endif()

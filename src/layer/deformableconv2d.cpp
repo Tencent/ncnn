@@ -63,7 +63,8 @@ int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& offset = bottom_blobs[1];
-    const Mat& mask = bottom_blobs[2];
+
+    const bool has_mask = (bottom_blobs.size() == 3);
 
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -106,7 +107,7 @@ int DeformableConv2D::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                     {
                         const float offset_h = offset.channel((i * kernel_w + j) * 2).row(h_col)[w_col];
                         const float offset_w = offset.channel((i * kernel_w + j) * 2 + 1).row(h_col)[w_col];
-                        const float mask_ = mask.channel(i * kernel_w + j).row(h_col)[w_col];
+                        const float mask_ = has_mask ? bottom_blobs[2].channel(i * kernel_w + j).row(h_col)[w_col] : 1.f;
                         const float h_im = h_in + i * dilation_h + offset_h;
                         const float w_im = w_in + j * dilation_w + offset_w;
 

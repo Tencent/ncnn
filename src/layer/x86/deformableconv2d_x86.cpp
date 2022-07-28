@@ -98,7 +98,8 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& offset = bottom_blobs[1];
-    const Mat& mask = bottom_blobs[2];
+
+    const bool has_mask = (bottom_blobs.size() == 3);
 
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -126,10 +127,8 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
 
     Mat bottom_blob_flatten = bottom_blob.reshape(w * h * in_c);
     Mat offset_flatten = offset.reshape(offset.w * offset.h * offset.c);
-    Mat mask_flatten = mask.reshape(mask.w * mask.h * mask.c);
     const float* data_im_ptr = bottom_blob_flatten;
     const float* data_offset_ptr = offset_flatten;
-    const float* data_mask_ptr = mask_flatten;
     float* im2col_ptr = im2col;
 
     // im2col
@@ -147,11 +146,10 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
                 {
                     const int data_offset_h_ptr = (((i * kernel_w + j) * 2) * out_h + h_col) * out_w + w_col;
                     const int data_offset_w_ptr = (((i * kernel_w + j) * 2 + 1) * out_h + h_col) * out_w + w_col;
-                    const int data_mask_hw_ptr = ((i * kernel_w + j) * out_h + h_col) * out_w + w_col;
 
                     const float offset_h = data_offset_ptr[data_offset_h_ptr];
                     const float offset_w = data_offset_ptr[data_offset_w_ptr];
-                    const float mask_ = data_mask_ptr[data_mask_hw_ptr];
+                    const float mask_ = has_mask ? bottom_blobs[2].channel(i * kernel_w + j).row(h_col)[w_col] : 1.f;
                     const float h_im = h_in + i * dilation_h + offset_h;
                     const float w_im = w_in + j * dilation_w + offset_w;
 
