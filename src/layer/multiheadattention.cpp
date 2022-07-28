@@ -202,11 +202,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     affine_input(k_blob, k_weight_data, k_bias_data, xk, k_input_scale, k_weight_scales, internal_scales[1], num_head, opt_g, false);
     affine_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], num_head, opt_g, true);
 
-    // transpose(v) for better gemm performance
-    // Mat xv(seqlen, embed_dim_per_head, num_head, 1u, opt.workspace_allocator);
-    // Mat debug_xv;
-    // transform_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], opt_g, debug_xv, true);
-
     // xq @ qk * inv_sqrt_embed_dim_per_head
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
