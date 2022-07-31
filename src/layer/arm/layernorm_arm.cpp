@@ -40,7 +40,6 @@ LayerNorm_arm::LayerNorm_arm()
 
 int LayerNorm_arm::create_pipeline(const Option& opt)
 {
-
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
@@ -73,7 +72,6 @@ inline float sum_float32x4(float32x4_t _sum)
 
 int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-    
     int dims = bottom_top_blob.dims;
     int elempack = bottom_top_blob.elempack;
     int elembits = bottom_top_blob.elembits();
@@ -428,7 +426,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 ptr += 4;
             }
             sum += sum_float32x4(_sum);
-            for(; i < w; i++)
+            for (; i < w; i++)
             {
                 sum += *ptr;
                 ptr++;
@@ -452,7 +450,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 ptr += 4;
             }
             sqsum += sum_float32x4(_sqsum);
-            for(; i < w; i++)
+            for (; i < w; i++)
             {
                 tmp = *ptr - mean;
                 sqsum += tmp * tmp;
@@ -487,7 +485,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     gptr += 4;
                     bptr += 4;
                 }
-                for(; i < w; i++)
+                for (; i < w; i++)
                 {
                     *ptr0 = ((*ptr0) * a + b) * (*gptr) + (*bptr);
                     ptr0++;
@@ -505,7 +503,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     vst1q_f32(ptr0, _p);
                     ptr0 += 4;
                 }
-                for(; i < w; i++)
+                for (; i < w; i++)
                 {
                     *ptr0 = (*ptr0) * a + b;
                     ptr0++;
@@ -537,7 +535,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     ptr += 4;
                 }
                 sum += sum_float32x4(_sum);
-                for(; j < w; j++)
+                for (; j < w; j++)
                 {
                     sum += *ptr;
                     ptr++;
@@ -561,7 +559,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                     ptr += 4;
                 }
                 sqsum += sum_float32x4(_sqsum);
-                for(; j < w; j++)
+                for (; j < w; j++)
                 {
                     tmp = *ptr - mean;
                     sqsum += tmp * tmp;
@@ -596,7 +594,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         gptr += 4;
                         bptr += 4;
                     }
-                    for(; j < w; j++)
+                    for (; j < w; j++)
                     {
                         *ptr0 = ((*ptr0) * a + b) * (*gptr) + (*bptr);
                         ptr0++;
@@ -614,7 +612,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         vst1q_f32(ptr0, _p);
                         ptr0 += 4;
                     }
-                    for(; j < w; j++)
+                    for (; j < w; j++)
                     {
                         *ptr0 = (*ptr0) * a + b;
                         ptr0++;
@@ -624,7 +622,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             return 0;
         }
- 
+
         if (dims == 3)
         {
             int w = bottom_top_blob.w;
@@ -653,7 +651,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                             ptr += 4;
                         }
                         sum += sum_float32x4(_sum);
-                        for(; j < w; j++)
+                        for (; j < w; j++)
                         {
                             sum += *ptr;
                             ptr++;
@@ -677,7 +675,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                             ptr += 4;
                         }
                         sqsum += sum_float32x4(_sqsum);
-                        for(; j < w; j++)
+                        for (; j < w; j++)
                         {
                             tmp = *ptr - mean;
                             sqsum += tmp * tmp;
@@ -712,7 +710,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                                 gptr += 4;
                                 bptr += 4;
                             }
-                            for(; j < w; j++)
+                            for (; j < w; j++)
                             {
                                 *ptr0 = ((*ptr0) * a + b) * (*gptr) + (*bptr);
                                 ptr0++;
@@ -730,7 +728,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                                 vst1q_f32(ptr0, _p);
                                 ptr0 += 4;
                             }
-                            for(; j < w; j++)
+                            for (; j < w; j++)
                             {
                                 *ptr0 = (*ptr0) * a + b;
                                 ptr0++;
@@ -760,7 +758,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         ptr += 4;
                     }
                     sum += sum_float32x4(_sum);
-                    for(; j < size; j++)
+                    for (; j < size; j++)
                     {
                         sum += *ptr;
                         ptr++;
@@ -784,7 +782,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                         ptr += 4;
                     }
                     sqsum += sum_float32x4(_sqsum);
-                    for(; j < size; j++)
+                    for (; j < size; j++)
                     {
                         tmp = *ptr - mean;
                         sqsum += tmp * tmp;
@@ -819,7 +817,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                             gptr += 4;
                             bptr += 4;
                         }
-                        for(; j < size; j++)
+                        for (; j < size; j++)
                         {
                             *ptr0 = ((*ptr0) * a + b) * (*gptr) + (*bptr);
                             ptr0++;
@@ -837,7 +835,7 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                             vst1q_f32(ptr0, _p);
                             ptr0 += 4;
                         }
-                        for(; j < size; j++)
+                        for (; j < size; j++)
                         {
                             *ptr0 = (*ptr0) * a + b;
                             ptr0++;
@@ -854,7 +852,6 @@ int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     // fallback to naive implement
     return LayerNorm::forward_inplace(bottom_top_blob, opt);
-
 }
 
 #if NCNN_BF16
@@ -893,7 +890,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
             ptr += 4;
         }
         sum += sum_float32x4(_sum);
-        for(; i < w; i++)
+        for (; i < w; i++)
         {
             sum += bfloat16_to_float32(*ptr);
             ptr++;
@@ -917,7 +914,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
             ptr += 4;
         }
         sqsum += sum_float32x4(_sqsum);
-        for(; i < w; i++)
+        for (; i < w; i++)
         {
             tmp = bfloat16_to_float32(*ptr) - mean;
             sqsum += tmp * tmp;
@@ -952,7 +949,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                 gptr += 4;
                 bptr += 4;
             }
-            for(; i < w; i++)
+            for (; i < w; i++)
             {
                 *ptr0 = float32_to_bfloat16((bfloat16_to_float32(*ptr0) * a + b) * bfloat16_to_float32(*gptr) + bfloat16_to_float32(*bptr));
                 ptr0 += 1;
@@ -970,7 +967,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                 vst1_u16(ptr0, bfloat2float(_p));
                 ptr0 += 4;
             }
-            for(; i < w; i++)
+            for (; i < w; i++)
             {
                 *ptr0 = float32_to_bfloat16(bfloat16_to_float32(*ptr0) * a + b);
                 ptr0 += 1;
@@ -1002,7 +999,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                 ptr += 4;
             }
             sum += sum_float32x4(_sum);
-            for(; j < w; j++)
+            for (; j < w; j++)
             {
                 sum += bfloat16_to_float32(*ptr);
                 ptr++;
@@ -1026,7 +1023,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                 ptr += 4;
             }
             sqsum += sum_float32x4(_sqsum);
-            for(; j < w; j++)
+            for (; j < w; j++)
             {
                 tmp = bfloat16_to_float32(*ptr) - mean;
                 sqsum += tmp * tmp;
@@ -1061,7 +1058,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                     gptr += 4;
                     bptr += 4;
                 }
-                for(; j < w; j++)
+                for (; j < w; j++)
                 {
                     *ptr0 = float32_to_bfloat16((bfloat16_to_float32(*ptr0) * a + b) * bfloat16_to_float32(*gptr) + bfloat16_to_float32(*bptr));
                     ptr0++;
@@ -1079,7 +1076,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                     vst1_u16(ptr0, bfloat2float(_p));
                     ptr0 += 4;
                 }
-                for(; j < w; j++)
+                for (; j < w; j++)
                 {
                     *ptr0 = float32_to_bfloat16(bfloat16_to_float32(*ptr0) * a + b);
                     ptr0++;
@@ -1118,7 +1115,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                         ptr += 4;
                     }
                     sum += sum_float32x4(_sum);
-                    for(; j < w; j++)
+                    for (; j < w; j++)
                     {
                         sum += bfloat16_to_float32(*ptr);
                         ptr++;
@@ -1142,7 +1139,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                         ptr += 4;
                     }
                     sqsum += sum_float32x4(_sqsum);
-                    for(; j < w; j++)
+                    for (; j < w; j++)
                     {
                         tmp = bfloat16_to_float32(*ptr) - mean;
                         sqsum += tmp * tmp;
@@ -1177,7 +1174,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                             gptr += 4;
                             bptr += 4;
                         }
-                        for(; j < w; j++)
+                        for (; j < w; j++)
                         {
                             *ptr0 = float32_to_bfloat16((bfloat16_to_float32(*ptr0) * a + b) * bfloat16_to_float32(*gptr) + bfloat16_to_float32(*bptr));
                             ptr0++;
@@ -1195,7 +1192,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                             vst1_u16(ptr0, bfloat2float(_p));
                             ptr0 += 4;
                         }
-                        for(; j < w; j++)
+                        for (; j < w; j++)
                         {
                             *ptr0 = float32_to_bfloat16(bfloat16_to_float32(*ptr0) * a + b);
                             ptr0++;
@@ -1225,7 +1222,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                     ptr += 4;
                 }
                 sum += sum_float32x4(_sum);
-                for(; j < size; j++)
+                for (; j < size; j++)
                 {
                     sum += bfloat16_to_float32(*ptr);
                     ptr++;
@@ -1249,7 +1246,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                     ptr += 4;
                 }
                 sqsum += sum_float32x4(_sqsum);
-                for(; j < size; j++)
+                for (; j < size; j++)
                 {
                     tmp = bfloat16_to_float32(*ptr) - mean;
                     sqsum += tmp * tmp;
@@ -1284,7 +1281,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                         gptr += 4;
                         bptr += 4;
                     }
-                    for(; j < size; j++)
+                    for (; j < size; j++)
                     {
                         *ptr0 = float32_to_bfloat16((bfloat16_to_float32(*ptr0) * a + b) * bfloat16_to_float32(*gptr) + bfloat16_to_float32(*bptr));
                         ptr0++;
@@ -1302,7 +1299,7 @@ int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Optio
                         vst1_u16(ptr0, bfloat2float(_p));
                         ptr0 += 4;
                     }
-                    for(; j < size; j++)
+                    for (; j < size; j++)
                     {
                         *ptr0 = float32_to_bfloat16(bfloat16_to_float32(*ptr0) * a + b);
                         ptr0++;
@@ -1528,8 +1525,8 @@ int LayerNorm_arm::forward_inplace_pack4_bf16s(Mat& bottom_top_blob, const Optio
                     // affine
                     if (affine)
                     {
-                    const unsigned short* gptr = (const unsigned short*)gamma_data_bf16;
-                    const unsigned short* bptr = (const unsigned short*)beta_data_bf16;
+                        const unsigned short* gptr = (const unsigned short*)gamma_data_bf16;
+                        const unsigned short* bptr = (const unsigned short*)beta_data_bf16;
 
                         for (int j = 0; j < w; j++)
                         {
@@ -1648,7 +1645,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
         // sum
         float sum = 0.f;
         const unsigned short* ptr = ptr0;
-        for(int i = 0; i < w; i++)
+        for (int i = 0; i < w; i++)
         {
             sum += bfloat16_to_float32(*ptr);
             ptr++;
@@ -1661,7 +1658,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
         ptr = ptr0;
         float sqsum = 0.f;
         float tmp = 0.f;
-        for(int i = 0; i < w; i++)
+        for (int i = 0; i < w; i++)
         {
             tmp = bfloat16_to_float32(*ptr) - mean;
             sqsum += tmp * tmp;
@@ -1681,7 +1678,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
             const unsigned short* gptr = (const unsigned short*)gamma_data_bf16;
             const unsigned short* bptr = (const unsigned short*)beta_data_bf16;
 
-            for(int i = 0; i < w; i++)
+            for (int i = 0; i < w; i++)
             {
                 *ptr0 = float32_to_bfloat16((bfloat16_to_float32(*ptr0) * a + b) * bfloat16_to_float32(*gptr) + bfloat16_to_float32(*bptr));
                 ptr0 += 1;
@@ -1691,7 +1688,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
         }
         else
         {
-            for(int i = 0; i < w; i++)
+            for (int i = 0; i < w; i++)
             {
                 *ptr0 = float32_to_bfloat16(bfloat16_to_float32(*ptr0) * a + b);
                 ptr0 += 1;
@@ -1714,7 +1711,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
             // sum
             float sum = 0.f;
             const unsigned short* ptr = ptr0;
-            for(int j = 0; j < w; j++)
+            for (int j = 0; j < w; j++)
             {
                 sum += bfloat16_to_float32(*ptr);
                 ptr++;
@@ -1727,7 +1724,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
             ptr = ptr0;
             float sqsum = 0.f;
             float tmp = 0.f;
-            for(int j = 0; j < w; j++)
+            for (int j = 0; j < w; j++)
             {
                 tmp = bfloat16_to_float32(*ptr) - mean;
                 sqsum += tmp * tmp;
@@ -1747,7 +1744,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                 const unsigned short* gptr = (const unsigned short*)gamma_data_bf16;
                 const unsigned short* bptr = (const unsigned short*)beta_data_bf16;
 
-                for(int j = 0; j < w; j++)
+                for (int j = 0; j < w; j++)
                 {
                     *ptr0 = float32_to_bfloat16((bfloat16_to_float32(*ptr0) * a + b) * bfloat16_to_float32(*gptr) + bfloat16_to_float32(*bptr));
                     ptr0++;
@@ -1757,7 +1754,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
             }
             else
             {
-                for(int j = 0; j < w; j++)
+                for (int j = 0; j < w; j++)
                 {
                     *ptr0 = float32_to_bfloat16(bfloat16_to_float32(*ptr0) * a + b);
                     ptr0++;
@@ -1787,7 +1784,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                     // sum
                     float sum = 0.f;
                     const unsigned short* ptr = ptr0;
-                    for(int j = 0; j < w; j++)
+                    for (int j = 0; j < w; j++)
                     {
                         sum += bfloat16_to_float32(*ptr);
                         ptr++;
@@ -1800,7 +1797,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                     ptr = ptr0;
                     float sqsum = 0.f;
                     float tmp = 0.f;
-                    for(int j = 0; j < w; j++)
+                    for (int j = 0; j < w; j++)
                     {
                         tmp = bfloat16_to_float32(*ptr) - mean;
                         sqsum += tmp * tmp;
@@ -1820,7 +1817,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                         const unsigned short* gptr = (const unsigned short*)gamma_data_bf16;
                         const unsigned short* bptr = (const unsigned short*)beta_data_bf16;
 
-                        for(int j = 0; j < w; j++)
+                        for (int j = 0; j < w; j++)
                         {
                             *ptr0 = float32_to_bfloat16((bfloat16_to_float32(*ptr0) * a + b) * bfloat16_to_float32(*gptr) + bfloat16_to_float32(*bptr));
                             ptr0++;
@@ -1830,7 +1827,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                     }
                     else
                     {
-                        for(int j = 0; j < w; j++)
+                        for (int j = 0; j < w; j++)
                         {
                             *ptr0 = float32_to_bfloat16(bfloat16_to_float32(*ptr0) * a + b);
                             ptr0++;
@@ -1851,7 +1848,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                 // sum
                 float sum = 0.f;
                 const unsigned short* ptr = ptr0;
-                for(int j = 0; j < size; j++)
+                for (int j = 0; j < size; j++)
                 {
                     sum += bfloat16_to_float32(*ptr);
                     ptr++;
@@ -1864,7 +1861,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                 ptr = ptr0;
                 float sqsum = 0.f;
                 float tmp = 0.f;
-                for(int j = 0; j < size; j++)
+                for (int j = 0; j < size; j++)
                 {
                     tmp = bfloat16_to_float32(*ptr) - mean;
                     sqsum += tmp * tmp;
@@ -1884,7 +1881,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                     const unsigned short* gptr = (const unsigned short*)gamma_data_bf16;
                     const unsigned short* bptr = (const unsigned short*)beta_data_bf16;
 
-                    for(int j = 0; j < size; j++)
+                    for (int j = 0; j < size; j++)
                     {
                         *ptr0 = float32_to_bfloat16((bfloat16_to_float32(*ptr0) * a + b) * bfloat16_to_float32(*gptr) + bfloat16_to_float32(*bptr));
                         ptr0++;
@@ -1894,7 +1891,7 @@ int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Optio
                 }
                 else
                 {
-                    for(int j = 0; j < size; j++)
+                    for (int j = 0; j < size; j++)
                     {
                         *ptr0 = float32_to_bfloat16(bfloat16_to_float32(*ptr0) * a + b);
                         ptr0++;
@@ -1921,7 +1918,7 @@ int LayerNorm_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt
         return forward_inplace_pack4_bf16s(bottom_top_blob, opt);
     }
 
-    if(elempack == 1)
+    if (elempack == 1)
     {
         return forward_inplace_pack1_bf16s(bottom_top_blob, opt);
     }

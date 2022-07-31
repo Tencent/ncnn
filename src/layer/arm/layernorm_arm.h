@@ -52,7 +52,6 @@ protected:
 #endif
 
 public:
-
     // fp16
     Mat gamma_data_fp16;
     Mat beta_data_fp16;
