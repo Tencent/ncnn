@@ -105,25 +105,25 @@ static int test_multiheadattention_int8(const ncnn::Mat& a, int num_heads)
     pd.set(3, 1);
 
     std::vector<ncnn::Mat> weights(16);
-    weights[0] = RandomIntMat(embed_dim * embed_dim);
-    weights[1] = RandomIntMat(embed_dim);
-    weights[2] = RandomIntMat(embed_dim * embed_dim);
-    weights[3] = RandomIntMat(embed_dim);
-    weights[4] = RandomIntMat(embed_dim * embed_dim);
-    weights[5] = RandomIntMat(embed_dim);
-    weights[6] = RandomIntMat(embed_dim * embed_dim);
-    weights[7] = RandomIntMat(embed_dim);
+    weights[0] = RandomMat(embed_dim * embed_dim);
+    weights[1] = RandomMat(embed_dim);
+    weights[2] = RandomMat(embed_dim * embed_dim);
+    weights[3] = RandomMat(embed_dim);
+    weights[4] = RandomMat(embed_dim * embed_dim);
+    weights[5] = RandomMat(embed_dim);
+    weights[6] = RandomMat(embed_dim * embed_dim);
+    weights[7] = RandomMat(embed_dim);
 
-    weights[8] = RandomMat(1);
-    weights[9] = RandomMat(1);
-    weights[10] = RandomMat(1);
+    weights[8] = RandomMat(1, 1.f, 10.f);
+    weights[9] = RandomMat(1, 1.f, 10.f);
+    weights[10] = RandomMat(1, 1.f, 10.f);
 
-    weights[11] = RandomMat(embed_dim);
-    weights[12] = RandomMat(embed_dim);
-    weights[13] = RandomMat(embed_dim);
-    weights[14] = RandomMat(embed_dim);
+    weights[11] = RandomMat(embed_dim, 1.f, 10.f);
+    weights[12] = RandomMat(embed_dim, 1.f, 10.f);
+    weights[13] = RandomMat(embed_dim, 1.f, 10.f);
+    weights[14] = RandomMat(embed_dim, 1.f, 10.f);
 
-    weights[15] = RandomMat(5);
+    weights[15] = RandomMat(5, 1.f, 10.f);
 
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
