@@ -21,6 +21,7 @@
 * [DeconvolutionDepthWise](#deconvolutiondepthwise)
 * [DeconvolutionDepthWise1D](#deconvolutiondepthwise1d)
 * [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
+* [DeformableConv2D](#deformableconv2d)
 * [Dequantize](#dequantize)
 * [Dropout](#dropout)
 * [Eltwise](#eltwise)
@@ -662,6 +663,35 @@ y = activation(x3, act_type, act_params)
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | weight_data   | float/fp16 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
+| bias_data     | float | [num_output]          |
+
+# DeformableConv2D
+```
+x2 = deformableconv2d(x, offset, mask, weight, kernel, stride, dilation) + bias
+y = activation(x2, act_type, act_params)
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input, num_output] |
 | bias_data     | float | [num_output]          |
 
 # Dequantize
