@@ -36,7 +36,6 @@ protected:
     int create_pipeline_int8_x86(const Option& opt);
     int forward_int8_x86(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
-
 };
 
 } // namespace ncnn
