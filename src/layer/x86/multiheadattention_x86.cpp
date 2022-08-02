@@ -18,6 +18,7 @@
 #include "x86_usability.h"
 #include "layer_type.h"
 #include <float.h>
+#include <sys/time.h>
 
 #ifdef NCNN_INT8
 #include <math.h>
@@ -66,7 +67,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
 
         ncnn::ParamDict pd;
-        pd.set(0, 1);
+        pd.set(0, 2);
         pd.set(1, 1);
 
         softmax->load_param(pd);
@@ -386,7 +387,10 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                 }
             }
         }
+    }
 
+    for (int q = 0; q < num_head; q++)
+    {
         // xk = affine(k)
         {
             Mat outm = xk.channel(q);
@@ -404,7 +408,10 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                 }
             }
         }
+    }
 
+    for (int q = 0; q < num_head; q++)
+    {
         // xv = affine(v)
         {
             Mat outm = xv.channel(q);
@@ -422,7 +429,10 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                 }
             }
         }
+    }
 
+    for (int q = 0; q < num_head; q++)
+    {
         // xqk = xq * xk
         // xq  (embed_dim_per_head, seqlen)
         // xk  (embed_dim_per_head, seqlen)
@@ -445,12 +455,12 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                 }
             }
         }
+    }
 
-        {
-            Mat outm = xqk.channel(q);
-            softmax->forward_inplace(outm, opt);
-        }
+    softmax->forward_inplace(xqk, opt);
 
+    for (int q = 0; q < num_head; q++)
+    {
         // xqkv = xqk * xv
         // xqk (seqlen, seqlen)
         // xv  (seqlen, embed_dim_per_head)
