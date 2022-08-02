@@ -57,6 +57,7 @@ int LayerNorm_arm::create_pipeline(const Option& opt)
     return 0;
 }
 
+#if __ARM_NEON
 inline float sum_float32x4(float32x4_t _sum)
 {
     float sum = 0.f;
@@ -69,6 +70,7 @@ inline float sum_float32x4(float32x4_t _sum)
 #endif
     return sum;
 }
+#endif
 
 int LayerNorm_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
