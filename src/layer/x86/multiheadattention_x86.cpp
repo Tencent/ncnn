@@ -23,7 +23,6 @@
 #include <math.h>
 #endif
 
-
 namespace ncnn {
 
 MultiHeadAttention_x86::MultiHeadAttention_x86()

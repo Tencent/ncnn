@@ -506,7 +506,7 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
  */
  static NCNN_FORCEINLINE float mul_add_reduce_no_align(const float* a, const float* b, const int size) 
 {
-    float ret = 0.f;
+    float sum = 0.f;
     int align = 0;
 #if __AVX512F__
     align = (size >> 4) << 4;
@@ -517,7 +517,7 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
         __m512 val1 = _mm512_loadu_ps(b + i);
         _sum = _mm512_add_ps(_sum, _mm512_mul_ps(val0, val1));
     }
-    ret += _mm512_reduce_add_ps(_sum);
+    sum += _mm512_reduce_add_ps(_sum);
 
 #elif __AVX__
     align = (size >> 3) << 3;
@@ -527,7 +527,7 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
         __m256 val1 = _mm256_loadu_ps(b + i);
         _sum = _mm256_comp_fmadd_ps(val0, val1, _sum);
     }
-    ret += _mm256_reduce_add_ps(_sum);
+    sum += _mm256_reduce_add_ps(_sum);
 
 #elif __SSE2__
     align = (size >> 2) << 2;
@@ -538,15 +538,13 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
         _sum = _mm_add_ps(_sum, _mm_mul_ps(val0, val1));
     }
 
-    ret +=  _mm_reduce_add_ps(_sum);
+    sum +=  _mm_reduce_add_ps(_sum);
 
 #endif
-    float sum = 0.f;
     for (int i = align; i < size; ++i) {
         sum += a[i] * b[i];
     }
-    ret += sum;
-    return ret;
+    return sum;
 }
 
 #endif // X86_USABILITY_H
