@@ -1,6 +1,22 @@
+- [用 Visual Studio 编译](#用-visual-studio-编译)
+  - [预先准备](#预先准备)
+  - [开始编译](#开始编译)
+    - [最简编译](#最简编译)
+      - [命令提示符版本](#命令提示符版本)
+      - [x64 本机工具命令提示符 版本 （VS2022无X64）](#x64-本机工具命令提示符-版本-vs2022无x64)
+    - [编译安装带 Vulkan 支持的 ncnn 库](#编译安装带-vulkan-支持的-ncnn-库)
+      - [设备和 Vulkan 准备](#设备和-vulkan-准备)
+      - [编译安装 ncnn](#编译安装-ncnn)
+    - [编译安装 ncnn 库和模型转换工具](#编译安装-ncnn-库和模型转换工具)
+      - [编译安装 protobuf](#编译安装-protobuf)
+      - [编译安装 ncnn](#编译安装-ncnn-1)
+      - [mlir2ncnn](#mlir2ncnn)
+  - [使用编译好的 ncnn 库](#使用编译好的-ncnn-库)
+
+
 # 用 Visual Studio 编译
 
-[TOC]
+
 
 ## 预先准备
 
@@ -36,7 +52,7 @@ protobuf参照后文定义参数
 mkdir build-vs2019
 cd build-vs2019
 cmake ..
-cmake --build . 
+cmake --build .
 cmake --install .  --config Debug
 
 //默认build生成Debug版本；默认install安装Relase版本。 参照命令提示符版本
@@ -74,7 +90,7 @@ cmake --install . --config Debug
 
 - 此步骤用于编译模型转换工具，可跳过，直接使用 https://convertmodel.com 工具转换
 
-- 以下命令行均使用  **适用于 VS 2019 的 x64 本机工具命令提示** 
+- 以下命令行均使用  **适用于 VS 2019 的 x64 本机工具命令提示**
 
 *注：若在 cmd / PowerShell 进行，需修改：*
 - `-G"NMake Makefile"` 改为合适的 Generator 如 `-G "Visual Studio 16 2019" -A x64`

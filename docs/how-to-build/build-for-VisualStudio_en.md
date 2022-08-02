@@ -1,6 +1,21 @@
+
+- [Compile with Visual Studio](#compile-with-visual-studio)
+  - [Prepare](#prepare)
+  - [Compiling](#compiling)
+    - [minimal compilation](#minimal-compilation)
+      - [command prompt version](#command-prompt-version)
+      - [x64 native tools command prompt version (no x64 for VS2022)](#x64-native-tools-command-prompt-version-no-x64-for-vs2022)
+    - [Compile and install the ncnn library with Vulkan support](#compile-and-install-the-ncnn-library-with-vulkan-support)
+      - [Device and Vulkan preparation](#device-and-vulkan-preparation)
+      - [Compile and install ncnn](#compile-and-install-ncnn)
+    - [Compile and install ncnn library and model conversion tool](#compile-and-install-ncnn-library-and-model-conversion-tool)
+      - [Compile and install protobuf](#compile-and-install-protobuf)
+      - [Compile and install ncnn](#compile-and-install-ncnn-1)
+      - [mlir2ncnn](#mlir2ncnn)
+  - [Use the compiled ncnn library](#use-the-compiled-ncnn-library)
+
 # Compile with Visual Studio
 
-[TOC]
 
 ## Prepare
 
@@ -36,7 +51,7 @@ protobuf defines parameters with reference to the following
 mkdir build-vs2022
 cd build-vs2022
 cmake ..
-cmake --build . 
+cmake --build .
 cmake --install .  --config Debug
 
 // The default build generates the Debug version; the default install installs the Release version. Refer to the command prompt version
