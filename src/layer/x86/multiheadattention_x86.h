@@ -37,6 +37,10 @@ protected:
     int forward_int8_x86(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 #endif
 
+private:
+ Mat q_weight_fold_data;
+ Mat q_bias_fold_data;
+ Layer* softmax;
 };
 
 } // namespace ncnn

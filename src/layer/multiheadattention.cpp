@@ -32,6 +32,9 @@ int MultiHeadAttention::load_param(const ParamDict& pd)
     weight_data_size = pd.get(2, 0);
     int8_scale_term = pd.get(3, 0);
 
+    embed_dim_per_head = embed_dim / num_head;
+    inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
+
     if (int8_scale_term)
     {
 #if NCNN_INT8
@@ -173,12 +176,12 @@ static int affine_input(
     return 0;
 }
 
-static inline int32_t float2int8(float v)
+static inline signed char float2int8(float v)
 {
     int int32 = static_cast<int>(round(v));
     if (int32 > 127) return 127;
     if (int32 < -127) return -127;
-    return int32;
+    return (signed char)int32;
 }
 
 int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -188,7 +191,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[2];
 
     const int seqlen = q_blob.h;
-    const int embed_dim_per_head = embed_dim / num_head;
 
     Option opt_g = opt;
     opt_g.blob_allocator = opt.workspace_allocator;
@@ -203,8 +205,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
     affine_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], num_head, opt_g, true);
 
     // xq @ qk * inv_sqrt_embed_dim_per_head
-    const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
-
     Mat xqk(seqlen, seqlen, num_head, 4u, opt.workspace_allocator);
     {
         // xqk = xq * xk

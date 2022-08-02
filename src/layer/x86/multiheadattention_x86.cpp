@@ -15,7 +15,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "multiheadattention_x86.h"
+#include "x86_usability.h"
+#include "layer_type.h"
 #include <float.h>
+
 #ifdef NCNN_INT8
 #include <math.h>
 #endif
@@ -26,16 +29,56 @@ namespace ncnn {
 MultiHeadAttention_x86::MultiHeadAttention_x86()
 {
     support_packing = false;
+    softmax = 0;
 }
 
 int MultiHeadAttention_x86::create_pipeline(const Option& opt)
 {
+    embed_dim_per_head = embed_dim / num_head;
+    inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
+
 #if NCNN_INT8
     if (opt.use_int8_inference && q_weight_data.elemsize == (size_t)1u && k_weight_data.elemsize == (size_t)1u && v_weight_data.elemsize == (size_t)1u && out_weight_data.elemsize == (size_t)1u)
     {
         return create_pipeline_int8_x86(opt);
     }
 #endif
+
+    // for fp32 inference, const fold inv_sqrt_embed_dim_per_head into `q_w` and `q_bias`
+#if 0
+    // FIXME!
+    float scale_vals[1] = {inv_sqrt_embed_dim_per_head};
+    q_weight_fold_data = q_weight_data.clone();
+    q_weight_fold_data.substract_mean_normalize(0, scale_vals);
+    q_bias_fold_data = q_bias_data.clone();
+    q_bias_fold_data.substract_mean_normalize(0, scale_vals);
+#else
+    q_weight_fold_data = q_weight_data.clone();
+    for (int i = 0; i < q_weight_fold_data.w; ++i) {
+        q_weight_fold_data[i] *= inv_sqrt_embed_dim_per_head;
+    }
+    q_bias_fold_data = q_bias_data.clone();
+    for (int i = 0; i < q_bias_fold_data.w; ++i) {
+        q_bias_fold_data[i] *= inv_sqrt_embed_dim_per_head;
+    }
+#endif
+
+    {
+        softmax = ncnn::create_layer(ncnn::LayerType::Softmax);
+
+        ncnn::ParamDict pd;
+        pd.set(0, 1);
+        pd.set(1, 1);
+
+        softmax->load_param(pd);
+        softmax->create_pipeline(opt);
+    }
+
+    if (opt.lightmode) 
+    {
+        q_weight_data.release();
+        q_bias_data.release();
+    }
     return 0;
 }
 
@@ -143,7 +186,6 @@ int MultiHeadAttention_x86::forward_int8_x86(const std::vector<Mat>& bottom_blob
     const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[2];
 
     const int seqlen = q_blob.h;
-    const int embed_dim_per_head = embed_dim / num_head;
 
     Option opt_g = opt;
     opt_g.blob_allocator = opt.workspace_allocator;
@@ -158,7 +200,6 @@ int MultiHeadAttention_x86::forward_int8_x86(const std::vector<Mat>& bottom_blob
     affine_input(v_blob, v_weight_data, v_bias_data, xv, v_input_scale, v_weight_scales, internal_scales[2], num_head, opt_g, true);
 
     // xq @ qk * inv_sqrt_embed_dim_per_head
-    const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
     Mat xqk(seqlen, seqlen, num_head, 4u, opt.workspace_allocator);
     {
@@ -302,7 +343,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
 #if NCNN_INT8
     if (opt.use_int8_inference && q_weight_data.elemsize == (size_t)1u && k_weight_data.elemsize == (size_t)1u && v_weight_data.elemsize == (size_t)1u && out_weight_data.elemsize == (size_t)1u)
     {
-        return forward_int8(bottom_blobs, top_blobs, opt);
+        return forward_int8_x86(bottom_blobs, top_blobs, opt);
     }
 #endif
 
@@ -326,9 +367,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
 
     Mat xqkv(embed_dim_per_head, num_head, seqlen, 4u, opt.workspace_allocator);
 
-    const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
-    #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < num_head; q++)
     {
         // xq = affine(q) * inv_sqrt_embed_dim_per_head
@@ -342,15 +381,9 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                 for (int j = 0; j < embed_dim_per_head; j++)
                 {
                     const float* ptr = q_blob.row(i);
-                    const float* kptr = (const float*)q_weight_data + embed_dim * (q * embed_dim_per_head + j);
+                    const float* kptr = (const float*)q_weight_fold_data + embed_dim * (q * embed_dim_per_head + j);
 
-                    float sum = q_bias_data[q * embed_dim_per_head + j];
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    outptr[j] = sum * inv_sqrt_embed_dim_per_head;
+                    outptr[j] = mul_add_reduce_no_align(ptr, kptr, embed_dim) +  q_bias_fold_data[q * embed_dim_per_head + j];
                 }
             }
         }
@@ -368,13 +401,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                     const float* ptr = k_blob.row(i);
                     const float* kptr = (const float*)k_weight_data + embed_dim * (q * embed_dim_per_head + j);
 
-                    float sum = k_bias_data[q * embed_dim_per_head + j];
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    outptr[j] = sum;
+                    outptr[j] = mul_add_reduce_no_align(ptr, kptr, embed_dim) +  k_bias_data[q * embed_dim_per_head + j];
                 }
             }
         }
@@ -385,20 +412,14 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
 
             for (int i = 0; i < embed_dim_per_head; i++)
             {
+                float* outptr = outm.row(i);
+
                 for (int j = 0; j < seqlen; j++)
                 {
                     const float* ptr = v_blob.row(j);
                     const float* kptr = (const float*)v_weight_data + embed_dim * (q * embed_dim_per_head + i);
 
-                    float sum = v_bias_data[q * embed_dim_per_head + i];
-                    for (int k = 0; k < embed_dim; k++)
-                    {
-                        sum += *ptr++ * *kptr++;
-                    }
-
-                    float* outptr = outm.row(i);
-
-                    outptr[j] = sum;
+                    outptr[j] = mul_add_reduce_no_align(ptr, kptr, embed_dim) + v_bias_data[q * embed_dim_per_head + i];
                 }
             }
         }
@@ -421,43 +442,14 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                     const float* qptr = xqm.row(i);
                     const float* kptr = xkm.row(j);
 
-                    float sum = 0.f;
-                    for (int k = 0; k < embed_dim_per_head; k++)
-                    {
-                        sum += *qptr++ * *kptr++;
-                    }
-
-                    outptr[j] = sum;
+                    outptr[j] = mul_add_reduce_no_align(qptr, kptr, embed_dim_per_head);
                 }
             }
         }
 
-        // softmax(xqk)
         {
             Mat outm = xqk.channel(q);
-
-            for (int i = 0; i < seqlen; i++)
-            {
-                float* ptr = outm.row(i);
-
-                float max = -FLT_MAX;
-                for (int j = 0; j < seqlen; j++)
-                {
-                    max = std::max(max, ptr[j]);
-                }
-
-                float sum = 0.f;
-                for (int j = 0; j < seqlen; j++)
-                {
-                    ptr[j] = (float)(exp(ptr[j] - max));
-                    sum += ptr[j];
-                }
-
-                for (int j = 0; j < seqlen; j++)
-                {
-                    ptr[j] /= sum;
-                }
-            }
+            softmax->forward_inplace(outm, opt);
         }
 
         // xqkv = xqk * xv
@@ -477,13 +469,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                     const float* qkptr = xqkm.row(i);
                     const float* vptr = xvm.row(j);
 
-                    float sum = 0.f;
-                    for (int k = 0; k < seqlen; k++)
-                    {
-                        sum += *qkptr++ * *vptr++;
-                    }
-
-                    outptr[j] = sum;
+                    outptr[j] = mul_add_reduce_no_align(qkptr, vptr, seqlen);
                 }
             }
         }
@@ -501,13 +487,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
             const float* ptr = xqkv.channel(i);
             const float* kptr = (const float*)out_weight_data + embed_dim * j;
 
-            float sum = out_bias_data[j];
-            for (int k = 0; k < embed_dim; k++)
-            {
-                sum += *ptr++ * *kptr++;
-            }
-
-            outptr[j] = sum;
+            outptr[j] = mul_add_reduce_no_align(ptr, kptr, embed_dim) + out_bias_data[j];
         }
     }
 

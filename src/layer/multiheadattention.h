@@ -40,6 +40,9 @@ public:
     int weight_data_size;
     int int8_scale_term;
 
+    int embed_dim_per_head;
+    float inv_sqrt_embed_dim_per_head;
+
     Mat q_weight_data;
     Mat q_bias_data;
     Mat k_weight_data;
