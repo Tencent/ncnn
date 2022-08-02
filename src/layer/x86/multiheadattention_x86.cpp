@@ -53,11 +53,13 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     q_bias_fold_data.substract_mean_normalize(0, scale_vals);
 #else
     q_weight_fold_data = q_weight_data.clone();
-    for (int i = 0; i < q_weight_fold_data.w; ++i) {
+    for (int i = 0; i < q_weight_fold_data.w; ++i)
+    {
         q_weight_fold_data[i] *= inv_sqrt_embed_dim_per_head;
     }
     q_bias_fold_data = q_bias_data.clone();
-    for (int i = 0; i < q_bias_fold_data.w; ++i) {
+    for (int i = 0; i < q_bias_fold_data.w; ++i)
+    {
         q_bias_fold_data[i] *= inv_sqrt_embed_dim_per_head;
     }
 #endif
@@ -73,7 +75,7 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         softmax->create_pipeline(opt);
     }
 
-    if (opt.lightmode) 
+    if (opt.lightmode)
     {
         q_weight_data.release();
         q_bias_data.release();
@@ -366,7 +368,6 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
 
     Mat xqkv(embed_dim_per_head, num_head, seqlen, 4u, opt.workspace_allocator);
 
-
     for (int q = 0; q < num_head; q++)
     {
         // xq = affine(q) * inv_sqrt_embed_dim_per_head
@@ -382,7 +383,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                     const float* ptr = q_blob.row(i);
                     const float* kptr = (const float*)q_weight_fold_data + embed_dim * (q * embed_dim_per_head + j);
 
-                    outptr[j] = mul_add_reduce_no_align(ptr, kptr, embed_dim) +  q_bias_fold_data[q * embed_dim_per_head + j];
+                    outptr[j] = mul_add_reduce_no_align(ptr, kptr, embed_dim) + q_bias_fold_data[q * embed_dim_per_head + j];
                 }
             }
         }
@@ -400,7 +401,7 @@ int MultiHeadAttention_x86::forward(const std::vector<Mat>& bottom_blobs, std::v
                     const float* ptr = k_blob.row(i);
                     const float* kptr = (const float*)k_weight_data + embed_dim * (q * embed_dim_per_head + j);
 
-                    outptr[j] = mul_add_reduce_no_align(ptr, kptr, embed_dim) +  k_bias_data[q * embed_dim_per_head + j];
+                    outptr[j] = mul_add_reduce_no_align(ptr, kptr, embed_dim) + k_bias_data[q * embed_dim_per_head + j];
                 }
             }
         }

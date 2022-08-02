@@ -38,9 +38,9 @@ protected:
 #endif
 
 private:
- Mat q_weight_fold_data;
- Mat q_bias_fold_data;
- Layer* softmax;
+    Mat q_weight_fold_data;
+    Mat q_bias_fold_data;
+    Layer* softmax;
 };
 
 } // namespace ncnn
