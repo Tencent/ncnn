@@ -73,7 +73,7 @@ int ConvolutionDepthWise1D::load_model(const ModelBin& mb)
     return 0;
 }
 
-int ConvolutionDepthWise1D::create_pipeline(const Option& opt)
+int ConvolutionDepthWise1D::create_pipeline(const Option&)
 {
     return 0;
 }

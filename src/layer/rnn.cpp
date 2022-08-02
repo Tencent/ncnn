@@ -72,11 +72,10 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
         int ti = reverse ? T - 1 - t : t;
 
         const float* x = bottom_blob.row(ti);
-
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* weight_xc_ptr = weight_xc.row(q);
-
             const float* weight_hc_ptr = weight_hc.row(q);
 
             float H = bias_c[q];
@@ -97,6 +96,7 @@ static int rnn(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
         }
 
         float* output_data = top_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             float H = gates[q];

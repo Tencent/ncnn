@@ -29,7 +29,7 @@ void eliminate_identity_operator(Graph& graph)
         {
             Operator* op0 = graph.ops[i];
 
-            if (op0->type == "pnnx.Input" || op0->type == "pnnx.Output")
+            if (op0->type == "pnnx.Input" || op0->type == "pnnx.Output" || op0->type == "pnnx.Attribute")
                 continue;
 
             Operator* op1 = 0;
@@ -38,7 +38,7 @@ void eliminate_identity_operator(Graph& graph)
             {
                 op1 = graph.ops[j];
 
-                if (op1->type == "pnnx.Input" || op1->type == "pnnx.Output")
+                if (op1->type == "pnnx.Input" || op1->type == "pnnx.Output" || op0->type == "pnnx.Attribute")
                     continue;
 
                 if (op0->type != op1->type)

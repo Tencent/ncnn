@@ -153,6 +153,8 @@ int ConvolutionDepthWise::create_pipeline(const Option& opt)
 
         weight_data = int8_weight_data;
     }
+#else
+    (void)(opt);
 #endif // NCNN_INT8
 
     return 0;

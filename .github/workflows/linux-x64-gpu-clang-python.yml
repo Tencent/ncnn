@@ -25,6 +25,9 @@ on:
 concurrency:
   group: linux-x64-gpu-clang-python-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-clang-gpu:
     runs-on: ubuntu-latest
@@ -32,12 +35,12 @@ jobs:
       matrix:
         python-version: [3.6, 3.8]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-vulkansdk
       id: cache-vulkansdk
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: "1.2.189.0"
         key: vulkansdk-linux-x86_64-1.2.189.0
@@ -50,13 +53,13 @@ jobs:
         find 1.2.189.0 -type f | grep -v -E 'vulkan|glslang' | xargs rm
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: swiftshader-install
         key: swiftshader-linux-install-20220211
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: google/swiftshader
         path: swiftshader
@@ -76,7 +79,7 @@ jobs:
         mkdir $GITHUB_WORKSPACE/swiftshader-install
         cp Linux/* $GITHUB_WORKSPACE/swiftshader-install
     - name: set up python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies

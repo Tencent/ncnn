@@ -147,7 +147,7 @@ static inline v4f32 exp_ps(v4f32 x)
     tmp = __msa_ffint_s_w(__msa_ftint_s_w(fx));
 
     /* if greater, substract 1 */
-    v4i32_w mask = __msa_fslt_w(fx, tmp);
+    v4i32_w mask = __msa_fclt_w(fx, tmp);
     mask = (v4i32_w)__msa_and_v((v16u8)mask, (v16u8)one);
 
     fx = __msa_fsub_w(tmp, (v4f32)mask);

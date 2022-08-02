@@ -91,7 +91,7 @@ pnnx.Output             output      1 0 out
         return "sum";
     }
 
-    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
     {
         op->params["0"] = 0;
         op->params["1"] = 1;

@@ -130,6 +130,12 @@ static bool operator_is_all_constant(const Operator* op, float vf, int vi)
     if (op->type == "prim::Constant")
         return constant_is_all_constant(op, vf, vi);
 
+    if (op->type == "torch.zeros" || op->type == "torch.zeros_like")
+        return (vf == 0.f && vi == 0);
+
+    if (op->type == "torch.ones" || op->type == "torch.ones_like")
+        return (vf == 1.f && vi == 1);
+
     return false;
 }
 
@@ -145,7 +151,7 @@ void eliminate_noop_math(Graph& graph)
             Operator* op = graph.ops[i];
 
             int identity_input_id = 0;
-            if (op->type == "aten::add" || op->type == "aten::add_")
+            if (op->type == "aten::add")
             {
                 Operator* op0 = op->inputs[0]->producer;
                 Operator* op1 = op->inputs[1]->producer;
@@ -163,7 +169,7 @@ void eliminate_noop_math(Graph& graph)
                     need_eliminate = true;
                     identity_input_id = 0;
                 }
-                else if (operator_is_all_constant(op0, 0.f, 0) && operator_is_all_constant(op0, 1.f, 1))
+                else if (operator_is_all_constant(op0, 0.f, 0) && operator_is_all_constant(op2, 1.f, 1))
                 {
                     // x <= 0 + b * 1
                     need_eliminate = true;
@@ -225,7 +231,7 @@ void eliminate_noop_math(Graph& graph)
                     identity_input_id = 0;
                 }
             }
-            if (op->type == "aten::div" || op->type == "aten::div_")
+            if (op->type == "aten::div")
             {
                 Operator* op1 = op->inputs[1]->producer;
 

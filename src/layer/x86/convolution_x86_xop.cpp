@@ -12,8 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "convolution_x86_xop.h"
-
 #include "cpu.h"
 #include "mat.h"
 #include "x86_usability.h"
@@ -45,14 +43,14 @@ void im2col_sgemm_pack8to1_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob,
     im2col_sgemm_pack8to1_int8_sse(bottom_im2col, top_blob, kernel, opt);
 }
 
-void conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse_xop(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
+void conv3x3s1_winograd43_transform_kernel_pack8to1_int8_sse_xop(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
-    conv3x3s1_winograd42_transform_kernel_pack8to1_int8_sse(kernel, kernel_tm, inch, outch, opt);
+    conv3x3s1_winograd43_transform_kernel_pack8to1_int8_sse(kernel, kernel_tm, inch, outch, opt);
 }
 
-void conv3x3s1_winograd42_pack8to1_int8_sse_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+void conv3x3s1_winograd43_pack8to1_int8_sse_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
-    conv3x3s1_winograd42_pack8to1_int8_sse(bottom_blob, top_blob, kernel, opt);
+    conv3x3s1_winograd43_pack8to1_int8_sse(bottom_blob, top_blob, kernel, opt);
 }
 
 // pack8to4
@@ -61,14 +59,14 @@ void im2col_sgemm_pack8to4_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob,
     im2col_sgemm_pack8to4_int8_sse(bottom_im2col, top_blob, kernel, opt);
 }
 
-void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_xop(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
+void conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_xop(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
-    conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse(kernel, kernel_tm, inch, outch, opt);
+    conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse(kernel, kernel_tm, inch, outch, opt);
 }
 
-void conv3x3s1_winograd42_pack8to4_int8_sse_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
+void conv3x3s1_winograd43_pack8to4_int8_sse_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
-    conv3x3s1_winograd42_pack8to4_int8_sse(bottom_blob, top_blob, kernel, opt);
+    conv3x3s1_winograd43_pack8to4_int8_sse(bottom_blob, top_blob, kernel, opt);
 }
 
 } // namespace ncnn

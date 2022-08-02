@@ -12,42 +12,58 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+void im2col_sgemm_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+void im2col_sgemm_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
+void im2col_sgemm_int8_sse_avx2(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
+void im2col_sgemm_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
+#endif
+#endif
+
 static void im2col_sgemm_int8_sse(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt)
 {
-#if NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
+#if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
+#if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        extern void im2col_sgemm_int8_sse_avx512vnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_int8_sse_avx512vnni(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
 
-#if NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
+#if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        extern void im2col_sgemm_int8_sse_avxvnni(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_int8_sse_avxvnni(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
 
-#if NCNN_AVX2 && __AVX__ && !__AVX2__
+#if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
-        extern void im2col_sgemm_int8_sse_avx2(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_int8_sse_avx2(bottom_im2col, top_blob, kernel, opt);
         return;
     }
 #endif
 
-#if NCNN_XOP && __SSE2__ && !__XOP__
+#if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
     if (ncnn::cpu_support_x86_xop())
     {
-        extern void im2col_sgemm_int8_sse_xop(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Option& opt);
         im2col_sgemm_int8_sse_xop(bottom_im2col, top_blob, kernel, opt);
         return;
     }
+#endif
 #endif
 
     // Mat bottom_im2col(size, maxk, inch, 8u, 8, opt.workspace_allocator);

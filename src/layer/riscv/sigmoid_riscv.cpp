@@ -15,11 +15,7 @@
 #include "sigmoid_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "rvv_mathfun.h"
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
@@ -40,9 +36,9 @@ Sigmoid_riscv::Sigmoid_riscv()
 
 int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
+#if __riscv_vector && __riscv_zfh
     int elembits = bottom_top_blob.elembits();
 
-#if __riscv_vector && __riscv_zfh
     if (opt.use_fp16_storage && elembits == 16)
     {
         if (opt.use_fp16_arithmetic)
@@ -54,9 +50,10 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
@@ -64,7 +61,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         float* ptr = bottom_top_blob.channel(q);
 
 #if __riscv_vector
-        int n = size * elempack;
+        int n = size;
         while (n > 0)
         {
             word_type vl = vsetvl_e32m8(n);
@@ -94,16 +91,17 @@ int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
-        int n = size * elempack;
+        int n = size;
         while (n > 0)
         {
             word_type vl = vsetvl_e16m4(n);
@@ -124,16 +122,17 @@ int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         __fp16* ptr = bottom_top_blob.channel(q);
 
-        int n = size * elempack;
+        int n = size;
         while (n > 0)
         {
             word_type vl = vsetvl_e16m8(n);

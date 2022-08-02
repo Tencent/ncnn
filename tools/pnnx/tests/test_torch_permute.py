@@ -15,13 +15,14 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from packaging import version
 
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        if torch.__version__ < '1.9':
+        if version.parse(torch.__version__) < version.parse('1.9'):
             x = x.permute(1, 0, 2)
             x = x.permute(0, 1, 2)
             y = y.permute(2, 3, 1, 0)

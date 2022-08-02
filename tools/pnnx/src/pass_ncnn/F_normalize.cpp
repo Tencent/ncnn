@@ -38,11 +38,31 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
-        return "norm";
+        return "normalize";
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
+        int input_rank = op->inputs[0]->shape.size();
+
+        if (batch_index >= 0 && batch_index < input_rank)
+            input_rank -= 1;
+
+        int axis = captured_params.at("dim").i;
+        if (axis == batch_index)
+        {
+            fprintf(stderr, "normalize along batch axis %d is not supported\n", batch_index);
+            return;
+        }
+
+        if (axis < 0)
+            axis = input_rank + axis;
+
+        if (axis > batch_index)
+            axis -= 1;
+
         float p = 0.f;
         if (captured_params.at("p").type == 2)
             p = captured_params.at("p").i;
@@ -53,6 +73,24 @@ pnnx.Output             output      1 0 out
         {
             fprintf(stderr, "unsupported normalize p=%f\n", p);
             return;
+        }
+
+        if (input_rank == 2 || axis != 0)
+        {
+            fprintf(stderr, "unsupported normalize for %d-rank tensor with axis %d\n", input_rank, axis);
+            return;
+        }
+
+        if (input_rank == 1 && axis == 0)
+        {
+            op->params["0"] = 1; // across_spatial
+            op->params["4"] = 1; // across_channel
+        }
+
+        if (input_rank == 3 && axis == 0)
+        {
+            op->params["0"] = 0; // across_spatial
+            op->params["4"] = 1; // across_channel
         }
 
         op->params["1"] = 1; // channel_shared

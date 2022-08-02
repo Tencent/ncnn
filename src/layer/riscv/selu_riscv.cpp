@@ -15,11 +15,7 @@
 #include "selu_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "rvv_mathfun.h"
 #endif // __riscv_vector
 
@@ -29,16 +25,18 @@ int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
-    float alphaxlambda = alpha * lambda;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
+    float alphaxlambda = alpha * lambda;
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int q = 0; q < channels; q++)
     {
         float* ptr = bottom_top_blob.channel(q);
 #if __riscv_vector
-        int n = size * elempack;
+        int n = size;
         while (n > 0)
         {
             word_type vl = vsetvl_e32m8(n);

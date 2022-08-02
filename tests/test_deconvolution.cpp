@@ -81,21 +81,32 @@ static int test_deconvolution_0()
 
     for (int i = 0; i < 16; i++)
     {
+        const int k = kdsp[i][0];
+        const int d = kdsp[i][1];
+        const int s = kdsp[i][2];
+        const int p = kdsp[i][3];
+
         int ret = 0
-                  || test_deconvolution(9, 7, 1, 1, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 0, 0, 0, 0)
-                  || test_deconvolution(9, 7, 4, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 1, 1, 7, 5)
-                  || test_deconvolution(9, 7, 13, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 1, 0, 0, 0)
-                  || test_deconvolution(9, 7, 4, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 0, 1, 0, 0)
-                  || test_deconvolution(9, 7, 8, 4, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 0, 0, 7, 5)
-                  || test_deconvolution(9, 7, 8, 13, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 2, 2, 0, 0)
-                  || test_deconvolution(9, 7, 13, 8, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 1, 2, 0, 0, 0)
-                  || test_deconvolution(9, 7, 16, 16, kdsp[i][0], kdsp[i][1], kdsp[i][2], kdsp[i][3], 0, 0, 2, 7, 5);
+                  || test_deconvolution(9, 7, 1, 1, k, d, s, p, 1, 0, 0, 0, 0)
+                  || test_deconvolution(9, 7, 4, 13, k, d, s, p, 0, 1, 1, 7, 5)
+                  || test_deconvolution(9, 7, 13, 4, k, d, s, p, 1, 1, 0, 0, 0)
+                  || test_deconvolution(9, 7, 4, 8, k, d, s, p, 0, 0, 1, 0, 0)
+                  || test_deconvolution(9, 7, 8, 4, k, d, s, p, 1, 0, 0, 7, 5)
+                  || test_deconvolution(9, 7, 8, 13, k, d, s, p, 0, 2, 2, 0, 0)
+                  || test_deconvolution(9, 7, 13, 8, k, d, s, p, 1, 2, 0, 0, 0)
+                  || test_deconvolution(9, 7, 16, 16, k, d, s, p, 0, 0, 2, 7, 5);
 
         if (ret != 0)
             return -1;
     }
 
-    return 0;
+    return 0
+           || test_deconvolution(7, 5, 24, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 32, 24, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 28, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 32, 28, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 26, 32, 4, 2, 2, 2, 1, 0, 0, 0, 0)
+           || test_deconvolution(7, 5, 32, 26, 4, 2, 2, 2, 1, 0, 0, 0, 0);
 }
 
 int main()

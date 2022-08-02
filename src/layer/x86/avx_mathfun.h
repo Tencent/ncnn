@@ -402,9 +402,9 @@ static NCNN_FORCEINLINE __m256 sin256_ps(__m256 x)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm256_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm256_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(__m256*)_ps256_coscof_p0;
@@ -511,9 +511,9 @@ static NCNN_FORCEINLINE __m256 cos256_ps(__m256 x)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm256_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm256_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
     /* Evaluate the first polynom  (0 <= x <= Pi/4) */
     y = *(__m256*)_ps256_coscof_p0;
@@ -631,9 +631,9 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     xmm1 = *(__m256*)_ps256_minus_cephes_DP1;
     xmm2 = *(__m256*)_ps256_minus_cephes_DP2;
     xmm3 = *(__m256*)_ps256_minus_cephes_DP3;
-    xmm1 = _mm256_comp_fmadd_ps(y, xmm1, xmm1);
-    xmm2 = _mm256_comp_fmadd_ps(y, xmm2, xmm2);
-    xmm3 = _mm256_comp_fmadd_ps(y, xmm3, xmm3);
+    x = _mm256_comp_fmadd_ps(y, xmm1, x);
+    x = _mm256_comp_fmadd_ps(y, xmm2, x);
+    x = _mm256_comp_fmadd_ps(y, xmm3, x);
 
 #ifdef __AVX2__
     imm4 = _mm256_comp_sub_epi32(imm4, *(__m256i*)_pi32_256_2);
@@ -691,7 +691,19 @@ static NCNN_FORCEINLINE void sincos256_ps(__m256 x, __m256* s, __m256* c)
     *c = _mm256_xor_ps(xmm2, sign_bit_cos);
 }
 
-static NCNN_FORCEINLINE __m256 pow_ps(__m256 a, __m256 b)
+static NCNN_FORCEINLINE __m256 tan256_ps(__m256 x)
+{
+    __m256 ysin, ycos;
+    __m256 eps = _mm256_set1_ps(1E-8f);
+    sincos256_ps(x, &ysin, &ycos);
+    __m256 mask = _mm256_cmp_ps(ycos, _mm256_setzero_ps(), _CMP_EQ_OS);
+    __m256 _tmp = _mm256_and_ps(eps, mask);
+    ycos = _mm256_add_ps(ycos, _tmp);
+    __m256 ytan = _mm256_div_ps(ysin, ycos);
+    return ytan;
+}
+
+static NCNN_FORCEINLINE __m256 pow256_ps(__m256 a, __m256 b)
 {
     // pow(x, m) = exp(m * log(x))
     return exp256_ps(_mm256_mul_ps(b, log256_ps(a)));

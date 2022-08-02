@@ -50,14 +50,14 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             int j = 0;
             for (; j < outw; j++)
             {
-                __builtin_prefetch(r0 + 160);
-                __builtin_prefetch(r1 + 160);
-                __builtin_prefetch(r2 + 160);
-                __builtin_prefetch(r3 + 160);
-                __builtin_prefetch(r4 + 160);
-                __builtin_prefetch(r5 + 160);
+                __builtin_prefetch(r0 + 16);
+                __builtin_prefetch(r1 + 16);
+                __builtin_prefetch(r2 + 16);
+                __builtin_prefetch(r3 + 16);
+                __builtin_prefetch(r4 + 16);
+                __builtin_prefetch(r5 + 16);
 
-                __builtin_prefetch(k0 + 800);
+                __builtin_prefetch(k0 + 400);
 
                 v4f32 _sum0 = _bias0;
                 v4f32 _sum1 = _bias0;
@@ -222,13 +222,13 @@ static void convdw5x5s1_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             int j = 0;
             for (; j < outw; j++)
             {
-                __builtin_prefetch(r0 + 160);
-                __builtin_prefetch(r1 + 160);
-                __builtin_prefetch(r2 + 160);
-                __builtin_prefetch(r3 + 160);
-                __builtin_prefetch(r4 + 160);
+                __builtin_prefetch(r0 + 16);
+                __builtin_prefetch(r1 + 16);
+                __builtin_prefetch(r2 + 16);
+                __builtin_prefetch(r3 + 16);
+                __builtin_prefetch(r4 + 16);
 
-                __builtin_prefetch(k0 + 800);
+                __builtin_prefetch(k0 + 400);
 
                 v4f32 _sum0 = _bias0;
 
@@ -385,13 +385,13 @@ static void convdw5x5s2_pack4_msa(const Mat& bottom_blob, Mat& top_blob, const M
             int j = 0;
             for (; j < outw; j++)
             {
-                __builtin_prefetch(r0 + 160);
-                __builtin_prefetch(r1 + 160);
-                __builtin_prefetch(r2 + 160);
-                __builtin_prefetch(r3 + 160);
-                __builtin_prefetch(r4 + 160);
+                __builtin_prefetch(r0 + 32);
+                __builtin_prefetch(r1 + 32);
+                __builtin_prefetch(r2 + 32);
+                __builtin_prefetch(r3 + 32);
+                __builtin_prefetch(r4 + 32);
 
-                __builtin_prefetch(k0 + 800);
+                __builtin_prefetch(k0 + 400);
 
                 v4f32 _sum0 = _bias0;
 

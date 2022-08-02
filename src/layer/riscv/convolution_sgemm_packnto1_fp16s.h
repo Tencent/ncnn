@@ -423,14 +423,14 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 sum7 += ss7[i];
             }
 #else
-            sum0 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum0, vfmv_s_f_f16m1(vfloat16m1_t(), sum0, vl), vl));
-            sum1 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum1, vfmv_s_f_f16m1(vfloat16m1_t(), sum1, vl), vl));
-            sum2 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum2, vfmv_s_f_f16m1(vfloat16m1_t(), sum2, vl), vl));
-            sum3 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum3, vfmv_s_f_f16m1(vfloat16m1_t(), sum3, vl), vl));
-            sum4 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum4, vfmv_s_f_f16m1(vfloat16m1_t(), sum4, vl), vl));
-            sum5 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum5, vfmv_s_f_f16m1(vfloat16m1_t(), sum5, vl), vl));
-            sum6 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum6, vfmv_s_f_f16m1(vfloat16m1_t(), sum6, vl), vl));
-            sum7 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum7, vfmv_s_f_f16m1(vfloat16m1_t(), sum7, vl), vl));
+            sum0 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum0, vfmv_s_f_f16m1(vfloat16m1_t(), sum0, vl), vl));
+            sum1 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum1, vfmv_s_f_f16m1(vfloat16m1_t(), sum1, vl), vl));
+            sum2 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum2, vfmv_s_f_f16m1(vfloat16m1_t(), sum2, vl), vl));
+            sum3 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum3, vfmv_s_f_f16m1(vfloat16m1_t(), sum3, vl), vl));
+            sum4 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum4, vfmv_s_f_f16m1(vfloat16m1_t(), sum4, vl), vl));
+            sum5 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum5, vfmv_s_f_f16m1(vfloat16m1_t(), sum5, vl), vl));
+            sum6 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum6, vfmv_s_f_f16m1(vfloat16m1_t(), sum6, vl), vl));
+            sum7 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum7, vfmv_s_f_f16m1(vfloat16m1_t(), sum7, vl), vl));
 #endif
 
             outptr0[0] = sum0;
@@ -491,10 +491,10 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 sum3 += ss3[i];
             }
 #else
-            sum0 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum0, vfmv_s_f_f16m1(vfloat16m1_t(), sum0, vl), vl));
-            sum1 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum1, vfmv_s_f_f16m1(vfloat16m1_t(), sum1, vl), vl));
-            sum2 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum2, vfmv_s_f_f16m1(vfloat16m1_t(), sum2, vl), vl));
-            sum3 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum3, vfmv_s_f_f16m1(vfloat16m1_t(), sum3, vl), vl));
+            sum0 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum0, vfmv_s_f_f16m1(vfloat16m1_t(), sum0, vl), vl));
+            sum1 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum1, vfmv_s_f_f16m1(vfloat16m1_t(), sum1, vl), vl));
+            sum2 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum2, vfmv_s_f_f16m1(vfloat16m1_t(), sum2, vl), vl));
+            sum3 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum3, vfmv_s_f_f16m1(vfloat16m1_t(), sum3, vl), vl));
 #endif
 
             outptr0[0] = sum0;
@@ -539,8 +539,8 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 sum1 += ss1[i];
             }
 #else
-            sum0 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum0, vfmv_s_f_f16m1(vfloat16m1_t(), sum0, vl), vl));
-            sum1 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum1, vfmv_s_f_f16m1(vfloat16m1_t(), sum1, vl), vl));
+            sum0 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum0, vfmv_s_f_f16m1(vfloat16m1_t(), sum0, vl), vl));
+            sum1 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum1, vfmv_s_f_f16m1(vfloat16m1_t(), sum1, vl), vl));
 #endif
 
             outptr0[0] = sum0;
@@ -577,7 +577,7 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
                 sum0 += ss0[i];
             }
 #else
-            sum0 = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum0, vfmv_s_f_f16m1(vfloat16m1_t(), sum0, vl), vl));
+            sum0 = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum0, vfmv_s_f_f16m1(vfloat16m1_t(), sum0, vl), vl));
 #endif
 
             outptr0[0] = sum0;

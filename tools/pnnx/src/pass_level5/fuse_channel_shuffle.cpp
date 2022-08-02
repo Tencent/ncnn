@@ -78,7 +78,7 @@ public:
     const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
-7 6
+5 4
 pnnx.Input              input       0 1 input
 Tensor.view             op_0        1 1 input 13 shape=%shape
 torch.transpose         op_1        1 1 13 14 dim0=1 dim1=2

@@ -16,7 +16,7 @@ import torch
 import torchvision.models as models
 
 def test():
-    net = models.mobilenet_v3_small()
+    net = models.mobilenet_v3_small().half().float()
     net.eval()
 
     torch.manual_seed(0)
@@ -36,7 +36,7 @@ def test():
     import test_mobilenet_v3_small_ncnn
     b = test_mobilenet_v3_small_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    return torch.allclose(a, b, 1e-2, 1e-2)
 
 if __name__ == "__main__":
     if test():

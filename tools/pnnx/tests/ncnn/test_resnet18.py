@@ -16,7 +16,7 @@ import torch
 import torchvision.models as models
 
 def test():
-    net = models.resnet18()
+    net = models.resnet18().half().float()
     net.eval()
 
     torch.manual_seed(0)
@@ -36,7 +36,7 @@ def test():
     import test_resnet18_ncnn
     b = test_resnet18_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    return torch.allclose(a, b, 1e-2, 1e-2)
 
 if __name__ == "__main__":
     if test():

@@ -51,3 +51,8 @@ cmake-build-release
 __pycache__
 *.pyc
 *.pyd
+*.egg-info/
+python/setup.py
+
+# Clangd
+.cache/

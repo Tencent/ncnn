@@ -45,7 +45,9 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if __SSE2__
         if (opt.use_packing_layout)
         {
-#if __AVX__
+#if __AVX512F__
+            out_elempack = top_w % 16 == 0 ? 16 : top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
+#elif __AVX__
             out_elempack = top_w % 8 == 0 ? 8 : top_w % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_w % 4 == 0 ? 4 : 1;
@@ -92,7 +94,9 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if __SSE2__
         if (opt.use_packing_layout)
         {
-#if __AVX__
+#if __AVX512F__
+            out_elempack = top_h % 16 == 0 ? 16 : top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
+#elif __AVX__
             out_elempack = top_h % 8 == 0 ? 8 : top_h % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_h % 4 == 0 ? 4 : 1;
@@ -120,6 +124,132 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             const Mat& bottom_blob = bottom_blobs[b];
 
 #if __AVX__
+#if __AVX512F__
+            if (bottom_blob.elempack == 16 && elempack == 8)
+            {
+                for (int i = 0; i < bottom_blob.h; i++)
+                {
+                    const float* r0 = bottom_blob.row(i);
+
+                    float* outptr0 = outptr;
+                    float* outptr1 = outptr + w * 8;
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        outptr0[0] = r0[0];
+                        outptr0[1] = r0[1];
+                        outptr0[2] = r0[2];
+                        outptr0[3] = r0[3];
+                        outptr0[4] = r0[4];
+                        outptr0[5] = r0[5];
+                        outptr0[6] = r0[6];
+                        outptr0[7] = r0[7];
+                        outptr1[0] = r0[8];
+                        outptr1[1] = r0[9];
+                        outptr1[2] = r0[10];
+                        outptr1[3] = r0[11];
+                        outptr1[4] = r0[12];
+                        outptr1[5] = r0[13];
+                        outptr1[6] = r0[14];
+                        outptr1[7] = r0[15];
+
+                        outptr0 += 8;
+                        outptr1 += 8;
+                        r0 += 16;
+                    }
+
+                    outptr += w * 16;
+                }
+            }
+            if (bottom_blob.elempack == 16 && elempack == 4)
+            {
+                for (int i = 0; i < bottom_blob.h; i++)
+                {
+                    const float* r0 = bottom_blob.row(i);
+
+                    float* outptr0 = outptr;
+                    float* outptr1 = outptr + w * 4;
+                    float* outptr2 = outptr + w * 8;
+                    float* outptr3 = outptr + w * 12;
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        outptr0[0] = r0[0];
+                        outptr0[1] = r0[1];
+                        outptr0[2] = r0[2];
+                        outptr0[3] = r0[3];
+                        outptr1[0] = r0[4];
+                        outptr1[1] = r0[5];
+                        outptr1[2] = r0[6];
+                        outptr1[3] = r0[7];
+                        outptr2[0] = r0[8];
+                        outptr2[1] = r0[9];
+                        outptr2[2] = r0[10];
+                        outptr2[3] = r0[11];
+                        outptr3[0] = r0[12];
+                        outptr3[1] = r0[13];
+                        outptr3[2] = r0[14];
+                        outptr3[3] = r0[15];
+
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        outptr2 += 4;
+                        outptr3 += 4;
+                        r0 += 16;
+                    }
+
+                    outptr += w * 16;
+                }
+            }
+            if (bottom_blob.elempack == 16 && elempack == 1)
+            {
+                for (int i = 0; i < bottom_blob.h; i++)
+                {
+                    const float* r0 = bottom_blob.row(i);
+
+                    float* outptr0 = outptr;
+                    float* outptr1 = outptr + w;
+                    float* outptr2 = outptr + w * 2;
+                    float* outptr3 = outptr + w * 3;
+                    float* outptr4 = outptr + w * 4;
+                    float* outptr5 = outptr + w * 5;
+                    float* outptr6 = outptr + w * 6;
+                    float* outptr7 = outptr + w * 7;
+                    float* outptr8 = outptr + w * 8;
+                    float* outptr9 = outptr + w * 9;
+                    float* outptra = outptr + w * 10;
+                    float* outptrb = outptr + w * 11;
+                    float* outptrc = outptr + w * 12;
+                    float* outptrd = outptr + w * 13;
+                    float* outptre = outptr + w * 14;
+                    float* outptrf = outptr + w * 15;
+
+                    for (int j = 0; j < w; j++)
+                    {
+                        *outptr0++ = r0[0];
+                        *outptr1++ = r0[1];
+                        *outptr2++ = r0[2];
+                        *outptr3++ = r0[3];
+                        *outptr4++ = r0[4];
+                        *outptr5++ = r0[5];
+                        *outptr6++ = r0[6];
+                        *outptr7++ = r0[7];
+                        *outptr8++ = r0[8];
+                        *outptr9++ = r0[9];
+                        *outptra++ = r0[10];
+                        *outptrb++ = r0[11];
+                        *outptrc++ = r0[12];
+                        *outptrd++ = r0[13];
+                        *outptre++ = r0[14];
+                        *outptrf++ = r0[15];
+
+                        r0 += 16;
+                    }
+
+                    outptr += w * 16;
+                }
+            }
+#endif // __AVX512F__
             if (bottom_blob.elempack == 8 && elempack == 4)
             {
                 for (int i = 0; i < bottom_blob.h; i++)
@@ -205,7 +335,7 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                     outptr += w * 4;
                 }
             }
-            if (bottom_blob.elempack == elempack) // 1-1 4-4 8-8
+            if (bottom_blob.elempack == elempack) // 1-1 4-4 8-8 16-16
             {
                 int size = w * bottom_blob.h;
 
@@ -281,7 +411,9 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 #if __SSE2__
         if (opt.use_packing_layout)
         {
-#if __AVX__
+#if __AVX512F__
+            out_elempack = top_channels % 16 == 0 ? 16 : top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
+#elif __AVX__
             out_elempack = top_channels % 8 == 0 ? 8 : top_channels % 4 == 0 ? 4 : 1;
 #else
             out_elempack = top_channels % 4 == 0 ? 4 : 1;
@@ -309,6 +441,138 @@ int Concat_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             const Mat& bottom_blob = bottom_blobs[b];
 
 #if __AVX__
+#if __AVX512F__
+            if (bottom_blob.elempack == 16 && elempack == 8)
+            {
+                int size = bottom_blob.w * bottom_blob.h;
+
+                for (int q = 0; q < bottom_blob.c; q++)
+                {
+                    const float* r0 = bottom_blob.channel(q);
+
+                    float* outptr0 = top_blob_unpacked.channel(p);
+                    float* outptr1 = top_blob_unpacked.channel(p + 1);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr0[0] = r0[0];
+                        outptr0[1] = r0[1];
+                        outptr0[2] = r0[2];
+                        outptr0[3] = r0[3];
+                        outptr0[4] = r0[4];
+                        outptr0[5] = r0[5];
+                        outptr0[6] = r0[6];
+                        outptr0[7] = r0[7];
+                        outptr1[0] = r0[8];
+                        outptr1[1] = r0[9];
+                        outptr1[2] = r0[10];
+                        outptr1[3] = r0[11];
+                        outptr1[4] = r0[12];
+                        outptr1[5] = r0[13];
+                        outptr1[6] = r0[14];
+                        outptr1[7] = r0[15];
+
+                        outptr0 += 8;
+                        outptr1 += 8;
+                        r0 += 16;
+                    }
+
+                    p += 2;
+                }
+            }
+            if (bottom_blob.elempack == 16 && elempack == 4)
+            {
+                int size = bottom_blob.w * bottom_blob.h;
+
+                for (int q = 0; q < bottom_blob.c; q++)
+                {
+                    const float* r0 = bottom_blob.channel(q);
+
+                    float* outptr0 = top_blob_unpacked.channel(p);
+                    float* outptr1 = top_blob_unpacked.channel(p + 1);
+                    float* outptr2 = top_blob_unpacked.channel(p + 2);
+                    float* outptr3 = top_blob_unpacked.channel(p + 3);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        outptr0[0] = r0[0];
+                        outptr0[1] = r0[1];
+                        outptr0[2] = r0[2];
+                        outptr0[3] = r0[3];
+                        outptr1[0] = r0[4];
+                        outptr1[1] = r0[5];
+                        outptr1[2] = r0[6];
+                        outptr1[3] = r0[7];
+                        outptr2[0] = r0[8];
+                        outptr2[1] = r0[9];
+                        outptr2[2] = r0[10];
+                        outptr2[3] = r0[11];
+                        outptr3[0] = r0[12];
+                        outptr3[1] = r0[13];
+                        outptr3[2] = r0[14];
+                        outptr3[3] = r0[15];
+
+                        outptr0 += 4;
+                        outptr1 += 4;
+                        outptr2 += 4;
+                        outptr3 += 4;
+                        r0 += 16;
+                    }
+
+                    p += 4;
+                }
+            }
+            if (bottom_blob.elempack == 16 && elempack == 1)
+            {
+                int size = bottom_blob.w * bottom_blob.h;
+
+                for (int q = 0; q < bottom_blob.c; q++)
+                {
+                    const float* r0 = bottom_blob.channel(q);
+
+                    float* outptr0 = top_blob_unpacked.channel(p);
+                    float* outptr1 = top_blob_unpacked.channel(p + 1);
+                    float* outptr2 = top_blob_unpacked.channel(p + 2);
+                    float* outptr3 = top_blob_unpacked.channel(p + 3);
+                    float* outptr4 = top_blob_unpacked.channel(p + 4);
+                    float* outptr5 = top_blob_unpacked.channel(p + 5);
+                    float* outptr6 = top_blob_unpacked.channel(p + 6);
+                    float* outptr7 = top_blob_unpacked.channel(p + 7);
+                    float* outptr8 = top_blob_unpacked.channel(p + 8);
+                    float* outptr9 = top_blob_unpacked.channel(p + 9);
+                    float* outptra = top_blob_unpacked.channel(p + 10);
+                    float* outptrb = top_blob_unpacked.channel(p + 11);
+                    float* outptrc = top_blob_unpacked.channel(p + 12);
+                    float* outptrd = top_blob_unpacked.channel(p + 13);
+                    float* outptre = top_blob_unpacked.channel(p + 14);
+                    float* outptrf = top_blob_unpacked.channel(p + 15);
+
+                    for (int i = 0; i < size; i++)
+                    {
+                        *outptr0++ = r0[0];
+                        *outptr1++ = r0[1];
+                        *outptr2++ = r0[2];
+                        *outptr3++ = r0[3];
+                        *outptr4++ = r0[4];
+                        *outptr5++ = r0[5];
+                        *outptr6++ = r0[6];
+                        *outptr7++ = r0[7];
+                        *outptr8++ = r0[8];
+                        *outptr9++ = r0[9];
+                        *outptra++ = r0[10];
+                        *outptrb++ = r0[11];
+                        *outptrc++ = r0[12];
+                        *outptrd++ = r0[13];
+                        *outptre++ = r0[14];
+                        *outptrf++ = r0[15];
+
+                        r0 += 16;
+                    }
+
+                    p += 16;
+                }
+            }
+#endif // __AVX512F__
             if (bottom_blob.elempack == 8 && elempack == 4)
             {
                 int size = bottom_blob.w * bottom_blob.h;

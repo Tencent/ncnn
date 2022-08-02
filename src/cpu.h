@@ -45,6 +45,8 @@ public:
 };
 
 // test optional cpu features
+// edsp = armv7 edsp
+NCNN_EXPORT int cpu_support_arm_edsp();
 // neon = armv7 neon or aarch64 asimd
 NCNN_EXPORT int cpu_support_arm_neon();
 // vfpv4 = armv7 fp16 + fma
@@ -53,21 +55,43 @@ NCNN_EXPORT int cpu_support_arm_vfpv4();
 NCNN_EXPORT int cpu_support_arm_asimdhp();
 // asimddp = aarch64 asimd dot product
 NCNN_EXPORT int cpu_support_arm_asimddp();
+// asimdfhm = aarch64 asimd fhm
+NCNN_EXPORT int cpu_support_arm_asimdfhm();
+// bf16 = aarch64 bf16
+NCNN_EXPORT int cpu_support_arm_bf16();
+// i8mm = aarch64 i8mm
+NCNN_EXPORT int cpu_support_arm_i8mm();
+// sve = aarch64 sve
+NCNN_EXPORT int cpu_support_arm_sve();
+// sve2 = aarch64 sve2
+NCNN_EXPORT int cpu_support_arm_sve2();
+// svebf16 = aarch64 svebf16
+NCNN_EXPORT int cpu_support_arm_svebf16();
+// svei8mm = aarch64 svei8mm
+NCNN_EXPORT int cpu_support_arm_svei8mm();
+// svef32mm = aarch64 svef32mm
+NCNN_EXPORT int cpu_support_arm_svef32mm();
 
 // avx = x86 avx
 NCNN_EXPORT int cpu_support_x86_avx();
-// xop = x86 xop
-NCNN_EXPORT int cpu_support_x86_xop();
 // fma = x86 fma
 NCNN_EXPORT int cpu_support_x86_fma();
+// xop = x86 xop
+NCNN_EXPORT int cpu_support_x86_xop();
+// f16c = x86 f16c
+NCNN_EXPORT int cpu_support_x86_f16c();
 // avx2 = x86 avx2 + fma + f16c
 NCNN_EXPORT int cpu_support_x86_avx2();
 // avx_vnni = x86 avx vnni
 NCNN_EXPORT int cpu_support_x86_avx_vnni();
-// avx512 = x86 avx512f + avx512vl
+// avx512 = x86 avx512f + avx512cd + avx512bw + avx512dq + avx512vl
 NCNN_EXPORT int cpu_support_x86_avx512();
 // avx512_vnni = x86 avx512 vnni
 NCNN_EXPORT int cpu_support_x86_avx512_vnni();
+// avx512_bf16 = x86 avx512 bf16
+NCNN_EXPORT int cpu_support_x86_avx512_bf16();
+// avx512_fp16 = x86 avx512 fp16
+NCNN_EXPORT int cpu_support_x86_avx512_fp16();
 
 // msa = mips mas
 NCNN_EXPORT int cpu_support_mips_msa();

@@ -446,8 +446,8 @@ void main()
     {
         y4 = i4 / psc(w);
         x4 = i4 % psc(w);
-        yy4 = i4 / psc(w);
-        xx4 = i4 % psc(w);
+        yy4 = ii4 / psc(w);
+        xx4 = ii4 % psc(w);
 
 #if NCNN_image_shader
         lane2 = (y4 % 8) / 4;

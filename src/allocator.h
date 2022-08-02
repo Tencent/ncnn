@@ -37,7 +37,9 @@
 namespace ncnn {
 
 // the alignment of all the allocated buffers
-#if NCNN_AVX
+#if NCNN_AVX512
+#define NCNN_MALLOC_ALIGN 64
+#elif NCNN_AVX
 #define NCNN_MALLOC_ALIGN 32
 #else
 #define NCNN_MALLOC_ALIGN 16

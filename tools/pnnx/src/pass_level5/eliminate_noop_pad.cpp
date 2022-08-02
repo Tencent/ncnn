@@ -32,6 +32,9 @@ void eliminate_noop_pad(Graph& graph)
             if (op->type != "F.pad")
                 continue;
 
+            if (op->params.find("pad") == op->params.end())
+                continue;
+
             const std::vector<int>& pad = op->params.at("pad").ai;
 
             bool noop_pad = true;
@@ -67,6 +70,8 @@ void eliminate_noop_pad(Graph& graph)
 
                 op->inputs[0]->consumers.push_back(x);
             }
+
+            op->inputs[0]->name = pad_out->name;
 
             pad_out->producer = 0;
             pad_out->consumers.clear();
