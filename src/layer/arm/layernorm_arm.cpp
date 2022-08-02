@@ -871,6 +871,7 @@ int LayerNorm_arm::create_pipeline_bf16s(const Option& opt)
     return 0;
 }
 
+#if __ARM_NEON
 int LayerNorm_arm::forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
@@ -1634,6 +1635,7 @@ int LayerNorm_arm::forward_inplace_pack4_bf16s(Mat& bottom_top_blob, const Optio
 
     return 0;
 }
+#endif
 
 int LayerNorm_arm::forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Option& opt) const
 {

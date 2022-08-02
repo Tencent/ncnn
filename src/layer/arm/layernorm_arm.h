@@ -46,8 +46,10 @@ protected:
     int create_pipeline_bf16s(const Option& opt);
 
     int forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+#if __ARM_NEON
     int forward_inplace_pack1_bf16s(Mat& bottom_top_blob, const Option& opt) const;
     int forward_inplace_pack4_bf16s(Mat& bottom_top_blob, const Option& opt) const;
+#endif
     int forward_inplace_naive_bf16s(Mat& bottom_top_blob, const Option& opt) const;
 #endif
 
