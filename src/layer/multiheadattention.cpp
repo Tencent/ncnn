@@ -32,19 +32,19 @@ int MultiHeadAttention::create_pipeline(const Option& opt)
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {
-        if (q_weight_data.elemsize == (size_t) 4u)
+        if (q_weight_data.elemsize == (size_t)4u)
         {
             ret += quantize_weight(q_weight_data, q_weight_scales, opt);
         }
-        if (k_weight_data.elemsize == (size_t) 4u)
+        if (k_weight_data.elemsize == (size_t)4u)
         {
             ret += quantize_weight(k_weight_data, k_weight_scales, opt);
         }
-        if (v_weight_data.elemsize == (size_t) 4u)
+        if (v_weight_data.elemsize == (size_t)4u)
         {
             ret += quantize_weight(v_weight_data, v_weight_scales, opt);
         }
-        if (out_weight_data.elemsize == (size_t) 4u)
+        if (out_weight_data.elemsize == (size_t)4u)
         {
             ret += quantize_weight(out_weight_data, o_weight_scales, opt);
         }
