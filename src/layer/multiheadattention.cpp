@@ -25,6 +25,36 @@ MultiHeadAttention::MultiHeadAttention()
 {
 }
 
+int MultiHeadAttention::create_pipeline(const Option& opt)
+{
+    // runtime quantize the weight data
+    int ret = 0;
+#if NCNN_INT8
+    if (opt.use_int8_inference && int8_scale_term)
+    {
+        if (q_weight_data.elemsize == (size_t) 4u)
+        {
+            ret += quantize_weight(q_weight_data, q_weight_scales, opt);
+        }
+        if (k_weight_data.elemsize == (size_t) 4u)
+        {
+            ret += quantize_weight(k_weight_data, k_weight_scales, opt);
+        }
+        if (v_weight_data.elemsize == (size_t) 4u)
+        {
+            ret += quantize_weight(v_weight_data, v_weight_scales, opt);
+        }
+        if (out_weight_data.elemsize == (size_t) 4u)
+        {
+            ret += quantize_weight(out_weight_data, o_weight_scales, opt);
+        }
+    }
+#else
+    (void)(opt);
+#endif // NCNN_INT8
+    return ret;
+}
+
 int MultiHeadAttention::load_param(const ParamDict& pd)
 {
     embed_dim = pd.get(0, 0);
@@ -98,10 +128,29 @@ int MultiHeadAttention::load_model(const ModelBin& mb)
 }
 
 #ifdef NCNN_INT8
-static int affine_input(
+
+int MultiHeadAttention::quantize_weight(Mat& weight_data, const Mat& weight_data_int8_scales, const Option& opt)
+{
+    const int num_output = embed_dim;
+    const int num_input = weight_data_size / num_output;
+
+    Mat weight_data_r2 = weight_data.reshape(num_input, num_output);
+
+    Mat weight_data_int8;
+    Option opt_q = opt;
+    opt_q.use_packing_layout = false;
+    quantize_to_int8(weight_data_r2, weight_data_int8, weight_data_int8_scales, opt_q);
+    if (weight_data_int8.empty())
+        return -100;
+
+    weight_data = weight_data_int8.reshape(weight_data_size);
+    return 0;
+}
+
+int MultiHeadAttention::affine_input(
     const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8,
     const Mat& input_scale, const Mat& weight_scales, const float transform_scale,
-    const int num_head, const Option& opt, bool transpose)
+    const int num_head, const Option& opt, bool transpose) const
 {
     const int embed_dim = input.w;
     const int seqlen = input.h;
