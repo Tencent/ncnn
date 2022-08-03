@@ -4326,6 +4326,7 @@ cooling_down = 0
 ### Intel(R) Core(TM) i7-10710U CPU @ 1.10GHz
 test in wsl2 with ubuntu 20.04
 cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
+GPU0 Intel(R) UHD Graphics
 ```
 ../build/benchmark/benchncnn 10 1 0 -1 0
 loop_count = 10
