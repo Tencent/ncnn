@@ -28,10 +28,16 @@ public:
 
     virtual int load_model(const ModelBin& mb);
 
+    virtual int create_pipeline(const Option& opt);
+
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 #ifdef NCNN_INT8
     int forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+    int quantize_weight(Mat& weight, const Mat& scales, const Option& opt);
+
+    int affine_input(const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8,const Mat& input_scale, const Mat& weight_scales, const float transform_scale, const int num_head, const Option& opt, bool transpose) const;
 #endif
 
 public:
