@@ -34,77 +34,72 @@ BatchNorm_x86::BatchNorm_x86()
 int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int dims = bottom_top_blob.dims;
-    int c = bottom_top_blob.c;
-    int d = bottom_top_blob.d;
-    int h = bottom_top_blob.h;
     int w = bottom_top_blob.w;
+    int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
+    int c = bottom_top_blob.c;
     int elempack = bottom_top_blob.elempack;
-
-    int size;
 
     if (dims == 1)
     {
         float* ptr = bottom_top_blob;
+        const float* aptr = a_data;
+        const float* bptr = b_data;
 
-        size = w * elempack;
+        const int size = w * elempack;
 
         int i = 0;
-
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
         for (; i + 15 < size; i += 16)
         {
-            __m512 _a512, _b512, _p512;
-            _a512 = _mm512_loadu_ps((const float*)a_data + i);
-            _b512 = _mm512_loadu_ps((const float*)b_data + i);
-
-            _p512 = _mm512_loadu_ps(ptr);
+            __m512 _p512 = _mm512_loadu_ps(ptr);
+            __m512 _a512 = _mm512_loadu_ps(aptr);
+            __m512 _b512 = _mm512_loadu_ps(bptr);
             _p512 = _mm512_fmadd_ps(_p512, _b512, _a512);
             _mm512_storeu_ps(ptr, _p512);
-
             ptr += 16;
+            aptr += 16;
+            bptr += 16;
         }
 #endif // __AVX512F__
         for (; i + 7 < size; i += 8)
         {
-            __m256 _a256, _b256, _p256;
-            _a256 = _mm256_loadu_ps((const float*)a_data + i);
-            _b256 = _mm256_loadu_ps((const float*)b_data + i);
-
-            _p256 = _mm256_loadu_ps(ptr);
+            __m256 _p256 = _mm256_loadu_ps(ptr);
+            __m256 _a256 = _mm256_loadu_ps(aptr);
+            __m256 _b256 = _mm256_loadu_ps(bptr);
             _p256 = _mm256_comp_fmadd_ps(_p256, _b256, _a256);
             _mm256_storeu_ps(ptr, _p256);
-
             ptr += 8;
+            aptr += 8;
+            bptr += 8;
         }
-
 #endif // __AVX__
         for (; i + 3 < size; i += 4)
         {
-            __m128 _a128, _b128, _p128;
-            _a128 = _mm_loadu_ps((const float*)a_data + i);
-            _b128 = _mm_loadu_ps((const float*)b_data + i);
-
-            _p128 = _mm_loadu_ps(ptr);
+            __m128 _p128 = _mm_loadu_ps(ptr);
+            __m128 _a128 = _mm_loadu_ps(aptr);
+            __m128 _b128 = _mm_loadu_ps(bptr);
             _p128 = _mm_comp_fmadd_ps(_p128, _b128, _a128);
             _mm_storeu_ps(ptr, _p128);
-
             ptr += 4;
+            aptr += 4;
+            bptr += 4;
         }
 #endif // __SSE__
-
         for (; i < size; i++)
         {
-            *ptr = b_data[i] * *ptr + a_data[i];
-
+            *ptr = *bptr * *ptr + *aptr;
             ptr++;
+            aptr++;
+            bptr++;
         }
     }
 
-    else if (dims == 2)
+    if (dims == 2)
     {
-        size = w * elempack;
+        const int size = w * elempack;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
@@ -112,110 +107,59 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ptr = bottom_top_blob.row(i);
             float a = a_data[i];
             float b = b_data[i];
-            int j = 0;
 
 #if __SSE2__
-            __m128 _a128, _b128, _p128;
-            if (elempack == 1)
-            {
-                _a128 = _mm_set1_ps(a);
-                _b128 = _mm_set1_ps(b);
-            }
-            else if (elempack == 4)
-            {
-                _a128 = _mm_load_ps((const float*)a_data + i * 4);
-                _b128 = _mm_load_ps((const float*)b_data + i * 4);
-            }
+            __m128 _a128 = (elempack == 4) ? _mm_loadu_ps((const float*)a_data + i * 4) : _mm_set1_ps(a);
+            __m128 _b128 = (elempack == 4) ? _mm_loadu_ps((const float*)b_data + i * 4) : _mm_set1_ps(b);
+#if __AVX__
+            __m256 _a256 = (elempack == 8) ? _mm256_loadu_ps((const float*)a_data + i * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_a128), _a128, 1);
+            __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps((const float*)b_data + i * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_b128), _b128, 1);
+#if __AVX512F__
+            __m512 _a512 = (elempack == 16) ? _mm512_loadu_ps((const float*)a_data + i * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_a256), _a256, 1);
+            __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps((const float*)b_data + i * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_b256), _b256, 1);
+#endif // __AVX512F__
+#endif // __AVX__
 #endif // __SSE2__
 
-#if __AVX__
-            __m256 _a256, _b256, _p256;
-            if (elempack == 1)
-            {
-                _a256 = _mm256_set1_ps(a);
-                _b256 = _mm256_set1_ps(b);
-            }
-            else if (elempack == 4)
-            {
-                _a256 = _mm256_castps128_ps256(_a128);
-                _a256 = _mm256_insertf128_ps(_a256, _a128, 1);
-                _b256 = _mm256_castps128_ps256(_b128);
-                _b256 = _mm256_insertf128_ps(_b256, _b128, 1);
-            }
-            else if (elempack == 8)
-            {
-                _a256 = _mm256_loadu_ps((const float*)a_data + i * 8);
-                _b256 = _mm256_loadu_ps((const float*)b_data + i * 8);
-            }
-#endif
-
-#if __AVX512F__
-            __m512 _a512, _b512, _p512;
-            if (elempack == 1)
-            {
-                _a512 = _mm512_set1_ps(a);
-                _b512 = _mm512_set1_ps(b);
-            }
-            else if (elempack == 4 || elempack == 8)
-            {
-                _a512 = _mm512_castps256_ps512(_a256);
-                _a512 = _mm512_insertf32x8(_a512, _a256, 1);
-                _b512 = _mm512_castps256_ps512(_b256);
-                _b512 = _mm512_insertf32x8(_b512, _b256, 1);
-            }
-            else // elempack == 16
-            {
-                _a512 = _mm512_loadu_ps((const float*)a_data + i * 16);
-                _b512 = _mm512_loadu_ps((const float*)b_data + i * 16);
-            }
-#endif
-
+            int j = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-
             for (; j + 15 < size; j += 16)
             {
-                _p512 = _mm512_loadu_ps(ptr);
+                __m512 _p512 = _mm512_loadu_ps(ptr);
                 _p512 = _mm512_fmadd_ps(_p512, _b512, _a512);
                 _mm512_storeu_ps(ptr, _p512);
-
                 ptr += 16;
             }
 #endif // __AVX512F__
-
             for (; j + 7 < size; j += 8)
             {
-                _p256 = _mm256_loadu_ps(ptr);
+                __m256 _p256 = _mm256_loadu_ps(ptr);
                 _p256 = _mm256_comp_fmadd_ps(_p256, _b256, _a256);
                 _mm256_storeu_ps(ptr, _p256);
-
                 ptr += 8;
             }
-
 #endif // __AVX__
-
             for (; j + 3 < size; j += 4)
             {
-                _p128 = _mm_loadu_ps(ptr);
+                __m128 _p128 = _mm_loadu_ps(ptr);
                 _p128 = _mm_comp_fmadd_ps(_p128, _b128, _a128);
                 _mm_storeu_ps(ptr, _p128);
-
                 ptr += 4;
             }
 #endif // __SSE__
             for (; j < size; j++)
             {
                 *ptr = b * *ptr + a;
-
                 ptr++;
             }
         }
     }
 
-    else // dims = 3 | dims = 4
+    if (dims == 3 || dims == 4)
     {
-        size = d * h * w * elempack;
+        const int size = w * h * d * elempack;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
@@ -223,102 +167,51 @@ int BatchNorm_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ptr = bottom_top_blob.channel(q);
             float a = a_data[q];
             float b = b_data[q];
-            int i = 0;
 
 #if __SSE2__
-            __m128 _a128, _b128, _p128;
-            if (elempack == 1)
-            {
-                _a128 = _mm_set1_ps(a);
-                _b128 = _mm_set1_ps(b);
-            }
-            else if (elempack == 4)
-            {
-                _a128 = _mm_load_ps((const float*)a_data + q * 4);
-                _b128 = _mm_load_ps((const float*)b_data + q * 4);
-            }
+            __m128 _a128 = (elempack == 4) ? _mm_loadu_ps((const float*)a_data + q * 4) : _mm_set1_ps(a);
+            __m128 _b128 = (elempack == 4) ? _mm_loadu_ps((const float*)b_data + q * 4) : _mm_set1_ps(b);
+#if __AVX__
+            __m256 _a256 = (elempack == 8) ? _mm256_loadu_ps((const float*)a_data + q * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_a128), _a128, 1);
+            __m256 _b256 = (elempack == 8) ? _mm256_loadu_ps((const float*)b_data + q * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_b128), _b128, 1);
+#if __AVX512F__
+            __m512 _a512 = (elempack == 16) ? _mm512_loadu_ps((const float*)a_data + q * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_a256), _a256, 1);
+            __m512 _b512 = (elempack == 16) ? _mm512_loadu_ps((const float*)b_data + q * 16) : _mm512_insertf32x8(_mm512_castps256_ps512(_b256), _b256, 1);
+#endif // __AVX512F__
+#endif // __AVX__
 #endif // __SSE2__
 
-#if __AVX__
-            __m256 _a256, _b256, _p256;
-            if (elempack == 1)
-            {
-                _a256 = _mm256_set1_ps(a);
-                _b256 = _mm256_set1_ps(b);
-            }
-            else if (elempack == 4)
-            {
-                _a256 = _mm256_castps128_ps256(_a128);
-                _a256 = _mm256_insertf128_ps(_a256, _a128, 1);
-                _b256 = _mm256_castps128_ps256(_b128);
-                _b256 = _mm256_insertf128_ps(_b256, _b128, 1);
-            }
-            else if (elempack == 8)
-            {
-                _a256 = _mm256_loadu_ps((const float*)a_data + q * 8);
-                _b256 = _mm256_loadu_ps((const float*)b_data + q * 8);
-            }
-#endif
-
-#if __AVX512F__
-            __m512 _a512, _b512, _p512;
-            if (elempack == 1)
-            {
-                _a512 = _mm512_set1_ps(a);
-                _b512 = _mm512_set1_ps(b);
-            }
-            else if (elempack == 4 || elempack == 8)
-            {
-                _a512 = _mm512_castps256_ps512(_a256);
-                _a512 = _mm512_insertf32x8(_a512, _a256, 1);
-                _b512 = _mm512_castps256_ps512(_b256);
-                _b512 = _mm512_insertf32x8(_b512, _b256, 1);
-            }
-            else // elempack == 16
-            {
-                _a512 = _mm512_loadu_ps((const float*)a_data + q * 16);
-                _b512 = _mm512_loadu_ps((const float*)b_data + q * 16);
-            }
-#endif
-
+            int i = 0;
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-
             for (; i + 15 < size; i += 16)
             {
-                _p512 = _mm512_loadu_ps(ptr);
+                __m512 _p512 = _mm512_loadu_ps(ptr);
                 _p512 = _mm512_fmadd_ps(_p512, _b512, _a512);
                 _mm512_storeu_ps(ptr, _p512);
-
                 ptr += 16;
             }
 #endif // __AVX512F__
-
             for (; i + 7 < size; i += 8)
             {
-                _p256 = _mm256_loadu_ps(ptr);
+                __m256 _p256 = _mm256_loadu_ps(ptr);
                 _p256 = _mm256_comp_fmadd_ps(_p256, _b256, _a256);
                 _mm256_storeu_ps(ptr, _p256);
-
                 ptr += 8;
             }
-
 #endif // __AVX__
-
             for (; i + 3 < size; i += 4)
             {
-                _p128 = _mm_loadu_ps(ptr);
+                __m128 _p128 = _mm_loadu_ps(ptr);
                 _p128 = _mm_comp_fmadd_ps(_p128, _b128, _a128);
                 _mm_storeu_ps(ptr, _p128);
-
                 ptr += 4;
             }
 #endif // __SSE__
             for (; i < size; i++)
             {
                 *ptr = b * *ptr + a;
-
                 ptr++;
             }
         }

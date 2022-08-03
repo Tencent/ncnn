@@ -29,11 +29,5 @@ set(CMAKE_CXX_FLAGS "-march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -mtune=c906 -DC90
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")
 
-# replace vfreudsum_vs* with vfredsum_vs*
-foreach(LMUL 1 2 4 8)
-    add_definitions(-Dvfredusum_vs_f32m${LMUL}_f32m1=vfredsum_vs_f32m${LMUL}_f32m1)
-    add_definitions(-Dvfredusum_vs_f16m${LMUL}_f16m1=vfredsum_vs_f16m${LMUL}_f16m1)
-endforeach()
-
 # export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.2.2
 # cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v222.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_BUILD_TESTS=ON -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..

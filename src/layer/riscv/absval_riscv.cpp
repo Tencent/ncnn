@@ -15,11 +15,7 @@
 #include "absval_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 
 static inline vfloat32m8_t vfabs_v_f32m8_absval(vfloat32m8_t op1, size_t vl)
 {
