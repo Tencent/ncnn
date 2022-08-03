@@ -17,11 +17,7 @@
 #include <math.h>
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "riscv_usability.h"
 #endif // __riscv_vector
 
