@@ -76,7 +76,6 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     }
 #endif
 
-
     if (opt.lightmode)
     {
         q_weight_data.release();
@@ -95,7 +94,6 @@ int MultiHeadAttention_x86::destroy_pipeline(const Option& opt)
 {
     return 0;
 }
-
 
 int MultiHeadAttention_x86::affine_input(
     const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8,
