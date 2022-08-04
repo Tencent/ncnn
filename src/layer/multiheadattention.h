@@ -37,7 +37,7 @@ public:
 
     int quantize_weight(Mat& weight, const Mat& scales, const Option& opt);
 
-    int affine_input(const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8, const Mat& input_scale, const Mat& weight_scales, const float transform_scale, const int num_head, const Option& opt, bool transpose) const;
+    virtual int affine_input(const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8, const Mat& input_scale, const Mat& weight_scales, const float transform_scale, const int num_head, const Option& opt, bool transpose) const;
 #endif
 
 public:

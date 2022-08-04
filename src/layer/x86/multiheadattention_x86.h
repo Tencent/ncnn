@@ -35,6 +35,9 @@ protected:
 #if NCNN_INT8
     int create_pipeline_int8_x86(const Option& opt);
     int forward_int8_x86(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+    virtual int affine_input(const Mat& input, const Mat& weight, const Mat& bias, Mat& out_int8, const Mat& input_scale, const Mat& weight_scales, const float transform_scale, const int num_head, const Option& opt, bool transpose) const;
+
 #endif
 
 private:
