@@ -52,7 +52,6 @@ static int test_instancenorm_0()
            || test_instancenorm(RandomMat(5, 7, 16), 0.02f, 1);
 }
 
-
 int main()
 {
     SRAND(7767517);
