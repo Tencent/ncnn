@@ -250,7 +250,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
             vsse32_v_f32m1(outptr0 + 6, top_blob.cstep * sizeof(float), _sum6, vl);
             vsse32_v_f32m1(outptr0 + 7, top_blob.cstep * sizeof(float), _sum7, vl);
 #else
-            vssseg8e32_v_f32m1x8(outptr0, top_blob.cstep * sizeof(float), vcreate_f32m1x8(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7), vl);
+            vssseg8e32_v_f32m1(outptr0, top_blob.cstep * sizeof(float), _sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7, vl);
 #endif
             outptr0 += 8;
         }
@@ -287,7 +287,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
             vsse32_v_f32m1(outptr0 + 2, top_blob.cstep * sizeof(float), _sum2, vl);
             vsse32_v_f32m1(outptr0 + 3, top_blob.cstep * sizeof(float), _sum3, vl);
 #else
-            vssseg4e32_v_f32m1x4(outptr0, top_blob.cstep * sizeof(float), vcreate_f32m1x4(_sum0, _sum1, _sum2, _sum3), vl);
+            vssseg4e32_v_f32m1(outptr0, top_blob.cstep * sizeof(float), _sum0, _sum1, _sum2, _sum3, vl);
 #endif
             outptr0 += 4;
         }
@@ -316,7 +316,7 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
             vsse32_v_f32m1(outptr0, top_blob.cstep * sizeof(float), _sum0, vl);
             vsse32_v_f32m1(outptr0 + 1, top_blob.cstep * sizeof(float), _sum1, vl);
 #else
-            vssseg2e32_v_f32m1x2(outptr0, top_blob.cstep * sizeof(float), vcreate_f32m1x2(_sum0, _sum1), vl);
+            vssseg2e32_v_f32m1(outptr0, top_blob.cstep * sizeof(float), _sum0, _sum1, vl);
 #endif
             outptr0 += 2;
         }
