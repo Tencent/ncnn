@@ -131,6 +131,10 @@ bool NetQuantize::read_ini_format(const char* path)
         {
             mha_table[name] = ptable;
         }
+        else if (type == "LayerNorm")
+        {
+            layernorm_table[name] = ptable;
+        }
     }
 
     return true;
@@ -143,7 +147,7 @@ int NetQuantize::quantize_mha()
 
     for (int i = 0; i < layer_count; i++)
     {
-        // find convolution layer
+        // find mha layer
         if (layers[i]->type != "MultiHeadAttention")
             continue;
 
@@ -416,6 +420,60 @@ int NetQuantize::quantize_innerproduct()
         fc->int8_scale_term = 2;
         fc->weight_data_int8_scales = weight_data_int8_scales;
         fc->bottom_blob_int8_scales = bottom_blob_int8_scales;
+    }
+
+    return 0;
+}
+
+int NetQuantize::quantize_layernorm()
+{
+    const int layer_count = static_cast<int>(layers.size());
+    auto base_opt = opt;
+
+    for (int i = 0; i < layer_count; i++)
+    {
+        // find layernorm layer
+        if (layers[i]->type != "LayerNorm")
+            continue;
+
+        std::string name = layers[i]->name;
+        if (layernorm_table.find(name) == layernorm_table.end())
+        {
+            fprintf(stderr, "cannot find %s quant param.\n", name.c_str());
+            continue;
+        }
+
+        ncnn::LayerNorm* ln = (ncnn::LayerNorm*)layers[i];
+        fprintf(stderr, "quantize_layernorm %s\n", ln->name.c_str());
+
+        auto& table = layernorm_table.at(name);
+        {
+            // write input scale
+            auto convert = [table, base_opt](const std::string key, ncnn::Mat& mat) -> int {
+                std::vector<float> scales = {table->get<float>(key)};
+                if (scales.empty())
+                {
+                    return -100;
+                }
+
+                mat = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
+                return 0;
+            };
+
+            int success = 0;
+            success += convert("input_scales", ln->input_scales);
+            success += convert("output_scale", ln->output_scale);
+            if (success != 0)
+            {
+                fprintf(stderr, "load layernorm scale failed. \n");
+                return -100;
+            }
+        }
+
+        {
+            // write control variable
+            ln->int8_scale_term = 1;
+        }
     }
 
     return 0;

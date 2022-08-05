@@ -30,6 +30,8 @@ public:
 
     // MutiHeadAttention quant param
     std::map<std::string, std::shared_ptr<ini::Table> > mha_table;
+    // LayerNorm quant param
+    std::map<std::string, std::shared_ptr<ini::Table> > layernorm_table;
 
 public:
     bool read_txt_format(const char* path);
@@ -39,6 +41,7 @@ public:
     int quantize_convolutiondepthwise();
     int quantize_innerproduct();
     int quantize_mha();
+    int quantize_layernorm();
     int fuse_requantize();
 
     void set_weight_suffix(std::string s);

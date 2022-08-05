@@ -17,6 +17,7 @@
 #include <float.h>
 #ifdef NCNN_INT8
 #include <math.h>
+#include "mathfun.h"
 #endif
 
 namespace ncnn {
@@ -223,14 +224,6 @@ int MultiHeadAttention::affine_input(
     transform[0] = transform_scale;
     quantize_to_int8(buffer, out_int8, transform, opt);
     return 0;
-}
-
-static inline signed char float2int8(float v)
-{
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
 }
 
 int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
