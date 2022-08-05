@@ -249,11 +249,11 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 - Supports convolutional neural networks, supports multiple input and multi-branch structure, can calculate part of the branch
 - No third-party library dependencies, does not rely on BLAS / NNPACK or any other computing framework
-- Pure C++ implementation, cross-platform, supports android, ios and so on
+- Pure C++ implementation, cross-platform, supports Android, iOS and so on
 - ARM NEON assembly level of careful optimization, calculation speed is extremely high
 - Sophisticated memory management and data structure design, very low memory footprint
-- Supports multi-core parallel computing acceleration, ARM big.LITTLE cpu scheduling optimization
-- Supports GPU acceleration via the next-generation low-overhead vulkan api
+- Supports multi-core parallel computing acceleration, ARM big.LITTLE CPU scheduling optimization
+- Supports GPU acceleration via the next-generation low-overhead Vulkan API
 - Extensible model design, supports 8bit quantization and half-precision floating point storage, can import caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) models
 - Support direct memory zero copy reference load network model
 - Can be registered with custom layer implementation and extended
@@ -263,11 +263,11 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 - 支持卷积神经网络，支持多输入和多分支结构，可计算部分分支
 - 无任何第三方库依赖，不依赖 BLAS/NNPACK 等计算框架
-- 纯 C++ 实现，跨平台，支持 android ios 等
-- ARM NEON 汇编级良心优化，计算速度极快
+- 纯 C++ 实现，跨平台，支持 Android / iOS 等
+- ARM Neon 汇编级良心优化，计算速度极快
 - 精细的内存管理和数据结构设计，内存占用极低
-- 支持多核并行计算加速，ARM big.LITTLE cpu 调度优化
-- 支持基于全新低消耗的 vulkan api GPU 加速
+- 支持多核并行计算加速，ARM big.LITTLE CPU 调度优化
+- 支持基于全新低消耗的 Vulkan API GPU 加速
 - 可扩展的模型设计，支持 8bit [量化](tools/quantize) 和半精度浮点存储，可导入 caffe/pytorch/mxnet/onnx/darknet/keras/tensorflow(mlir) 模型
 - 支持直接内存零拷贝引用加载网络模型
 - 可注册自定义层实现并扩展
@@ -310,7 +310,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 <img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg" width="360" height="640"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/4.jpg" width="360" height="640"/>
 <img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-33.jpg" width="360" height="640"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png" width="360" height="640"/>
-<img src="https://github.com/nihui/ncnn-android-yolov5/raw/master/screenshot.jpg" width="360" height="800"/><img src="https://github.com/nihui/ncnn-android-scrfd/raw/master/screenshot.jpg" width="360" height="800"/>
+<img src="https://github.com/nihui/ncnn-android-yolov5/raw/master/screenshot.jpg" width="360" height="800"/>功能概述<img src="https://github.com/nihui/ncnn-android-scrfd/raw/master/screenshot.jpg" width="360" height="800"/>
 
 ---
 
