@@ -15,7 +15,7 @@
 static void convolution_packn_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_packn, const Mat& bias_data, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, int activation_type, const Mat& activation_params, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     int w = bottom_blob.w;
     int channels = bottom_blob.c;

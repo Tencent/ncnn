@@ -53,7 +53,7 @@ int Dropout_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             _p = vfmul_vf_f32m8(_p, scale, vl);

@@ -119,7 +119,7 @@ int Convolution1D_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Op
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -476,7 +476,7 @@ int Convolution1D_riscv::create_pipeline_fp16s(const Option& opt)
 int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -697,7 +697,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

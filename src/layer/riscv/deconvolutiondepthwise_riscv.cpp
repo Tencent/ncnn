@@ -210,7 +210,7 @@ int DeconvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob,
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     // convolv with NxN kernel
@@ -518,7 +518,7 @@ int DeconvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
 int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -739,7 +739,7 @@ int DeconvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top
 int DeconvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

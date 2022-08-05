@@ -86,7 +86,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             int n = w;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m4(n);
+                size_t vl = vsetvl_e32m4(n);
 
                 vuint32m4_t _sx = vmul_vx_u32m4(vle32_v_u32m4(pxofs, vl), sizeof(float), vl);
                 vfloat32m4x2_t _S1p = vloxseg2ei32_v_f32m4x2(S1, _sx, vl);
@@ -135,7 +135,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             int n = w;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m4(n);
+                size_t vl = vsetvl_e32m4(n);
 
                 vuint32m4_t _sx = vmul_vx_u32m4(vle32_v_u32m4(pxofs, vl), sizeof(float), vl);
                 vfloat32m4x2_t _S0p = vloxseg2ei32_v_f32m4x2(S0, _sx, vl);
@@ -192,7 +192,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         int n = w;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _rows0 = vle32_v_f32m8(rows0p, vl);
             vfloat32m8_t _rows1 = vle32_v_f32m8(rows1p, vl);

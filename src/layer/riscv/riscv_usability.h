@@ -53,7 +53,7 @@ static inline int csrr_vlenb()
 static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m8(packn * 8);
+    const size_t vl = vsetvl_e32m8(packn * 8);
 
     // NOTE vloxei8_v_f32m8 gets illegal instruction on d1  --- nihui
 
@@ -90,7 +90,7 @@ static inline vfloat32m8_t vle32_v_f32m8_f32m1(const float* ptr)
 static inline vfloat16m8_t vle16_v_f16m8_f16m1(const __fp16* ptr)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m8(packn * 8);
+    const size_t vl = vsetvl_e16m8(packn * 8);
 
     // NOTE vloxei8_v_f16m8 gets illegal instruction on d1  --- nihui
 

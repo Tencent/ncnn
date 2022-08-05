@@ -143,7 +143,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const word_type vl = vsetvl_e32m1(packn);
+                const size_t vl = vsetvl_e32m1(packn);
 
                 for (int i = 0; i < bottom_blob.h; i++)
                 {
@@ -266,7 +266,7 @@ int Concat_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const word_type vl = vsetvl_e32m1(packn);
+                const size_t vl = vsetvl_e32m1(packn);
 
                 int size = bottom_blob.w * bottom_blob.h;
 
@@ -487,7 +487,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 for (int i = 0; i < bottom_blob.h; i++)
                 {
@@ -610,7 +610,7 @@ int Concat_riscv::forward_bf16s_fp16s(const std::vector<Mat>& bottom_blobs, std:
 #if __riscv_vector
             if (bottom_blob.elempack == packn && elempack == 1)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 int size = bottom_blob.w * bottom_blob.h;
 

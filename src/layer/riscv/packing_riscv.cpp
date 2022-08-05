@@ -137,7 +137,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m2(n);
+                    size_t vl = vsetvl_e32m2(n);
 
                     vfloat32m2_t _p0 = vle32_v_f32m2(r0, vl);
                     vfloat32m2_t _p1 = vle32_v_f32m2(r1, vl);
@@ -181,7 +181,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m2(n);
+                    size_t vl = vsetvl_e32m2(n);
 
                     vfloat32m2x4_t _p = vlseg4e32_v_f32m2x4(r0, vl);
                     vse32_v_f32m2(outptr0, vget_f32m2x4_f32m2(_p, 0), vl);
@@ -229,7 +229,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1_t _p0 = vle32_v_f32m1(r0, vl);
                     vfloat32m1_t _p1 = vle32_v_f32m1(r1, vl);
@@ -289,7 +289,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1x8_t _p = vlseg8e32_v_f32m1x8(r0, vl);
                     vse32_v_f32m1(outptr0, vget_f32m1x8_f32m1(_p, 0), vl);
@@ -343,7 +343,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1x4_t _p0 = vlseg4e32_v_f32m1x4(r0, vl);
                     vfloat32m1x4_t _p1 = vlseg4e32_v_f32m1x4(r1, vl);
@@ -395,7 +395,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1x8_t _p = vlseg8e32_v_f32m1x8(r0, vl);
                     vfloat32m1_t _p0 = vget_f32m1x8_f32m1(_p, 0);
@@ -466,7 +466,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m2(n);
+                    size_t vl = vsetvl_e32m2(n);
 
                     vfloat32m2_t _p0 = vle32_v_f32m2(r0, vl);
                     vfloat32m2_t _p1 = vle32_v_f32m2(r1, vl);
@@ -510,7 +510,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m2(n);
+                    size_t vl = vsetvl_e32m2(n);
 
                     vfloat32m2x4_t _p = vlseg4e32_v_f32m2x4(r0, vl);
                     vse32_v_f32m2(outptr0, vget_f32m2x4_f32m2(_p, 0), vl);
@@ -558,7 +558,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1_t _p0 = vle32_v_f32m1(r0, vl);
                     vfloat32m1_t _p1 = vle32_v_f32m1(r1, vl);
@@ -618,7 +618,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1x8_t _p = vlseg8e32_v_f32m1x8(r0, vl);
                     vse32_v_f32m1(outptr0, vget_f32m1x8_f32m1(_p, 0), vl);
@@ -672,7 +672,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1x4_t _p0 = vlseg4e32_v_f32m1x4(r0, vl);
                     vfloat32m1x4_t _p1 = vlseg4e32_v_f32m1x4(r1, vl);
@@ -725,7 +725,7 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m1(n);
+                    size_t vl = vsetvl_e32m1(n);
 
                     vfloat32m1x8_t _p = vlseg8e32_v_f32m1x8(r0, vl);
                     vfloat32m1_t _p0 = vget_f32m1x8_f32m1(_p, 0);
@@ -859,7 +859,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m2(n);
+                    size_t vl = vsetvl_e16m2(n);
 
                     vuint16m2_t _p0 = vle16_v_u16m2(r0, vl);
                     vuint16m2_t _p1 = vle16_v_u16m2(r1, vl);
@@ -903,7 +903,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m2(n);
+                    size_t vl = vsetvl_e16m2(n);
 
                     vuint16m2x4_t _p = vlseg4e16_v_u16m2x4(r0, vl);
                     vse16_v_u16m2(outptr0, vget_u16m2x4_u16m2(_p, 0), vl);
@@ -951,7 +951,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1_t _p0 = vle16_v_u16m1(r0, vl);
                     vuint16m1_t _p1 = vle16_v_u16m1(r1, vl);
@@ -1011,7 +1011,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1x8_t _p = vlseg8e16_v_u16m1x8(r0, vl);
                     vse16_v_u16m1(outptr0, vget_u16m1x8_u16m1(_p, 0), vl);
@@ -1065,7 +1065,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1x4_t _p0 = vlseg4e16_v_u16m1x4(r0, vl);
                     vuint16m1x4_t _p1 = vlseg4e16_v_u16m1x4(r1, vl);
@@ -1117,7 +1117,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1x8_t _p = vlseg8e16_v_u16m1x8(r0, vl);
                     vuint16m1_t _p0 = vget_u16m1x8_u16m1(_p, 0);
@@ -1188,7 +1188,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m2(n);
+                    size_t vl = vsetvl_e16m2(n);
 
                     vuint16m2_t _p0 = vle16_v_u16m2(r0, vl);
                     vuint16m2_t _p1 = vle16_v_u16m2(r1, vl);
@@ -1232,7 +1232,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m2(n);
+                    size_t vl = vsetvl_e16m2(n);
 
                     vuint16m2x4_t _p = vlseg4e16_v_u16m2x4(r0, vl);
                     vse16_v_u16m2(outptr0, vget_u16m2x4_u16m2(_p, 0), vl);
@@ -1280,7 +1280,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1_t _p0 = vle16_v_u16m1(r0, vl);
                     vuint16m1_t _p1 = vle16_v_u16m1(r1, vl);
@@ -1340,7 +1340,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1x8_t _p = vlseg8e16_v_u16m1x8(r0, vl);
                     vse16_v_u16m1(outptr0, vget_u16m1x8_u16m1(_p, 0), vl);
@@ -1394,7 +1394,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1x4_t _p0 = vlseg4e16_v_u16m1x4(r0, vl);
                     vuint16m1x4_t _p1 = vlseg4e16_v_u16m1x4(r1, vl);
@@ -1447,7 +1447,7 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m1(n);
+                    size_t vl = vsetvl_e16m1(n);
 
                     vuint16m1x8_t _p = vlseg8e16_v_u16m1x8(r0, vl);
                     vuint16m1_t _p0 = vget_u16m1x8_u16m1(_p, 0);

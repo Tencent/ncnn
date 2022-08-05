@@ -64,7 +64,7 @@ int Sigmoid_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             _p = sigmoid_ps(_p, vl);
@@ -104,7 +104,7 @@ int Sigmoid_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m4(n);
+            size_t vl = vsetvl_e16m4(n);
 
             vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
             _p = sigmoid_ps(_p, vl);
@@ -135,7 +135,7 @@ int Sigmoid_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
 
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             _p = sigmoid_ps(_p, vl);

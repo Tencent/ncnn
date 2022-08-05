@@ -296,10 +296,10 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     include(CheckCXXCompilerFlag)
 
     set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv")
-    check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m1_t _s, _w; float _v; word_type vl; _s = vfmacc_vf_f32m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV)
+    check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m1_t _s, _w; float _v; size_t vl; _s = vfmacc_vf_f32m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV)
 
     set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zfh")
-    check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat16m1_t _s, _w; __fp16 _v; word_type vl; _s = vfmacc_vf_f16m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV_FP16)
+    check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat16m1_t _s, _w; __fp16 _v; size_t vl; _s = vfmacc_vf_f16m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV_FP16)
 
     unset(CMAKE_REQUIRED_FLAGS)
 

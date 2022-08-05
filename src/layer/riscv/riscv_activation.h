@@ -23,7 +23,7 @@
 #include "rvv_mathfun_fp16s.h"
 
 #define _RVV_FLOAT_ACTIVATION_PS(SEW, LMUL, MLEN)                                                                                                            \
-    static inline vfloat##SEW##m##LMUL##_t activation_ps(vfloat##SEW##m##LMUL##_t _v, int activation_type, const ncnn::Mat& activation_params, word_type vl) \
+    static inline vfloat##SEW##m##LMUL##_t activation_ps(vfloat##SEW##m##LMUL##_t _v, int activation_type, const ncnn::Mat& activation_params, size_t vl) \
     {                                                                                                                                                        \
         if (activation_type == 1)                                                                                                                            \
         {                                                                                                                                                    \
