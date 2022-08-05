@@ -18,6 +18,8 @@
 #include <riscv_vector.h>
 #endif // __riscv_vector
 
+#include "riscv_usability.h"
+
 namespace ncnn {
 
 Packing_riscv::Packing_riscv()
