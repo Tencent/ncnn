@@ -41,12 +41,17 @@ static int test_instancenorm_0()
 {
     return 0
            || test_instancenorm(RandomMat(6, 4, 2), 0.01f, 0)
+           || test_instancenorm(RandomMat(5, 7, 8), 0.02f, 0)
+           || test_instancenorm(RandomMat(6, 8, 9), 0.02f, 0)
            || test_instancenorm(RandomMat(3, 3, 12), 0.002f, 0)
            || test_instancenorm(RandomMat(5, 7, 16), 0.02f, 0)
            || test_instancenorm(RandomMat(6, 4, 2), 0.01f, 1)
+           || test_instancenorm(RandomMat(5, 7, 8), 0.02f, 1)
+           || test_instancenorm(RandomMat(6, 8, 9), 0.02f, 1)
            || test_instancenorm(RandomMat(3, 3, 12), 0.002f, 1)
            || test_instancenorm(RandomMat(5, 7, 16), 0.02f, 1);
 }
+
 
 int main()
 {
