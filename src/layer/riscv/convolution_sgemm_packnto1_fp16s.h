@@ -379,16 +379,24 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
             for (int j = 0; j < nn; j++)
             {
-                vfloat16m1x8_t _val01 = vlseg8e16_v_f16m1x8(tmpptr, vl);
+                vfloat16m1_t _val0;
+                vfloat16m1_t _val1;
+                vfloat16m1_t _val2;
+                vfloat16m1_t _val3;
+                vfloat16m1_t _val4;
+                vfloat16m1_t _val5;
+                vfloat16m1_t _val6;
+                vfloat16m1_t _val7;
+                vlseg8e16_v_f16m1(&_val0, &_val1, &_val2, &_val3, &_val4, &_val5, &_val6, &_val7, tmpptr, vl);
                 vfloat16m1_t _w0 = vle16_v_f16m1(kptr0, vl);
-                _sum0 = vfmacc_vv_f16m1(_sum0, vget_f16m1x8_f16m1(_val01, 0), _w0, vl);
-                _sum1 = vfmacc_vv_f16m1(_sum1, vget_f16m1x8_f16m1(_val01, 1), _w0, vl);
-                _sum2 = vfmacc_vv_f16m1(_sum2, vget_f16m1x8_f16m1(_val01, 2), _w0, vl);
-                _sum3 = vfmacc_vv_f16m1(_sum3, vget_f16m1x8_f16m1(_val01, 3), _w0, vl);
-                _sum4 = vfmacc_vv_f16m1(_sum4, vget_f16m1x8_f16m1(_val01, 4), _w0, vl);
-                _sum5 = vfmacc_vv_f16m1(_sum5, vget_f16m1x8_f16m1(_val01, 5), _w0, vl);
-                _sum6 = vfmacc_vv_f16m1(_sum6, vget_f16m1x8_f16m1(_val01, 6), _w0, vl);
-                _sum7 = vfmacc_vv_f16m1(_sum7, vget_f16m1x8_f16m1(_val01, 7), _w0, vl);
+                _sum0 = vfmacc_vv_f16m1(_sum0, _val0, _w0, vl);
+                _sum1 = vfmacc_vv_f16m1(_sum1, _val1, _w0, vl);
+                _sum2 = vfmacc_vv_f16m1(_sum2, _val2, _w0, vl);
+                _sum3 = vfmacc_vv_f16m1(_sum3, _val3, _w0, vl);
+                _sum4 = vfmacc_vv_f16m1(_sum4, _val4, _w0, vl);
+                _sum5 = vfmacc_vv_f16m1(_sum5, _val5, _w0, vl);
+                _sum6 = vfmacc_vv_f16m1(_sum6, _val6, _w0, vl);
+                _sum7 = vfmacc_vv_f16m1(_sum7, _val7, _w0, vl);
                 tmpptr += packn * 8;
                 kptr0 += packn;
             }
@@ -463,12 +471,17 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
             for (int j = 0; j < nn; j++)
             {
-                vfloat16m1x4_t _val01 = vlseg4e16_v_f16m1x4(tmpptr, vl);
+                vfloat16m1_t _val0;
+                vfloat16m1_t _val1;
+                vfloat16m1_t _val2;
+                vfloat16m1_t _val3;
+
+                vlseg4e16_v_f16m1(&_val0, &_val1, &_val2, &_val3, tmpptr, vl);
                 vfloat16m1_t _w0 = vle16_v_f16m1(kptr0, vl);
-                _sum0 = vfmacc_vv_f16m1(_sum0, vget_f16m1x4_f16m1(_val01, 0), _w0, vl);
-                _sum1 = vfmacc_vv_f16m1(_sum1, vget_f16m1x4_f16m1(_val01, 1), _w0, vl);
-                _sum2 = vfmacc_vv_f16m1(_sum2, vget_f16m1x4_f16m1(_val01, 2), _w0, vl);
-                _sum3 = vfmacc_vv_f16m1(_sum3, vget_f16m1x4_f16m1(_val01, 3), _w0, vl);
+                _sum0 = vfmacc_vv_f16m1(_sum0, _val0, _w0, vl);
+                _sum1 = vfmacc_vv_f16m1(_sum1, _val1, _w0, vl);
+                _sum2 = vfmacc_vv_f16m1(_sum2, _val2, _w0, vl);
+                _sum3 = vfmacc_vv_f16m1(_sum3, _val3, _w0, vl);
                 tmpptr += packn * 4;
                 kptr0 += packn;
             }
@@ -519,10 +532,12 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
             for (int j = 0; j < nn; j++)
             {
-                vfloat16m1x2_t _val01 = vlseg2e16_v_f16m1x2(tmpptr, vl);
+                vfloat16m1_t _val0;
+                vfloat16m1_t _val1;
+                vlseg2e16_v_f16m1(&_val0, &_val1, tmpptr, vl);
                 vfloat16m1_t _w0 = vle16_v_f16m1(kptr0, vl);
-                _sum0 = vfmacc_vv_f16m1(_sum0, vget_f16m1x2_f16m1(_val01, 0), _w0, vl);
-                _sum1 = vfmacc_vv_f16m1(_sum1, vget_f16m1x2_f16m1(_val01, 1), _w0, vl);
+                _sum0 = vfmacc_vv_f16m1(_sum0, _val0, _w0, vl);
+                _sum1 = vfmacc_vv_f16m1(_sum1, _val1, _w0, vl);
                 tmpptr += packn * 2;
                 kptr0 += packn;
             }

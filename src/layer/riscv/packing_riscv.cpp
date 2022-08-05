@@ -183,11 +183,16 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     size_t vl = vsetvl_e32m2(n);
 
-                    vfloat32m2x4_t _p = vlseg4e32_v_f32m2x4(r0, vl);
-                    vse32_v_f32m2(outptr0, vget_f32m2x4_f32m2(_p, 0), vl);
-                    vse32_v_f32m2(outptr1, vget_f32m2x4_f32m2(_p, 1), vl);
-                    vse32_v_f32m2(outptr2, vget_f32m2x4_f32m2(_p, 2), vl);
-                    vse32_v_f32m2(outptr3, vget_f32m2x4_f32m2(_p, 3), vl);
+                    vfloat32m2_t _p0;
+                    vfloat32m2_t _p1;
+                    vfloat32m2_t _p2;
+                    vfloat32m2_t _p3;
+                    vlseg4e32_v_f32m2(&_p0, &_p1, &_p2, &_p3, r0, vl);
+
+                    vse32_v_f32m2(outptr0, _p0, vl);
+                    vse32_v_f32m2(outptr1, _p1, vl);
+                    vse32_v_f32m2(outptr2, _p2, vl);
+                    vse32_v_f32m2(outptr3, _p3, vl);
 
                     r0 += vl * 4;
                     outptr0 += vl;
@@ -291,15 +296,23 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     size_t vl = vsetvl_e32m1(n);
 
-                    vfloat32m1x8_t _p = vlseg8e32_v_f32m1x8(r0, vl);
-                    vse32_v_f32m1(outptr0, vget_f32m1x8_f32m1(_p, 0), vl);
-                    vse32_v_f32m1(outptr1, vget_f32m1x8_f32m1(_p, 1), vl);
-                    vse32_v_f32m1(outptr2, vget_f32m1x8_f32m1(_p, 2), vl);
-                    vse32_v_f32m1(outptr3, vget_f32m1x8_f32m1(_p, 3), vl);
-                    vse32_v_f32m1(outptr4, vget_f32m1x8_f32m1(_p, 4), vl);
-                    vse32_v_f32m1(outptr5, vget_f32m1x8_f32m1(_p, 5), vl);
-                    vse32_v_f32m1(outptr6, vget_f32m1x8_f32m1(_p, 6), vl);
-                    vse32_v_f32m1(outptr7, vget_f32m1x8_f32m1(_p, 7), vl);
+                    vfloat32m1_t _p0;
+                    vfloat32m1_t _p1;
+                    vfloat32m1_t _p2;
+                    vfloat32m1_t _p3;
+                    vfloat32m1_t _p4;
+                    vfloat32m1_t _p5;
+                    vfloat32m1_t _p6;
+                    vfloat32m1_t _p7;
+                    vlseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
+                    vse32_v_f32m1(outptr0, _p0, vl);
+                    vse32_v_f32m1(outptr1, _p1, vl);
+                    vse32_v_f32m1(outptr2, _p2, vl);
+                    vse32_v_f32m1(outptr3, _p3, vl);
+                    vse32_v_f32m1(outptr4, _p4, vl);
+                    vse32_v_f32m1(outptr5, _p5, vl);
+                    vse32_v_f32m1(outptr6, _p6, vl);
+                    vse32_v_f32m1(outptr7, _p7, vl);
 
                     r0 += vl * 8;
                     outptr0 += vl;
@@ -345,16 +358,18 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     size_t vl = vsetvl_e32m1(n);
 
-                    vfloat32m1x4_t _p0 = vlseg4e32_v_f32m1x4(r0, vl);
-                    vfloat32m1x4_t _p1 = vlseg4e32_v_f32m1x4(r1, vl);
-                    vfloat32m1_t _p00 = vget_f32m1x4_f32m1(_p0, 0);
-                    vfloat32m1_t _p01 = vget_f32m1x4_f32m1(_p0, 1);
-                    vfloat32m1_t _p02 = vget_f32m1x4_f32m1(_p0, 2);
-                    vfloat32m1_t _p03 = vget_f32m1x4_f32m1(_p0, 3);
-                    vfloat32m1_t _p10 = vget_f32m1x4_f32m1(_p1, 0);
-                    vfloat32m1_t _p11 = vget_f32m1x4_f32m1(_p1, 1);
-                    vfloat32m1_t _p12 = vget_f32m1x4_f32m1(_p1, 2);
-                    vfloat32m1_t _p13 = vget_f32m1x4_f32m1(_p1, 3);
+                    vfloat32m1_t _p00;
+                    vfloat32m1_t _p01;
+                    vfloat32m1_t _p02;
+                    vfloat32m1_t _p03;
+                    vlseg4e32_v_f32m1(&_p00, &_p01, &_p02, &_p03, r0, vl);
+
+                    vfloat32m1_t _p10;
+                    vfloat32m1_t _p11;
+                    vfloat32m1_t _p12;
+                    vfloat32m1_t _p13;
+                    vlseg4e32_v_f32m1(&_p10, &_p11, &_p12, &_p13, r1, vl);
+
                     vsseg8e32_v_f32m1(outptr, _p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13, vl);
 
                     r0 += vl * 4;
@@ -397,15 +412,15 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     size_t vl = vsetvl_e32m1(n);
 
-                    vfloat32m1x8_t _p = vlseg8e32_v_f32m1x8(r0, vl);
-                    vfloat32m1_t _p0 = vget_f32m1x8_f32m1(_p, 0);
-                    vfloat32m1_t _p1 = vget_f32m1x8_f32m1(_p, 1);
-                    vfloat32m1_t _p2 = vget_f32m1x8_f32m1(_p, 2);
-                    vfloat32m1_t _p3 = vget_f32m1x8_f32m1(_p, 3);
-                    vfloat32m1_t _p4 = vget_f32m1x8_f32m1(_p, 4);
-                    vfloat32m1_t _p5 = vget_f32m1x8_f32m1(_p, 5);
-                    vfloat32m1_t _p6 = vget_f32m1x8_f32m1(_p, 6);
-                    vfloat32m1_t _p7 = vget_f32m1x8_f32m1(_p, 7);
+                    vfloat32m1_t _p0;
+                    vfloat32m1_t _p1;
+                    vfloat32m1_t _p2;
+                    vfloat32m1_t _p3;
+                    vfloat32m1_t _p4;
+                    vfloat32m1_t _p5;
+                    vfloat32m1_t _p6;
+                    vfloat32m1_t _p7;
+                    vlseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
                     vsseg4e32_v_f32m1(outptr0, _p0, _p1, _p2, _p3, vl);
                     vsseg4e32_v_f32m1(outptr1, _p4, _p5, _p6, _p7, vl);
 
@@ -511,12 +526,15 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 while (n > 0)
                 {
                     size_t vl = vsetvl_e32m2(n);
-
-                    vfloat32m2x4_t _p = vlseg4e32_v_f32m2x4(r0, vl);
-                    vse32_v_f32m2(outptr0, vget_f32m2x4_f32m2(_p, 0), vl);
-                    vse32_v_f32m2(outptr1, vget_f32m2x4_f32m2(_p, 1), vl);
-                    vse32_v_f32m2(outptr2, vget_f32m2x4_f32m2(_p, 2), vl);
-                    vse32_v_f32m2(outptr3, vget_f32m2x4_f32m2(_p, 3), vl);
+                    vfloat32m2_t _p0;
+                    vfloat32m2_t _p1;
+                    vfloat32m2_t _p2;
+                    vfloat32m2_t _p3;
+                    vlseg4e32_v_f32m2(&_p0, &_p1, &_p2, &_p3, r0, vl);
+                    vse32_v_f32m2(outptr0, _p0, vl);
+                    vse32_v_f32m2(outptr1, _p1, vl);
+                    vse32_v_f32m2(outptr2, _p2, vl);
+                    vse32_v_f32m2(outptr3, _p3, vl);
 
                     r0 += vl * 4;
                     outptr0 += vl;
@@ -620,15 +638,24 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     size_t vl = vsetvl_e32m1(n);
 
-                    vfloat32m1x8_t _p = vlseg8e32_v_f32m1x8(r0, vl);
-                    vse32_v_f32m1(outptr0, vget_f32m1x8_f32m1(_p, 0), vl);
-                    vse32_v_f32m1(outptr1, vget_f32m1x8_f32m1(_p, 1), vl);
-                    vse32_v_f32m1(outptr2, vget_f32m1x8_f32m1(_p, 2), vl);
-                    vse32_v_f32m1(outptr3, vget_f32m1x8_f32m1(_p, 3), vl);
-                    vse32_v_f32m1(outptr4, vget_f32m1x8_f32m1(_p, 4), vl);
-                    vse32_v_f32m1(outptr5, vget_f32m1x8_f32m1(_p, 5), vl);
-                    vse32_v_f32m1(outptr6, vget_f32m1x8_f32m1(_p, 6), vl);
-                    vse32_v_f32m1(outptr7, vget_f32m1x8_f32m1(_p, 7), vl);
+                    vfloat32m1_t _p0;
+                    vfloat32m1_t _p1;
+                    vfloat32m1_t _p2;
+                    vfloat32m1_t _p3;
+                    vfloat32m1_t _p4;
+                    vfloat32m1_t _p5;
+                    vfloat32m1_t _p6;
+                    vfloat32m1_t _p7;
+                    vlseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
+
+                    vse32_v_f32m1(outptr0, _p0, vl);
+                    vse32_v_f32m1(outptr1, _p1, vl);
+                    vse32_v_f32m1(outptr2, _p2, vl);
+                    vse32_v_f32m1(outptr3, _p3, vl);
+                    vse32_v_f32m1(outptr4, _p4, vl);
+                    vse32_v_f32m1(outptr5, _p5, vl);
+                    vse32_v_f32m1(outptr6, _p6, vl);
+                    vse32_v_f32m1(outptr7, _p7, vl);
 
                     r0 += vl * 8;
                     outptr0 += vl;
@@ -674,17 +701,18 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     size_t vl = vsetvl_e32m1(n);
 
-                    vfloat32m1x4_t _p0 = vlseg4e32_v_f32m1x4(r0, vl);
-                    vfloat32m1x4_t _p1 = vlseg4e32_v_f32m1x4(r1, vl);
+                    vfloat32m1_t _p00;
+                    vfloat32m1_t _p01;
+                    vfloat32m1_t _p02;
+                    vfloat32m1_t _p03;
+                    vlseg4e32_v_f32m1(&_p00, &_p01, &_p02, &_p03, r0, vl);
 
-                    vfloat32m1_t _p00 = vget_f32m1x4_f32m1(_p0, 0);
-                    vfloat32m1_t _p01 = vget_f32m1x4_f32m1(_p0, 1);
-                    vfloat32m1_t _p02 = vget_f32m1x4_f32m1(_p0, 2);
-                    vfloat32m1_t _p03 = vget_f32m1x4_f32m1(_p0, 3);
-                    vfloat32m1_t _p10 = vget_f32m1x4_f32m1(_p1, 0);
-                    vfloat32m1_t _p11 = vget_f32m1x4_f32m1(_p1, 1);
-                    vfloat32m1_t _p12 = vget_f32m1x4_f32m1(_p1, 2);
-                    vfloat32m1_t _p13 = vget_f32m1x4_f32m1(_p1, 3);
+                    vfloat32m1_t _p10;
+                    vfloat32m1_t _p11;
+                    vfloat32m1_t _p12;
+                    vfloat32m1_t _p13;
+                    vlseg4e32_v_f32m1(&_p10, &_p11, &_p12, &_p13, r1, vl);
+
                     vsseg8e32_v_f32m1(outptr, _p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13, vl);
 
                     r0 += vl * 4;
@@ -727,15 +755,15 @@ int Packing_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
                 {
                     size_t vl = vsetvl_e32m1(n);
 
-                    vfloat32m1x8_t _p = vlseg8e32_v_f32m1x8(r0, vl);
-                    vfloat32m1_t _p0 = vget_f32m1x8_f32m1(_p, 0);
-                    vfloat32m1_t _p1 = vget_f32m1x8_f32m1(_p, 1);
-                    vfloat32m1_t _p2 = vget_f32m1x8_f32m1(_p, 2);
-                    vfloat32m1_t _p3 = vget_f32m1x8_f32m1(_p, 3);
-                    vfloat32m1_t _p4 = vget_f32m1x8_f32m1(_p, 4);
-                    vfloat32m1_t _p5 = vget_f32m1x8_f32m1(_p, 5);
-                    vfloat32m1_t _p6 = vget_f32m1x8_f32m1(_p, 6);
-                    vfloat32m1_t _p7 = vget_f32m1x8_f32m1(_p, 7);
+                    vfloat32m1_t _p0;
+                    vfloat32m1_t _p1;
+                    vfloat32m1_t _p2;
+                    vfloat32m1_t _p3;
+                    vfloat32m1_t _p4;
+                    vfloat32m1_t _p5;
+                    vfloat32m1_t _p6;
+                    vfloat32m1_t _p7;
+                    vlseg8e32_v_f32m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
                     vsseg4e32_v_f32m1(outptr0, _p0, _p1, _p2, _p3, vl);
                     vsseg4e32_v_f32m1(outptr1, _p4, _p5, _p6, _p7, vl);
 
@@ -905,11 +933,15 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     size_t vl = vsetvl_e16m2(n);
 
-                    vuint16m2x4_t _p = vlseg4e16_v_u16m2x4(r0, vl);
-                    vse16_v_u16m2(outptr0, vget_u16m2x4_u16m2(_p, 0), vl);
-                    vse16_v_u16m2(outptr1, vget_u16m2x4_u16m2(_p, 1), vl);
-                    vse16_v_u16m2(outptr2, vget_u16m2x4_u16m2(_p, 2), vl);
-                    vse16_v_u16m2(outptr3, vget_u16m2x4_u16m2(_p, 3), vl);
+                    vuint16m2_t _p0;
+                    vuint16m2_t _p1;
+                    vuint16m2_t _p2;
+                    vuint16m2_t _p3;
+                    vlseg4e16_v_u16m2(&_p0, &_p1, &_p2, &_p3, r0, vl);
+                    vse16_v_u16m2(outptr0, _p0, vl);
+                    vse16_v_u16m2(outptr1, _p1, vl);
+                    vse16_v_u16m2(outptr2, _p2, vl);
+                    vse16_v_u16m2(outptr3, _p3, vl);
 
                     r0 += vl * 4;
                     outptr0 += vl;
@@ -1013,15 +1045,24 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     size_t vl = vsetvl_e16m1(n);
 
-                    vuint16m1x8_t _p = vlseg8e16_v_u16m1x8(r0, vl);
-                    vse16_v_u16m1(outptr0, vget_u16m1x8_u16m1(_p, 0), vl);
-                    vse16_v_u16m1(outptr1, vget_u16m1x8_u16m1(_p, 1), vl);
-                    vse16_v_u16m1(outptr2, vget_u16m1x8_u16m1(_p, 2), vl);
-                    vse16_v_u16m1(outptr3, vget_u16m1x8_u16m1(_p, 3), vl);
-                    vse16_v_u16m1(outptr4, vget_u16m1x8_u16m1(_p, 4), vl);
-                    vse16_v_u16m1(outptr5, vget_u16m1x8_u16m1(_p, 5), vl);
-                    vse16_v_u16m1(outptr6, vget_u16m1x8_u16m1(_p, 6), vl);
-                    vse16_v_u16m1(outptr7, vget_u16m1x8_u16m1(_p, 7), vl);
+                    vuint16m1_t _p0;
+                    vuint16m1_t _p1;
+                    vuint16m1_t _p2;
+                    vuint16m1_t _p3;
+                    vuint16m1_t _p4;
+                    vuint16m1_t _p5;
+                    vuint16m1_t _p6;
+                    vuint16m1_t _p7;
+                    vlseg8e16_v_u16m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
+
+                    vse16_v_u16m1(outptr0, _p0, vl);
+                    vse16_v_u16m1(outptr1, _p1, vl);
+                    vse16_v_u16m1(outptr2, _p2, vl);
+                    vse16_v_u16m1(outptr3, _p3, vl);
+                    vse16_v_u16m1(outptr4, _p4, vl);
+                    vse16_v_u16m1(outptr5, _p5, vl);
+                    vse16_v_u16m1(outptr6, _p6, vl);
+                    vse16_v_u16m1(outptr7, _p7, vl);
 
                     r0 += vl * 8;
                     outptr0 += vl;
@@ -1067,16 +1108,18 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     size_t vl = vsetvl_e16m1(n);
 
-                    vuint16m1x4_t _p0 = vlseg4e16_v_u16m1x4(r0, vl);
-                    vuint16m1x4_t _p1 = vlseg4e16_v_u16m1x4(r1, vl);
-                    vuint16m1_t _p00 = vget_u16m1x4_u16m1(_p0, 0);
-                    vuint16m1_t _p01 = vget_u16m1x4_u16m1(_p0, 1);
-                    vuint16m1_t _p02 = vget_u16m1x4_u16m1(_p0, 2);
-                    vuint16m1_t _p03 = vget_u16m1x4_u16m1(_p0, 3);
-                    vuint16m1_t _p10 = vget_u16m1x4_u16m1(_p1, 0);
-                    vuint16m1_t _p11 = vget_u16m1x4_u16m1(_p1, 1);
-                    vuint16m1_t _p12 = vget_u16m1x4_u16m1(_p1, 2);
-                    vuint16m1_t _p13 = vget_u16m1x4_u16m1(_p1, 3);
+                    vuint16m1_t _p00;
+                    vuint16m1_t _p01;
+                    vuint16m1_t _p02;
+                    vuint16m1_t _p03;
+                    vlseg4e16_v_u16m1(&_p00, &_p01, &_p02, &_p03, r0, vl);
+
+                    vuint16m1_t _p10;
+                    vuint16m1_t _p11;
+                    vuint16m1_t _p12;
+                    vuint16m1_t _p13;
+                    vlseg4e16_v_u16m1(&_p10, &_p11, &_p12, &_p13, r1, vl);
+
                     vsseg8e16_v_u16m1(outptr, _p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13, vl);
 
                     r0 += vl * 4;
@@ -1119,15 +1162,16 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     size_t vl = vsetvl_e16m1(n);
 
-                    vuint16m1x8_t _p = vlseg8e16_v_u16m1x8(r0, vl);
-                    vuint16m1_t _p0 = vget_u16m1x8_u16m1(_p, 0);
-                    vuint16m1_t _p1 = vget_u16m1x8_u16m1(_p, 1);
-                    vuint16m1_t _p2 = vget_u16m1x8_u16m1(_p, 2);
-                    vuint16m1_t _p3 = vget_u16m1x8_u16m1(_p, 3);
-                    vuint16m1_t _p4 = vget_u16m1x8_u16m1(_p, 4);
-                    vuint16m1_t _p5 = vget_u16m1x8_u16m1(_p, 5);
-                    vuint16m1_t _p6 = vget_u16m1x8_u16m1(_p, 6);
-                    vuint16m1_t _p7 = vget_u16m1x8_u16m1(_p, 7);
+                    vuint16m1_t _p0;
+                    vuint16m1_t _p1;
+                    vuint16m1_t _p2;
+                    vuint16m1_t _p3;
+                    vuint16m1_t _p4;
+                    vuint16m1_t _p5;
+                    vuint16m1_t _p6;
+                    vuint16m1_t _p7;
+                    vlseg8e16_v_u16m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
+
                     vsseg4e16_v_u16m1(outptr0, _p0, _p1, _p2, _p3, vl);
                     vsseg4e16_v_u16m1(outptr1, _p4, _p5, _p6, _p7, vl);
 
@@ -1234,11 +1278,15 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     size_t vl = vsetvl_e16m2(n);
 
-                    vuint16m2x4_t _p = vlseg4e16_v_u16m2x4(r0, vl);
-                    vse16_v_u16m2(outptr0, vget_u16m2x4_u16m2(_p, 0), vl);
-                    vse16_v_u16m2(outptr1, vget_u16m2x4_u16m2(_p, 1), vl);
-                    vse16_v_u16m2(outptr2, vget_u16m2x4_u16m2(_p, 2), vl);
-                    vse16_v_u16m2(outptr3, vget_u16m2x4_u16m2(_p, 3), vl);
+                    vuint16m2_t _p0;
+                    vuint16m2_t _p1;
+                    vuint16m2_t _p2;
+                    vuint16m2_t _p3;
+                    vlseg4e16_v_u16m2(&_p0, &_p1, &_p2, &_p3, r0, vl);
+                    vse16_v_u16m2(outptr0, _p0, vl);
+                    vse16_v_u16m2(outptr1, _p1, vl);
+                    vse16_v_u16m2(outptr2, _p2, vl);
+                    vse16_v_u16m2(outptr3, _p3, vl);
 
                     r0 += vl * 4;
                     outptr0 += vl;
@@ -1342,15 +1390,23 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     size_t vl = vsetvl_e16m1(n);
 
-                    vuint16m1x8_t _p = vlseg8e16_v_u16m1x8(r0, vl);
-                    vse16_v_u16m1(outptr0, vget_u16m1x8_u16m1(_p, 0), vl);
-                    vse16_v_u16m1(outptr1, vget_u16m1x8_u16m1(_p, 1), vl);
-                    vse16_v_u16m1(outptr2, vget_u16m1x8_u16m1(_p, 2), vl);
-                    vse16_v_u16m1(outptr3, vget_u16m1x8_u16m1(_p, 3), vl);
-                    vse16_v_u16m1(outptr4, vget_u16m1x8_u16m1(_p, 4), vl);
-                    vse16_v_u16m1(outptr5, vget_u16m1x8_u16m1(_p, 5), vl);
-                    vse16_v_u16m1(outptr6, vget_u16m1x8_u16m1(_p, 6), vl);
-                    vse16_v_u16m1(outptr7, vget_u16m1x8_u16m1(_p, 7), vl);
+                    vuint16m1_t _p0;
+                    vuint16m1_t _p1;
+                    vuint16m1_t _p2;
+                    vuint16m1_t _p3;
+                    vuint16m1_t _p4;
+                    vuint16m1_t _p5;
+                    vuint16m1_t _p6;
+                    vuint16m1_t _p7;
+                    vlseg8e16_v_u16m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
+                    vse16_v_u16m1(outptr0, _p0, vl);
+                    vse16_v_u16m1(outptr1, _p1, vl);
+                    vse16_v_u16m1(outptr2, _p2, vl);
+                    vse16_v_u16m1(outptr3, _p3, vl);
+                    vse16_v_u16m1(outptr4, _p4, vl);
+                    vse16_v_u16m1(outptr5, _p5, vl);
+                    vse16_v_u16m1(outptr6, _p6, vl);
+                    vse16_v_u16m1(outptr7, _p7, vl);
 
                     r0 += vl * 8;
                     outptr0 += vl;
@@ -1396,17 +1452,18 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     size_t vl = vsetvl_e16m1(n);
 
-                    vuint16m1x4_t _p0 = vlseg4e16_v_u16m1x4(r0, vl);
-                    vuint16m1x4_t _p1 = vlseg4e16_v_u16m1x4(r1, vl);
+                    vuint16m1_t _p00;
+                    vuint16m1_t _p01;
+                    vuint16m1_t _p02;
+                    vuint16m1_t _p03;
+                    vlseg4e16_v_u16m1(&_p00, &_p01, &_p02, &_p03, r0, vl);
 
-                    vuint16m1_t _p00 = vget_u16m1x4_u16m1(_p0, 0);
-                    vuint16m1_t _p01 = vget_u16m1x4_u16m1(_p0, 1);
-                    vuint16m1_t _p02 = vget_u16m1x4_u16m1(_p0, 2);
-                    vuint16m1_t _p03 = vget_u16m1x4_u16m1(_p0, 3);
-                    vuint16m1_t _p10 = vget_u16m1x4_u16m1(_p1, 0);
-                    vuint16m1_t _p11 = vget_u16m1x4_u16m1(_p1, 1);
-                    vuint16m1_t _p12 = vget_u16m1x4_u16m1(_p1, 2);
-                    vuint16m1_t _p13 = vget_u16m1x4_u16m1(_p1, 3);
+                    vuint16m1_t _p10;
+                    vuint16m1_t _p11;
+                    vuint16m1_t _p12;
+                    vuint16m1_t _p13;
+                    vlseg4e16_v_u16m1(&_p10, &_p11, &_p12, &_p13, r1, vl);
+
                     vsseg8e16_v_u16m1(outptr, _p00, _p01, _p02, _p03, _p10, _p11, _p12, _p13, vl);
 
                     r0 += vl * 4;
@@ -1449,15 +1506,16 @@ int Packing_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                 {
                     size_t vl = vsetvl_e16m1(n);
 
-                    vuint16m1x8_t _p = vlseg8e16_v_u16m1x8(r0, vl);
-                    vuint16m1_t _p0 = vget_u16m1x8_u16m1(_p, 0);
-                    vuint16m1_t _p1 = vget_u16m1x8_u16m1(_p, 1);
-                    vuint16m1_t _p2 = vget_u16m1x8_u16m1(_p, 2);
-                    vuint16m1_t _p3 = vget_u16m1x8_u16m1(_p, 3);
-                    vuint16m1_t _p4 = vget_u16m1x8_u16m1(_p, 4);
-                    vuint16m1_t _p5 = vget_u16m1x8_u16m1(_p, 5);
-                    vuint16m1_t _p6 = vget_u16m1x8_u16m1(_p, 6);
-                    vuint16m1_t _p7 = vget_u16m1x8_u16m1(_p, 7);
+                    vuint16m1_t _p0;
+                    vuint16m1_t _p1;
+                    vuint16m1_t _p2;
+                    vuint16m1_t _p3;
+                    vuint16m1_t _p4;
+                    vuint16m1_t _p5;
+                    vuint16m1_t _p6;
+                    vuint16m1_t _p7;
+                    vlseg8e16_v_u16m1(&_p0, &_p1, &_p2, &_p3, &_p4, &_p5, &_p6, &_p7, r0, vl);
+
                     vsseg4e16_v_u16m1(outptr0, _p0, _p1, _p2, _p3, vl);
                     vsseg4e16_v_u16m1(outptr1, _p4, _p5, _p6, _p7, vl);
 
