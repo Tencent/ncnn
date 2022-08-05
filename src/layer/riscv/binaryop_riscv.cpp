@@ -1000,21 +1000,21 @@ static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_riscv_functor {
 
-#define MAKE_FUNCTION(NAME, IMPLVV, IMPLVS, IMPLSV)                                                     \
-    struct NAME                                                                                         \
-    {                                                                                                   \
+#define MAKE_FUNCTION(NAME, IMPLVV, IMPLVS, IMPLSV)                                                  \
+    struct NAME                                                                                      \
+    {                                                                                                \
         vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const size_t vl) const \
-        {                                                                                               \
-            return IMPLVV;                                                                              \
-        }                                                                                               \
+        {                                                                                            \
+            return IMPLVV;                                                                           \
+        }                                                                                            \
         vfloat32m8_t operator()(const vfloat32m8_t& x, const float y, const size_t vl) const         \
-        {                                                                                               \
-            return IMPLVS;                                                                              \
-        }                                                                                               \
+        {                                                                                            \
+            return IMPLVS;                                                                           \
+        }                                                                                            \
         vfloat32m8_t operator()(const float x, const vfloat32m8_t& y, const size_t vl) const         \
-        {                                                                                               \
-            return IMPLSV;                                                                              \
-        }                                                                                               \
+        {                                                                                            \
+            return IMPLSV;                                                                           \
+        }                                                                                            \
     };
 
 MAKE_FUNCTION(binary_op_add_rvv, vfadd_vv_f32m8(x, y, vl), vfadd_vf_f32m8(x, y, vl), vfadd_vf_f32m8(y, x, vl))
@@ -2721,25 +2721,25 @@ static int binary_op_scalar_rvv_fp16s(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_riscv_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                               \
-    struct NAME                                                                                         \
-    {                                                                                                   \
-        __fp16 operator()(const __fp16& x, const __fp16& y) const                                       \
-        {                                                                                               \
-            return IMPL;                                                                                \
-        }                                                                                               \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                            \
+    struct NAME                                                                                      \
+    {                                                                                                \
+        __fp16 operator()(const __fp16& x, const __fp16& y) const                                    \
+        {                                                                                            \
+            return IMPL;                                                                             \
+        }                                                                                            \
         vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const size_t vl) const \
-        {                                                                                               \
-            return IMPLVV;                                                                              \
-        }                                                                                               \
+        {                                                                                            \
+            return IMPLVV;                                                                           \
+        }                                                                                            \
         vfloat16m8_t operator()(const vfloat16m8_t& x, const float y, const size_t vl) const         \
-        {                                                                                               \
-            return IMPLVS;                                                                              \
-        }                                                                                               \
+        {                                                                                            \
+            return IMPLVS;                                                                           \
+        }                                                                                            \
         vfloat16m8_t operator()(const float x, const vfloat16m8_t& y, const size_t vl) const         \
-        {                                                                                               \
-            return IMPLSV;                                                                              \
-        }                                                                                               \
+        {                                                                                            \
+            return IMPLSV;                                                                           \
+        }                                                                                            \
     };
 
 // clang-format off
