@@ -46,7 +46,7 @@ static int test_layernorm_int8(const ncnn::Mat& a, int affine_size, float eps, i
     std::vector<ncnn::Mat> weights(4);
     weights[0] = RandomMat(affine_size);
     weights[1] = RandomMat(affine_size);
-    weights[2] = RandomMat(affine_size, 1.0f, 127.f/1.2f);
+    weights[2] = RandomMat(affine_size, 1.0f, 127.f / 1.2f);
     weights[3] = RandomMat(1);
 
     int ret = test_layer<ncnn::LayerNorm>("LayerNorm", pd, weights, a);
@@ -132,9 +132,9 @@ int main()
     SRAND(7767517);
 
     return 0
-        //    || test_layernorm_0()
-        //    || test_layernorm_1()
-        //    || test_layernorm_2()
-        //    || test_layernorm_3()
+           //    || test_layernorm_0()
+           //    || test_layernorm_1()
+           //    || test_layernorm_2()
+           //    || test_layernorm_3()
            || test_layernorm_4();
 }

@@ -64,7 +64,8 @@ static inline void get_MN(const float x, uint32_t& M, uint32_t& N)
     static uint32_t pow2_table[] = {
         1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192,
         16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216,
-        33554432, 67108864, 134217728, 268435456, 536870912, 1073741824, 2147483648};
+        33554432, 67108864, 134217728, 268435456, 536870912, 1073741824, 2147483648
+    };
 
     int bit = 7 - round(floor(log2(x)));
     bit = bit < 0 ? 0 : bit;
@@ -146,7 +147,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
             sum_pow2 += ptr[j] * ptr[j];
         }
 
-        const float mean = sum * 1.0f /  in_scale_max / affine_size;
+        const float mean = sum * 1.0f / in_scale_max / affine_size;
         const float std = sqrt(affine_size * sum_pow2 - sum * sum) * in_scale_max / affine_size;
 
         // update xq

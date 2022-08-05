@@ -142,7 +142,6 @@ static int test_multiheadattention_2()
     return 0
            || test_multiheadattention_int8(RandomMat(64, 128), 8)
            || test_multiheadattention_int8(RandomMat(512, 512), 32);
-
 }
 #endif
 
