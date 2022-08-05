@@ -37,9 +37,9 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
     {
         const int size = w * elempack;
 
-        if(num_slope > 1)
+        if (num_slope > 1)
         {
-            const float * slope = slope_data;
+            const float* slope = slope_data;
             int i = 0;
 
 #if __SSE2__
@@ -127,9 +127,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 if (ptr[j] < 0)
                     ptr[j] *= slope;
-            }           
-
-
+            }
         }
 
 #if __SSE2__
@@ -138,12 +136,10 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
-
     }
     if (dims == 2)
     {
         const int size = w * elempack;
-
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < h; i++)
@@ -198,7 +194,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         const int size = w * h * elempack;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for(int q = 0; q < channels; q++)
+        for (int q = 0; q < channels; q++)
         {
             float* ptr = bottom_top_blob.channel(q);
 
