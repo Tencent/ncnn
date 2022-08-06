@@ -192,8 +192,8 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
     // make clang happy with the following loop
 #ifdef __clang__
-    __fp16* _zero_tmp = new __fp16 [packn]();
-    for(int _zero_clean_idx =0; _zero_clean_idx < packn; _zero_clean_idx++)
+    __fp16* _zero_tmp = new __fp16[packn]();
+    for (int _zero_clean_idx = 0; _zero_clean_idx < packn; _zero_clean_idx++)
     {
         _zero_tmp[_zero_clean_idx] = 0.f;
     }

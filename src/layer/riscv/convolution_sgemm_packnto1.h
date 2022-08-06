@@ -192,8 +192,8 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
 
 #ifdef __clang__
     // clang complains about VLA in the following loop
-    float* _zero_tmp = new float [packn]();
-    for(int _zero_clean_idx =0; _zero_clean_idx < packn; _zero_clean_idx++)
+    float* _zero_tmp = new float[packn]();
+    for (int _zero_clean_idx = 0; _zero_clean_idx < packn; _zero_clean_idx++)
     {
         _zero_tmp[_zero_clean_idx] = 0.f;
     }
