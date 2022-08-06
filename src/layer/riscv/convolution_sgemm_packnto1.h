@@ -190,6 +190,14 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
     int nn_outch = outch / packn;
     int remain_outch_start = nn_outch * packn;
 
+#ifdef __clang__
+    // clang complains about VLA in the following loop
+    float* _zero_tmp = new float [packn]();
+    for(int _zero_clean_idx =0; _zero_clean_idx < packn; _zero_clean_idx++)
+    {
+        _zero_tmp[_zero_clean_idx] = 0.f;
+    }
+#endif // __clang__
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
@@ -197,7 +205,11 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
 
         float* outptr0 = top_blob.channel(p);
 
+#ifdef __clang__
+        const float* zeros = _zero_tmp;
+#else
         const float zeros[packn] = {0.f};
+#endif // __clang__
         const float* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
@@ -343,6 +355,9 @@ static void im2col_sgemm_packnto1_rvv(const Mat& bottom_im2col, Mat& top_blob, c
             outptr0 += 1;
         }
     }
+#ifdef __clang__
+    delete[] _zero_tmp;
+#endif
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)

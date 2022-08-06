@@ -190,6 +190,14 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
     int nn_outch = outch / packn;
     int remain_outch_start = nn_outch * packn;
 
+    // make clang happy with the following loop
+#ifdef __clang__
+    __fp16* _zero_tmp = new __fp16 [packn]();
+    for(int _zero_clean_idx =0; _zero_clean_idx < packn; _zero_clean_idx++)
+    {
+        _zero_tmp[_zero_clean_idx] = 0.f;
+    }
+#endif // __clang__
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int pp = 0; pp < nn_outch; pp++)
     {
@@ -197,7 +205,11 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
 
         __fp16* outptr0 = top_blob.channel(p);
 
+#ifdef __clang__
+        const __fp16* zeros = _zero_tmp;
+#else
         const __fp16 zeros[packn] = {0.f};
+#endif // __clang__
         const __fp16* biasptr = bias ? bias + p : zeros;
 
         int i = 0;
@@ -343,6 +355,9 @@ static void im2col_sgemm_packnto1_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_
             outptr0 += 1;
         }
     }
+#ifdef __clang__
+    delete[] _zero_tmp;
+#endif // __clang__
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
