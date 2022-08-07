@@ -1,0 +1,147 @@
+name: linux-riscv64-cpu-gnu-clang
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-riscv64-cpu-gnu-clang.yml'
+    - 'toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+  pull_request:
+    branches: [master]
+    paths:
+    - '.github/workflows/linux-riscv64-cpu-gnu-clang.yml'
+    - 'toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/*'
+    - 'src/layer/*'
+    - 'src/layer/riscv/**'
+    - 'tests/**'
+concurrency:
+  group: linux-riscv64-cpu-gnu-clang-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+
+jobs:
+  linux-gcc-riscv64-rvv:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+
+    # build qemu
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v3
+      with:
+        path: qemu-install
+        key: qemu-riscv64-install-20220502-3
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        make -j2
+        make install
+      
+    
+    # build gnu toolchain, clang needs it
+    - name: cache-riscv
+      id: cache-riscv
+      uses: actions/cache@v3
+      with:
+        path: rv64gcv_zfh
+        key: rv64gcv-linux-install-20220806
+    # - name: install-riscv-build-deps
+    #   if: steps.cache-riscv.outputs.cache-hit != 'true'
+    #   run: |
+    #     sudo apt-get update
+    #     sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+    #- name: checkout-riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v3
+      #with:
+        #repository: riscv/riscv-gnu-toolchain
+        #path: riscv-gnu-toolchain
+        #ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
+    #- name: checkout-riscv-gnu-toolchain-submodules
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-gcc
+        #git submodule update --init --recursive --depth 1 riscv-glibc
+        #git submodule update --init --recursive --depth 1 riscv-dejagnu
+        #git submodule update --init --recursive --depth 1 riscv-newlib
+        #git submodule update --init --recursive --depth 1 riscv-gdb
+    #- name: riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        #./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
+        #make linux
+    #- name: riscv-strip-install
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
+    - name: riscv-gnu-toolchain-download
+      if: steps.cache-riscv.outputs.cache-hit != 'true'
+      run: |
+        wget https://github.com/thelastlin/riscv-gnu-toolchain/releases/download/2022.08.06_llx/rv64gcv_zfh_ubuntu2004.tar.gz
+        tar -x -f rv64gcv_zfh_ubuntu2004.tar.gz
+
+    - name: install-clang
+      run: |
+        sudo apt install lsb-release wget software-properties-common gnupg
+        wget https://apt.llvm.org/llvm.sh
+        chmod +x llvm.sh
+        sudo apt remove clang-11 llvm-11
+        sudo ./llvm.sh 14
+    - name: set-clang-default-version
+      run: |
+        sudo update-alternatives --remove-all clang
+        sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
+        sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100
+    - name: apply-changes-for-clang
+      run: |
+        command -v clang++
+        CLANG_VERSION=`clang++ -v 2>&1 | head -1 | awk '{print $4}' | tr "-" '\n' | head -1`
+        RVV_HEAD_FILE=/usr/lib/llvm-14/lib/clang/$CLANG_VERSION/include/riscv_vector.h
+        grep "float32_t" $RVV_HEAD_FILE || sudo sed -i -E "s,(typedef __rvv_float32m8_t vfloat32m8_t;),\0\ntypedef float float32_t;," $RVV_HEAD_FILE
+        grep "float16_t" $RVV_HEAD_FILE || sudo sed -i -E "s,(typedef __rvv_float16m8_t vfloat16m8_t;),\0\ntypedef _Float16 float16_t;," $RVV_HEAD_FILE
+
+    - name: configure
+      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gcv_zfh && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.llvm-toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j $(nproc)
+
+    - name: test-vlen256
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv_zfh/sysroot" ctest --output-on-failure -j $(nproc)
+
+    - name: test-vlen128
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv_zfh/sysroot" ctest --output-on-failure -j $(nproc)
