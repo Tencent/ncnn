@@ -158,6 +158,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
     float in_scale_max = -FLT_MAX;
     const float out_scale = output_scale[0];
     {
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < affine_size; ++i)
         {
             if (in_scale_max < input_scales[i])
@@ -173,6 +174,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
     if (bottom_top_blob.elemsize == (size_t)1u)
     {
         // if input int8, rescale input
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < bottom_top_blob.h; ++i)
         {
             int32_t* ptr = xq.row<int32_t>(i);
@@ -186,6 +188,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
     {
         // else fuse ((in * in_scale).round() * (in_scale_max / in_scale)).round to (in*in_scale_max).round()
         int32_t* ptr = (int32_t*)xq.data;
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < elem_count; ++i)
         {
             ptr[i] = round(bottom_top_blob[i] * in_scale_max);
@@ -195,6 +198,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
     // std::vector<float> A_save, B_save, result_save;
 
     // get mean and std
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int i = 0; i < xq.h; ++i)
     {
         // get mean and std
@@ -245,6 +249,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
         bottom_top_blob.create(bottom_top_blob.w, bottom_top_blob.h, 1u, opt.workspace_allocator);
         int32_t* from = (int32_t*)xq.data;
         int8_t* to  = (int8_t*)bottom_top_blob.data;
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < elem_count; ++i)
         {
             if (from[i] > 127)
@@ -270,6 +275,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
         }
 
         int32_t* ptr = (int32_t*)xq.data;
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < elem_count; ++i)
         {
             bottom_top_blob[i] = ptr[i] / out_scale;
