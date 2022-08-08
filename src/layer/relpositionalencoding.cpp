@@ -40,7 +40,6 @@ int RelPositionalEncoding::forward(const Mat &bottom_blob, Mat &top_blob,
                                    const Option &opt) const {
   int in_h = bottom_blob.h;
   int start_h = (h >> 1) - in_h + 1;  // assume left context is 0
-  int end_h = (h >> 1) + in_h;
 
   ParamDict pd;
   pd.set(1, start_h);
