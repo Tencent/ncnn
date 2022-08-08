@@ -454,7 +454,7 @@ int NetQuantize::quantize_layernorm()
                 fprintf(stderr, "quantize_layernorm input scales empty.\n");
                 return -100;
             }
-            ln->input_scales = ncnn::Mat((int) scales.size(), (void*)scales.data()).clone();
+            ln->input_scales = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
 
             scales = {table->get<float>("output_scale")};
             if (std::abs(scales[0]) <= 1e-6)
@@ -462,7 +462,7 @@ int NetQuantize::quantize_layernorm()
                 fprintf(stderr, "quantize_layernorm output scale unavailable.\n");
                 return -100;
             }
-            ln->output_scale = ncnn::Mat((int) scales.size(), (void*)scales.data()).clone();
+            ln->output_scale = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
 
             // write control variable
             ln->int8_scale_term = 1;

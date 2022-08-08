@@ -132,9 +132,9 @@ int main()
     SRAND(7767517);
 
     return 0
-              || test_layernorm_0()
-              || test_layernorm_1()
-              || test_layernorm_2()
-              || test_layernorm_3()
+           || test_layernorm_0()
+           || test_layernorm_1()
+           || test_layernorm_2()
+           || test_layernorm_3()
            || test_layernorm_4();
 }
