@@ -121,7 +121,7 @@ static int test_layernorm_3()
 static int test_layernorm_4()
 {
     return 0
-           || test_layernorm_int8(RandomMat(6, 4, 1), 6, 0.01f, 101)
+           || test_layernorm_int8(RandomMat(768, 197, 1), 768, 0.0001f, 101)
            || test_layernorm_int8(RandomMat(768, 127, 1), 6, 0.01f, 101)
            || test_layernorm_int8(RandomMat(6, 7, 1), 6, 0.001f, 1)
            || test_layernorm_int8(RandomMat(768, 127, 1), 6, 0.01f, 1);
@@ -132,9 +132,9 @@ int main()
     SRAND(7767517);
 
     return 0
-           //    || test_layernorm_0()
-           //    || test_layernorm_1()
-           //    || test_layernorm_2()
-           //    || test_layernorm_3()
+              || test_layernorm_0()
+              || test_layernorm_1()
+              || test_layernorm_2()
+              || test_layernorm_3()
            || test_layernorm_4();
 }

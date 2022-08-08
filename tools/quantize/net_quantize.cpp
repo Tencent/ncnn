@@ -448,29 +448,22 @@ int NetQuantize::quantize_layernorm()
 
         auto& table = layernorm_table.at(name);
         {
-            // write input scale
-            auto convert = [table, base_opt](const std::string key, ncnn::Mat& mat) -> int {
-                std::vector<float> scales = {table->get<float>(key)};
-                if (scales.empty())
-                {
-                    return -100;
-                }
-
-                mat = ncnn::Mat((int)scales.size(), (void*)scales.data()).clone();
-                return 0;
-            };
-
-            int success = 0;
-            success += convert("input_scales", ln->input_scales);
-            success += convert("output_scale", ln->output_scale);
-            if (success != 0)
+            std::vector<float> scales = table->get_list<float>("input_scales");
+            if (scales.empty())
             {
-                fprintf(stderr, "load layernorm scale failed. \n");
+                fprintf(stderr, "quantize_layernorm input scales empty.\n");
                 return -100;
             }
-        }
+            ln->input_scales = ncnn::Mat((int) scales.size(), (void*)scales.data()).clone();
 
-        {
+            scales = {table->get<float>("output_scale")};
+            if (std::abs(scales[0]) <= 1e-6)
+            {
+                fprintf(stderr, "quantize_layernorm output scale unavailable.\n");
+                return -100;
+            }
+            ln->output_scale = ncnn::Mat((int) scales.size(), (void*)scales.data()).clone();
+
             // write control variable
             ln->int8_scale_term = 1;
         }

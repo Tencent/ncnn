@@ -1542,9 +1542,18 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", affine_size)
             fprintf_param_value(" 1=%e", eps)
             fprintf_param_value(" 2=%d", affine)
+            fprintf_param_value(" 3=%d", int8_scale_term);
 
             fwrite_weight_data(op->gamma_data, bp);
             fwrite_weight_data(op->beta_data, bp);
+
+#ifdef NCNN_INT8
+            if (op->int8_scale_term)
+            {
+                fwrite_weight_data(op->input_scales, bp, 5, 100);
+                fwrite_weight_data(op->output_scale, bp, 1, 10);
+            }
+#endif
         }
         else if (layer->type == "Log")
         {

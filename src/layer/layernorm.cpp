@@ -17,6 +17,8 @@
 #include <math.h>
 #include "mathfun.h"
 
+// #include "npy.h"
+
 namespace ncnn {
 
 LayerNorm::LayerNorm()
@@ -30,7 +32,6 @@ int LayerNorm::load_param(const ParamDict& pd)
     affine_size = pd.get(0, 0);
     eps = pd.get(1, 0.001f);
     affine = pd.get(2, 1);
-
     int8_scale_term = pd.get(3, 0);
     return 0;
 }
@@ -61,17 +62,11 @@ int LayerNorm::load_model(const ModelBin& mb)
 #ifdef NCNN_INT8
 static inline void get_MN(const float x, uint32_t& M, uint32_t& N)
 {
-    static uint32_t pow2_table[] = {
-        1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192,
-        16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, 4194304, 8388608, 16777216,
-        33554432, 67108864, 134217728, 268435456, 536870912, 1073741824, 2147483648
-    };
-
     int bit = 7 - round(floor(log2(x)));
     bit = bit < 0 ? 0 : bit;
     bit = bit > 31 ? 31 : bit;
 
-    N = pow2_table[bit];
+    N = 1u << bit;
 
     // N > 0 and x > 0
     M = round(floor(N * x));
@@ -82,7 +77,7 @@ static inline void get_MN(const float x, uint32_t& M, uint32_t& N)
 
 int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (!affine || bottom_top_blob.dims != 3 || bottom_top_blob.c != 1)
+    if (!affine || bottom_top_blob.dims != 2  || bottom_top_blob.c != 1)
     {
         // non transformer int8 layernorm not implemented
         return -100;
@@ -93,6 +88,71 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
         // check input parameter
         return -200;
     }
+
+    // {
+    //     // setup input  for debug
+    //     {
+    //         // write input
+    //         std::vector<npy::ndarray_len_t> shape;
+    //         std::vector<float> data;
+    //         std::string typestr;
+    //         std::string filename = "/home/PJLAB/konghuanjun/GitProjects/FQ-ViT/in_1_197_768.npy";
+    //         npy::LoadArrayFromNumpy(filename, typestr, shape, data);
+
+    //         float* ptr = (float*)bottom_top_blob.data;
+    //         for (int i = 0; i < 151296; ++i)
+    //         {
+    //             ptr[i] = data[i];
+    //         }
+    //     }
+    //     {
+    //         // write input scales
+    //         std::vector<npy::ndarray_len_t> shape;
+    //         std::vector<float> data;
+    //         std::string typestr;
+    //         std::string filename = "/home/PJLAB/konghuanjun/GitProjects/FQ-ViT/input_scales_768.npy";
+    //         npy::LoadArrayFromNumpy(filename, typestr, shape, data);
+
+    //         float* ptr = (float*)input_scales.data;
+    //         for (int i = 0; i < 768; ++i)
+    //         {
+    //             ptr[i] =1.0f / data[i];
+    //         }
+    //     }
+    //     {
+    //         // write output scale
+    //         float* ptr = (float*)output_scale.data;
+    //         ptr[0] = 1.0f / 0.0833f;
+    //     }
+    //     {
+    //         // write gamma
+    //         std::vector<npy::ndarray_len_t> shape;
+    //         std::vector<float> data;
+    //         std::string typestr;
+    //         std::string filename = "/home/PJLAB/konghuanjun/GitProjects/FQ-ViT/gamma_768.npy";
+    //         npy::LoadArrayFromNumpy(filename, typestr, shape, data);
+
+    //         float* ptr = (float*)gamma_data.data;
+    //         for (int i = 0; i < 768; ++i)
+    //         {
+    //             ptr[i] =data[i];
+    //         }
+    //     }
+    //     {
+    //         // write beta
+    //         std::vector<npy::ndarray_len_t> shape;
+    //         std::vector<float> data;
+    //         std::string typestr;
+    //         std::string filename = "/home/PJLAB/konghuanjun/GitProjects/FQ-ViT/beta_768.npy";
+    //         npy::LoadArrayFromNumpy(filename, typestr, shape, data);
+
+    //         float* ptr = (float*)beta_data.data;
+    //         for (int i = 0; i < 768; ++i)
+    //         {
+    //             ptr[i] =data[i];
+    //         }
+    //     }
+    // }
 
     // Transformer using BNC format
     float in_scale_max = -FLT_MAX;
@@ -108,31 +168,31 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
     }
 
     // quantize input to int8
-    Mat xq;
+    Mat xq(bottom_top_blob.w, bottom_top_blob.h, 4u, opt.workspace_allocator);
     const int elem_count = bottom_top_blob.w * bottom_top_blob.h * bottom_top_blob.c;
     if (bottom_top_blob.elemsize == (size_t)1u)
     {
-        xq = bottom_top_blob;
         // if input int8, rescale input
         for (int i = 0; i < bottom_top_blob.h; ++i)
         {
-            int8_t* ptr = xq.row<int8_t>(i);
+            int32_t* ptr = xq.row<int32_t>(i);
             for (int j = 0; j < bottom_top_blob.w; ++j)
             {
-                ptr[j] = float2int8(ptr[j] * in_scale_max / input_scales[j]);
+                ptr[j] = round(ptr[j] * in_scale_max / input_scales[j]);
             }
         }
     }
     else
     {
-        xq.create(bottom_top_blob.w, bottom_top_blob.h, 1u, opt.workspace_allocator);
         // else fuse ((in * in_scale).round() * (in_scale_max / in_scale)).round to (in*in_scale_max).round()
-        int8_t* ptr = (int8_t*)xq.data;
+        int32_t* ptr = (int32_t*)xq.data;
         for (int i = 0; i < elem_count; ++i)
         {
-            ptr[i] = float2int8(bottom_top_blob[i] * in_scale_max);
+            ptr[i] = round(bottom_top_blob[i] * in_scale_max);
         }
     }
+
+    // std::vector<float> A_save, B_save, result_save;
 
     // get mean and std
     for (int i = 0; i < xq.h; ++i)
@@ -140,7 +200,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
         // get mean and std
         int32_t sum = 0;
         int32_t sum_pow2 = 0;
-        int8_t* ptr = xq.row<int8_t>(i);
+        int32_t* ptr = xq.row<int32_t>(i);
         for (int j = 0; j < xq.w; ++j)
         {
             sum += ptr[j];
@@ -148,7 +208,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
         }
 
         const float mean = sum * 1.0f / in_scale_max / affine_size;
-        const float std = sqrt(affine_size * sum_pow2 - sum * sum) * in_scale_max / affine_size;
+        const float std = sqrt(1.0f * affine_size * sum_pow2 - sum * sum) / in_scale_max / affine_size;
 
         // update xq
         const float scale_a = out_scale / std / in_scale_max;
@@ -163,14 +223,43 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
 
             int32_t B = round((beta_data[j] - scale_b * gamma_data[j]) * out_scale * N);
 
-            ptr[j] = float2int8((sign * M * ptr[j] + B) / N);
+            ptr[j] = round((sign * M * ptr[j] + B) / N);
+
+            // A_save.emplace_back(A);
+            // B_save.emplace_back(B);
+            // result_save.emplace_back(ptr[j]);
         }
     }
+
+    // {
+    //     // save to numpy
+    //     const unsigned long shape[] = {197 * 768};
+    //     npy::SaveArrayAsNumpy<float>("A.npy", false, 1, shape, A_save);
+    //     npy::SaveArrayAsNumpy<float>("B.npy", false, 1, shape, B_save);
+    //     npy::SaveArrayAsNumpy<float>("result.npy", false, 1, shape, result_save);
+    // }
 
     if (int8_scale_term >= 100)
     {
         // output int8
-        bottom_top_blob = xq;
+        bottom_top_blob.create(bottom_top_blob.w, bottom_top_blob.h, 1u, opt.workspace_allocator);
+        int32_t* from = (int32_t*)xq.data;
+        int8_t* to  = (int8_t*)bottom_top_blob.data;
+        for (int i = 0; i < elem_count; ++i)
+        {
+            if (from[i] > 127)
+            {
+                to[i] = 127;
+            }
+            else if (from[i] < -127)
+            {
+                to[i] = -127;
+            }
+            else
+            {
+                to[i] = from[i];
+            }
+        }
     }
     else
     {
@@ -180,7 +269,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
             bottom_top_blob.create(bottom_top_blob.w, bottom_top_blob.h, (size_t)4u, opt.workspace_allocator);
         }
 
-        int8_t* ptr = (int8_t*)xq.data;
+        int32_t* ptr = (int32_t*)xq.data;
         for (int i = 0; i < elem_count; ++i)
         {
             bottom_top_blob[i] = ptr[i] / out_scale;
