@@ -77,7 +77,7 @@ static inline void get_MN(const float x, uint32_t& M, uint32_t& N)
 
 int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (!affine || bottom_top_blob.dims != 2  || bottom_top_blob.c != 1)
+    if (!affine || bottom_top_blob.dims != 2 || bottom_top_blob.c != 1)
     {
         // non transformer int8 layernorm not implemented
         return -100;
@@ -248,7 +248,7 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
         // output int8
         bottom_top_blob.create(bottom_top_blob.w, bottom_top_blob.h, 1u, opt.workspace_allocator);
         int32_t* from = (int32_t*)xq.data;
-        int8_t* to  = (int8_t*)bottom_top_blob.data;
+        int8_t* to = (int8_t*)bottom_top_blob.data;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < elem_count; ++i)
         {
