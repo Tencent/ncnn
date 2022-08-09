@@ -36,8 +36,10 @@ pnnx.Output                   output      1 0 pos_emb
   void write(Operator *op,
              const std::map<std::string, Parameter> &captured_params,
              const std::map<std::string, Attribute> &captured_attrs) const {
-    op->params["0"] = (int)(captured_attrs.at("op_0.pe").shape[2]);  //  w
-    op->params["1"] = (int)(captured_attrs.at("op_0.pe").shape[1]);  //  h
+    int w = (int)(captured_attrs.at("op_0.pe").shape[2]);
+    int h = (int)(captured_attrs.at("op_0.pe").shape[1]);
+    op->params["0"] = w;
+    op->params["1"] = h;
 
     op->attrs["0"] = captured_attrs.at("op_0.pe");
   }
