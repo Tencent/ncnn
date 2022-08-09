@@ -31,7 +31,7 @@ int RelPositionalEncoding::load_param(const ParamDict &pd) {
 }
 
 int RelPositionalEncoding::load_model(const ModelBin &mb) {
-  pe = mb.load(w, h, 0);
+  pe = mb.load(w, h, 1);
   if (pe.empty()) return -100;
   return 0;
 }
