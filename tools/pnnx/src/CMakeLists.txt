@@ -98,6 +98,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/torchvision_DeformConv2d.cpp
     pass_level1/torchvision_RoIAlign.cpp
 
+    pass_level1/icefall_MakePadMask.cpp
     pass_level1/icefall_RelPositionalEncoding.cpp
 )
 
@@ -485,6 +486,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchvision_DeformConv2d.cpp
 
     pass_ncnn/icefall_RelPositionalEncoding.cpp
+    pass_ncnn/icefall_MakePadMask.cpp
 )
 
 set(pnnx_SRCS

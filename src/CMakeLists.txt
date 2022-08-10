@@ -157,6 +157,7 @@ ncnn_add_layer(DeconvolutionDepthWise3D)
 ncnn_add_layer(Einsum)
 ncnn_add_layer(DeformableConv2D)
 ncnn_add_layer(RelPositionalEncoding)
+ncnn_add_layer(MakePadMask)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
@@ -530,3 +531,5 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(TARGET ncnn PROPERTY FOLDER "libncnn")
 set_property(TARGET ncnn-generate-spirv PROPERTY FOLDER "libncnn")
 
+add_executable(main main.cpp)
+target_link_libraries(main ncnn)
