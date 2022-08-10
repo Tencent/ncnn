@@ -62,7 +62,8 @@ static void deformableconv2d_pack4to8_avx(const std::vector<Mat>& bottom_blobs, 
                         {
                             offset_h = offset.channel((i * kernel_w + j) * 2).row(h_col)[w_col];
                             offset_w = offset.channel((i * kernel_w + j) * 2 + 1).row(h_col)[w_col];
-                        }else
+                        }
+                        else
                         {
                             const int y_c = (i * kernel_w + j) * 2;
                             const int x_c = (i * kernel_w + j) * 2 + 1;
@@ -75,7 +76,8 @@ static void deformableconv2d_pack4to8_avx(const std::vector<Mat>& bottom_blobs, 
                             if (mask_not_pack)
                             {
                                 mask_ = mask.channel(i * kernel_w + j).row(h_col)[w_col];
-                            }else
+                            }
+                            else
                             {
                                 const int m_c = i * kernel_w + j;
                                 mask_ = mask.channel(m_c / mask.elempack).row(h_col)[w_col * mask.elempack + m_c % mask.elempack];
@@ -222,11 +224,11 @@ static void deformableconv2d_pack4to8_avx(const std::vector<Mat>& bottom_blobs, 
                                 _val_channel3 = _mm256_mul_ps(_val_channel3, _mask);
                             }
                             __m256 _conv_w0 = _mm256_load_ps(kptr);
-                            __m256 _conv_w1 = _mm256_load_ps(kptr + out_elempack);  // 1 * out_elempack
+                            __m256 _conv_w1 = _mm256_load_ps(kptr + out_elempack); // 1 * out_elempack
                             _sum = _mm256_comp_fmadd_ps(_val_channel0, _conv_w0, _sum);
                             _sum = _mm256_comp_fmadd_ps(_val_channel1, _conv_w1, _sum);
-                            __m256 _conv_w2 = _mm256_load_ps(kptr + 16);  // 2 * out_elempack
-                            __m256 _conv_w3 = _mm256_load_ps(kptr + 24);  // 3 * out_elempack
+                            __m256 _conv_w2 = _mm256_load_ps(kptr + 16); // 2 * out_elempack
+                            __m256 _conv_w3 = _mm256_load_ps(kptr + 24); // 3 * out_elempack
                             _sum = _mm256_comp_fmadd_ps(_val_channel2, _conv_w2, _sum);
                             _sum = _mm256_comp_fmadd_ps(_val_channel3, _conv_w3, _sum);
                             kptr += wstep;

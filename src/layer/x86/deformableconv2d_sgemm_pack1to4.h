@@ -53,7 +53,8 @@ static void deformableconv2d_im2col_sgemm_pack1to4_sse(const std::vector<Mat>& b
                         {
                             offset_h = offset.channel((i * kernel_w + j) * 2).row(h_col)[w_col];
                             offset_w = offset.channel((i * kernel_w + j) * 2 + 1).row(h_col)[w_col];
-                        }else
+                        }
+                        else
                         {
                             const int y_c = (i * kernel_w + j) * 2;
                             const int x_c = (i * kernel_w + j) * 2 + 1;
@@ -66,7 +67,8 @@ static void deformableconv2d_im2col_sgemm_pack1to4_sse(const std::vector<Mat>& b
                             if (mask_not_pack)
                             {
                                 mask_ = mask.channel(i * kernel_w + j).row(h_col)[w_col];
-                            }else
+                            }
+                            else
                             {
                                 const int m_c = i * kernel_w + j;
                                 mask_ = mask.channel(m_c / mask.elempack).row(h_col)[w_col * mask.elempack + m_c % mask.elempack];

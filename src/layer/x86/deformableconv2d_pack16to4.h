@@ -62,7 +62,8 @@ static void deformableconv2d_pack16to4_avx512(const std::vector<Mat>& bottom_blo
                         {
                             offset_h = offset.channel((i * kernel_w + j) * 2).row(h_col)[w_col];
                             offset_w = offset.channel((i * kernel_w + j) * 2 + 1).row(h_col)[w_col];
-                        }else
+                        }
+                        else
                         {
                             const int y_c = (i * kernel_w + j) * 2;
                             const int x_c = (i * kernel_w + j) * 2 + 1;
@@ -75,7 +76,8 @@ static void deformableconv2d_pack16to4_avx512(const std::vector<Mat>& bottom_blo
                             if (mask_not_pack)
                             {
                                 mask_ = mask.channel(i * kernel_w + j).row(h_col)[w_col];
-                            }else
+                            }
+                            else
                             {
                                 const int m_c = i * kernel_w + j;
                                 mask_ = mask.channel(m_c / mask.elempack).row(h_col)[w_col * mask.elempack + m_c % mask.elempack];
@@ -390,35 +392,35 @@ static void deformableconv2d_pack16to4_avx512(const std::vector<Mat>& bottom_blo
                                 _val_channelf = _mm_mul_ps(_val_channelf, _mask);
                             }
                             __m128 _conv_w0 = _mm_load_ps(kptr);
-                            __m128 _conv_w1 = _mm_load_ps(kptr + out_elempack);  // 1 * out_elempack
+                            __m128 _conv_w1 = _mm_load_ps(kptr + out_elempack); // 1 * out_elempack
                             _sum = _mm_comp_fmadd_ps(_val_channel0, _conv_w0, _sum);
                             _sum = _mm_comp_fmadd_ps(_val_channel1, _conv_w1, _sum);
                             __m128 _conv_w2 = _mm_load_ps(kptr + 8);  // 2 * out_elempack
-                            __m128 _conv_w3 = _mm_load_ps(kptr + 12);  // 3 * out_elempack
+                            __m128 _conv_w3 = _mm_load_ps(kptr + 12); // 3 * out_elempack
                             _sum = _mm_comp_fmadd_ps(_val_channel2, _conv_w2, _sum);
                             _sum = _mm_comp_fmadd_ps(_val_channel3, _conv_w3, _sum);
-                            __m128 _conv_w4 = _mm_load_ps(kptr + 16);  // 4 * out_elempack
-                            __m128 _conv_w5 = _mm_load_ps(kptr + 20);  // 5 * out_elempack
+                            __m128 _conv_w4 = _mm_load_ps(kptr + 16); // 4 * out_elempack
+                            __m128 _conv_w5 = _mm_load_ps(kptr + 20); // 5 * out_elempack
                             _sum = _mm_comp_fmadd_ps(_val_channel4, _conv_w4, _sum);
                             _sum = _mm_comp_fmadd_ps(_val_channel5, _conv_w5, _sum);
-                            __m128 _conv_w6 = _mm_load_ps(kptr + 24);  // 6 * out_elempack
-                            __m128 _conv_w7 = _mm_load_ps(kptr + 28);  // 7 * out_elempack
+                            __m128 _conv_w6 = _mm_load_ps(kptr + 24); // 6 * out_elempack
+                            __m128 _conv_w7 = _mm_load_ps(kptr + 28); // 7 * out_elempack
                             _sum = _mm_comp_fmadd_ps(_val_channel6, _conv_w6, _sum);
                             _sum = _mm_comp_fmadd_ps(_val_channel7, _conv_w7, _sum);
-                            __m128 _conv_w8 = _mm_load_ps(kptr + 32);  // 8 * out_elempack
-                            __m128 _conv_w9 = _mm_load_ps(kptr + 36);  // 9 * out_elempack
+                            __m128 _conv_w8 = _mm_load_ps(kptr + 32); // 8 * out_elempack
+                            __m128 _conv_w9 = _mm_load_ps(kptr + 36); // 9 * out_elempack
                             _sum = _mm_comp_fmadd_ps(_val_channel8, _conv_w8, _sum);
                             _sum = _mm_comp_fmadd_ps(_val_channel9, _conv_w9, _sum);
-                            __m128 _conv_wa = _mm_load_ps(kptr + 40);  // 10 * out_elempack
-                            __m128 _conv_wb = _mm_load_ps(kptr + 44);  // 11 * out_elempack
+                            __m128 _conv_wa = _mm_load_ps(kptr + 40); // 10 * out_elempack
+                            __m128 _conv_wb = _mm_load_ps(kptr + 44); // 11 * out_elempack
                             _sum = _mm_comp_fmadd_ps(_val_channela, _conv_wa, _sum);
                             _sum = _mm_comp_fmadd_ps(_val_channelb, _conv_wb, _sum);
-                            __m128 _conv_wc = _mm_load_ps(kptr + 48);  // 12 * out_elempack
-                            __m128 _conv_wd = _mm_load_ps(kptr + 52);  // 13 * out_elempack
+                            __m128 _conv_wc = _mm_load_ps(kptr + 48); // 12 * out_elempack
+                            __m128 _conv_wd = _mm_load_ps(kptr + 52); // 13 * out_elempack
                             _sum = _mm_comp_fmadd_ps(_val_channelc, _conv_wc, _sum);
                             _sum = _mm_comp_fmadd_ps(_val_channeld, _conv_wd, _sum);
-                            __m128 _conv_we = _mm_load_ps(kptr + 56);  // 14 * out_elempack
-                            __m128 _conv_wf = _mm_load_ps(kptr + 60);  // 15 * out_elempack
+                            __m128 _conv_we = _mm_load_ps(kptr + 56); // 14 * out_elempack
+                            __m128 _conv_wf = _mm_load_ps(kptr + 60); // 15 * out_elempack
                             _sum = _mm_comp_fmadd_ps(_val_channele, _conv_we, _sum);
                             _sum = _mm_comp_fmadd_ps(_val_channelf, _conv_wf, _sum);
                             kptr += wstep;

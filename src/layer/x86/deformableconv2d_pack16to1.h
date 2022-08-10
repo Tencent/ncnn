@@ -60,7 +60,8 @@ static void deformableconv2d_pack16to1_avx512(const std::vector<Mat>& bottom_blo
                         {
                             offset_h = offset.channel((i * kernel_w + j) * 2).row(h_col)[w_col];
                             offset_w = offset.channel((i * kernel_w + j) * 2 + 1).row(h_col)[w_col];
-                        }else
+                        }
+                        else
                         {
                             const int y_c = (i * kernel_w + j) * 2;
                             const int x_c = (i * kernel_w + j) * 2 + 1;
@@ -73,7 +74,8 @@ static void deformableconv2d_pack16to1_avx512(const std::vector<Mat>& bottom_blo
                             if (mask_not_pack)
                             {
                                 mask_ = mask.channel(i * kernel_w + j).row(h_col)[w_col];
-                            }else
+                            }
+                            else
                             {
                                 const int m_c = i * kernel_w + j;
                                 mask_ = mask.channel(m_c / mask.elempack).row(h_col)[w_col * mask.elempack + m_c % mask.elempack];
@@ -325,35 +327,35 @@ static void deformableconv2d_pack16to1_avx512(const std::vector<Mat>& bottom_blo
                                 _val_channelf *= mask_;
                             }
                             float _conv_w0 = *(kptr);
-                            float _conv_w1 = *(kptr + out_elempack);  // 1 * out_elempack
+                            float _conv_w1 = *(kptr + out_elempack); // 1 * out_elempack
                             _sum += (_val_channel0 * _conv_w0);
                             _sum += (_val_channel1 * _conv_w1);
-                            float _conv_w2 = *(kptr + 2);  // 2 * out_elempack
-                            float _conv_w3 = *(kptr + 3);  // 3 * out_elempack
+                            float _conv_w2 = *(kptr + 2); // 2 * out_elempack
+                            float _conv_w3 = *(kptr + 3); // 3 * out_elempack
                             _sum += (_val_channel2 * _conv_w2);
                             _sum += (_val_channel3 * _conv_w3);
-                            float _conv_w4 = *(kptr + 4);  // 4 * out_elempack
-                            float _conv_w5 = *(kptr + 5);  // 5 * out_elempack
+                            float _conv_w4 = *(kptr + 4); // 4 * out_elempack
+                            float _conv_w5 = *(kptr + 5); // 5 * out_elempack
                             _sum += (_val_channel4 * _conv_w4);
                             _sum += (_val_channel5 * _conv_w5);
-                            float _conv_w6 = *(kptr + 6);  // 6 * out_elempack
-                            float _conv_w7 = *(kptr + 7);  // 7 * out_elempack
+                            float _conv_w6 = *(kptr + 6); // 6 * out_elempack
+                            float _conv_w7 = *(kptr + 7); // 7 * out_elempack
                             _sum += (_val_channel6 * _conv_w6);
                             _sum += (_val_channel7 * _conv_w7);
-                            float _conv_w8 = *(kptr + 8);  // 8 * out_elempack
-                            float _conv_w9 = *(kptr + 9);  // 9 * out_elempack
+                            float _conv_w8 = *(kptr + 8); // 8 * out_elempack
+                            float _conv_w9 = *(kptr + 9); // 9 * out_elempack
                             _sum += (_val_channel8 * _conv_w8);
                             _sum += (_val_channel9 * _conv_w9);
-                            float _conv_wa = *(kptr + 10);  // 10 * out_elempack
-                            float _conv_wb = *(kptr + 11);  // 11 * out_elempack
+                            float _conv_wa = *(kptr + 10); // 10 * out_elempack
+                            float _conv_wb = *(kptr + 11); // 11 * out_elempack
                             _sum += (_val_channela * _conv_wa);
                             _sum += (_val_channelb * _conv_wb);
-                            float _conv_wc = *(kptr + 12);  // 12 * out_elempack
-                            float _conv_wd = *(kptr + 13);  // 13 * out_elempack
+                            float _conv_wc = *(kptr + 12); // 12 * out_elempack
+                            float _conv_wd = *(kptr + 13); // 13 * out_elempack
                             _sum += (_val_channelc * _conv_wc);
                             _sum += (_val_channeld * _conv_wd);
-                            float _conv_we = *(kptr + 14);  // 14 * out_elempack
-                            float _conv_wf = *(kptr + 15);  // 15 * out_elempack
+                            float _conv_we = *(kptr + 14); // 14 * out_elempack
+                            float _conv_wf = *(kptr + 15); // 15 * out_elempack
                             _sum += (_val_channele * _conv_we);
                             _sum += (_val_channelf * _conv_wf);
                             kptr += wstep;

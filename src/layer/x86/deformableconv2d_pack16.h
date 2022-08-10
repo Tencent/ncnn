@@ -62,7 +62,8 @@ static void deformableconv2d_pack16_avx512(const std::vector<Mat>& bottom_blobs,
                         {
                             offset_h = offset.channel((i * kernel_w + j) * 2).row(h_col)[w_col];
                             offset_w = offset.channel((i * kernel_w + j) * 2 + 1).row(h_col)[w_col];
-                        }else
+                        }
+                        else
                         {
                             const int y_c = (i * kernel_w + j) * 2;
                             const int x_c = (i * kernel_w + j) * 2 + 1;
@@ -75,7 +76,8 @@ static void deformableconv2d_pack16_avx512(const std::vector<Mat>& bottom_blobs,
                             if (mask_not_pack)
                             {
                                 mask_ = mask.channel(i * kernel_w + j).row(h_col)[w_col];
-                            }else
+                            }
+                            else
                             {
                                 const int m_c = i * kernel_w + j;
                                 mask_ = mask.channel(m_c / mask.elempack).row(h_col)[w_col * mask.elempack + m_c % mask.elempack];
@@ -390,35 +392,35 @@ static void deformableconv2d_pack16_avx512(const std::vector<Mat>& bottom_blobs,
                                 _val_channelf = _mm512_mul_ps(_val_channelf, _mask);
                             }
                             __m512 _conv_w0 = _mm512_load_ps(kptr);
-                            __m512 _conv_w1 = _mm512_load_ps(kptr + out_elempack);  // 1 * out_elempack
+                            __m512 _conv_w1 = _mm512_load_ps(kptr + out_elempack); // 1 * out_elempack
                             _sum = _mm512_fmadd_ps(_val_channel0, _conv_w0, _sum);
                             _sum = _mm512_fmadd_ps(_val_channel1, _conv_w1, _sum);
-                            __m512 _conv_w2 = _mm512_load_ps(kptr + 32);  // 2 * out_elempack
-                            __m512 _conv_w3 = _mm512_load_ps(kptr + 48);  // 3 * out_elempack
+                            __m512 _conv_w2 = _mm512_load_ps(kptr + 32); // 2 * out_elempack
+                            __m512 _conv_w3 = _mm512_load_ps(kptr + 48); // 3 * out_elempack
                             _sum = _mm512_fmadd_ps(_val_channel2, _conv_w2, _sum);
                             _sum = _mm512_fmadd_ps(_val_channel3, _conv_w3, _sum);
-                            __m512 _conv_w4 = _mm512_load_ps(kptr + 64);  // 4 * out_elempack
-                            __m512 _conv_w5 = _mm512_load_ps(kptr + 80);  // 5 * out_elempack
+                            __m512 _conv_w4 = _mm512_load_ps(kptr + 64); // 4 * out_elempack
+                            __m512 _conv_w5 = _mm512_load_ps(kptr + 80); // 5 * out_elempack
                             _sum = _mm512_fmadd_ps(_val_channel4, _conv_w4, _sum);
                             _sum = _mm512_fmadd_ps(_val_channel5, _conv_w5, _sum);
                             __m512 _conv_w6 = _mm512_load_ps(kptr + 96);  // 6 * out_elempack
-                            __m512 _conv_w7 = _mm512_load_ps(kptr + 112);  // 7 * out_elempack
+                            __m512 _conv_w7 = _mm512_load_ps(kptr + 112); // 7 * out_elempack
                             _sum = _mm512_fmadd_ps(_val_channel6, _conv_w6, _sum);
                             _sum = _mm512_fmadd_ps(_val_channel7, _conv_w7, _sum);
-                            __m512 _conv_w8 = _mm512_load_ps(kptr + 128);  // 8 * out_elempack
-                            __m512 _conv_w9 = _mm512_load_ps(kptr + 144);  // 9 * out_elempack
+                            __m512 _conv_w8 = _mm512_load_ps(kptr + 128); // 8 * out_elempack
+                            __m512 _conv_w9 = _mm512_load_ps(kptr + 144); // 9 * out_elempack
                             _sum = _mm512_fmadd_ps(_val_channel8, _conv_w8, _sum);
                             _sum = _mm512_fmadd_ps(_val_channel9, _conv_w9, _sum);
-                            __m512 _conv_wa = _mm512_load_ps(kptr + 160);  // 10 * out_elempack
-                            __m512 _conv_wb = _mm512_load_ps(kptr + 176);  // 11 * out_elempack
+                            __m512 _conv_wa = _mm512_load_ps(kptr + 160); // 10 * out_elempack
+                            __m512 _conv_wb = _mm512_load_ps(kptr + 176); // 11 * out_elempack
                             _sum = _mm512_fmadd_ps(_val_channela, _conv_wa, _sum);
                             _sum = _mm512_fmadd_ps(_val_channelb, _conv_wb, _sum);
-                            __m512 _conv_wc = _mm512_load_ps(kptr + 192);  // 12 * out_elempack
-                            __m512 _conv_wd = _mm512_load_ps(kptr + 208);  // 13 * out_elempack
+                            __m512 _conv_wc = _mm512_load_ps(kptr + 192); // 12 * out_elempack
+                            __m512 _conv_wd = _mm512_load_ps(kptr + 208); // 13 * out_elempack
                             _sum = _mm512_fmadd_ps(_val_channelc, _conv_wc, _sum);
                             _sum = _mm512_fmadd_ps(_val_channeld, _conv_wd, _sum);
-                            __m512 _conv_we = _mm512_load_ps(kptr + 224);  // 14 * out_elempack
-                            __m512 _conv_wf = _mm512_load_ps(kptr + 240);  // 15 * out_elempack
+                            __m512 _conv_we = _mm512_load_ps(kptr + 224); // 14 * out_elempack
+                            __m512 _conv_wf = _mm512_load_ps(kptr + 240); // 15 * out_elempack
                             _sum = _mm512_fmadd_ps(_val_channele, _conv_we, _sum);
                             _sum = _mm512_fmadd_ps(_val_channelf, _conv_wf, _sum);
                             kptr += wstep;
