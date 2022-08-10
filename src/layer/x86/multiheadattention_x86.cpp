@@ -18,7 +18,6 @@
 #include "x86_usability.h"
 #include "layer_type.h"
 #include <float.h>
-#include <sys/time.h>
 
 #ifdef NCNN_INT8
 #include <math.h>
@@ -47,13 +46,6 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         softmax->load_param(pd);
         softmax->create_pipeline(opt);
     }
-
-#if NCNN_INT8
-    if (opt.use_int8_inference && q_weight_data.elemsize == (size_t)1u && k_weight_data.elemsize == (size_t)1u && v_weight_data.elemsize == (size_t)1u && out_weight_data.elemsize == (size_t)1u)
-    {
-        return create_pipeline_int8_x86(opt);
-    }
-#endif
 
     // for fp32 inference, const fold inv_sqrt_embed_dim_per_head into `q_w` and `q_bias`
 #if 0
@@ -85,13 +77,14 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
 }
 
 #ifdef NCNN_INT8
-int MultiHeadAttention_x86::create_pipeline_int8_x86(const Option& opt)
-{
-    return 0;
-}
-
 int MultiHeadAttention_x86::destroy_pipeline(const Option& opt)
 {
+    if (softmax)
+    {
+        softmax->destroy_pipeline(opt);
+        delete softmax;
+        softmax = 0;
+    }
     return 0;
 }
 

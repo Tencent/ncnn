@@ -17,12 +17,14 @@
 #include <memory>
 #include "../modelwriter.h"
 #include "ini_config.h"
+#include <set>
 
 class NetQuantize : public ModelWriter
 {
 public:
     NetQuantize()
     {
+        quantizable_node = {"LayerNorm", "Convolution", "ConvolutionDepthWise", "MultiHeadAttention", "Add"};
     }
     // conv and gemm quant param
     std::map<std::string, ncnn::Mat> blob_int8scale_table;
@@ -32,6 +34,10 @@ public:
     std::map<std::string, std::shared_ptr<ini::Table> > mha_table;
     // LayerNorm quant param
     std::map<std::string, std::shared_ptr<ini::Table> > layernorm_table;
+    // BinaryOp quant param
+    std::map<std::string, std::shared_ptr<ini::Table> > binaryop_table;
+    // supported quantizable node
+    std::set<std::string> quantizable_node;
 
 public:
     bool read_txt_format(const char* path);
@@ -41,8 +47,12 @@ public:
     int quantize_convolutiondepthwise();
     int quantize_innerproduct();
     int quantize_mha();
+    int quantize_binaryop();
     int quantize_layernorm();
-    int fuse_requantize();
+
+    int fuse_conv_requantize();
+    int fuse_layernorm_requantize();
+    int fuse_binaryop_requantize();
 
     void set_weight_suffix(std::string s);
 
