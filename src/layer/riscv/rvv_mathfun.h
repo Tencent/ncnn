@@ -15,11 +15,7 @@
 #ifndef RVV_MATHFUN_H
 #define RVV_MATHFUN_H
 
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 
 #define c_inv_mant_mask ~0x7f800000u
 #define c_cephes_SQRTHF 0.707106781186547524
