@@ -939,7 +939,8 @@ int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& o
     const int channels = a.c;
     const int size = a.w * a.h;
 
-    if (int8_scale_term > 100){
+    if (int8_scale_term > 100)
+    {
         // requant
         c.create(a.w, a.h, a.c, 1u, opt.workspace_allocator);
 
@@ -1014,8 +1015,9 @@ int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& o
             }
             return 0;
         }
-
-    } else {
+    }
+    else
+    {
         // dequant
         c.create(a.w, a.h, a.c, 4u, opt.workspace_allocator);
 
@@ -1030,7 +1032,7 @@ int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& o
 
                 for (int i = 0; i < size; i++)
                 {
-                     pout[i] = op(ptr0[i] / in_scale0, ptr1[i] / in_scale1);
+                    pout[i] = op(ptr0[i] / in_scale0, ptr1[i] / in_scale1);
                 }
             }
             return 0;
