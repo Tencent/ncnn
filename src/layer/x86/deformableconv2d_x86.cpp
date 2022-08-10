@@ -389,9 +389,6 @@ int DeformableConv2D_x86::forward(const std::vector<Mat>& bottom_blobs, std::vec
     int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
-    ppppp222(bottom_blob, "bottom_blob");
-    ppppp222(offset, "offset");
-    ppppp222(bottom_blobs[2], "mask");
 
     const int kernel_extent_w = dilation_w * (kernel_w - 1) + 1;
     const int kernel_extent_h = dilation_h * (kernel_h - 1) + 1;
