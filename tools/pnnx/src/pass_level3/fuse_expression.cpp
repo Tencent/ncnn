@@ -80,7 +80,7 @@ static bool operand_maybe_tensor(const Operand* operand)
         return operand_maybe_tensor(op->inputs[0]) || operand_maybe_tensor(op->inputs[1]) || operand_maybe_tensor(op->inputs[2]);
     }
 
-    if (op->type == "aten::sqrt" || op->type == "aten::rsqrt" || op->type == "aten::neg")
+    if (op->type == "aten::sqrt" || op->type == "aten::rsqrt" || op->type == "aten::neg" || op->type == "aten::floor")
     {
         return operand_maybe_tensor(op->inputs[0]);
     }
@@ -341,6 +341,12 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     else if (op->type == "aten::neg")
     {
         expr += "neg(";
+        fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
+        expr += ")";
+    }
+    else if (op->type == "aten::floor")
+    {
+        expr += "floor(";
         fuse_expression(graph, op->inputs[0], expr, inputs, foldable_constants);
         expr += ")";
     }
