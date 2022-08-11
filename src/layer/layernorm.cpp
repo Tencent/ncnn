@@ -17,8 +17,6 @@
 #include <math.h>
 #include "mathfun.h"
 
-// #include "npy.h"
-
 namespace ncnn {
 
 LayerNorm::LayerNorm()
@@ -89,71 +87,6 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
         return -200;
     }
 
-    // {
-    //     // setup input  for debug
-    //     {
-    //         // write input
-    //         std::vector<npy::ndarray_len_t> shape;
-    //         std::vector<float> data;
-    //         std::string typestr;
-    //         std::string filename = "/home/PJLAB/konghuanjun/GitProjects/FQ-ViT/in_1_197_768.npy";
-    //         npy::LoadArrayFromNumpy(filename, typestr, shape, data);
-
-    //         float* ptr = (float*)bottom_top_blob.data;
-    //         for (int i = 0; i < 151296; ++i)
-    //         {
-    //             ptr[i] = data[i];
-    //         }
-    //     }
-    //     {
-    //         // write input scales
-    //         std::vector<npy::ndarray_len_t> shape;
-    //         std::vector<float> data;
-    //         std::string typestr;
-    //         std::string filename = "/home/PJLAB/konghuanjun/GitProjects/FQ-ViT/input_scales_768.npy";
-    //         npy::LoadArrayFromNumpy(filename, typestr, shape, data);
-
-    //         float* ptr = (float*)input_scales.data;
-    //         for (int i = 0; i < 768; ++i)
-    //         {
-    //             ptr[i] =1.0f / data[i];
-    //         }
-    //     }
-    //     {
-    //         // write output scale
-    //         float* ptr = (float*)output_scale.data;
-    //         ptr[0] = 1.0f / 0.0833f;
-    //     }
-    //     {
-    //         // write gamma
-    //         std::vector<npy::ndarray_len_t> shape;
-    //         std::vector<float> data;
-    //         std::string typestr;
-    //         std::string filename = "/home/PJLAB/konghuanjun/GitProjects/FQ-ViT/gamma_768.npy";
-    //         npy::LoadArrayFromNumpy(filename, typestr, shape, data);
-
-    //         float* ptr = (float*)gamma_data.data;
-    //         for (int i = 0; i < 768; ++i)
-    //         {
-    //             ptr[i] =data[i];
-    //         }
-    //     }
-    //     {
-    //         // write beta
-    //         std::vector<npy::ndarray_len_t> shape;
-    //         std::vector<float> data;
-    //         std::string typestr;
-    //         std::string filename = "/home/PJLAB/konghuanjun/GitProjects/FQ-ViT/beta_768.npy";
-    //         npy::LoadArrayFromNumpy(filename, typestr, shape, data);
-
-    //         float* ptr = (float*)beta_data.data;
-    //         for (int i = 0; i < 768; ++i)
-    //         {
-    //             ptr[i] =data[i];
-    //         }
-    //     }
-    // }
-
     // Transformer using BNC format
     float in_scale_max = -FLT_MAX;
     const float out_scale = output_scale[0];
@@ -187,7 +120,6 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
     }
     else
     {
-        // else fuse ((in * in_scale).round() * (in_scale_max / in_scale)).round to (in*in_scale_max).round()
         int32_t* ptr = (int32_t*)xq.data;
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < elem_count; ++i)
@@ -195,8 +127,6 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
             ptr[i] = round(bottom_top_blob[i] * in_scale_max);
         }
     }
-
-    // std::vector<float> A_save, B_save, result_save;
 
     // get mean and std
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -229,20 +159,8 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
             int32_t B = round((beta_data[j] - scale_b * gamma_data[j]) * out_scale * N);
 
             ptr[j] = round((sign * M * ptr[j] + B) / N);
-
-            // A_save.emplace_back(A);
-            // B_save.emplace_back(B);
-            // result_save.emplace_back(ptr[j]);
         }
     }
-
-    // {
-    //     // save to numpy
-    //     const unsigned long shape[] = {197 * 768};
-    //     npy::SaveArrayAsNumpy<float>("A.npy", false, 1, shape, A_save);
-    //     npy::SaveArrayAsNumpy<float>("B.npy", false, 1, shape, B_save);
-    //     npy::SaveArrayAsNumpy<float>("result.npy", false, 1, shape, result_save);
-    // }
 
     if (int8_scale_term >= 100)
     {

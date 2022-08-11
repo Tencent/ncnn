@@ -971,11 +971,14 @@ y = x * gamma + beta by elementwise
 | 0         | affine_size   | int   | 0         |                   |
 | 1         | eps           | float | 0.001f    | x = x / sqrt(var + eps) |
 | 2         | affine        | int   | 1         |                   |
+| 3         | int8_scale_term  | int   | 0         |   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | gamma_data    | float | [affine_size]         |
 | beta_data     | float | [affine_size]         |
+| input_scales     | float | [affine_size]         |
+| output_scale     | float | [affine_size]         |
 
 # Log
 ```

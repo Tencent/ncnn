@@ -320,7 +320,6 @@ int MultiHeadAttention::forward_int8(const std::vector<Mat>& bottom_blobs, std::
         }
     }
 
-    // xqkv int4 @ int8, implement by shift
     Mat xqkv(embed_dim_per_head, num_head, seqlen, 1u, opt.workspace_allocator);
 
     const float xqkv_out_scale = internal_scales[4] / internal_scales[2];
