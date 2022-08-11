@@ -21,7 +21,22 @@
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
 
+#include <stdlib.h>
+
 namespace ncnn {
+
+class MetaNode
+{
+public:
+    size_t size;
+    size_t miss;
+    void* ptr;
+
+    MetaNode(size_t _size, void* _ptr)
+        : size(_size), miss(0), ptr(_ptr)
+    {
+    }
+};
 
 Allocator::~Allocator()
 {
@@ -33,14 +48,16 @@ public:
     Mutex budgets_lock;
     Mutex payouts_lock;
     unsigned int size_compare_ratio; // 0~256
-    std::list<std::pair<size_t, void*> > budgets;
-    std::list<std::pair<size_t, void*> > payouts;
+    size_t total_miss;
+    std::list<MetaNode> budgets;
+    std::list<MetaNode> payouts;
 };
 
 PoolAllocator::PoolAllocator()
     : Allocator(), d(new PoolAllocatorPrivate)
 {
     d->size_compare_ratio = 192; // 0.75f * 256
+    d->total_miss = 0;
 }
 
 PoolAllocator::~PoolAllocator()
@@ -51,10 +68,10 @@ PoolAllocator::~PoolAllocator()
     {
         NCNN_LOGE("FATAL ERROR! pool allocator destroyed too early");
 #if NCNN_STDIO
-        std::list<std::pair<size_t, void*> >::iterator it = d->payouts.begin();
+        std::list<MetaNode>::iterator it = d->payouts.begin();
         for (; it != d->payouts.end(); ++it)
         {
-            void* ptr = it->second;
+            void* ptr = it->ptr;
             NCNN_LOGE("%p still in use", ptr);
         }
 #endif
@@ -77,10 +94,10 @@ void PoolAllocator::clear()
 {
     d->budgets_lock.lock();
 
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    std::list<MetaNode>::iterator it = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
-        void* ptr = it->second;
+        void* ptr = it->ptr;
         ncnn::fastFree(ptr);
     }
     d->budgets.clear();
@@ -104,15 +121,15 @@ void* PoolAllocator::fastMalloc(size_t size)
     d->budgets_lock.lock();
 
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    std::list<MetaNode>::iterator it = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
-        size_t bs = it->first;
+        size_t bs = it->size;
 
         // size_compare_ratio ~ 100%
         if (bs >= size && ((bs * d->size_compare_ratio) >> 8) <= size)
         {
-            void* ptr = it->second;
+            void* ptr = it->ptr;
 
             d->budgets.erase(it);
 
@@ -120,11 +137,22 @@ void* PoolAllocator::fastMalloc(size_t size)
 
             d->payouts_lock.lock();
 
-            d->payouts.push_back(std::make_pair(bs, ptr));
+            d->payouts.push_back(MetaNode(bs, ptr));
 
             d->payouts_lock.unlock();
 
             return ptr;
+        }
+
+        d->total_miss++;
+        it->miss++;
+
+        // Remove 1 aging chunk every 5 rounds in average.
+        if (rand() % std::max(10UL, d->total_miss) + 1 >= it->miss * 5)
+        {
+            ncnn::fastFree(it->ptr);
+            d->budgets.erase(it);
+            d->total_miss -= it->miss;
         }
     }
 
@@ -135,7 +163,7 @@ void* PoolAllocator::fastMalloc(size_t size)
 
     d->payouts_lock.lock();
 
-    d->payouts.push_back(std::make_pair(size, ptr));
+    d->payouts.push_back(MetaNode(size, ptr));
 
     d->payouts_lock.unlock();
 
@@ -147,12 +175,12 @@ void PoolAllocator::fastFree(void* ptr)
     d->payouts_lock.lock();
 
     // return to budgets
-    std::list<std::pair<size_t, void*> >::iterator it = d->payouts.begin();
+    std::list<MetaNode>::iterator it = d->payouts.begin();
     for (; it != d->payouts.end(); ++it)
     {
-        if (it->second == ptr)
+        if (it->ptr == ptr)
         {
-            size_t size = it->first;
+            size_t size = it->size;
 
             d->payouts.erase(it);
 
@@ -160,7 +188,7 @@ void PoolAllocator::fastFree(void* ptr)
 
             d->budgets_lock.lock();
 
-            d->budgets.push_back(std::make_pair(size, ptr));
+            d->budgets.push_back(MetaNode(size, ptr));
 
             d->budgets_lock.unlock();
 
