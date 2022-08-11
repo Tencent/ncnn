@@ -660,10 +660,6 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", op_type)
             fprintf_param_value(" 1=%d", with_scalar)
             fprintf_param_value(" 2=%e", b)
-            fprintf_param_value(" 3=%d", int8_scale_term)
-            fprintf_param_value(" 4=%e", in_scale0)
-            fprintf_param_value(" 5=%e", in_scale1)
-            fprintf_param_value(" 6=%e", out_scale)
         }
         else if (layer->type == "Clip")
         {

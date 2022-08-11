@@ -15,7 +15,6 @@
 #include "binaryop.h"
 
 #include <math.h>
-#include "mathfun.h"
 
 namespace ncnn {
 
@@ -30,12 +29,6 @@ int BinaryOp::load_param(const ParamDict& pd)
     op_type = pd.get(0, 0);
     with_scalar = pd.get(1, 0);
     b = pd.get(2, 0.f);
-    int8_scale_term = pd.get(3, 0);
-#ifdef NCNN_INT8
-    in_scale0 = pd.get(4, 1.f);
-    in_scale1 = pd.get(5, 1.f);
-    out_scale = pd.get(6, 1.f);
-#endif
 
     if (with_scalar != 0)
     {
@@ -925,157 +918,6 @@ struct binary_op_rdiv
     }
 };
 
-#ifdef NCNN_INT8
-template<typename Op>
-int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& opt) const
-{
-    if (a.w != b.w || a.h != b.h || a.c != b.c || a.d != b.d || a.d != 1)
-    {
-        // binaryop int8 only support input same shape, not support packing layout
-        return -100;
-    }
-
-    Op op;
-    const int channels = a.c;
-    const int size = a.w * a.h;
-
-    if (int8_scale_term > 100){
-        // requant
-        c.create(a.w, a.h, a.c, 1u, opt.workspace_allocator);
-
-        if (a.elemsize == 1u && b.elemsize == 1u)
-        {
-            // #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                int8_t* ptr0 = (int8_t*)(a.channel(q).data);
-                int8_t* ptr1 = (int8_t*)(b.channel(q).data);
-                int8_t* pout = (int8_t*)(c.channel(q).data);
-
-                for (int i = 0; i < size; i++)
-                {
-                    int32_t v = op(ptr0[i] / in_scale0, ptr1[i] / in_scale1);
-                    pout[i] = float2int8(v * out_scale);
-                }
-            }
-            return 0;
-        }
-
-        if (a.elemsize == 1u && b.elemsize == 4u)
-        {
-            // #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                int8_t* ptr0 = (int8_t*)(a.channel(q).data);
-                const float* ptr1 = b.channel(q);
-                int8_t* pout = (int8_t*)(c.channel(q).data);
-
-                for (int i = 0; i < size; i++)
-                {
-                    int32_t v = op(ptr0[i] / in_scale0, ptr1[i]);
-                    pout[i] = float2int8(v * out_scale);
-                }
-            }
-            return 0;
-        }
-
-        if (a.elemsize == 4u && b.elemsize == 1u)
-        {
-            // #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr0 = a.channel(q);
-                int8_t* ptr1 = (int8_t*)(b.channel(q).data);
-                int8_t* pout = (int8_t*)(c.channel(q).data);
-
-                for (int i = 0; i < size; i++)
-                {
-                    int32_t v = op(ptr0[i], ptr1[i] / in_scale1);
-                    pout[i] = float2int8(v * out_scale);
-                }
-            }
-            return 0;
-        }
-
-        if (a.elemsize == 4u && b.elemsize == 4u)
-        {
-            // #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr0 = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                int8_t* pout = (int8_t*)(c.channel(q).data);
-
-                for (int i = 0; i < size; i++)
-                {
-                    float v = op(ptr0[i], ptr1[i]);
-                    pout[i] = float2int8(v * out_scale);
-                }
-            }
-            return 0;
-        }
-
-    } else {
-        // dequant
-        c.create(a.w, a.h, a.c, 4u, opt.workspace_allocator);
-
-        if (a.elemsize == 1u && b.elemsize == 1u)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                int8_t* ptr0 = (int8_t*)(a.channel(q).data);
-                int8_t* ptr1 = (int8_t*)(b.channel(q).data);
-                float* pout = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                     pout[i] = op(ptr0[i] / in_scale0, ptr1[i] / in_scale1);
-                }
-            }
-            return 0;
-        }
-
-        if (a.elemsize == 1u && b.elemsize == 4u)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                int8_t* ptr0 = (int8_t*)(a.channel(q).data);
-                const float* ptr1 = b.channel(q);
-                float* pout = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    pout[i] = op(ptr0[i] / in_scale0, ptr1[i]);
-                }
-            }
-            return 0;
-        }
-
-        if (a.elemsize == 4u && b.elemsize == 1u)
-        {
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr0 = a.channel(q);
-                int8_t* ptr1 = (int8_t*)(b.channel(q).data);
-                float* pout = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    pout[i] = op(ptr0[i], ptr1[i] / in_scale1);
-                }
-            }
-            return 0;
-        }
-    }
-
-    return 0;
-}
-
-#endif
-
 int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
@@ -1083,85 +925,38 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
     Mat& top_blob = top_blobs[0];
 
-#ifdef NCNN_INT8
-    if (int8_scale_term > 0)
-    {
-        // requant
-        if (op_type == Operation_ADD)
-            return binary_op_int8<binary_op_add>(bottom_blob, bottom_blob1, top_blob, opt);
+    if (op_type == Operation_ADD)
+        return binary_op<binary_op_add>(bottom_blob, bottom_blob1, top_blob, opt);
 
-        if (op_type == Operation_SUB)
-            return binary_op_int8<binary_op_sub>(bottom_blob, bottom_blob1, top_blob, opt);
+    if (op_type == Operation_SUB)
+        return binary_op<binary_op_sub>(bottom_blob, bottom_blob1, top_blob, opt);
 
-        if (op_type == Operation_MUL)
-            return binary_op_int8<binary_op_mul>(bottom_blob, bottom_blob1, top_blob, opt);
+    if (op_type == Operation_MUL)
+        return binary_op<binary_op_mul>(bottom_blob, bottom_blob1, top_blob, opt);
 
-        if (op_type == Operation_DIV)
-            return binary_op_int8<binary_op_div>(bottom_blob, bottom_blob1, top_blob, opt);
+    if (op_type == Operation_DIV)
+        return binary_op<binary_op_div>(bottom_blob, bottom_blob1, top_blob, opt);
 
-        if (op_type == Operation_MAX)
-            return binary_op_int8<binary_op_max>(bottom_blob, bottom_blob1, top_blob, opt);
+    if (op_type == Operation_MAX)
+        return binary_op<binary_op_max>(bottom_blob, bottom_blob1, top_blob, opt);
 
-        if (op_type == Operation_MIN)
-            return binary_op_int8<binary_op_min>(bottom_blob, bottom_blob1, top_blob, opt);
+    if (op_type == Operation_MIN)
+        return binary_op<binary_op_min>(bottom_blob, bottom_blob1, top_blob, opt);
 
-        if (op_type == Operation_POW)
-            return binary_op_int8<binary_op_pow>(bottom_blob, bottom_blob1, top_blob, opt);
+    if (op_type == Operation_POW)
+        return binary_op<binary_op_pow>(bottom_blob, bottom_blob1, top_blob, opt);
 
-        if (op_type == Operation_RSUB)
-            return binary_op_int8<binary_op_sub>(bottom_blob1, bottom_blob, top_blob, opt);
+    if (op_type == Operation_RSUB)
+        return binary_op<binary_op_sub>(bottom_blob1, bottom_blob, top_blob, opt);
 
-        if (op_type == Operation_RDIV)
-            return binary_op_int8<binary_op_div>(bottom_blob1, bottom_blob, top_blob, opt);
-    }
-#endif
-
-    switch (op_type)
-    {
-    case Operation_ADD:
-        binary_op<binary_op_add>(bottom_blob, bottom_blob1, top_blob, opt);
-        break;
-    case Operation_SUB:
-        binary_op<binary_op_sub>(bottom_blob, bottom_blob1, top_blob, opt);
-        break;
-    case Operation_MUL:
-        binary_op<binary_op_mul>(bottom_blob, bottom_blob1, top_blob, opt);
-        break;
-    case Operation_DIV:
-        binary_op<binary_op_div>(bottom_blob, bottom_blob1, top_blob, opt);
-        break;
-    case Operation_MAX:
-        binary_op<binary_op_max>(bottom_blob, bottom_blob1, top_blob, opt);
-        break;
-    case Operation_MIN:
-        binary_op<binary_op_min>(bottom_blob, bottom_blob1, top_blob, opt);
-        break;
-    case Operation_POW:
-        binary_op<binary_op_pow>(bottom_blob, bottom_blob1, top_blob, opt);
-        break;
-    case Operation_RSUB:
-        binary_op<binary_op_sub>(bottom_blob1, bottom_blob, top_blob, opt);
-        break;
-    case Operation_RDIV:
-        binary_op<binary_op_div>(bottom_blob1, bottom_blob, top_blob, opt);
-        break;
-    default:
-        return -100;
-    }
+    if (op_type == Operation_RDIV)
+        return binary_op<binary_op_div>(bottom_blob1, bottom_blob, top_blob, opt);
 
     return 0;
 }
 
 int BinaryOp::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
-#ifdef NCNN_INT8
-    if (int8_scale_term > 0)
-    {
-        // int8 BinaryOp with scalar not implemented
-        return -100;
-    }
-#endif
-
     if (op_type == Operation_ADD)
         return binary_op_scalar_inplace<binary_op_add>(bottom_top_blob, b, opt);
 

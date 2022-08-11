@@ -32,11 +32,6 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
-#ifdef NCNN_INT8
-    template<typename Op>
-    int binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& opt) const;
-#endif
-
     enum OperationType
     {
         Operation_ADD = 0,
@@ -55,13 +50,6 @@ public:
     int op_type;
     int with_scalar;
     float b;
-
-    int int8_scale_term;
-#ifdef NCNN_INT8
-    float in_scale0;
-    float in_scale1;
-    float out_scale;
-#endif
 };
 
 } // namespace ncnn

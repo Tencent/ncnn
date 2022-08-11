@@ -162,6 +162,9 @@ int MultiHeadAttention::affine_input(
     if (input.elemsize != 1)
     {
         quantize_to_int8(input, input_int8, input_scale, opt);
+    } else 
+    {
+        input_int8 = input;
     }
 
     Mat buffer(out_int8.w, out_int8.h, out_int8.c, 4u, opt.workspace_allocator);

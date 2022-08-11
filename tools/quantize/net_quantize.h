@@ -24,7 +24,6 @@ class NetQuantize : public ModelWriter
 public:
     NetQuantize()
     {
-        quantizable_node = {"LayerNorm", "Convolution", "ConvolutionDepthWise", "MultiHeadAttention", "BinaryOp"};
     }
     // conv and gemm quant param
     std::map<std::string, ncnn::Mat> blob_int8scale_table;
@@ -36,8 +35,6 @@ public:
     std::map<std::string, std::shared_ptr<ini::Table> > layernorm_table;
     // BinaryOp quant param
     std::map<std::string, std::shared_ptr<ini::Table> > binaryop_table;
-    // supported quantizable node
-    std::set<std::string> quantizable_node;
 
 public:
     bool read_txt_format(const char* path);

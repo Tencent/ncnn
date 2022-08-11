@@ -177,10 +177,11 @@ int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) con
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < bottom_top_blob.h; ++i)
         {
-            int32_t* ptr = xq.row<int32_t>(i);
+            int8_t* from = bottom_top_blob.row<int8_t>(i);
+            int32_t* to = xq.row<int32_t>(i);
             for (int j = 0; j < bottom_top_blob.w; ++j)
             {
-                ptr[j] = round(ptr[j] * in_scale_max / input_scales[j]);
+                to[j] = round(from[j] * in_scale_max / input_scales[j]);
             }
         }
     }
