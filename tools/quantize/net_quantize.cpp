@@ -681,20 +681,20 @@ int NetQuantize::fuse_conv_requantize()
 
 /**
  * @brief if [LayerNorm --> X] and X is a type of quantizable layer, then requant layernorm.output, AKA X.input is quantized tensor
- * 
+ *
  * @return int
  */
 int NetQuantize::fuse_layernorm_requantize()
 {
     const size_t layer_count = layers.size();
 
-    auto direct_connected_outputs = [&](ncnn::Layer* op, int cur) -> std::vector<ncnn::Layer*>
-    {
+    auto direct_connected_outputs = [&](ncnn::Layer* op, int cur) -> std::vector<ncnn::Layer*> {
         std::vector<ncnn::Layer*> outputs;
-        for (size_t j = cur; j <layer_count; ++j)
+        for (size_t j = cur; j < layer_count; ++j)
         {
             ncnn::Layer* next = layers[j];
-            for (auto index: next->bottoms) {
+            for (auto index : next->bottoms)
+            {
                 if (index == op->tops[0] || index == op->tops[1])
                 {
                     outputs.emplace_back(next);
@@ -705,11 +705,10 @@ int NetQuantize::fuse_layernorm_requantize()
         return outputs;
     };
 
-    auto all_outputs =  [&](ncnn::Layer* op, int cur) -> std::vector<ncnn::Layer*>
-    {
+    auto all_outputs = [&](ncnn::Layer* op, int cur) -> std::vector<ncnn::Layer*> {
         auto directs = direct_connected_outputs(op, cur);
         std::vector<ncnn::Layer*> outputs;
-        for (auto node: directs)
+        for (auto node : directs)
         {
             if (node->type == "Split")
             {
@@ -722,28 +721,27 @@ int NetQuantize::fuse_layernorm_requantize()
         return outputs;
     };
 
-    auto is_quantized = [=](ncnn::Layer* layer) -> bool
-    {
-            if (layer->type == "Convolution")
-                return ((ncnn::Convolution*)layer)->int8_scale_term > 0;
+    auto is_quantized = [=](ncnn::Layer* layer) -> bool {
+        if (layer->type == "Convolution")
+            return ((ncnn::Convolution*)layer)->int8_scale_term > 0;
 
-            if (layer->type == "MultiHeadAttention")
-                return ((ncnn::MultiHeadAttention*)layer)->int8_scale_term > 0;
+        if (layer->type == "MultiHeadAttention")
+            return ((ncnn::MultiHeadAttention*)layer)->int8_scale_term > 0;
 
-            if (layer->type == "InnerProduct")
-                return ((ncnn::InnerProduct*)layer)->int8_scale_term > 0;
-            
-            if (layer->type == "ConvolutionDepthWise")
-                return ((ncnn::ConvolutionDepthWise*)layer)->int8_scale_term > 0;
+        if (layer->type == "InnerProduct")
+            return ((ncnn::InnerProduct*)layer)->int8_scale_term > 0;
 
-            if (layer->type == "LayerNorm")
+        if (layer->type == "ConvolutionDepthWise")
+            return ((ncnn::ConvolutionDepthWise*)layer)->int8_scale_term > 0;
+
+        if (layer->type == "LayerNorm")
             return ((ncnn::LayerNorm*)layer)->int8_scale_term > 0;
 
-            if (layer->type == "BinaryOp")
-                // suppose that future binaryop could be quantized
-                return true;
+        if (layer->type == "BinaryOp")
+            // suppose that future binaryop could be quantized
+            return true;
 
-            return false;
+        return false;
     };
 
     for (size_t i = 0; i < layer_count; i++)
@@ -754,9 +752,9 @@ int NetQuantize::fuse_layernorm_requantize()
         ncnn::LayerNorm* ln = (ncnn::LayerNorm*)layers[i];
         auto outputs = all_outputs(ln, i);
         bool all_support_quant = true;
-        for (auto node: outputs)
+        for (auto node : outputs)
         {
-            if (! is_quantized(node))
+            if (!is_quantized(node))
             {
                 all_support_quant = false;
                 break;

@@ -52,7 +52,8 @@ static int classify_vit(const cv::Mat& bgr)
     int max_index = 0;
     for (int j = 0; j < multiHeadOut.w; j++)
     {
-        if (max_value < multiHeadOut[j]) {
+        if (max_value < multiHeadOut[j])
+        {
             max_value = multiHeadOut[j];
             max_index = j;
         }
