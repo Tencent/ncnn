@@ -162,7 +162,8 @@ int MultiHeadAttention::affine_input(
     if (input.elemsize != 1)
     {
         quantize_to_int8(input, input_int8, input_scale, opt);
-    } else 
+    }
+    else
     {
         input_int8 = input;
     }
