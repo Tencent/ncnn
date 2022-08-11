@@ -77,7 +77,7 @@ static inline void get_MN(const float x, uint32_t& M, uint32_t& N)
 
 int LayerNorm::forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const
 {
-    if (!affine || bottom_top_blob.dims != 2 || bottom_top_blob.c != 1)
+    if (!affine || bottom_top_blob.c != 1)
     {
         // non transformer int8 layernorm not implemented
         return -100;

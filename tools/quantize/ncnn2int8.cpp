@@ -91,10 +91,11 @@ int main(int argc, char** argv)
     quantizer.quantize_convolutiondepthwise();
     quantizer.quantize_innerproduct();
     quantizer.quantize_layernorm();
+    quantizer.quantize_binaryop();
 
     quantizer.fuse_conv_requantize();
     quantizer.fuse_layernorm_requantize();
-    int fuse_binaryop_requantize();
+    quantizer.fuse_binaryop_requantize();
 
     quantizer.save(outparam, outbin);
 

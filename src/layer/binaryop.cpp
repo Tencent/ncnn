@@ -945,7 +945,7 @@ int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& o
 
         if (a.elemsize == 1u && b.elemsize == 1u)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 int8_t* ptr0 = (int8_t*)(a.channel(q).data);
@@ -963,7 +963,7 @@ int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& o
 
         if (a.elemsize == 1u && b.elemsize == 4u)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 int8_t* ptr0 = (int8_t*)(a.channel(q).data);
@@ -981,7 +981,7 @@ int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& o
 
         if (a.elemsize == 4u && b.elemsize == 1u)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr0 = a.channel(q);
@@ -999,7 +999,7 @@ int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& o
 
         if (a.elemsize == 4u && b.elemsize == 4u)
         {
-            #pragma omp parallel for num_threads(opt.num_threads)
+            // #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr0 = a.channel(q);
@@ -1008,7 +1008,7 @@ int BinaryOp::binary_op_int8(const Mat& a, const Mat& b, Mat& c, const Option& o
 
                 for (int i = 0; i < size; i++)
                 {
-                    int32_t v = op(ptr0[i], ptr1[i] / in_scale1);
+                    float v = op(ptr0[i], ptr1[i]);
                     pout[i] = float2int8(v * out_scale);
                 }
             }

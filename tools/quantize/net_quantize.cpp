@@ -135,7 +135,7 @@ bool NetQuantize::read_ini_format(const char* path)
         {
             layernorm_table[name] = ptable;
         }
-        else if (type == "BinaryOp")
+        else if (type == "Add")
         {
             binaryop_table[name] = ptable;
         }
@@ -796,58 +796,95 @@ int NetQuantize::fuse_binaryop_requantize()
 {
     const size_t layer_count = layers.size();
 
-    auto get_all_connected_outputs = [=](ncnn::BinaryOp* op, int cur) -> std::vector<ncnn::Layer*>
+    auto direct_connected_outputs = [&](ncnn::Layer* op, int cur) -> std::vector<ncnn::Layer*>
     {
-        std::vector<ncnn::Layer*> layers;
+        std::vector<ncnn::Layer*> outputs;
         for (size_t j = cur; j <layer_count; ++j)
         {
             ncnn::Layer* next = layers[j];
             for (auto index: next->bottoms) {
                 if (index == op->tops[0] || index == op->tops[1])
                 {
-                    layers.emplace_back(next);
+                    outputs.emplace_back(next);
                     break;
                 }
             }
         }
-        return layers;
+        return outputs;
     };
 
-    auto get_all_connected_inputs = [=](ncnn::BinaryOp* op, int cur) -> std::vector<ncnn::Layer*>
+    auto all_outputs =  [&](ncnn::BinaryOp* op, int cur) -> std::vector<ncnn::Layer*>
     {
-        std::vector<ncnn::Layer*> layers;
+        auto directs = direct_connected_outputs(op, cur);
+        std::vector<ncnn::Layer*> outputs;
+        for (auto node: directs)
+        {
+            if (node->type == "Split")
+            {
+                auto nexts = direct_connected_outputs(node, cur);
+                outputs.insert(outputs.end(), nexts.begin(), nexts.end());
+                continue;
+            }
+            outputs.emplace_back(node);
+        }
+        return outputs;
+    };
+
+    auto direct_connected_inputs = [=](ncnn::Layer* op, int cur) -> std::vector<ncnn::Layer*>
+    {
+        std::vector<ncnn::Layer*> inputs;
         for (size_t j = 0; j <cur; ++j)
         {
             ncnn::Layer* last = layers[j];
             for (auto index: last->tops) {
                 if (index == op->bottoms[0] || index == op->bottoms[1])
                 {
-                    layers.emplace_back(last);
+                    inputs.emplace_back(last);
                     break;
                 }
             }
         }
-        return layers;
+        return inputs;
+    };
+
+    auto all_inputs =  [&](ncnn::BinaryOp* op, int cur) -> std::vector<ncnn::Layer*>
+    {
+        auto directs = direct_connected_inputs(op, cur);
+        std::vector<ncnn::Layer*> inputs;
+        for (auto node: directs)
+        {
+            if (node->type == "Split")
+            {
+                auto lasts = direct_connected_inputs(node, cur);
+                inputs.insert(inputs.end(), lasts.begin(), lasts.end());
+                continue;
+            }
+            inputs.emplace_back(node);
+        }
+        return inputs;
     };
 
     auto is_quantized = [=](ncnn::Layer* layer) -> bool
     {
-            if (quantizable_node.find(layer->name) == quantizable_node.end())
-            {
-                return false;
-            }
-            if (layer->name == "Convolution")
+            if (layer->type == "Convolution")
                 return ((ncnn::Convolution*)layer)->int8_scale_term > 0;
 
-            if (layer->name == "MultiHeadAttention")
+            if (layer->type == "MultiHeadAttention")
                 return ((ncnn::MultiHeadAttention*)layer)->int8_scale_term > 0;
 
-            if (layer->name == "InnerProduct")
+            if (layer->type == "InnerProduct")
                 return ((ncnn::InnerProduct*)layer)->int8_scale_term > 0;
             
-            if (layer->name == "ConvolutionDepthWise")
+            if (layer->type == "ConvolutionDepthWise")
                 return ((ncnn::ConvolutionDepthWise*)layer)->int8_scale_term > 0;
-    
+
+            if (layer->type == "LayerNorm")
+            return ((ncnn::LayerNorm*)layer)->int8_scale_term > 0;
+
+            if (layer->type == "BinaryOp")
+                // suppose that future binaryop could be quantized
+                return true;
+
             return false;
     };
     
@@ -858,33 +895,38 @@ int NetQuantize::fuse_binaryop_requantize()
         
         ncnn::BinaryOp* op = (ncnn::BinaryOp*)layers[i];
 
-        auto outputs = get_all_connected_outputs(op, i);
-        auto inputs = get_all_connected_inputs(op, i);
+        if (op->int8_scale_term == 0)
+        {
+            continue;
+        }
+
+        auto outputs = all_outputs(op, i);
+        auto inputs = all_inputs(op, i);
 
         // if binaryop outputs are all quantized, requant and return
-        bool all_output_quantize = true;
+        bool all_output_support_quant = true;
         // if none of nodes could be quantized, give up quantize binaryop
         bool non_can_quantize = true;
 
-        for (ncnn::Layer* output: outputs)
+        for (ncnn::Layer* node: outputs)
         {
-            if (is_quantized(output))
+            if (is_quantized(node))
             {
                 non_can_quantize = false;
             } else
             {
-                all_output_quantize = false;
+                all_output_support_quant = false;
             }
         }
-        for (ncnn::Layer* input: inputs)
+        for (ncnn::Layer* node: inputs)
         {
-            if (is_quantized(input))
+            if (is_quantized(node))
             {
                 non_can_quantize = false;
             }
         }
 
-        if (all_output_quantize)
+        if (all_output_support_quant)
         {
             // enable requant
             op->int8_scale_term += 100;
@@ -894,7 +936,10 @@ int NetQuantize::fuse_binaryop_requantize()
             op->in_scale0 = 1.f;
             op->in_scale1 = 1.f;
             op->out_scale = 1.f;
+        } else {
+            op->int8_scale_term = 1;
         }
+        fprintf(stderr, "quantize_binaryop %s int8_scale_term %d\n", op->name.c_str(), op->int8_scale_term);
     }
     return 0;
 }

@@ -47,6 +47,13 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
         softmax->create_pipeline(opt);
     }
 
+#if NCNN_INT8
+    if (opt.use_int8_inference && q_weight_data.elemsize == (size_t)1u && k_weight_data.elemsize == (size_t)1u && v_weight_data.elemsize == (size_t)1u && out_weight_data.elemsize == (size_t)1u)
+    {
+        return 0;
+    }
+#endif
+
     // for fp32 inference, const fold inv_sqrt_embed_dim_per_head into `q_w` and `q_bias`
 #if 0
     // FIXME!
