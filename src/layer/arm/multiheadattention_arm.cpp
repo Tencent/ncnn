@@ -20,9 +20,6 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
-#if NCNN_ARM82
-#include "neon_mathfun_fp16s.h"
-#endif
 #endif // __ARM_NEON
 
 #include "arm_usability.h"

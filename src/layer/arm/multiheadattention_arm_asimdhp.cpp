@@ -20,7 +20,7 @@
 #if __ARM_NEON
 #include <arm_neon.h>
 #include "neon_mathfun.h"
-#if NCNN_ARM82
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
 #include "neon_mathfun_fp16s.h"
 #endif
 #endif // __ARM_NEON
