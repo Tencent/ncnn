@@ -74,7 +74,6 @@ inline float max_float32x4(float max, float32x4_t _max)
 
 int MultiHeadAttention_arm::create_pipeline(const Option& opt)
 {
-
 #if NCNN_ARM82
     if (support_fp16_storage && opt.use_fp16_storage)
     {
@@ -593,7 +592,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                     max = std::max(max, *ptr0);
                     ptr0++;
                 }
-                
+
                 ptr0 = ptr;
                 float sum = 0.f;
                 j = 0;
@@ -906,7 +905,7 @@ int MultiHeadAttention_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, 
                             kptr++;
                         }
 
-                        *outptr = sum   ;
+                        *outptr = sum;
                         outptr++;
                     }
 
@@ -982,7 +981,7 @@ int MultiHeadAttention_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, 
                         max = std::max(max, (float)(*ptr0));
                         ptr0++;
                     }
-                    
+
                     ptr0 = ptr;
                     float sum = 0.f;
                     j = 0;
@@ -1120,7 +1119,7 @@ int MultiHeadAttention_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, 
         Mat xqk(seqlen * elempack, seqlen, num_head, 16u, 4, opt.workspace_allocator);
 
         Mat xqkv(embed_dim_per_head, num_head, seqlen, 16u, 4, opt.workspace_allocator);
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; q++)
         {
@@ -1220,7 +1219,7 @@ int MultiHeadAttention_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, 
                         vst1q_f32(outptr, _sum);
                         outptr += 4;
                     }
-            
+
                     bptr++;
                     kptr0 += embed_dim;
                 }
@@ -1346,7 +1345,7 @@ int MultiHeadAttention_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, 
 
             for (int j = 0; j < embed_dim; j++)
             {
-                const float* ptr = xqkv.channel(i); 
+                const float* ptr = xqkv.channel(i);
 
                 float32x4_t _sum = vdupq_n_f32(bfloat16_to_float32(*bptr));
                 for (int k = 0; k < embed_dim; k++)
@@ -1363,7 +1362,7 @@ int MultiHeadAttention_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, 
                 bptr++;
             }
         }
-        
+
         return 0;
     }
 
@@ -1475,7 +1474,7 @@ int MultiHeadAttention_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, 
                         kptr++;
                     }
 
-                    *outptr = sum   ;
+                    *outptr = sum;
                     outptr++;
                 }
 
@@ -1531,7 +1530,7 @@ int MultiHeadAttention_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, 
                     max = std::max(max, (float)(*ptr0));
                     ptr0++;
                 }
-                
+
                 ptr0 = ptr;
                 float sum = 0.f;
                 for (int j = 0; j < seqlen; j++)

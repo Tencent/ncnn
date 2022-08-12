@@ -40,7 +40,6 @@ protected:
 #endif
 
 public:
-
     // fp16
     Mat q_weight_data_fp16;
     Mat q_bias_data_fp16;
