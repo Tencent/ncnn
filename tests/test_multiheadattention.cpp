@@ -42,7 +42,7 @@ static int test_multiheadattention(const ncnn::Mat& a, int num_heads)
     int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention failed a=(%d %d)\n", a.w, a.h);
+        fprintf(stderr, "test_multiheadattention failed a=(%d %d) num_heads=%d\n", a.w, a.h, num_heads);
     }
 
     return ret;
@@ -73,7 +73,7 @@ static int test_multiheadattention_sameqkv(const ncnn::Mat& a, int num_heads)
     int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention failed a=(%d %d)\n", a.w, a.h);
+        fprintf(stderr, "test_multiheadattention failed a=(%d %d) num_heads=%d\n", a.w, a.h, num_heads);
     }
 
     return ret;
@@ -82,15 +82,67 @@ static int test_multiheadattention_sameqkv(const ncnn::Mat& a, int num_heads)
 static int test_multiheadattention_0()
 {
     return 0
-           || test_multiheadattention(RandomMat(64, 128), 4)
-           || test_multiheadattention(RandomMat(64, 127), 16);
+           || test_multiheadattention(RandomMat(1, 1), 1)
+           || test_multiheadattention(RandomMat(1, 9), 1)
+           || test_multiheadattention(RandomMat(1, 20), 1)
+           || test_multiheadattention(RandomMat(1, 32), 1)
+           || test_multiheadattention(RandomMat(1, 44), 1)
+           || test_multiheadattention(RandomMat(1, 60), 1)
+           || test_multiheadattention(RandomMat(1, 127), 1)
+           || test_multiheadattention(RandomMat(1, 128), 1)
+           || test_multiheadattention(RandomMat(4, 1), 2)
+           || test_multiheadattention(RandomMat(4, 9), 2)
+           || test_multiheadattention(RandomMat(4, 20), 2)
+           || test_multiheadattention(RandomMat(4, 32), 2)
+           || test_multiheadattention(RandomMat(4, 44), 2)
+           || test_multiheadattention(RandomMat(4, 60), 2)
+           || test_multiheadattention(RandomMat(4, 127), 2)
+           || test_multiheadattention(RandomMat(4, 128), 2)
+           || test_multiheadattention(RandomMat(8, 128), 1)
+           || test_multiheadattention(RandomMat(8, 127), 1)
+           || test_multiheadattention(RandomMat(9, 128), 3)
+           || test_multiheadattention(RandomMat(9, 127), 3)
+           || test_multiheadattention(RandomMat(64, 20), 4)
+           || test_multiheadattention(RandomMat(64, 44), 4)
+           || test_multiheadattention(RandomMat(64, 60), 4)
+           || test_multiheadattention(RandomMat(64, 127), 4)
+           || test_multiheadattention(RandomMat(64, 128), 8)
+           || test_multiheadattention(RandomMat(64, 127), 8)
+           || test_multiheadattention(RandomMat(64, 256), 16)
+           || test_multiheadattention(RandomMat(64, 255), 16);
 }
 
 static int test_multiheadattention_1()
 {
     return 0
+           || test_multiheadattention_sameqkv(RandomMat(1, 1), 1)
+           || test_multiheadattention_sameqkv(RandomMat(1, 9), 1)
+           || test_multiheadattention_sameqkv(RandomMat(1, 20), 1)
+           || test_multiheadattention_sameqkv(RandomMat(1, 32), 1)
+           || test_multiheadattention_sameqkv(RandomMat(1, 44), 1)
+           || test_multiheadattention_sameqkv(RandomMat(1, 60), 1)
+           || test_multiheadattention_sameqkv(RandomMat(1, 127), 1)
+           || test_multiheadattention_sameqkv(RandomMat(1, 128), 1)
+           || test_multiheadattention_sameqkv(RandomMat(4, 1), 2)
+           || test_multiheadattention_sameqkv(RandomMat(4, 9), 2)
+           || test_multiheadattention_sameqkv(RandomMat(4, 20), 2)
+           || test_multiheadattention_sameqkv(RandomMat(4, 32), 2)
+           || test_multiheadattention_sameqkv(RandomMat(4, 44), 2)
+           || test_multiheadattention_sameqkv(RandomMat(4, 60), 2)
+           || test_multiheadattention_sameqkv(RandomMat(4, 127), 2)
+           || test_multiheadattention_sameqkv(RandomMat(4, 128), 2)
+           || test_multiheadattention_sameqkv(RandomMat(8, 128), 1)
+           || test_multiheadattention_sameqkv(RandomMat(8, 127), 1)
+           || test_multiheadattention_sameqkv(RandomMat(9, 128), 3)
+           || test_multiheadattention_sameqkv(RandomMat(9, 127), 3)
+           || test_multiheadattention_sameqkv(RandomMat(64, 20), 4)
+           || test_multiheadattention_sameqkv(RandomMat(64, 44), 4)
+           || test_multiheadattention_sameqkv(RandomMat(64, 60), 4)
+           || test_multiheadattention_sameqkv(RandomMat(64, 127), 4)
            || test_multiheadattention_sameqkv(RandomMat(64, 128), 8)
-           || test_multiheadattention_sameqkv(RandomMat(64, 127), 32);
+           || test_multiheadattention_sameqkv(RandomMat(64, 127), 8)
+           || test_multiheadattention_sameqkv(RandomMat(64, 256), 16)
+           || test_multiheadattention_sameqkv(RandomMat(64, 255), 16);
 }
 
 int main()

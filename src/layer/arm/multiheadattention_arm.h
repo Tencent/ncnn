@@ -25,6 +25,41 @@ public:
     MultiHeadAttention_arm();
 
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+
+    virtual int create_pipeline(const Option& opt);
+
+protected:
+#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    int create_pipeline_fp16s(const Option& opt);
+    int forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    int forward_fp16sa(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
+#if NCNN_BF16
+    int create_pipeline_bf16s(const Option& opt);
+    int forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+#endif
+
+public:
+
+    // fp16
+    Mat q_weight_data_fp16;
+    Mat q_bias_data_fp16;
+    Mat k_weight_data_fp16;
+    Mat k_bias_data_fp16;
+    Mat v_weight_data_fp16;
+    Mat v_bias_data_fp16;
+    Mat out_weight_data_fp16;
+    Mat out_bias_data_fp16;
+
+    // bf16
+    Mat q_weight_data_bf16;
+    Mat q_bias_data_bf16;
+    Mat k_weight_data_bf16;
+    Mat k_bias_data_bf16;
+    Mat v_weight_data_bf16;
+    Mat v_bias_data_bf16;
+    Mat out_weight_data_bf16;
+    Mat out_bias_data_bf16;
 };
 
 } // namespace ncnn
