@@ -159,6 +159,7 @@ ncnn_add_layer(DeformableConv2D)
 ncnn_add_layer(RelPositionalEncoding)
 ncnn_add_layer(MakePadMask)
 ncnn_add_layer(RelShift)
+ncnn_add_layer(GLU)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)

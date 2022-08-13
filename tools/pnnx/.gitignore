@@ -1,0 +1,6 @@
+*.pnnx.bin
+*.pnnx.param
+*.ncnn.bin
+*.ncnn.param
+*_pnnx.py
+*_ncnn.py

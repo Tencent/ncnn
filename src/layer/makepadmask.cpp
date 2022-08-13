@@ -16,7 +16,7 @@
 
 namespace ncnn {
 
-MakePadMask ::MakePadMask() {
+MakePadMask::MakePadMask() {
   one_blob_only = true;
   support_inplace = false;
 }
