@@ -100,6 +100,7 @@ set(pnnx_pass_level1_SRCS
 
     pass_level1/icefall_MakePadMask.cpp
     pass_level1/icefall_RelPositionalEncoding.cpp
+    pass_level1/icefall_RelShift.cpp
 )
 
 set(pnnx_pass_level2_SRCS
@@ -487,6 +488,7 @@ set(pnnx_pass_ncnn_SRCS
 
     pass_ncnn/icefall_RelPositionalEncoding.cpp
     pass_ncnn/icefall_MakePadMask.cpp
+    pass_ncnn/icefall_RelShift.cpp
 )
 
 set(pnnx_SRCS
