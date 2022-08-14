@@ -106,10 +106,7 @@ static int test_multiheadattention_0()
            || test_multiheadattention(RandomMat(64, 44), 4)
            || test_multiheadattention(RandomMat(64, 60), 4)
            || test_multiheadattention(RandomMat(64, 127), 4)
-           || test_multiheadattention(RandomMat(64, 128), 8)
-           || test_multiheadattention(RandomMat(64, 127), 8)
-           || test_multiheadattention(RandomMat(64, 256), 16)
-           || test_multiheadattention(RandomMat(64, 255), 16);
+           || test_multiheadattention(RandomMat(64, 128), 4);
 }
 
 static int test_multiheadattention_1()
@@ -139,10 +136,7 @@ static int test_multiheadattention_1()
            || test_multiheadattention_sameqkv(RandomMat(64, 44), 4)
            || test_multiheadattention_sameqkv(RandomMat(64, 60), 4)
            || test_multiheadattention_sameqkv(RandomMat(64, 127), 4)
-           || test_multiheadattention_sameqkv(RandomMat(64, 128), 8)
-           || test_multiheadattention_sameqkv(RandomMat(64, 127), 8)
-           || test_multiheadattention_sameqkv(RandomMat(64, 256), 16)
-           || test_multiheadattention_sameqkv(RandomMat(64, 255), 16);
+           || test_multiheadattention_sameqkv(RandomMat(64, 128), 4);
 }
 
 int main()
