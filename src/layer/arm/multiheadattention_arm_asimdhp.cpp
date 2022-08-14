@@ -357,7 +357,7 @@ int MultiHeadAttention_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, 
                         max = std::max(max, (float)(*ptr0));
                         ptr0++;
                     }
-                    
+
                     ptr0 = ptr;
                     float sum = 0.f;
                     j = 0;
@@ -495,7 +495,7 @@ int MultiHeadAttention_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, 
         Mat xqk(seqlen * elempack, seqlen, num_head, 16u, 4, opt.workspace_allocator);
 
         Mat xqkv(embed_dim_per_head, num_head, seqlen, 16u, 4, opt.workspace_allocator);
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; q++)
         {
@@ -595,7 +595,7 @@ int MultiHeadAttention_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, 
                         vst1q_f32(outptr, _sum);
                         outptr += 4;
                     }
-            
+
                     bptr++;
                     kptr0 += embed_dim;
                 }
@@ -738,7 +738,7 @@ int MultiHeadAttention_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, 
                 bptr++;
             }
         }
-        
+
         return 0;
     }
 
@@ -864,7 +864,7 @@ int MultiHeadAttention_arm::forward_fp16s(const std::vector<Mat>& bottom_blobs, 
                         vst1q_f32(outptr, _sum);
                         outptr += 4;
                     }
-            
+
                     bptr++;
                     kptr0 += embed_dim;
                 }
@@ -1249,7 +1249,7 @@ int MultiHeadAttention_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
                         max = std::max(max, *ptr0);
                         ptr0++;
                     }
-                    
+
                     ptr0 = ptr;
                     __fp16 sum = 0.f;
                     j = 0;
@@ -1387,7 +1387,7 @@ int MultiHeadAttention_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
         Mat xqk(4 * seqlen, seqlen, num_head, 8u, 4, opt.workspace_allocator);
 
         Mat xqkv(embed_dim_per_head, num_head, seqlen, 8u, 4, opt.workspace_allocator);
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; q++)
         {
@@ -1487,7 +1487,7 @@ int MultiHeadAttention_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
                         vst1_f16(outptr, _sum);
                         outptr += 4;
                     }
-            
+
                     bptr++;
                     kptr0 += embed_dim;
                 }
@@ -1630,7 +1630,7 @@ int MultiHeadAttention_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
                 bptr++;
             }
         }
-        
+
         return 0;
     }
 
@@ -1648,7 +1648,7 @@ int MultiHeadAttention_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
         Mat xqk(8 * seqlen, seqlen, num_head, 16u, 8, opt.workspace_allocator);
 
         Mat xqkv(embed_dim_per_head, num_head, seqlen, 16u, 8, opt.workspace_allocator);
-        
+
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; q++)
         {
@@ -1748,7 +1748,7 @@ int MultiHeadAttention_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
                         vst1q_f16(outptr, _sum);
                         outptr += 8;
                     }
-            
+
                     bptr++;
                     kptr0 += embed_dim;
                 }
@@ -1891,7 +1891,7 @@ int MultiHeadAttention_arm::forward_fp16sa(const std::vector<Mat>& bottom_blobs,
                 bptr++;
             }
         }
-        
+
         return 0;
     }
 
