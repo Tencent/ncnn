@@ -16,6 +16,7 @@
 #include <float.h>
 #include <math.h>
 #include "mathfun.h"
+#include <stdint.h>
 
 namespace ncnn {
 
