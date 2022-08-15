@@ -551,13 +551,12 @@ static NCNN_FORCEINLINE float mul_add_reduce_no_align(const float* a, const floa
 #elif __SSE2__
     align = (size >> 2) << 2;
     __m128 _sum = _mm_set1_ps(0.f);
-    for (int i = 0; i < align; i += 8)
+    for (int i = 0; i < align; i += 4)
     {
         __m128 val0 = _mm_loadu_ps(a + i);
         __m128 val1 = _mm_loadu_ps(b + i);
         _sum = _mm_add_ps(_sum, _mm_mul_ps(val0, val1));
     }
-
     sum += _mm_reduce_add_ps(_sum);
 
 #endif
