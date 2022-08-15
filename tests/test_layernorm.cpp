@@ -122,9 +122,8 @@ static int test_layernorm_4()
 {
     return 0
            || test_layernorm_int8(RandomMat(768, 197), 768, 0.0001f, 101)
-           || test_layernorm_int8(RandomMat(768, 127), 6, 0.01f, 101)
-           || test_layernorm_int8(RandomMat(6, 7), 6, 0.001f, 1)
-           || test_layernorm_int8(RandomMat(768, 127), 6, 0.01f, 1);
+           || test_layernorm_int8(RandomMat(127, 127), 127, 0.01f, 101)
+           || test_layernorm_int8(RandomMat(6, 7), 6, 0.001f, 1);
 }
 
 int main()
