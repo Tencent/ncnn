@@ -60,7 +60,10 @@ int LayerNorm::load_model(const ModelBin& mb)
 #ifdef NCNN_INT8
 static inline void get_MN(const float x, uint32_t& M, uint32_t& N)
 {
-    int bit = 7 - round(floor(log2(x)));
+#define LOG2 (0.693147180f)
+    // log2(x)  = log(x) / log(2)
+    int bit = 7 - round(floor(log(x) / LOG2));
+#undef LOG2
     bit = bit < 0 ? 0 : bit;
     bit = bit > 31 ? 31 : bit;
 
