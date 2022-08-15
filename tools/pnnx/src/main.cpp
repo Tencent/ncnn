@@ -323,7 +323,29 @@ int main(int argc, char** argv)
         input_tensors2.push_back(t);
     }
 
-    torch::jit::Module mod = torch::jit::load(ptpath);
+    torch::jit::Module mod;
+
+    try
+    {
+        mod = torch::jit::load(ptpath);
+    }
+    catch (const c10::Error& e)
+    {
+        fprintf(stderr, "Load torchscript failed: %s\n", e.what());
+
+        fprintf(stderr, "Please export model to torchscript as follows\n");
+        fprintf(stderr, "------------------------------------------\n");
+        fprintf(stderr, "import torch\n");
+        fprintf(stderr, "import torchvision.models as models\n\n");
+        fprintf(stderr, "net = models.resnet18(pretrained=True)\n");
+        fprintf(stderr, "net = net.eval()\n\n");
+        fprintf(stderr, "x = torch.rand(1, 3, 224, 224)\n");
+        fprintf(stderr, "mod = torch.jit.trace(net, x)\n");
+        fprintf(stderr, "mod.save(\"resnet18.pt\")\n");
+        fprintf(stderr, "------------------------------------------\n");
+
+        return -1;
+    }
 
     mod.eval();
 

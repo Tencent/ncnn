@@ -21,6 +21,7 @@
 #endif // __ARM_NEON
 
 #include "arm_activation.h"
+#include "arm_usability.h"
 
 #include "cpu.h"
 
@@ -893,14 +894,14 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                                     const unsigned short* sptr = m.row<const unsigned short>(sy) + sx * 4;
 
-                                    float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr));
+                                    float32x4_t _val = float2bfloat(vld1_u16(sptr));
 
                                     int k = y * kernel_w + x;
 
-                                    float32x4_t _w0 = vcvt_f32_bf16(vld1_u16(kptr + k * 16));
-                                    float32x4_t _w1 = vcvt_f32_bf16(vld1_u16(kptr + k * 16 + 4));
-                                    float32x4_t _w2 = vcvt_f32_bf16(vld1_u16(kptr + k * 16 + 8));
-                                    float32x4_t _w3 = vcvt_f32_bf16(vld1_u16(kptr + k * 16 + 12));
+                                    float32x4_t _w0 = float2bfloat(vld1_u16(kptr + k * 16));
+                                    float32x4_t _w1 = float2bfloat(vld1_u16(kptr + k * 16 + 4));
+                                    float32x4_t _w2 = float2bfloat(vld1_u16(kptr + k * 16 + 8));
+                                    float32x4_t _w3 = float2bfloat(vld1_u16(kptr + k * 16 + 12));
 
 #if __aarch64__
                                     _sum = vmlaq_laneq_f32(_sum, _w0, _val, 0);
@@ -921,7 +922,7 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                         _sum = activation_ps(_sum, activation_type, activation_params);
 
-                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
+                        vst1_u16(outptr + j * 4, bfloat2float(_sum));
                     }
 
                     outptr += outw * 4;
@@ -983,7 +984,7 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                                     int k = y * kernel_w + x;
 
-                                    float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr + k * 4));
+                                    float32x4_t _w = float2bfloat(vld1_u16(kptr + k * 4));
 
                                     _sum = vmlaq_f32(_sum, _val, _w);
                                 }
@@ -994,7 +995,7 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                         _sum = activation_ps(_sum, activation_type, activation_params);
 
-                        vst1_u16(outptr + j * 4, vcvt_bf16_f32(_sum));
+                        vst1_u16(outptr + j * 4, bfloat2float(_sum));
                     }
 
                     outptr += outw * 4;
@@ -1052,11 +1053,11 @@ int Deconvolution_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                                     const unsigned short* sptr = m.row<const unsigned short>(sy) + sx * 4;
 
-                                    float32x4_t _val = vcvt_f32_bf16(vld1_u16(sptr));
+                                    float32x4_t _val = float2bfloat(vld1_u16(sptr));
 
                                     int k = y * kernel_w + x;
 
-                                    float32x4_t _w = vcvt_f32_bf16(vld1_u16(kptr + k * 4));
+                                    float32x4_t _w = float2bfloat(vld1_u16(kptr + k * 4));
 
                                     float32x4_t _s4 = vmulq_f32(_val, _w);
 #if __aarch64__

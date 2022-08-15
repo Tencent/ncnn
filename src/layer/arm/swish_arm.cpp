@@ -21,6 +21,7 @@
 #include "neon_mathfun.h"
 #endif // __ARM_NEON
 
+#include "arm_usability.h"
 #include "cpu.h"
 
 namespace ncnn {
@@ -143,16 +144,16 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         {
             uint16x8_t _p01 = vld1q_u16(ptr);
             uint16x8_t _p23 = vld1q_u16(ptr + 8);
-            float32x4_t _p0 = vcvt_f32_bf16(vget_low_u16(_p01));
-            float32x4_t _p1 = vcvt_f32_bf16(vget_high_u16(_p01));
-            float32x4_t _p2 = vcvt_f32_bf16(vget_low_u16(_p23));
-            float32x4_t _p3 = vcvt_f32_bf16(vget_high_u16(_p23));
+            float32x4_t _p0 = float2bfloat(vget_low_u16(_p01));
+            float32x4_t _p1 = float2bfloat(vget_high_u16(_p01));
+            float32x4_t _p2 = float2bfloat(vget_low_u16(_p23));
+            float32x4_t _p3 = float2bfloat(vget_high_u16(_p23));
             _p0 = div_ps(_p0, vaddq_f32(_one, exp_ps(vnegq_f32(_p0))));
             _p1 = div_ps(_p1, vaddq_f32(_one, exp_ps(vnegq_f32(_p1))));
             _p2 = div_ps(_p2, vaddq_f32(_one, exp_ps(vnegq_f32(_p2))));
             _p3 = div_ps(_p3, vaddq_f32(_one, exp_ps(vnegq_f32(_p3))));
-            _p01 = vcombine_u16(vcvt_bf16_f32(_p0), vcvt_bf16_f32(_p1));
-            _p23 = vcombine_u16(vcvt_bf16_f32(_p2), vcvt_bf16_f32(_p3));
+            _p01 = vcombine_u16(bfloat2float(_p0), bfloat2float(_p1));
+            _p23 = vcombine_u16(bfloat2float(_p2), bfloat2float(_p3));
             vst1q_u16(ptr, _p01);
             vst1q_u16(ptr + 8, _p23);
             ptr += 16;
@@ -161,19 +162,19 @@ int Swish_arm::forward_inplace_bf16s(Mat& bottom_top_blob, const Option& opt) co
         for (; i + 7 < size; i += 8)
         {
             uint16x8_t _p = vld1q_u16(ptr);
-            float32x4_t _p0 = vcvt_f32_bf16(vget_low_u16(_p));
-            float32x4_t _p1 = vcvt_f32_bf16(vget_high_u16(_p));
+            float32x4_t _p0 = float2bfloat(vget_low_u16(_p));
+            float32x4_t _p1 = float2bfloat(vget_high_u16(_p));
             _p0 = div_ps(_p0, vaddq_f32(_one, exp_ps(vnegq_f32(_p0))));
             _p1 = div_ps(_p1, vaddq_f32(_one, exp_ps(vnegq_f32(_p1))));
-            _p = vcombine_u16(vcvt_bf16_f32(_p0), vcvt_bf16_f32(_p1));
+            _p = vcombine_u16(bfloat2float(_p0), bfloat2float(_p1));
             vst1q_u16(ptr, _p);
             ptr += 8;
         }
         for (; i + 3 < size; i += 4)
         {
-            float32x4_t _p = vcvt_f32_bf16(vld1_u16(ptr));
+            float32x4_t _p = float2bfloat(vld1_u16(ptr));
             _p = div_ps(_p, vaddq_f32(_one, exp_ps(vnegq_f32(_p))));
-            vst1_u16(ptr, vcvt_bf16_f32(_p));
+            vst1_u16(ptr, bfloat2float(_p));
             ptr += 4;
         }
 #endif // __ARM_NEON

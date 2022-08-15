@@ -181,6 +181,11 @@ int ConvolutionDepthWise3D::forward(const Mat& bottom_blob, Mat& top_blob, const
                 float* outptr = top_blob.channel(g * num_output_g + p);
                 const float* weight_data_ptr = (const float*)weight_data + maxk * channels_g * num_output_g * g;
 
+                // shadowed variable for less openmp task args
+                const int outw = top_blob.w;
+                const int outh = top_blob.h;
+                const int outd = top_blob.d;
+
                 for (int z = 0; z < outd; z++)
                 {
                     for (int i = 0; i < outh; i++)

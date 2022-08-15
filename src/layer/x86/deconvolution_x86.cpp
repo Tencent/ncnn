@@ -150,7 +150,6 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -310,6 +309,13 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             for (int p = 0; p < num_output; p++)
             {
                 float* outptr = top_blob_bordered.channel(p);
+
+                // shadowed variable for less openmp task args
+                const int w = bottom_blob.w;
+                const int h = bottom_blob.h;
+                const int channels = bottom_blob.c;
+                const int outw = top_blob_bordered.w;
+                const int outh = top_blob_bordered.h;
 
                 for (int i = 0; i < outh; i++)
                 {

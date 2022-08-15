@@ -78,7 +78,7 @@ static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const O
         {
             __m128 _v_fp32 = _mm_loadu_ps(ptr);
             __m128h _v_fp16 = _mm_cvtxps_ph(_v_fp32);
-            _mm_storeu_si128((__m128i*)outptr, (__m128i)_v_fp16);
+            _mm_storel_epi64((__m128i*)outptr, (__m128i)_v_fp16);
 
             ptr += 4;
             outptr += 4;
@@ -97,7 +97,7 @@ static void cast_fp32_to_fp16_sse(const Mat& bottom_blob, Mat& top_blob, const O
         {
             __m128 _v_fp32 = _mm_loadu_ps(ptr);
             __m128i _v_fp16 = _mm_cvtps_ph(_v_fp32, _MM_FROUND_TRUNC);
-            _mm_storeu_si128((__m128i*)outptr, _v_fp16);
+            _mm_storel_epi64((__m128i*)outptr, _v_fp16);
 
             ptr += 4;
             outptr += 4;
@@ -164,7 +164,7 @@ static void cast_fp16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128h _v_fp16 = (__m128h)_mm_loadu_si128((const __m128i*)ptr);
+            __m128h _v_fp16 = (__m128h)_mm_loadl_epi64((const __m128i*)ptr);
             __m128 _v_fp32 = _mm_cvtxph_ps(_v_fp16);
             _mm_storeu_ps(outptr, _v_fp32);
 
@@ -183,7 +183,7 @@ static void cast_fp16_to_fp32_sse(const Mat& bottom_blob, Mat& top_blob, const O
         }
         for (; i + 3 < size; i += 4)
         {
-            __m128i _v_fp16 = _mm_loadu_si128((const __m128i*)ptr);
+            __m128i _v_fp16 = _mm_loadl_epi64((const __m128i*)ptr);
             __m128 _v_fp32 = _mm_cvtph_ps(_v_fp16);
             _mm_storeu_ps(outptr, _v_fp32);
 

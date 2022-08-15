@@ -12,32 +12,50 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
+void innerproduct_pack4_fp16s_neon_asimdfhm(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+void innerproduct_fp16s_neon_asimdfhm(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+void innerproduct_transform_kernel_fp16s_neon_asimdfhm(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-void innerproduct_fp16s_pack4_neon_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+void innerproduct_pack4_fp16s_neon_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_fp16s_neon_asimdhp(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_transform_kernel_fp16s_neon_asimdhp(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
+#endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
-void innerproduct_fp16s_pack4_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !__aarch64__ && !(__ARM_FP & 2)
+void innerproduct_pack4_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_fp16s_neon_vfpv4(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt);
 void innerproduct_transform_kernel_fp16s_neon_vfpv4(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt);
 #endif
 
-static void innerproduct_fp16s_pack4_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
+static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (ncnn::cpu_support_arm_asimdhp())
+#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
+    if (ncnn::cpu_support_arm_asimdfhm())
     {
-        innerproduct_fp16s_pack4_neon_asimdhp(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
+        innerproduct_pack4_fp16s_neon_asimdfhm(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
         return;
     }
 #endif
 
-#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+#if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+    if (ncnn::cpu_support_arm_asimdhp())
+    {
+        innerproduct_pack4_fp16s_neon_asimdhp(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+#endif
+
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !__aarch64__ && !(__ARM_FP & 2)
     if (ncnn::cpu_support_arm_vfpv4())
     {
-        innerproduct_fp16s_pack4_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
+        innerproduct_pack4_fp16s_neon_vfpv4(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
         return;
     }
 #endif
@@ -74,7 +92,34 @@ static void innerproduct_fp16s_pack4_neon(const Mat& bottom_blob, Mat& top_blob,
         for (; i + 7 < num_input; i += 8)
         {
 #if __aarch64__
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC // __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
+#if __ARM_FEATURE_FP16_FML
+            asm volatile(
+                "prfm   pldl1keep, [%0, #128]       \n"
+                "ld1    {v0.8h}, [%0], #16          \n"
+                "prfm   pldl1keep, [%1, #512]       \n"
+                "ld1    {v2.8h, v3.8h, v4.8h, v5.8h}, [%1], #64 \n"
+                "fmlal  %2.4s, v2.4h, v0.h[0]       \n"
+                "fmlal2 %3.4s, v2.4h, v0.h[1]       \n"
+                "fmlal  %4.4s, v3.4h, v0.h[2]       \n"
+                "fmlal2 %5.4s, v3.4h, v0.h[3]       \n"
+                "fmlal  %2.4s, v4.4h, v0.h[4]       \n"
+                "fmlal2 %3.4s, v4.4h, v0.h[5]       \n"
+                "fmlal  %4.4s, v5.4h, v0.h[6]       \n"
+                "fmlal2 %5.4s, v5.4h, v0.h[7]       \n"
+                : "=r"(sptr),  // %0
+                "=r"(kptr),  // %1
+                "=w"(_sum0), // %2
+                "=w"(_sum1), // %3
+                "=w"(_sum2), // %4
+                "=w"(_sum3)  // %5
+                : "0"(sptr),
+                "1"(kptr),
+                "2"(_sum0),
+                "3"(_sum1),
+                "4"(_sum2),
+                "5"(_sum3)
+                : "cc", "memory", "v0", "v2", "v3", "v4", "v5");
+#elif __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             asm volatile(
                 "prfm   pldl1keep, [%0, #128]       \n"
                 "ld1    {v1.8h}, [%0], #16          \n"
@@ -186,6 +231,16 @@ static void innerproduct_fp16s_pack4_neon(const Mat& bottom_blob, Mat& top_blob,
         }
         for (; i + 3 < num_input; i += 4)
         {
+#if __ARM_FEATURE_FP16_FML
+            float16x4_t _val = vld1_f16(sptr);
+            float16x8_t _w01 = vld1q_f16(kptr);
+            float16x8_t _w23 = vld1q_f16(kptr + 8);
+
+            _sum0 = vfmlalq_lane_low_f16(_sum0, _w01, _val, 0);
+            _sum1 = vfmlalq_lane_high_f16(_sum1, _w01, _val, 1);
+            _sum2 = vfmlalq_lane_low_f16(_sum2, _w23, _val, 2);
+            _sum3 = vfmlalq_lane_high_f16(_sum3, _w23, _val, 3);
+#else // __ARM_FEATURE_FP16_FML
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             float32x4_t _val = vcvt_f32_f16(vld1_f16(sptr));
             float16x8_t _w01 = vld1q_f16(kptr);
@@ -215,6 +270,7 @@ static void innerproduct_fp16s_pack4_neon(const Mat& bottom_blob, Mat& top_blob,
             _sum2 = vmlaq_lane_f32(_sum2, _w2, vget_high_f32(_val), 0);
             _sum3 = vmlaq_lane_f32(_sum3, _w3, vget_high_f32(_val), 1);
 #endif
+#endif // __ARM_FEATURE_FP16_FML
 
             sptr += 4;
             kptr += 16;
@@ -260,12 +316,22 @@ static void innerproduct_fp16s_pack4_neon(const Mat& bottom_blob, Mat& top_blob,
 
 static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_fp16, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 {
+#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
+    if (ncnn::cpu_support_arm_asimdfhm())
+    {
+        innerproduct_fp16s_neon_asimdfhm(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
+        return;
+    }
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_asimdhp())
     {
         innerproduct_fp16s_neon_asimdhp(bottom_blob, top_blob, weight_data_fp16, bias_data, activation_type, activation_params, opt);
         return;
     }
+#endif
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
@@ -321,6 +387,21 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
         float32x4_t _sum3 = vdupq_n_f32(0.f);
         for (; i + 3 < num_input; i += 4)
         {
+#if __ARM_FEATURE_FP16_FML
+            float16x4_t _val = vld1_f16(sptr);
+            float16x4_t _w0 = vld1_f16(kptr0);
+            float16x4_t _w1 = vld1_f16(kptr1);
+            float16x4_t _w2 = vld1_f16(kptr2);
+            float16x4_t _w3 = vld1_f16(kptr3);
+            float16x8_t _w01 = vcombine_f16(_w0, _w1);
+            float16x8_t _w23 = vcombine_f16(_w2, _w3);
+            float16x8_t _valval = vcombine_f16(_val, _val);
+
+            _sum0 = vfmlalq_low_f16(_sum0, _w01, _valval);
+            _sum1 = vfmlalq_high_f16(_sum1, _w01, _valval);
+            _sum2 = vfmlalq_low_f16(_sum2, _w23, _valval);
+            _sum3 = vfmlalq_high_f16(_sum3, _w23, _valval);
+#else // __ARM_FEATURE_FP16_FML
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             float32x4_t _val = vcvt_f32_f16(vld1_f16(sptr));
             float32x4_t _w0 = vcvt_f32_f16(vld1_f16(kptr0));
@@ -339,6 +420,7 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
             _sum1 = vfmaq_f32(_sum1, _val, _w1);
             _sum2 = vfmaq_f32(_sum2, _val, _w2);
             _sum3 = vfmaq_f32(_sum3, _val, _w3);
+#endif // __ARM_FEATURE_FP16_FML
 
             sptr += 4;
             kptr0 += 4;
@@ -474,12 +556,22 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
 
 static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
 {
+#if !(__ARM_FEATURE_FP16_FML || __ARM_FEATURE_FP16_VECTOR_ARITHMETIC)
+#if NCNN_RUNTIME_CPU && NCNN_ARM82FP16FML && __aarch64__ && !__ARM_FEATURE_FP16_FML
+    if (ncnn::cpu_support_arm_asimdfhm())
+    {
+        innerproduct_transform_kernel_fp16s_neon_asimdfhm(weight_data, weight_data_tm, num_input, num_output, opt);
+        return;
+    }
+#endif
+
 #if NCNN_RUNTIME_CPU && NCNN_ARM82 && __aarch64__ && !__ARM_FEATURE_FP16_VECTOR_ARITHMETIC
     if (ncnn::cpu_support_arm_asimdhp())
     {
         innerproduct_transform_kernel_fp16s_neon_asimdhp(weight_data, weight_data_tm, num_input, num_output, opt);
         return;
     }
+#endif
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
