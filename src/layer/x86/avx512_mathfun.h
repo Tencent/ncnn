@@ -182,6 +182,19 @@ static NCNN_FORCEINLINE __m512 exp512_ps(__m512 x)
     return y;
 }
 
+static NCNN_FORCEINLINE __m512 tanh512_ps(__m512 x)
+{
+    __m512 _ex_pos = exp512_ps(x);
+    // __m512 _ex_neg = _mm512_div_ps(_mm512_set1_ps(1.f), _ex_pos);
+    __m512 _ex_neg = _mm512_div_ps(*(__m512*)_ps512_1, _ex_pos);
+
+    __m512 _up = _mm512_sub_ps(_ex_pos, _ex_neg);
+    __m512 _down = _mm512_add_ps(_ex_pos, _ex_neg);
+
+    __m512 _res = _mm512_div_ps(_up, _down);
+    return _res;
+}
+
 _PS512_CONST(minus_cephes_DP1, -0.78515625f);
 _PS512_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS512_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);

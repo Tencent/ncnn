@@ -295,6 +295,18 @@ static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
     return y;
 }
 
+static NCNN_FORCEINLINE __m256 tanh256_ps(__m256 x)
+{
+    __m256 _ex_pos = exp256_ps(x);
+    __m256 _ex_neg = _mm256_div_ps(_mm256_set1_ps(1.f), _ex_pos);
+
+    __m256 _up = _mm256_sub_ps(_ex_pos, _ex_neg);
+    __m256 _down = _mm256_add_ps(_ex_pos, _ex_neg);
+
+    __m256 _res = _mm256_div_ps(_up, _down);
+    return _res;
+}
+
 _PS256_CONST(minus_cephes_DP1, -0.78515625f);
 _PS256_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS256_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);

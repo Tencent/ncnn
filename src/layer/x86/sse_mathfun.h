@@ -286,6 +286,18 @@ static NCNN_FORCEINLINE v4sf exp_ps(v4sf x)
     return y;
 }
 
+static NCNN_FORCEINLINE v4sf tanh_ps(v4sf x)
+{
+    v4sf _ex_pos = exp_ps(x);
+    v4sf _ex_neg = _mm_div_ps(_mm_set1_ps(1.f), _ex_pos);
+
+    v4sf _up = _mm_sub_ps(_ex_pos, _ex_neg);
+    v4sf _down = _mm_add_ps(_ex_pos, _ex_neg);
+
+    v4sf _res = _mm_div_ps(_up, _down);
+    return _res;
+}
+
 _PS_CONST(minus_cephes_DP1, -0.78515625f);
 _PS_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);
