@@ -51,8 +51,6 @@ jobs:
         mkdir build-sse2 && cd build-sse2
         cmake -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
-    - name: Setup Debug Session
-      uses: csexton/debugger-action@master
     - name: test-sse2
       run: cd build-sse2 && ctest --output-on-failure -j 2
     - name: build-shared

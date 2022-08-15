@@ -118,10 +118,10 @@ static int test_multiheadattention_int8(const ncnn::Mat& a, int num_heads)
     weights[9] = RandomMat(1, 1.f, 10.f);
     weights[10] = RandomMat(1, 1.f, 10.f);
 
-    weights[11] = RandomMat(embed_dim, 1.f, 10.f);
-    weights[12] = RandomMat(embed_dim, 1.f, 10.f);
-    weights[13] = RandomMat(embed_dim, 1.f, 10.f);
-    weights[14] = RandomMat(embed_dim, 1.f, 10.f);
+    weights[11] = scales_mat(weights[0], embed_dim, embed_dim, embed_dim);
+    weights[12] = scales_mat(weights[2], embed_dim, embed_dim, embed_dim);
+    weights[13] = scales_mat(weights[4], embed_dim, embed_dim, embed_dim);
+    weights[14] = scales_mat(weights[6], embed_dim, embed_dim, embed_dim);
 
     weights[15] = RandomMat(5, 1.f, 10.f);
 
