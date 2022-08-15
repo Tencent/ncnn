@@ -30,4 +30,3 @@ public:
 } // namespace ncnn
 
 #endif // LAYER_GELU_X86_H
-

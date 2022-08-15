@@ -26,7 +26,6 @@
 #endif // __AVX__
 #endif // __SSE2__
 
-
 namespace ncnn {
 
 GELU_x86::GELU_x86()
