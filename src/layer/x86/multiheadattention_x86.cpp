@@ -55,14 +55,6 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
 #endif
 
     // for fp32 inference, const fold inv_sqrt_embed_dim_per_head into `q_w` and `q_bias`
-#if 0
-    // FIXME!
-    float scale_vals[1] = {inv_sqrt_embed_dim_per_head};
-    q_weight_fold_data = q_weight_data.clone();
-    q_weight_fold_data.substract_mean_normalize(0, scale_vals);
-    q_bias_fold_data = q_bias_data.clone();
-    q_bias_fold_data.substract_mean_normalize(0, scale_vals);
-#else
     q_weight_fold_data = q_weight_data.clone();
     for (int i = 0; i < q_weight_fold_data.w; ++i)
     {
@@ -73,7 +65,6 @@ int MultiHeadAttention_x86::create_pipeline(const Option& opt)
     {
         q_bias_fold_data[i] *= inv_sqrt_embed_dim_per_head;
     }
-#endif
 
     if (opt.lightmode)
     {
