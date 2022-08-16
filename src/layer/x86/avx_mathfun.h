@@ -295,16 +295,46 @@ static NCNN_FORCEINLINE __m256 exp256_ps(__m256 x)
     return y;
 }
 
-static NCNN_FORCEINLINE __m256 tanh256_ps(__m256 x)
+_PS256_CONST(tanh_hi, 9.0f);
+_PS256_CONST(tanh_lo, -9.0f);
+
+_PS256_CONST(cephes_tanh_p0, -2.76076847742355E-16f);
+_PS256_CONST(cephes_tanh_p1, 2.00018790482477E-13f);
+_PS256_CONST(cephes_tanh_p2, -8.60467152213735E-11f);
+_PS256_CONST(cephes_tanh_p3, 5.12229709037114E-08f);
+_PS256_CONST(cephes_tanh_p4, 1.48572235717979E-05f);
+_PS256_CONST(cephes_tanh_p5, 6.37261928875436E-04f);
+_PS256_CONST(cephes_tanh_p6, 4.89352455891786E-03f);
+
+_PS256_CONST(cephes_tanh_p7, 1.19825839466702e-06f);
+_PS256_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
+_PS256_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
+
+// an approximation of tanh
+static inline __m256 tanh256_ps(const __m256 x)
 {
-    __m256 _ex_pos = exp256_ps(x);
-    __m256 _ex_neg = _mm256_div_ps(_mm256_set1_ps(1.f), _ex_pos);
+    __m256 value = x;
+    value = _mm256_max_ps(*(__m256*)_ps256_tanh_lo, value);
+    value = _mm256_min_ps(*(__m256*)_ps256_tanh_hi, value);
 
-    __m256 _up = _mm256_sub_ps(_ex_pos, _ex_neg);
-    __m256 _down = _mm256_add_ps(_ex_pos, _ex_neg);
+    __m256 value_squared = _mm256_mul_ps(value, value);
 
-    __m256 _res = _mm256_div_ps(_up, _down);
-    return _res;
+    __m256 p;
+    p = _mm256_comp_fmadd_ps(value_squared, *(__m256*)_ps256_cephes_tanh_p0 , *(__m256*)_ps256_cephes_tanh_p1);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p2);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p3);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p4);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p5);
+    p = _mm256_comp_fmadd_ps(p, value_squared, *(__m256*)_ps256_cephes_tanh_p6);
+    p = _mm256_mul_ps(p, value);
+
+    __m256 q;
+    q = _mm256_comp_fmadd_ps(value_squared, *(__m256*)_ps256_cephes_tanh_p7, *(__m256*)_ps256_cephes_tanh_p8);
+    q = _mm256_comp_fmadd_ps(q, value_squared, *(__m256*)_ps256_cephes_tanh_p9);
+    q = _mm256_comp_fmadd_ps(q, value_squared, *(__m256*)_ps256_cephes_tanh_p6);
+
+    __m256 dst = _mm256_div_ps(p, q);
+    return dst;
 }
 
 _PS256_CONST(minus_cephes_DP1, -0.78515625f);

@@ -286,16 +286,45 @@ static NCNN_FORCEINLINE v4sf exp_ps(v4sf x)
     return y;
 }
 
-static NCNN_FORCEINLINE v4sf tanh_ps(v4sf x)
+_PS_CONST(tanh_hi, 9.0f);
+_PS_CONST(tanh_lo, -9.0f);
+
+_PS_CONST(cephes_tanh_p0, -2.76076847742355E-16f);
+_PS_CONST(cephes_tanh_p1, 2.00018790482477E-13f);
+_PS_CONST(cephes_tanh_p2, -8.60467152213735E-11f);
+_PS_CONST(cephes_tanh_p3, 5.12229709037114E-08f);
+_PS_CONST(cephes_tanh_p4, 1.48572235717979E-05f);
+_PS_CONST(cephes_tanh_p5, 6.37261928875436E-04f);
+_PS_CONST(cephes_tanh_p6, 4.89352455891786E-03f);
+_PS_CONST(cephes_tanh_p7, 1.19825839466702e-06f);
+_PS_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
+_PS_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
+
+// an approximation of tanh
+static inline v4sf tanh_ps(const v4sf x)
 {
-    v4sf _ex_pos = exp_ps(x);
-    v4sf _ex_neg = _mm_div_ps(_mm_set1_ps(1.f), _ex_pos);
+    v4sf value = x;
+    value = _mm_max_ps(*(v4sf*)_ps_tanh_lo, value);
+    value = _mm_min_ps(*(v4sf*)_ps_tanh_hi, value);
 
-    v4sf _up = _mm_sub_ps(_ex_pos, _ex_neg);
-    v4sf _down = _mm_add_ps(_ex_pos, _ex_neg);
+    v4sf value_squared = _mm_mul_ps(value, value);
 
-    v4sf _res = _mm_div_ps(_up, _down);
-    return _res;
+    v4sf p;
+    p = _mm_comp_fmadd_ps(value_squared, *(v4sf*)_ps_cephes_tanh_p0 , *(v4sf*)_ps_cephes_tanh_p1);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p2);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p3);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p4);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p5);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p6);
+    p = _mm_mul_ps(p, value);
+
+    v4sf q;
+    q = _mm_comp_fmadd_ps(value_squared, *(v4sf*)_ps_cephes_tanh_p7, *(v4sf*)_ps_cephes_tanh_p8);
+    q = _mm_comp_fmadd_ps(q, value_squared, *(v4sf*)_ps_cephes_tanh_p9);
+    q = _mm_comp_fmadd_ps(q, value_squared, *(v4sf*)_ps_cephes_tanh_p6);
+
+    v4sf dst = _mm_div_ps(p, q);
+    return dst;
 }
 
 _PS_CONST(minus_cephes_DP1, -0.78515625f);
