@@ -143,17 +143,30 @@ void* PoolAllocator::fastMalloc(size_t size)
 
             return ptr;
         }
+    }
 
+    bool flag = false;
+    size_t extra_miss = 0;
+    for (it = d->budgets.begin(); it != d->budgets.end();)
+    {
         d->total_miss++;
         it->miss++;
 
-        // Remove 1 aging chunk every 5 rounds in average.
-        if (rand() % std::max(10UL, d->total_miss) + 1 >= it->miss * 5)
+        if (!flag && rand() % d->total_miss <= it->miss * 2)
         {
+            flag = true;
             ncnn::fastFree(it->ptr);
-            d->budgets.erase(it);
-            d->total_miss -= it->miss;
+            extra_miss += it->miss;
+            it = d->budgets.erase(it);
         }
+        else
+        {
+            it++;
+        }
+    }
+    if (flag)
+    {
+        d->total_miss -= extra_miss;
     }
 
     d->budgets_lock.unlock();
