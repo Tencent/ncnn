@@ -310,7 +310,7 @@ static inline v4sf tanh_ps(const v4sf x)
     v4sf value_squared = _mm_mul_ps(value, value);
 
     v4sf p;
-    p = _mm_comp_fmadd_ps(value_squared, *(v4sf*)_ps_cephes_tanh_p0 , *(v4sf*)_ps_cephes_tanh_p1);
+    p = _mm_comp_fmadd_ps(value_squared, *(v4sf*)_ps_cephes_tanh_p0, *(v4sf*)_ps_cephes_tanh_p1);
     p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p2);
     p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p3);
     p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p4);

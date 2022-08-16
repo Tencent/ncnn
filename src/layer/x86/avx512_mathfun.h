@@ -207,7 +207,7 @@ static inline __m512 tanh512_ps(const __m512 x)
     __m512 value_squared = _mm512_mul_ps(value, value);
 
     __m512 p;
-    p = _mm512_fmadd_ps(value_squared, *(__m512*)_ps512_cephes_tanh_p0 , *(__m512*)_ps512_cephes_tanh_p1);
+    p = _mm512_fmadd_ps(value_squared, *(__m512*)_ps512_cephes_tanh_p0, *(__m512*)_ps512_cephes_tanh_p1);
     p = _mm512_fmadd_ps(p, value_squared, *(__m512*)_ps512_cephes_tanh_p2);
     p = _mm512_fmadd_ps(p, value_squared, *(__m512*)_ps512_cephes_tanh_p3);
     p = _mm512_fmadd_ps(p, value_squared, *(__m512*)_ps512_cephes_tanh_p4);
