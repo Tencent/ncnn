@@ -61,17 +61,16 @@ static void qsort_descent_inplace(std::vector<Object>& objects, int left, int ri
         }
     }
 
-    #pragma omp parallel sections
-    {
-        #pragma omp section
+   
+        #pragma omp task
         {
             if (left < j) qsort_descent_inplace(objects, left, j);
         }
-        #pragma omp section
+        #pragma omp task
         {
             if (i < right) qsort_descent_inplace(objects, i, right);
         }
-    }
+   
 }
 
 static void qsort_descent_inplace(std::vector<Object>& objects)
