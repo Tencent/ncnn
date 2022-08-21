@@ -61,16 +61,17 @@ static void qsort_descent_inplace(std::vector<Object>& objects, int left, int ri
         }
     }
 
-   
-        #pragma omp task
+   #pragma omp taskq
+   {
+        #pragma omp task shared(faceobjects)
         {
             if (left < j) qsort_descent_inplace(objects, left, j);
         }
-        #pragma omp task
+        #pragma omp task shared(faceobjects)
         {
             if (i < right) qsort_descent_inplace(objects, i, right);
         }
-   
+   }
 }
 
 static void qsort_descent_inplace(std::vector<Object>& objects)
