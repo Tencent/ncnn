@@ -72,14 +72,11 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __aarch64__
             _sum = vpaddq_f32(_sum, _sum);
             _sum = vpaddq_f32(_sum, _sum);
-            float32x4_t _reciprocal_sum = vdivq_f32(vdupq_n_f32(1.f), _sum);
 #else
             _sum = vaddq_f32(_sum, vrev64q_f32(_sum));
             _sum = vaddq_f32(_sum, vextq_f32(_sum, _sum, 2));
-            float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
 #endif
-            
-            float32x4_t _sum
+            float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
             for (int i = 0; i < w; i++)
             {
                 float32x4_t _p = vld1q_f32(ptr + i * 4);
@@ -150,8 +147,8 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 for (int j = 0; j < w; j++)
                 {
                     float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _reciprocal_sum = vdupq_n_f32(1.f / sum[j]);
-                    _p = vmulq_f32(_p, _reciprocal_sum);
+                    float32x4_t _sum = vdupq_n_f32(sum[j]);
+                    _p = div_ps(_p, _sum);
                     vst1q_f32(ptr, _p);
                     ptr += 4;
                 }
@@ -183,11 +180,8 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     vst1q_f32(ptr + j * 4, _p);
                     _sum = vaddq_f32(_sum, _p);
                 }
-#if __aarch64__
-                float32x4_t _reciprocal_sum = vdivq_f32(vdupq_n_f32(1.f), _sum);
-#else
+
                 float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
-#endif
                 for (int j = 0; j < w; j++)
                 {
                     float32x4_t _p = vld1q_f32(ptr + j * 4);
@@ -263,8 +257,8 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 for (int i = 0; i < size; i++)
                 {
                     float32x4_t _p = vld1q_f32(ptr);
-                    float32x4_t _reciprocal_sum = vdupq_n_f32(1.f / sum[i]);
-                    _p = vmulq_f32(_p, _reciprocal_sum);
+                    float32x4_t _sum = vdupq_n_f32(sum[i]);
+                    _p = div_ps(_p, _sum);
                     vst1q_f32(ptr, _p);
                     ptr += 4;
                 }
@@ -347,11 +341,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     {
                         float32x4_t _p = vld1q_f32(ptr);
                         float32x4_t _sum = vld1q_f32(sumptr);
-#if __aarch64__
-                        _p = vdivq_f32(_p, _sum);
-#else
                         _p = div_ps(_p, _sum);
-#endif
                         vst1q_f32(ptr, _p);
                         ptr += 4;
                         sumptr += 4;
@@ -388,11 +378,8 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                         vst1q_f32(ptr + j * 4, _p);
                         _sum = vaddq_f32(_sum, _p);
                     }
-#if __aarch64__
-                float32x4_t _reciprocal_sum = vdivq_f32(vdupq_n_f32(1.f), _sum);
-#else
-                float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
-#endif
+
+                    float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
                     for (int j = 0; j < w; j++)
                     {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
@@ -471,11 +458,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int i = 0;
 #if __ARM_NEON
             float32x4_t _sum = vdupq_n_f32(sum);
-#if __aarch64__
-                float32x4_t _reciprocal_sum = vdivq_f32(vdupq_n_f32(1.f), _sum);
-#else
-                float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
-#endif
+            float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
             for (; i + 3 < w; i += 4)
             {
                 float32x4_t _p = vld1q_f32(ptr + i);
@@ -579,11 +562,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 float32x4_t _p = vld1q_f32(ptr);
                 float32x4_t _sum = vld1q_f32(psum);
-#if __aarch64__
-                _p = vdivq_f32(_p, _sum);
-#else
                 _p = div_ps(_p, _sum);
-#endif
                 vst1q_f32(ptr, _p);
 
                 ptr += 4;
@@ -666,15 +645,11 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int j = 0;
 #if __ARM_NEON
                 float32x4_t _sum = vdupq_n_f32(sum);
-#if __aarch64__
-                float32x4_t _reciprocal_sum = vdivq_f32(vdupq_n_f32(1.f), _sum);
-#else
                 float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
-#endif
                 for (; j + 3 < w; j += 4)
                 {
                     float32x4_t _p = vld1q_f32(ptr + j);
-                    _p = vmul_f32(_p, _reciprocal_sum);
+                    _p = vmulq_f32(_p, _reciprocal_sum);
                     vst1q_f32(ptr + j, _p);
                 }
 #endif // __ARM_NEON
@@ -783,11 +758,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             {
                 float32x4_t _p = vld1q_f32(ptr);
                 float32x4_t _sum = vld1q_f32(sumptr);
-#if __aarch64__
-                _p = vdivq_f32(_p, _sum);
-#else
                 _p = div_ps(_p, _sum);
-#endif // __aarch64__
                 vst1q_f32(ptr, _p);
 
                 ptr += 4;
@@ -895,11 +866,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 {
                     float32x4_t _p = vld1q_f32(ptr + j);
                     float32x4_t _sum = vld1q_f32(sumptr + j);
-#if __aarch64__
-                    _p = vdivq_f32(_p, _sum);
-#else
                     _p = div_ps(_p, _sum);
-#endif
                     vst1q_f32(ptr + j, _p);
                 }
 #endif // __ARM_NEON
@@ -982,11 +949,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     int j = 0;
 #if __ARM_NEON
                     float32x4_t _sum = vdupq_n_f32(sum);
-#if __aarch64__
-                float32x4_t _reciprocal_sum = vdivq_f32(vdupq_n_f32(1.f), _sum);
-#else
-                float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
-#endif
+                    float32x4_t _reciprocal_sum = div_ps(vdupq_n_f32(1.f), _sum);
                     for (; j + 3 < w; j += 4)
                     {
                         float32x4_t _p = vld1q_f32(ptr + j);
