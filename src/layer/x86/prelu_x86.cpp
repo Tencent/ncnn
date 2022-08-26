@@ -129,7 +129,6 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     ptr[j] *= slope;
             }
         }
-
     }
     if (dims == 2)
     {
@@ -239,4 +238,3 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 } // namespace ncnn
-
