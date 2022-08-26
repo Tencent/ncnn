@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -69,9 +69,9 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (int j = i; j < size - 3; j += 4)
             {
                 float* ptr = (float*)bottom_top_blob + j;
-                __m128 _p128 = _mm_loadu_ps(ptr);
-                __m128 _slope128 = _mm_loadu_ps(slope + j);
-                _mm_storeu_ps(ptr, prelu_sse(_p128, _slope128));
+                __m128 _p128 = _mm_load_ps(ptr);
+                __m128 _slope128 = _mm_load_ps(slope + j);
+                _mm_store_ps(ptr, prelu_sse(_p128, _slope128));
             }
             i = size / 4 * 4;
 #endif // __SSE2__
@@ -115,8 +115,8 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             for (int j = i; j < size - 3; j += 4)
             {
                 float* ptr = (float*)bottom_top_blob + j;
-                __m128 _p128 = _mm_loadu_ps(ptr);
-                _mm_storeu_ps(ptr, prelu_sse(_p128, _slope128));
+                __m128 _p128 = _mm_load_ps(ptr);
+                _mm_store_ps(ptr, prelu_sse(_p128, _slope128));
             }
             i = size / 4 * 4;
 #endif // __SSE2__
@@ -130,12 +130,6 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             }
         }
 
-#if __SSE2__
-#if __AVX__
-#if __AVX512F__
-#endif // __AVX512F__
-#endif // __AVX__
-#endif // __SSE2__
     }
     if (dims == 2)
     {
@@ -149,7 +143,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             float slope = num_slope > 1 ? slope_data[i] : slope_data[0];
 #if __SSE2__
-            __m128 _slope128 = num_slope > 1 && (elempack == 4) ? _mm_loadu_ps((const float*)slope_data + i * 4) : _mm_set1_ps(slope);
+            __m128 _slope128 = num_slope > 1 && (elempack == 4) ? _mm_load_ps((const float*)slope_data + i * 4) : _mm_set1_ps(slope);
 #if __AVX__
             __m256 _slope256 = num_slope > 1 && (elempack == 8) ? _mm256_loadu_ps((const float*)slope_data + i * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_slope128), _slope128, 1);
 #if __AVX512F__
@@ -201,7 +195,7 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int i = 0;
             float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
 #if __SSE2__
-            __m128 _slope128 = num_slope > 1 && (elempack == 4) ? _mm_loadu_ps((const float*)slope_data + q * 4) : _mm_set1_ps(slope);
+            __m128 _slope128 = num_slope > 1 && (elempack == 4) ? _mm_load_ps((const float*)slope_data + q * 4) : _mm_set1_ps(slope);
 #if __AVX__
             __m256 _slope256 = num_slope > 1 && (elempack == 8) ? _mm256_loadu_ps((const float*)slope_data + q * 8) : _mm256_insertf128_ps(_mm256_castps128_ps256(_slope128), _slope128, 1);
 #if __AVX512F__
@@ -224,8 +218,8 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #endif // __AVX__
             for (; i + 3 < size; i += 4)
             {
-                __m128 _p128 = _mm_loadu_ps(ptr);
-                _mm_storeu_ps(ptr, prelu_sse(_p128, _slope128));
+                __m128 _p128 = _mm_load_ps(ptr);
+                _mm_store_ps(ptr, prelu_sse(_p128, _slope128));
 
                 ptr += 4;
             }
@@ -245,3 +239,4 @@ int PReLU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 }
 
 } // namespace ncnn
+
