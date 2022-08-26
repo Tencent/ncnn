@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -41,12 +41,9 @@ int ELU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int i = 0;
 
 #if __SSE2__
-        __m128 _alpha128 = _mm_set1_ps(alpha);
 #if __AVX__
-        __m256 _alpha256 = _mm256_set1_ps(alpha);
 #if __AVX512F__
         __m512 _alpha512 = _mm512_set1_ps(alpha);
-
         for (; i + 15 < size; i += 16)
         {
             __m512 _p = _mm512_loadu_ps(ptr);
@@ -55,6 +52,7 @@ int ELU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 16;
         }
 #endif // __AVX512F__
+        __m256 _alpha256 = _mm256_set1_ps(alpha);
         for (; i + 7 < size; i += 8)
         {
             __m256 _p = _mm256_loadu_ps(ptr);
@@ -63,10 +61,11 @@ int ELU_x86::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             ptr += 8;
         }
 #endif // __AVX__
+        __m128 _alpha128 = _mm_set1_ps(alpha);
         for (; i + 3 < size; i += 4)
         {
-            __m128 _p = _mm_loadu_ps(ptr);
-            _mm_storeu_ps(ptr, elu_sse(_p, _alpha128));
+            __m128 _p = _mm_load_ps(ptr);
+            _mm_store_ps(ptr, elu_sse(_p, _alpha128));
 
             ptr += 4;
         }
