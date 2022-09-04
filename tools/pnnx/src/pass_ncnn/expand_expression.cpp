@@ -119,7 +119,7 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             // not supported
             return std::string();
         }
-        else if (t == "sqrt" || t == "rsqrt" || t == "neg")
+        else if (t == "sqrt" || t == "rsqrt" || t == "neg" || t == "floor" || t == "exp")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -132,6 +132,8 @@ static std::string expand_expression(Graph& graph, const Operator* op, int& pnnx
             if (t == "sqrt") op_unary->params["0"] = 5;
             if (t == "rsqrt") op_unary->params["0"] = 6;
             if (t == "neg") op_unary->params["0"] = 1;
+            if (t == "floor") op_unary->params["0"] = 2;
+            if (t == "exp") op_unary->params["0"] = 7;
 
             Operand* op_unary_in = token_is_argument(a) ? op->inputs[std::stoi(a.substr(1))] : graph.get_operand(op->name + "_" + a);
             op_unary_in->consumers.push_back(op_unary);

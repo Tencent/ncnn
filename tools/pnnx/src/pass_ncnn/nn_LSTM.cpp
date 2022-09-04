@@ -27,7 +27,7 @@ public:
         return R"PNNXIR(7767517
 3 4
 pnnx.Input              input       0 1 input
-nn.LSTM                 op_0        1 3 input out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+nn.LSTM                 op_0        1 3 input out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size  @weight_ih_l0 @weight_hh_l0 @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
 pnnx.Output             output      3 0 out out_hidden out_cell
 )PNNXIR";
     }
@@ -48,12 +48,16 @@ pnnx.Output             output      3 0 out out_hidden out_cell
         const int num_directions = bidirectional ? 2 : 1;
         const int num_output = captured_params.at("hidden_size").i;
         const int input_size = captured_params.at("input_size").i;
+        const int proj_size = captured_params.at("proj_size").i;
+
+        const int real_output_size = proj_size ? proj_size : num_output;
 
         int weight_data_size = num_directions * num_output * input_size * 4;
 
         op->params["0"] = num_output;
         op->params["1"] = weight_data_size;
         op->params["2"] = bidirectional ? 2 : 0;
+        op->params["3"] = proj_size;
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
@@ -219,7 +223,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
         {
             std::vector<float> new_weight_hh;
             {
-                const int weight_data_size_g = num_output * num_output;
+                const int weight_data_size_g = num_output * real_output_size;
 
                 const float* weight_hh = (const float*)captured_attrs.at("op_0.weight_hh_l0").data.data();
                 const float* iptr = weight_hh;
@@ -227,7 +231,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 const float* gptr = weight_hh + weight_data_size_g * 2;
                 const float* optr = weight_hh + weight_data_size_g * 3;
 
-                new_weight_hh.resize(4 * num_output * num_output);
+                new_weight_hh.resize(4 * weight_data_size_g);
                 float* weight = (float*)new_weight_hh.data();
                 float* w_iptr = weight;
                 float* w_fptr = weight + weight_data_size_g;
@@ -243,7 +247,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             {
                 std::vector<float> new_weight_hh_reverse;
                 {
-                    const int weight_data_size_g = num_output * num_output;
+                    const int weight_data_size_g = num_output * real_output_size;
 
                     const float* weight_hh = (const float*)captured_attrs.at("op_0.weight_hh_l0_reverse").data.data();
                     const float* iptr = weight_hh;
@@ -251,7 +255,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     const float* gptr = weight_hh + weight_data_size_g * 2;
                     const float* optr = weight_hh + weight_data_size_g * 3;
 
-                    new_weight_hh_reverse.resize(4 * num_output * num_output);
+                    new_weight_hh_reverse.resize(4 * weight_data_size_g);
                     float* weight = (float*)new_weight_hh_reverse.data();
                     float* w_iptr = weight;
                     float* w_fptr = weight + weight_data_size_g;
@@ -262,13 +266,30 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                     memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
                 }
-                op->attrs["5"] = Attribute({4, num_output, num_output}, new_weight_hh) + Attribute({4, num_output, num_output}, new_weight_hh_reverse);
+                op->attrs["5"] = Attribute({4, num_output, real_output_size}, new_weight_hh) + Attribute({4, num_output, real_output_size}, new_weight_hh_reverse);
             }
             else
             {
-                op->attrs["5"] = Attribute({4, num_output, num_output}, new_weight_hh);
+                op->attrs["5"] = Attribute({4, num_output, real_output_size}, new_weight_hh);
             }
         }
+
+        if (proj_size) {
+          op->attrs["6"] = Attribute();
+          op->attrs["6"].data = {0, 0, 0, 0};
+          const float* weight_hr = (const float*)captured_attrs.at("op_0.weight_hr_l0").data.data();
+
+          const int weight_data_size_g = proj_size * num_output;
+          std::vector<float> new_weight_hr(weight_hr, weight_hr + weight_data_size_g);
+          op->attrs["7"] = Attribute({proj_size, num_output}, new_weight_hr);
+
+          if (bidirectional) {
+            fprintf(stderr, "Not implemented yet for bi-LSTM with proj_size > 0!\n");
+            exit(-1);
+          }
+
+        }
+
     }
 };
 
@@ -284,7 +305,7 @@ public:
 pnnx.Input              input       0 1 input
 pnnx.Input              in_hidden   0 1 in_hidden
 pnnx.Input              in_hidden   0 1 in_cell
-nn.LSTM                 op_0        3 3 input in_hidden in_cell out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+nn.LSTM                 op_0        3 3 input in_hidden in_cell out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size @weight_ih_l0 @weight_hh_l0 @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
 pnnx.Output             output      3 0 out out_hidden out_cell
 )PNNXIR";
     }
@@ -300,7 +321,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.LSTM                 op_0        1 1 input out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+nn.LSTM                 op_0        1 1 input out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size @weight_ih_l0 @weight_hh_l0 @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -318,13 +339,41 @@ public:
 pnnx.Input              input       0 1 input
 pnnx.Input              in_hidden   0 1 in_hidden
 pnnx.Input              in_hidden   0 1 in_cell
-nn.LSTM                 op_0        3 1 input in_hidden in_cell out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+nn.LSTM                 op_0        3 1 input in_hidden in_cell out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size  @weight_ih_l0 @weight_hh_l0 @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LSTM_3, 20)
+
+class nn_LSTM_4 : public nn_LSTM
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+5 4
+pnnx.Input              input       0 1 input
+pnnx.Input              in_hidden   0 1 in_hidden
+pnnx.Input              in_hidden   0 1 in_cell
+nn.LSTM                 op_0        3 3 input in_hidden in_cell out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size @weight_ih_l0 @weight_hh_l0  @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+pnnx.Output             output      3 0 out out_hidden out_cell
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "LSTM2";
+    }
+
+    const char* name_str() const
+    {
+        return "lstm2";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LSTM_4, 19)
 
 } // namespace ncnn
 

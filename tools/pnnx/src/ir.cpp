@@ -1046,13 +1046,14 @@ static std::string expand_expression(const Operator* op)
             std::string r = a + ".size(" + b + ")";
             exprstack.push(r);
         }
-        else if (t == "int" || t == "sqrt" || t == "rsqrt" || t == "neg")
+        else if (t == "int" || t == "sqrt" || t == "rsqrt" || t == "neg" || t == "floor")
         {
             std::string unaryop;
             if (t == "int") unaryop = "int";
             if (t == "sqrt") unaryop = "torch.sqrt";
             if (t == "rsqrt") unaryop = "torch.rsqrt";
             if (t == "neg") unaryop = "torch.neg";
+            if (t == "floor") unaryop = "torch.floor";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -1281,7 +1282,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
     fprintf(pyfp, "import torch\n");
     fprintf(pyfp, "import torch.nn as nn\n");
     fprintf(pyfp, "import torch.nn.functional as F\n");
-    fprintf(pyfp, "import torchvision\n");
+    fprintf(pyfp, "try:\n");
+    fprintf(pyfp, "\timport torchvision\n");
+    fprintf(pyfp, "except:\n");
+    fprintf(pyfp, "\tpass\n");
 
     fprintf(pyfp, "\n");
 

@@ -47,6 +47,8 @@
 #include "pass_ncnn/insert_reshape_linear.h"
 #include "pass_ncnn/insert_reshape_pooling.h"
 
+#include "pass_ncnn/icefall_insert_expanddims_conv1d.h"
+
 #include "pass_level4/dead_code_elimination.h"
 #include "pass_level4/canonicalize.h"
 #include "pass_level5/eliminate_maxpool_indices.h"
@@ -88,6 +90,7 @@ void pass_ncnn(Graph& g)
 
     ncnn::insert_reshape_pooling(g);
     ncnn::insert_reshape_linear(g);
+    ncnn::icefall_insert_expanddims_conv1d(g);
 
     ncnn::fuse_convert_shufflechannel_slice(g);
 

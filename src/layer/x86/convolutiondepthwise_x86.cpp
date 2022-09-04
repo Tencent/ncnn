@@ -1266,7 +1266,7 @@ int ConvolutionDepthWise_x86::forward_int8_x86(const Mat& bottom_blob, Mat& top_
         const ncnn::Layer* op = group_ops[g];
 
         Option opt_g = opt;
-        opt_g.blob_allocator = top_blob.allocator;
+        opt_g.blob_allocator = top_blob_unpacked.allocator;
 
         // forward
         op->forward(bottom_blob_bordered_g, top_blob_g, opt_g);

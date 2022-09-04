@@ -25,6 +25,8 @@
 #include "pass_level3/fuse_index_expression.h"
 #include "pass_level3/fuse_multiheadattention_unpack.h"
 #include "pass_level3/fuse_rnn_unpack.h"
+#include "pass_level3/fuse_input_unpack.h"
+#include "pass_level3/fuse_relpositionalencoding_unpack.h"
 #include "pass_level3/rename_F_conv_transposend.h"
 #include "pass_level3/rename_F_convmode.h"
 #include "pass_level3/rename_F_dropoutnd.h"
@@ -48,6 +50,10 @@ void pass_level3(Graph& g, const std::map<std::string, Attribute>& foldable_cons
     fuse_multiheadattention_unpack(g);
 
     fuse_rnn_unpack(g);
+
+    fuse_input_unpack(g);
+
+    fuse_relpositionalencoding_unpack(g);
 
     expand_quantization_modules(g);
 

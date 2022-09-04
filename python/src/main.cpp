@@ -244,6 +244,7 @@ PYBIND11_MODULE(ncnn, m)
 
     .def(py::init([](py::buffer const b) {
         py::buffer_info info = b.request();
+
         if (info.ndim > 4)
         {
             std::stringstream ss;
@@ -251,23 +252,7 @@ PYBIND11_MODULE(ncnn, m)
             pybind11::pybind11_fail(ss.str());
         }
 
-        size_t elemsize = 4u;
-        if (info.format == py::format_descriptor<double>::format())
-        {
-            elemsize = 8u;
-        }
-        if (info.format == py::format_descriptor<float>::format() || info.format == py::format_descriptor<int>::format())
-        {
-            elemsize = 4u;
-        }
-        else if (info.format == "e")
-        {
-            elemsize = 2u;
-        }
-        else if (info.format == py::format_descriptor<int8_t>::format() || info.format == py::format_descriptor<uint8_t>::format())
-        {
-            elemsize = 1u;
-        }
+        size_t elemsize = info.itemsize;
 
         Mat* v = nullptr;
         if (info.ndim == 1)
@@ -296,66 +281,16 @@ PYBIND11_MODULE(ncnn, m)
             // so we set the cstep as numpy's cstep
             v->cstep = (int)info.shape[3] * (int)info.shape[2] * (int)info.shape[1];
         }
-        return v;
+        return std::unique_ptr<Mat>(v);
     }),
     py::arg("array"))
     .def_buffer([](Mat& m) -> py::buffer_info {
-        if (m.elemsize != 1 && m.elemsize != 2 && m.elemsize != 4)
-        {
-            std::stringstream ss;
-            ss << "convert ncnn.Mat to numpy.ndarray only elemsize 1, 2, 4 support now, but given " << m.elemsize;
-            pybind11::pybind11_fail(ss.str());
-        }
-        if (m.elempack != 1)
-        {
-            std::stringstream ss;
-            ss << "convert ncnn.Mat to numpy.ndarray only elempack 1 support now, but given " << m.elempack;
-            pybind11::pybind11_fail(ss.str());
-        }
-        std::string format = get_mat_format(m);
-        std::vector<py::ssize_t> shape;
-        std::vector<py::ssize_t> strides;
-        if (m.dims == 1)
-        {
-            shape.push_back(m.w);
-            strides.push_back(m.elemsize);
-        }
-        else if (m.dims == 2)
-        {
-            shape.push_back(m.h);
-            shape.push_back(m.w);
-            strides.push_back(m.w * m.elemsize);
-            strides.push_back(m.elemsize);
-        }
-        else if (m.dims == 3)
-        {
-            shape.push_back(m.c);
-            shape.push_back(m.h);
-            shape.push_back(m.w);
-            strides.push_back(m.cstep * m.elemsize);
-            strides.push_back(m.w * m.elemsize);
-            strides.push_back(m.elemsize);
-        }
-        else if (m.dims == 4)
-        {
-            shape.push_back(m.c);
-            shape.push_back(m.d);
-            shape.push_back(m.h);
-            shape.push_back(m.w);
-            strides.push_back(m.cstep * m.elemsize);
-            strides.push_back(m.w * m.h * m.elemsize);
-            strides.push_back(m.w * m.elemsize);
-            strides.push_back(m.elemsize);
-        }
-        return py::buffer_info(
-            m.data,     /* Pointer to buffer */
-            m.elemsize, /* Size of one scalar */
-            format,     /* Python struct-style format descriptor */
-            m.dims,     /* Number of dimensions */
-            shape,      /* Buffer dimensions */
-            strides     /* Strides (in bytes) for each index */
-        );
+        return to_buffer_info(m);
     })
+    .def("numpy", [](py::object obj, const std::string& format="") -> py::array {
+        auto* m = obj.cast<Mat*>();
+        return py::array(to_buffer_info(*m, format), obj);
+    }, py::arg("format")="")
     //.def("fill", (void (Mat::*)(int))(&Mat::fill), py::arg("v"))
     .def("fill", (void (Mat::*)(float))(&Mat::fill), py::arg("v"))
     .def("clone", &Mat::clone, py::arg("allocator") = nullptr)

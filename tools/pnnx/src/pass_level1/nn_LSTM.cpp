@@ -63,6 +63,13 @@ public:
         op->params["batch_first"] = lstm->namedInput("batch_first");
         op->params["bidirectional"] = lstm->namedInput("bidirectional");
 
+        int32_t proj_size = 0;
+        if (mod.hasattr("weight_hr_l0")) {
+          torch::Tensor w_hr = mod.attr("weight_hr_l0").toTensor();
+          proj_size = w_hr.size(0);
+        }
+        op->params["proj_size"] = proj_size;
+
         const int num_layers = op->params["num_layers"].i;
         const bool bias = op->params["bias"].b;
         const bool bidirectional = op->params["bidirectional"].b;
@@ -74,6 +81,11 @@ public:
 
             op->attrs[weight_ih_lk_key] = mod.attr(weight_ih_lk_key).toTensor();
             op->attrs[weight_hh_lk_key] = mod.attr(weight_hh_lk_key).toTensor();
+
+            if (proj_size) {
+              std::string weight_hr_lk_key = std::string("weight_hr_l") + std::to_string(k);
+              op->attrs[weight_hr_lk_key] = mod.attr(weight_hr_lk_key).toTensor();
+            }
 
             if (bias)
             {

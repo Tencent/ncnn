@@ -97,6 +97,10 @@ set(pnnx_pass_level1_SRCS
 
     pass_level1/torchvision_DeformConv2d.cpp
     pass_level1/torchvision_RoIAlign.cpp
+
+    pass_level1/icefall_MakePadMask.cpp
+    pass_level1/icefall_RelPositionalEncoding.cpp
+    pass_level1/icefall_RelShift.cpp
 )
 
 set(pnnx_pass_level2_SRCS
@@ -123,6 +127,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_embedding.cpp
     pass_level2/F_feature_alpha_dropout.cpp
     pass_level2/F_gelu.cpp
+    pass_level2/F_glu.cpp
     pass_level2/F_grid_sample.cpp
     pass_level2/F_group_norm.cpp
     pass_level2/F_hardshrink.cpp
@@ -273,6 +278,8 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_index_expression.cpp
     pass_level3/fuse_multiheadattention_unpack.cpp
     pass_level3/fuse_rnn_unpack.cpp
+    pass_level3/fuse_input_unpack.cpp
+    pass_level3/fuse_relpositionalencoding_unpack.cpp
     pass_level3/rename_F_conv_transposend.cpp
     pass_level3/rename_F_convmode.cpp
     pass_level3/rename_F_dropoutnd.cpp
@@ -346,6 +353,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_binaryop_eltwise.cpp
     pass_ncnn/insert_reshape_linear.cpp
     pass_ncnn/insert_reshape_pooling.cpp
+    pass_ncnn/icefall_insert_expanddims_conv1d.cpp
 
     pass_ncnn/F_adaptive_avg_pool1d.cpp
     pass_ncnn/F_adaptive_avg_pool2d.cpp
@@ -366,6 +374,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_embedding.cpp
     pass_ncnn/F_gelu.cpp
+    pass_ncnn/F_glu.cpp
     pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp
@@ -480,6 +489,10 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torch_transpose.cpp
     pass_ncnn/torch_unsqueeze.cpp
     pass_ncnn/torchvision_DeformConv2d.cpp
+
+    pass_ncnn/icefall_RelPositionalEncoding.cpp
+    pass_ncnn/icefall_MakePadMask.cpp
+    pass_ncnn/icefall_RelShift.cpp
 )
 
 set(pnnx_SRCS
