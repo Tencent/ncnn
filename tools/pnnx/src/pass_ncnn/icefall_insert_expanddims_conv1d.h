@@ -18,29 +18,9 @@ namespace pnnx {
 
 namespace ncnn {
 
-class F_glu : public GraphRewriterPass {
- public:
-  const char *match_pattern_graph() const {
-    return R"PNNXIR(7767517
-3 2
-pnnx.Input           input          0 1 input
-F.glu                op_0           1 1 input out dim=%dim
-pnnx.Output          output         1 0 out
-)PNNXIR";
-  }
-
-  const char *type_str() const { return "GLU"; }
-
-  const char *name_str() const { return "glu"; }
-  void write(Operator *op,
-             const std::map<std::string, Parameter> &captured_params) const {
-    int axis = captured_params.at("dim").i;
-
-    op->params["0"] = axis;
-  }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_glu, 20)
+// ncnn outputs a 2-D tensor after conv1d.
+// This function does unsqueeze(0) on the output of conv1d
+void icefall_insert_expanddims_conv1d(Graph &graph);
 
 }  // namespace ncnn
 

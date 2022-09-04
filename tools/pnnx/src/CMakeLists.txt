@@ -278,6 +278,7 @@ set(pnnx_pass_level3_SRCS
     pass_level3/fuse_index_expression.cpp
     pass_level3/fuse_multiheadattention_unpack.cpp
     pass_level3/fuse_rnn_unpack.cpp
+    pass_level3/fuse_input_unpack.cpp
     pass_level3/fuse_relpositionalencoding_unpack.cpp
     pass_level3/rename_F_conv_transposend.cpp
     pass_level3/rename_F_convmode.cpp
@@ -352,6 +353,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/fuse_binaryop_eltwise.cpp
     pass_ncnn/insert_reshape_linear.cpp
     pass_ncnn/insert_reshape_pooling.cpp
+    pass_ncnn/icefall_insert_expanddims_conv1d.cpp
 
     pass_ncnn/F_adaptive_avg_pool1d.cpp
     pass_ncnn/F_adaptive_avg_pool2d.cpp
