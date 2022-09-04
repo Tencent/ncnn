@@ -4,3 +4,6 @@
 *.ncnn.param
 *_pnnx.py
 *_ncnn.py
+debug*.param
+debug*.bin
+*.pt
