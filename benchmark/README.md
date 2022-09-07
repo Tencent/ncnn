@@ -4322,3 +4322,51 @@ cooling_down = 0
       yolo-fastestv2  min =    3.33  max =    3.73  avg =    3.44
   vision_transformer  min =  214.91  max =  229.91  avg =  220.82
 ```
+
+### Intel Celeron M 420 (Yonah 1.60 GHz x 1)
+
+Tested on `Debian GNU/Linux 11 (bullseye) i686` with `cmake -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF-DNCNN_BUILD_TESTS=ON ..`.
+
+```
+mouri@Mouri-Laptop-2:~/ncnn/benchmark$ ./../build/benchmark/benchncnn 
+loop_count = 4
+num_threads = 1
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =  289.23  max =  301.83  avg =  292.90
+     squeezenet_int8  min =  442.82  max =  457.21  avg =  446.89
+           mobilenet  min =  549.62  max =  561.20  avg =  554.78
+      mobilenet_int8  min =  823.92  max =  837.70  avg =  830.52
+        mobilenet_v2  min =  341.72  max =  353.77  avg =  345.34
+        mobilenet_v3  min =  267.68  max =  282.08  avg =  273.10
+          shufflenet  min =  151.66  max =  153.02  avg =  152.24
+       shufflenet_v2  min =  161.54  max =  163.38  avg =  162.13
+             mnasnet  min =  322.66  max =  336.91  avg =  326.86
+     proxylessnasnet  min =  356.63  max =  368.79  avg =  360.66
+     efficientnet_b0  min =  489.92  max =  505.11  avg =  497.32
+   efficientnetv2_b0  min =  618.16  max =  632.02  avg =  622.82
+        regnety_400m  min =  414.83  max =  428.42  avg =  419.28
+           blazeface  min =   38.56  max =   40.05  avg =   39.05
+           googlenet  min = 1022.54  max = 1037.53  avg = 1029.48
+      googlenet_int8  min = 1493.35  max = 1495.46  avg = 1494.31
+            resnet18  min =  803.32  max =  818.27  avg =  812.49
+       resnet18_int8  min = 1188.26  max = 1200.88  avg = 1192.56
+             alexnet  min =  613.78  max =  623.88  avg =  619.99
+               vgg16  min = 4465.44  max = 4478.12  avg = 4474.16
+          vgg16_int8  min = 6042.40  max = 6114.37  avg = 6077.07
+            resnet50  min = 2517.75  max = 2528.42  avg = 2522.83
+       resnet50_int8  min = 3746.28  max = 3771.09  avg = 3756.88
+      squeezenet_ssd  min =  585.56  max =  636.01  avg =  602.62
+ squeezenet_ssd_int8  min =  822.43  max =  968.77  avg =  862.33
+       mobilenet_ssd  min = 1116.98  max = 1139.17  avg = 1127.65
+  mobilenet_ssd_int8  min = 1665.03  max = 1670.55  avg = 1668.37
+      mobilenet_yolo  min = 2638.61  max = 2666.54  avg = 2652.26
+  mobilenetv2_yolov3  min = 1248.56  max = 1255.98  avg = 1251.22
+         yolov4-tiny  min = 1507.31  max = 1525.56  avg = 1514.66
+           nanodet_m  min =  386.41  max =  400.63  avg =  391.21
+    yolo-fastest-1.1  min =  159.97  max =  164.53  avg =  161.41
+      yolo-fastestv2  min =  134.29  max =  135.47  avg =  134.70
+  vision_transformer  min = 22201.32  max = 22510.75  avg = 22315.09
+          FastestDet  min =  146.94  max =  148.50  avg =  147.44
+```
