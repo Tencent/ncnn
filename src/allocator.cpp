@@ -21,22 +21,7 @@
 #include <android/hardware_buffer.h>
 #endif // __ANDROID_API__ >= 26
 
-#include <stdlib.h>
-
 namespace ncnn {
-
-class MetaNode
-{
-public:
-    size_t size;
-    size_t miss;
-    void* ptr;
-
-    MetaNode(size_t _size, void* _ptr)
-        : size(_size), miss(0), ptr(_ptr)
-    {
-    }
-};
 
 Allocator::~Allocator()
 {
@@ -48,16 +33,15 @@ public:
     Mutex budgets_lock;
     Mutex payouts_lock;
     unsigned int size_compare_ratio; // 0~256
-    size_t total_miss;
-    std::list<MetaNode> budgets;
-    std::list<MetaNode> payouts;
+    static const size_t size_threshold = 5;
+    std::list<std::pair<size_t, void*> > budgets;
+    std::list<std::pair<size_t, void*> > payouts;
 };
 
 PoolAllocator::PoolAllocator()
     : Allocator(), d(new PoolAllocatorPrivate)
 {
     d->size_compare_ratio = 192; // 0.75f * 256
-    d->total_miss = 0;
 }
 
 PoolAllocator::~PoolAllocator()
@@ -68,10 +52,10 @@ PoolAllocator::~PoolAllocator()
     {
         NCNN_LOGE("FATAL ERROR! pool allocator destroyed too early");
 #if NCNN_STDIO
-        std::list<MetaNode>::iterator it = d->payouts.begin();
+        std::list<std::pair<size_t, void*> >::iterator it = d->payouts.begin();
         for (; it != d->payouts.end(); ++it)
         {
-            void* ptr = it->ptr;
+            void* ptr = it->second;
             NCNN_LOGE("%p still in use", ptr);
         }
 #endif
@@ -94,10 +78,10 @@ void PoolAllocator::clear()
 {
     d->budgets_lock.lock();
 
-    std::list<MetaNode>::iterator it = d->budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
-        void* ptr = it->ptr;
+        void* ptr = it->second;
         ncnn::fastFree(ptr);
     }
     d->budgets.clear();
@@ -121,15 +105,24 @@ void* PoolAllocator::fastMalloc(size_t size)
     d->budgets_lock.lock();
 
     // find free budget
-    std::list<MetaNode>::iterator it = d->budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin(), it_max = d->budgets.end(), it_min = d->budgets.end();
     for (; it != d->budgets.end(); ++it)
     {
-        size_t bs = it->size;
+        size_t bs = it->first;
+
+        if (it_min == d->budgets.end() || it->first < it_min->first)
+        {
+            it_min = it;
+        }
+        if (it_max == d->budgets.end() || it->first > it_max->first)
+        {
+            it_max = it;
+        }
 
         // size_compare_ratio ~ 100%
         if (bs >= size && ((bs * d->size_compare_ratio) >> 8) <= size)
         {
-            void* ptr = it->ptr;
+            void* ptr = it->second;
 
             d->budgets.erase(it);
 
@@ -137,7 +130,7 @@ void* PoolAllocator::fastMalloc(size_t size)
 
             d->payouts_lock.lock();
 
-            d->payouts.push_back(MetaNode(bs, ptr));
+            d->payouts.push_back(std::make_pair(bs, ptr));
 
             d->payouts_lock.unlock();
 
@@ -145,28 +138,24 @@ void* PoolAllocator::fastMalloc(size_t size)
         }
     }
 
-    bool flag = false;
-    size_t extra_miss = 0;
-    for (it = d->budgets.begin(); it != d->budgets.end();)
+    if (d->budgets.size() >= d->size_threshold)
     {
-        d->total_miss++;
-        it->miss++;
-
-        if (!flag && rand() % d->total_miss <= it->miss * 2)
+        // All chunks in pool are not chosen. Then try to drop some outdated
+        // chunks and return them to OS.
+        if (it_max->first < size)
         {
-            flag = true;
-            ncnn::fastFree(it->ptr);
-            extra_miss += it->miss;
-            it = d->budgets.erase(it);
+            // Current query is asking for a chunk larger than any cached chunks.
+            // Then remove the smallest one.
+            ncnn::fastFree(it_min->second);
+            d->budgets.erase(it_min);
         }
-        else
+        else if (it_min->first > size)
         {
-            it++;
+            // Current query is asking for a chunk smaller than any cached chunks.
+            // Then remove the largest one.
+            ncnn::fastFree(it_max->second);
+            d->budgets.erase(it_max);
         }
-    }
-    if (flag)
-    {
-        d->total_miss -= extra_miss;
     }
 
     d->budgets_lock.unlock();
@@ -176,7 +165,7 @@ void* PoolAllocator::fastMalloc(size_t size)
 
     d->payouts_lock.lock();
 
-    d->payouts.push_back(MetaNode(size, ptr));
+    d->payouts.push_back(std::make_pair(size, ptr));
 
     d->payouts_lock.unlock();
 
@@ -188,12 +177,12 @@ void PoolAllocator::fastFree(void* ptr)
     d->payouts_lock.lock();
 
     // return to budgets
-    std::list<MetaNode>::iterator it = d->payouts.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = d->payouts.begin();
     for (; it != d->payouts.end(); ++it)
     {
-        if (it->ptr == ptr)
+        if (it->second == ptr)
         {
-            size_t size = it->size;
+            size_t size = it->first;
 
             d->payouts.erase(it);
 
@@ -201,7 +190,7 @@ void PoolAllocator::fastFree(void* ptr)
 
             d->budgets_lock.lock();
 
-            d->budgets.push_back(MetaNode(size, ptr));
+            d->budgets.push_back(std::make_pair(size, ptr));
 
             d->budgets_lock.unlock();
 
@@ -219,6 +208,7 @@ class UnlockedPoolAllocatorPrivate
 {
 public:
     unsigned int size_compare_ratio; // 0~256
+    static const size_t size_threshold = 5;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -284,10 +274,19 @@ void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin(), it_max = d->budgets.begin(), it_min = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
         size_t bs = it->first;
+
+        if (it->first > it_max->first)
+        {
+            it_max = it;
+        }
+        if (it->first < it_min->first)
+        {
+            it_min = it;
+        }
 
         // size_compare_ratio ~ 100%
         if (bs >= size && ((bs * d->size_compare_ratio) >> 8) <= size)
@@ -299,6 +298,20 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
             d->payouts.push_back(std::make_pair(bs, ptr));
 
             return ptr;
+        }
+    }
+
+    if (d->budgets.size() >= d->size_threshold)
+    {
+        if (it_max->first < size)
+        {
+            ncnn::fastFree(it_min->second);
+            d->budgets.erase(it_min);
+        }
+        if (it_min->first > size)
+        {
+            ncnn::fastFree(it_max->second);
+            d->budgets.erase(it_max);
         }
     }
 
