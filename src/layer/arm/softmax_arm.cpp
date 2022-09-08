@@ -650,7 +650,7 @@ int Softmax_arm::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 #if __ARM_NEON
                 float32x4_t _sum = vdupq_n_f32(sum);
                 float32x4_t _reciprocal_sum = vrecpeq_f32(_sum);
-            _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
+                _reciprocal_sum = vmulq_f32(vrecpsq_f32(_sum, _reciprocal_sum), _reciprocal_sum);
                 for (; j + 3 < w; j += 4)
                 {
                     float32x4_t _p = vld1q_f32(ptr + j);
