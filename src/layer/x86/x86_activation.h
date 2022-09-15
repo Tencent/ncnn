@@ -292,6 +292,13 @@ static NCNN_FORCEINLINE __m512 elu_avx512(__m512 inputs, __m512 alphas)
     return _mm512_add_ps(pos, _mm512_mul_ps(alphas, neg));
 }
 
+static NCNN_FORCEINLINE __m512 prelu_avx512(__m512 inputs, __m512 alphas)
+{
+    __m512 pos = _mm512_max_ps(_mm512_setzero_ps(), inputs);
+    __m512 neg = _mm512_min_ps(_mm512_setzero_ps(), inputs);
+    return _mm512_add_ps(pos, _mm512_mul_ps(alphas, neg));
+}
+
 static NCNN_FORCEINLINE __m512 activation_avx512(__m512 _v, int activation_type, const ncnn::Mat& activation_params)
 {
     // Process fused activations
