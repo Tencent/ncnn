@@ -111,7 +111,7 @@
 
 # 怎样添加ncnn库到项目中？cmake方式怎么用？
 
-编译ncnn，make install。linux/windows set/export ncnn_DIR 指向 isntall目录下下包含ncnnConfig.cmake 的目录
+编译ncnn，make install。linux/windows set/export ncnn_DIR 指向 install目录下包含ncnnConfig.cmake 的目录
 
 - ## android
 
