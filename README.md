@@ -298,7 +298,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 ---
 
-## Example project
+## Project examples
 
 - <https://github.com/nihui/ncnn-android-squeezenet>
 - <https://github.com/nihui/ncnn-android-styletransfer>
