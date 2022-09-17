@@ -310,6 +310,8 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 
 <img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg" height ="270"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/4.jpg" height ="270"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-33.jpg" height ="270"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png" height ="270"/><img src="https://github.com/nihui/ncnn-android-yolov5/raw/master/screenshot.jpg" height ="270"/><img src="https://github.com/nihui/ncnn-android-scrfd/raw/master/screenshot.jpg" height ="270"/><br>
 
+- <https://github.com/magicse/ncnn-colorization-siggraph17><br>
+<img src="https://user-images.githubusercontent.com/13585785/189326958-f5a8d6f8-caef-49bf-88da-ae494371195d.jpg" width ="700"/>
 
 ---
 
