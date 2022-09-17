@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -24,6 +24,7 @@ class GELU_x86 : virtual public GELU
 public:
     GELU_x86();
 
+    virtual int create_pipeline(const Option& opt);
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
