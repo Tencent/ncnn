@@ -1405,7 +1405,11 @@ int InnerProduct_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Optio
 #endif // __SSE2__
     size_t out_elemsize = elemsize / elempack * out_elempack;
 
-    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    if (bottom_blob.dims == 2 && bottom_blob.h == 1) {
+      top_blob.create(num_output / out_elempack, 1, out_elemsize, out_elempack, opt.blob_allocator);
+    } else {
+      top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
     if (top_blob.empty())
         return -100;
 
