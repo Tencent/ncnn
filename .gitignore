@@ -56,3 +56,6 @@ python/setup.py
 
 # Clangd
 .cache/
+
+# Xmake
+.xmake/
