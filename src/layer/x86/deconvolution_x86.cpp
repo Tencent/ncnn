@@ -150,7 +150,6 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 

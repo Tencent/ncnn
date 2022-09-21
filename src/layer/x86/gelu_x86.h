@@ -12,21 +12,22 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_PRELU_X86_H
-#define LAYER_PRELU_X86_H
+#ifndef LAYER_GELU_X86_H
+#define LAYER_GELU_X86_H
 
-#include "prelu.h"
+#include "gelu.h"
 
 namespace ncnn {
 
-class PReLU_x86 : virtual public PReLU
+class GELU_x86 : virtual public GELU
 {
 public:
-    PReLU_x86();
+    GELU_x86();
 
+    virtual int create_pipeline(const Option& opt);
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 };
 
 } // namespace ncnn
 
-#endif // LAYER_PRELU_X86_H
+#endif // LAYER_GELU_X86_H
