@@ -69,7 +69,7 @@ static void pooling3x3s2_max_neon(const Mat& bottom_blob, Mat& top_blob, const O
                     "prfm       pldl1keep, [%3, #256]       \n"
                     "ld2        {v10.4s, v11.4s}, [%3], #32 \n"
 
-                    "ext        v2.16b,  v2.16b, v8.16b, #4 \n"
+                    "ext        v2.16b, v2.16b, v8.16b, #4  \n"
 
                     "fmax       v12.4s, v12.4s, v0.4s       \n"
                     "ext        v4.16b, v4.16b, v10.16b, #4 \n"
