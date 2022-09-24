@@ -27,7 +27,7 @@ public:
         return R"PNNXIR(7767517
 3 4
 pnnx.Input              input       0 1 input
-nn.LSTM                 op_0        1 3 input out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size  @weight_ih_l0 @weight_hh_l0 @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+nn.LSTM                 op_0        1 3 input out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
 pnnx.Output             output      3 0 out out_hidden out_cell
 )PNNXIR";
     }
@@ -48,7 +48,10 @@ pnnx.Output             output      3 0 out out_hidden out_cell
         const int num_directions = bidirectional ? 2 : 1;
         const int num_output = captured_params.at("hidden_size").i;
         const int input_size = captured_params.at("input_size").i;
-        const int proj_size = captured_params.at("proj_size").i;
+        int proj_size = captured_params.at("proj_size").i;
+        if (captured_params.count("proj_size")) {
+          proj_size = captured_params.at("proj_size").i;
+        }
 
         const int real_output_size = proj_size ? proj_size : num_output;
 
@@ -57,7 +60,9 @@ pnnx.Output             output      3 0 out out_hidden out_cell
         op->params["0"] = num_output;
         op->params["1"] = weight_data_size;
         op->params["2"] = bidirectional ? 2 : 0;
-        op->params["3"] = proj_size;
+        if (proj_size) {
+          op->params["3"] = proj_size;
+        }
 
         op->attrs["0"] = Attribute();
         op->attrs["0"].data = {0, 0, 0, 0};
@@ -305,7 +310,7 @@ public:
 pnnx.Input              input       0 1 input
 pnnx.Input              in_hidden   0 1 in_hidden
 pnnx.Input              in_hidden   0 1 in_cell
-nn.LSTM                 op_0        3 3 input in_hidden in_cell out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size @weight_ih_l0 @weight_hh_l0 @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+nn.LSTM                 op_0        3 3 input in_hidden in_cell out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
 pnnx.Output             output      3 0 out out_hidden out_cell
 )PNNXIR";
     }
@@ -321,7 +326,7 @@ public:
         return R"PNNXIR(7767517
 3 2
 pnnx.Input              input       0 1 input
-nn.LSTM                 op_0        1 1 input out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size @weight_ih_l0 @weight_hh_l0 @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+nn.LSTM                 op_0        1 1 input out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -339,7 +344,7 @@ public:
 pnnx.Input              input       0 1 input
 pnnx.Input              in_hidden   0 1 in_hidden
 pnnx.Input              in_hidden   0 1 in_cell
-nn.LSTM                 op_0        3 1 input in_hidden in_cell out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size  @weight_ih_l0 @weight_hh_l0 @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
+nn.LSTM                 op_0        3 1 input in_hidden in_cell out input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional @weight_ih_l0 @weight_hh_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
