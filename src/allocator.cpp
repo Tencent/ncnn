@@ -33,7 +33,7 @@ public:
     Mutex budgets_lock;
     Mutex payouts_lock;
     unsigned int size_compare_ratio; // 0~256
-    static const size_t size_threshold = 5;
+    static const size_t size_threshold = 10;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -208,7 +208,7 @@ class UnlockedPoolAllocatorPrivate
 {
 public:
     unsigned int size_compare_ratio; // 0~256
-    static const size_t size_threshold = 5;
+    static const size_t size_threshold = 10;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -308,7 +308,7 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
             ncnn::fastFree(it_min->second);
             d->budgets.erase(it_min);
         }
-        if (it_min->first > size)
+        else if (it_min->first > size)
         {
             ncnn::fastFree(it_max->second);
             d->budgets.erase(it_max);
