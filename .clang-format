@@ -124,7 +124,7 @@ SpacesInConditionalStatement: false
 SpacesInContainerLiterals: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
-Standard: c++03
+Standard: Auto
 #StatementMacros:
 TabWidth: 4
 # TypenameMacros:
