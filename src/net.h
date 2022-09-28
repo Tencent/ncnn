@@ -29,7 +29,7 @@
 #endif // NCNN_PLATFORM_API
 
 namespace ncnn {
-    
+
 typedef std::function<void(int)> FunVoidInt;
 #if NCNN_VULKAN
 class VkCompute;

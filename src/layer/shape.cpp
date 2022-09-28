@@ -30,15 +30,17 @@ int Shape::load_param(const ParamDict& pd)
 int Shape::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     // int
-    if(bottom_blob.dims != 4 && bottom_blob.dims != 3){
+    if (bottom_blob.dims != 4 && bottom_blob.dims != 3)
+    {
         printf("unexpect bottom_blob.dims:%d\n", bottom_blob.dims);
     }
     top_blob.create(4, 4, opt.blob_allocator);
-    if (top_blob.empty()){
+    if (top_blob.empty())
+    {
         printf("top_blob is empty!\n");
-        return -100;// return non-zero on error, -100 indicates out-of-memory
+        return -100; // return non-zero on error, -100 indicates out-of-memory
     }
-    float* dptr = (float *)top_blob.data;
+    float* dptr = (float*)top_blob.data;
     dptr[0] = bottom_blob.d;
     dptr[1] = bottom_blob.c;
     dptr[2] = bottom_blob.h;

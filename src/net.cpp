@@ -195,7 +195,8 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
         bottom_blob.elemsize = blob_mats[bottom_blob_index].elemsize;
     }
 #endif
-    if(layer_index_callback){
+    if (layer_index_callback)
+    {
         layer_index_callback(layer_index);
     }
     int ret = do_forward_layer(layer, blob_mats, opt);
