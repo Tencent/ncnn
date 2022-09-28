@@ -228,8 +228,10 @@ static int detect_scrfd(const cv::Mat& bgr, std::vector<FaceObject>& faceobjects
     // model is converted from
     // https://github.com/deepinsight/insightface/tree/master/detection/scrfd
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    scrfd.load_param("scrfd_500m-opt2.param");
-    scrfd.load_model("scrfd_500m-opt2.bin");
+    if (scrfd.load_param("scrfd_500m-opt2.param"))
+        exit(-1);
+    if (scrfd.load_model("scrfd_500m-opt2.bin"))
+        exit(-1);
 
     int width = bgr.cols;
     int height = bgr.rows;

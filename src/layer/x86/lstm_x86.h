@@ -31,8 +31,6 @@ public:
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
-    Mat weight_hc_data_fp16;
-    Mat weight_xc_data_fp16;
 };
 
 } // namespace ncnn

@@ -37,6 +37,10 @@ static bool type_is_integer(int type)
     if (type == 6) return true;
     if (type == 7) return true;
     if (type == 8) return true;
+    if (type == 9) return true;
+    if (type == 10) return false;
+    if (type == 11) return false;
+    if (type == 12) return false;
     return false;
 }
 
@@ -50,6 +54,10 @@ static const char* type_to_string(int type)
     if (type == 6) return "i16";
     if (type == 7) return "i8";
     if (type == 8) return "u8";
+    if (type == 9) return "bool";
+    if (type == 10) return "cp64";
+    if (type == 11) return "cp128";
+    if (type == 12) return "cp32";
     return "null";
 }
 
@@ -63,6 +71,10 @@ static const char* type_to_numpy_string(int type)
     if (type == 6) return "int16";
     if (type == 7) return "int8";
     if (type == 8) return "uint8";
+    if (type == 9) return "bool8";
+    if (type == 10) return "csingle";
+    if (type == 11) return "cdouble";
+    if (type == 12) return "chalf";
     return "null";
 }
 
@@ -76,6 +88,10 @@ static const char* type_to_dtype_string(int type)
     if (type == 6) return "torch.short";
     if (type == 7) return "torch.int8";
     if (type == 8) return "torch.uint8";
+    if (type == 9) return "torch.bool";
+    if (type == 10) return "torch.complex64";
+    if (type == 11) return "torch.complex128";
+    if (type == 12) return "torch.complex32";
     return "null";
 }
 
@@ -89,6 +105,10 @@ static size_t type_to_elemsize(int type)
     if (type == 6) return 2;
     if (type == 7) return 1;
     if (type == 8) return 1;
+    if (type == 9) return 1;
+    if (type == 10) return 8;
+    if (type == 11) return 16;
+    if (type == 12) return 4;
     return 0; // null
 }
 
@@ -102,6 +122,10 @@ static int string_to_type(const char* s)
     if (strcmp(s, "i16") == 0) return 6;
     if (strcmp(s, "i8") == 0) return 7;
     if (strcmp(s, "u8") == 0) return 8;
+    if (strcmp(s, "bool") == 0) return 9;
+    if (strcmp(s, "cp64") == 0) return 10;
+    if (strcmp(s, "cp128") == 0) return 11;
+    if (strcmp(s, "cp32") == 0) return 12;
     return 0; // null
 }
 
@@ -118,6 +142,10 @@ int get_at_tensor_type(const at::ScalarType& st)
     if (st == c10::ScalarType::QInt8) return 7;
     if (st == c10::ScalarType::Byte) return 8;
     if (st == c10::ScalarType::QUInt8) return 8;
+    if (st == c10::ScalarType::Bool) return 9;
+    if (st == c10::ScalarType::ComplexFloat) return 10;
+    if (st == c10::ScalarType::ComplexDouble) return 11;
+    if (st == c10::ScalarType::ComplexHalf) return 12;
     return 0; // unknown type
 }
 
@@ -261,6 +289,38 @@ Parameter::Parameter(const torch::jit::Value* value)
 {
 }
 
+bool operator==(const Parameter& lhs, const Parameter& rhs)
+{
+    if (lhs.type != rhs.type)
+        return false;
+
+    if (lhs.type == 0)
+        return true;
+
+    if (lhs.type == 1 && lhs.b == rhs.b)
+        return true;
+
+    if (lhs.type == 2 && lhs.i == rhs.i)
+        return true;
+
+    if (lhs.type == 3 && lhs.f == rhs.f)
+        return true;
+
+    if (lhs.type == 4 && lhs.s == rhs.s)
+        return true;
+
+    if (lhs.type == 5 && lhs.ai == rhs.ai)
+        return true;
+
+    if (lhs.type == 6 && lhs.af == rhs.af)
+        return true;
+
+    if (lhs.type == 7 && lhs.as == rhs.as)
+        return true;
+
+    return false;
+}
+
 Attribute::Attribute(const at::Tensor& t)
 {
     type = get_at_tensor_type(t.scalar_type());
@@ -334,6 +394,59 @@ Attribute::Attribute(const std::initializer_list<int>& _shape, const std::vector
         data.resize(size * type_to_elemsize(type));
         memcpy((void*)data.data(), (const void*)t.data(), data.size());
     }
+}
+
+bool operator==(const Attribute& lhs, const Attribute& rhs)
+{
+    if (lhs.type != rhs.type)
+        return false;
+
+    if (lhs.type == 0)
+        return true;
+
+    if (lhs.shape != rhs.shape)
+        return false;
+
+    if (lhs.data != rhs.data)
+        return false;
+
+    return true;
+}
+
+Attribute operator+(const Attribute& a, const Attribute& b)
+{
+    Attribute c;
+
+    if (a.type != b.type)
+    {
+        fprintf(stderr, "concat attribute type mismatch\n");
+        return c;
+    }
+
+    if (a.shape.size() != b.shape.size())
+    {
+        fprintf(stderr, "concat attribute shape rank mismatch\n");
+        return c;
+    }
+
+    for (int i = 1; i < (int)a.shape.size(); i++)
+    {
+        if (a.shape[i] != b.shape[i])
+        {
+            fprintf(stderr, "concat attribute shape mismatch\n");
+            return c;
+        }
+    }
+
+    c.type = a.type;
+    c.shape = a.shape;
+    c.shape[0] += b.shape[0]; // concat the first dim
+
+    c.data.resize(a.data.size() + b.data.size());
+    memcpy(c.data.data(), a.data.data(), a.data.size());
+    memcpy(c.data.data() + a.data.size(), b.data.data(), b.data.size());
+
+    return c;
 }
 
 Parameter Parameter::parse_from_string(const std::string& value)
@@ -957,7 +1070,7 @@ static std::string expand_expression(const Operator* op)
             std::string r = a + ".pow(" + b + ")";
             exprstack.push(r);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "and" || t == "or" || t == "xor")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";
@@ -965,6 +1078,9 @@ static std::string expand_expression(const Operator* op)
             if (t == "mul") binaryop = "*";
             if (t == "div") binaryop = "/";
             if (t == "floor_divide") binaryop = "//";
+            if (t == "and") binaryop = "&";
+            if (t == "or") binaryop = "|";
+            if (t == "xor") binaryop = "^";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -1026,7 +1142,15 @@ static std::string make_slice_expression(const Operator* op)
         fprintf(stderr, "make_slice_expression %s %s\n", op->inputnames[j].c_str(), op->inputs[j]->name.c_str());
     }
 
-    std::vector<int> dims = op->params.at("dims").ai;
+    std::vector<int> dims;
+    if (op->params.find("dims") != op->params.end())
+    {
+        dims = op->params.at("dims").ai;
+    }
+    else
+    {
+        dims.push_back(op->params.at("dim").i);
+    }
 
     std::string r;
 
@@ -1116,6 +1240,30 @@ static std::string make_slice_expression(const Operator* op)
     }
 
     return r;
+}
+
+static std::string make_index_expression(const Operator* op)
+{
+    fprintf(stderr, "make_index_expression %s\n", op->name.c_str());
+
+    std::string index_expr = op->params.at("expr").s;
+
+    // strip out-most [ ] pair
+    index_expr = index_expr.substr(1, index_expr.size() - 2);
+
+    // None,None,   ->   ...,
+    bool leading_none = false;
+    while (index_expr.substr(0, 5) == "None,")
+    {
+        leading_none = true;
+        index_expr = index_expr.substr(5);
+    }
+    if (leading_none)
+    {
+        index_expr = "...," + index_expr;
+    }
+
+    return index_expr;
 }
 
 int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
@@ -1312,7 +1460,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                         fprintf(pyfp, ",");
                 }
 
-                fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+                if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+                {
+                    fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+                }
+                else
+                {
+                    fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
+                }
             }
         }
 
@@ -1342,11 +1497,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
 
             if (is_running_mean_var)
             {
-                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_tensor(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
             }
             else
             {
-                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), key.c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+                fprintf(pyfp, "        self.%s_%s = self.load_pnnx_bin_as_parameter(archive, '%s.%s', (", sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str(), op->name.c_str(), key.c_str());
             }
 
             for (size_t i = 0; i < attr.shape.size(); i++)
@@ -1356,7 +1511,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     fprintf(pyfp, ",");
             }
 
-            fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+            if (attr.type == 1 || attr.type == 2 || attr.type == 3)
+            {
+                fprintf(pyfp, "), '%s')\n", type_to_numpy_string(attr.type));
+            }
+            else
+            {
+                fprintf(pyfp, "), '%s', requires_grad=False)\n", type_to_numpy_string(attr.type));
+            }
         }
 
         fprintf(pyfp, "        archive.close()\n");
@@ -1421,13 +1583,27 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
             else if (op->type == "pnnx.Attribute")
             {
                 const std::string& key = op->attrs.begin()->first;
-                fprintf(pyfp, "v_%s = self.%s_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->name).c_str(), key.c_str());
+                fprintf(pyfp, "v_%s = self.%s_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->name).c_str(), sanitize_identifier(key).c_str());
             }
             else if (op->type == "Tensor.slice")
             {
                 // slice expr
                 std::string slice_expr = make_slice_expression(op);
                 fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), slice_expr.c_str());
+            }
+            else if (op->type == "Tensor.index")
+            {
+                // index expr
+                if (op->inputs.size() == 2)
+                {
+                    std::string expanded_expr = expand_expression(op->inputs[1]->producer);
+                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), expanded_expr.c_str());
+                }
+                else
+                {
+                    std::string index_expr = make_index_expression(op);
+                    fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), index_expr.c_str());
+                }
             }
             else if (op->type == "Tensor.view" || op->type == "Tensor.reshape")
             {
@@ -1469,10 +1645,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
-            else if (op->type == "torch.cat")
+            else if (op->type == "torch.cat" || op->type == "torch.stack")
             {
                 // cat
-                fprintf(pyfp, "v_%s = torch.cat(", sanitize_identifier(op->outputs[0]->name).c_str());
+                fprintf(pyfp, "v_%s = %s(", sanitize_identifier(op->outputs[0]->name).c_str(), op->type.c_str());
                 if (op->inputs.size() == 1)
                 {
                     fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[0]->name).c_str());
@@ -1489,6 +1665,19 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                     fprintf(pyfp, ")");
                 }
                 fprintf(pyfp, ", dim=%d", op->params.at("dim").i);
+                fprintf(pyfp, ")\n");
+            }
+            else if (op->type == "torch.einsum")
+            {
+                // einsum
+                fprintf(pyfp, "v_%s = %s(", sanitize_identifier(op->outputs[0]->name).c_str(), op->type.c_str());
+
+                fprintf(pyfp, "\'%s\'", op->params.at("equation").s.c_str());
+
+                for (size_t i = 0; i < op->inputs.size(); i++)
+                {
+                    fprintf(pyfp, ", v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                }
                 fprintf(pyfp, ")\n");
             }
             else if (op->type == "prim::TupleUnpack")
@@ -1551,6 +1740,38 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 }
                 fprintf(pyfp, ")\n");
             }
+            else if (op->type == "nn.MultiheadAttention")
+            {
+                if (op->outputs.size() == 1)
+                {
+                    fprintf(pyfp, "v_%s, _", sanitize_identifier(op->outputs[0]->name).c_str());
+                }
+                else
+                {
+                    for (size_t i = 0; i < op->outputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s", sanitize_identifier(op->outputs[i]->name).c_str());
+                        if (i + 1 != op->outputs.size())
+                            fprintf(pyfp, ", ");
+                    }
+                }
+                fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
+                if (op->inputs.size() == 1)
+                {
+                    const char* in0 = sanitize_identifier(op->inputs[0]->name).c_str();
+                    fprintf(pyfp, "v_%s, v_%s, v_%s", in0, in0, in0);
+                }
+                else
+                {
+                    for (size_t i = 0; i < op->inputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s", sanitize_identifier(op->inputs[i]->name).c_str());
+                        if (i + 1 != op->inputs.size())
+                            fprintf(pyfp, ", ");
+                    }
+                }
+                fprintf(pyfp, ")\n");
+            }
             else if (op->type.substr(0, 3) == "nn." || op->type.substr(0, 16) == "torchvision.ops.")
             {
                 // self.xxx()
@@ -1582,6 +1803,11 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 if (op->type.substr(0, 7) == "Tensor.")
                 {
                     fprintf(pyfp, " = v_%s.%s(", sanitize_identifier(op->inputs[0]->name).c_str(), op->type.substr(7).c_str());
+
+                    for (size_t i = 1; i < op->inputs.size(); i++)
+                    {
+                        fprintf(pyfp, "v_%s, ", sanitize_identifier(op->inputs[i]->name).c_str());
+                    }
                 }
                 else
                 {
@@ -1624,6 +1850,10 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 for (const auto& it : op->params)
                 {
                     if (op->type.substr(0, 7) == "Tensor." && i == 0)
+                    {
+                        fprintf(pyfp, "%s=", it.first.c_str());
+                    }
+                    else if (op->inputs.empty() && i == 0)
                     {
                         fprintf(pyfp, "%s=", it.first.c_str());
                     }
@@ -1808,6 +2038,127 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
         }
 
         fprintf(pyfp, "    mod.save(\"%s.pt\")\n", pypath.c_str());
+    }
+
+    fprintf(pyfp, "\n");
+
+    // export onnx
+    {
+        fprintf(pyfp, "def export_onnx():\n");
+        fprintf(pyfp, "    net = Model()\n");
+        fprintf(pyfp, "    net.eval()\n");
+        fprintf(pyfp, "\n");
+        fprintf(pyfp, "    torch.manual_seed(0)\n");
+
+        std::vector<std::string> input_names;
+        for (const Operator* op : ops)
+        {
+            if (op->type != "pnnx.Input")
+                continue;
+
+            const Operand* r = op->outputs[0];
+            std::string input_name = std::string("v_") + sanitize_identifier(r->name);
+            if (type_is_integer(r->type))
+            {
+                fprintf(pyfp, "    %s = torch.randint(10, (", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d", r->shape[i]);
+                    if (i + 1 != r->shape.size() || r->shape.size() == 1)
+                        fprintf(pyfp, ", ");
+                }
+                fprintf(pyfp, "), dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+            else
+            {
+                fprintf(pyfp, "    %s = torch.rand(", input_name.c_str());
+                for (size_t i = 0; i < r->shape.size(); i++)
+                {
+                    fprintf(pyfp, "%d, ", r->shape[i]);
+                }
+                fprintf(pyfp, "dtype=%s)\n", type_to_dtype_string(r->type));
+            }
+
+            input_names.push_back(input_name);
+        }
+
+        fprintf(pyfp, "\n");
+
+        // torch.onnx._export(net, v_0, "test_swin_t.onnx", export_params=True, opset_version=14, input_names=['in0'], output_names=['out0'])
+
+        if (input_names.size() == 1)
+        {
+            fprintf(pyfp, "    torch.onnx._export(net, %s", input_names[0].c_str());
+        }
+        else
+        {
+            fprintf(pyfp, "    torch.onnx._export(net, (");
+
+            for (size_t i = 0; i < input_names.size(); i++)
+            {
+                fprintf(pyfp, "%s", input_names[i].c_str());
+                if (i + 1 != input_names.size())
+                    fprintf(pyfp, ", ");
+            }
+
+            fprintf(pyfp, ")");
+        }
+
+        fprintf(pyfp, ", \"%s.onnx\", export_params=True, operator_export_type=torch.onnx.OperatorExportTypes.ONNX_ATEN_FALLBACK, opset_version=13", pypath.c_str());
+
+        fprintf(pyfp, ", input_names=[");
+        {
+            int input_count = 0;
+            {
+                for (const Operator* op : ops)
+                {
+                    if (op->type == "pnnx.Input")
+                        input_count++;
+                }
+            }
+
+            int input_index = 0;
+            for (const Operator* op : ops)
+            {
+                if (op->type != "pnnx.Input")
+                    continue;
+
+                fprintf(pyfp, "'in%d'", input_index);
+                if (input_index + 1 != input_count)
+                    fprintf(pyfp, ", ");
+
+                input_index++;
+            }
+        }
+        fprintf(pyfp, "]");
+
+        fprintf(pyfp, ", output_names=[");
+        {
+            int output_count = 0;
+            {
+                for (const Operator* op : ops)
+                {
+                    if (op->type == "pnnx.Output")
+                        output_count++;
+                }
+            }
+
+            int output_index = 0;
+            for (const Operator* op : ops)
+            {
+                if (op->type != "pnnx.Output")
+                    continue;
+
+                fprintf(pyfp, "'out%d'", output_index);
+                if (output_index + 1 != output_count)
+                    fprintf(pyfp, ", ");
+
+                output_index++;
+            }
+        }
+        fprintf(pyfp, "]");
+
+        fprintf(pyfp, ")\n");
     }
 
     fprintf(pyfp, "\n");
@@ -2308,6 +2659,15 @@ Operator* Graph::new_operator_before(const std::string& type, const std::string&
     op->type = type;
     op->name = name;
     ops.insert(std::find(ops.begin(), ops.end(), cur), op);
+    return op;
+}
+
+Operator* Graph::new_operator_after(const std::string& type, const std::string& name, const Operator* cur)
+{
+    Operator* op = new Operator;
+    op->type = type;
+    op->name = name;
+    ops.insert(std::find(ops.begin(), ops.end(), cur) + 1, op);
     return op;
 }
 

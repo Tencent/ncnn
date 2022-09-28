@@ -25,14 +25,6 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 set(CMAKE_C_FLAGS "-march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -mtune=c906 -DC906=1 -static")
 set(CMAKE_CXX_FLAGS "-march=rv64gcv0p7_zfh_xtheadc -mabi=lp64d -mtune=c906 -DC906=1 -static")
 
-# replace vfredsum_vs* with vfredusum_vs*
-add_definitions(-Dvfredsum_vs_f32m1_f32m1=vfredusum_vs_f32m1_f32m1)
-add_definitions(-Dvfredsum_vs_f32m2_f32m1=vfredusum_vs_f32m2_f32m1)
-add_definitions(-Dvfredsum_vs_f16m1_f16m1=vfredusum_vs_f16m1_f16m1)
-add_definitions(-Dvfredsum_vs_f32m8_f32m1=vfredusum_vs_f32m8_f32m1)
-add_definitions(-Dvfredsum_vs_f16m8_f16m1=vfredusum_vs_f16m8_f16m1)
-add_definitions(-Dvfredsum_vs_f16m4_f16m1=vfredusum_vs_f16m4_f16m1)
-
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" CACHE STRING "c++ flags")

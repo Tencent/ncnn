@@ -84,31 +84,34 @@ static void qsort_descent_inplace(std::vector<Object>& objects)
     qsort_descent_inplace(objects, 0, objects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
-    const int n = objects.size();
+    const int n = faceobjects.size();
 
     std::vector<float> areas(n);
     for (int i = 0; i < n; i++)
     {
-        areas[i] = objects[i].rect.area();
+        areas[i] = faceobjects[i].rect.area();
     }
 
     for (int i = 0; i < n; i++)
     {
-        const Object& a = objects[i];
+        const Object& a = faceobjects[i];
 
         int keep = 1;
         for (int j = 0; j < (int)picked.size(); j++)
         {
-            const Object& b = objects[picked[j]];
+            const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
             float union_area = areas[i] + areas[picked[j]] - inter_area;
-            //             float IoU = inter_area / union_area
+            // float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
         }
@@ -127,8 +130,10 @@ static int detect_yolact(const cv::Mat& bgr, std::vector<Object>& objects)
     // original model converted from https://github.com/dbolya/yolact
     // yolact_resnet50_54_800000.pth
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    yolact.load_param("yolact.param");
-    yolact.load_model("yolact.bin");
+    if (yolact.load_param("yolact.param"))
+        exit(-1);
+    if (yolact.load_model("yolact.bin"))
+        exit(-1);
 
     const int target_size = 550;
 

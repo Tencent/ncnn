@@ -2,7 +2,7 @@
 
 ## 举例
 
-这里举个例子添加自定义层次 如Relu6，即 std::min(6, std::max(0, val))
+这里举个例子添加自定义层次 如Relu6，即 std::min(6.f, std::max(0.f, val))
 
 ```
 Input            input   0 1 input
@@ -67,7 +67,7 @@ int Relu6::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
             for (int i=0; i<size; i++)
             {
-                ptr[i] = std::min(6, std::max(0, ptr[i]));
+                ptr[i] = std::min(6.f, std::max(0.f, ptr[i]));
             }
         }
 
@@ -90,7 +90,7 @@ ncnn_add_layer(Relu6)
 
 
 
-## 定义测试用例CPP文件 src/test_relu6.cpp 
+## 定义测试用例CPP文件 tests/test_relu6.cpp 
 
 ```CPP
 #include "layer/relu6.h"

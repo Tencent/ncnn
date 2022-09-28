@@ -67,7 +67,7 @@ int Convolution1D::load_model(const ModelBin& mb)
     return 0;
 }
 
-int Convolution1D::create_pipeline(const Option& opt)
+int Convolution1D::create_pipeline(const Option&)
 {
     if (dynamic_weight)
         return 0;

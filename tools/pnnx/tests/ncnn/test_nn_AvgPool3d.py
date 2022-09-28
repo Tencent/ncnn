@@ -28,13 +28,22 @@ class Model(nn.Module):
         self.pool_5 = nn.AvgPool3d(kernel_size=2, stride=1, padding=0, ceil_mode=True, count_include_pad=True)
 
     def forward(self, x):
+        y = x.reshape(12, 96, 128, 128)
+
         x = self.pool_0(x)
         x = self.pool_1(x)
         x = self.pool_2(x)
         x = self.pool_3(x)
         x = self.pool_4(x)
         x = self.pool_5(x)
-        return x
+
+        y = self.pool_0(y)
+        y = self.pool_1(y)
+        y = self.pool_2(y)
+        y = self.pool_3(y)
+        y = self.pool_4(y)
+        y = self.pool_5(y)
+        return x, y
 
 def test():
     net = Model()
@@ -57,7 +66,10 @@ def test():
     import test_nn_AvgPool3d_ncnn
     b = test_nn_AvgPool3d_ncnn.test_inference()
 
-    return torch.allclose(a, b, 1e-4, 1e-4)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

@@ -1,0 +1,11 @@
+prefix=${pcfiledir}/../..
+librarydir=${prefix}/@CMAKE_INSTALL_LIBDIR@
+includedir=${prefix}/@CMAKE_INSTALL_INCLUDEDIR@
+
+Name: @CMAKE_PROJECT_NAME@
+Description: high-performance neural network inference framework optimized for the mobile platform
+Version: @NCNN_VERSION_STRING@
+URL: https://github.com/Tencent/ncnn
+Libs: -L"${librarydir}" -lncnn
+Cflags: -I"${includedir}"
+

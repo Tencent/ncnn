@@ -82,31 +82,34 @@ static void qsort_descent_inplace(std::vector<Object>& objects)
     qsort_descent_inplace(objects, 0, objects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& objects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
-    const int n = objects.size();
+    const int n = faceobjects.size();
 
     std::vector<float> areas(n);
     for (int i = 0; i < n; i++)
     {
-        areas[i] = objects[i].rect.area();
+        areas[i] = faceobjects[i].rect.area();
     }
 
     for (int i = 0; i < n; i++)
     {
-        const Object& a = objects[i];
+        const Object& a = faceobjects[i];
 
         int keep = 1;
         for (int j = 0; j < (int)picked.size(); j++)
         {
-            const Object& b = objects[picked[j]];
+            const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
             float union_area = areas[i] + areas[picked[j]] - inter_area;
-            //             float IoU = inter_area / union_area
+            // float IoU = inter_area / union_area
             if (inter_area / union_area > nms_threshold)
                 keep = 0;
         }
@@ -127,8 +130,10 @@ static int detect_fasterrcnn(const cv::Mat& bgr, std::vector<Object>& objects)
     // https://dl.dropboxusercontent.com/s/o6ii098bu51d139/faster_rcnn_models.tgz?dl=0
     // ZF_faster_rcnn_final.caffemodel
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    fasterrcnn.load_param("ZF_faster_rcnn_final.param");
-    fasterrcnn.load_model("ZF_faster_rcnn_final.bin");
+    if (fasterrcnn.load_param("ZF_faster_rcnn_final.param"))
+        exit(-1);
+    if (fasterrcnn.load_model("ZF_faster_rcnn_final.bin"))
+        exit(-1);
 
     // hyper parameters taken from
     // py-faster-rcnn/lib/fast_rcnn/config.py

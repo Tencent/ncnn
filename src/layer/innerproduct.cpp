@@ -91,6 +91,8 @@ int InnerProduct::create_pipeline(const Option& opt)
 
         weight_data = weight_data_int8.reshape(weight_data_size);
     }
+#else
+    (void)(opt);
 #endif // NCNN_INT8
 
     return 0;

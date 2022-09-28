@@ -2340,6 +2340,7 @@ int main(int argc, char** argv)
                 }
             }
             fprintf(pp, " 4=%d", keepdims);
+            fprintf(pp, " 5=1");
         }
         else if (n.op == "maximum")
         {

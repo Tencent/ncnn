@@ -69,6 +69,9 @@ extern PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfaceP
 extern PFN_vkCreateAndroidSurfaceKHR vkCreateAndroidSurfaceKHR;
 #endif // __ANDROID_API__ >= 26
 
+// VK_NV_cooperative_matrix
+extern PFN_vkGetPhysicalDeviceCooperativeMatrixPropertiesNV vkGetPhysicalDeviceCooperativeMatrixPropertiesNV;
+
 // get info
 NCNN_EXPORT int get_gpu_count();
 NCNN_EXPORT int get_default_gpu_index();
@@ -156,6 +159,10 @@ public:
     // ycbcr conversion feature
     bool support_ycbcr_conversion() const;
 
+    // cooperative matrix feature
+    bool support_cooperative_matrix() const;
+    bool support_cooperative_matrix_16_8_8() const;
+
     // extension capability
     int support_VK_KHR_8bit_storage() const;
     int support_VK_KHR_16bit_storage() const;
@@ -181,6 +188,7 @@ public:
 #if __ANDROID_API__ >= 26
     int support_VK_ANDROID_external_memory_android_hardware_buffer() const;
 #endif // __ANDROID_API__ >= 26
+    int support_VK_NV_cooperative_matrix() const;
 
 private:
     GpuInfo(const GpuInfo&);

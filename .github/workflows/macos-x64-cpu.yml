@@ -31,16 +31,19 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+permissions:
+  contents: read
+
 jobs:
   macos-clang:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: protobuf
       run: brew install protobuf opencv3
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: openmp-install
         key: openmp-macos-install-20201213
@@ -81,5 +84,5 @@ jobs:
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+            -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 3

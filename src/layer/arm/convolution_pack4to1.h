@@ -25,7 +25,7 @@ static void convolution_transform_kernel_pack4to1_neon(const Mat& weight_data, M
     for (int q = 0; q < num_output; q++)
     {
         const Mat k0 = weight_data_r2.channel(q);
-        Mat g0 = weight_data_pack4to1.channel(q);
+        float* g00 = weight_data_pack4to1.channel(q);
 
         for (int p = 0; p + 3 < num_input; p += 4)
         {
@@ -33,8 +33,6 @@ static void convolution_transform_kernel_pack4to1_neon(const Mat& weight_data, M
             const float* k01 = k0.row(p + 1);
             const float* k02 = k0.row(p + 2);
             const float* k03 = k0.row(p + 3);
-
-            float* g00 = g0.row(p / 4);
 
             for (int k = 0; k < maxk; k++)
             {

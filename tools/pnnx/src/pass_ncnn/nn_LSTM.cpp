@@ -81,7 +81,6 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                 memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
             }
-            op->attrs["1"] = Attribute({4, num_output, input_size}, new_weight_ih);
 
             if (bidirectional)
             {
@@ -106,12 +105,16 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                     memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
                 }
-                op->attrs["2"] = Attribute({4, num_output, input_size}, new_weight_ih_reverse);
+                op->attrs["1"] = Attribute({4, num_output, input_size}, new_weight_ih) + Attribute({4, num_output, input_size}, new_weight_ih_reverse);
+            }
+            else
+            {
+                op->attrs["1"] = Attribute({4, num_output, input_size}, new_weight_ih);
             }
         }
 
-        op->attrs["3"] = Attribute();
-        op->attrs["3"].data = {0, 0, 0, 0};
+        op->attrs["2"] = Attribute();
+        op->attrs["2"].data = {0, 0, 0, 0};
         if (captured_params.at("bias").b)
         {
             // reduce bias_ih and bias_hh
@@ -153,8 +156,6 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 }
             }
 
-            op->attrs["4"] = Attribute({4, num_output}, new_bias);
-
             if (bidirectional)
             {
                 std::vector<float> new_bias_reverse;
@@ -194,22 +195,25 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     }
                 }
 
-                op->attrs["5"] = Attribute({4, num_output}, new_bias_reverse);
+                op->attrs["3"] = Attribute({4, num_output}, new_bias) + Attribute({4, num_output}, new_bias_reverse);
+            }
+            else
+            {
+                op->attrs["3"] = Attribute({4, num_output}, new_bias);
             }
         }
         else
         {
             std::vector<float> bias(4 * num_output, 0.f);
-            op->attrs["4"] = Attribute({4, num_output}, bias);
 
             if (bidirectional)
-            {
-                op->attrs["5"] = Attribute({4, num_output}, bias);
-            }
+                op->attrs["3"] = Attribute({4, num_output}, bias) + Attribute({4, num_output}, bias);
+            else
+                op->attrs["3"] = Attribute({4, num_output}, bias);
         }
 
-        op->attrs["6"] = Attribute();
-        op->attrs["6"].data = {0, 0, 0, 0};
+        op->attrs["4"] = Attribute();
+        op->attrs["4"].data = {0, 0, 0, 0};
 
         // reorder IFGO-hidden-hidden to IFOG-hidden-hidden
         {
@@ -234,7 +238,6 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                 memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
             }
-            op->attrs["7"] = Attribute({4, num_output, num_output}, new_weight_hh);
 
             if (bidirectional)
             {
@@ -259,7 +262,11 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                     memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
                 }
-                op->attrs["8"] = Attribute({4, num_output, num_output}, new_weight_hh_reverse);
+                op->attrs["5"] = Attribute({4, num_output, num_output}, new_weight_hh) + Attribute({4, num_output, num_output}, new_weight_hh_reverse);
+            }
+            else
+            {
+                op->attrs["5"] = Attribute({4, num_output, num_output}, new_weight_hh);
             }
         }
     }

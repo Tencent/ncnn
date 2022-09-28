@@ -9,11 +9,13 @@ jobs:
     name: Build SDist
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
 
     - name: Install deps
       run: python -m pip install twine build
@@ -24,10 +26,9 @@ jobs:
     - name: Check metadata
       run: twine check dist/*
 
-    - uses: actions/upload-artifact@v2
+    - uses: actions/upload-artifact@v3
       with:
         path: dist/*.tar.gz
-
 
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
@@ -35,17 +36,24 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
+        os: [ubuntu-20.04, windows-2019, macos-11]
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+
+    - name: brew uninstall libomp
+      if: matrix.os == 'macos-11'
+      run: |
+        brew uninstall --ignore-dependencies libomp
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.3.1
+      uses: pypa/cibuildwheel@v2.10.1
       env:
         CIBW_ARCHS_MACOS: x86_64 universal2 arm64
         CIBW_ARCHS_LINUX: x86_64 i686
@@ -59,7 +67,7 @@ jobs:
       shell: bash
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: wheelhouse/*.whl
 
@@ -77,21 +85,25 @@ jobs:
             build: "pp37-*"
           - arch: aarch64
             build: "pp38-*"
+          - arch: aarch64
+            build: "pp39-*"
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
 
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
 
     - name: Set up QEMU
-      uses: docker/setup-qemu-action@v1
+      uses: docker/setup-qemu-action@v2
       with:
         platforms: all
 
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.3.1
+      uses: pypa/cibuildwheel@v2.10.1
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
@@ -105,24 +117,28 @@ jobs:
       shell: bash
 
     - name: Upload wheels
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v3
       with:
         path: wheelhouse/*.whl
 
   upload_all:
+    permissions:
+      contents: none
     name: Upload
     needs: [build_wheels, build_wheels_qemu, build_sdist]
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/setup-python@v2
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
 
-    - uses: actions/download-artifact@v2
+    - uses: actions/download-artifact@v3
       with:
         name: artifact
         path: dist
 
-    - uses: pypa/gh-action-pypi-publish@v1.4.2
+    - uses: pypa/gh-action-pypi-publish@v1.5.1
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}

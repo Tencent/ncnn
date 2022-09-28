@@ -20,7 +20,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y):
+    def forward(self, x, y, w):
         x = F.interpolate(x, size=16)
         x = F.interpolate(x, scale_factor=2, mode='nearest')
         x = F.interpolate(x, size=(20), mode='nearest')
@@ -53,13 +53,14 @@ class Model(nn.Module):
         y = F.interpolate(y, size=(16,24), mode='bicubic', align_corners=True)
         y = F.interpolate(y, scale_factor=(2,3), mode='bicubic', align_corners=True)
 
-        y = F.interpolate(y, scale_factor=(1.7,2), mode='nearest', recompute_scale_factor=True)
+        y = F.interpolate(y, scale_factor=(1.6,2), mode='nearest', recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(2,1.2), mode='bilinear', align_corners=False, recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(0.5,0.4), mode='bilinear', align_corners=True, recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(0.8,0.9), mode='bicubic', align_corners=False, recompute_scale_factor=True)
         y = F.interpolate(y, scale_factor=(1.1,0.5), mode='bicubic', align_corners=True, recompute_scale_factor=True)
 
-        return x, y
+        w = F.interpolate(w, scale_factor=(2.976744,2.976744), mode='nearest', recompute_scale_factor=False)
+        return x, y, w
 
 def test():
     net = Model()
@@ -68,16 +69,17 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 3, 32)
     y = torch.rand(1, 3, 32, 32)
+    w = torch.rand(1, 8, 86, 86)
 
-    a = net(x, y)
+    a = net(x, y, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y))
+    mod = torch.jit.trace(net, (x, y, w))
     mod.save("test_F_interpolate.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_interpolate.pt inputshape=[1,3,32],[1,3,32,32]")
+    os.system("../../src/pnnx test_F_interpolate.pt inputshape=[1,3,32],[1,3,32,32],[1,8,86,86]")
 
     # ncnn inference
     import test_F_interpolate_ncnn

@@ -279,9 +279,6 @@ int main(int argc, char** argv)
         fprintf(stderr, "\n");
     }
 
-    //     at::AutoNonVariableTypeMode nonVarTypeModeGuard(true);
-    //     torch::autograd::AutoGradMode guard(false);
-
     for (auto m : customop_modules)
     {
         fprintf(stderr, "load custom module %s\n", m.c_str());
@@ -326,7 +323,29 @@ int main(int argc, char** argv)
         input_tensors2.push_back(t);
     }
 
-    torch::jit::Module mod = torch::jit::load(ptpath);
+    torch::jit::Module mod;
+
+    try
+    {
+        mod = torch::jit::load(ptpath);
+    }
+    catch (const c10::Error& e)
+    {
+        fprintf(stderr, "Load torchscript failed: %s\n", e.what());
+
+        fprintf(stderr, "Please export model to torchscript as follows\n");
+        fprintf(stderr, "------------------------------------------\n");
+        fprintf(stderr, "import torch\n");
+        fprintf(stderr, "import torchvision.models as models\n\n");
+        fprintf(stderr, "net = models.resnet18(pretrained=True)\n");
+        fprintf(stderr, "net = net.eval()\n\n");
+        fprintf(stderr, "x = torch.rand(1, 3, 224, 224)\n");
+        fprintf(stderr, "mod = torch.jit.trace(net, x)\n");
+        fprintf(stderr, "mod.save(\"resnet18.pt\")\n");
+        fprintf(stderr, "------------------------------------------\n");
+
+        return -1;
+    }
 
     mod.eval();
 
@@ -339,14 +358,15 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "############# pass_level0\n");
 
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators);
+    std::map<std::string, pnnx::Attribute> foldable_constants;
+    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, foldable_constants);
 
     //     g->dump();
 
     fprintf(stderr, "############# pass_level1\n");
 
     pnnx::Graph pnnx_graph;
-    pnnx::pass_level1(mod, g, pnnx_graph);
+    pnnx::pass_level1(mod, g, module_operators, pnnx_graph);
 
     //     g->dump();
 
@@ -360,7 +380,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_level3\n");
 
-        pnnx::pass_level3(pnnx_graph);
+        pnnx::pass_level3(pnnx_graph, foldable_constants);
 
         fprintf(stderr, "############# pass_level4\n");
 
@@ -373,7 +393,7 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_level5\n");
 
-        pnnx::pass_level5(pnnx_graph);
+        pnnx::pass_level5(pnnx_graph, foldable_constants);
     }
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);

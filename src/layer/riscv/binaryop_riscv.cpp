@@ -20,11 +20,7 @@
 #include <math.h>
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "rvv_mathfun.h"
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
@@ -44,6 +40,131 @@ BinaryOp_riscv::BinaryOp_riscv()
 }
 
 #if __riscv_vector
+template<typename Op>
+static int binary_op_2_3_4_20(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = b.w;
+    int h = b.h;
+    int d = b.d;
+    int channels = b.c;
+    int elempack = b.elempack;
+    int size = w * h * d * elempack;
+
+    // type 2 3 4 20
+    c.create_like(b, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float a0 = a[0];
+        const float* ptr = b.channel(q);
+        float* outptr = c.channel(q);
+
+        int n = size;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e32m8(n);
+            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+            vfloat32m8_t _outp = op(a0, _p, vl);
+            vse32_v_f32m8(outptr, _outp, vl);
+
+            ptr += vl;
+            outptr += vl;
+            n -= vl;
+        }
+    }
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_6_11_16_25(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    // type 6 11 16 25
+    c.create_like(a, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* ptr = a.channel(q);
+        const float b0 = b[0];
+        float* outptr = c.channel(q);
+
+        int n = size;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e32m8(n);
+            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+            vfloat32m8_t _outp = op(_p, b0, vl);
+            vse32_v_f32m8(outptr, _outp, vl);
+
+            ptr += vl;
+            outptr += vl;
+            n -= vl;
+        }
+    }
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_7_13_19_29(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    // type 7 13 19 29
+    c.create_like(a, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const float* ptr = a.channel(q);
+        const float* ptr1 = b.channel(q);
+        float* outptr = c.channel(q);
+
+        int n = size;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e32m8(n);
+            vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
+            vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
+            vfloat32m8_t _outp = op(_p, _p1, vl);
+            vse32_v_f32m8(outptr, _outp, vl);
+
+            ptr += vl;
+            ptr1 += vl;
+            outptr += vl;
+            n -= vl;
+        }
+    }
+
+    return 0;
+}
+
 template<typename Op>
 static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 {
@@ -70,34 +191,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
         if (b.dims == 4)
         {
             // type 29
-            c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                int n = size * elempack;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                    vfloat32m8_t _outp = op(_p, _p1, vl);
-                    vse32_v_f32m8(outptr, _outp, vl);
-
-                    ptr += vl;
-                    ptr1 += vl;
-                    outptr += vl;
-                    n -= vl;
-                }
-            }
-
-            return 0;
+            return binary_op_7_13_19_29<Op>(a, b, c, opt);
         }
 
         c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
@@ -180,28 +274,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 25
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    const float b0 = b[0];
-                    float* outptr = c.channel(q);
-
-                    int n = size * elempack;
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n);
-                        vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _outp = op(_p, b0, vl);
-                        vse32_v_f32m8(outptr, _outp, vl);
-
-                        ptr += vl;
-                        outptr += vl;
-                        n -= vl;
-                    }
-                }
-
-                return 0;
+                return binary_op_6_11_16_25<Op>(a, b, c, opt);
             }
 
             // type 26
@@ -565,34 +638,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             }
 
             // type 19
-            c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const float* ptr = a.channel(q);
-                const float* ptr1 = b.channel(q);
-                float* outptr = c.channel(q);
-
-                int n = size * elempack;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                    vfloat32m8_t _outp = op(_p, _p1, vl);
-                    vse32_v_f32m8(outptr, _outp, vl);
-
-                    ptr += vl;
-                    ptr1 += vl;
-                    outptr += vl;
-                    n -= vl;
-                }
-            }
-
-            return 0;
+            return binary_op_7_13_19_29<Op>(a, b, c, opt);
         }
 
         c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
@@ -638,28 +684,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 16
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const float* ptr = a.channel(q);
-                    const float b0 = b[0];
-                    float* outptr = c.channel(q);
-
-                    int n = size * elempack;
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n);
-                        vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                        vfloat32m8_t _outp = op(_p, b0, vl);
-                        vse32_v_f32m8(outptr, _outp, vl);
-
-                        ptr += vl;
-                        outptr += vl;
-                        n -= vl;
-                    }
-                }
-
-                return 0;
+                return binary_op_6_11_16_25<Op>(a, b, c, opt);
             }
 
             // type 17
@@ -773,26 +798,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
         if (b.dims == 2)
         {
             // type 13
-            const float* ptr = a;
-            const float* ptr1 = b;
-            float* outptr = c;
-
-            int n = size * elempack;
-            while (n > 0)
-            {
-                word_type vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                vfloat32m8_t _outp = op(_p, _p1, vl);
-                vse32_v_f32m8(outptr, _outp, vl);
-
-                ptr += vl;
-                ptr1 += vl;
-                outptr += vl;
-                n -= vl;
-            }
-
-            return 0;
+            return binary_op_7_13_19_29<Op>(a, b, c, opt);
         }
 
         if (b.dims == 1)
@@ -804,24 +810,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 11
-                const float* ptr = a;
-                const float b0 = b[0];
-                float* outptr = c;
-
-                int n = size * elempack;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _outp = op(_p, b0, vl);
-                    vse32_v_f32m8(outptr, _outp, vl);
-
-                    ptr += vl;
-                    outptr += vl;
-                    n -= vl;
-                }
-
-                return 0;
+                return binary_op_6_11_16_25<Op>(a, b, c, opt);
             }
 
             // type 12
@@ -856,121 +845,8 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
     {
         if (a.w == 1 && elempack == 1)
         {
-            if (b.dims == 4)
-            {
-                // type 20
-                c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float a0 = a[0];
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    int n1 = size1 * elempack1;
-                    while (n1 > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n1);
-                        vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                        vfloat32m8_t _outp = op(a0, _p1, vl);
-                        vse32_v_f32m8(outptr, _outp, vl);
-
-                        ptr1 += vl;
-                        outptr += vl;
-                        n1 -= vl;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 3)
-            {
-                // type 4
-                c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const float a0 = a[0];
-                    const float* ptr1 = b.channel(q);
-                    float* outptr = c.channel(q);
-
-                    int n1 = size1 * elempack1;
-                    while (n1 > 0)
-                    {
-                        word_type vl = vsetvl_e32m8(n1);
-                        vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                        vfloat32m8_t _outp = op(a0, _p1, vl);
-                        vse32_v_f32m8(outptr, _outp, vl);
-
-                        ptr1 += vl;
-                        outptr += vl;
-                        n1 -= vl;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 2)
-            {
-                // type 3
-                c.create(w1, h1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const float a0 = a[0];
-                const float* ptr1 = b;
-                float* outptr = c;
-
-                int n1 = size1 * elempack1;
-                while (n1 > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n1);
-                    vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                    vfloat32m8_t _outp = op(a0, _p1, vl);
-                    vse32_v_f32m8(outptr, _outp, vl);
-
-                    ptr1 += vl;
-                    outptr += vl;
-                    n1 -= vl;
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 1)
-            {
-                // type 2
-                c.create(w1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const float a0 = a[0];
-                const float* ptr1 = b;
-                float* outptr = c;
-
-                int n1 = w1 * elempack1;
-                while (n1 > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n1);
-                    vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                    vfloat32m8_t _outp = op(a0, _p1, vl);
-                    vse32_v_f32m8(outptr, _outp, vl);
-
-                    ptr1 += vl;
-                    outptr += vl;
-                    n1 -= vl;
-                }
-
-                return 0;
-            }
+            // type 2 3 4 20
+            return binary_op_2_3_4_20<Op>(a, b, c, opt);
         }
 
         if (b.dims == 4)
@@ -1080,45 +956,11 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 6
-                const float* ptr = a;
-                const float b0 = b[0];
-                float* outptr = c;
-
-                int n = w * elempack;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e32m8(n);
-                    vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                    vfloat32m8_t _outp = op(_p, b0, vl);
-                    vse32_v_f32m8(outptr, _outp, vl);
-
-                    ptr += vl;
-                    outptr += vl;
-                    n -= vl;
-                }
-
-                return 0;
+                return binary_op_6_11_16_25<Op>(a, b, c, opt);
             }
 
             // type 7
-            const float* ptr = a;
-            const float* ptr1 = b;
-            float* outptr = c;
-
-            int n = size * elempack;
-            while (n > 0)
-            {
-                word_type vl = vsetvl_e32m8(n);
-                vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
-                vfloat32m8_t _outp = op(_p, _p1, vl);
-                vse32_v_f32m8(outptr, _outp, vl);
-
-                ptr += vl;
-                ptr1 += vl;
-                outptr += vl;
-                n -= vl;
-            }
+            binary_op_7_13_19_29<Op>(a, b, c, opt);
         }
     }
 
@@ -1156,149 +998,39 @@ static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
     return 0;
 }
 
-struct binary_op_add_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfadd_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y, const word_type& vl) const
-    {
-        return vfadd_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const float& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfadd_vf_f32m8(y, x, vl);
-    }
-};
+namespace BinaryOp_riscv_functor {
 
-struct binary_op_sub_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfsub_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfrsub_vf_f32m8(y, x, vl);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPLVV, IMPLVS, IMPLSV)                                                     \
+    struct NAME                                                                                         \
+    {                                                                                                   \
+        vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type vl) const \
+        {                                                                                               \
+            return IMPLVV;                                                                              \
+        }                                                                                               \
+        vfloat32m8_t operator()(const vfloat32m8_t& x, const float y, const word_type vl) const         \
+        {                                                                                               \
+            return IMPLVS;                                                                              \
+        }                                                                                               \
+        vfloat32m8_t operator()(const float x, const vfloat32m8_t& y, const word_type vl) const         \
+        {                                                                                               \
+            return IMPLSV;                                                                              \
+        }                                                                                               \
+    };
 
-struct binary_op_mul_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmul_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmul_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmul_vf_f32m8(y, x, vl);
-    }
-};
+MAKE_FUNCTION(binary_op_add_rvv, vfadd_vv_f32m8(x, y, vl), vfadd_vf_f32m8(x, y, vl), vfadd_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_sub_rvv, vfsub_vv_f32m8(x, y, vl), vfsub_vf_f32m8(x, y, vl), vfrsub_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_mul_rvv, vfmul_vv_f32m8(x, y, vl), vfmul_vf_f32m8(x, y, vl), vfmul_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_div_rvv, vfdiv_vv_f32m8(x, y, vl), vfdiv_vf_f32m8(x, y, vl), vfrdiv_vf_f32m8(y, x, vl))
 
-struct binary_op_div_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfdiv_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfrdiv_vf_f32m8(y, x, vl);
-    }
-};
+MAKE_FUNCTION(binary_op_max_rvv, vfmax_vv_f32m8(x, y, vl), vfmax_vf_f32m8(x, y, vl), vfmax_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_min_rvv, vfmin_vv_f32m8(x, y, vl), vfmin_vf_f32m8(x, y, vl), vfmin_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_pow_rvv, pow_ps(x, y, vl), pow_ps(x, vfmv_v_f_f32m8(y, vl), vl), pow_ps(vfmv_v_f_f32m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rsub_rvv, vfsub_vv_f32m8(y, x, vl), vfrsub_vf_f32m8(x, y, vl), vfsub_vf_f32m8(y, x, vl))
+MAKE_FUNCTION(binary_op_rdiv_rvv, vfdiv_vv_f32m8(y, x, vl), vfrdiv_vf_f32m8(x, y, vl), vfdiv_vf_f32m8(y, x, vl))
 
-struct binary_op_max_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmax_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmax_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmax_vf_f32m8(y, x, vl);
-    }
-};
+#undef MAKE_FUNCTION
 
-struct binary_op_min_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmin_vv_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmin_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfmin_vf_f32m8(y, x, vl);
-    }
-};
-
-struct binary_op_pow_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return pow_ps(x, y, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return pow_ps(x, vfmv_v_f_f32m8(y, vl), vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return pow_ps(vfmv_v_f_f32m8(x, vl), y, vl);
-    }
-};
-
-struct binary_op_rsub_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vv_f32m8(y, x, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const float& y, const word_type& vl) const
-    {
-        return vfrsub_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(const float& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vf_f32m8(y, x, vl);
-    }
-};
-
-struct binary_op_rdiv_rvv
-{
-    vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vv_f32m8(y, x, vl);
-    }
-    vfloat32m8_t operator()(const vfloat32m8_t& x, float y, const word_type& vl) const
-    {
-        return vfrdiv_vf_f32m8(x, y, vl);
-    }
-    vfloat32m8_t operator()(float x, const vfloat32m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vf_f32m8(y, x, vl);
-    }
-};
+} // namespace BinaryOp_riscv_functor
 #endif
 
 int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -1315,6 +1047,8 @@ int BinaryOp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     Mat& top_blob = top_blobs[0];
 
 #if __riscv_vector
+    using namespace BinaryOp_riscv_functor;
+
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
     if (elempack != 1 || elempack1 != 1)
@@ -1363,6 +1097,8 @@ int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
     }
 #endif
 
+    using namespace BinaryOp_riscv_functor;
+
     if (op_type == Operation_ADD)
         return binary_op_scalar_rvv<binary_op_add_rvv>(bottom_top_blob, b, opt);
 
@@ -1397,6 +1133,131 @@ int BinaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 // fp16sa
 #if __riscv_vector && __riscv_zfh
 template<typename Op>
+static int binary_op_2_3_4_20_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = b.w;
+    int h = b.h;
+    int d = b.d;
+    int channels = b.c;
+    int elempack = b.elempack;
+    int size = w * h * d * elempack;
+
+    // type 2 3 4 20
+    c.create_like(b, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const __fp16 a0 = ((const __fp16*)a)[0];
+        const __fp16* ptr = b.channel(q);
+        __fp16* outptr = c.channel(q);
+
+        int n = size;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e16m8(n);
+            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
+            vfloat16m8_t _outp = op(a0, _p, vl);
+            vse16_v_f16m8(outptr, _outp, vl);
+
+            ptr += vl;
+            outptr += vl;
+            n -= vl;
+        }
+    }
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_6_11_16_25_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    // type 6 11 16 25
+    c.create_like(a, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const __fp16* ptr = a.channel(q);
+        const __fp16 b0 = ((const __fp16*)b)[0];
+        __fp16* outptr = c.channel(q);
+
+        int n = size;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e16m8(n);
+            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
+            vfloat16m8_t _outp = op(_p, b0, vl);
+            vse16_v_f16m8(outptr, _outp, vl);
+
+            ptr += vl;
+            outptr += vl;
+            n -= vl;
+        }
+    }
+
+    return 0;
+}
+
+template<typename Op>
+static int binary_op_7_13_19_29_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
+{
+    Op op;
+
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
+
+    // type 7 13 19 29
+    c.create_like(a, opt.blob_allocator);
+    if (c.empty())
+        return -100;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
+    {
+        const __fp16* ptr = a.channel(q);
+        const __fp16* ptr1 = b.channel(q);
+        __fp16* outptr = c.channel(q);
+
+        int n = size;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e16m8(n);
+            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
+            vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
+            vfloat16m8_t _outp = op(_p, _p1, vl);
+            vse16_v_f16m8(outptr, _outp, vl);
+
+            ptr += vl;
+            ptr1 += vl;
+            outptr += vl;
+            n -= vl;
+        }
+    }
+
+    return 0;
+}
+
+template<typename Op>
 static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
 {
     Op op;
@@ -1422,34 +1283,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
         if (b.dims == 4)
         {
             // type 29
-            c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const __fp16* ptr = a.channel(q);
-                const __fp16* ptr1 = b.channel(q);
-                __fp16* outptr = c.channel(q);
-
-                int n = size * elempack;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e16m8(n);
-                    vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                    vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                    vfloat16m8_t _outp = op(_p, _p1, vl);
-                    vse16_v_f16m8(outptr, _outp, vl);
-
-                    ptr += vl;
-                    ptr1 += vl;
-                    outptr += vl;
-                    n -= vl;
-                }
-            }
-
-            return 0;
+            return binary_op_7_13_19_29_fp16s<Op>(a, b, c, opt);
         }
 
         c.create(w, h, d, channels, elemsize, elempack, opt.blob_allocator);
@@ -1532,28 +1366,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 25
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = a.channel(q);
-                    const __fp16 b0 = ((const __fp16*)b)[0];
-                    __fp16* outptr = c.channel(q);
-
-                    int n = size * elempack;
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e16m8(n);
-                        vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                        vfloat16m8_t _outp = op(_p, b0, vl);
-                        vse16_v_f16m8(outptr, _outp, vl);
-
-                        ptr += vl;
-                        outptr += vl;
-                        n -= vl;
-                    }
-                }
-
-                return 0;
+                return binary_op_6_11_16_25_fp16s<Op>(a, b, c, opt);
             }
 
             // type 26
@@ -1921,34 +1734,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
             }
 
             // type 19
-            c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const __fp16* ptr = a.channel(q);
-                const __fp16* ptr1 = b.channel(q);
-                __fp16* outptr = c.channel(q);
-
-                int n = size * elempack;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e16m8(n);
-                    vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                    vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                    vfloat16m8_t _outp = op(_p, _p1, vl);
-                    vse16_v_f16m8(outptr, _outp, vl);
-
-                    ptr += vl;
-                    ptr1 += vl;
-                    outptr += vl;
-                    n -= vl;
-                }
-            }
-
-            return 0;
+            return binary_op_7_13_19_29_fp16s<Op>(a, b, c, opt);
         }
 
         c.create(w, h, channels, elemsize, elempack, opt.blob_allocator);
@@ -1994,28 +1780,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 16
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = a.channel(q);
-                    const __fp16 b0 = *(const __fp16*)b;
-                    __fp16* outptr = c.channel(q);
-
-                    int n = size * elempack;
-                    while (n > 0)
-                    {
-                        word_type vl = vsetvl_e16m8(n);
-                        vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                        vfloat16m8_t _outp = op(_p, b0, vl);
-                        vse16_v_f16m8(outptr, _outp, vl);
-
-                        ptr += vl;
-                        outptr += vl;
-                        n -= vl;
-                    }
-                }
-
-                return 0;
+                return binary_op_6_11_16_25_fp16s<Op>(a, b, c, opt);
             }
 
             // type 17
@@ -2129,26 +1894,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
         if (b.dims == 2)
         {
             // type 13
-            const __fp16* ptr = a;
-            const __fp16* ptr1 = b;
-            __fp16* outptr = c;
-
-            int n = size * elempack;
-            while (n > 0)
-            {
-                word_type vl = vsetvl_e16m8(n);
-                vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                vfloat16m8_t _outp = op(_p, _p1, vl);
-                vse16_v_f16m8(outptr, _outp, vl);
-
-                ptr += vl;
-                ptr1 += vl;
-                outptr += vl;
-                n -= vl;
-            }
-
-            return 0;
+            return binary_op_7_13_19_29_fp16s<Op>(a, b, c, opt);
         }
 
         if (b.dims == 1)
@@ -2160,24 +1906,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 11
-                const __fp16* ptr = a;
-                const __fp16 b0 = ((const __fp16*)b)[0];
-                __fp16* outptr = c;
-
-                int n = size * elempack;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e16m8(n);
-                    vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                    vfloat16m8_t _outp = op(_p, b0, vl);
-                    vse16_v_f16m8(outptr, _outp, vl);
-
-                    ptr += vl;
-                    outptr += vl;
-                    n -= vl;
-                }
-
-                return 0;
+                return binary_op_6_11_16_25_fp16s<Op>(a, b, c, opt);
             }
 
             // type 12
@@ -2212,122 +1941,8 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
     {
         if (a.w == 1 && elempack == 1)
         {
-            if (b.dims == 4)
-            {
-                // type 20
-                c.create(w1, h1, d1, channels1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const __fp16 a0 = ((const __fp16*)a)[0];
-                    const __fp16* ptr1 = b.channel(q);
-                    __fp16* outptr = c.channel(q);
-
-                    int n1 = size1 * elempack1;
-                    while (n1 > 0)
-                    {
-                        word_type vl = vsetvl_e16m8(n1);
-                        vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                        vfloat16m8_t _outp = op(a0, _p1, vl);
-                        vse16_v_f16m8(outptr, _outp, vl);
-
-                        ptr1 += vl;
-                        outptr += vl;
-                        n1 -= vl;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 3)
-            {
-                // type 4
-                c.create(w1, h1, channels1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const __fp16 a0 = ((const __fp16*)a)[0];
-                    const __fp16* ptr1 = b.channel(q);
-                    __fp16* outptr = c.channel(q);
-
-                    int n1 = size1 * elempack1;
-                    while (n1 > 0)
-                    {
-                        word_type vl = vsetvl_e16m8(n1);
-                        vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                        vfloat16m8_t _outp = op(a0, _p1, vl);
-                        vse16_v_f16m8(outptr, _outp, vl);
-
-                        ptr1 += vl;
-                        outptr += vl;
-                        n1 -= vl;
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 2)
-            {
-                // type 3
-                c.create(w1, h1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const __fp16 a0 = ((const __fp16*)a)[0];
-                const __fp16* ptr1 = b;
-                __fp16* outptr = c;
-
-                int n1 = size1 * elempack1;
-                while (n1 > 0)
-                {
-                    word_type vl = vsetvl_e16m8(n1);
-                    vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                    vfloat16m8_t _outp = op(a0, _p1, vl);
-                    vse16_v_f16m8(outptr, _outp, vl);
-
-                    ptr1 += vl;
-                    outptr += vl;
-                    n1 -= vl;
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 1)
-            {
-                // type 2
-
-                c.create(w1, elemsize1, elempack1, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const __fp16 a0 = ((const __fp16*)a)[0];
-                const __fp16* ptr1 = b;
-                __fp16* outptr = c;
-
-                int n1 = w1 * elempack1;
-                while (n1 > 0)
-                {
-                    word_type vl = vsetvl_e16m8(n1);
-                    vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                    vfloat16m8_t _outp = op(a0, _p1, vl);
-                    vse16_v_f16m8(outptr, _outp, vl);
-
-                    ptr1 += vl;
-                    outptr += vl;
-                    n1 -= vl;
-                }
-
-                return 0;
-            }
+            // type 2 3 4 20
+            return binary_op_2_3_4_20_fp16s<Op>(a, b, c, opt);
         }
 
         if (b.dims == 4)
@@ -2437,225 +2052,16 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
             if (b.w == 1 && elempack1 == 1)
             {
                 // type 6
-                const __fp16* ptr = a;
-                const __fp16 b0 = ((const __fp16*)b)[0];
-                __fp16* outptr = c;
-
-                int n = w * elempack;
-                while (n > 0)
-                {
-                    word_type vl = vsetvl_e16m8(n);
-                    vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                    vfloat16m8_t _outp = op(_p, b0, vl);
-                    vse16_v_f16m8(outptr, _outp, vl);
-
-                    ptr += vl;
-                    outptr += vl;
-                    n -= vl;
-                }
-
-                return 0;
+                return binary_op_6_11_16_25_fp16s<Op>(a, b, c, opt);
             }
 
             // type 7
-            const __fp16* ptr = a;
-            const __fp16* ptr1 = b;
-            __fp16* outptr = c;
-
-            int n = size * elempack;
-            while (n > 0)
-            {
-                word_type vl = vsetvl_e16m8(n);
-                vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
-                vfloat16m8_t _outp = op(_p, _p1, vl);
-                vse16_v_f16m8(outptr, _outp, vl);
-
-                ptr += vl;
-                ptr1 += vl;
-                outptr += vl;
-                n -= vl;
-            }
+            binary_op_7_13_19_29_fp16s<Op>(a, b, c, opt);
         }
     }
 
     return 0;
 }
-
-template<typename Op>
-static int binary_op_scalar_rvv_fp16s(Mat& a, float b, const Option& opt)
-{
-    Op op;
-    int w = a.w;
-    int h = a.h;
-    int d = a.d;
-    int channels = a.c;
-    int size = w * h * d;
-    int elempack = a.elempack;
-
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int q = 0; q < channels; q++)
-    {
-        __fp16* ptr = a.channel(q);
-        int n = size * elempack;
-        while (n > 0)
-        {
-            word_type vl = vsetvl_e16m8(n);
-            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-            _p = op(_p, b, vl);
-            vse16_v_f16m8(ptr, _p, vl);
-
-            n -= vl;
-            ptr += vl;
-        }
-    }
-
-    return 0;
-}
-
-struct binary_op_add_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfadd_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const float& y, const word_type& vl) const
-    {
-        return vfadd_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const float& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfadd_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_sub_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfsub_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfrsub_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_mul_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmul_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmul_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmul_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_div_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfdiv_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfrdiv_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_max_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmax_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmax_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmax_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_min_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmin_vv_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfmin_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfmin_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_pow_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return pow_ps(x, y, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const __fp16& y, const word_type& vl) const
-    {
-        return pow_ps(x, vfmv_v_f_f16m8(y, vl), vl);
-    }
-    vfloat16m8_t operator()(const __fp16& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return pow_ps(vfmv_v_f_f16m8(x, vl), y, vl);
-    }
-};
-
-struct binary_op_rsub_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vv_f16m8(y, x, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const float& y, const word_type& vl) const
-    {
-        return vfrsub_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(const float& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfsub_vf_f16m8(y, x, vl);
-    }
-};
-
-struct binary_op_rdiv_rvv_fp16
-{
-    vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vv_f16m8(y, x, vl);
-    }
-    vfloat16m8_t operator()(const vfloat16m8_t& x, float y, const word_type& vl) const
-    {
-        return vfrdiv_vf_f16m8(x, y, vl);
-    }
-    vfloat16m8_t operator()(float x, const vfloat16m8_t& y, const word_type& vl) const
-    {
-        return vfdiv_vf_f16m8(y, x, vl);
-    }
-};
 
 template<typename Op>
 static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt)
@@ -2680,24 +2086,7 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
         if (b.dims == 4)
         {
             // type 29
-            c.create(w, h, d, channels, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const __fp16* ptr = a.channel(q);
-                const __fp16* ptr1 = b.channel(q);
-                __fp16* outptr = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = op(ptr[i], ptr1[i]);
-                }
-            }
-
-            return 0;
+            return binary_op_7_13_19_29_fp16s<Op>(a, b, c, opt);
         }
 
         c.create(w, h, d, channels, elemsize, opt.blob_allocator);
@@ -2769,20 +2158,7 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1)
             {
                 // type 25
-                const __fp16 b0 = ((const __fp16*)b)[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = a.channel(q);
-                    __fp16* outptr = c.channel(q);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        outptr[i] = op(ptr[i], b0);
-                    }
-                }
-
-                return 0;
+                return binary_op_6_11_16_25_fp16s<Op>(a, b, c, opt);
             }
 
             // type 26
@@ -3048,24 +2424,7 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             }
 
             // type 19
-            c.create(w, h, channels, elemsize, opt.blob_allocator);
-            if (c.empty())
-                return -100;
-
-            #pragma omp parallel for num_threads(opt.num_threads)
-            for (int q = 0; q < channels; q++)
-            {
-                const __fp16* ptr = a.channel(q);
-                const __fp16* ptr1 = b.channel(q);
-                __fp16* outptr = c.channel(q);
-
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = op(ptr[i], ptr1[i]);
-                }
-            }
-
-            return 0;
+            return binary_op_7_13_19_29_fp16s<Op>(a, b, c, opt);
         }
 
         c.create(w, h, channels, elemsize, opt.blob_allocator);
@@ -3103,20 +2462,7 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1)
             {
                 // type 16
-                const __fp16 b0 = ((const __fp16*)b)[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels; q++)
-                {
-                    const __fp16* ptr = a.channel(q);
-                    __fp16* outptr = c.channel(q);
-
-                    for (int i = 0; i < size; i++)
-                    {
-                        outptr[i] = op(ptr[i], b0);
-                    }
-                }
-
-                return 0;
+                return binary_op_6_11_16_25_fp16s<Op>(a, b, c, opt);
             }
 
             // type 17
@@ -3208,15 +2554,7 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
         if (b.dims == 2)
         {
             // type 13
-            const __fp16* ptr = a;
-            const __fp16* ptr1 = b;
-            __fp16* outptr = c;
-            for (int i = 0; i < size; i++)
-            {
-                outptr[i] = op(ptr[i], ptr1[i]);
-            }
-
-            return 0;
+            return binary_op_7_13_19_29_fp16s<Op>(a, b, c, opt);
         }
 
         if (b.dims == 1)
@@ -3228,15 +2566,7 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1)
             {
                 // type 11
-                const __fp16 b0 = ((const __fp16*)b)[0];
-                const __fp16* ptr = a;
-                __fp16* outptr = c;
-                for (int i = 0; i < size; i++)
-                {
-                    outptr[i] = op(ptr[i], b0);
-                }
-
-                return 0;
+                return binary_op_6_11_16_25_fp16s<Op>(a, b, c, opt);
             }
 
             // type 12
@@ -3262,87 +2592,8 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
     {
         if (a.w == 1)
         {
-            if (b.dims == 4)
-            {
-                // type 20
-                c.create(w1, h1, d1, channels1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const __fp16 a0 = ((const __fp16*)a)[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const __fp16* ptr1 = b.channel(q);
-                    __fp16* outptr = c.channel(q);
-
-                    for (int i = 0; i < size1; i++)
-                    {
-                        outptr[i] = op(a0, ptr1[i]);
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 3)
-            {
-                // type 4
-                c.create(w1, h1, channels1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const __fp16 a0 = ((const __fp16*)a)[0];
-                #pragma omp parallel for num_threads(opt.num_threads)
-                for (int q = 0; q < channels1; q++)
-                {
-                    const __fp16* ptr1 = b.channel(q);
-                    __fp16* outptr = c.channel(q);
-
-                    for (int i = 0; i < size1; i++)
-                    {
-                        outptr[i] = op(a0, ptr1[i]);
-                    }
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 2)
-            {
-                // type 3
-                c.create(w1, h1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const __fp16 a0 = ((const __fp16*)a)[0];
-                const __fp16* ptr1 = b;
-                __fp16* outptr = c;
-                for (int i = 0; i < size1; i++)
-                {
-                    outptr[i] = op(a0, ptr1[i]);
-                }
-
-                return 0;
-            }
-
-            if (b.dims == 1)
-            {
-                // type 2
-                c.create(w1, elemsize, opt.blob_allocator);
-                if (c.empty())
-                    return -100;
-
-                const __fp16 a0 = ((const __fp16*)a)[0];
-                const __fp16* ptr1 = b;
-                __fp16* outptr = c;
-                for (int i = 0; i < w1; i++)
-                {
-                    outptr[i] = op(a0, ptr1[i]);
-                }
-
-                return 0;
-            }
+            // type 2 3 4 20
+            return binary_op_2_3_4_20_fp16s<Op>(a, b, c, opt);
         }
 
         if (b.dims == 4)
@@ -3425,102 +2676,89 @@ static int binary_op_fp16s(const Mat& a, const Mat& b, Mat& c, const Option& opt
             if (b.w == 1)
             {
                 // type 6
-                const __fp16 b0 = ((const __fp16*)b)[0];
-                const __fp16* ptr = a;
-                __fp16* outptr = c;
-                for (int i = 0; i < w; i++)
-                {
-                    outptr[i] = op(ptr[i], b0);
-                }
-
-                return 0;
+                return binary_op_6_11_16_25_fp16s<Op>(a, b, c, opt);
             }
 
             // type 7
-            const __fp16* ptr = a;
-            const __fp16* ptr1 = b;
-            __fp16* outptr = c;
-            for (int i = 0; i < w; i++)
-            {
-                outptr[i] = op(ptr[i], ptr1[i]);
-            }
+            binary_op_7_13_19_29_fp16s<Op>(a, b, c, opt);
         }
     }
 
     return 0;
 }
 
-struct binary_op_add_fp16s
+template<typename Op>
+static int binary_op_scalar_rvv_fp16s(Mat& a, float b, const Option& opt)
 {
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x + y;
-    }
-};
+    Op op;
+    int w = a.w;
+    int h = a.h;
+    int d = a.d;
+    int channels = a.c;
+    int elempack = a.elempack;
+    int size = w * h * d * elempack;
 
-struct binary_op_sub_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < channels; q++)
     {
-        return x - y;
-    }
-};
+        __fp16* ptr = a.channel(q);
 
-struct binary_op_mul_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x * y;
-    }
-};
+        int n = size;
+        while (n > 0)
+        {
+            word_type vl = vsetvl_e16m8(n);
+            vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
+            _p = op(_p, b, vl);
+            vse16_v_f16m8(ptr, _p, vl);
 
-struct binary_op_div_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return x / y;
+            n -= vl;
+            ptr += vl;
+        }
     }
-};
 
-struct binary_op_max_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return std::max(x, y);
-    }
-};
+    return 0;
+}
 
-struct binary_op_min_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return std::min(x, y);
-    }
-};
+namespace BinaryOp_riscv_functor {
 
-struct binary_op_pow_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return (__fp16)pow((float)x, (float)y);
-    }
-};
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                               \
+    struct NAME                                                                                         \
+    {                                                                                                   \
+        __fp16 operator()(const __fp16& x, const __fp16& y) const                                       \
+        {                                                                                               \
+            return IMPL;                                                                                \
+        }                                                                                               \
+        vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type vl) const \
+        {                                                                                               \
+            return IMPLVV;                                                                              \
+        }                                                                                               \
+        vfloat16m8_t operator()(const vfloat16m8_t& x, const float y, const word_type vl) const         \
+        {                                                                                               \
+            return IMPLVS;                                                                              \
+        }                                                                                               \
+        vfloat16m8_t operator()(const float x, const vfloat16m8_t& y, const word_type vl) const         \
+        {                                                                                               \
+            return IMPLSV;                                                                              \
+        }                                                                                               \
+    };
 
-struct binary_op_rsub_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return y - x;
-    }
-};
+// clang-format off
+// *INDENT-OFF*
+MAKE_FUNCTION(binary_op_add_fp16s, x + y, vfadd_vv_f16m8(x, y, vl), vfadd_vf_f16m8(x, y, vl), vfadd_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_sub_fp16s, x - y, vfsub_vv_f16m8(x, y, vl), vfsub_vf_f16m8(x, y, vl), vfrsub_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_mul_fp16s, x * y, vfmul_vv_f16m8(x, y, vl), vfmul_vf_f16m8(x, y, vl), vfmul_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_div_fp16s, x / y, vfdiv_vv_f16m8(x, y, vl), vfdiv_vf_f16m8(x, y, vl), vfrdiv_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_max_fp16s, std::max(x, y), vfmax_vv_f16m8(x, y, vl), vfmax_vf_f16m8(x, y, vl), vfmax_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_min_fp16s, std::min(x, y), vfmin_vv_f16m8(x, y, vl), vfmin_vf_f16m8(x, y, vl), vfmin_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_pow_fp16s, (__fp16)pow((float)x, (float)y), pow_ps(x, y, vl), pow_ps(x, vfmv_v_f_f16m8(y, vl), vl), pow_ps(vfmv_v_f_f16m8(x, vl), y, vl))
+MAKE_FUNCTION(binary_op_rsub_fp16s, y - x, vfsub_vv_f16m8(y, x, vl), vfrsub_vf_f16m8(x, y, vl), vfsub_vf_f16m8(y, x, vl))
+MAKE_FUNCTION(binary_op_rdiv_fp16s, y / x, vfdiv_vv_f16m8(y, x, vl), vfrdiv_vf_f16m8(x, y, vl), vfdiv_vf_f16m8(y, x, vl))
+// *INDENT-ON*
+// clang-format on
 
-struct binary_op_rdiv_fp16s
-{
-    __fp16 operator()(const __fp16& x, const __fp16& y) const
-    {
-        return y / x;
-    }
-};
+#undef MAKE_FUNCTION
+
+} // namespace BinaryOp_riscv_functor
 
 int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
@@ -3528,36 +2766,38 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
     const Mat& bottom_blob1 = bottom_blobs[1];
     Mat& top_blob = top_blobs[0];
 
+    using namespace BinaryOp_riscv_functor;
+
     int elempack = bottom_blob.elempack;
     int elempack1 = bottom_blob1.elempack;
     if (elempack != 1 || elempack1 != 1)
     {
         if (op_type == Operation_ADD)
-            return binary_op_rvv_fp16s<binary_op_add_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_add_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_SUB)
-            return binary_op_rvv_fp16s<binary_op_sub_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_sub_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MUL)
-            return binary_op_rvv_fp16s<binary_op_mul_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_mul_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_DIV)
-            return binary_op_rvv_fp16s<binary_op_div_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_div_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MAX)
-            return binary_op_rvv_fp16s<binary_op_max_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_max_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_MIN)
-            return binary_op_rvv_fp16s<binary_op_min_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_min_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_POW)
-            return binary_op_rvv_fp16s<binary_op_pow_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_pow_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_RSUB)
-            return binary_op_rvv_fp16s<binary_op_rsub_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_rsub_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
 
         if (op_type == Operation_RDIV)
-            return binary_op_rvv_fp16s<binary_op_rdiv_rvv_fp16>(bottom_blob, bottom_blob1, top_blob, opt);
+            return binary_op_rvv_fp16s<binary_op_rdiv_fp16s>(bottom_blob, bottom_blob1, top_blob, opt);
     }
 
     if (elempack == 1 && elempack1 == 1)
@@ -3595,35 +2835,37 @@ int BinaryOp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vec
 
 int BinaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace BinaryOp_riscv_functor;
+
     if (op_type == Operation_ADD)
-        return binary_op_scalar_rvv_fp16s<binary_op_add_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_add_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_SUB)
-        return binary_op_scalar_rvv_fp16s<binary_op_sub_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_sub_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MUL)
-        return binary_op_scalar_rvv_fp16s<binary_op_mul_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_mul_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_DIV)
-        return binary_op_scalar_rvv_fp16s<binary_op_div_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_div_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MAX)
-        return binary_op_scalar_rvv_fp16s<binary_op_max_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_max_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_MIN)
-        return binary_op_scalar_rvv_fp16s<binary_op_min_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_min_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_POW)
-        return binary_op_scalar_rvv_fp16s<binary_op_pow_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_pow_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_RSUB)
-        return binary_op_scalar_rvv_fp16s<binary_op_rsub_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_rsub_fp16s>(bottom_top_blob, b, opt);
 
     if (op_type == Operation_RDIV)
-        return binary_op_scalar_rvv_fp16s<binary_op_rdiv_rvv_fp16>(bottom_top_blob, b, opt);
+        return binary_op_scalar_rvv_fp16s<binary_op_rdiv_fp16s>(bottom_top_blob, b, opt);
 
     return 0;
 }
-#endif
+#endif // __riscv_vector && __riscv_zfh
 
 } // namespace ncnn

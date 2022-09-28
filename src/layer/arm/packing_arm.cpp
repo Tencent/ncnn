@@ -18,13 +18,15 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Packing_arm::Packing_arm()
 {
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 
     support_bf16_storage = true;
@@ -37,8 +39,8 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 
@@ -522,14 +524,14 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         : "memory", "v0", "v1", "v2", "v3", "v4", "v5", "v6", "v7", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23");
 #else
                     asm volatile(
-                        "vld1.u16   {d16-d17}, [%0 : 128]! \n"
-                        "vld1.u16   {d18-d19}, [%1 : 128]! \n"
-                        "vld1.u16   {d20-d21}, [%2 : 128]! \n"
-                        "vld1.u16   {d22-d23}, [%3 : 128]! \n"
-                        "vld1.u16   {d24-d25}, [%4 : 128]! \n"
-                        "vld1.u16   {d26-d27}, [%5 : 128]! \n"
-                        "vld1.u16   {d28-d29}, [%6 : 128]! \n"
-                        "vld1.u16   {d30-d31}, [%7 : 128]! \n"
+                        "vld1.u16   {d16-d17}, [%0]!    \n"
+                        "vld1.u16   {d18-d19}, [%1]!    \n"
+                        "vld1.u16   {d20-d21}, [%2]!    \n"
+                        "vld1.u16   {d22-d23}, [%3]!    \n"
+                        "vld1.u16   {d24-d25}, [%4]!    \n"
+                        "vld1.u16   {d26-d27}, [%5]!    \n"
+                        "vld1.u16   {d28-d29}, [%6]!    \n"
+                        "vld1.u16   {d30-d31}, [%7]!    \n"
 
                         "vtrn.u16   q8, q9              \n"
                         "vtrn.u16   q10, q11            \n"
@@ -667,14 +669,14 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         "vswp       d21, d28            \n"
                         "vswp       d23, d30            \n"
 
-                        "vst1.u16   {d16-d17}, [%1 : 128]! \n"
-                        "vst1.u16   {d18-d19}, [%2 : 128]! \n"
-                        "vst1.u16   {d20-d21}, [%3 : 128]! \n"
-                        "vst1.u16   {d22-d23}, [%4 : 128]! \n"
-                        "vst1.u16   {d24-d25}, [%5 : 128]! \n"
-                        "vst1.u16   {d26-d27}, [%6 : 128]! \n"
-                        "vst1.u16   {d28-d29}, [%7 : 128]! \n"
-                        "vst1.u16   {d30-d31}, [%8 : 128]! \n"
+                        "vst1.u16   {d16-d17}, [%1]!    \n"
+                        "vst1.u16   {d18-d19}, [%2]!    \n"
+                        "vst1.u16   {d20-d21}, [%3]!    \n"
+                        "vst1.u16   {d22-d23}, [%4]!    \n"
+                        "vst1.u16   {d24-d25}, [%5]!    \n"
+                        "vst1.u16   {d26-d27}, [%6]!    \n"
+                        "vst1.u16   {d28-d29}, [%7]!    \n"
+                        "vst1.u16   {d30-d31}, [%8]!    \n"
                         : "=r"(r0),      // %0
                         "=r"(outptr0), // %1
                         "=r"(outptr1), // %2
@@ -744,8 +746,8 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
                         : "memory", "v0", "v1", "v2", "v3");
 #else
                     asm volatile(
-                        "vld1.u16   {d0-d1}, [%0 :128]! \n"
-                        "vld1.u16   {d2-d3}, [%1 :128]! \n"
+                        "vld1.u16   {d0-d1}, [%0 :64]!  \n"
+                        "vld1.u16   {d2-d3}, [%1 :64]!  \n"
 
                         "vswp       d1, d2              \n"
 
@@ -813,8 +815,8 @@ int Packing_arm::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, cons
 
                         "vswp       d1, d2              \n"
 
-                        "vst1.u16   {d0-d1}, [%1 :128]! \n"
-                        "vst1.u16   {d2-d3}, [%2 :128]! \n"
+                        "vst1.u16   {d0-d1}, [%1 :64]!  \n"
+                        "vst1.u16   {d2-d3}, [%2 :64]!  \n"
                         : "=r"(r0),      // %0
                         "=r"(outptr0), // %1
                         "=r"(outptr1)  // %2

@@ -86,7 +86,7 @@ Mat imread(const std::string& path, int flags)
         return Mat();
     }
 
-    memcpy(img.data, pixeldata, w * h * c);
+    memcpy(img.data, pixeldata, static_cast<size_t>(w) * static_cast<size_t>(h) * static_cast<size_t>(c));
 
     stbi_image_free(pixeldata);
 

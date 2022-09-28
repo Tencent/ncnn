@@ -146,6 +146,19 @@ static int test_gemm_5()
            || test_gemm_bias(16, 24, 15, RandomMat(1, 14), 1.7f, 1.3f, 1, 1);
 }
 
+static int test_gemm_6()
+{
+    return 0
+           || test_gemm_bias(13, 14, 15, RandomMat(14), 0.1f, 0.4f, 0, 0)
+           || test_gemm_bias(13, 14, 15, RandomMat(14), 0.4f, -1.f, 1, 0)
+           || test_gemm_bias(13, 14, 15, RandomMat(14), -0.3f, -0.21f, 0, 1)
+           || test_gemm_bias(13, 14, 15, RandomMat(14), 1.7f, 1.3f, 1, 1)
+           || test_gemm_bias(16, 24, 15, RandomMat(14), 0.1f, 0.4f, 0, 0)
+           || test_gemm_bias(16, 24, 15, RandomMat(14), 0.4f, -1.f, 1, 0)
+           || test_gemm_bias(16, 24, 15, RandomMat(14), -0.3f, -0.21f, 0, 1)
+           || test_gemm_bias(16, 24, 15, RandomMat(14), 1.7f, 1.3f, 1, 1);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -156,5 +169,6 @@ int main()
            || test_gemm_2()
            || test_gemm_3()
            || test_gemm_4()
-           || test_gemm_5();
+           || test_gemm_5()
+           || test_gemm_6();
 }

@@ -28,7 +28,7 @@ class Model(nn.Module):
         x = F.conv_transpose3d(x, w0, None, stride=(2,2,2), padding=(1,0,1), output_padding=(1,1,0))
         x = F.conv_transpose3d(x, w1, b1, stride=(1,1,2), padding=(2,2,1), dilation=(2,2,1), groups=2)
 
-        y = F.conv_transpose3d(y, self.w2, self.b2, stride=(2,2, 2), padding=(1,0, 1), output_padding=(1,1, 0))
+        y = F.conv_transpose3d(y, self.w2, self.b2, stride=(2,2,2), padding=(1,0,1), output_padding=(1,1,0))
         y = F.conv_transpose3d(y, self.w3, None, stride=(1,1,2), padding=(2,2,1), dilation=(2,2,1), groups=3)
         return x, y
 

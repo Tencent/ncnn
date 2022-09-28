@@ -33,18 +33,21 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+permissions:
+  contents: read
+
 jobs:
   macos-clang-gpu:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: protobuf
       run: brew install protobuf opencv3
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: openmp-install
         key: openmp-macos-install-20201213
@@ -75,17 +78,17 @@ jobs:
         hdiutil detach /Volumes/vulkansdk-macos-1.2.189.0
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: swiftshader-install
-        key: swiftshader-macos-install-20211002
+        key: swiftshader-macos-install-20220211
     - name: checkout-swiftshader
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
       with:
         repository: google/swiftshader
         path: swiftshader
-        ref: f43b9df4c8a9959047e2e1d7e111554ab3f9a3bf
+        ref: 0863290dc7f6cc1649bab1858790e812b8aef02a
     - name: checkout-swiftshader-submodules
       if: steps.cache-swiftshader.outputs.cache-hit != 'true'
       run: |
@@ -112,6 +115,7 @@ jobs:
         cmake --build . -j 3
     - name: test
       run: |
+        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
         export DYLD_LIBRARY_PATH="$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/macOS/lib":$DYLD_LIBRARY_PATH
         export VK_ICD_FILENAMES="$GITHUB_WORKSPACE/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 3
@@ -123,5 +127,5 @@ jobs:
             -DOpenMP_C_FLAGS="-Xclang -fopenmp" -DOpenMP_CXX_FLAGS="-Xclang -fopenmp" \
             -DOpenMP_C_LIB_NAMES="libomp" -DOpenMP_CXX_LIB_NAMES="libomp" \
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
-            -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+            -DNCNN_VULKAN=ON -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 3

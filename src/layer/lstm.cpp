@@ -79,6 +79,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         int ti = reverse ? T - 1 - t : t;
 
         const float* x = bottom_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* bias_c_I = bias_c.row(0);
@@ -138,6 +139,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         // c_t := f_t .* c_{t-1} + i_t .* g_t
         // h_t := o_t .* tanh[c_t]
         float* output_data = top_blob.row(ti);
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_output; q++)
         {
             const float* gates_data = gates.row(q);

@@ -34,6 +34,15 @@ int Reduction::load_param(const ParamDict& pd)
     axes = pd.get(3, Mat());
     keepdims = pd.get(4, 0);
 
+    // the original reduction handle axes as blob with batch dimension
+    // ask user to regenerate param instead of producing wrong result
+    int fixbug0 = pd.get(5, 0);
+    if (fixbug0 == 0 && !axes.empty())
+    {
+        NCNN_LOGE("param is too old, please regenerate!");
+        return -1;
+    }
+
     return 0;
 }
 

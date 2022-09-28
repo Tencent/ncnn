@@ -40,7 +40,19 @@ static int test_convolution(int w, int h, int c, int outch, int kernel, int dila
     if (bias)
         weights[1] = RandomMat(outch);
 
-    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a);
+    float epsilon = 0.001;
+    // larget epsilon for winograd optimization
+    if (kernel == 3 && dilation == 1 && stride == 1 && c >= 16 && outch >= 16)
+    {
+        Randomize(a, -1, 1);
+        if (c >= 64 || outch >= 64)
+            Randomize(weights[0], -0.3, 0.3);
+        else
+            Randomize(weights[0], -1, 1);
+        epsilon = 0.002;
+    }
+
+    int ret = test_layer<ncnn::Convolution>("Convolution", pd, weights, a, epsilon);
     if (ret != 0)
     {
         fprintf(stderr, "test_convolution failed w=%d h=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d act=%d actparams=[%f,%f]\n", w, h, c, outch, kernel, dilation, stride, pad, bias, activation_type, activation_params[0], activation_params[1]);
@@ -125,7 +137,29 @@ static int test_convolution_0()
            || test_convolution(8, 8, 16, 24, 3, 1, 1, 1, 0)
            || test_convolution(4, 8, 16, 24, 3, 1, 1, 1, 1)
            || test_convolution(4, 20, 16, 24, 3, 1, 1, 1, 0)
-           || test_convolution(6, 7, 64, 64, 3, 1, 2, 0, 1);
+           || test_convolution(6, 7, 64, 64, 3, 1, 2, 0, 1)
+           || test_convolution(15, 17, 24, 32, 1, 1, 1, 0, 0)
+           || test_convolution(15, 17, 24, 32, 1, 1, 2, 0, 1)
+           || test_convolution(15, 17, 24, 32, 3, 1, 2, 0, 1)
+           || test_convolution(15, 17, 32, 24, 1, 1, 1, 0, 0)
+           || test_convolution(15, 17, 32, 24, 1, 1, 2, 0, 1)
+           || test_convolution(15, 17, 32, 24, 3, 1, 2, 0, 1)
+           || test_convolution(15, 17, 32, 28, 1, 1, 1, 0, 0)
+           || test_convolution(15, 17, 32, 28, 1, 1, 2, 0, 1)
+           || test_convolution(15, 17, 32, 28, 3, 1, 2, 0, 1)
+           || test_convolution(15, 17, 26, 32, 1, 1, 1, 0, 0)
+           || test_convolution(15, 17, 26, 32, 1, 1, 2, 0, 1)
+           || test_convolution(15, 17, 26, 32, 3, 1, 2, 0, 1)
+           || test_convolution(15, 17, 32, 26, 1, 1, 1, 0, 0)
+           || test_convolution(15, 17, 32, 26, 1, 1, 2, 0, 1)
+           || test_convolution(15, 17, 32, 26, 3, 1, 2, 0, 1)
+           || test_convolution(30, 30, 32, 26, 3, 1, 1, 1, 0)
+           || test_convolution(12, 18, 8, 16, 3, 1, 1, 1, 1)
+           || test_convolution(42, 18, 32, 160, 3, 1, 1, 1, 1)
+           || test_convolution(12, 18, 32, 160, 3, 1, 1, 1, 1)
+           || test_convolution(12, 18, 4, 12, 3, 1, 1, 1, 1)
+           || test_convolution(42, 18, 28, 140, 3, 1, 1, 1, 1)
+           || test_convolution(12, 18, 28, 140, 3, 1, 1, 1, 1);
 }
 
 static int test_convolution_vec(int w, int outch, int kernel, int dilation, int stride, int pad, int bias)
@@ -379,7 +413,8 @@ static int test_convolution_1()
            || test_convolution_int8(4, 8, 16, 24, 3, 1, 1, 1, 1)
            || test_convolution_int8(4, 20, 16, 24, 3, 1, 1, 1, 0)
            || test_convolution_int8(6, 7, 64, 64, 3, 1, 2, 0, 1)
-           || test_convolution_int8(25, 33, 16, 15, 3, 1, 1, 1, 0);
+           || test_convolution_int8(25, 33, 16, 15, 3, 1, 1, 1, 0)
+           || test_convolution_int8(7, 7, 15, 12, 3, 1, 1, 1, 0);
 }
 #endif // NCNN_INT8
 

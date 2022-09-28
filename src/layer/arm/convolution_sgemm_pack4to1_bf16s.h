@@ -180,8 +180,8 @@ static void im2col_sgemm_pack4to1_bf16s_neon(const Mat& bottom_im2col, Mat& top_
 #else
                     asm volatile(
                         "pld        [%0, #256]          \n"
-                        "vld4.u16   {d0-d3}, [%0 :128]  \n"
-                        "vst1.u16   {d0-d3}, [%1 :128]! \n"
+                        "vld4.u16   {d0-d3}, [%0 :64]   \n"
+                        "vst1.u16   {d0-d3}, [%1 :64]!  \n"
                         : "=r"(img0),  // %0
                         "=r"(tmpptr) // %1
                         : "0"(img0),
@@ -1991,9 +1991,9 @@ static void im2col_sgemm_pack4to1_bf16s_neon(const Mat& bottom_im2col, Mat& top_
 
             for (int q = 0; q < nn; q++)
             {
-                float32x4_t _r0 = vcvt_f32_bf16(vld1_u16(tmpptr));
+                float32x4_t _r0 = float2bfloat(vld1_u16(tmpptr));
 
-                float32x4_t _k0 = vcvt_f32_bf16(vld1_u16(kptr));
+                float32x4_t _k0 = float2bfloat(vld1_u16(kptr));
 
                 _sum0 = vmlaq_f32(_sum0, _r0, _k0);
 

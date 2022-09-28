@@ -26,7 +26,7 @@ void pass_level4(Graph& g)
 
     dead_code_elimination(g);
 
-    canonicalize(g);
+    //canonicalize(g);
 }
 
 } // namespace pnnx

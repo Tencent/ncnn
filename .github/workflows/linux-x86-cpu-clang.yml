@@ -25,11 +25,14 @@ on:
 concurrency:
   group: linux-x86-cpu-clang-${{ github.ref }}
   cancel-in-progress: true
+permissions:
+  contents: read
+
 jobs:
   linux-clang:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: update
       run: sudo apt-get update
     - name: gcc-multilib
@@ -50,7 +53,7 @@ jobs:
         CXX: clang++
       run: |
         mkdir build-shared && cd build-shared
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.clang-m32.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/host.clang-m32.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 2
     - name: build-noint8
       env:

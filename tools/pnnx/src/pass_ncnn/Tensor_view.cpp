@@ -62,6 +62,15 @@ pnnx.Output             output      1 0 out
             new_shape.push_back(shape[i]);
         }
 
+        if (new_shape.size() == 5 && batch_index == 233)
+        {
+            if (new_shape[0] == 1)
+            {
+                fprintf(stderr, "assume reshape 5-rank tensor has batch_index 0\n");
+                new_shape.erase(new_shape.begin());
+            }
+        }
+
         const int shape_rank = (int)new_shape.size();
 
         if (shape_rank > 5)

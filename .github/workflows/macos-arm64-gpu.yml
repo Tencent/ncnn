@@ -25,16 +25,19 @@ concurrency:
   cancel-in-progress: true
 env:
   DEVELOPER_DIR: /Applications/Xcode_12.4.app/Contents/Developer
+permissions:
+  contents: read
+
 jobs:
   macos-clang-gpu:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         submodules: true
     - name: cache-openmp
       id: cache-openmp
-      uses: actions/cache@v2.1.7
+      uses: actions/cache@v3
       with:
         path: openmp-install
         key: openmp-macos-install-20201213
@@ -85,5 +88,5 @@ jobs:
             -DOpenMP_libomp_LIBRARY="$DEVELOPER_DIR/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/lib/libomp.a" \
             -DVulkan_INCLUDE_DIR=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/include \
             -DVulkan_LIBRARY=$GITHUB_WORKSPACE/vulkansdk-macos-1.2.189.0/MoltenVK/dylib/macOS/libMoltenVK.dylib \
-            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON -DNCNN_ENABLE_LTO=ON ..
+            -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j 3

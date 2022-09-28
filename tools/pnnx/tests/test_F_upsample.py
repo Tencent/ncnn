@@ -20,7 +20,7 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-    def forward(self, x, y, z):
+    def forward(self, x, y, z, w):
         x = F.upsample(x, size=16)
         x = F.upsample(x, scale_factor=2, mode='nearest')
         x = F.upsample(x, size=(20), mode='nearest')
@@ -62,7 +62,9 @@ class Model(nn.Module):
         z = F.upsample(z, size=(16,24,20), mode='trilinear', align_corners=True)
         z = F.upsample(z, scale_factor=(2,3,4), mode='trilinear', align_corners=True)
 
-        return x, y, z
+        w = F.upsample(w, scale_factor=(1.499,1.499), mode='nearest')
+
+        return x, y, z, w
 
 def test():
     net = Model()
@@ -72,22 +74,26 @@ def test():
     x = torch.rand(1, 3, 32)
     y = torch.rand(1, 3, 32, 32)
     z = torch.rand(1, 3, 32, 32, 32)
+    w = torch.rand(1, 8, 12, 12)
 
-    a0, a1, a2 = net(x, y, z)
+    a = net(x, y, z, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (x, y, z))
+    mod = torch.jit.trace(net, (x, y, z, w))
     mod.save("test_F_upsample.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_upsample.pt inputshape=[1,3,32],[1,3,32,32],[1,3,32,32,32]")
+    os.system("../src/pnnx test_F_upsample.pt inputshape=[1,3,32],[1,3,32,32],[1,3,32,32,32],[1,8,12,12]")
 
     # pnnx inference
     import test_F_upsample_pnnx
-    b0, b1, b2 = test_F_upsample_pnnx.test_inference()
+    b = test_F_upsample_pnnx.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    for a0, b0 in zip(a, b):
+        if not torch.equal(a0, b0):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():

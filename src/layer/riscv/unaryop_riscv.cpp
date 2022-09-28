@@ -15,11 +15,7 @@
 #include "unaryop_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "rvv_mathfun.h"
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
@@ -72,6 +68,8 @@ static int unary_op_inplace(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_riscv_functor {
 
 struct unary_op_abs
 {
@@ -246,6 +244,8 @@ struct unary_op_tanh
         return tanh_ps(x, vl);
     }
 };
+
+} // namespace UnaryOp_riscv_functor
 #endif // __riscv_vector
 
 int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
@@ -258,6 +258,8 @@ int UnaryOp_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 #endif
 
 #if __riscv_vector
+    using namespace UnaryOp_riscv_functor;
+
     if (op_type == Operation_ABS)
         return unary_op_inplace<unary_op_abs>(bottom_top_blob, opt);
 
@@ -349,6 +351,8 @@ static int unary_op_inplace_fp16s(Mat& a, const Option& opt)
 
     return 0;
 }
+
+namespace UnaryOp_riscv_functor {
 
 struct unary_op_abs_fp16s
 {
@@ -524,8 +528,12 @@ struct unary_op_tanh_fp16s
     }
 };
 
+} // namespace UnaryOp_riscv_functor
+
 int UnaryOp_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) const
 {
+    using namespace UnaryOp_riscv_functor;
+
     if (op_type == Operation_ABS)
         return unary_op_inplace_fp16s<unary_op_abs_fp16s>(bottom_top_blob, opt);
 

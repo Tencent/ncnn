@@ -194,7 +194,7 @@ struct NCNN_EXPORT __ncnn_layer_t
     int (*destroy_pipeline)(ncnn_layer_t layer, const ncnn_option_t opt);
 
     int (*forward_1)(const ncnn_layer_t layer, const ncnn_mat_t bottom_blob, ncnn_mat_t* top_blob, const ncnn_option_t opt);
-    int (*forward_n)(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t** top_blobs, int n2, const ncnn_option_t opt);
+    int (*forward_n)(const ncnn_layer_t layer, const ncnn_mat_t* bottom_blobs, int n, ncnn_mat_t* top_blobs, int n2, const ncnn_option_t opt);
 
     int (*forward_inplace_1)(const ncnn_layer_t layer, ncnn_mat_t bottom_top_blob, const ncnn_option_t opt);
     int (*forward_inplace_n)(const ncnn_layer_t layer, ncnn_mat_t* bottom_top_blobs, int n, const ncnn_option_t opt);

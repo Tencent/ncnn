@@ -17,11 +17,7 @@
 #include <math.h>
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "riscv_usability.h"
 #endif // __riscv_vector
 
@@ -136,7 +132,7 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
             {
                 const word_type vl = vsetvl_e32m1(packn);
 
-                const float ws = outw ? w / (float)outw : 1.f / width_scale;
+                const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -237,7 +233,7 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
         if (resize_type == 1) // nearest
         {
-            const float ws = outw ? w / (float)outw : 1.f / width_scale;
+            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -334,8 +330,8 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
         {
             const word_type vl = vsetvl_e32m1(packn);
 
-            const float hs = outh ? h / (float)outh : 1.f / height_scale;
-            const float ws = outw ? w / (float)outw : 1.f / width_scale;
+            const float hs = output_height ? h / (float)outh : 1.f / height_scale;
+            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -418,8 +414,8 @@ int Interp_riscv::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
 
     if (resize_type == 1) // nearest
     {
-        const float hs = outh ? h / (float)outh : 1.f / height_scale;
-        const float ws = outw ? w / (float)outw : 1.f / width_scale;
+        const float hs = output_height ? h / (float)outh : 1.f / height_scale;
+        const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)
@@ -564,7 +560,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
             {
                 const word_type vl = vsetvl_e16m1(packn);
 
-                const float ws = outw ? w / (float)outw : 1.f / width_scale;
+                const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int y = 0; y < h; y++)
@@ -664,7 +660,7 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
         if (resize_type == 1) // nearest
         {
-            const float ws = outw ? w / (float)outw : 1.f / width_scale;
+            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int y = 0; y < h; y++)
@@ -760,8 +756,8 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
         {
             const word_type vl = vsetvl_e16m1(packn);
 
-            const float hs = outh ? h / (float)outh : 1.f / height_scale;
-            const float ws = outw ? w / (float)outw : 1.f / width_scale;
+            const float hs = output_height ? h / (float)outh : 1.f / height_scale;
+            const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
@@ -843,8 +839,8 @@ int Interp_riscv::forward_fp16s(const std::vector<Mat>& bottom_blobs, std::vecto
 
     if (resize_type == 1) // nearest
     {
-        const float hs = outh ? h / (float)outh : 1.f / height_scale;
-        const float ws = outw ? w / (float)outw : 1.f / width_scale;
+        const float hs = output_height ? h / (float)outh : 1.f / height_scale;
+        const float ws = output_width ? w / (float)outw : 1.f / width_scale;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < channels; q++)

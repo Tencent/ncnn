@@ -5,7 +5,9 @@ file(READ ${SHADER_SRC} comp_data)
 
 # skip leading comment
 string(FIND "${comp_data}" "#version" version_start)
-string(SUBSTRING "${comp_data}" ${version_start} -1 comp_data)
+if(NOT ${version_start} EQUAL -1)
+    string(SUBSTRING "${comp_data}" ${version_start} -1 comp_data)
+endif()
 
 # remove whitespace
 string(REGEX REPLACE "\n +" "\n" comp_data "${comp_data}")

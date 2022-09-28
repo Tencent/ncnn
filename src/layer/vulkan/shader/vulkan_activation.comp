@@ -1,0 +1,142 @@
+// Tencent is pleased to support the open source community by making ncnn available.
+//
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+//
+// Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
+// in compliance with the License. You may obtain a copy of the License at
+//
+// https://opensource.org/licenses/BSD-3-Clause
+//
+// Unless required by applicable law or agreed to in writing, software distributed
+// under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+// CONDITIONS OF ANY KIND, either express or implied. See the License for the
+// specific language governing permissions and limitations under the License.
+
+#ifndef NCNN_VULKAN_ACTIVATION_COMP
+#define NCNN_VULKAN_ACTIVATION_COMP
+
+afp activation_afp(afp v, int activation_type, float activation_param_0, float activation_param_1)
+{
+    if (activation_type == 1)
+    {
+        v = max(v, afp(0.f));
+    }
+    if (activation_type == 2)
+    {
+        const afp slope = afp(activation_param_0);
+        v = v < afp(0.f) ? v * slope : v;
+    }
+    if (activation_type == 3)
+    {
+        const afp const_min = afp(activation_param_0);
+        const afp const_max = afp(activation_param_1);
+        v = clamp(v, const_min, const_max);
+    }
+    if (activation_type == 4)
+    {
+        v = afp(1.f) / (afp(1.f) + exp(-v));
+    }
+    if (activation_type == 5)
+    {
+#if NCNN_moltenvk
+        v = v * afp(tanh(float(log(exp(v) + afp(1.f)))));
+#else
+        v = v * tanh(log(exp(v) + afp(1.f)));
+#endif
+    }
+    if (activation_type == 6)
+    {
+        const afp alpha = afp(activation_param_0);
+        const afp beta = afp(activation_param_1);
+        v = v * clamp(v * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
+
+    return v;
+}
+
+afpvec4 activation_afpvec4(afpvec4 v, int activation_type, float activation_param_0, float activation_param_1)
+{
+    if (activation_type == 1)
+    {
+        v = max(v, afp(0.f));
+    }
+    if (activation_type == 2)
+    {
+        const afp slope = afp(activation_param_0);
+        v = mix(v, v * afp(slope), lessThan(v, afpvec4(0.f)));
+    }
+    if (activation_type == 3)
+    {
+        const afp const_min = afp(activation_param_0);
+        const afp const_max = afp(activation_param_1);
+        v = clamp(v, const_min, const_max);
+    }
+    if (activation_type == 4)
+    {
+        v = afp(1.f) / (afp(1.f) + exp(-v));
+    }
+    if (activation_type == 5)
+    {
+#if NCNN_moltenvk
+        v = v * afpvec4(tanh(vec4(log(exp(v) + afp(1.f)))));
+#else
+        v = v * tanh(log(exp(v) + afp(1.f)));
+#endif
+    }
+    if (activation_type == 6)
+    {
+        const afp alpha = afp(activation_param_0);
+        const afp beta = afp(activation_param_1);
+        v = v * clamp(v * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
+
+    return v;
+}
+
+afpvec8 activation_afpvec8(afpvec8 v, int activation_type, float activation_param_0, float activation_param_1)
+{
+    if (activation_type == 1)
+    {
+        v[0] = max(v[0], afp(0.f));
+        v[1] = max(v[1], afp(0.f));
+    }
+    if (activation_type == 2)
+    {
+        const afp slope = afp(activation_param_0);
+        v[0] = mix(v[0], v[0] * afp(slope), lessThan(v[0], afpvec4(0.f)));
+        v[1] = mix(v[1], v[1] * afp(slope), lessThan(v[1], afpvec4(0.f)));
+    }
+    if (activation_type == 3)
+    {
+        const afp const_min = afp(activation_param_0);
+        const afp const_max = afp(activation_param_1);
+        v[0] = clamp(v[0], const_min, const_max);
+        v[1] = clamp(v[1], const_min, const_max);
+    }
+    if (activation_type == 4)
+    {
+        v[0] = afp(1.f) / (afp(1.f) + exp(-v[0]));
+        v[1] = afp(1.f) / (afp(1.f) + exp(-v[1]));
+    }
+    if (activation_type == 5)
+    {
+#if NCNN_moltenvk
+        v[0] = v[0] * afpvec4(tanh(vec4(log(exp(v[0]) + afp(1.f)))));
+        v[1] = v[1] * afpvec4(tanh(vec4(log(exp(v[1]) + afp(1.f)))));
+#else
+        v[0] = v[0] * tanh(log(exp(v[0]) + afp(1.f)));
+        v[1] = v[1] * tanh(log(exp(v[1]) + afp(1.f)));
+#endif
+    }
+    if (activation_type == 6)
+    {
+        const afp alpha = afp(activation_param_0);
+        const afp beta = afp(activation_param_1);
+        v[0] = v[0] * clamp(v[0] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+        v[1] = v[1] * clamp(v[1] * afp(alpha) + afp(beta), afp(0.f), afp(1.f));
+    }
+
+    return v;
+}
+
+#endif // NCNN_VULKAN_ACTIVATION_COMP

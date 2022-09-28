@@ -42,10 +42,23 @@ void convert_attribute(Graph& graph)
         std::vector<int> new_shape;
         for (int i = 0; i < (int)data.shape.size(); i++)
         {
-            if (i == batch_index)
+            if (i == batch_index && data.shape[i] == 1)
                 continue;
 
             new_shape.push_back(data.shape[i]);
+        }
+
+        if (new_shape.size() == 5 && batch_index == 233)
+        {
+            if (new_shape[0] == 1)
+            {
+                fprintf(stderr, "assume pnnx attribute 5-rank tensor has batch_index 0\n");
+                new_shape.erase(new_shape.begin());
+            }
+            else
+            {
+                fprintf(stderr, "pnnx attribute 5-rank tensor is not supported yet!\n");
+            }
         }
 
         if (new_shape.size() == 1)

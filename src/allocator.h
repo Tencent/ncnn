@@ -36,11 +36,12 @@
 
 namespace ncnn {
 
-#if __AVX__
 // the alignment of all the allocated buffers
+#if NCNN_AVX512
+#define NCNN_MALLOC_ALIGN 64
+#elif NCNN_AVX
 #define NCNN_MALLOC_ALIGN 32
 #else
-// the alignment of all the allocated buffers
 #define NCNN_MALLOC_ALIGN 16
 #endif
 
@@ -53,7 +54,7 @@ namespace ncnn {
 // ptr Aligned pointer
 // n Alignment size that must be a power of two
 template<typename _Tp>
-static inline _Tp* alignPtr(_Tp* ptr, int n = (int)sizeof(_Tp))
+static NCNN_FORCEINLINE _Tp* alignPtr(_Tp* ptr, int n = (int)sizeof(_Tp))
 {
     return (_Tp*)(((size_t)ptr + n - 1) & -n);
 }
@@ -62,12 +63,12 @@ static inline _Tp* alignPtr(_Tp* ptr, int n = (int)sizeof(_Tp))
 // The function returns the minimum number that is greater or equal to sz and is divisible by n
 // sz Buffer size to align
 // n Alignment size that must be a power of two
-static inline size_t alignSize(size_t sz, int n)
+static NCNN_FORCEINLINE size_t alignSize(size_t sz, int n)
 {
     return (sz + n - 1) & -n;
 }
 
-static inline void* fastMalloc(size_t size)
+static NCNN_FORCEINLINE void* fastMalloc(size_t size)
 {
 #if _MSC_VER
     return _aligned_malloc(size, NCNN_MALLOC_ALIGN);
@@ -88,7 +89,7 @@ static inline void* fastMalloc(size_t size)
 #endif
 }
 
-static inline void fastFree(void* ptr)
+static NCNN_FORCEINLINE void fastFree(void* ptr)
 {
     if (ptr)
     {
@@ -109,7 +110,7 @@ static inline void fastFree(void* ptr)
 // exchange-add operation for atomic operations on reference counters
 #if defined __riscv && !defined __riscv_atomic
 // riscv target without A extension
-static inline int NCNN_XADD(int* addr, int delta)
+static NCNN_FORCEINLINE int NCNN_XADD(int* addr, int delta)
 {
     int tmp = *addr;
     *addr += delta;
@@ -137,7 +138,7 @@ static inline int NCNN_XADD(int* addr, int delta)
 #define NCNN_XADD(addr, delta) (int)_InterlockedExchangeAdd((long volatile*)addr, delta)
 #else
 // thread-unsafe branch
-static inline int NCNN_XADD(int* addr, int delta)
+static NCNN_FORCEINLINE int NCNN_XADD(int* addr, int delta)
 {
     int tmp = *addr;
     *addr += delta;
@@ -145,7 +146,7 @@ static inline int NCNN_XADD(int* addr, int delta)
 }
 #endif
 #else  // NCNN_THREADS
-static inline int NCNN_XADD(int* addr, int delta)
+static NCNN_FORCEINLINE int NCNN_XADD(int* addr, int delta)
 {
     int tmp = *addr;
     *addr += delta;

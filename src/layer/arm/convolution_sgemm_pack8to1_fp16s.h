@@ -666,12 +666,10 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_fp16sa_neon(const
     int q = 0;
     for (; q + 7 < outch; q += 8)
     {
-        Mat g0 = kernel_tm.channel(q / 8);
+        __fp16* g00 = kernel_tm.channel(q / 8);
 
         for (int p = 0; p + 7 < inch; p += 8)
         {
-            __fp16* g00 = g0.row<__fp16>(p / 8);
-
             for (int k = 0; k < maxk; k++)
             {
                 for (int i = 0; i < 8; i++)
@@ -690,12 +688,10 @@ static void convolution_im2col_sgemm_transform_kernel_pack8to1_fp16sa_neon(const
     }
     for (; q < outch; q++)
     {
-        Mat g0 = kernel_tm.channel(q / 8 + q % 8);
+        __fp16* g00 = kernel_tm.channel(q / 8 + q % 8);
 
         for (int p = 0; p + 7 < inch; p += 8)
         {
-            __fp16* g00 = g0.row<__fp16>(p / 8);
-
             for (int k = 0; k < maxk; k++)
             {
                 for (int i = 0; i < 8; i++)

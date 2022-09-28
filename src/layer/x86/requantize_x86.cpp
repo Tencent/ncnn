@@ -39,6 +39,18 @@ int Requantize_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
     int elempack = bottom_blob.elempack;
 
 #if __SSE2__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        Mat tmp;
+        convert_packing(bottom_blob, tmp, 8, opt);
+
+        forward(tmp, top_blob, opt);
+
+        return 0;
+    }
+#endif // __AVX512F__
+
     if (elempack == 8)
     {
         if (dims == 1)
