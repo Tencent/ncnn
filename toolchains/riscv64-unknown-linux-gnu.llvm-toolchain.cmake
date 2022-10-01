@@ -20,9 +20,9 @@ set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
-# or append $RISCV_ROOT_PATH/bin to PATH.
-set(CMAKE_C_FLAGS "--ld-path=${RISCV_ROOT_PATH}/bin/riscv64-unknown-linux-gnu-ld --gcc-toolchain=${RISCV_ROOT_PATH} -D__fp16=_Float16 -march=rv64gc ")
-set(CMAKE_CXX_FLAGS "--ld-path=${RISCV_ROOT_PATH}/bin/riscv64-unknown-linux-gnu-ld --gcc-toolchain=${RISCV_ROOT_PATH} -D__fp16=_Float16 -march=rv64gc ")
+# add --ld-path=${RISCV_ROOT_PATH}/bin/riscv64-unknown-linux-gnu-ld or append $RISCV_ROOT_PATH/bin to PATH.
+set(CMAKE_C_FLAGS "--gcc-toolchain=${RISCV_ROOT_PATH} -march=rv64gc")
+set(CMAKE_CXX_FLAGS "--gcc-toolchain=${RISCV_ROOT_PATH} -march=rv64gc")
 
 # cache flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}" CACHE STRING "c flags")
