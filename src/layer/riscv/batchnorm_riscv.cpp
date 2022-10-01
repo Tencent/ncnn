@@ -58,7 +58,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         int n = bottom_top_blob.w * elempack;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             vfloat32m8_t _a = vle32_v_f32m8(ptr_a, vl);
@@ -103,7 +103,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     _p = vfmul_vf_f32m8(_p, b, vl);
                     _p = vfadd_vf_f32m8(_p, a, vl);
@@ -137,7 +137,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     _p = vfmul_vf_f32m8(_p, b, vl);
                     _p = vfadd_vf_f32m8(_p, a, vl);
@@ -164,7 +164,7 @@ int BatchNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        const word_type vl = vsetvl_e32m1(packn);
+        const size_t vl = vsetvl_e32m1(packn);
         if (dims == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -237,7 +237,7 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
         const float* ptr_b = b_data;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m4(n);
+            size_t vl = vsetvl_e16m4(n);
 
             vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
             vfloat32m8_t _a = vle32_v_f32m8(ptr_a, vl);
@@ -272,7 +272,7 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m4(n);
+                    size_t vl = vsetvl_e16m4(n);
                     vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
                     _p = vfmul_vf_f32m8(_p, b, vl);
                     _p = vfadd_vf_f32m8(_p, a, vl);
@@ -299,7 +299,7 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m4(n);
+                    size_t vl = vsetvl_e16m4(n);
                     vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
                     ;
                     _p = vfmul_vf_f32m8(_p, b, vl);
@@ -321,7 +321,7 @@ int BatchNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        const word_type vl = vsetvl_e16m1(packn);
+        const size_t vl = vsetvl_e16m1(packn);
         if (dims == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
@@ -391,7 +391,7 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
         const float* ptr_b = b_data;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m4(n);
+            size_t vl = vsetvl_e16m4(n);
 
             vfloat16m4_t _p = vle16_v_f16m4(ptr, vl);
             vfloat16m4_t _a = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_a, vl), vl);
@@ -426,7 +426,7 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
                 int n = w;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                     _p = vfmul_vf_f16m8(_p, b, vl);
                     _p = vfadd_vf_f16m8(_p, a, vl);
@@ -453,7 +453,7 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
                 int n = size;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                     ;
                     _p = vfmul_vf_f16m8(_p, b, vl);
@@ -475,7 +475,7 @@ int BatchNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
         int w = bottom_top_blob.w;
         int h = bottom_top_blob.h;
 
-        const word_type vl = vsetvl_e16m1(packn);
+        const size_t vl = vsetvl_e16m1(packn);
         if (dims == 2)
         {
             #pragma omp parallel for num_threads(opt.num_threads)
