@@ -447,8 +447,8 @@ _RVV_FLOAT32_SIGMOID_OP(8, 4)
 #define c_erfc_sb7 -2.2440952301e+01f /* 0xc1b38712 */
 
 #define _RVV_FLOAT32_FMA_HELPER(LMUL)                                                                     \
-    static inline vfloat32m##LMUL##_t vfmadd_vff_f32m##LMUL(vfloat32m##LMUL##_t a, float32_t b,           \
-                                                            float32_t c, size_t vl)                       \
+    static inline vfloat32m##LMUL##_t vfmadd_vff_f32m##LMUL(vfloat32m##LMUL##_t a, float b,               \
+                                                            float c, size_t vl)                           \
     {                                                                                                     \
         vfloat32m##LMUL##_t ret = vfmul_vf_f32m##LMUL(a, b, vl);                                          \
         ret = vfadd_vf_f32m##LMUL(ret, c, vl);                                                            \
@@ -456,7 +456,7 @@ _RVV_FLOAT32_SIGMOID_OP(8, 4)
     }                                                                                                     \
                                                                                                           \
     static inline vfloat32m##LMUL##_t vfmadd_vvf_f32m##LMUL(vfloat32m##LMUL##_t a, vfloat32m##LMUL##_t b, \
-                                                            float32_t c, size_t vl)                       \
+                                                            float c, size_t vl)                           \
     {                                                                                                     \
         vfloat32m##LMUL##_t ret = vfmul_vv_f32m##LMUL(a, b, vl);                                          \
         ret = vfadd_vf_f32m##LMUL(ret, c, vl);                                                            \

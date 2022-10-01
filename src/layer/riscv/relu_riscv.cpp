@@ -61,7 +61,7 @@ int ReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 size_t vl = vsetvl_e32m8(n);
 
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
-                _p = vfmax_vf_f32m8(_p, (float32_t)0.f, vl);
+                _p = vfmax_vf_f32m8(_p, 0.f, vl);
                 vse32_v_f32m8(ptr, _p, vl);
 
                 ptr += vl;
@@ -127,7 +127,7 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
                 size_t vl = vsetvl_e16m8(n);
 
                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
-                _p = vfmax_vf_f16m8(_p, (float16_t)0.f, vl);
+                _p = vfmax_vf_f16m8(_p, (__fp16)0.f, vl);
                 vse16_v_f16m8(ptr, _p, vl);
 
                 ptr += vl;
@@ -137,7 +137,7 @@ int ReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         else
         {
             int n = size;
-            float16_t _slope = (float16_t)slope;
+            __fp16 _slope = (__fp16)slope;
             while (n > 0)
             {
                 size_t vl = vsetvl_e16m8(n);

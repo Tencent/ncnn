@@ -299,7 +299,12 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat32m1_t _s, _w; float _v; size_t vl; _s = vfmacc_vf_f32m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV)
 
     set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zfh")
-    check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat16m1_t _s, _w; __fp16 _v; size_t vl; _s = vfmacc_vf_f16m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV_FP16)
+    check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat16m1_t _s, _w; __fp16 _v; size_t vl; _s = vfmacc_vf_f16m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV_ZFH)
+
+    if(NOT NCNN_COMPILER_SUPPORT_RVV_ZFH)
+        set(CMAKE_REQUIRED_FLAGS "-march=rv64gcv_zfh_zvfh0p1 -menable-experimental-extensions -D__fp16=_Float16")
+        check_cxx_source_compiles("#include <riscv_vector.h>\nint main() { vfloat16m1_t _s, _w; __fp16 _v; size_t vl; _s = vfmacc_vf_f16m1(_s, _v, _w, vl); return 0; }" NCNN_COMPILER_SUPPORT_RVV_ZVFH)
+    endif()
 
     unset(CMAKE_REQUIRED_FLAGS)
 
@@ -309,7 +314,7 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
         if(NCNN_RVV_CHECK_VFREDSUM)
             include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/ncnn_check_rvv_vfredusum.cmake)
         endif()
-        if(NOT NCNN_COMPILER_SUPPORT_RVV_FP16)
+        if(NOT (NCNN_COMPILER_SUPPORT_RVV_ZFH OR NCNN_COMPILER_SUPPORT_RVV_ZVFH))
             message(WARNING "The compiler does not support risc-v zfh extension. Upgrading your toolchain is strongly recommended.")
         endif()
         option(NCNN_RVV_CHECK_PLAIN_SEGMENT "check compilter about rvv segment load/store interface" ON)
