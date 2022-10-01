@@ -76,7 +76,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                 float* ptr_sum = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr_sum, vl);
                     _sum = vfredusum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
                     // _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -99,7 +99,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                 float* ptr_sqsum = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr_sqsum, vl);
                     _p = vfsub_vf_f32m8(_p, mean, vl);
                     _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -141,7 +141,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
                 float* ptr_store = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
                     _p = vfmul_vf_f32m8(_p, a, vl);
                     _p = vfadd_vf_f32m8(_p, b, vl);
@@ -164,7 +164,7 @@ int InstanceNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt)
     const int packn = csrr_vlenb() / 4;
     if (elempack == packn)
     {
-        const word_type vl = vsetvl_e32m1(packn);
+        const size_t vl = vsetvl_e32m1(packn);
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
@@ -248,7 +248,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
                 __fp16* ptr_sum = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_sum, vl), vl);
                     _sum = vfredusum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
                     // _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -263,7 +263,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
                 __fp16* ptr_sqsum = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_sqsum, vl), vl);
                     _p = vfsub_vf_f32m8(_p, mean, vl);
                     _sqsum = vfredosum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -296,7 +296,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
                 __fp16* ptr_store = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_store, vl), vl);
                     _p = vfmul_vf_f32m8(_p, a, vl);
                     _p = vfadd_vf_f32m8(_p, b, vl);
@@ -312,7 +312,7 @@ int InstanceNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option
     const int packn = csrr_vlenb() / 2;
     if (elempack == packn)
     {
-        const word_type vl = vsetvl_e16m1(packn);
+        const size_t vl = vsetvl_e16m1(packn);
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
@@ -393,7 +393,7 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
                 __fp16* ptr_sum = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr_sum, vl);
                     _sum = vfredusum_vs_f16m8_f16m1(_sum, _p, /* scalar */ _sum, vl);
                     // _sqsum = vfredosum_vs_f16m8_f16m1(_sqsum, vfmul_vv_f16m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -408,7 +408,7 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
                 __fp16* ptr_sqsum = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr_sqsum, vl);
                     _p = vfsub_vf_f16m8(_p, mean, vl);
                     _sqsum = vfredosum_vs_f16m8_f16m1(_sqsum, vfmul_vv_f16m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -441,7 +441,7 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
                 __fp16* ptr_store = ptr;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr_store, vl);
                     _p = vfmul_vf_f16m8(_p, a, vl);
                     _p = vfadd_vf_f16m8(_p, b, vl);
@@ -457,7 +457,7 @@ int InstanceNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Optio
     const int packn = csrr_vlenb() / 2;
     if (elempack == packn)
     {
-        const word_type vl = vsetvl_e16m1(packn);
+        const size_t vl = vsetvl_e16m1(packn);
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; q++)
         {
