@@ -15,7 +15,7 @@
 static void convolution_winograd_dot_packn_fp16sa_rvv(Mat& bottom_blob_tm, int outch, const Mat& kernel_tm, Mat& top_blob_tm, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     // Mat bottom_blob_tm(tiles, 16/36/64, inch, 2u * packn, packn, opt.workspace_allocator);
 
@@ -75,7 +75,7 @@ static void convolution_winograd_dot_packn_fp16sa_rvv(Mat& bottom_blob_tm, int o
                 vfloat16m1_t _val5 = vle16_v_f16m1(r0 + packn * 5, vl);
                 vfloat16m1_t _val6 = vle16_v_f16m1(r0 + packn * 6, vl);
                 vfloat16m1_t _val7 = vle16_v_f16m1(r0 + packn * 7, vl);
-                vsseg8e16_v_f16m1x8(tmpptr, vcreate_f16m1x8(_val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7), vl);
+                vsseg8e16_v_f16m1(tmpptr, _val0, _val1, _val2, _val3, _val4, _val5, _val6, _val7, vl);
 
                 r0 += bottom_blob_tm.cstep * packn;
                 tmpptr += packn * 8;
@@ -108,7 +108,7 @@ static void convolution_winograd_dot_packn_fp16sa_rvv(Mat& bottom_blob_tm, int o
                 vfloat16m1_t _val1 = vle16_v_f16m1(r0 + packn, vl);
                 vfloat16m1_t _val2 = vle16_v_f16m1(r0 + packn * 2, vl);
                 vfloat16m1_t _val3 = vle16_v_f16m1(r0 + packn * 3, vl);
-                vsseg4e16_v_f16m1x4(tmpptr, vcreate_f16m1x4(_val0, _val1, _val2, _val3), vl);
+                vsseg4e16_v_f16m1(tmpptr, _val0, _val1, _val2, _val3, vl);
 
                 r0 += bottom_blob_tm.cstep * packn;
                 tmpptr += packn * 4;
@@ -137,7 +137,7 @@ static void convolution_winograd_dot_packn_fp16sa_rvv(Mat& bottom_blob_tm, int o
 #else
                 vfloat16m1_t _val0 = vle16_v_f16m1(r0, vl);
                 vfloat16m1_t _val1 = vle16_v_f16m1(r0 + packn, vl);
-                vsseg2e16_v_f16m1x2(tmpptr, vcreate_f16m1x2(_val0, _val1), vl);
+                vsseg2e16_v_f16m1(tmpptr, _val0, _val1, vl);
 
                 r0 += bottom_blob_tm.cstep * packn;
                 tmpptr += packn * 2;

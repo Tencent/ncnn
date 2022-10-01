@@ -15,7 +15,7 @@
 static void resize_bicubic_image_packn(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     int w = dst.w;
     int h = dst.h;

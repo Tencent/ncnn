@@ -16,7 +16,7 @@ static void convolution_winograd_dot_rvv(Mat& bottom_blob_tm, int outch, const M
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     // Mat bottom_blob_tm(tiles, 16/36/64, inch, 4u, opt.workspace_allocator);

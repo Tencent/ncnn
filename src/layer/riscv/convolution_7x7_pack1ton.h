@@ -15,7 +15,7 @@
 static void conv7x7s2_pack1ton_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 
     int w = bottom_blob.w;
     int inch = bottom_blob.c;

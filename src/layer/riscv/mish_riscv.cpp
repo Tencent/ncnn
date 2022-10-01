@@ -64,7 +64,7 @@ int Mish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             _p = vfmul_vv_f32m8(_p, tanh_ps(log_ps(vfadd_vf_f32m8(exp_ps(_p, vl), 1.f, vl), vl), vl), vl);
@@ -103,7 +103,7 @@ int Mish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) c
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m4(n);
+            size_t vl = vsetvl_e16m4(n);
 
             vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
             _p = vfmul_vv_f32m8(_p, tanh_ps(log_ps(vfadd_vf_f32m8(exp_ps(_p, vl), 1.f, vl), vl), vl), vl);
@@ -134,7 +134,7 @@ int Mish_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt) 
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
 
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             _p = vfmul_vv_f16m8(_p, tanh_ps(log_ps(vfadd_vf_f16m8(exp_ps(_p, vl), 1.f, vl), vl), vl), vl);

@@ -63,7 +63,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _x = vle32_v_f32m8(ptr_x, vl);
                 vfloat32m8_t _xcr = vle32_v_f32m8(ptr_xcr, vl);
                 vfloat32m8_t _xcu = vle32_v_f32m8(ptr_xcu, vl);
@@ -93,7 +93,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                word_type vl = vsetvl_e32m8(n_out);
+                size_t vl = vsetvl_e32m8(n_out);
                 vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc, vl);
                 vfloat32m8_t _hcr = vle32_v_f32m8(ptr_hcr, vl);
                 vfloat32m8_t _hcu = vle32_v_f32m8(ptr_hcu, vl);
@@ -136,7 +136,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                word_type vl = vsetvl_e32m8(n_out2);
+                size_t vl = vsetvl_e32m8(n_out2);
 
                 vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc2, vl);
                 vfloat32m8_t _whc_n = vle32_v_f32m8(ptr_whc_n, vl);
@@ -160,7 +160,7 @@ static int gru(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& we
             const float* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                word_type vl = vsetvl_e32m8(n2);
+                size_t vl = vsetvl_e32m8(n2);
 
                 vfloat32m8_t _x = vle32_v_f32m8(ptr_x2, vl);
                 vfloat32m8_t _xcn = vle32_v_f32m8(ptr_xcn, vl);
@@ -428,7 +428,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
                 vfloat32m8_t _x = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_x, vl), vl);
                 vfloat32m8_t _xcr = vle32_v_f32m8(ptr_xcr, vl);
                 vfloat32m8_t _xcu = vle32_v_f32m8(ptr_xcu, vl);
@@ -458,7 +458,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                word_type vl = vsetvl_e16m4(n_out);
+                size_t vl = vsetvl_e16m4(n_out);
                 vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc, vl);
                 vfloat32m8_t _hcr = vle32_v_f32m8(ptr_hcr, vl);
                 vfloat32m8_t _hcu = vle32_v_f32m8(ptr_hcu, vl);
@@ -501,7 +501,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                word_type vl = vsetvl_e16m4(n_out2);
+                size_t vl = vsetvl_e16m4(n_out2);
 
                 vfloat32m8_t _h_cont = vle32_v_f32m8(ptr_hc2, vl);
                 vfloat32m8_t _whc_n = vle32_v_f32m8(ptr_whc_n, vl);
@@ -525,7 +525,7 @@ static int gru_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const M
             const float* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                word_type vl = vsetvl_e16m4(n2);
+                size_t vl = vsetvl_e16m4(n2);
 
                 vfloat32m8_t _x = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_x2, vl), vl);
                 vfloat32m8_t _xcn = vle32_v_f32m8(ptr_xcn, vl);
@@ -758,7 +758,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_xcu = weight_xc_U;
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m8(n);
+                size_t vl = vsetvl_e16m8(n);
                 vfloat16m8_t _x = vle16_v_f16m8(ptr_x, vl);
                 vfloat16m8_t _xcr = vle16_v_f16m8(ptr_xcr, vl);
                 vfloat16m8_t _xcu = vle16_v_f16m8(ptr_xcu, vl);
@@ -785,7 +785,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_hcu = weight_hc_U;
             while (n_out > 0)
             {
-                word_type vl = vsetvl_e16m4(n_out);
+                size_t vl = vsetvl_e16m4(n_out);
                 vfloat16m4_t _h_cont = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_hc, vl), vl);
                 vfloat16m4_t _hcr = vle16_v_f16m4(ptr_hcr, vl);
                 vfloat16m4_t _hcu = vle16_v_f16m4(ptr_hcu, vl);
@@ -825,7 +825,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_whc_n = weight_hc_N;
             while (n_out2 > 0)
             {
-                word_type vl = vsetvl_e16m4(n_out2);
+                size_t vl = vsetvl_e16m4(n_out2);
 
                 vfloat16m4_t _h_cont = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_hc2, vl), vl);
                 vfloat16m4_t _whc_n = vle16_v_f16m4(ptr_whc_n, vl);
@@ -846,7 +846,7 @@ static int gru_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             const __fp16* ptr_xcn = weight_xc_N;
             while (n2 > 0)
             {
-                word_type vl = vsetvl_e16m8(n2);
+                size_t vl = vsetvl_e16m8(n2);
 
                 vfloat16m8_t _x = vle16_v_f16m8(ptr_x2, vl);
                 vfloat16m8_t _xcn = vle16_v_f16m8(ptr_xcn, vl);
