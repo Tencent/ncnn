@@ -24,7 +24,7 @@ static inline int layernorm_rvv_pack1_fp16s_procedure(int size, __fp16* ptr, con
         __fp16* ptr_sum = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m4(n);
+            size_t vl = vsetvl_e16m4(n);
             vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_sum, vl), vl);
             _sum = vfredusum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
             // _sqsum = vfredusum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -40,7 +40,7 @@ static inline int layernorm_rvv_pack1_fp16s_procedure(int size, __fp16* ptr, con
         __fp16* ptr_sqsum = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m4(n);
+            size_t vl = vsetvl_e16m4(n);
             vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_sqsum, vl), vl);
             _p = vfsub_vf_f32m8(_p, mean, vl);
             _sqsum = vfredusum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -64,7 +64,7 @@ static inline int layernorm_rvv_pack1_fp16s_procedure(int size, __fp16* ptr, con
         {
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
                 vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_store, vl), vl);
                 _p = vfmul_vf_f32m8(_p, a, vl);
                 vfloat32m8_t _gamma = vle32_v_f32m8(ptr_gamma, vl);
@@ -83,7 +83,7 @@ static inline int layernorm_rvv_pack1_fp16s_procedure(int size, __fp16* ptr, con
         {
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
                 vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr_store, vl), vl);
                 _p = vfmul_vf_f32m8(_p, a, vl);
                 _p = vfadd_vf_f32m8(_p, b, vl);
@@ -96,7 +96,7 @@ static inline int layernorm_rvv_pack1_fp16s_procedure(int size, __fp16* ptr, con
     return 0;
 }
 
-static inline int layernorm_rvv_packn_fp16s_procedure(int size, __fp16* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const word_type vl)
+static inline int layernorm_rvv_packn_fp16s_procedure(int size, __fp16* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const size_t vl)
 {
     // mean and var
     // f16m1 => f32m2
@@ -160,7 +160,7 @@ static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, co
         __fp16* ptr_sum = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
             vfloat16m8_t _p = vle16_v_f16m8(ptr_sum, vl);
             _sum = vfredusum_vs_f16m8_f16m1(_sum, _p, /* scalar */ _sum, vl);
             // _sqsum = vfredusum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -176,7 +176,7 @@ static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, co
         __fp16* ptr_sqsum = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
             vfloat16m8_t _p = vle16_v_f16m8(ptr_sqsum, vl);
             _p = vfsub_vf_f16m8(_p, mean, vl);
             _sqsum = vfredusum_vs_f16m8_f16m1(_sqsum, vfmul_vv_f16m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -200,7 +200,7 @@ static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, co
         {
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
                 vfloat16m4_t _p = vle16_v_f16m4(ptr_store, vl);
                 _p = vfmul_vf_f16m4(_p, a, vl);
                 vfloat16m4_t _gamma = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_gamma, vl), vl);
@@ -219,7 +219,7 @@ static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, co
         {
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m8(n);
+                size_t vl = vsetvl_e16m8(n);
                 vfloat16m8_t _p = vle16_v_f16m8(ptr_store, vl);
                 _p = vfmul_vf_f16m8(_p, a, vl);
                 _p = vfadd_vf_f16m8(_p, b, vl);
@@ -232,7 +232,7 @@ static inline int layernorm_rvv_pack1_fp16sa_procedure(int size, __fp16* ptr, co
     return 0;
 }
 
-static inline int layernorm_rvv_packn_fp16sa_procedure(int size, __fp16* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const word_type vl)
+static inline int layernorm_rvv_packn_fp16sa_procedure(int size, __fp16* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const size_t vl)
 {
     // mean and var
     vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);

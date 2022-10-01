@@ -48,7 +48,7 @@ static inline int layernorm_rvv_pack1_procedure(int size, float* ptr, const floa
         float* ptr_sum = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr_sum, vl);
             _sum = vfredusum_vs_f32m8_f32m1(_sum, _p, /* scalar */ _sum, vl);
             // _sqsum = vfredusum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -64,7 +64,7 @@ static inline int layernorm_rvv_pack1_procedure(int size, float* ptr, const floa
         float* ptr_sqsum = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr_sqsum, vl);
             _p = vfsub_vf_f32m8(_p, mean, vl);
             _sqsum = vfredusum_vs_f32m8_f32m1(_sqsum, vfmul_vv_f32m8(_p, _p, vl), /* scalar */ _sqsum, vl);
@@ -88,7 +88,7 @@ static inline int layernorm_rvv_pack1_procedure(int size, float* ptr, const floa
         {
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
                 _p = vfmul_vf_f32m8(_p, a, vl);
                 vfloat32m8_t _gamma = vle32_v_f32m8(ptr_gamma, vl);
@@ -107,7 +107,7 @@ static inline int layernorm_rvv_pack1_procedure(int size, float* ptr, const floa
         {
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr_store, vl);
                 _p = vfmul_vf_f32m8(_p, a, vl);
                 _p = vfadd_vf_f32m8(_p, b, vl);
@@ -120,7 +120,7 @@ static inline int layernorm_rvv_pack1_procedure(int size, float* ptr, const floa
     return 0;
 }
 
-static inline int layernorm_rvv_packn_procedure(int size, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const word_type vl)
+static inline int layernorm_rvv_packn_procedure(int size, float* ptr, const float* gamma_data, const float* beta_data, float eps, int affine, const size_t vl)
 {
     // mean and var
     vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
@@ -305,7 +305,7 @@ int LayerNorm_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 #if __riscv_vector
     if (elempack == packn)
     {
-        const word_type vl = vsetvl_e32m1(packn);
+        const size_t vl = vsetvl_e32m1(packn);
         if (dims == 2)
         {
             int w = bottom_top_blob.w;
@@ -419,7 +419,7 @@ int LayerNorm_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
     const int packn = csrr_vlenb() / 2; // fp16
     if (elempack == packn)
     {
-        const word_type vl = vsetvl_e16m1(packn);
+        const size_t vl = vsetvl_e16m1(packn);
         if (dims == 2)
         {
             int w = bottom_top_blob.w;
@@ -532,7 +532,7 @@ int LayerNorm_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& 
     const int packn = csrr_vlenb() / 2; // fp16
     if (elempack == packn)
     {
-        const word_type vl = vsetvl_e16m1(packn);
+        const size_t vl = vsetvl_e16m1(packn);
         if (dims == 2)
         {
             int w = bottom_top_blob.w;
