@@ -105,7 +105,7 @@ void* PoolAllocator::fastMalloc(size_t size)
     d->budgets_lock.lock();
 
     // find free budget
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin(), it_max = d->budgets.end(), it_min = d->budgets.end();
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin(), it_max = d->budgets.begin(), it_min = d->budgets.begin();
     for (; it != d->budgets.end(); ++it)
     {
         size_t bs = it->first;
