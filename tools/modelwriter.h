@@ -139,6 +139,10 @@ public:
         bookkeeper.erase(bookkeeper.find(ptr));
         ncnn::fastFree(ptr);
     }
+    
+    virtual void emptyCache()
+    {
+    }
 
 public:
     int current_memory_usage;

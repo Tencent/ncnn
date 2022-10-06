@@ -160,6 +160,7 @@ public:
     virtual ~Allocator();
     virtual void* fastMalloc(size_t size) = 0;
     virtual void fastFree(void* ptr) = 0;
+    virtual void emptyCache() = 0;
 };
 
 class PoolAllocatorPrivate;
@@ -172,12 +173,13 @@ public:
     // ratio range 0 ~ 1
     // default cr = 0.75
     void set_size_compare_ratio(float scr);
-
+    void set_memory_limit(size_t low, size_t high);
     // release all budgets immediately
     void clear();
 
     virtual void* fastMalloc(size_t size);
     virtual void fastFree(void* ptr);
+    virtual void emptyCache();
 
 private:
     PoolAllocator(const PoolAllocator&);
@@ -185,6 +187,9 @@ private:
 
 private:
     PoolAllocatorPrivate* const d;
+    size_t mem_usage;
+    size_t low_thresh;
+    size_t high_thresh;
 };
 
 class UnlockedPoolAllocatorPrivate;
@@ -197,12 +202,14 @@ public:
     // ratio range 0 ~ 1
     // default cr = 0.75
     void set_size_compare_ratio(float scr);
+    void set_memory_limit(size_t low, size_t high);
 
     // release all budgets immediately
     void clear();
 
     virtual void* fastMalloc(size_t size);
     virtual void fastFree(void* ptr);
+    virtual void emptyCache();
 
 private:
     UnlockedPoolAllocator(const UnlockedPoolAllocator&);
@@ -210,6 +217,9 @@ private:
 
 private:
     UnlockedPoolAllocatorPrivate* const d;
+    size_t mem_usage;
+    size_t low_thresh;
+    size_t high_thresh;
 };
 
 #if NCNN_VULKAN

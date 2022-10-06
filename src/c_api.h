@@ -36,10 +36,15 @@ struct NCNN_EXPORT __ncnn_allocator_t
 
     void* (*fast_malloc)(ncnn_allocator_t allocator, size_t size);
     void (*fast_free)(ncnn_allocator_t allocator, void* ptr);
+    void (*empty_cache)(ncnn_allocator_t allocator);
 };
 
 NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator();
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_pool_allocator_with_memory_limit(size_t low, size_t high);
 NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator();
+NCNN_EXPORT ncnn_allocator_t ncnn_allocator_create_unlocked_pool_allocator_with_memory_limit(size_t low, size_t high);
+
+NCNN_EXPORT void ncnn_allocator_empty_cache(ncnn_allocator_t allocator);
 NCNN_EXPORT void ncnn_allocator_destroy(ncnn_allocator_t allocator);
 
 /* option api */
@@ -50,6 +55,12 @@ NCNN_EXPORT void ncnn_option_destroy(ncnn_option_t opt);
 
 NCNN_EXPORT int ncnn_option_get_num_threads(const ncnn_option_t opt);
 NCNN_EXPORT void ncnn_option_set_num_threads(ncnn_option_t opt, int num_threads);
+
+NCNN_EXPORT bool ncnn_option_get_use_local_pool_allocator(const ncnn_option_t opt);
+NCNN_EXPORT void ncnn_option_set_use_local_pool_allocator(ncnn_option_t opt, bool use_local_pool_allocator);
+
+NCNN_EXPORT void ncnn_option_set_blob_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
+NCNN_EXPORT void ncnn_option_set_workspace_allocator(ncnn_option_t opt, ncnn_allocator_t allocator);
 
 NCNN_EXPORT int ncnn_option_get_use_vulkan_compute(const ncnn_option_t opt);
 NCNN_EXPORT void ncnn_option_set_use_vulkan_compute(ncnn_option_t opt, int use_vulkan_compute);
@@ -265,6 +276,7 @@ struct __ncnn_net_t
 NCNN_EXPORT ncnn_net_t ncnn_net_create();
 NCNN_EXPORT void ncnn_net_destroy(ncnn_net_t net);
 
+NCNN_EXPORT ncnn_option_t ncnn_net_get_option(ncnn_net_t net);
 NCNN_EXPORT void ncnn_net_set_option(ncnn_net_t net, ncnn_option_t opt);
 
 #if NCNN_STRING

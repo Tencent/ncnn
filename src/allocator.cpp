@@ -41,6 +41,9 @@ PoolAllocator::PoolAllocator()
     : Allocator(), d(new PoolAllocatorPrivate)
 {
     d->size_compare_ratio = 192; // 0.75f * 256
+    mem_usage = 0;
+    low_thresh = 0;
+    high_thresh = 0;
 }
 
 PoolAllocator::~PoolAllocator()
@@ -64,7 +67,7 @@ PoolAllocator::~PoolAllocator()
 }
 
 PoolAllocator::PoolAllocator(const PoolAllocator&)
-    : d(0)
+    : d(0), mem_usage(0), low_thresh(0), high_thresh(0)
 {
 }
 
@@ -75,17 +78,7 @@ PoolAllocator& PoolAllocator::operator=(const PoolAllocator&)
 
 void PoolAllocator::clear()
 {
-    d->budgets_lock.lock();
-
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
-    for (; it != d->budgets.end(); ++it)
-    {
-        void* ptr = it->second;
-        ncnn::fastFree(ptr);
-    }
-    d->budgets.clear();
-
-    d->budgets_lock.unlock();
+    emptyCache();
 }
 
 void PoolAllocator::set_size_compare_ratio(float scr)
@@ -97,6 +90,12 @@ void PoolAllocator::set_size_compare_ratio(float scr)
     }
 
     d->size_compare_ratio = (unsigned int)(scr * 256);
+}
+
+void PoolAllocator::set_memory_limit(size_t low, size_t high)
+{
+    low_thresh = low;
+    high_thresh = high;
 }
 
 void* PoolAllocator::fastMalloc(size_t size)
@@ -136,8 +135,21 @@ void* PoolAllocator::fastMalloc(size_t size)
     d->payouts_lock.lock();
 
     d->payouts.push_back(std::make_pair(size, ptr));
-
+    mem_usage += size;
     d->payouts_lock.unlock();
+
+    if (high_thresh > 0 && mem_usage > high_thresh)
+    {
+        d->budgets_lock.lock();
+        while (low_thresh > 0 && mem_usage > low_thresh && !d->budgets.empty())
+        {
+            std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+            mem_usage -= it->first;
+            ncnn::fastFree(it->second);
+            d->budgets.erase(it);
+        }
+        d->budgets_lock.unlock();
+    }
 
     return ptr;
 }
@@ -174,6 +186,21 @@ void PoolAllocator::fastFree(void* ptr)
     ncnn::fastFree(ptr);
 }
 
+void PoolAllocator::emptyCache()
+{
+    d->budgets_lock.lock();
+
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    for (; it != d->budgets.end(); ++it)
+    {
+        mem_usage -= it->first;
+        ncnn::fastFree(it->second);
+    }
+
+    d->budgets.clear();
+    d->budgets_lock.unlock();
+}
+
 class UnlockedPoolAllocatorPrivate
 {
 public:
@@ -186,6 +213,9 @@ UnlockedPoolAllocator::UnlockedPoolAllocator()
     : Allocator(), d(new UnlockedPoolAllocatorPrivate)
 {
     d->size_compare_ratio = 192; // 0.75f * 256
+    mem_usage = 0;
+    low_thresh = 0;
+    high_thresh = 0;
 }
 
 UnlockedPoolAllocator::~UnlockedPoolAllocator()
@@ -209,7 +239,7 @@ UnlockedPoolAllocator::~UnlockedPoolAllocator()
 }
 
 UnlockedPoolAllocator::UnlockedPoolAllocator(const UnlockedPoolAllocator&)
-    : d(0)
+    : d(0), mem_usage(0), low_thresh(0), high_thresh(0)
 {
 }
 
@@ -220,13 +250,7 @@ UnlockedPoolAllocator& UnlockedPoolAllocator::operator=(const UnlockedPoolAlloca
 
 void UnlockedPoolAllocator::clear()
 {
-    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
-    for (; it != d->budgets.end(); ++it)
-    {
-        void* ptr = it->second;
-        ncnn::fastFree(ptr);
-    }
-    d->budgets.clear();
+    emptyCache();
 }
 
 void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
@@ -238,6 +262,12 @@ void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
     }
 
     d->size_compare_ratio = (unsigned int)(scr * 256);
+}
+
+void UnlockedPoolAllocator::set_memory_limit(size_t low, size_t high)
+{
+    low_thresh = low;
+    high_thresh = high;
 }
 
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
@@ -265,6 +295,18 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
     void* ptr = ncnn::fastMalloc(size);
 
     d->payouts.push_back(std::make_pair(size, ptr));
+    mem_usage += size;
+
+    if (high_thresh > 0 && mem_usage > high_thresh)
+    {
+        while (low_thresh > 0 && mem_usage > low_thresh && !d->budgets.empty())
+        {
+            std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+            mem_usage -= it->first;
+            ncnn::fastFree(it->second);
+            d->budgets.erase(it);
+        }
+    }
 
     return ptr;
 }
@@ -289,6 +331,19 @@ void UnlockedPoolAllocator::fastFree(void* ptr)
 
     NCNN_LOGE("FATAL ERROR! unlocked pool allocator get wild %p", ptr);
     ncnn::fastFree(ptr);
+}
+
+void UnlockedPoolAllocator::emptyCache()
+{
+    std::list<std::pair<size_t, void*> >::iterator it = d->budgets.begin();
+    for (; it != d->budgets.end(); ++it)
+    {
+        mem_usage -= it->first;
+        void* ptr = it->second;
+        ncnn::fastFree(ptr);
+    }
+
+    d->budgets.clear();
 }
 
 #if NCNN_VULKAN

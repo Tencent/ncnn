@@ -31,6 +31,10 @@ public:
     {
         PYBIND11_OVERLOAD_PURE(void, Base, fastFree, ptr);
     }
+    void emptyCache() override
+    {
+        PYBIND11_OVERLOAD_PURE(void, Base, emptyCache);
+    }
 };
 
 template<class Other>
@@ -45,6 +49,10 @@ public:
     void fastFree(void* ptr) override
     {
         PYBIND11_OVERLOAD(void, Other, fastFree, ptr);
+    }
+    void emptyCache() override
+    {
+        PYBIND11_OVERLOAD_PURE(void, Other, emptyCache);
     }
 };
 
