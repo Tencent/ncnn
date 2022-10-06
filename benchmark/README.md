@@ -4370,3 +4370,37 @@ cooling_down = 1
   vision_transformer  min = 22201.32  max = 22510.75  avg = 22315.09
           FastestDet  min =  146.94  max =  148.50  avg =  147.44
 ```
+
+### T-Head TH1520 (C910V<aka C920>, 1.848 GHz x 4)
+
+Tested on `Linux anolis-riscv 5.10.112-00579-g8e3db308d5a5 #23 SMP PREEMPT Fri Aug 12 10:17:32 CST 2022 riscv64 riscv64 riscv64 GNU/Linux`
+
+```
+[root@anolis-riscv benchmark]# ./benchncnn 
+syscall error -1
+loop_count = 4
+num_threads = 4
+powersave = 0
+gpu_device = -1
+cooling_down = 1
+          squeezenet  min =  187.88  max =  188.82  avg =  188.13
+     squeezenet_int8  min = 2388.26  max = 2446.92  avg = 2411.46
+           mobilenet  min =  321.46  max =  323.34  avg =  322.19
+      mobilenet_int8  min = 2318.93  max = 2458.55  avg = 2400.99
+        mobilenet_v2  min =  214.01  max =  216.00  avg =  215.35
+        mobilenet_v3  min =  247.71  max =  248.18  avg =  247.96
+          shufflenet  min =  155.58  max =  155.85  avg =  155.67
+       shufflenet_v2  min =   99.50  max =   99.75  avg =   99.63
+             mnasnet  min =  261.46  max =  263.83  avg =  262.53
+     proxylessnasnet  min =  315.40  max =  316.89  avg =  316.28
+     efficientnet_b0  min =  484.97  max =  486.16  avg =  485.55
+   efficientnetv2_b0  min =  453.03  max =  453.40  avg =  453.21
+        regnety_400m  min =  314.09  max =  315.33  avg =  314.77
+           blazeface  min =   46.14  max =   46.69  avg =   46.39
+           googlenet  min =  650.99  max =  653.60  avg =  651.69
+      googlenet_int8  min = 5435.11  max = 6391.98  avg = 6012.81
+            resnet18  min =  505.48  max =  506.70  avg =  506.06
+       resnet18_int8  min = 5053.33  max = 6599.94  avg = 6001.86
+             alexnet  min =  403.68  max =  404.60  avg =  404.23
+               vgg16  min = 2731.55  max = 2746.48  avg = 2738.82
+```
