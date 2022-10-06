@@ -33,7 +33,7 @@ public:
     Mutex budgets_lock;
     Mutex payouts_lock;
     unsigned int size_compare_ratio; // 0~256
-    static const size_t size_threshold = 10;
+    size_t size_drop_threshold;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -42,6 +42,7 @@ PoolAllocator::PoolAllocator()
     : Allocator(), d(new PoolAllocatorPrivate)
 {
     d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_drop_threshold = 10;
 }
 
 PoolAllocator::~PoolAllocator()
@@ -100,6 +101,11 @@ void PoolAllocator::set_size_compare_ratio(float scr)
     d->size_compare_ratio = (unsigned int)(scr * 256);
 }
 
+void PoolAllocator::set_size_drop_threshold(size_t threshold)
+{
+    d->size_drop_threshold = threshold;
+}
+
 void* PoolAllocator::fastMalloc(size_t size)
 {
     d->budgets_lock.lock();
@@ -138,7 +144,7 @@ void* PoolAllocator::fastMalloc(size_t size)
         }
     }
 
-    if (d->budgets.size() >= d->size_threshold)
+    if (d->budgets.size() >= d->size_drop_threshold)
     {
         // All chunks in pool are not chosen. Then try to drop some outdated
         // chunks and return them to OS.
@@ -208,7 +214,7 @@ class UnlockedPoolAllocatorPrivate
 {
 public:
     unsigned int size_compare_ratio; // 0~256
-    static const size_t size_threshold = 10;
+    size_t size_drop_threshold;
     std::list<std::pair<size_t, void*> > budgets;
     std::list<std::pair<size_t, void*> > payouts;
 };
@@ -217,6 +223,7 @@ UnlockedPoolAllocator::UnlockedPoolAllocator()
     : Allocator(), d(new UnlockedPoolAllocatorPrivate)
 {
     d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_drop_threshold = 10;
 }
 
 UnlockedPoolAllocator::~UnlockedPoolAllocator()
@@ -271,6 +278,11 @@ void UnlockedPoolAllocator::set_size_compare_ratio(float scr)
     d->size_compare_ratio = (unsigned int)(scr * 256);
 }
 
+void UnlockedPoolAllocator::set_size_drop_threshold(size_t threshold)
+{
+    d->size_drop_threshold = threshold;
+}
+
 void* UnlockedPoolAllocator::fastMalloc(size_t size)
 {
     // find free budget
@@ -301,7 +313,7 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
         }
     }
 
-    if (d->budgets.size() >= d->size_threshold)
+    if (d->budgets.size() >= d->size_drop_threshold)
     {
         if (it_max->first < size)
         {
