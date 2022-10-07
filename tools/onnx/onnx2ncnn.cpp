@@ -2932,7 +2932,7 @@ static void fuse_binaryop_with_scalar(onnx::GraphProto* mutable_graph, std::map<
 
 // truncate layer/blob names when they exceed 255, which is the upper length limit when parsing param in src/net.cpp
 static std::string trunc_name(std::string name)
-{      
+{
     static int trunc_idx = 0;
     static std::map<std::string, std::string> name_trunc_map;
 
@@ -2941,7 +2941,7 @@ static std::string trunc_name(std::string name)
     {
         return name;
     }
-    if (name_trunc_map.count(name)) 
+    if (name_trunc_map.count(name))
     {
         return name_trunc_map[name];
     }
