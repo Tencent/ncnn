@@ -170,7 +170,7 @@ public:
     ~PoolAllocator();
 
     // ratio range 0 ~ 1
-    // default cr = 0.75
+    // default cr = 0
     void set_size_compare_ratio(float scr);
 
     // budget drop threshold
@@ -199,7 +199,7 @@ public:
     ~UnlockedPoolAllocator();
 
     // ratio range 0 ~ 1
-    // default cr = 0.75
+    // default cr = 0
     void set_size_compare_ratio(float scr);
 
     // budget drop threshold

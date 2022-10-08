@@ -41,7 +41,7 @@ public:
 PoolAllocator::PoolAllocator()
     : Allocator(), d(new PoolAllocatorPrivate)
 {
-    d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_compare_ratio = 0;
     d->size_drop_threshold = 10;
 }
 
@@ -116,15 +116,6 @@ void* PoolAllocator::fastMalloc(size_t size)
     {
         size_t bs = it->first;
 
-        if (it_min == d->budgets.end() || it->first < it_min->first)
-        {
-            it_min = it;
-        }
-        if (it_max == d->budgets.end() || it->first > it_max->first)
-        {
-            it_max = it;
-        }
-
         // size_compare_ratio ~ 100%
         if (bs >= size && ((bs * d->size_compare_ratio) >> 8) <= size)
         {
@@ -141,6 +132,15 @@ void* PoolAllocator::fastMalloc(size_t size)
             d->payouts_lock.unlock();
 
             return ptr;
+        }
+
+        if (bs < it_min->first)
+        {
+            it_min = it;
+        }
+        if (bs > it_max->first)
+        {
+            it_max = it;
         }
     }
 
@@ -222,7 +222,7 @@ public:
 UnlockedPoolAllocator::UnlockedPoolAllocator()
     : Allocator(), d(new UnlockedPoolAllocatorPrivate)
 {
-    d->size_compare_ratio = 192; // 0.75f * 256
+    d->size_compare_ratio = 0;
     d->size_drop_threshold = 10;
 }
 
@@ -291,15 +291,6 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
     {
         size_t bs = it->first;
 
-        if (it->first > it_max->first)
-        {
-            it_max = it;
-        }
-        if (it->first < it_min->first)
-        {
-            it_min = it;
-        }
-
         // size_compare_ratio ~ 100%
         if (bs >= size && ((bs * d->size_compare_ratio) >> 8) <= size)
         {
@@ -310,6 +301,15 @@ void* UnlockedPoolAllocator::fastMalloc(size_t size)
             d->payouts.push_back(std::make_pair(bs, ptr));
 
             return ptr;
+        }
+
+        if (bs > it_max->first)
+        {
+            it_max = it;
+        }
+        if (bs < it_min->first)
+        {
+            it_min = it;
         }
     }
 

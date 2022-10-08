@@ -1891,7 +1891,7 @@ int Net::load_model(const DataReader& dr)
             if (!d->local_workspace_allocator)
             {
                 d->local_workspace_allocator = new PoolAllocator;
-                d->local_workspace_allocator->set_size_compare_ratio(0.5f);
+                d->local_workspace_allocator->set_size_compare_ratio(0.f);
             }
         }
     }
