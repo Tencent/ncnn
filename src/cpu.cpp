@@ -238,8 +238,8 @@ static unsigned int g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
 
 #if __loongarch64
 // from arch/loongarch/include/uapi/asm/hwcap.h
-#define HWCAP_LOONGARCH_LSX     (1 << 4)
-#define HWCAP_LOONGARCH_LASX        (1 << 5)
+#define HWCAP_LOONGARCH_LSX  (1 << 4)
+#define HWCAP_LOONGARCH_LASX (1 << 5)
 #endif
 
 #if __riscv

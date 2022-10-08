@@ -18,7 +18,7 @@ void convolution_winograd_dot_int8_loongson_mmi(Mat& bottom_blob_tm, int outch, 
 
 static void convolution_winograd_dot_int8_msa(Mat& bottom_blob_tm, int outch, const Mat& kernel_tm, Mat& top_blob_tm, const Option& opt)
 {
-#if NCNN_RUNTIME_CPU && !__loongarch64_sx 
+#if NCNN_RUNTIME_CPU && !__loongarch64_sx
     if (ncnn::cpu_support_loongson_mmi())
     {
         convolution_winograd_dot_int8_loongson_mmi(bottom_blob_tm, outch, kernel_tm, top_blob_tm, opt);
