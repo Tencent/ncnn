@@ -95,6 +95,8 @@ NCNN_EXPORT int cpu_support_x86_avx512_fp16();
 
 // msa = mips mas
 NCNN_EXPORT int cpu_support_mips_msa();
+// msa = loongarch64 lsx
+NCNN_EXPORT int cpu_support_loongarch64_lsx();
 // mmi = loongson mmi
 NCNN_EXPORT int cpu_support_loongson_mmi();
 
