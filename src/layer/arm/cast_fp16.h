@@ -106,7 +106,7 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
 
 static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const Option& opt)
 {
-#if NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
+#if NCNN_RUNTIME_CPU && NCNN_VFPV4 && __ARM_NEON && !(__ARM_FP & 2)
     if (ncnn::cpu_support_arm_vfpv4())
     {
         cast_fp16_to_fp32_neon_vfpv4(bottom_blob, top_blob, opt);
