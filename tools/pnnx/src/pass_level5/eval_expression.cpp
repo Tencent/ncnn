@@ -136,29 +136,29 @@ static std::string eval_expression(const Operator* op)
             }
         }
         else if (t == "int"
-            || t == "abs"
-            || t == "acos"
-            || t == "acosh"
-            || t == "asin"
-            || t == "asinh"
-            || t == "atan"
-            || t == "atanh"
-            || t == "ceil"
-            || t == "cos"
-            || t == "cosh"
-            || t == "exp"
-            || t == "floor"
-            || t == "log"
-            || t == "neg"
-            || t == "reciprocal"
-            || t == "rsqrt"
-            || t == "sin"
-            || t == "sinh"
-            || t == "sqrt"
-            || t == "square"
-            || t == "tan"
-            || t == "tanh"
-            || t == "trunc")
+                 || t == "abs"
+                 || t == "acos"
+                 || t == "acosh"
+                 || t == "asin"
+                 || t == "asinh"
+                 || t == "atan"
+                 || t == "atanh"
+                 || t == "ceil"
+                 || t == "cos"
+                 || t == "cosh"
+                 || t == "exp"
+                 || t == "floor"
+                 || t == "log"
+                 || t == "neg"
+                 || t == "reciprocal"
+                 || t == "rsqrt"
+                 || t == "sin"
+                 || t == "sinh"
+                 || t == "sqrt"
+                 || t == "square"
+                 || t == "tan"
+                 || t == "tanh"
+                 || t == "trunc")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -295,14 +295,14 @@ static std::string eval_expression(const Operator* op)
             }
         }
         else if (t == "atan2"
-            || t == "add"
-            || t == "sub"
-            || t == "mul"
-            || t == "div"
-            || t == "floor_divide"
-            || t == "pow"
-            || t == "remainder"
-            || t == "and" || t == "or" || t == "xor")
+                 || t == "add"
+                 || t == "sub"
+                 || t == "mul"
+                 || t == "div"
+                 || t == "floor_divide"
+                 || t == "pow"
+                 || t == "remainder"
+                 || t == "and" || t == "or" || t == "xor")
         {
             std::string a = exprstack.top();
             exprstack.pop();

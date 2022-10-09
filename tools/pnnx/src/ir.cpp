@@ -1047,29 +1047,29 @@ static std::string expand_expression(const Operator* op)
             exprstack.push(r);
         }
         else if (t == "int"
-            || t == "abs"
-            || t == "acos"
-            || t == "acosh"
-            || t == "asin"
-            || t == "asinh"
-            || t == "atan"
-            || t == "atanh"
-            || t == "ceil"
-            || t == "cos"
-            || t == "cosh"
-            || t == "exp"
-            || t == "floor"
-            || t == "log"
-            || t == "neg"
-            || t == "reciprocal"
-            || t == "rsqrt"
-            || t == "sin"
-            || t == "sinh"
-            || t == "sqrt"
-            || t == "square"
-            || t == "tan"
-            || t == "tanh"
-            || t == "trunc")
+                 || t == "abs"
+                 || t == "acos"
+                 || t == "acosh"
+                 || t == "asin"
+                 || t == "asinh"
+                 || t == "atan"
+                 || t == "atanh"
+                 || t == "ceil"
+                 || t == "cos"
+                 || t == "cosh"
+                 || t == "exp"
+                 || t == "floor"
+                 || t == "log"
+                 || t == "neg"
+                 || t == "reciprocal"
+                 || t == "rsqrt"
+                 || t == "sin"
+                 || t == "sinh"
+                 || t == "sqrt"
+                 || t == "square"
+                 || t == "tan"
+                 || t == "tanh"
+                 || t == "trunc")
         {
             std::string unaryop;
             if (t == "int") unaryop = "int";
@@ -1104,7 +1104,7 @@ static std::string expand_expression(const Operator* op)
             exprstack.push(r);
         }
         else if (t == "atan2"
-            || t == "pow")
+                 || t == "pow")
         {
             std::string binaryop;
             if (t == "atan2") binaryop = "torch.atan2";
