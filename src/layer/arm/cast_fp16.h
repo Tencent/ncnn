@@ -42,6 +42,7 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
         unsigned short* outptr = top_blob.channel(q);
 
         int i = 0;
+#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
 #if (__ARM_FP & 2)
         for (; i + 15 < size; i += 16)
         {
@@ -94,7 +95,8 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             ptr += 4;
             outptr += 4;
         }
-#endif
+#endif // (__ARM_FP & 2)
+#endif // (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
         for (; i < size; i++)
         {
             *outptr++ = float32_to_float16(*ptr++);
@@ -127,6 +129,7 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
         float* outptr = top_blob.channel(q);
 
         int i = 0;
+#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
 #if (__ARM_FP & 2)
         for (; i + 15 < size; i += 16)
         {
@@ -180,7 +183,8 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
             ptr += 4;
             outptr += 4;
         }
-#endif
+#endif // (__ARM_FP & 2)
+#endif // (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
         for (; i < size; i++)
         {
             *outptr++ = float16_to_float32(*ptr++);
