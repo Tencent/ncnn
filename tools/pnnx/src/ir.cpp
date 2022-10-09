@@ -1046,13 +1046,58 @@ static std::string expand_expression(const Operator* op)
             std::string r = a + ".size(" + b + ")";
             exprstack.push(r);
         }
-        else if (t == "int" || t == "sqrt" || t == "rsqrt" || t == "neg")
+        else if (t == "int"
+                 || t == "abs"
+                 || t == "acos"
+                 || t == "acosh"
+                 || t == "asin"
+                 || t == "asinh"
+                 || t == "atan"
+                 || t == "atanh"
+                 || t == "ceil"
+                 || t == "cos"
+                 || t == "cosh"
+                 || t == "exp"
+                 || t == "floor"
+                 || t == "log"
+                 || t == "neg"
+                 || t == "reciprocal"
+                 || t == "rsqrt"
+                 || t == "sign"
+                 || t == "sin"
+                 || t == "sinh"
+                 || t == "sqrt"
+                 || t == "square"
+                 || t == "tan"
+                 || t == "tanh"
+                 || t == "trunc")
         {
             std::string unaryop;
             if (t == "int") unaryop = "int";
-            if (t == "sqrt") unaryop = "torch.sqrt";
-            if (t == "rsqrt") unaryop = "torch.rsqrt";
+            if (t == "abs") unaryop = "torch.abs";
+            if (t == "acos") unaryop = "torch.acos";
+            if (t == "acosh") unaryop = "torch.acosh";
+            if (t == "asin") unaryop = "torch.asin";
+            if (t == "asinh") unaryop = "torch.asinh";
+            if (t == "atan") unaryop = "torch.atan";
+            if (t == "atanh") unaryop = "torch.atanh";
+            if (t == "ceil") unaryop = "torch.ceil";
+            if (t == "cos") unaryop = "torch.cos";
+            if (t == "cosh") unaryop = "torch.cosh";
+            if (t == "exp") unaryop = "torch.exp";
+            if (t == "floor") unaryop = "torch.floor";
+            if (t == "log") unaryop = "torch.log";
             if (t == "neg") unaryop = "torch.neg";
+            if (t == "reciprocal") unaryop = "torch.reciprocal";
+            if (t == "rsqrt") unaryop = "torch.rsqrt";
+            if (t == "sign") unaryop = "torch.sign";
+            if (t == "sin") unaryop = "torch.sin";
+            if (t == "sinh") unaryop = "torch.sinh";
+            if (t == "sqrt") unaryop = "torch.sqrt";
+            if (t == "square") unaryop = "torch.square";
+            if (t == "tan") unaryop = "torch.tan";
+            if (t == "tanh") unaryop = "torch.tanh";
+            if (t == "trunc") unaryop = "torch.trunc";
 
             std::string a = exprstack.top();
             exprstack.pop();
@@ -1060,14 +1105,19 @@ static std::string expand_expression(const Operator* op)
             std::string r = unaryop + "(" + a + ")";
             exprstack.push(r);
         }
-        else if (t == "pow")
+        else if (t == "atan2"
+                 || t == "pow")
         {
+            std::string binaryop;
+            if (t == "atan2") binaryop = "torch.atan2";
+            if (t == "pow") binaryop = "torch.pow";
+
             std::string a = exprstack.top();
             exprstack.pop();
             std::string b = exprstack.top();
             exprstack.pop();
 
-            std::string r = a + ".pow(" + b + ")";
+            std::string r = binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);
         }
         else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "and" || t == "or" || t == "xor")
