@@ -199,8 +199,8 @@ int main(int argc, char** argv)
 
     g_loop_count = loop_count;
 
-    g_blob_pool_allocator.set_size_compare_ratio(0.0f);
-    g_workspace_pool_allocator.set_size_compare_ratio(0.5f);
+    g_blob_pool_allocator.set_size_compare_ratio(0.f);
+    g_workspace_pool_allocator.set_size_compare_ratio(0.f);
 
 #if NCNN_VULKAN
     if (use_vulkan_compute)
