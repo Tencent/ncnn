@@ -170,3 +170,19 @@ ncnn::Net net;
 // param_buffer is the content buffe of XYZ.param file
 net.load_param_mem(param_buffer);
 ```
+
+
+### disable fp16
+
+Some models may overflow fp16, resulting in a nan result.
+
+So try to turn off fp16 lower-precision optimizations, and the precision will be improved to fp32 to investigate and solve the overflow problem caused by this.
+
+You can set it as follows
+```cpp
+ncnn::Net net;
+
+net.opt.use_fp16_packed = false;
+net.opt.use_fp16_storage = false;
+net.opt.use_fp16_arithmetic = false;
+```
