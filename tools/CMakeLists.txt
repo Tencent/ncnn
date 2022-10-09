@@ -29,7 +29,7 @@ if(NCNN_VULKAN)
     target_link_libraries(ncnn2mem PRIVATE ${Vulkan_LIBRARY})
 endif()
 
-add_executable(ncnnoptimize ncnnoptimize.cpp)
+add_executable(ncnnoptimize ncnnoptimize.cpp modelwriter.cpp)
 target_link_libraries(ncnnoptimize PRIVATE ncnn)
 if(NCNN_VULKAN)
     target_link_libraries(ncnnoptimize PRIVATE ${Vulkan_LIBRARY})

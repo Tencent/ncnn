@@ -18,6 +18,8 @@
 
 #include "fused_activation.h"
 
+#include "mathfun.h"
+
 namespace ncnn {
 
 Convolution::Convolution()
@@ -383,14 +385,6 @@ void Convolution::make_padding(const Mat& bottom_blob, Mat& bottom_blob_bordered
 }
 
 #if NCNN_INT8
-static inline signed char float2int8(float v)
-{
-    int int32 = static_cast<int>(round(v));
-    if (int32 > 127) return 127;
-    if (int32 < -127) return -127;
-    return (signed char)int32;
-}
-
 int Convolution::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     int w = bottom_blob.w;

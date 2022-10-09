@@ -1,3 +1,4 @@
+set(CMAKE_CXX_STANDARD 11)
 
 if(NCNN_PIXEL)
     if(NOT NCNN_SIMPLEOCV)
@@ -17,15 +18,15 @@ if(NCNN_PIXEL)
     set(OpenCV_FOUND FALSE)
 
     if(OpenCV_FOUND)
-        add_executable(ncnn2table ncnn2table.cpp)
+        add_executable(ncnn2table ncnn2table.cpp ini_config.cpp)
         target_include_directories(ncnn2table PRIVATE ${OpenCV_INCLUDE_DIRS})
         target_link_libraries(ncnn2table PRIVATE ncnn ${OpenCV_LIBS})
     elseif(NCNN_SIMPLEOCV)
-        add_executable(ncnn2table ncnn2table.cpp)
+        add_executable(ncnn2table ncnn2table.cpp ini_config.cpp)
         target_compile_definitions(ncnn2table PUBLIC USE_NCNN_SIMPLEOCV)
         target_link_libraries(ncnn2table PRIVATE ncnn)
     else()
-        add_executable(ncnn2table ncnn2table.cpp imreadwrite.cpp)
+        add_executable(ncnn2table ncnn2table.cpp imreadwrite.cpp ini_config.cpp)
         target_compile_definitions(ncnn2table PUBLIC USE_LOCAL_IMREADWRITE)
         target_link_libraries(ncnn2table PRIVATE ncnn)
     endif()
@@ -34,7 +35,7 @@ if(NCNN_PIXEL)
     set_property(TARGET ncnn2table PROPERTY FOLDER "tools/optimization")
 endif()
 
-add_executable(ncnn2int8 ncnn2int8.cpp)
+add_executable(ncnn2int8 ncnn2int8.cpp ini_config.cpp net_quantize.cpp ../modelwriter.cpp)
 target_link_libraries(ncnn2int8 PRIVATE ncnn)
 
 # add ncnn2int8 tool to a virtual project group

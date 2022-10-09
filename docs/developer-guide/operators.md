@@ -971,11 +971,14 @@ y = x * gamma + beta by elementwise
 | 0         | affine_size   | int   | 0         |                   |
 | 1         | eps           | float | 0.001f    | x = x / sqrt(var + eps) |
 | 2         | affine        | int   | 1         |                   |
+| 3         | int8_scale_term  | int   | 0         |   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | gamma_data    | float | [affine_size]         |
 | beta_data     | float | [affine_size]         |
+| input_scales     | float | [affine_size]         |
+| output_scale     | float | [affine_size]         |
 
 # Log
 ```
@@ -1084,9 +1087,10 @@ y = affine(out)
 | 0         | embed_dim     | int   | 0         |                   |
 | 1         | num_head      | int   | 1         |                   |
 | 2         | weight_data_size| int | 0         |                   |
+| 3         | int8_scale_term| int | 0         |                   |
 
-| weight        | type  | shape                 |
-| ------------- | ----- | --------------------- |
+| weight        | type  | shape                 | description |
+| ------------- | ----- | --- | --------------------- |
 | q_weight_data | float/fp16/int8 | [weight_data_size] |
 | q_bias_data   | float | [embed_dim]           |
 | k_weight_data | float/fp16/int8 | [weight_data_size] |
@@ -1095,6 +1099,14 @@ y = affine(out)
 | v_bias_data   | float | [embed_dim]           |
 | out_weight_data| float/fp16/int8 | [weight_data_size] |
 | out_bias_data | float | [embed_dim]           |
+| q_input_scale | float | [1] |
+| k_input_scale | float | [1] |
+| v_input_scale | float | [1] |
+| q_weight_scales | float | [embed_dim] |
+| k_weight_scales | float | [embed_dim] |
+| v_weight_scales | float | [embed_dim] |
+| internal_scales | float | [5] | scales for xq/xk/xv/before_softmax/before_output |
+
 
 # MVN
 ```

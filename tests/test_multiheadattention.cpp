@@ -93,11 +93,69 @@ static int test_multiheadattention_1()
            || test_multiheadattention_sameqkv(RandomMat(64, 127), 32);
 }
 
+#ifdef NCNN_INT8
+static int test_multiheadattention_int8(const ncnn::Mat& a, int num_heads)
+{
+    int embed_dim = a.w;
+
+    ncnn::ParamDict pd;
+    pd.set(0, embed_dim);
+    pd.set(1, num_heads);
+    pd.set(2, embed_dim * embed_dim);
+    pd.set(3, 1);
+
+    std::vector<ncnn::Mat> weights(16);
+    weights[0] = RandomMat(embed_dim * embed_dim);
+    weights[1] = RandomMat(embed_dim);
+    weights[2] = RandomMat(embed_dim * embed_dim);
+    weights[3] = RandomMat(embed_dim);
+    weights[4] = RandomMat(embed_dim * embed_dim);
+    weights[5] = RandomMat(embed_dim);
+    weights[6] = RandomMat(embed_dim * embed_dim);
+    weights[7] = RandomMat(embed_dim);
+
+    weights[8] = RandomMat(1, 1.f, 10.f);
+    weights[9] = RandomMat(1, 1.f, 10.f);
+    weights[10] = RandomMat(1, 1.f, 10.f);
+
+    weights[11] = scales_mat(weights[0], embed_dim, embed_dim, embed_dim);
+    weights[12] = scales_mat(weights[2], embed_dim, embed_dim, embed_dim);
+    weights[13] = scales_mat(weights[4], embed_dim, embed_dim, embed_dim);
+    weights[14] = scales_mat(weights[6], embed_dim, embed_dim, embed_dim);
+
+    weights[15] = RandomMat(5, 1.f, 10.f);
+
+    std::vector<ncnn::Mat> as(1);
+    as[0] = a;
+
+    int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_multiheadattention failed a=(%d %d)\n", a.w, a.h);
+    }
+
+    return ret;
+}
+
+static int test_multiheadattention_2()
+{
+    return 0
+           || test_multiheadattention_int8(RandomMat(64, 128), 8)
+           || test_multiheadattention_int8(RandomMat(64, 127), 32);
+}
+#endif
+
 int main()
 {
     SRAND(7767517);
-
+#ifdef NCNN_INT8
+    return 0
+           || test_multiheadattention_0()
+           || test_multiheadattention_1()
+           || test_multiheadattention_2();
+#else
     return 0
            || test_multiheadattention_0()
            || test_multiheadattention_1();
+#endif
 }

@@ -287,6 +287,23 @@ static NCNN_FORCEINLINE float _mm256_reduce_add_ps(__m256 x)
     return _mm_cvtss_f32(x32);
 }
 
+static NCNN_FORCEINLINE int32_t hsum_epi32_avx(__m128i x)
+{
+    __m128i hi64 = _mm_unpackhi_epi64(x, x); // 3-operand non-destructive AVX lets us save a byte without needing a movdqa
+    __m128i sum64 = _mm_add_epi32(hi64, x);
+    __m128i hi32 = _mm_shuffle_epi32(sum64, _MM_SHUFFLE(2, 3, 0, 1)); // Swap the low two elements
+    __m128i sum32 = _mm_add_epi32(sum64, hi32);
+    return _mm_cvtsi128_si32(sum32); // movd
+}
+
+static NCNN_FORCEINLINE int32_t _mm256_hsum_8x32_i(__m256i v)
+{
+    __m128i sum128 = _mm_add_epi32(
+                         _mm256_castsi256_si128(v),
+                         _mm256_extracti128_si256(v, 1)); // silly GCC uses a longer AXV512VL instruction if AVX512 is enabled :/
+    return hsum_epi32_avx(sum128);
+}
+
 static NCNN_FORCEINLINE float _mm256_reduce_max_ps(__m256 x)
 {
     const __m128 x128 = _mm_max_ps(_mm256_extractf128_ps(x, 1), _mm256_castps256_ps128(x));
@@ -493,5 +510,111 @@ static NCNN_FORCEINLINE float _mm512_comp_reduce_max_ps(__m512 x)
 #endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
+
+/**
+ * @brief A wrapper for fp32 simd computation
+ *
+ * result = reduce(a[] * b[])
+ *
+ * @param a
+ * @param b
+ * @param size
+ * @return float
+ */
+static NCNN_FORCEINLINE float mul_add_reduce_no_align(const float* a, const float* b, const int size)
+{
+    float sum = 0.f;
+    int align = 0;
+#if __AVX512F__
+    align = (size >> 4) << 4;
+    __m512 _sum = _mm512_set1_ps(0.f);
+
+    for (int i = 0; i < align; i += 16)
+    {
+        __m512 val0 = _mm512_loadu_ps(a + i);
+        __m512 val1 = _mm512_loadu_ps(b + i);
+        _sum = _mm512_add_ps(_sum, _mm512_mul_ps(val0, val1));
+    }
+    sum += _mm512_reduce_add_ps(_sum);
+
+#elif __AVX__
+    align = (size >> 3) << 3;
+    __m256 _sum = _mm256_set1_ps(0.f);
+    for (int i = 0; i < align; i += 8)
+    {
+        __m256 val0 = _mm256_loadu_ps(a + i);
+        __m256 val1 = _mm256_loadu_ps(b + i);
+        _sum = _mm256_comp_fmadd_ps(val0, val1, _sum);
+    }
+    sum += _mm256_reduce_add_ps(_sum);
+
+#elif __SSE2__
+    align = (size >> 2) << 2;
+    __m128 _sum = _mm_set1_ps(0.f);
+    for (int i = 0; i < align; i += 4)
+    {
+        __m128 val0 = _mm_loadu_ps(a + i);
+        __m128 val1 = _mm_loadu_ps(b + i);
+        _sum = _mm_add_ps(_sum, _mm_mul_ps(val0, val1));
+    }
+    sum += _mm_reduce_add_ps(_sum);
+
+#endif
+    for (int i = align; i < size; ++i)
+    {
+        sum += a[i] * b[i];
+    }
+    return sum;
+}
+
+/**
+ * @brief A wrapper for int8 simd computation
+ *
+ * result = reduce(a[] * b[])
+ *
+ * @param a
+ * @param b
+ * @param size
+ * @return int32_t
+ */
+static NCNN_FORCEINLINE int32_t mul_add_reduce_no_align(const int8_t* a, const int8_t* b, const int size)
+{
+    int32_t sum = 0.f;
+    int align = 0;
+
+#if __AVXVNNI__ || __AVX512VNNI__
+    align = (size >> 5) << 5;
+    __m256i _sum = _mm256_setzero_si256();
+    for (int i = 0; i < align; i += 32)
+    {
+        __m256i val0 = _mm256_lddqu_si256((const __m256i*)(a + i));
+        __m256i val1 = _mm256_lddqu_si256((const __m256i*)(b + i));
+        _sum = _mm256_dpbusd_epi32(_sum, val0, val1);
+    }
+    sum += _mm256_hsum_8x32_i(_sum);
+
+#elif __AVX2__
+    align = (size >> 4) << 4;
+    __m256i _sum = _mm256_setzero_si256();
+    for (int i = 0; i < align; i += 16)
+    {
+        __m256i val0 = _mm256_cvtepi8_epi16(_mm_lddqu_si128((const __m128i*)(a + i)));
+        __m256i val1 = _mm256_cvtepi8_epi16(_mm_lddqu_si128((const __m128i*)(b + i)));
+
+        __m256i lo = _mm256_mullo_epi16(val0, val1);
+        __m256i hi = _mm256_mulhi_epi16(val0, val1);
+        _sum = _mm256_add_epi32(_sum, _mm256_unpacklo_epi16(lo, hi));
+        _sum = _mm256_add_epi32(_sum, _mm256_unpackhi_epi16(lo, hi));
+    }
+    sum += _mm256_hsum_8x32_i(_sum);
+
+#endif
+
+    for (int i = align; i < size; ++i)
+    {
+        sum += a[i] * b[i];
+    }
+    return sum;
+}
 
 #endif // X86_USABILITY_H

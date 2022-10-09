@@ -35,6 +35,29 @@ static int test_layernorm(const ncnn::Mat& a, int affine_size, float eps, int af
     return ret;
 }
 
+static int test_layernorm_int8(const ncnn::Mat& a, int affine_size, float eps, int int8_scale_term)
+{
+    ncnn::ParamDict pd;
+    pd.set(0, affine_size);
+    pd.set(1, eps);
+    pd.set(2, 1);
+    pd.set(3, int8_scale_term);
+
+    std::vector<ncnn::Mat> weights(4);
+    weights[0] = RandomMat(affine_size);
+    weights[1] = RandomMat(affine_size);
+    weights[2] = RandomMat(affine_size, 1.0f, 127.f / 1.2f);
+    weights[3] = RandomMat(1);
+
+    int ret = test_layer<ncnn::LayerNorm>("LayerNorm", pd, weights, a);
+    if (ret != 0)
+    {
+        fprintf(stderr, "test_layernorm failed a.dims=%d a=(%d %d %d) affine_size=%d eps=%f int8_scale_term=%d\n", a.dims, a.w, a.h, a.c, affine_size, eps, int8_scale_term);
+    }
+
+    return ret;
+}
+
 static int test_layernorm_0()
 {
     return 0
@@ -111,6 +134,14 @@ static int test_layernorm_3()
            || test_layernorm(RandomMat(32), 32, 0.001f, 1);
 }
 
+static int test_layernorm_4()
+{
+    return 0
+           || test_layernorm_int8(RandomMat(768, 197), 768, 0.0001f, 101)
+           || test_layernorm_int8(RandomMat(127, 127), 127, 0.01f, 101)
+           || test_layernorm_int8(RandomMat(6, 7), 6, 0.001f, 1);
+}
+
 int main()
 {
     SRAND(7767517);
@@ -119,5 +150,6 @@ int main()
            || test_layernorm_0()
            || test_layernorm_1()
            || test_layernorm_2()
-           || test_layernorm_3();
+           || test_layernorm_3()
+           || test_layernorm_4();
 }

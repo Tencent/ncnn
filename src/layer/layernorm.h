@@ -30,11 +30,20 @@ public:
 
     virtual int forward_inplace(Mat& bottom_top_blob, const Option& opt) const;
 
+#ifdef NCNN_INT8
+    int forward_inplace_int8(Mat& bottom_top_blob, const Option& opt) const;
+#endif
+
 public:
     // param
     int affine_size;
     float eps;
     int affine;
+    int int8_scale_term;
+#ifdef NCNN_INT8
+    Mat input_scales;
+    Mat output_scale;
+#endif
 
     // model
     Mat gamma_data;
