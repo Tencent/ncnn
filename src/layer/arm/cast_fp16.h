@@ -42,7 +42,6 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
         unsigned short* outptr = top_blob.channel(q);
 
         int i = 0;
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
 #if (__ARM_FP & 2)
         for (; i + 15 < size; i += 16)
         {
@@ -82,7 +81,7 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
             float32x4_t _p1_fp32 = vld1q_f32(ptr + 4);
             float16x4_t _p0_fp16 = vcvt_f16_f32(_p0_fp32);
             float16x4_t _p1_fp16 = vcvt_f16_f32(_p1_fp32);
-            uint16x8_t _p_fp16 = vcombine_u16(vreinterpret_u16_f16(_p0_fp16), vreinterpret_u16_f16(_p1_fp16));
+            uint16x8_t _p_fp16 = vcombine_u16((uint16x4_t)(_p0_fp16), (uint16x4_t)(_p1_fp16));
             vst1q_u16(outptr, _p_fp16);
             ptr += 8;
             outptr += 8;
@@ -91,12 +90,11 @@ static void cast_fp32_to_fp16_neon(const Mat& bottom_blob, Mat& top_blob, const 
         {
             float32x4_t _p_fp32 = vld1q_f32(ptr);
             float16x4_t _p_fp16 = vcvt_f16_f32(_p_fp32);
-            vst1_u16(outptr, vreinterpret_u16_f16(_p_fp16));
+            vst1_u16(outptr, (uint16x4_t)(_p_fp16));
             ptr += 4;
             outptr += 4;
         }
 #endif // (__ARM_FP & 2)
-#endif // (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
         for (; i < size; i++)
         {
             *outptr++ = float32_to_float16(*ptr++);
@@ -129,7 +127,6 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
         float* outptr = top_blob.channel(q);
 
         int i = 0;
-#if (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
 #if (__ARM_FP & 2)
         for (; i + 15 < size; i += 16)
         {
@@ -166,8 +163,8 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
         for (; i + 7 < size; i += 8)
         {
             uint16x8_t _p_fp16 = vld1q_u16(ptr);
-            float16x4_t _p0_fp16 = vreinterpret_f16_u16(vget_low_u16(_p_fp16));
-            float16x4_t _p1_fp16 = vreinterpret_f16_u16(vget_high_u16(_p_fp16));
+            float16x4_t _p0_fp16 = (float16x4_t)(vget_low_u16(_p_fp16));
+            float16x4_t _p1_fp16 = (float16x4_t)(vget_high_u16(_p_fp16));
             float32x4_t _p0_fp32 = vcvt_f32_f16(_p0_fp16);
             float32x4_t _p1_fp32 = vcvt_f32_f16(_p1_fp16);
             vst1q_f32(outptr, _p0_fp32);
@@ -177,14 +174,13 @@ static void cast_fp16_to_fp32_neon(const Mat& bottom_blob, Mat& top_blob, const 
         }
         for (; i + 3 < size; i += 4)
         {
-            float16x4_t _p_fp16 = vreinterpret_f16_u16(vld1_u16(ptr));
+            float16x4_t _p_fp16 = (float16x4_t)(vld1_u16(ptr));
             float32x4_t _p_fp32 = vcvt_f32_f16(_p_fp16);
             vst1q_f32(outptr, _p_fp32);
             ptr += 4;
             outptr += 4;
         }
 #endif // (__ARM_FP & 2)
-#endif // (NCNN_VFPV4 && __ARM_NEON) || __aarch64__
         for (; i < size; i++)
         {
             *outptr++ = float16_to_float32(*ptr++);

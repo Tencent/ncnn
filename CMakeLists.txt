@@ -154,11 +154,11 @@ if((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm")
         include(CheckCXXCompilerFlag)
 
         set(CMAKE_REQUIRED_FLAGS "-mfpu=neon-vfpv4")
-        check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vreinterpret_f16_u16(vreinterpret_u16_f16(vcvt_f16_f32(_a))); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4)
+        check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vcvt_f16_f32(_a); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4)
 
         if(NOT NCNN_COMPILER_SUPPORT_ARM_VFPV4)
             set(CMAKE_REQUIRED_FLAGS "-mfpu=neon-vfpv4 -mfp16-format=ieee")
-            check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vreinterpret_f16_u16(vreinterpret_u16_f16(vcvt_f16_f32(_a)); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4_FP16)
+            check_cxx_source_compiles("#include <arm_neon.h>\nint main() { float32x4_t _a; float16x4_t _s = vcvt_f16_f32(_a); return 0; }" NCNN_COMPILER_SUPPORT_ARM_VFPV4_FP16)
         endif()
 
         set(CMAKE_REQUIRED_FLAGS "-march=armv8.2-a+fp16")
