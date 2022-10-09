@@ -21,9 +21,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = torch.abs(x - 0.5)
-        y = torch.abs(y - 0.5)
-        z = torch.abs(z - 0.5)
+        x = torch.sign(x - 0.5)
+        y = torch.sign(y - 0.5)
+        z = torch.sign(z - 0.5)
         return x, y, z
 
 def test():
@@ -39,15 +39,15 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_torch_abs.pt")
+    mod.save("test_torch_sign.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_abs.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
+    os.system("../src/pnnx test_torch_sign.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
 
     # pnnx inference
-    import test_torch_abs_pnnx
-    b = test_torch_abs_pnnx.test_inference()
+    import test_torch_sign_pnnx
+    b = test_torch_sign_pnnx.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

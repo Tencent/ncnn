@@ -21,9 +21,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = torch.abs(x - 0.5)
-        y = torch.abs(y - 0.5)
-        z = torch.abs(z - 0.5)
+        x = torch.neg(x - 0.5)
+        y = torch.neg(y - 0.5)
+        z = torch.neg(z - 0.5)
         return x, y, z
 
 def test():
@@ -31,23 +31,23 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(1, 3, 16)
-    y = torch.rand(1, 5, 9, 11)
-    z = torch.rand(14, 8, 5, 9, 10)
+    x = torch.rand(3, 16)
+    y = torch.rand(5, 9, 11)
+    z = torch.rand(8, 5, 9, 10)
 
     a = net(x, y, z)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_torch_abs.pt")
+    mod.save("test_torch_neg.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_torch_abs.pt inputshape=[1,3,16],[1,5,9,11],[14,8,5,9,10]")
+    os.system("../../src/pnnx test_torch_neg.pt inputshape=[3,16],[5,9,11],[8,5,9,10]")
 
-    # pnnx inference
-    import test_torch_abs_pnnx
-    b = test_torch_abs_pnnx.test_inference()
+    # ncnn inference
+    import test_torch_neg_ncnn
+    b = test_torch_neg_ncnn.test_inference()
 
     for a0, b0 in zip(a, b):
         if not torch.equal(a0, b0):

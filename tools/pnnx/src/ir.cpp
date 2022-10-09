@@ -1063,6 +1063,7 @@ static std::string expand_expression(const Operator* op)
                  || t == "neg"
                  || t == "reciprocal"
                  || t == "rsqrt"
+                 || t == "sign"
                  || t == "sin"
                  || t == "sinh"
                  || t == "sqrt"
@@ -1089,6 +1090,7 @@ static std::string expand_expression(const Operator* op)
             if (t == "neg") unaryop = "torch.neg";
             if (t == "reciprocal") unaryop = "torch.reciprocal";
             if (t == "rsqrt") unaryop = "torch.rsqrt";
+            if (t == "sign") unaryop = "torch.sign";
             if (t == "sin") unaryop = "torch.sin";
             if (t == "sinh") unaryop = "torch.sinh";
             if (t == "sqrt") unaryop = "torch.sqrt";

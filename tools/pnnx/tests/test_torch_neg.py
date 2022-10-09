@@ -21,9 +21,9 @@ class Model(nn.Module):
         super(Model, self).__init__()
 
     def forward(self, x, y, z):
-        x = torch.neg(x)
-        y = torch.neg(y)
-        z = torch.neg(z)
+        x = torch.neg(x - 0.5)
+        y = torch.neg(y - 0.5)
+        z = torch.neg(z - 0.5)
         return x, y, z
 
 def test():

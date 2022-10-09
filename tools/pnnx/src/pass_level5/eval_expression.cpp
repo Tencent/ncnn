@@ -152,6 +152,7 @@ static std::string eval_expression(const Operator* op)
                  || t == "neg"
                  || t == "reciprocal"
                  || t == "rsqrt"
+                 || t == "sign"
                  || t == "sin"
                  || t == "sinh"
                  || t == "sqrt"
@@ -250,6 +251,11 @@ static std::string eval_expression(const Operator* op)
                 if (t == "rsqrt")
                 {
                     float r = 1.f / sqrt(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "sign")
+                {
+                    float r = af > 0.f ? 1.f : (af == 0.f ? 0.f : -1.f);
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "sin")
