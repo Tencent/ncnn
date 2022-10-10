@@ -15,11 +15,7 @@
 #include "padding_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 #include "riscv_usability.h"
@@ -95,7 +91,7 @@ int Padding_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Option& 
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -265,7 +261,7 @@ int Padding_riscv::forward_bf16s_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -515,7 +511,7 @@ int Padding_riscv::forward_int8(const Mat& bottom_blob, Mat& top_blob, const Opt
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 1;
-    const word_type vl = vsetvl_e8m1(packn);
+    const size_t vl = vsetvl_e8m1(packn);
 #endif
 
     int w = bottom_blob.w;

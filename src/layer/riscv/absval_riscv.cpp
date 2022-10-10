@@ -15,11 +15,7 @@
 #include "absval_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 
 static inline vfloat32m8_t vfabs_v_f32m8_absval(vfloat32m8_t op1, size_t vl)
 {
@@ -70,7 +66,7 @@ int AbsVal_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             _p = vfabs_v_f32m8_absval(_p, vl);
@@ -110,7 +106,7 @@ int AbsVal_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt)
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
 
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             _p = vfabs_v_f16m8_absval(_p, vl);

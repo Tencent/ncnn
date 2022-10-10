@@ -15,11 +15,7 @@
 #include "swish_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "rvv_mathfun.h"
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
@@ -68,7 +64,7 @@ int Swish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             _p = vfdiv_vv_f32m8(_p, vfadd_vf_f32m8(exp_ps(vfneg_v_f32m8(_p, vl), vl), 1.f, vl), vl);
@@ -107,7 +103,7 @@ int Swish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m4(n);
+            size_t vl = vsetvl_e16m4(n);
 
             vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
             _p = vfdiv_vv_f32m8(_p, vfadd_vf_f32m8(exp_ps(vfneg_v_f32m8(_p, vl), vl), 1.f, vl), vl);
@@ -138,7 +134,7 @@ int Swish_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
 
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             _p = vfdiv_vv_f16m8(_p, vfadd_vf_f16m8(exp_ps(vfneg_v_f16m8(_p, vl), vl), 1.f, vl), vl);

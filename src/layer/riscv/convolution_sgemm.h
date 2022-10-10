@@ -16,7 +16,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     // Mat bottom_im2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);

@@ -18,11 +18,7 @@
 #include "layer_type.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 #include "riscv_activation.h"
@@ -286,7 +282,7 @@ int ConvolutionDepthWise_riscv::forward(const Mat& bottom_blob, Mat& top_blob, c
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -714,7 +710,7 @@ int ConvolutionDepthWise_riscv::create_pipeline_fp16s(const Option& opt)
 int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -924,7 +920,7 @@ int ConvolutionDepthWise_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_b
 int ConvolutionDepthWise_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;

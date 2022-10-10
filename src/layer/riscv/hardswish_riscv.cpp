@@ -18,11 +18,7 @@
 #include "hardswish_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -64,7 +60,7 @@ int HardSwish_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
 
             vbool4_t _lower = vmflt_vf_f32m8_b4(_p, lower, vl);
@@ -115,7 +111,7 @@ int HardSwish_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& o
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
 
             vbool2_t _lower = vmflt_vf_f16m8_b2(_p, lower, vl);

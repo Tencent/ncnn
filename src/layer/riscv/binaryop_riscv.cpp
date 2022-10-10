@@ -20,11 +20,7 @@
 #include <math.h>
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "rvv_mathfun.h"
 #include "rvv_mathfun_fp16s.h"
 #endif // __riscv_vector
@@ -71,7 +67,7 @@ static int binary_op_2_3_4_20(const Mat& a, const Mat& b, Mat& c, const Option& 
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             vfloat32m8_t _outp = op(a0, _p, vl);
             vse32_v_f32m8(outptr, _outp, vl);
@@ -112,7 +108,7 @@ static int binary_op_6_11_16_25(const Mat& a, const Mat& b, Mat& c, const Option
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             vfloat32m8_t _outp = op(_p, b0, vl);
             vse32_v_f32m8(outptr, _outp, vl);
@@ -153,7 +149,7 @@ static int binary_op_7_13_19_29(const Mat& a, const Mat& b, Mat& c, const Option
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
             vfloat32m8_t _outp = op(_p, _p1, vl);
@@ -221,7 +217,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         int n = w * elempack;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e32m8(n);
+                            size_t vl = vsetvl_e32m8(n);
                             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                             vfloat32m8_t _outp = op(_p, _b0x, vl);
                             vse32_v_f32m8(outptr, _outp, vl);
@@ -256,7 +252,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     int n = w * h * elempack;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e32m8(n);
+                        size_t vl = vsetvl_e32m8(n);
                         vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                         vfloat32m8_t _outp = op(_p, _b0x, vl);
                         vse32_v_f32m8(outptr, _outp, vl);
@@ -293,7 +289,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     vfloat32m8_t _outp = op(_p, _b0x, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
@@ -332,7 +328,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         int n = w1 * elempack1;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e32m8(n);
+                            size_t vl = vsetvl_e32m8(n);
                             vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                             vfloat32m8_t _outp = op(_a0x, _p1, vl);
                             vse32_v_f32m8(outptr, _outp, vl);
@@ -371,7 +367,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     int n = size * elempack;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e32m8(n);
+                        size_t vl = vsetvl_e32m8(n);
                         vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                         vfloat32m8_t _outp = op(_p, _b0x, vl);
                         vse32_v_f32m8(outptr, _outp, vl);
@@ -404,7 +400,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         int n = elempack;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e32m8(n);
+                            size_t vl = vsetvl_e32m8(n);
                             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                             vfloat32m8_t _outp = op(_p, *ptr1, vl);
                             vse32_v_f32m8(outptr, _outp, vl);
@@ -440,7 +436,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     int n1 = size1 * elempack1;
                     while (n1 > 0)
                     {
-                        word_type vl = vsetvl_e32m8(n1);
+                        size_t vl = vsetvl_e32m8(n1);
                         vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                         vfloat32m8_t _outp = op(_a0x, _p1, vl);
                         vse32_v_f32m8(outptr, _outp, vl);
@@ -473,7 +469,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         int n1 = elempack1;
                         while (n1 > 0)
                         {
-                            word_type vl = vsetvl_e32m8(n1);
+                            size_t vl = vsetvl_e32m8(n1);
                             vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                             vfloat32m8_t _p = vfmv_v_f_f32m8(*ptr, vl);
                             vfloat32m8_t _outp = op(_p, _p1, vl);
@@ -512,7 +508,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         int n = w * elempack;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e32m8(n);
+                            size_t vl = vsetvl_e32m8(n);
                             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                             vfloat32m8_t _outp = op(_p, _b0x, vl);
                             vse32_v_f32m8(outptr, _outp, vl);
@@ -549,7 +545,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         const float* ptr1_vol = ptr1;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e32m8(n);
+                            size_t vl = vsetvl_e32m8(n);
                             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                             vfloat32m8_t _p1 = vle32_v_f32m8(ptr1_vol, vl);
                             vfloat32m8_t _outp = op(_p, _p1, vl);
@@ -587,7 +583,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         int n = w1 * elempack1;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e32m8(n);
+                            size_t vl = vsetvl_e32m8(n);
                             vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                             vfloat32m8_t _outp = op(_a0x, _p1, vl);
                             vse32_v_f32m8(outptr, _outp, vl);
@@ -624,7 +620,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                         const float* ptr_vol = ptr;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e32m8(n);
+                            size_t vl = vsetvl_e32m8(n);
                             vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
                             vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                             vfloat32m8_t _outp = op(_p, _p1, vl);
@@ -666,7 +662,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     int n = w * elempack;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e32m8(n);
+                        size_t vl = vsetvl_e32m8(n);
                         vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                         vfloat32m8_t _outp = op(_p, _b0x, vl);
                         vse32_v_f32m8(outptr, _outp, vl);
@@ -703,7 +699,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     vfloat32m8_t _outp = op(_p, _b0x, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
@@ -740,7 +736,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     int n = w1 * h1 * elempack1;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e32m8(n);
+                        size_t vl = vsetvl_e32m8(n);
                         vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                         vfloat32m8_t _outp = op(_a0x, _p1, vl);
                         vse32_v_f32m8(outptr, _outp, vl);
@@ -778,7 +774,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                     int n = w1 * elempack1;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e32m8(n);
+                        size_t vl = vsetvl_e32m8(n);
                         vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                         vfloat32m8_t _outp = op(_a0x, _p1, vl);
                         vse32_v_f32m8(outptr, _outp, vl);
@@ -829,7 +825,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     vfloat32m8_t _outp = op(_p, _b0x, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
@@ -871,7 +867,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n1);
+                    size_t vl = vsetvl_e32m8(n1);
                     vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                     vfloat32m8_t _outp = op(_a0x, _p1, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
@@ -903,7 +899,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n1);
+                    size_t vl = vsetvl_e32m8(n1);
                     vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                     vfloat32m8_t _outp = op(_a0x, _p1, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
@@ -935,7 +931,7 @@ static int binary_op_rvv(const Mat& a, const Mat& b, Mat& c, const Option& opt)
                 int n = w1 * elempack1;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p1 = vle32_v_f32m8(ptr1, vl);
                     vfloat32m8_t _outp = op(_a0x, _p1, vl);
                     vse32_v_f32m8(outptr, _outp, vl);
@@ -989,7 +985,7 @@ static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
         int n = size * elempack;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             _p = op(_p, b, vl);
             vse32_v_f32m8(ptr, _p, vl);
@@ -1004,21 +1000,21 @@ static int binary_op_scalar_rvv(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_riscv_functor {
 
-#define MAKE_FUNCTION(NAME, IMPLVV, IMPLVS, IMPLSV)                                                     \
-    struct NAME                                                                                         \
-    {                                                                                                   \
-        vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const word_type vl) const \
-        {                                                                                               \
-            return IMPLVV;                                                                              \
-        }                                                                                               \
-        vfloat32m8_t operator()(const vfloat32m8_t& x, const float y, const word_type vl) const         \
-        {                                                                                               \
-            return IMPLVS;                                                                              \
-        }                                                                                               \
-        vfloat32m8_t operator()(const float x, const vfloat32m8_t& y, const word_type vl) const         \
-        {                                                                                               \
-            return IMPLSV;                                                                              \
-        }                                                                                               \
+#define MAKE_FUNCTION(NAME, IMPLVV, IMPLVS, IMPLSV)                                                  \
+    struct NAME                                                                                      \
+    {                                                                                                \
+        vfloat32m8_t operator()(const vfloat32m8_t& x, const vfloat32m8_t& y, const size_t vl) const \
+        {                                                                                            \
+            return IMPLVV;                                                                           \
+        }                                                                                            \
+        vfloat32m8_t operator()(const vfloat32m8_t& x, const float y, const size_t vl) const         \
+        {                                                                                            \
+            return IMPLVS;                                                                           \
+        }                                                                                            \
+        vfloat32m8_t operator()(const float x, const vfloat32m8_t& y, const size_t vl) const         \
+        {                                                                                            \
+            return IMPLSV;                                                                           \
+        }                                                                                            \
     };
 
 MAKE_FUNCTION(binary_op_add_rvv, vfadd_vv_f32m8(x, y, vl), vfadd_vf_f32m8(x, y, vl), vfadd_vf_f32m8(y, x, vl))
@@ -1163,7 +1159,7 @@ static int binary_op_2_3_4_20_fp16s(const Mat& a, const Mat& b, Mat& c, const Op
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             vfloat16m8_t _outp = op(a0, _p, vl);
             vse16_v_f16m8(outptr, _outp, vl);
@@ -1204,7 +1200,7 @@ static int binary_op_6_11_16_25_fp16s(const Mat& a, const Mat& b, Mat& c, const 
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             vfloat16m8_t _outp = op(_p, b0, vl);
             vse16_v_f16m8(outptr, _outp, vl);
@@ -1245,7 +1241,7 @@ static int binary_op_7_13_19_29_fp16s(const Mat& a, const Mat& b, Mat& c, const 
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
             vfloat16m8_t _outp = op(_p, _p1, vl);
@@ -1313,7 +1309,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                         int n = w * elempack;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e16m8(n);
+                            size_t vl = vsetvl_e16m8(n);
                             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                             vfloat16m8_t _outp = op(_p, _b0x, vl);
                             vse16_v_f16m8(outptr, _outp, vl);
@@ -1348,7 +1344,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                     int n = w * h * elempack;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e16m8(n);
+                        size_t vl = vsetvl_e16m8(n);
                         vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                         vfloat16m8_t _outp = op(_p, _b0x, vl);
                         vse16_v_f16m8(outptr, _outp, vl);
@@ -1385,7 +1381,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                     vfloat16m8_t _outp = op(_p, _b0x, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
@@ -1424,7 +1420,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                         int n = w1 * elempack1;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e16m8(n);
+                            size_t vl = vsetvl_e16m8(n);
                             vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                             vfloat16m8_t _outp = op(_a0x, _p1, vl);
                             vse16_v_f16m8(outptr, _outp, vl);
@@ -1463,7 +1459,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                     int n = size * elempack;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e16m8(n);
+                        size_t vl = vsetvl_e16m8(n);
                         vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                         vfloat16m8_t _outp = op(_p, _b0x, vl);
                         vse16_v_f16m8(outptr, _outp, vl);
@@ -1496,7 +1492,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                         int n = elempack;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e16m8(n);
+                            size_t vl = vsetvl_e16m8(n);
                             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                             vfloat16m8_t _outp = op(_p, *ptr1, vl);
 
@@ -1531,7 +1527,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                     int n1 = size1 * elempack1;
                     while (n1 > 0)
                     {
-                        word_type vl = vsetvl_e16m8(n1);
+                        size_t vl = vsetvl_e16m8(n1);
                         vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                         vfloat16m8_t _outp = op(_a0x, _p1, vl);
                         vse16_v_f16m8(outptr, _outp, vl);
@@ -1564,7 +1560,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                         int n1 = elempack1;
                         while (n1 > 0)
                         {
-                            word_type vl = vsetvl_e16m8(n1);
+                            size_t vl = vsetvl_e16m8(n1);
                             vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                             vfloat16m8_t _p = vfmv_v_f_f16m8(*ptr, vl);
                             vfloat16m8_t _outp = op(_p, _p1, vl);
@@ -1602,7 +1598,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                         int n = w * elempack;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e16m8(n);
+                            size_t vl = vsetvl_e16m8(n);
                             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                             vfloat16m8_t _outp = op(_p, _b0x, vl);
                             vse16_v_f16m8(outptr, _outp, vl);
@@ -1641,7 +1637,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                             const __fp16* ptr1_vol = ptr1 + x * elempack;
                             while (n > 0)
                             {
-                                word_type vl = vsetvl_e16m8(n);
+                                size_t vl = vsetvl_e16m8(n);
                                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                                 vfloat16m8_t _p1 = vle16_v_f16m8(ptr1_vol, vl);
                                 vfloat16m8_t _outp = op(_p, _p1, vl);
@@ -1680,7 +1676,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                         int n = w1 * elempack1;
                         while (n > 0)
                         {
-                            word_type vl = vsetvl_e16m8(n);
+                            size_t vl = vsetvl_e16m8(n);
                             vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                             vfloat16m8_t _outp = op(_a0x, _p1, vl);
                             vse16_v_f16m8(outptr, _outp, vl);
@@ -1719,7 +1715,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                             const __fp16* ptr_vol = ptr + x * elempack;
                             while (n > 0)
                             {
-                                word_type vl = vsetvl_e16m8(n);
+                                size_t vl = vsetvl_e16m8(n);
                                 vfloat16m8_t _p = vle16_v_f16m8(ptr_vol, vl);
                                 vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                                 vfloat16m8_t _outp = op(_p, _p1, vl);
@@ -1762,7 +1758,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                     int n = w * elempack;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e16m8(n);
+                        size_t vl = vsetvl_e16m8(n);
                         vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                         vfloat16m8_t _outp = op(_p, _b0x, vl);
                         vse16_v_f16m8(outptr, _outp, vl);
@@ -1799,7 +1795,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 int n = size * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                     vfloat16m8_t _outp = op(_p, _b0x, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
@@ -1836,7 +1832,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                     int n = w1 * h1 * elempack1;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e16m8(n);
+                        size_t vl = vsetvl_e16m8(n);
                         vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                         vfloat16m8_t _outp = op(_a0x, _p1, vl);
                         vse16_v_f16m8(outptr, _outp, vl);
@@ -1874,7 +1870,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                     int n = w1 * elempack1;
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e16m8(n);
+                        size_t vl = vsetvl_e16m8(n);
                         vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                         vfloat16m8_t _outp = op(_a0x, _p1, vl);
                         vse16_v_f16m8(outptr, _outp, vl);
@@ -1925,7 +1921,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                     vfloat16m8_t _outp = op(_p, _b0x, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
@@ -1967,7 +1963,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n1);
+                    size_t vl = vsetvl_e16m8(n1);
                     vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                     vfloat16m8_t _outp = op(_a0x, _p1, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
@@ -1999,7 +1995,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 int n1 = size1 * elempack1;
                 while (n1 > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n1);
+                    size_t vl = vsetvl_e16m8(n1);
                     vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                     vfloat16m8_t _outp = op(_a0x, _p1, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
@@ -2031,7 +2027,7 @@ static int binary_op_rvv_fp16s(const Mat& a, const Mat& b, Mat& c, const Option&
                 int n = w1 * elempack1;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p1 = vle16_v_f16m8(ptr1, vl);
                     vfloat16m8_t _outp = op(_a0x, _p1, vl);
                     vse16_v_f16m8(outptr, _outp, vl);
@@ -2710,7 +2706,7 @@ static int binary_op_scalar_rvv_fp16s(Mat& a, float b, const Option& opt)
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
             vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
             _p = op(_p, b, vl);
             vse16_v_f16m8(ptr, _p, vl);
@@ -2725,25 +2721,25 @@ static int binary_op_scalar_rvv_fp16s(Mat& a, float b, const Option& opt)
 
 namespace BinaryOp_riscv_functor {
 
-#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                               \
-    struct NAME                                                                                         \
-    {                                                                                                   \
-        __fp16 operator()(const __fp16& x, const __fp16& y) const                                       \
-        {                                                                                               \
-            return IMPL;                                                                                \
-        }                                                                                               \
-        vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const word_type vl) const \
-        {                                                                                               \
-            return IMPLVV;                                                                              \
-        }                                                                                               \
-        vfloat16m8_t operator()(const vfloat16m8_t& x, const float y, const word_type vl) const         \
-        {                                                                                               \
-            return IMPLVS;                                                                              \
-        }                                                                                               \
-        vfloat16m8_t operator()(const float x, const vfloat16m8_t& y, const word_type vl) const         \
-        {                                                                                               \
-            return IMPLSV;                                                                              \
-        }                                                                                               \
+#define MAKE_FUNCTION(NAME, IMPL, IMPLVV, IMPLVS, IMPLSV)                                            \
+    struct NAME                                                                                      \
+    {                                                                                                \
+        __fp16 operator()(const __fp16& x, const __fp16& y) const                                    \
+        {                                                                                            \
+            return IMPL;                                                                             \
+        }                                                                                            \
+        vfloat16m8_t operator()(const vfloat16m8_t& x, const vfloat16m8_t& y, const size_t vl) const \
+        {                                                                                            \
+            return IMPLVV;                                                                           \
+        }                                                                                            \
+        vfloat16m8_t operator()(const vfloat16m8_t& x, const float y, const size_t vl) const         \
+        {                                                                                            \
+            return IMPLVS;                                                                           \
+        }                                                                                            \
+        vfloat16m8_t operator()(const float x, const vfloat16m8_t& y, const size_t vl) const         \
+        {                                                                                            \
+            return IMPLSV;                                                                           \
+        }                                                                                            \
     };
 
 // clang-format off
