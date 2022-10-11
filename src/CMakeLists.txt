@@ -457,7 +457,7 @@ if(NCNN_TARGET_ARCH STREQUAL "mips")
     endif()
 endif()
 
-if(NCNN_TARGET_ARCH STREQUAL "loongarch64")
+if(NCNN_TARGET_ARCH STREQUAL "loongarch")
     if(NOT NCNN_RUNTIME_CPU AND NCNN_LSX)
         target_compile_options(ncnn PRIVATE -mlsx)
     endif()

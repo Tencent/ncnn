@@ -159,7 +159,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
         return 0;
     }
 
-#if __aarch64__ || __mips64 || __riscv_xlen || __loongarch64 == 64
+#if __aarch64__ || __mips64 || __riscv_xlen || __loongarch64
     struct
     {
         uint64_t tag;
@@ -238,8 +238,8 @@ static unsigned int g_hwcaps2 = get_elf_hwcap(AT_HWCAP2);
 
 #if __loongarch64
 // from arch/loongarch/include/uapi/asm/hwcap.h
-#define HWCAP_LOONGARCH_LSX  (1 << 4)
-#define HWCAP_LOONGARCH_LASX (1 << 5)
+#define HWCAP_LOONGARCH_LSX     (1 << 4)
+#define HWCAP_LOONGARCH_LASX        (1 << 5)
 #endif
 
 #if __riscv
@@ -1007,7 +1007,7 @@ int cpu_support_mips_msa()
 #endif
 }
 
-int cpu_support_loongarch64_lsx()
+int cpu_support_loongarch_lsx()
 {
 #if defined __ANDROID__ || defined __linux__
 #if __loongarch64

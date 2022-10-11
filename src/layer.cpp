@@ -254,7 +254,7 @@ Layer* create_layer(int index)
     else
 #endif // NCNN_RUNTIME_CPU && NCNN_AVX
 #if NCNN_RUNTIME_CPU && NCNN_LSX
-    if (ncnn::cpu_support_loongarch64_lsx())
+    if (ncnn::cpu_support_loongarch_lsx())
     {
         layer_creator = layer_registry_lsx[index].creator;
     }
