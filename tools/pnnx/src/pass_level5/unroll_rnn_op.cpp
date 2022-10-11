@@ -42,6 +42,7 @@ void unroll_rnn_op(Graph& graph)
             bool has_output_hidden = op->outputs.size() >= 2;
             bool has_output_cell = op->outputs.size() == 3;
             const int hidden_size = op->params["hidden_size"].i;
+            const int proj_size = op->params["proj_size"].i;
             bool has_bias = op->params["bias"].b;
             bool is_bidirectional = op->params["bidirectional"].b;
 
@@ -171,6 +172,11 @@ void unroll_rnn_op(Graph& graph)
                     op1->attrs["bias_ih_l0"] = op->attrs["bias_ih_l" + std::to_string(j)];
                 }
 
+                if (proj_size != hidden_size)
+                {
+                    op1->attrs["weight_hr_l0"] = op->attrs["weight_hr_l" + std::to_string(j)];
+                }
+
                 if (is_bidirectional)
                 {
                     op1->attrs["weight_hh_l0_reverse"] = op->attrs["weight_hh_l" + std::to_string(j) + "_reverse"];
@@ -180,6 +186,11 @@ void unroll_rnn_op(Graph& graph)
                     {
                         op1->attrs["bias_hh_l0_reverse"] = op->attrs["bias_hh_l" + std::to_string(j) + "_reverse"];
                         op1->attrs["bias_ih_l0_reverse"] = op->attrs["bias_ih_l" + std::to_string(j) + "_reverse"];
+                    }
+
+                    if (proj_size != hidden_size)
+                    {
+                        op1->attrs["weight_hr_l0_reverse"] = op->attrs["weight_hr_l" + std::to_string(j) + "_reverse"];
                     }
                 }
 

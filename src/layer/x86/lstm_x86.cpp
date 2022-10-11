@@ -41,9 +41,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
     int T = bottom_blob.h;
 
     int num_output = top_blob.w;
+    int hidden_size = cell_state.w;
 
-    // 4 x num_output
-    Mat gates(num_output, 4, 4u, opt.workspace_allocator);
+    // 4 x hidden_size
+    Mat gates(hidden_size, 4, 4u, opt.workspace_allocator);
     if (gates.empty())
         return -100;
 
@@ -59,10 +60,10 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
         int ti = reverse ? T - 1 - t : t;
 
-        int nn_num_output = num_output >> 1;
-        int remain_num_output_start = nn_num_output << 1;
+        int nn_hidden_size = hidden_size >> 1;
+        int remain_hidden_size_start = nn_hidden_size << 1;
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < nn_num_output; qq++)
+        for (int qq = 0; qq < nn_hidden_size; qq++)
         {
             int q = qq * 2;
 
@@ -219,7 +220,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             gates_data_G[q + 1] = sums[7];
         }
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = remain_num_output_start; q < num_output; q++)
+        for (int q = remain_hidden_size_start; q < hidden_size; q++)
         {
             const float* x = bottom_blob.row(ti);
             const float* hidden_ptr_r = hidden_state;
@@ -336,8 +337,8 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         const float* gates_data_F = gates.row(1);
         const float* gates_data_O = gates.row(2);
         const float* gates_data_G = gates.row(3);
-        int nn_activation = num_output >> 3;
-        int remain_activations = num_output & 7;
+        int nn_activation = hidden_size >> 3;
+        int remain_activations = hidden_size & 7;
         for (; nn_activation > 0; nn_activation--)
         {
             __m256 I = sigmoid_avx(_mm256_loadu_ps(gates_data_I));
@@ -391,7 +392,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
 int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
-#if __AVX__
+#if 0//__AVX__
     int T = bottom_blob.h;
     int num_directions = direction == 2 ? 2 : 1;
 
@@ -401,7 +402,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         return -100;
     hidden.fill(0.f);
     // internal cell state
-    Mat cell(num_output, 4u, opt.workspace_allocator);
+    Mat cell(hidden_size, 4u, opt.workspace_allocator);
     if (cell.empty())
         return -100;
     cell.fill(0.f);
@@ -459,7 +460,7 @@ int LSTM_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
 
 int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
-#if __AVX__
+#if 0//__AVX__
     const Mat& bottom_blob = bottom_blobs[0];
     int T = bottom_blob.h;
     int num_directions = direction == 2 ? 2 : 1;
@@ -479,7 +480,7 @@ int LSTM_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             return -100;
         hidden.fill(0.f);
 
-        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        cell.create(hidden_size, num_directions, 4u, hidden_cell_allocator);
         if (cell.empty())
             return -100;
         cell.fill(0.f);
