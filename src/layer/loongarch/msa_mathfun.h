@@ -202,8 +202,8 @@ static inline v4f32 tanh_ps(v4f32 x)
 {
     v4f32 x2 = (v4f32)__lsx_vbitclri_w((__m128i)x, 31);
     __m128i tiny_mask = (__m128i)__lsx_vfcmp_clt_s((__m128)x2, (__m128)__lsx_vreplgr2vr_w(c_tanh_tiny.i));
-	__m128i sig_mask = __lsx_vreplgr2vr_w(1<<31);
-	__m128i sig_save = __lsx_vand_v((__m128i)x, sig_mask);
+    __m128i sig_mask = __lsx_vreplgr2vr_w(1 << 31);
+    __m128i sig_save = __lsx_vand_v((__m128i)x, sig_mask);
 
     // clamp the inputs to the range [-9, 9] since anything outside
     // this range is -/+1.0f in single-precision.
@@ -232,7 +232,7 @@ static inline v4f32 tanh_ps(v4f32 x)
     y = __lsx_vfdiv_s(y, w);
 
     // reinstate the sign.
-	y = (v4f32)__lsx_vor_v((__m128i)y, sig_save);
+    y = (v4f32)__lsx_vor_v((__m128i)y, sig_save);
 
     // when the argument is very small in magnitude it's more accurate to just return it.
     y = (v4f32)__lsx_vbitsel_v((__m128i)tiny_mask, (__m128i)y, (__m128i)x);

@@ -677,7 +677,7 @@ static void convolution_im2col_sgemm_transform_kernel_int8_lsx(const Mat& _kerne
             }
         }
     }
-#else // __loongarch_sx
+#else  // __loongarch_sx
     for (; q + 1 < outch; q += 2)
     {
         signed char* g00 = kernel_tm.channel(q / 2);

@@ -104,7 +104,7 @@ static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
     __m128i _vhigh32 = (__m128i)__lsx_vftintrz_w_s(_vhigh5);
 
     __m128i _vlow32_16 = __lsx_vsat_w(_vlow32, 15);
-	__m128i _vhigh32_16 = __lsx_vsat_w(_vhigh32, 15);
+    __m128i _vhigh32_16 = __lsx_vsat_w(_vhigh32, 15);
     __m128i _v16 = (__m128i)__lsx_vpickev_h(_vhigh32_16, _vlow32_16);
     _v16 = (__m128i)__lsx_vmax_h((__m128i)_v16, __lsx_vreplgr2vr_h(-127));
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
