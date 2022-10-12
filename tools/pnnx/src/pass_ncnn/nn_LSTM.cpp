@@ -67,7 +67,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
         {
             std::vector<float> new_weight_ih;
             {
-                const int weight_data_size_g = proj_size * input_size;
+                const int weight_data_size_g = hidden_size * input_size;
 
                 const float* weight_ih = (const float*)captured_attrs.at("op_0.weight_ih_l0").data.data();
                 const float* iptr = weight_ih;
@@ -75,7 +75,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 const float* gptr = weight_ih + weight_data_size_g * 2;
                 const float* optr = weight_ih + weight_data_size_g * 3;
 
-                new_weight_ih.resize(4 * proj_size * input_size);
+                new_weight_ih.resize(4 * hidden_size * input_size);
                 float* weight = (float*)new_weight_ih.data();
                 float* w_iptr = weight;
                 float* w_fptr = weight + weight_data_size_g;
@@ -91,7 +91,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             {
                 std::vector<float> new_weight_ih_reverse;
                 {
-                    const int weight_data_size_g = proj_size * input_size;
+                    const int weight_data_size_g = hidden_size * input_size;
 
                     const float* weight_ih = (const float*)captured_attrs.at("op_0.weight_ih_l0_reverse").data.data();
                     const float* iptr = weight_ih;
@@ -99,7 +99,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     const float* gptr = weight_ih + weight_data_size_g * 2;
                     const float* optr = weight_ih + weight_data_size_g * 3;
 
-                    new_weight_ih_reverse.resize(4 * proj_size * input_size);
+                    new_weight_ih_reverse.resize(4 * hidden_size * input_size);
                     float* weight = (float*)new_weight_ih_reverse.data();
                     float* w_iptr = weight;
                     float* w_fptr = weight + weight_data_size_g;
@@ -110,11 +110,11 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                     memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
                 }
-                op->attrs["1"] = Attribute({4, proj_size, input_size}, new_weight_ih) + Attribute({4, proj_size, input_size}, new_weight_ih_reverse);
+                op->attrs["1"] = Attribute({4, hidden_size, input_size}, new_weight_ih) + Attribute({4, hidden_size, input_size}, new_weight_ih_reverse);
             }
             else
             {
-                op->attrs["1"] = Attribute({4, proj_size, input_size}, new_weight_ih);
+                op->attrs["1"] = Attribute({4, hidden_size, input_size}, new_weight_ih);
             }
         }
 
@@ -220,11 +220,11 @@ pnnx.Output             output      3 0 out out_hidden out_cell
         op->attrs["4"] = Attribute();
         op->attrs["4"].data = {0, 0, 0, 0};
 
-        // reorder IFGO-hidden-hidden to IFOG-hidden-hidden
+        // reorder IFGO-hidden-proj to IFOG-hidden-proj
         {
             std::vector<float> new_weight_hh;
             {
-                const int weight_data_size_g = proj_size * hidden_size;
+                const int weight_data_size_g = hidden_size * proj_size;
 
                 const float* weight_hh = (const float*)captured_attrs.at("op_0.weight_hh_l0").data.data();
                 const float* iptr = weight_hh;
@@ -232,7 +232,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 const float* gptr = weight_hh + weight_data_size_g * 2;
                 const float* optr = weight_hh + weight_data_size_g * 3;
 
-                new_weight_hh.resize(4 * proj_size * hidden_size);
+                new_weight_hh.resize(4 * hidden_size * proj_size);
                 float* weight = (float*)new_weight_hh.data();
                 float* w_iptr = weight;
                 float* w_fptr = weight + weight_data_size_g;
@@ -248,7 +248,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             {
                 std::vector<float> new_weight_hh_reverse;
                 {
-                    const int weight_data_size_g = proj_size * hidden_size;
+                    const int weight_data_size_g = hidden_size * proj_size;
 
                     const float* weight_hh = (const float*)captured_attrs.at("op_0.weight_hh_l0_reverse").data.data();
                     const float* iptr = weight_hh;
@@ -256,7 +256,7 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     const float* gptr = weight_hh + weight_data_size_g * 2;
                     const float* optr = weight_hh + weight_data_size_g * 3;
 
-                    new_weight_hh_reverse.resize(4 * proj_size * hidden_size);
+                    new_weight_hh_reverse.resize(4 * hidden_size * proj_size);
                     float* weight = (float*)new_weight_hh_reverse.data();
                     float* w_iptr = weight;
                     float* w_fptr = weight + weight_data_size_g;
@@ -267,11 +267,11 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                     memcpy(w_optr, optr, weight_data_size_g * sizeof(float));
                     memcpy(w_gptr, gptr, weight_data_size_g * sizeof(float));
                 }
-                op->attrs["5"] = Attribute({4, proj_size, hidden_size}, new_weight_hh) + Attribute({4, proj_size, hidden_size}, new_weight_hh_reverse);
+                op->attrs["5"] = Attribute({4, hidden_size, proj_size}, new_weight_hh) + Attribute({4, hidden_size, proj_size}, new_weight_hh_reverse);
             }
             else
             {
-                op->attrs["5"] = Attribute({4, proj_size, hidden_size}, new_weight_hh);
+                op->attrs["5"] = Attribute({4, hidden_size, proj_size}, new_weight_hh);
             }
         }
 
@@ -280,11 +280,13 @@ pnnx.Output             output      3 0 out out_hidden out_cell
             op->attrs["6"] = Attribute();
             op->attrs["6"].data = {0, 0, 0, 0};
 
-            op->attrs["7"] = captured_attrs.at("op_0.weight_hr_l0");
-
             if (bidirectional)
             {
-                op->attrs["8"] = captured_attrs.at("op_0.weight_hr_l0_reverse");
+                op->attrs["7"] = captured_attrs.at("op_0.weight_hr_l0") + captured_attrs.at("op_0.weight_hr_l0_reverse");
+            }
+            else
+            {
+                op->attrs["7"] = captured_attrs.at("op_0.weight_hr_l0");
             }
         }
     }
