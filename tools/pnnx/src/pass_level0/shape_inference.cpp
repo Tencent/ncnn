@@ -27,7 +27,13 @@ static bool value_link_input(const torch::jit::Value* v, const std::vector<torch
     {
         // any intermediate shape is constant with static input shape
         std::string optype = v->node()->kind().toDisplayString();
-        if (optype == "aten::size" || optype == "aten::new_empty" || optype == "aten::new_ones" || optype == "aten::new_zeros")
+        if (optype == "aten::size"
+                || optype == "aten::new_empty"
+                || optype == "aten::new_ones"
+                || optype == "aten::new_zeros"
+                || optype == "aten::empty_like"
+                || optype == "aten::ones_like"
+                || optype == "aten::zeros_like")
             return false;
     }
 

@@ -32,7 +32,7 @@
 #define c_cephes_log_q2     0.693359375
 
 #define _RVV_FLOAT16_LOG_OP(LMUL, MLEN)                                                                          \
-    static inline vfloat16m##LMUL##_t log_ps(vfloat16m##LMUL##_t x, word_type vl)                                \
+    static inline vfloat16m##LMUL##_t log_ps(vfloat16m##LMUL##_t x, size_t vl)                                   \
     {                                                                                                            \
         x = vfmax_vf_f16m##LMUL(x, 0.f, vl); /* force flush to zero on denormal values */                        \
         vbool##MLEN##_t invalid_mask = vmfle_vf_f16m##LMUL##_b##MLEN(x, 0.f, vl);                                \
@@ -118,7 +118,7 @@ _RVV_FLOAT16_LOG_OP(8, 2)
 #define c_cephes_exp_p5 5.0000001201E-1
 
 #define _RVV_FLOAT16_EXP_OP(LMUL, MLEN)                                                   \
-    static inline vfloat16m##LMUL##_t exp_ps(vfloat16m##LMUL##_t x, word_type vl)         \
+    static inline vfloat16m##LMUL##_t exp_ps(vfloat16m##LMUL##_t x, size_t vl)            \
     {                                                                                     \
         vfloat16m##LMUL##_t tmp, fx;                                                      \
                                                                                           \
@@ -184,7 +184,7 @@ _RVV_FLOAT16_EXP_OP(8, 2)
 #define c_cephes_FOPI      1.27323954473516 // 4 / M_PI
 
 #define _RVV_FLOAT16_SINCOS_OP(LMUL, MLEN)                                                                                          \
-    static inline void sincos_ps(vfloat16m##LMUL##_t x, vfloat16m##LMUL##_t* ysin, vfloat16m##LMUL##_t* ycos, word_type vl)         \
+    static inline void sincos_ps(vfloat16m##LMUL##_t x, vfloat16m##LMUL##_t* ysin, vfloat16m##LMUL##_t* ycos, size_t vl)            \
     {                                                                                                                               \
         /* any x */                                                                                                                 \
         vfloat16m##LMUL##_t xmm1, xmm2, xmm3, y;                                                                                    \
@@ -257,12 +257,12 @@ _RVV_FLOAT16_SINCOS_OP(2, 8)
 _RVV_FLOAT16_SINCOS_OP(4, 4)
 _RVV_FLOAT16_SINCOS_OP(8, 2)
 
-#define _RVV_FLOAT16_SIN_OP(LMUL, MLEN)                                           \
-    static inline vfloat16m##LMUL##_t sin_ps(vfloat16m##LMUL##_t x, word_type vl) \
-    {                                                                             \
-        vfloat16m##LMUL##_t ysin, ycos;                                           \
-        sincos_ps(x, &ysin, &ycos, vl);                                           \
-        return ysin;                                                              \
+#define _RVV_FLOAT16_SIN_OP(LMUL, MLEN)                                        \
+    static inline vfloat16m##LMUL##_t sin_ps(vfloat16m##LMUL##_t x, size_t vl) \
+    {                                                                          \
+        vfloat16m##LMUL##_t ysin, ycos;                                        \
+        sincos_ps(x, &ysin, &ycos, vl);                                        \
+        return ysin;                                                           \
     }
 
 _RVV_FLOAT16_SIN_OP(1, 16)
@@ -270,12 +270,12 @@ _RVV_FLOAT16_SIN_OP(2, 8)
 _RVV_FLOAT16_SIN_OP(4, 4)
 _RVV_FLOAT16_SIN_OP(8, 2)
 
-#define _RVV_FLOAT16_COS_OP(LMUL, MLEN)                                           \
-    static inline vfloat16m##LMUL##_t cos_ps(vfloat16m##LMUL##_t x, word_type vl) \
-    {                                                                             \
-        vfloat16m##LMUL##_t ysin, ycos;                                           \
-        sincos_ps(x, &ysin, &ycos, vl);                                           \
-        return ycos;                                                              \
+#define _RVV_FLOAT16_COS_OP(LMUL, MLEN)                                        \
+    static inline vfloat16m##LMUL##_t cos_ps(vfloat16m##LMUL##_t x, size_t vl) \
+    {                                                                          \
+        vfloat16m##LMUL##_t ysin, ycos;                                        \
+        sincos_ps(x, &ysin, &ycos, vl);                                        \
+        return ycos;                                                           \
     }
 
 _RVV_FLOAT16_COS_OP(1, 16)
@@ -293,7 +293,7 @@ _RVV_FLOAT16_COS_OP(8, 2)
 #define c_cephes_tanh_p4 -3.33332819422E-1
 
 #define _RVV_FLOAT16_TANH_OP(LMUL, MLEN)                                                                                              \
-    static inline vfloat16m##LMUL##_t tanh_ps(vfloat16m##LMUL##_t x, word_type vl)                                                    \
+    static inline vfloat16m##LMUL##_t tanh_ps(vfloat16m##LMUL##_t x, size_t vl)                                                       \
     {                                                                                                                                 \
         vfloat16m##LMUL##_t x2 = vfsgnj_vf_f16m##LMUL(x, 1.f, vl);                                                                    \
                                                                                                                                       \
@@ -341,11 +341,11 @@ _RVV_FLOAT16_TANH_OP(2, 8)
 _RVV_FLOAT16_TANH_OP(4, 4)
 _RVV_FLOAT16_TANH_OP(8, 2)
 
-#define _RVV_FLOAT16_POW_OP(LMUL, MLEN)                                                                  \
-    static inline vfloat16m##LMUL##_t pow_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, word_type vl) \
-    {                                                                                                    \
-        /* pow(x, m) = exp(m * log(x)) */                                                                \
-        return exp_ps(vfmul_vv_f16m##LMUL(b, log_ps(a, vl), vl), vl);                                    \
+#define _RVV_FLOAT16_POW_OP(LMUL, MLEN)                                                               \
+    static inline vfloat16m##LMUL##_t pow_ps(vfloat16m##LMUL##_t a, vfloat16m##LMUL##_t b, size_t vl) \
+    {                                                                                                 \
+        /* pow(x, m) = exp(m * log(x)) */                                                             \
+        return exp_ps(vfmul_vv_f16m##LMUL(b, log_ps(a, vl), vl), vl);                                 \
     }
 
 _RVV_FLOAT16_POW_OP(1, 16)
@@ -354,7 +354,7 @@ _RVV_FLOAT16_POW_OP(4, 4)
 _RVV_FLOAT16_POW_OP(8, 2)
 
 #define _RVV_FLOAT16_SIGMOID_OP(LMUL, MLEN)                                                                                                \
-    static inline vfloat16m##LMUL##_t sigmoid_ps(vfloat16m##LMUL##_t _v, word_type vl)                                                     \
+    static inline vfloat16m##LMUL##_t sigmoid_ps(vfloat16m##LMUL##_t _v, size_t vl)                                                        \
     {                                                                                                                                      \
         _v = vfneg_v_f16m##LMUL(_v, vl);                                                                                                   \
         _v = exp_ps(_v, vl);                                                                                                               \

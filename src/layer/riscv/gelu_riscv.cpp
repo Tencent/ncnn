@@ -48,7 +48,7 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m4(n);
+                size_t vl = vsetvl_e32m4(n);
 
                 vfloat32m4_t _p = vle32_v_f32m4(ptr, vl);
 
@@ -77,7 +77,7 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 auto _p = vle32_v_f32m8(ptr, vl);
                 auto _perfc = vfmul_vf_f32m8(_p, -.70710678f, vl);
                 _p = vfmul_vf_f32m8(_p, .5f, vl);

@@ -286,6 +286,47 @@ static NCNN_FORCEINLINE v4sf exp_ps(v4sf x)
     return y;
 }
 
+_PS_CONST(tanh_hi, 9.0f);
+_PS_CONST(tanh_lo, -9.0f);
+
+_PS_CONST(cephes_tanh_p0, -2.76076847742355E-16f);
+_PS_CONST(cephes_tanh_p1, 2.00018790482477E-13f);
+_PS_CONST(cephes_tanh_p2, -8.60467152213735E-11f);
+_PS_CONST(cephes_tanh_p3, 5.12229709037114E-08f);
+_PS_CONST(cephes_tanh_p4, 1.48572235717979E-05f);
+_PS_CONST(cephes_tanh_p5, 6.37261928875436E-04f);
+_PS_CONST(cephes_tanh_p6, 4.89352455891786E-03f);
+_PS_CONST(cephes_tanh_p7, 1.19825839466702e-06f);
+_PS_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
+_PS_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
+
+// an approximation of tanh
+static inline v4sf tanh_ps(const v4sf x)
+{
+    v4sf value = x;
+    value = _mm_max_ps(*(v4sf*)_ps_tanh_lo, value);
+    value = _mm_min_ps(*(v4sf*)_ps_tanh_hi, value);
+
+    v4sf value_squared = _mm_mul_ps(value, value);
+
+    v4sf p;
+    p = _mm_comp_fmadd_ps(value_squared, *(v4sf*)_ps_cephes_tanh_p0, *(v4sf*)_ps_cephes_tanh_p1);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p2);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p3);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p4);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p5);
+    p = _mm_comp_fmadd_ps(p, value_squared, *(v4sf*)_ps_cephes_tanh_p6);
+    p = _mm_mul_ps(p, value);
+
+    v4sf q;
+    q = _mm_comp_fmadd_ps(value_squared, *(v4sf*)_ps_cephes_tanh_p7, *(v4sf*)_ps_cephes_tanh_p8);
+    q = _mm_comp_fmadd_ps(q, value_squared, *(v4sf*)_ps_cephes_tanh_p9);
+    q = _mm_comp_fmadd_ps(q, value_squared, *(v4sf*)_ps_cephes_tanh_p6);
+
+    v4sf dst = _mm_div_ps(p, q);
+    return dst;
+}
+
 _PS_CONST(minus_cephes_DP1, -0.78515625f);
 _PS_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);

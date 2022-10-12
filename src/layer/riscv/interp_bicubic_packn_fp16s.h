@@ -15,7 +15,7 @@
 static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* alpha, int* xofs, float* beta, int* yofs)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = dst.w;
     int h = dst.h;
@@ -244,7 +244,7 @@ static void resize_bicubic_image_packn_fp16s(const Mat& src, Mat& dst, float* al
 static void resize_bicubic_image_packn_fp16sa(const Mat& src, Mat& dst, __fp16* alpha, int* xofs, __fp16* beta, int* yofs)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = dst.w;
     int h = dst.h;
