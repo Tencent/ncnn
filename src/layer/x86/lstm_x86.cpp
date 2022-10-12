@@ -315,7 +315,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 #if __AVX__
             const float* weight_xc_IFOG = weight_xc.row(q / 2 + q % 2);
             const float* weight_hc_IFOG = weight_hc.row(q / 2 + q % 2);
-#else // __AVX__
+#else  // __AVX__
             const float* weight_xc_IFOG = weight_xc.row(q);
             const float* weight_hc_IFOG = weight_hc.row(q);
 #endif // __AVX__
