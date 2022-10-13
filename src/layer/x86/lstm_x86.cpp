@@ -14,6 +14,13 @@
 
 #include "lstm_x86.h"
 
+#if __SSE2__
+#include <emmintrin.h>
+#if __AVX__
+#include <immintrin.h>
+#endif
+#endif // __SSE2__
+
 #include "x86_activation.h"
 #include "x86_usability.h"
 
@@ -322,19 +329,27 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 #if __AVX__
             const float* weight_xc_IFOG = weight_xc.row(q / 2 + q % 2);
             const float* weight_hc_IFOG = weight_hc.row(q / 2 + q % 2);
-#else  // __AVX__
+#else
             const float* weight_xc_IFOG = weight_xc.row(q);
             const float* weight_hc_IFOG = weight_hc.row(q);
-#endif // __AVX__
+#endif
 
+#if __SSE2__
             __m128 _IFOG = _mm_loadu_ps(bias_c_IFOG);
             __m128 _sum1 = _mm_setzero_ps();
             __m128 _sum2 = _mm_setzero_ps();
             __m128 _sum3 = _mm_setzero_ps();
+#else  // __SSE2__
+            float I = bias_c_IFOG[0];
+            float F = bias_c_IFOG[1];
+            float O = bias_c_IFOG[2];
+            float G = bias_c_IFOG[3];
+#endif // __SSE2__
 
             const float* x = bottom_blob.row(ti);
 
             int i = 0;
+#if __SSE2__
             for (; i + 3 < size; i += 4)
             {
                 __m128 _xi0 = _mm_load1_ps(x);
@@ -353,11 +368,20 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 x += 4;
                 weight_xc_IFOG += 16;
             }
+#endif // __SSE2__
             for (; i < size; i++)
             {
+#if __SSE2__
                 __m128 _xi = _mm_load1_ps(x);
                 __m128 _weight_xc_IFOG = _mm_loadu_ps(weight_xc_IFOG);
                 _IFOG = _mm_comp_fmadd_ps(_weight_xc_IFOG, _xi, _IFOG);
+#else  // __SSE2__
+                float xi = x[0];
+                I += xi * weight_xc_IFOG[0];
+                F += xi * weight_xc_IFOG[1];
+                O += xi * weight_xc_IFOG[2];
+                G += xi * weight_xc_IFOG[3];
+#endif // __SSE2__
 
                 x += 1;
                 weight_xc_IFOG += 4;
@@ -366,6 +390,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             const float* hidden_ptr = hidden_state;
 
             i = 0;
+#if __SSE2__
             for (; i + 3 < num_output; i += 4)
             {
                 __m128 _h_cont0 = _mm_load1_ps(hidden_ptr);
@@ -384,11 +409,20 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 hidden_ptr += 4;
                 weight_hc_IFOG += 16;
             }
+#endif // __SSE2__
             for (; i < num_output; i++)
             {
+#if __SSE2__
                 __m128 _h_cont = _mm_load1_ps(hidden_ptr);
                 __m128 _weight_hc_IFOG = _mm_loadu_ps(weight_hc_IFOG);
                 _IFOG = _mm_comp_fmadd_ps(_weight_hc_IFOG, _h_cont, _IFOG);
+#else  // __SSE2__
+                float h_cont = hidden_ptr[0];
+                I += h_cont * weight_hc_IFOG[0];
+                F += h_cont * weight_hc_IFOG[1];
+                O += h_cont * weight_hc_IFOG[2];
+                G += h_cont * weight_hc_IFOG[3];
+#endif // __SSE2__
 
                 hidden_ptr += 1;
                 weight_hc_IFOG += 4;
@@ -396,11 +430,18 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
             float* gates_data = gates.row(q);
 
+#if __SSE2__
             _IFOG = _mm_add_ps(_IFOG, _sum1);
             _sum2 = _mm_add_ps(_sum2, _sum3);
             _IFOG = _mm_add_ps(_IFOG, _sum2);
 
             _mm_storeu_ps(gates_data, _IFOG);
+#else  // __SSE2__
+            gates_data[0] = I;
+            gates_data[1] = F;
+            gates_data[2] = O;
+            gates_data[3] = G;
+#endif // __SSE2__
         }
 
         // lstm unit
@@ -416,6 +457,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
         float* hidden_ptr = hidden_state;
         float* tmp_hidden_ptr = tmp_hidden_state;
 
+#if __SSE2__
         nn_hidden_size = hidden_size >> 2;
         remain_hidden_size_start = nn_hidden_size << 2;
         #pragma omp parallel for num_threads(opt.num_threads)
@@ -452,6 +494,9 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
                 _mm_storeu_ps(tmp_hidden_ptr + q, _H);
             }
         }
+#else  // __SSE2__
+        remain_hidden_size_start = 0;
+#endif // __SSE2__
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = remain_hidden_size_start; q < hidden_size; q++)
         {
