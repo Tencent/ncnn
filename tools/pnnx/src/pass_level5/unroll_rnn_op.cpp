@@ -42,7 +42,7 @@ void unroll_rnn_op(Graph& graph)
             bool has_output_hidden = op->outputs.size() >= 2;
             bool has_output_cell = op->outputs.size() == 3;
             const int hidden_size = op->params["hidden_size"].i;
-            const int proj_size = op->params["proj_size"].i;
+            const int proj_size = (op->type == "nn.LSTM") ? op->params["proj_size"].i : 0;
             bool has_bias = op->params["bias"].b;
             bool is_bidirectional = op->params["bidirectional"].b;
 
