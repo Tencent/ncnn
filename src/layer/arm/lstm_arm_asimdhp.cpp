@@ -205,7 +205,7 @@ static int lstm_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             if (num_output == hidden_size)
             {
                 hidden_ptr[q] = H;
-                output_data[q] = (__fp16)(H);
+                output_data[q] = (__fp16)H;
             }
             else
             {
@@ -230,14 +230,14 @@ static int lstm_fp16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
                 const float* hr = weight_hr.row(q);
                 const float* tmp_hidden_ptr = tmp_hidden_state;
 
-                float s = 0;
+                float H = 0;
                 for (int i = 0; i < hidden_size; i++)
                 {
-                    s += tmp_hidden_ptr[i] * hr[i];
+                    H += tmp_hidden_ptr[i] * hr[i];
                 }
 
-                output_data[q] = s;
-                hidden_ptr[q] = s;
+                hidden_ptr[q] = H;
+                output_data[q] = (__fp16)H;
             }
         }
     }
@@ -570,14 +570,14 @@ static int lstm_fp16sa(const Mat& bottom_blob, Mat& top_blob, int reverse, const
                 const float* hr = weight_hr.row(q);
                 const float* tmp_hidden_ptr = tmp_hidden_state;
 
-                float s = 0;
+                float H = 0;
                 for (int i = 0; i < hidden_size; i++)
                 {
-                    s += tmp_hidden_ptr[i] * hr[i];
+                    H += tmp_hidden_ptr[i] * hr[i];
                 }
 
-                output_data[q] = (__fp16)s;
-                hidden_ptr[q] = s;
+                hidden_ptr[q] = H;
+                output_data[q] = (__fp16)H;
             }
         }
     }

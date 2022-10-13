@@ -188,20 +188,19 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
         if (num_output != hidden_size)
         {
-            float* output_data = top_blob.row(ti);
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < num_output; q++)
             {
                 const float* hr = weight_hr.row(q);
 
-                float s = 0;
+                float H = 0;
                 for (int i = 0; i < hidden_size; i++)
                 {
-                    s += tmp_hidden_state[i] * hr[i];
+                    H += tmp_hidden_state[i] * hr[i];
                 }
 
-                output_data[q] = s;
-                hidden_state[q] = s;
+                hidden_state[q] = H;
+                output_data[q] = H;
             }
         }
     }

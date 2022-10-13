@@ -15,50 +15,64 @@
 #include "layer/lstm.h"
 #include "testutil.h"
 
-static int test_lstm(const ncnn::Mat& a, int outch, int direction)
+static int test_lstm(const ncnn::Mat& a, int outch, int direction, int hidden_size = 0)
 {
     int input_size = a.w;
     int num_directions = direction == 2 ? 2 : 1;
+    if (hidden_size == 0)
+        hidden_size = outch;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);
-    pd.set(1, outch * input_size * 4 * num_directions);
+    pd.set(1, hidden_size * input_size * 4 * num_directions);
     pd.set(2, direction);
+    pd.set(3, hidden_size);
 
-    std::vector<ncnn::Mat> weights(3);
-    weights[0] = RandomMat(outch * input_size * 4 * num_directions);
-    weights[1] = RandomMat(outch * 4 * num_directions);
-    weights[2] = RandomMat(outch * outch * 4 * num_directions);
+    std::vector<ncnn::Mat> weights(hidden_size == 0 ? 3 : 4);
+    weights[0] = RandomMat(hidden_size * input_size * 4 * num_directions);
+    weights[1] = RandomMat(hidden_size * 4 * num_directions);
+    weights[2] = RandomMat(outch * hidden_size * 4 * num_directions);
+    if (hidden_size)
+    {
+        weights[3] = RandomMat(hidden_size * outch * num_directions);
+    }
 
     int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_lstm failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);
+        fprintf(stderr, "test_lstm failed a.dims=%d a=(%d %d %d) outch=%d direction=%d hidden_size=%d\n", a.dims, a.w, a.h, a.c, outch, direction, hidden_size);
     }
 
     return ret;
 }
 
-int test_lstm_layer_with_hidden(const ncnn::Mat& a, int outch, int direction)
+int test_lstm_layer_with_hidden(const ncnn::Mat& a, int outch, int direction, int hidden_size = 0)
 {
     int input_size = a.w;
     int num_directions = direction == 2 ? 2 : 1;
+    if (hidden_size == 0)
+        hidden_size = outch;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);
-    pd.set(1, outch * input_size * 4 * num_directions);
+    pd.set(1, hidden_size * input_size * 4 * num_directions);
     pd.set(2, direction);
+    pd.set(3, hidden_size);
 
-    std::vector<ncnn::Mat> weights(3);
-    weights[0] = RandomMat(outch * input_size * 4 * num_directions);
-    weights[1] = RandomMat(outch * 4 * num_directions);
-    weights[2] = RandomMat(outch * outch * 4 * num_directions);
+    std::vector<ncnn::Mat> weights(hidden_size == 0 ? 3 : 4);
+    weights[0] = RandomMat(hidden_size * input_size * 4 * num_directions);
+    weights[1] = RandomMat(hidden_size * 4 * num_directions);
+    weights[2] = RandomMat(outch * hidden_size * 4 * num_directions);
+    if (hidden_size)
+    {
+        weights[3] = RandomMat(hidden_size * outch * num_directions);
+    }
 
     // initial hidden state
     ncnn::Mat hidden = RandomMat(outch, num_directions);
 
     // initial cell state
-    ncnn::Mat cell = RandomMat(outch, num_directions);
+    ncnn::Mat cell = RandomMat(hidden_size, num_directions);
 
     std::vector<ncnn::Mat> as(3);
     as[0] = a;
@@ -68,32 +82,39 @@ int test_lstm_layer_with_hidden(const ncnn::Mat& a, int outch, int direction)
     int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, as, 3);
     if (ret != 0)
     {
-        fprintf(stderr, "test_lstm_layer_with_hidden failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);
+        fprintf(stderr, "test_lstm_layer_with_hidden failed a.dims=%d a=(%d %d %d) outch=%d direction=%d hidden_size=%d\n", a.dims, a.w, a.h, a.c, outch, direction, hidden_size);
     }
 
     return ret;
 }
 
-int test_lstm_layer_with_hidden_input(const ncnn::Mat& a, int outch, int direction)
+int test_lstm_layer_with_hidden_input(const ncnn::Mat& a, int outch, int direction, int hidden_size = 0)
 {
     int input_size = a.w;
     int num_directions = direction == 2 ? 2 : 1;
+    if (hidden_size == 0)
+        hidden_size = outch;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);
-    pd.set(1, outch * input_size * 4 * num_directions);
+    pd.set(1, hidden_size * input_size * 4 * num_directions);
     pd.set(2, direction);
+    pd.set(3, hidden_size);
 
-    std::vector<ncnn::Mat> weights(3);
-    weights[0] = RandomMat(outch * input_size * 4 * num_directions);
-    weights[1] = RandomMat(outch * 4 * num_directions);
-    weights[2] = RandomMat(outch * outch * 4 * num_directions);
+    std::vector<ncnn::Mat> weights(hidden_size == 0 ? 3 : 4);
+    weights[0] = RandomMat(hidden_size * input_size * 4 * num_directions);
+    weights[1] = RandomMat(hidden_size * 4 * num_directions);
+    weights[2] = RandomMat(outch * hidden_size * 4 * num_directions);
+    if (hidden_size)
+    {
+        weights[3] = RandomMat(hidden_size * outch * num_directions);
+    }
 
     // initial hidden state
     ncnn::Mat hidden = RandomMat(outch, num_directions);
 
     // initial cell state
-    ncnn::Mat cell = RandomMat(outch, num_directions);
+    ncnn::Mat cell = RandomMat(hidden_size, num_directions);
 
     std::vector<ncnn::Mat> as(3);
     as[0] = a;
@@ -103,26 +124,33 @@ int test_lstm_layer_with_hidden_input(const ncnn::Mat& a, int outch, int directi
     int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, as, 1);
     if (ret != 0)
     {
-        fprintf(stderr, "test_lstm_layer_with_hidden_input failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);
+        fprintf(stderr, "test_lstm_layer_with_hidden_input failed a.dims=%d a=(%d %d %d) outch=%d direction=%d hidden_size=%d\n", a.dims, a.w, a.h, a.c, outch, direction, hidden_size);
     }
 
     return ret;
 }
 
-int test_lstm_layer_with_hidden_output(const ncnn::Mat& a, int outch, int direction)
+int test_lstm_layer_with_hidden_output(const ncnn::Mat& a, int outch, int direction, int hidden_size = 0)
 {
     int input_size = a.w;
     int num_directions = direction == 2 ? 2 : 1;
+    if (hidden_size == 0)
+        hidden_size = outch;
 
     ncnn::ParamDict pd;
     pd.set(0, outch);
-    pd.set(1, outch * input_size * 4 * num_directions);
+    pd.set(1, hidden_size * input_size * 4 * num_directions);
     pd.set(2, direction);
+    pd.set(3, hidden_size);
 
-    std::vector<ncnn::Mat> weights(3);
-    weights[0] = RandomMat(outch * input_size * 4 * num_directions);
-    weights[1] = RandomMat(outch * 4 * num_directions);
-    weights[2] = RandomMat(outch * outch * 4 * num_directions);
+    std::vector<ncnn::Mat> weights(hidden_size == 0 ? 3 : 4);
+    weights[0] = RandomMat(hidden_size * input_size * 4 * num_directions);
+    weights[1] = RandomMat(hidden_size * 4 * num_directions);
+    weights[2] = RandomMat(outch * hidden_size * 4 * num_directions);
+    if (hidden_size)
+    {
+        weights[3] = RandomMat(hidden_size * outch * num_directions);
+    }
 
     std::vector<ncnn::Mat> as(1);
     as[0] = a;
@@ -130,7 +158,7 @@ int test_lstm_layer_with_hidden_output(const ncnn::Mat& a, int outch, int direct
     int ret = test_layer<ncnn::LSTM>("LSTM", pd, weights, as, 3);
     if (ret != 0)
     {
-        fprintf(stderr, "test_lstm_layer_with_hidden_output failed a.dims=%d a=(%d %d %d) outch=%d, direction = %d \n", a.dims, a.w, a.h, a.c, outch, direction);
+        fprintf(stderr, "test_lstm_layer_with_hidden_output failed a.dims=%d a=(%d %d %d) outch=%d direction=%d hidden_size=%d\n", a.dims, a.w, a.h, a.c, outch, direction, hidden_size);
     }
 
     return ret;
@@ -147,7 +175,7 @@ static int test_lstm_0()
            || test_lstm(RandomMat(5, 16), 16, 2)
            || test_lstm(RandomMat(3, 16), 8, 2)
            || test_lstm(RandomMat(8, 16), 16, 2)
-           || test_lstm(RandomMat(2, 5), 17, 2);
+           || test_lstm(RandomMat(2, 5), 17, 2, 15);
 }
 
 static int test_lstm_1()
@@ -160,7 +188,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden(RandomMat(19, 15), 8, 2)
            || test_lstm_layer_with_hidden(RandomMat(5, 16), 16, 2)
            || test_lstm_layer_with_hidden(RandomMat(3, 16), 8, 2)
-           || test_lstm_layer_with_hidden(RandomMat(2, 5), 99, 2)
+           || test_lstm_layer_with_hidden(RandomMat(2, 5), 99, 2, 33)
            || test_lstm_layer_with_hidden(RandomMat(4, 4), 1, 1)
            || test_lstm_layer_with_hidden(RandomMat(8, 2), 2, 1)
            || test_lstm_layer_with_hidden(RandomMat(16, 8), 7, 1)
@@ -168,7 +196,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden(RandomMat(19, 15), 8, 1)
            || test_lstm_layer_with_hidden(RandomMat(5, 16), 16, 1)
            || test_lstm_layer_with_hidden(RandomMat(3, 16), 8, 1)
-           || test_lstm_layer_with_hidden(RandomMat(2, 5), 99, 1)
+           || test_lstm_layer_with_hidden(RandomMat(2, 5), 99, 1, 33)
            || test_lstm_layer_with_hidden(RandomMat(4, 2), 1, 0)
            || test_lstm_layer_with_hidden(RandomMat(8, 2), 2, 0)
            || test_lstm_layer_with_hidden(RandomMat(16, 8), 7, 0)
@@ -176,7 +204,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden(RandomMat(19, 15), 8, 0)
            || test_lstm_layer_with_hidden(RandomMat(5, 16), 16, 0)
            || test_lstm_layer_with_hidden(RandomMat(3, 16), 8, 0)
-           || test_lstm_layer_with_hidden(RandomMat(2, 5), 17, 0)
+           || test_lstm_layer_with_hidden(RandomMat(2, 5), 17, 0, 15)
 
            || test_lstm_layer_with_hidden_input(RandomMat(4, 4), 1, 2)
            || test_lstm_layer_with_hidden_input(RandomMat(8, 2), 2, 2)
@@ -185,7 +213,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden_input(RandomMat(19, 15), 8, 2)
            || test_lstm_layer_with_hidden_input(RandomMat(5, 16), 16, 2)
            || test_lstm_layer_with_hidden_input(RandomMat(3, 16), 8, 2)
-           || test_lstm_layer_with_hidden_input(RandomMat(2, 5), 99, 2)
+           || test_lstm_layer_with_hidden_input(RandomMat(2, 5), 99, 2, 33)
            || test_lstm_layer_with_hidden_input(RandomMat(4, 4), 1, 1)
            || test_lstm_layer_with_hidden_input(RandomMat(8, 2), 2, 1)
            || test_lstm_layer_with_hidden_input(RandomMat(16, 8), 7, 1)
@@ -193,7 +221,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden_input(RandomMat(19, 15), 8, 1)
            || test_lstm_layer_with_hidden_input(RandomMat(5, 16), 16, 1)
            || test_lstm_layer_with_hidden_input(RandomMat(3, 16), 8, 1)
-           || test_lstm_layer_with_hidden_input(RandomMat(2, 5), 99, 1)
+           || test_lstm_layer_with_hidden_input(RandomMat(2, 5), 99, 1, 33)
            || test_lstm_layer_with_hidden_input(RandomMat(4, 2), 1, 0)
            || test_lstm_layer_with_hidden_input(RandomMat(8, 2), 2, 0)
            || test_lstm_layer_with_hidden_input(RandomMat(16, 8), 7, 0)
@@ -201,7 +229,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden_input(RandomMat(19, 15), 8, 0)
            || test_lstm_layer_with_hidden_input(RandomMat(5, 16), 16, 0)
            || test_lstm_layer_with_hidden_input(RandomMat(3, 16), 8, 0)
-           || test_lstm_layer_with_hidden_input(RandomMat(2, 5), 17, 0)
+           || test_lstm_layer_with_hidden_input(RandomMat(2, 5), 17, 0, 15)
 
            || test_lstm_layer_with_hidden_output(RandomMat(4, 4), 1, 2)
            || test_lstm_layer_with_hidden_output(RandomMat(8, 2), 2, 2)
@@ -210,7 +238,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden_output(RandomMat(19, 15), 8, 2)
            || test_lstm_layer_with_hidden_output(RandomMat(5, 16), 16, 2)
            || test_lstm_layer_with_hidden_output(RandomMat(3, 16), 8, 2)
-           || test_lstm_layer_with_hidden_output(RandomMat(2, 5), 99, 2)
+           || test_lstm_layer_with_hidden_output(RandomMat(2, 5), 99, 2, 33)
            || test_lstm_layer_with_hidden_output(RandomMat(4, 4), 1, 1)
            || test_lstm_layer_with_hidden_output(RandomMat(8, 2), 2, 1)
            || test_lstm_layer_with_hidden_output(RandomMat(16, 8), 7, 1)
@@ -218,7 +246,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden_output(RandomMat(19, 15), 8, 1)
            || test_lstm_layer_with_hidden_output(RandomMat(5, 16), 16, 1)
            || test_lstm_layer_with_hidden_output(RandomMat(3, 16), 8, 1)
-           || test_lstm_layer_with_hidden_output(RandomMat(2, 5), 99, 1)
+           || test_lstm_layer_with_hidden_output(RandomMat(2, 5), 99, 1, 33)
            || test_lstm_layer_with_hidden_output(RandomMat(4, 2), 1, 0)
            || test_lstm_layer_with_hidden_output(RandomMat(8, 2), 2, 0)
            || test_lstm_layer_with_hidden_output(RandomMat(16, 8), 7, 0)
@@ -226,7 +254,7 @@ static int test_lstm_1()
            || test_lstm_layer_with_hidden_output(RandomMat(19, 15), 8, 0)
            || test_lstm_layer_with_hidden_output(RandomMat(5, 16), 16, 0)
            || test_lstm_layer_with_hidden_output(RandomMat(3, 16), 8, 0)
-           || test_lstm_layer_with_hidden_output(RandomMat(2, 5), 17, 0);
+           || test_lstm_layer_with_hidden_output(RandomMat(2, 5), 17, 0, 15);
 }
 
 static int test_lstm_2()
@@ -240,7 +268,7 @@ static int test_lstm_2()
            || test_lstm(RandomMat(5, 16), 16, 0)
            || test_lstm(RandomMat(3, 16), 8, 0)
            || test_lstm(RandomMat(8, 16), 16, 0)
-           || test_lstm(RandomMat(2, 5), 17, 0);
+           || test_lstm(RandomMat(2, 5), 17, 0, 15);
 }
 static int test_lstm_3()
 {
@@ -253,7 +281,7 @@ static int test_lstm_3()
            || test_lstm(RandomMat(5, 16), 16, 1)
            || test_lstm(RandomMat(3, 16), 8, 1)
            || test_lstm(RandomMat(8, 16), 16, 1)
-           || test_lstm(RandomMat(2, 5), 17, 1);
+           || test_lstm(RandomMat(2, 5), 17, 1, 15);
 }
 
 int main()
