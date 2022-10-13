@@ -176,6 +176,13 @@ int LSTM_x86::create_pipeline(const Option& opt)
         }
     }
 
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
+
     return 0;
 }
 
@@ -477,10 +484,6 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
         if (num_output != hidden_size)
         {
-            float* output_data = top_blob.row(ti);
-
-            float* hidden_ptr = hidden_state;
-
             // int nn_num_output = num_output >> 2;
             // int remain_num_output_start = nn_num_output << 2;
             // #pragma omp parallel for num_threads(opt.num_threads)
