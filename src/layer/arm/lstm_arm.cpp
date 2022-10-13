@@ -597,8 +597,8 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
     int num_output = top_blob.w;
     int hidden_size = cell_state.w;
 
-    // 4 x num_output
-    Mat gates(4, num_output, 4u, opt.workspace_allocator);
+    // 4 x hidden_size
+    Mat gates(4, hidden_size, 4u, opt.workspace_allocator);
     if (gates.empty())
         return -100;
 
