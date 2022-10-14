@@ -36,10 +36,12 @@ public:
     int num_output;
     int weight_data_size;
     int direction; // 0=forward 1=reverse 2=bidirectional
+    int hidden_size;
 
     Mat weight_hc_data;
     Mat weight_xc_data;
     Mat bias_c_data;
+    Mat weight_hr_data;
 };
 
 } // namespace ncnn

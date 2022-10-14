@@ -227,7 +227,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: lavapipe-install
-        key: lavapipe-linux-install-20211127-2
+        key: lavapipe-linux-install-20211127-3
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cache-hit != 'true'
       uses: actions/checkout@v3

@@ -58,11 +58,11 @@ int LSTM_arm::create_pipeline(const Option& opt)
 
     // pack IFOG
     int num_directions = direction == 2 ? 2 : 1;
-    int size = weight_data_size / num_directions / num_output / 4;
+    int size = weight_data_size / num_directions / hidden_size / 4;
 
-    weight_xc_data_packed.create(size, num_output, num_directions, 16u, 4);
-    bias_c_data_packed.create(num_output, 1, num_directions, 16u, 4);
-    weight_hc_data_packed.create(num_output, num_output, num_directions, 16u, 4);
+    weight_xc_data_packed.create(size, hidden_size, num_directions, 16u, 4);
+    bias_c_data_packed.create(hidden_size, 1, num_directions, 16u, 4);
+    weight_hc_data_packed.create(num_output, hidden_size, num_directions, 16u, 4);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
@@ -82,7 +82,7 @@ int LSTM_arm::create_pipeline(const Option& opt)
 
         float* bias_c_IFOG = bias_c_data_packed_dr.row(0);
 
-        for (int q = 0; q < num_output; q++)
+        for (int q = 0; q < hidden_size; q++)
         {
             bias_c_IFOG[0] = bias_c_I[q];
             bias_c_IFOG[1] = bias_c_F[q];
@@ -91,15 +91,15 @@ int LSTM_arm::create_pipeline(const Option& opt)
 
             bias_c_IFOG += 4;
 
-            const float* weight_xc_I = weight_xc.row(num_output * 0 + q);
-            const float* weight_xc_F = weight_xc.row(num_output * 1 + q);
-            const float* weight_xc_O = weight_xc.row(num_output * 2 + q);
-            const float* weight_xc_G = weight_xc.row(num_output * 3 + q);
+            const float* weight_xc_I = weight_xc.row(hidden_size * 0 + q);
+            const float* weight_xc_F = weight_xc.row(hidden_size * 1 + q);
+            const float* weight_xc_O = weight_xc.row(hidden_size * 2 + q);
+            const float* weight_xc_G = weight_xc.row(hidden_size * 3 + q);
 
-            const float* weight_hc_I = weight_hc.row(num_output * 0 + q);
-            const float* weight_hc_F = weight_hc.row(num_output * 1 + q);
-            const float* weight_hc_O = weight_hc.row(num_output * 2 + q);
-            const float* weight_hc_G = weight_hc.row(num_output * 3 + q);
+            const float* weight_hc_I = weight_hc.row(hidden_size * 0 + q);
+            const float* weight_hc_F = weight_hc.row(hidden_size * 1 + q);
+            const float* weight_hc_O = weight_hc.row(hidden_size * 2 + q);
+            const float* weight_hc_G = weight_hc.row(hidden_size * 3 + q);
 
             float* weight_xc_IFOG = weight_xc_data_packed_dr.row(q);
             float* weight_hc_IFOG = weight_hc_data_packed_dr.row(q);
@@ -126,20 +126,36 @@ int LSTM_arm::create_pipeline(const Option& opt)
         }
     }
 
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
+
     return 0;
 }
 
-static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt)
+static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
     int size = bottom_blob.w;
     int T = bottom_blob.h;
 
     int num_output = top_blob.w;
+    int hidden_size = cell_state.w;
 
-    // 4 x num_output
-    Mat gates(4, num_output, 4u, opt.workspace_allocator);
+    // 4 x hidden_size
+    Mat gates(4, hidden_size, 4u, opt.workspace_allocator);
     if (gates.empty())
         return -100;
+
+    Mat tmp_hidden_state;
+    if (num_output != hidden_size)
+    {
+        tmp_hidden_state.create(hidden_size, 4u, opt.workspace_allocator);
+        if (tmp_hidden_state.empty())
+            return -100;
+    }
 
     // unroll
     for (int t = 0; t < T; t++)
@@ -155,7 +171,7 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
         const float* x = bottom_blob.row(ti);
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_output; q++)
+        for (int q = 0; q < hidden_size; q++)
         {
             const float* bias_c_IFOG = (const float*)bias_c + q * 4;
 
@@ -291,14 +307,15 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
 
         float* cell_ptr = cell_state;
         float* hidden_ptr = hidden_state;
+        float* tmp_hidden_ptr = tmp_hidden_state;
 
-        int remain_num_output_start = 0;
+        int remain_hidden_size_start = 0;
 #if __ARM_NEON
-        int nn_num_output = num_output >> 2;
-        remain_num_output_start = nn_num_output << 2;
+        int nn_hidden_size = hidden_size >> 2;
+        remain_hidden_size_start = nn_hidden_size << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < nn_num_output; qq++)
+        for (int qq = 0; qq < nn_hidden_size; qq++)
         {
             int q = qq * 4;
 
@@ -315,12 +332,20 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             float32x4_t _H = vmulq_f32(_O, tanh_ps(_cell2));
 
             vst1q_f32(cell_ptr + q, _cell2);
-            vst1q_f32(hidden_ptr + q, _H);
-            vst1q_f32(output_data + q, _H);
+
+            if (num_output == hidden_size)
+            {
+                vst1q_f32(hidden_ptr + q, _H);
+                vst1q_f32(output_data + q, _H);
+            }
+            else
+            {
+                vst1q_f32(tmp_hidden_ptr + q, _H);
+            }
         }
 #endif // __ARM_NEON
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = remain_num_output_start; q < num_output; q++)
+        for (int q = remain_hidden_size_start; q < hidden_size; q++)
         {
             const float* gates_data = gates.row(q);
 
@@ -338,8 +363,43 @@ static int lstm(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& w
             float H = O * tanh(cell2);
 
             cell_ptr[q] = cell2;
-            hidden_ptr[q] = H;
-            output_data[q] = H;
+            if (num_output == hidden_size)
+            {
+                hidden_ptr[q] = H;
+                output_data[q] = H;
+            }
+            else
+            {
+                tmp_hidden_ptr[q] = H;
+            }
+        }
+
+        if (num_output != hidden_size)
+        {
+            // int nn_num_output = num_output >> 2;
+            // int remain_num_output_start = nn_num_output << 2;
+            // #pragma omp parallel for num_threads(opt.num_threads)
+            // for (int qq = 0; qq < nn_num_output; qq++)
+            // {
+            //     int q = qq * 4;
+            //
+            // }
+            int remain_num_output_start = 0;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = remain_num_output_start; q < num_output; q++)
+            {
+                const float* hr = weight_hr.row(q);
+                const float* tmp_hidden_ptr = tmp_hidden_state;
+
+                float H = 0;
+                for (int i = 0; i < hidden_size; i++)
+                {
+                    H += tmp_hidden_ptr[i] * hr[i];
+                }
+
+                hidden_ptr[q] = H;
+                output_data[q] = H;
+            }
         }
     }
 
@@ -375,7 +435,7 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         return -100;
     hidden.fill(0.f);
 
-    Mat cell(num_output, 4u, opt.workspace_allocator);
+    Mat cell(hidden_size, 4u, opt.workspace_allocator);
     if (cell.empty())
         return -100;
     cell.fill(0.f);
@@ -387,7 +447,7 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, cell, opt);
+        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
@@ -402,14 +462,14 @@ int LSTM_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) 
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, cell, opt);
+        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
         if (ret0 != 0)
             return ret0;
 
         hidden.fill(0.0f);
         cell.fill(0.0f);
 
-        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, cell, opt);
+        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
         if (ret1 != 0)
             return ret1;
 
@@ -466,7 +526,7 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
             return -100;
         hidden.fill(0.f);
 
-        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        cell.create(hidden_size, num_directions, 4u, hidden_cell_allocator);
         if (cell.empty())
             return -100;
         cell.fill(0.f);
@@ -480,7 +540,7 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, cell, opt);
+        int ret = lstm(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
@@ -497,13 +557,13 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 
         Mat hidden0 = hidden.row_range(0, 1);
         Mat cell0 = cell.row_range(0, 1);
-        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, cell0, opt);
+        int ret0 = lstm(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
         if (ret0 != 0)
             return ret0;
 
         Mat hidden1 = hidden.row_range(1, 1);
         Mat cell1 = cell.row_range(1, 1);
-        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, cell1, opt);
+        int ret1 = lstm(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
         if (ret1 != 0)
             return ret1;
 
@@ -529,17 +589,26 @@ int LSTM_arm::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 }
 
 #if NCNN_BF16
-static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, Mat& hidden_state, Mat& cell_state, const Option& opt)
+static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const Mat& weight_xc, const Mat& bias_c, const Mat& weight_hc, const Mat& weight_hr, Mat& hidden_state, Mat& cell_state, const Option& opt)
 {
     int size = bottom_blob.w;
     int T = bottom_blob.h;
 
     int num_output = top_blob.w;
+    int hidden_size = cell_state.w;
 
-    // 4 x num_output
-    Mat gates(4, num_output, 4u, opt.workspace_allocator);
+    // 4 x hidden_size
+    Mat gates(4, hidden_size, 4u, opt.workspace_allocator);
     if (gates.empty())
         return -100;
+
+    Mat tmp_hidden_state;
+    if (num_output != hidden_size)
+    {
+        tmp_hidden_state.create(hidden_size, 4u, opt.workspace_allocator);
+        if (tmp_hidden_state.empty())
+            return -100;
+    }
 
     // unroll
     for (int t = 0; t < T; t++)
@@ -555,7 +624,7 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
         const unsigned short* x = bottom_blob.row<const unsigned short>(ti);
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = 0; q < num_output; q++)
+        for (int q = 0; q < hidden_size; q++)
         {
             const unsigned short* bias_c_IFOG = (const unsigned short*)bias_c + q * 4;
 
@@ -693,14 +762,15 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
 
         float* cell_ptr = cell_state;
         float* hidden_ptr = hidden_state;
+        float* tmp_hidden_ptr = tmp_hidden_state;
 
-        int remain_num_output_start = 0;
+        int remain_hidden_size_start = 0;
 #if __ARM_NEON
-        int nn_num_output = num_output >> 2;
-        remain_num_output_start = nn_num_output << 2;
+        int nn_hidden_size = hidden_size >> 2;
+        remain_hidden_size_start = nn_hidden_size << 2;
 
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int qq = 0; qq < nn_num_output; qq++)
+        for (int qq = 0; qq < nn_hidden_size; qq++)
         {
             int q = qq * 4;
 
@@ -717,12 +787,20 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float32x4_t _H = vmulq_f32(_O, tanh_ps(_cell2));
 
             vst1q_f32(cell_ptr + q, _cell2);
-            vst1q_f32(hidden_ptr + q, _H);
-            vst1_u16(output_data + q, bfloat2float(_H));
+
+            if (num_output == hidden_size)
+            {
+                vst1q_f32(hidden_ptr + q, _H);
+                vst1_u16(output_data + q, bfloat2float(_H));
+            }
+            else
+            {
+                vst1q_f32(tmp_hidden_ptr + q, _H);
+            }
         }
 #endif // __ARM_NEON
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int q = remain_num_output_start; q < num_output; q++)
+        for (int q = remain_hidden_size_start; q < hidden_size; q++)
         {
             const float* gates_data = gates.row(q);
 
@@ -740,8 +818,43 @@ static int lstm_bf16s(const Mat& bottom_blob, Mat& top_blob, int reverse, const 
             float H = O * tanh(cell2);
 
             cell_ptr[q] = cell2;
-            hidden_ptr[q] = H;
-            output_data[q] = float32_to_bfloat16(H);
+            if (num_output == hidden_size)
+            {
+                hidden_ptr[q] = H;
+                output_data[q] = float32_to_bfloat16(H);
+            }
+            else
+            {
+                tmp_hidden_ptr[q] = H;
+            }
+        }
+
+        if (num_output != hidden_size)
+        {
+            // int nn_num_output = num_output >> 2;
+            // int remain_num_output_start = nn_num_output << 2;
+            // #pragma omp parallel for num_threads(opt.num_threads)
+            // for (int qq = 0; qq < nn_num_output; qq++)
+            // {
+            //     int q = qq * 4;
+            //
+            // }
+            int remain_num_output_start = 0;
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = remain_num_output_start; q < num_output; q++)
+            {
+                const float* hr = weight_hr.row(q);
+                const float* tmp_hidden_ptr = tmp_hidden_state;
+
+                float H = 0;
+                for (int i = 0; i < hidden_size; i++)
+                {
+                    H += tmp_hidden_ptr[i] * hr[i];
+                }
+
+                hidden_ptr[q] = H;
+                output_data[q] = float32_to_bfloat16(H);
+            }
         }
     }
 
@@ -752,11 +865,11 @@ int LSTM_arm::create_pipeline_bf16s(const Option& opt)
 {
     // pack IFOG
     int num_directions = direction == 2 ? 2 : 1;
-    int size = weight_data_size / num_directions / num_output / 4;
+    int size = weight_data_size / num_directions / hidden_size / 4;
 
-    weight_xc_data_packed.create(size, num_output, num_directions, 8u, 4);
-    bias_c_data_packed.create(num_output, 1, num_directions, 8u, 4);
-    weight_hc_data_packed.create(num_output, num_output, num_directions, 8u, 4);
+    weight_xc_data_packed.create(size, hidden_size, num_directions, 8u, 4);
+    bias_c_data_packed.create(hidden_size, 1, num_directions, 8u, 4);
+    weight_hc_data_packed.create(num_output, hidden_size, num_directions, 8u, 4);
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int dr = 0; dr < num_directions; dr++)
@@ -776,7 +889,7 @@ int LSTM_arm::create_pipeline_bf16s(const Option& opt)
 
         unsigned short* bias_c_IFOG = bias_c_data_packed_dr.row<unsigned short>(0);
 
-        for (int q = 0; q < num_output; q++)
+        for (int q = 0; q < hidden_size; q++)
         {
             bias_c_IFOG[0] = float32_to_bfloat16(bias_c_I[q]);
             bias_c_IFOG[1] = float32_to_bfloat16(bias_c_F[q]);
@@ -785,15 +898,15 @@ int LSTM_arm::create_pipeline_bf16s(const Option& opt)
 
             bias_c_IFOG += 4;
 
-            const float* weight_xc_I = weight_xc.row(num_output * 0 + q);
-            const float* weight_xc_F = weight_xc.row(num_output * 1 + q);
-            const float* weight_xc_O = weight_xc.row(num_output * 2 + q);
-            const float* weight_xc_G = weight_xc.row(num_output * 3 + q);
+            const float* weight_xc_I = weight_xc.row(hidden_size * 0 + q);
+            const float* weight_xc_F = weight_xc.row(hidden_size * 1 + q);
+            const float* weight_xc_O = weight_xc.row(hidden_size * 2 + q);
+            const float* weight_xc_G = weight_xc.row(hidden_size * 3 + q);
 
-            const float* weight_hc_I = weight_hc.row(num_output * 0 + q);
-            const float* weight_hc_F = weight_hc.row(num_output * 1 + q);
-            const float* weight_hc_O = weight_hc.row(num_output * 2 + q);
-            const float* weight_hc_G = weight_hc.row(num_output * 3 + q);
+            const float* weight_hc_I = weight_hc.row(hidden_size * 0 + q);
+            const float* weight_hc_F = weight_hc.row(hidden_size * 1 + q);
+            const float* weight_hc_O = weight_hc.row(hidden_size * 2 + q);
+            const float* weight_hc_G = weight_hc.row(hidden_size * 3 + q);
 
             unsigned short* weight_xc_IFOG = weight_xc_data_packed_dr.row<unsigned short>(q);
             unsigned short* weight_hc_IFOG = weight_hc_data_packed_dr.row<unsigned short>(q);
@@ -820,6 +933,13 @@ int LSTM_arm::create_pipeline_bf16s(const Option& opt)
         }
     }
 
+    if (opt.lightmode)
+    {
+        weight_xc_data.release();
+        bias_c_data.release();
+        weight_hc_data.release();
+    }
+
     return 0;
 }
 
@@ -835,7 +955,7 @@ int LSTM_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option&
         return -100;
     hidden.fill(0.f);
 
-    Mat cell(num_output, 4u, opt.workspace_allocator);
+    Mat cell(hidden_size, 4u, opt.workspace_allocator);
     if (cell.empty())
         return -100;
     cell.fill(0.f);
@@ -847,7 +967,7 @@ int LSTM_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option&
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm_bf16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, cell, opt);
+        int ret = lstm_bf16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
@@ -862,14 +982,14 @@ int LSTM_arm::forward_bf16s(const Mat& bottom_blob, Mat& top_blob, const Option&
         if (top_blob_reverse.empty())
             return -100;
 
-        int ret0 = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, cell, opt);
+        int ret0 = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
         if (ret0 != 0)
             return ret0;
 
         hidden.fill(0.f);
         cell.fill(0.f);
 
-        int ret1 = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden, cell, opt);
+        int ret1 = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden, cell, opt);
         if (ret1 != 0)
             return ret1;
 
@@ -911,7 +1031,7 @@ int LSTM_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             return -100;
         hidden.fill(0.f);
 
-        cell.create(num_output, num_directions, 4u, hidden_cell_allocator);
+        cell.create(hidden_size, num_directions, 4u, hidden_cell_allocator);
         if (cell.empty())
             return -100;
         cell.fill(0.f);
@@ -925,7 +1045,7 @@ int LSTM_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     // Uni directional
     if (direction == 0 || direction == 1)
     {
-        int ret = lstm_bf16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden, cell, opt);
+        int ret = lstm_bf16s(bottom_blob, top_blob, direction, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden, cell, opt);
         if (ret != 0)
             return ret;
     }
@@ -942,13 +1062,13 @@ int LSTM_arm::forward_bf16s(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
         Mat hidden0 = hidden.row_range(0, 1);
         Mat cell0 = cell.row_range(0, 1);
-        int ret0 = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), hidden0, cell0, opt);
+        int ret0 = lstm_bf16s(bottom_blob, top_blob_forward, 0, weight_xc_data_packed.channel(0), bias_c_data_packed.channel(0), weight_hc_data_packed.channel(0), num_output == hidden_size ? Mat() : weight_hr_data.channel(0), hidden0, cell0, opt);
         if (ret0 != 0)
             return ret0;
 
         Mat hidden1 = hidden.row_range(1, 1);
         Mat cell1 = cell.row_range(1, 1);
-        int ret1 = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), hidden1, cell1, opt);
+        int ret1 = lstm_bf16s(bottom_blob, top_blob_reverse, 1, weight_xc_data_packed.channel(1), bias_c_data_packed.channel(1), weight_hc_data_packed.channel(1), num_output == hidden_size ? Mat() : weight_hr_data.channel(1), hidden1, cell1, opt);
         if (ret1 != 0)
             return ret1;
 
