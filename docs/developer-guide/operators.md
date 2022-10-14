@@ -1026,15 +1026,17 @@ y0, hidden y1, cell y2 = lstm(x0, hidden x1, cell x2)
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | num_output    | int   | 0         | hidden size of output |
+| 0         | num_output    | int   | 0         | output size of output |
 | 1         | weight_data_size| int | 0         | total size of IFOG weight matrix |
 | 2         | direction     | int   | 0         | 0=forward, 1=reverse, 2=bidirectional |
+| 3         | hidden_size   | int   | num_output| hidden size       |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_xc_data| float/fp16/int8 | [input_size, num_output * 4, num_directions] |
-| bias_c_data   | float/fp16/int8 | [num_output, 4, num_directions] |
-| weight_hc_data| float/fp16/int8 | [num_output, num_output * 4, num_directions] |
+| weight_xc_data| float/fp16/int8 | [input_size, hidden_size * 4, num_directions] |
+| bias_c_data   | float/fp16/int8 | [hidden_size, 4, num_directions] |
+| weight_hc_data| float/fp16/int8 | [num_output, hidden_size * 4, num_directions] |
+| weight_hr_data| float/fp16/int8 | [hidden_size, num_output, num_directions] |
 
 Direction flag:
 - 0 = forward only
