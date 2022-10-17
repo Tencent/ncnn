@@ -197,7 +197,7 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 signed char* ptr1 = top_blob.channel(q * 4 + 1);
                 signed char* ptr2 = top_blob.channel(q * 4 + 2);
                 signed char* ptr3 = top_blob.channel(q * 4 + 3);
-				signed char* vp;
+                signed char* vp;
 
                 v4f32 _scale_in = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 4, 0);
                 v4f32 _scale_out = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 4, 0);
@@ -212,7 +212,7 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                     v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                     _v = __lsx_vfmul_s(_v, _scale);
                     __m128i v = float2int8leakyrelu(_v, _slope);
-					vp = (signed char *)&v;
+                    vp = (signed char*)&v;
                     ptr0[0] = vp[0];
                     ptr1[0] = vp[1];
                     ptr2[0] = vp[2];
@@ -236,7 +236,7 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 signed char* ptr1 = top_blob.channel(q * 4 + 1);
                 signed char* ptr2 = top_blob.channel(q * 4 + 2);
                 signed char* ptr3 = top_blob.channel(q * 4 + 3);
-				signed char* vp;
+                signed char* vp;
 
                 v4f32 _scale_in = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 4, 0);
                 v4f32 _scale_out = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 4, 0);
@@ -253,7 +253,7 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                     v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                     _v = __lsx_vfmadd_s(_bias, _v, _scale);
                     __m128i v = float2int8leakyrelu(_v, _slope);
-					vp = (signed char *)&v;
+                    vp = (signed char*)&v;
                     ptr0[0] = vp[0];
                     ptr1[0] = vp[1];
                     ptr2[0] = vp[2];
