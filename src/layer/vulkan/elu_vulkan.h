@@ -19,23 +19,23 @@
 
 namespace ncnn {
 
-    class ELU_vulkan : virtual public ELU
-    {
-    public:
-        ELU_vulkan();
+class ELU_vulkan : virtual public ELU
+{
+public:
+    ELU_vulkan();
 
-        virtual int create_pipeline(const Option& opt);
-        virtual int destroy_pipeline(const Option& opt);
+    virtual int create_pipeline(const Option& opt);
+    virtual int destroy_pipeline(const Option& opt);
 
-        using ELU::forward_inplace;
-        virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
-        virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
+    using ELU::forward_inplace;
+    virtual int forward_inplace(VkMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
+    virtual int forward_inplace(VkImageMat& bottom_top_blob, VkCompute& cmd, const Option& opt) const;
 
-    public:
-        Pipeline* pipeline_elu;
-        Pipeline* pipeline_elu_pack4;
-        Pipeline* pipeline_elu_pack8;
-    };
+public:
+    Pipeline* pipeline_elu;
+    Pipeline* pipeline_elu_pack4;
+    Pipeline* pipeline_elu_pack8;
+};
 
 } // namespace ncnn
 
