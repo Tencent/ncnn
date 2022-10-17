@@ -540,7 +540,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmul_s(_v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -561,7 +561,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -581,7 +581,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -606,7 +606,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmul_s(_v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -628,7 +628,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -649,7 +649,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -674,7 +674,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmul_s(_v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -696,7 +696,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -717,7 +717,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -741,7 +741,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmul_s(_v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -764,7 +764,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -786,7 +786,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
-                        __m128i v = float2int8(_v);
+                        v16i8 v = (v16i8)float2int8(_v);
                         ptr[0] = v[0];
                         ptr[1] = v[1];
                         ptr[2] = v[2];
@@ -903,7 +903,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             _v = __lsx_vfmul_s(_v, _scale_in);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
-                            __m128i v = float2int8(_v);
+                            v16i8 v = (v16i8)float2int8(_v);
                             ptr0[0] = v[0];
                             ptr1[0] = v[1];
                             ptr2[0] = v[2];
@@ -939,7 +939,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
-                            __m128i v = float2int8(_v);
+                            v16i8 v = (v16i8)float2int8(_v);
                             ptr0[0] = v[0];
                             ptr1[0] = v[1];
                             ptr2[0] = v[2];
@@ -1077,7 +1077,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             _v = __lsx_vfmul_s(_v, _scale_in);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
-                            __m128i v = float2int8(_v);
+                            v16i8 v = (v16i8)float2int8(_v);
                             ptr0[0] = v[0];
                             ptr1[0] = v[1];
                             ptr2[0] = v[2];
@@ -1113,7 +1113,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
-                            __m128i v = float2int8(_v);
+                            v16i8 v = (v16i8)float2int8(_v);
                             ptr0[0] = v[0];
                             ptr1[0] = v[1];
                             ptr2[0] = v[2];
