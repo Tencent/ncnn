@@ -35,6 +35,8 @@ jobs:
     steps:
     - name: checkout
       checkout: self
+      with:
+        enableGitLfs: false
     - name: protobuf
       run: |
         sudo yum update
