@@ -37,12 +37,7 @@ jobs:
       checkout: self
       with:
         enableGitLfs: false
-    - name: protobuf
-      run: |
-        uname -a
-        cat /proc/cpuinfo
-        yum update
-        yum install protobuf-devel protobuf-compiler opencv-devel
+
     - name: build-sse2
       run: |
         mkdir build-sse2 && cd build-sse2
