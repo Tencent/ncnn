@@ -147,6 +147,24 @@ int NetPrivate::upload_model()
 }
 #endif // NCNN_VULKAN
 
+static Option get_masked_option(const Option& opt, int featmask)
+{
+    // mask option usage as layer specific featmask
+    Option opt1 = opt;
+    opt1.use_fp16_arithmetic &= !(featmask & (1 << 0));
+    opt1.use_fp16_storage &= !(featmask & (1 << 1));
+    opt1.use_fp16_packed &= !(featmask & (1 << 1));
+    opt1.use_bf16_storage &= !(featmask & (1 << 2));
+    opt1.use_int8_packed &= !(featmask & (1 << 3));
+    opt1.use_int8_storage &= !(featmask & (1 << 3));
+    opt1.use_int8_arithmetic &= !(featmask & (1 << 3));
+    opt1.use_vulkan_compute &= !(featmask & (1 << 4));
+    opt1.use_sgemm_convolution &= !(featmask & (1 << 5));
+    opt1.use_winograd_convolution &= !(featmask & (1 << 6));
+
+    return opt1;
+}
+
 int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
 {
     const Layer* layer = layers[layer_index];
@@ -195,7 +213,15 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, cons
         bottom_blob.elemsize = blob_mats[bottom_blob_index].elemsize;
     }
 #endif
-    int ret = do_forward_layer(layer, blob_mats, opt);
+    int ret = 0;
+    if (layer->featmask)
+    {
+        ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
+    }
+    else
+    {
+        ret = do_forward_layer(layer, blob_mats, opt);
+    }
 #if NCNN_BENCHMARK
     double end = get_current_time();
     if (layer->one_blob_only)
@@ -352,7 +378,14 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
 #if NCNN_BENCHMARK
         cmd.record_write_timestamp(layer_index * 2);
 #endif
-        ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
+        if (layer->featmask)
+        {
+            ret = do_forward_layer(layer, blob_mats_gpu, cmd, get_masked_option(opt, layer->featmask));
+        }
+        else
+        {
+            ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
+        }
 #if NCNN_BENCHMARK
         cmd.record_write_timestamp(layer_index * 2 + 1);
 #endif
@@ -368,7 +401,14 @@ int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, std:
             bottom_blob = blob_mats[bottom_blob_index].shape();
         }
 #endif
-        ret = do_forward_layer(layer, blob_mats, opt);
+        if (layer->featmask)
+        {
+            ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
+        }
+        else
+        {
+            ret = do_forward_layer(layer, blob_mats, opt);
+        }
 #if NCNN_BENCHMARK
         double end = get_current_time();
         if (layer->one_blob_only)
@@ -677,7 +717,14 @@ IMAGE_ALLOCATION_FAILED:
 #endif
         if (layer->support_image_storage)
         {
-            ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, opt);
+            if (layer->featmask)
+            {
+                ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, get_masked_option(opt, layer->featmask));
+            }
+            else
+            {
+                ret = do_forward_layer(layer, blob_mats_gpu_image, cmd, opt);
+            }
             if (ret == -100)
             {
                 image_allocation_failed = true;
@@ -686,7 +733,14 @@ IMAGE_ALLOCATION_FAILED:
         }
         else
         {
-            ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
+            if (layer->featmask)
+            {
+                ret = do_forward_layer(layer, blob_mats_gpu, cmd, get_masked_option(opt, layer->featmask));
+            }
+            else
+            {
+                ret = do_forward_layer(layer, blob_mats_gpu, cmd, opt);
+            }
         }
 #if NCNN_BENCHMARK
         cmd.record_write_timestamp(layer_index * 2 + 1);
@@ -703,7 +757,14 @@ IMAGE_ALLOCATION_FAILED:
             bottom_blob = blob_mats[bottom_blob_index].shape();
         }
 #endif
-        ret = do_forward_layer(layer, blob_mats, opt);
+        if (layer->featmask)
+        {
+            ret = do_forward_layer(layer, blob_mats, get_masked_option(opt, layer->featmask));
+        }
+        else
+        {
+            ret = do_forward_layer(layer, blob_mats, opt);
+        }
 #if NCNN_BENCHMARK
         double end = get_current_time();
         if (layer->one_blob_only)
@@ -1571,6 +1632,9 @@ int Net::load_param(const DataReader& dr)
             layer->top_shapes[j] = d->blobs[layer->tops[j]].shape;
         }
 
+        // pull out layer specific feature disabled set
+        layer->featmask = pd.get(31, 0);
+
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -1774,6 +1838,9 @@ int Net::load_param_bin(const DataReader& dr)
             layer->top_shapes[j] = d->blobs[layer->tops[j]].shape;
         }
 
+        // pull out layer specific feature disabled set
+        layer->featmask = pd.get(31, 0);
+
         int lr = layer->load_param(pd);
         if (lr != 0)
         {
@@ -1855,7 +1922,7 @@ int Net::load_model(const DataReader& dr)
     {
         Layer* layer = d->layers[i];
 
-        Option opt1 = opt;
+        Option opt1 = get_masked_option(opt, layer->featmask);
 #if NCNN_VULKAN
         if (opt.use_vulkan_compute)
         {
@@ -2066,11 +2133,13 @@ void Net::clear()
     {
         Layer* layer = d->layers[i];
 
-        Option opt1 = opt;
+        Option opt1 = get_masked_option(opt, layer->featmask);
+#if NCNN_VULKAN
         if (!layer->support_image_storage)
         {
             opt1.use_image_storage = false;
         }
+#endif // NCNN_VULKAN
 
         int dret = layer->destroy_pipeline(opt1);
         if (dret != 0)

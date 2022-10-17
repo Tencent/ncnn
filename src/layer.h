@@ -161,6 +161,8 @@ public:
     // shape hint
     std::vector<Mat> bottom_shapes;
     std::vector<Mat> top_shapes;
+    // feature disabled set
+    int featmask;
 };
 
 // layer factory function
