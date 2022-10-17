@@ -31,7 +31,10 @@ concurrency:
 
 jobs:
   linux-gcc:
-    runs-on: docker
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
     steps:
     - name: checkout
       checkout: self
