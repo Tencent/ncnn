@@ -13,8 +13,8 @@ on:
     - 'tools/**'
     - '!tools/pnnx/**'
     - 'examples/**'
-  pull_request:
-    branches: [master]
+  mr:
+    target-branches: [master]
     paths:
     - '.ci/linux-x64-cpu-gcc.yml'
     - 'CMakeLists.txt'
