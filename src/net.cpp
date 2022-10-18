@@ -108,6 +108,26 @@ NetPrivate::NetPrivate(Option& _opt)
 #endif // NCNN_VULKAN
 }
 
+static Option get_masked_option(const Option& opt, int featmask)
+{
+    // mask option usage as layer specific featmask
+    Option opt1 = opt;
+    opt1.use_fp16_arithmetic = opt1.use_fp16_arithmetic && !(featmask & (1 << 0));
+    opt1.use_fp16_storage = opt1.use_fp16_storage && !(featmask & (1 << 1));
+    opt1.use_fp16_packed = opt1.use_fp16_packed && !(featmask & (1 << 1));
+    opt1.use_bf16_storage = opt1.use_bf16_storage && !(featmask & (1 << 2));
+    opt1.use_int8_packed = opt1.use_int8_packed && !(featmask & (1 << 3));
+    opt1.use_int8_storage = opt1.use_int8_storage && !(featmask & (1 << 3));
+    opt1.use_int8_arithmetic = opt1.use_int8_arithmetic && !(featmask & (1 << 3));
+    opt1.use_vulkan_compute = opt1.use_vulkan_compute && !(featmask & (1 << 4));
+    opt1.use_image_storage = opt1.use_image_storage && !(featmask & (1 << 4));
+    opt1.use_tensor_storage = opt1.use_tensor_storage && !(featmask & (1 << 4));
+    opt1.use_sgemm_convolution = opt1.use_sgemm_convolution && !(featmask & (1 << 5));
+    opt1.use_winograd_convolution = opt1.use_winograd_convolution && !(featmask & (1 << 6));
+
+    return opt1;
+}
+
 #if NCNN_VULKAN
 int NetPrivate::upload_model()
 {
@@ -132,7 +152,7 @@ int NetPrivate::upload_model()
     {
         if (layers[i]->support_vulkan)
         {
-            int uret = layers[i]->upload_model(cmd, opt_upload);
+            int uret = layers[i]->upload_model(cmd, get_masked_option(opt_upload, layers[i]->featmask));
             if (uret != 0)
             {
                 NCNN_LOGE("layer upload_model %d failed", (int)i);
@@ -146,24 +166,6 @@ int NetPrivate::upload_model()
     return 0;
 }
 #endif // NCNN_VULKAN
-
-static Option get_masked_option(const Option& opt, int featmask)
-{
-    // mask option usage as layer specific featmask
-    Option opt1 = opt;
-    opt1.use_fp16_arithmetic &= !(featmask & (1 << 0));
-    opt1.use_fp16_storage &= !(featmask & (1 << 1));
-    opt1.use_fp16_packed &= !(featmask & (1 << 1));
-    opt1.use_bf16_storage &= !(featmask & (1 << 2));
-    opt1.use_int8_packed &= !(featmask & (1 << 3));
-    opt1.use_int8_storage &= !(featmask & (1 << 3));
-    opt1.use_int8_arithmetic &= !(featmask & (1 << 3));
-    opt1.use_vulkan_compute &= !(featmask & (1 << 4));
-    opt1.use_sgemm_convolution &= !(featmask & (1 << 5));
-    opt1.use_winograd_convolution &= !(featmask & (1 << 6));
-
-    return opt1;
-}
 
 int NetPrivate::forward_layer(int layer_index, std::vector<Mat>& blob_mats, const Option& opt) const
 {
@@ -851,6 +853,7 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
     // *INDENT-ON*
     // clang-format on
 
+    int dst_elempack = 1;
     if (opt.use_packing_layout)
     {
         // resolve dst_elempack
@@ -862,7 +865,6 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
 
         int elembits = bottom_blob.elembits();
 
-        int dst_elempack = 1;
         if (layer->support_packing)
         {
             if (elembits == 32)
@@ -916,13 +918,13 @@ int NetPrivate::convert_layout(Mat& bottom_blob, const Layer* layer, const Optio
 #endif
             }
         }
+    }
 
-        if (bottom_blob.elempack != dst_elempack)
-        {
-            Mat bottom_blob_packed;
-            convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
-            bottom_blob = bottom_blob_packed;
-        }
+    if (bottom_blob.elempack != dst_elempack)
+    {
+        Mat bottom_blob_packed;
+        convert_packing(bottom_blob, bottom_blob_packed, dst_elempack, opt);
+        bottom_blob = bottom_blob_packed;
     }
 
     return 0;
@@ -1924,9 +1926,14 @@ int Net::load_model(const DataReader& dr)
 
         Option opt1 = get_masked_option(opt, layer->featmask);
 #if NCNN_VULKAN
-        if (opt.use_vulkan_compute)
+        if (opt1.use_vulkan_compute)
         {
             if (!layer->support_image_storage) opt1.use_image_storage = false;
+        }
+        else
+        {
+            layer->vkdev = 0;
+            layer->support_vulkan = false;
         }
 #endif // NCNN_VULKAN
 

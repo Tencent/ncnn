@@ -96,10 +96,9 @@ public:
     bool support_reserved_7;
     bool support_reserved_8;
     bool support_reserved_9;
-    bool support_reserved_10;
-    bool support_reserved_11;
-    bool support_reserved_12;
-    bool support_reserved_13;
+
+    // feature disabled set
+    int featmask;
 
 public:
     // implement inference
@@ -161,8 +160,6 @@ public:
     // shape hint
     std::vector<Mat> bottom_shapes;
     std::vector<Mat> top_shapes;
-    // feature disabled set
-    int featmask;
 };
 
 // layer factory function

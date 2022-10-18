@@ -46,7 +46,6 @@ endif()
 
 ncnn_add_test(c_api)
 ncnn_add_test(cpu)
-ncnn_add_test(featmask)
 
 if(NCNN_VULKAN)
     ncnn_add_test(command)
