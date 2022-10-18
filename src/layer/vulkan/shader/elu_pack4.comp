@@ -46,11 +46,6 @@ layout (push_constant) uniform parameter
     int cstep;
 } p;
 
-afpvec4 expv4(afpvec4 v)
-{
-    return vec4(exp(v.x), exp(v.y), exp(v.z), exp(v.w));
-}
-
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
@@ -68,7 +63,7 @@ void main()
     afpvec4 v = buffer_ld4(bottom_top_blob_data, gi);
 #endif
 
-    v = mix(afpvec4(alpha) * afpvec4(expv4(v) - afpvec4(1.0f)), v, greaterThan(v, afpvec4(0.0f)));
+    v = mix(afpvec4(alpha) * afpvec4(exp(v) - afpvec4(1.0f)), v, greaterThan(v, afpvec4(0.0f)));
 
 #if NCNN_image_shader
     image3d_st4(top_blob_3d, ivec3(gx, gy, gz), v);

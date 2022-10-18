@@ -47,29 +47,6 @@ layout (push_constant) uniform parameter
     int cstep;
 } p;
 
-afpvec8 eluv8(afpvec8 alpha, afpvec8 v)
-{
-    
-    v[0].x = exp(v[0].x);
-    v[0].y = exp(v[0].y);
-    v[0].z = exp(v[0].z);
-    v[0].w = exp(v[0].w);
-    v[1].x = exp(v[1].x);
-    v[1].y = exp(v[1].y);
-    v[1].z = exp(v[1].z);
-    v[1].w = exp(v[1].w);
-
-    afpvec8 temp;
-    temp[0] = alpha[0] * v[0];
-    temp[1] = alpha[1] * v[1];
-    return temp;
-}
-
-afpvec4 expv4(afpvec4 v)
-{
-    return vec4(exp(v.x), exp(v.y), exp(v.z), exp(v.w));
-}
-
 void main()
 {
     int gx = int(gl_GlobalInvocationID.x);
@@ -87,8 +64,8 @@ void main()
     afpvec8 v = buffer_ld8(bottom_top_blob_data, gi);
 #endif
 
-    v[0] = mix(afpvec4(alpha) * afpvec4(expv4(v[0]) - afpvec4(1.0f)), v[0], greaterThan(v[0], afpvec4(0.0f)));
-    v[1] = mix(afpvec4(alpha) * afpvec4(expv4(v[1]) - afpvec4(1.0f)), v[1], greaterThan(v[1], afpvec4(0.0f)));
+    v[0] = mix(afpvec4(alpha) * afpvec4(exp(v[0]) - afpvec4(1.0f)), v[0], greaterThan(v[0], afpvec4(0.0f)));
+    v[1] = mix(afpvec4(alpha) * afpvec4(exp(v[1]) - afpvec4(1.0f)), v[1], greaterThan(v[1], afpvec4(0.0f)));
 
 #if NCNN_image_shader
     image3d_st8(top_blob_3d, ivec3(gx, gy, gz), v);
