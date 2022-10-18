@@ -1,4 +1,6 @@
-# Copyright (c) 2022 Xiaomi Corp.        (author: Fangjun Kuang)
+# Tencent is pleased to support the open source community by making ncnn available.
+#
+# Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 #
 # Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 # in compliance with the License. You may obtain a copy of the License at
@@ -14,20 +16,26 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
+        self.glu0 = nn.GLU(dim=0)
+        self.glu1 = nn.GLU(dim=1)
+        self.glu2 = nn.GLU(dim=2)
+
     def forward(self, x, y, z):
-        x0 = F.glu(x, dim=0)
+        x0 = self.glu0(x)
 
-        y0 = F.glu(y, dim=0)
-        y1 = F.glu(y, dim=1)
+        y0 = self.glu0(y)
+        y1 = self.glu1(y)
 
-        z0 = F.glu(z, dim=0)
-        z1 = F.glu(z, dim=1)
-        z2 = F.glu(z, dim=2)
+        z0 = self.glu0(z)
+        z1 = self.glu1(z)
+        z2 = self.glu2(z)
         return x0, y0, y1, z0, z1, z2
+
 
 def test():
     net = Model()
@@ -42,18 +50,27 @@ def test():
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
-    mod.save("test_F_glu.pt")
+    mod.save("test_nn_GLU.pt")
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_glu.pt inputshape=[18],[12,16],[24,28,34]")
+
+    os.system("../src/pnnx test_nn_glu.pt inputshape=[18],[12,16],[24,28,34]")
 
     # pnnx inference
-    import test_F_glu_pnnx
-    x0p, y0p, y1p, z0p, z1p, z2p = test_F_glu_pnnx.test_inference()
+    import test_nn_GLU_pnnx
 
-    return torch.equal(x0, x0p) and torch.equal(y0, y0p) and torch.equal(y1, y1p) \
-            and torch.equal(z0, z0p) and torch.equal(z1, z1p) and torch.equal(z2, z2p)
+    x0p, y0p, y1p, z0p, z1p, z2p = test_nn_GLU_pnnx.test_inference()
+
+    return (
+        torch.equal(x0, x0p)
+        and torch.equal(y0, y0p)
+        and torch.equal(y1, y1p)
+        and torch.equal(z0, z0p)
+        and torch.equal(z1, z1p)
+        and torch.equal(z2, z2p)
+    )
+
 
 if __name__ == "__main__":
     if test():

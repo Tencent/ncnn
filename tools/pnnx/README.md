@@ -604,7 +604,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.fractional_max_pool2d    |  |
 |F.fractional_max_pool3d    |  |
 |F.gelu                     | :heavy_check_mark: | :heavy_check_mark: |
-|F.glu                      |  |
+|F.glu                      | :heavy_check_mark: | :heavy_check_mark: |
 |F.grid_sample              | :heavy_check_mark: |
 |F.group_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.gumbel_softmax           |  |
