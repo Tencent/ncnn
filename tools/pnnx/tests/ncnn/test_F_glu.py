@@ -46,7 +46,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_F_glu.pt")
+    os.system("../../src/pnnx test_F_glu.pt inputshape=[18],[12,16],[24,28,34]")
 
     # ncnn inference
     import test_F_glu_ncnn
