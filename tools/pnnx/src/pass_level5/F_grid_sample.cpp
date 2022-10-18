@@ -17,56 +17,56 @@
 
 namespace pnnx {
 
-    namespace ncnn {
+namespace ncnn {
 
-        class F_grid_sample : public GraphRewriterPass
-        {
-        public:
-            const char* match_pattern_graph() const
-            {
-                return R"PNNXIR(7767517
+class F_grid_sample : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
 4 3
 pnnx.Input              input_0     0 1 input0
 pnnx.Input              input_1     0 1 input1
 F.grid_sample           op_0        2 1 input0 input1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
 pnnx.Output             output      1 0 out
 )PNNXIR";
-            }
+    }
 
-            const char* type_str() const
-            {
-                return "Grid_sample";
-            }
+    const char* type_str() const
+    {
+        return "Grid_sample";
+    }
 
-            const char* name_str() const
-            {
-                return "grid_sample";
-            }
+    const char* name_str() const
+    {
+        return "grid_sample";
+    }
 
-            void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
-            {
-                const std::string& mode = captured_params.at("mode").s;
-                const std::string& padding_mode = captured_params.at("padding_mode").s;
+    void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
+    {
+        const std::string& mode = captured_params.at("mode").s;
+        const std::string& padding_mode = captured_params.at("padding_mode").s;
 
-                if (mode == "bilinear")
-                    op->params["0"] = 1;
-                if (mode == "nearest")
-                    op->params["0"] = 2;
-                if (mode == "bicubic")
-                    op->params["0"] = 3;
+        if (mode == "bilinear")
+            op->params["0"] = 1;
+        if (mode == "nearest")
+            op->params["0"] = 2;
+        if (mode == "bicubic")
+            op->params["0"] = 3;
 
-                if (padding_mode == "zeors")
-                    op->params["1"] = 1;
-                if (padding_mode == "border")
-                    op->params["1"] = 2;
-                if (padding_mode == "reflection")
-                    op->params["1"] = 3;
+        if (padding_mode == "zeors")
+            op->params["1"] = 1;
+        if (padding_mode == "border")
+            op->params["1"] = 2;
+        if (padding_mode == "reflection")
+            op->params["1"] = 3;
 
-                op->params["6"] = captured_params.at("align_corners").b ? 1 : 0; // align_corners
-            }
-        };
+        op->params["6"] = captured_params.at("align_corners").b ? 1 : 0; // align_corners
+    }
+};
 
-        REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_grid_sample, 20)
-    } // namespace ncnn
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_grid_sample, 20)
+} // namespace ncnn
 
 } // namespace pnnx
