@@ -77,7 +77,7 @@ ncnn_add_layer_test(DeconvolutionDepthWise)
 ncnn_add_layer_test(DeconvolutionDepthWise1D)
 ncnn_add_layer_test(DeconvolutionDepthWise3D)
 ncnn_add_layer_test(DeepCopy)
-ncnn_add_layer_test(DeformableConv2D)
+# ncnn_add_layer_test(DeformableConv2D)  too slow :(
 ncnn_add_layer_test(Dequantize)
 ncnn_add_layer_test(Dropout)
 ncnn_add_layer_test(Einsum)
