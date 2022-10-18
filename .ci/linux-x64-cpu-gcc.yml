@@ -41,6 +41,15 @@ jobs:
       with:
         enableGitLfs: false
 
+    - name: install-deps
+      run: |
+        uname -a
+        cat /proc/cpuinfo
+        free -m
+        df -h
+        sudo apt-get update
+        sudo apt-get install -y libprotobuf-dev protobuf-compiler libopencv-dev
+
     - name: build-sse2
       run: |
         mkdir build-sse2 && cd build-sse2
