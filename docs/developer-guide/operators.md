@@ -791,7 +791,7 @@ If axis < 0, we use axis = x.dims + axis
 
 GLU(a,b)=a⊗σ(b)
 
-where a is the first half of the input matrices and b is the second half.
+where a is the first half of the input matrix and b is the second half.
 
 axis specifies the dimension to split the input
 
