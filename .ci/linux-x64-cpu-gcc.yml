@@ -47,8 +47,8 @@ jobs:
         cat /proc/cpuinfo
         free -m
         df -h
-        sudo apt-get update
-        sudo apt-get install -y libprotobuf-dev protobuf-compiler libopencv-dev
+        apt-get update
+        apt-get install -y libprotobuf-dev protobuf-compiler libopencv-dev
 
     - name: build-sse2
       run: |
