@@ -38,7 +38,7 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
     int positive_axis = axis < 0 ? dims + axis : axis;
 
     if (dims == 1)
-    { // ignore axis
+    {   // ignore axis
         int w = bottom_blob.w;
         int out_w = w / 2;
         top_blob.create(out_w, sizeof(float), opt.blob_allocator);
@@ -46,7 +46,7 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
         const float* in_ptr = bottom_blob;
         float* out_ptr = top_blob;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int x = 0; x < out_w; ++x)
         {
             float sigmoid = static_cast<float>(1.f / (1.f + expf(-in_ptr[x + out_w])));
@@ -68,26 +68,26 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
         int offset = out_w * out_h;
 
 #if 0
-    // this one is equivalent to the else branch. It is more readable
-    // but less efficient
-#pragma omp parallel for num_threads(opt.num_threads)
-    for (int y = 0; y < out_h; ++y) {
-      const float *in_ptr = bottom_blob.row(y);
-      float *out_ptr = top_blob.row(y);
+        // this one is equivalent to the else branch. It is more readable
+        // but less efficient
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int y = 0; y < out_h; ++y) {
+            const float *in_ptr = bottom_blob.row(y);
+            float *out_ptr = top_blob.row(y);
 
-      for (int x = 0; x < w; ++x) {
-        float sigmoid =
-            static_cast<float>(1.f / (1.f + exp(-in_ptr[x + offset])));
+            for (int x = 0; x < w; ++x) {
+                float sigmoid =
+                    static_cast<float>(1.f / (1.f + exp(-in_ptr[x + offset])));
 
-        out_ptr[x] = in_ptr[x] * sigmoid;
-      }
-    }
+                out_ptr[x] = in_ptr[x] * sigmoid;
+            }
+        }
 #else
         int size = offset;
         const float* in_ptr = bottom_blob;
         float* out_ptr = top_blob;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = 0; i < size; ++i)
         {
             float sigmoid = static_cast<float>(1.f / (1.f + exp(-in_ptr[i + offset])));
@@ -107,7 +107,7 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
 
         top_blob.create(out_w, out_h, sizeof(float), opt.blob_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int y = 0; y < h; ++y)
         {
             const float* in_ptr = bottom_blob.row(y);
@@ -138,7 +138,7 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
         int offset = out_c * bottom_blob.cstep;
         int size = w * h;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < out_c; ++q)
         {
             const float* in_ptr = bottom_blob.channel(q);
@@ -168,7 +168,7 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
         int offset = out_h * out_w;
         int size = offset;
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; ++q)
         {
             const float* in_ptr = bottom_blob.channel(q);
@@ -195,7 +195,7 @@ int GLU::forward(const Mat& bottom_blob, Mat& top_blob,
 
         top_blob.create(out_w, out_h, out_c, sizeof(float), opt.blob_allocator);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+        #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < c; ++q)
         {
             const float* in_ptr = bottom_blob.channel(q);
