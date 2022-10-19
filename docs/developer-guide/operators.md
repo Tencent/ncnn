@@ -29,6 +29,7 @@
 * [Exp](#exp)
 * [Flatten](#flatten)
 * [GELU](#gelu)
+* [GLU](#glu)
 * [Gemm](#gemm)
 * [GroupNorm](#groupnorm)
 * [GRU](#gru)
@@ -783,6 +784,22 @@ else                y = 0.5 * x * erfc(-0.70710678 * x)
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | fast_gelu     | int   | 0         | use approximation |
+
+# GLU
+
+If axis < 0, we use axis = x.dims + axis
+
+GLU(a,b)=a⊗σ(b)
+
+where a is the first half of the input matrix and b is the second half.
+
+axis specifies the dimension to split the input
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axis          | int   | 0         |                   |
 
 # Gemm
 ```

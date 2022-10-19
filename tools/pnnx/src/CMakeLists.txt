@@ -38,6 +38,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_ELU.cpp
     pass_level1/nn_Embedding.cpp
     pass_level1/nn_GELU.cpp
+    pass_level1/nn_GLU.cpp
     pass_level1/nn_GroupNorm.cpp
     pass_level1/nn_GRU.cpp
     pass_level1/nn_Hardshrink.cpp
@@ -123,6 +124,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_embedding.cpp
     pass_level2/F_feature_alpha_dropout.cpp
     pass_level2/F_gelu.cpp
+    pass_level2/F_glu.cpp
     pass_level2/F_grid_sample.cpp
     pass_level2/F_group_norm.cpp
     pass_level2/F_hardshrink.cpp
@@ -366,6 +368,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_embedding.cpp
     pass_ncnn/F_gelu.cpp
+    pass_ncnn/F_glu.cpp
     pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp
@@ -420,6 +423,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_Embedding.cpp
     pass_ncnn/nn_GELU.cpp
+    pass_ncnn/nn_GLU.cpp
     pass_ncnn/nn_GroupNorm.cpp
     pass_ncnn/nn_GRU.cpp
     pass_ncnn/nn_Hardsigmoid.cpp
