@@ -14,15 +14,14 @@
 
 #include "pass_ncnn.h"
 
-
 namespace pnnx {
 
 namespace ncnn {
 
-class F_grid_sample:public GraphRewriterPass
+class F_grid_sample : public GraphRewriterPass
 {
 public:
-    const char*match_pattern_graph()const
+    const char* match_pattern_graph() const
     {
         return R"PNNXIR(7767517
 4 3
@@ -33,12 +32,12 @@ pnnx.Output             output        1 0 out
 )PNNXIR";
     }
 
-    const char* type_str()const
+    const char* type_str() const
     {
         return "Grid_Sample";
     }
 
-    const char* name_str()const
+    const char* name_str() const
     {
         return "gridsample";
     }
@@ -46,24 +45,23 @@ pnnx.Output             output        1 0 out
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::string& mode = captured_params.at("mode").s;
-        if(mode == "bilinear")
+        if (mode == "bilinear")
             op->params["0"] = 1;
-        if(mode == "nearest")
+        if (mode == "nearest")
             op->params["0"] = 2;
-        if(mode == "bicubic")
+        if (mode == "bicubic")
             op->params["0"] = 3;
 
         const std::string& padding_mode = captured_params.at("padding_mode").s;
-        if(padding_mode == "zeros")
+        if (padding_mode == "zeros")
             op->params["1"] = 1;
-        if(padding_mode == "border")
+        if (padding_mode == "border")
             op->params["1"] = 2;
-        if(padding_mode == "reflection")
+        if (padding_mode == "reflection")
             op->params["1"] = 3;
 
         op->params["2"] = captured_params.at("align_corners").b ? 1 : 0;
     }
-
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_grid_sample, 20)
