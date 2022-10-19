@@ -13,6 +13,7 @@
 // specific language governing permissions and limitations under the License.
 
 #include "grid_sample.h"
+#include <cmath>
 
 namespace ncnn {
 
@@ -183,7 +184,6 @@ int Grid_Sample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    // int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -198,7 +198,6 @@ int Grid_Sample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             return -100;
         if (resize_type == 1) // bilinear
         {
-            // GSample_bilinear(src, dst, grid, align_corner, padding_mode);
             #pragma omp parallel for num_threads(opt.num_threads) collapse(2)
             for (int row = 0; row < outh; row++)
             {
