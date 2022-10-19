@@ -29,7 +29,7 @@ class Model(nn.Module):
         x = self.act_0(x)
         y = self.act_1(y)
         z = self.act_2(z)
-        z2 = self.act_2(z)
+        z2 = self.act_3(z)
         return x, y, z, z2
 
 def test():
