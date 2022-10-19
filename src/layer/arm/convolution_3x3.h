@@ -1298,7 +1298,7 @@ static void conv3x3s1_neon(const Mat& bottom_blob, Mat& top_blob, const Mat& _ke
     }
 }
 
-static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd63_transform_kernel_neon(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
     kernel_tm.create(8 * 8, inch, outch);
 
@@ -1698,7 +1698,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon(const Mat& kernel, Mat& k
     kernel_tm = kernel_tm2;
 }
 
-static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd63_transform_kernel_neon5(const Mat& kernel, Mat& kernel_tm, int inch, int outch, const Option& opt)
 {
     kernel_tm.create(8 * 8, inch, outch);
 
@@ -1863,7 +1863,7 @@ static void conv3x3s1_winograd64_transform_kernel_neon5(const Mat& kernel, Mat& 
     kernel_tm = kernel_tm2;
 }
 
-static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd63_neon4(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -4591,7 +4591,7 @@ static void conv3x3s1_winograd64_neon4(const Mat& bottom_blob, Mat& top_blob, co
     copy_cut_border(top_blob_bordered, top_blob, 0, top_blob_bordered.h - top_blob.h, 0, top_blob_bordered.w - top_blob.w, opt);
 }
 
-static void conv3x3s1_winograd64_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
+static void conv3x3s1_winograd63_neon5(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& _bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;

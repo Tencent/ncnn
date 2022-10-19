@@ -179,4 +179,57 @@ pnnx.Output             output      1 0 out
 
 REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_6, 10)
 
+class F_pad_7 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+pnnx.Input              input_2     0 1 value
+prim::Constant          op_0        0 1 mode value=constant
+aten::pad               op_1        4 1 input pad mode value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.pad";
+    }
+
+    void write(Operator* op, const std::map<std::string, Parameter>& /*captured_params*/) const
+    {
+        op->params["mode"] = "constant";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_7, 10)
+
+class F_pad_8 : public GraphRewriterPass
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+6 5
+pnnx.Input              input_0     0 1 input
+pnnx.Input              input_1     0 1 pad
+pnnx.Input              input_2     0 1 mode
+prim::Constant          op_0        0 1 value value=None
+aten::pad               op_1        4 1 input pad mode value out
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+
+    const char* type_str() const
+    {
+        return "F.pad";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_GRAPH_REWRITER_PASS(F_pad_8, 10)
+
 } // namespace pnnx

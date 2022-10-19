@@ -15,11 +15,7 @@
 #include "prelu_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 namespace ncnn {
@@ -67,7 +63,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 vfloat32m8_t _slope = vle32_v_f32m8(ptr_slope, vl);
                 vbool4_t _lower = vmflt_vf_f32m8_b4(_p, .0f, vl);
@@ -88,7 +84,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
             // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 vbool4_t _lower = vmflt_vf_f32m8_b4(_p, .0f, vl);
 
@@ -119,7 +115,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e32m8(n);
+                        size_t vl = vsetvl_e32m8(n);
                         vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                         vfloat32m8_t _slope = vle32_v_f32m8(ptr_slope, vl);
 
@@ -139,7 +135,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     vbool4_t _lower = vmflt_vf_f32m8_b4(_p, .0f, vl);
 
@@ -174,7 +170,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                     const float* slope_ptr = (const float*)slope_data + q * elempack;
                     while (n1 > 0)
                     {
-                        word_type vl = vsetvl_e32m8(n1);
+                        size_t vl = vsetvl_e32m8(n1);
                         vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                         vfloat32m8_t _slope = vle32_v_f32m8(slope_ptr, vl);
 
@@ -195,7 +191,7 @@ int PReLU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
                 float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
 
                     vbool4_t _lower = vmflt_vf_f32m8_b4(_p, .0f, vl);
@@ -307,7 +303,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
 
                 vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
                 vfloat32m8_t _slope = vle32_v_f32m8(ptr_slope, vl);
@@ -328,7 +324,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
             // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
                 vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
                 vbool4_t _lower = vmflt_vf_f32m8_b4(_p, .0f, vl);
 
@@ -359,7 +355,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
 
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e16m4(n);
+                        size_t vl = vsetvl_e16m4(n);
                         vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
                         vfloat32m8_t _slope = vle32_v_f32m8(ptr_slope, vl);
 
@@ -379,7 +375,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m4(n);
+                    size_t vl = vsetvl_e16m4(n);
                     vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
                     vbool4_t _lower = vmflt_vf_f32m8_b4(_p, .0f, vl);
 
@@ -414,7 +410,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                     const float* slope_ptr = (const float*)slope_data + q * elempack;
                     while (n1 > 0)
                     {
-                        word_type vl = vsetvl_e16m4(n1);
+                        size_t vl = vsetvl_e16m4(n1);
                         vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
                         vfloat32m8_t _slope = vle32_v_f32m8(slope_ptr, vl);
 
@@ -435,7 +431,7 @@ int PReLU_riscv::forward_inplace_fp16s(Mat& bottom_top_blob, const Option& opt) 
                 float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m4(n);
+                    size_t vl = vsetvl_e16m4(n);
                     vfloat32m8_t _p = vfwcvt_f_f_v_f32m8(vle16_v_f16m4(ptr, vl), vl);
 
                     vbool4_t _lower = vmflt_vf_f32m8_b4(_p, .0f, vl);
@@ -472,7 +468,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
             // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m4(n);
+                size_t vl = vsetvl_e16m4(n);
                 vfloat16m4_t _p = vle16_v_f16m4(ptr, vl);
                 vfloat16m4_t _slope = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_slope, vl), vl);
                 vbool4_t _lower = vmflt_vf_f16m4_b4(_p, .0f, vl);
@@ -493,7 +489,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
             // #pragma omp parallel for num_threads(opt.num_threads)
             while (n > 0)
             {
-                word_type vl = vsetvl_e16m8(n);
+                size_t vl = vsetvl_e16m8(n);
                 vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                 vbool2_t _lower = vmflt_vf_f16m8_b2(_p, .0f, vl);
 
@@ -524,7 +520,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
 
                     while (n > 0)
                     {
-                        word_type vl = vsetvl_e16m4(n);
+                        size_t vl = vsetvl_e16m4(n);
                         vfloat16m4_t _p = vle16_v_f16m4(ptr, vl);
                         vfloat16m4_t _slope = vfncvt_f_f_w_f16m4(vle32_v_f32m8(ptr_slope, vl), vl);
 
@@ -544,7 +540,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
                     vbool2_t _lower = vmflt_vf_f16m8_b2(_p, .0f, vl);
 
@@ -579,7 +575,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                     const float* slope_ptr = (const float*)slope_data + q * elempack;
                     while (n1 > 0)
                     {
-                        word_type vl = vsetvl_e16m4(n1);
+                        size_t vl = vsetvl_e16m4(n1);
                         vfloat16m4_t _p = vle16_v_f16m4(ptr, vl);
                         vfloat16m4_t _slope = vfncvt_f_f_w_f16m4(vle32_v_f32m8(slope_ptr, vl), vl);
 
@@ -600,7 +596,7 @@ int PReLU_riscv::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& opt)
                 float slope = num_slope > 1 ? slope_data[q] : slope_data[0];
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e16m8(n);
+                    size_t vl = vsetvl_e16m8(n);
                     vfloat16m8_t _p = vle16_v_f16m8(ptr, vl);
 
                     vbool2_t _lower = vmflt_vf_f16m8_b2(_p, .0f, vl);

@@ -30,7 +30,10 @@ def test():
     a = net(x)
 
     # export torchscript
-    mod = torch.jit.trace(net, x)
+    if version.parse(torch.__version__) >= version.parse('1.12.0'):
+        mod = torch.jit.trace(net, x, check_trace=False)
+    else:
+        mod = torch.jit.trace(net, x)
     mod.save("test_vit_b_32.pt")
 
     # torchscript to pnnx

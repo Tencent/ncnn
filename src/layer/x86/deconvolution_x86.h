@@ -30,8 +30,7 @@ public:
     virtual int forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const;
 
 public:
-    // packn
-    Mat weight_data_packed;
+    Mat weight_data_tm;
 };
 
 } // namespace ncnn

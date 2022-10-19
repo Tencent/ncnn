@@ -15,11 +15,7 @@
 #include "convolution1d_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #endif // __riscv_vector
 
 #include "riscv_activation.h"
@@ -123,7 +119,7 @@ int Convolution1D_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Op
 
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     int w = bottom_blob.w;
@@ -284,7 +280,7 @@ int Convolution1D_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Op
                         }
                     }
 
-                    sum = vfmv_f_s_f32m1_f32(vfredsum_vs_f32m1_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                    sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m1_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
 
                     sum = activation_ss(sum, activation_type, activation_params);
 
@@ -480,7 +476,7 @@ int Convolution1D_riscv::create_pipeline_fp16s(const Option& opt)
 int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -642,7 +638,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
                         sum += ss[i];
                     }
 #else
-                    sum = vfmv_f_s_f32m1_f32(vfredsum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
+                    sum = vfmv_f_s_f32m1_f32(vfredusum_vs_f32m2_f32m1(vfloat32m1_t(), _sum, vfmv_s_f_f32m1(vfloat32m1_t(), sum, vl), vl));
 #endif
 
                     sum = activation_ss(sum, activation_type, activation_params);
@@ -701,7 +697,7 @@ int Convolution1D_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, co
 int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -854,7 +850,7 @@ int Convolution1D_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, c
                         }
                     }
 
-                    sum = vfmv_f_s_f16m1_f16(vfredsum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
+                    sum = vfmv_f_s_f16m1_f16(vfredusum_vs_f16m1_f16m1(vfloat16m1_t(), _sum, vfmv_s_f_f16m1(vfloat16m1_t(), sum, vl), vl));
 
                     sum = activation_ss(sum, activation_type, activation_params);
 

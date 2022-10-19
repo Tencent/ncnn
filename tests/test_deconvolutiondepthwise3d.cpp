@@ -55,7 +55,7 @@ static int test_deconvolutiondepthwise3d(int w, int h, int d, int c, int outch, 
     int ret = test_layer<ncnn::DeconvolutionDepthWise3D>("DeconvolutionDepthWise3D", pd, weights, a);
     if (ret != 0)
     {
-        fprintf(stderr, "test_deconvolutiondepthwise3d failed w=%d h=%d d=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_pad_behind=%d output_w=%d output_h=%d output_d=%d\n", w, h, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_pad_behind, output_w, output_h, output_d);
+        fprintf(stderr, "test_deconvolutiondepthwise3d failed w=%d h=%d d=%d c=%d outch=%d kernel=%d dilation=%d stride=%d pad=%d bias=%d group=%d act=%d actparams=[%f,%f] output_pad_right=%d output_pad_bottom=%d output_pad_behind=%d output_w=%d output_h=%d output_d=%d\n", w, h, d, c, outch, kernel, dilation, stride, pad, bias, group, activation_type, activation_params[0], activation_params[1], output_pad_right, output_pad_bottom, output_pad_behind, output_w, output_h, output_d);
     }
 
     return ret;

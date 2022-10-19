@@ -244,6 +244,7 @@ public:
 ModelWriter::ModelWriter()
     : blobs(mutable_blobs()), layers(mutable_layers())
 {
+    opt.lightmode = false;
     has_custom_layer = false;
     gen_random_weight = false;
     cutstart = -1;
@@ -329,6 +330,7 @@ int ModelWriter::shape_inference()
     }
 
     ncnn::Extractor ex = create_extractor();
+    ex.set_light_mode(true);
 
     // prepare Input blobs
     for (size_t i = 0; i < layer_count; i++)
@@ -452,6 +454,7 @@ int ModelWriter::estimate_memory_footprint()
     MemoryFootprintAllocator allocator;
 
     ncnn::Extractor ex = create_extractor();
+    ex.set_light_mode(true);
 
     ex.set_blob_allocator(&allocator);
     ex.set_workspace_allocator(&allocator);
@@ -605,7 +608,7 @@ int ModelWriter::fwrite_weight_tag_data(const ncnn::Mat& data, FILE* bp, float a
 {
     int p0 = ftell(bp);
 
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
     if (gen_random_weight)
         Randomize(data_flattened, a, b);
 
@@ -657,7 +660,7 @@ int ModelWriter::fwrite_weight_data(const ncnn::Mat& data, FILE* bp, float a, fl
 {
     int p0 = ftell(bp);
 
-    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.c);
+    ncnn::Mat data_flattened = data.reshape(data.w * data.h * data.d * data.c);
     if (gen_random_weight)
         Randomize(data_flattened, a, b);
 
@@ -1566,7 +1569,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", expand_h)
             fprintf_param_value(" 2=%d", expand_c)
             {
-                if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
+                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }
         }
         else if (layer->type == "GELU")
@@ -1758,6 +1761,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 0=%d", w)
             fprintf_param_value(" 1=%d", h)
             fprintf_param_value(" 2=%d", c)
+            fprintf_param_value(" 11=%d", d)
             fwrite_weight_data(op->data, bp);
         }
         else if (layer->type == "MultiHeadAttention")
@@ -2209,7 +2213,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
 
     if (mac)
     {
-        fprintf(stderr, "mac = %llu = %.2f M\n", mac, mac / 1000000.0);
+        fprintf(stderr, "mac = %llu = %.2f M\n", static_cast<long long unsigned>(mac), mac / 1000000.0);
     }
 
     return 0;

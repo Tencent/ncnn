@@ -18,13 +18,15 @@
 #include <arm_neon.h>
 #endif // __ARM_NEON
 
+#include "cpu.h"
+
 namespace ncnn {
 
 Packing_arm::Packing_arm()
 {
     support_packing = true;
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    support_fp16_storage = true;
+#if NCNN_ARM82
+    support_fp16_storage = cpu_support_arm_asimdhp();
 #endif
 
     support_bf16_storage = true;
@@ -37,8 +39,8 @@ int Packing_arm::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
     if (elembits == 8)
         return forward_int8(bottom_blob, top_blob, opt);
 
-#if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
-    if (opt.use_fp16_storage && elembits == 16)
+#if NCNN_ARM82
+    if (support_fp16_storage && opt.use_fp16_storage && elembits == 16)
         return forward_bf16s_fp16s(bottom_blob, top_blob, opt);
 #endif
 

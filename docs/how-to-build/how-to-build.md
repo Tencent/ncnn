@@ -70,13 +70,13 @@ Vulkan drivers do exists, but are not mature. You are free to experiment at your
 cd ncnn
 mkdir -p build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON -DNCNN_SYSTEM_GLSLANG=ON -DNCNN_BUILD_EXAMPLES=ON ..
+cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_VULKAN=ON -DNCNN_BUILD_EXAMPLES=ON ..
 make -j$(nproc)
 ```
 
 You can add `-GNinja` to `cmake` above to use Ninja build system (invoke build using `ninja` or `cmake --build .`).
 
-For Rasberry Pi 3, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake -DPI3=ON` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Rasberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
+For Rasberry Pi 3 on 32bit OS, add `-DCMAKE_TOOLCHAIN_FILE=../toolchains/pi3.toolchain.cmake` to cmake. You can also consider disabling Vulkan support as the Vulkan drivers for Rasberry Pi are still not mature, but it doesn't hurt to build the support in, but not use it.
 
 #### Verification
 
@@ -121,7 +121,7 @@ Download and Install Visual Studio Community 2017 from https://visualstudio.micr
 
 Start the command prompt: `Start → Programs → Visual Studio 2017 → Visual Studio Tools → x64 Native Tools Command Prompt for VS 2017`
 
-Download protobuf-3.4.0 from https://github.com/google/protobuf/archive/v3.4.0.zip
+Download protobuf-3.11.2 from https://github.com/google/protobuf/archive/v3.11.2.zip
 
 Build protobuf library:
 
@@ -129,9 +129,9 @@ Build protobuf library:
 cd <protobuf-root-dir>
 mkdir build
 cd build
-cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
-nmake
-nmake install
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_MSVC_STATIC_RUNTIME=OFF ../cmake
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
 ```
 (optional) Download and install Vulkan SDK from https://vulkan.lunarg.com/sdk/home
 
@@ -141,9 +141,9 @@ Build ncnn library (replace <protobuf-root-dir> with a proper path):
 cd <ncnn-root-dir>
 mkdir -p build
 cd build
-cmake -G"NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
-nmake
-nmake install
+cmake -A x64 -DCMAKE_INSTALL_PREFIX=%cd%/install -DProtobuf_INCLUDE_DIR=<protobuf-root-dir>/build/install/include -DProtobuf_LIBRARIES=<protobuf-root-dir>/build/install/lib/libprotobuf.lib -DProtobuf_PROTOC_EXECUTABLE=<protobuf-root-dir>/build/install/bin/protoc.exe -DNCNN_VULKAN=ON ..
+cmake --build . --config Release -j 2
+cmake --build . --config Release --target install
 ```
 
 Note: To speed up compilation process on multi core machines, configuring `cmake` to use `jom` or `ninja` using `-G` flag is recommended.
@@ -268,7 +268,8 @@ export ANDROID_NDK=<your-ndk-root-path>
 
 (optional) remove the hardcoded debug flag in Android NDK [android-ndk issue](https://github.com/android-ndk/ndk/issues/243)
 ```
-# open $ANDROID_NDK/build/cmake/android.toolchain.cmake
+# open $ANDROID_NDK/build/cmake/android.toolchain.cmake for ndk < r23
+# or $ANDROID_NDK/build/cmake/android-legacy.toolchain.cmake for ndk >= r23
 # delete "-g" line
 list(APPEND ANDROID_COMPILER_FLAGS
   -g
@@ -288,8 +289,11 @@ cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" 
 
 # If you want to enable Vulkan, platform api version >= android-24 is needed
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
-  -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON \
-  -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+    -DANDROID_ABI="armeabi-v7a" -DANDROID_ARM_NEON=ON \
+    -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+
+# If you use cmake >= 3.21 and ndk-r23
+# you need to add -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False option for working optimization flags
 
 make -j$(nproc)
 make install
@@ -306,13 +310,16 @@ mkdir -p build-android-aarch64
 cd build-android-aarch64
 
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake"\
-  -DANDROID_ABI="arm64-v8a" \
-  -DANDROID_PLATFORM=android-21 ..
+    -DANDROID_ABI="arm64-v8a" \
+    -DANDROID_PLATFORM=android-21 ..
 
 # If you want to enable Vulkan, platform api version >= android-24 is needed
 cmake -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
-  -DANDROID_ABI="arm64-v8a" \
-  -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+    -DANDROID_ABI="arm64-v8a" \
+    -DANDROID_PLATFORM=android-24 -DNCNN_VULKAN=ON ..
+
+# If you use cmake >= 3.21 and ndk-r23
+# you need to add -DANDROID_USE_LEGACY_TOOLCHAIN_FILE=False option for working optimization flags
 
 make -j$(nproc)
 make install
@@ -466,8 +473,8 @@ ln -s A glslang.framework/Versions/Current
 ln -s Versions/Current/Headers glslang.framework/Headers
 ln -s Versions/Current/Resources glslang.framework/Resources
 ln -s Versions/Current/glslang glslang.framework/glslang
-libtool -static build-ios/install/lib/libglslang.a build-ios/install/lib/libSPIRV.a build-ios/install/lib/libOGLCompiler.a build-ios/install/lib/libOSDependent.a -o build-ios/install/lib/libglslang_combined.a
-libtool -static build-ios-sim/install/lib/libglslang.a build-ios-sim/install/lib/libSPIRV.a build-ios-sim/install/lib/libOGLCompiler.a build-ios-sim/install/lib/libOSDependent.a -o build-ios-sim/install/lib/libglslang_combined.a
+libtool -static build-ios/install/lib/libglslang.a build-ios/install/lib/libMachineIndependent.a build-ios/install/lib/libGenericCodeGen.a build-ios/install/lib/libSPIRV.a build-ios/install/lib/libOGLCompiler.a build-ios/install/lib/libOSDependent.a -o build-ios/install/lib/libglslang_combined.a
+libtool -static build-ios-sim/install/lib/libglslang.a build-ios-sim/install/lib/libMachineIndependent.a build-ios-sim/install/lib/libGenericCodeGen.a build-ios-sim/install/lib/libSPIRV.a build-ios-sim/install/lib/libOGLCompiler.a build-ios-sim/install/lib/libOSDependent.a -o build-ios-sim/install/lib/libglslang_combined.a
 lipo -create build-ios/install/lib/libglslang_combined.a build-ios-sim/install/lib/libglslang_combined.a -o glslang.framework/Versions/A/glslang
 cp -r build/install/include/glslang glslang.framework/Versions/A/Headers/
 sed -e 's/__NAME__/glslang/g' -e 's/__IDENTIFIER__/org.khronos.glslang/g' -e 's/__VERSION__/1.0/g' Info.plist > glslang.framework/Versions/A/Resources/Info.plist
@@ -555,19 +562,47 @@ Pick `build-XYZ/install` folder for further usage.
 
 ### Build for AllWinner D1
 
-Download c906 toolchain package from https://occ.t-head.cn/community/download?id=3913221581316624384
+Download c906 toolchain package from https://occ.t-head.cn/community/download?id=4046947553902661632
 
 ```shell
-tar -xf riscv64-linux-x86_64-20210512.tar.gz
-export RISCV_ROOT_PATH=/home/nihui/osd/riscv64-linux-x86_64-20210512
+tar -xf Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.2.6-20220516.tar.gz
+export RISCV_ROOT_PATH=/home/nihui/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.2.6
+```
+
+You need to fix riscv_vector.h header for workaround vfrec7/vfrsqrt7 bug.
+
+Open ```$RISCV_ROOT_PATH/lib/gcc/riscv64-unknown-linux-gnu/10.2.0/include/riscv_vector.h```, goto the file end, you will find three ```#endif```, and apply changes as the following
+```c
+#endif
+
+#define vfrec7_v_f32m1(x, vl) vfrdiv_vf_f32m1(x, 1.f, vl)
+#define vfrec7_v_f32m2(x, vl) vfrdiv_vf_f32m2(x, 1.f, vl)
+#define vfrec7_v_f32m4(x, vl) vfrdiv_vf_f32m4(x, 1.f, vl)
+#define vfrec7_v_f32m8(x, vl) vfrdiv_vf_f32m8(x, 1.f, vl)
+#define vfrec7_v_f16m1(x, vl) vfrdiv_vf_f16m1(x, 1.f, vl)
+#define vfrec7_v_f16m2(x, vl) vfrdiv_vf_f16m2(x, 1.f, vl)
+#define vfrec7_v_f16m4(x, vl) vfrdiv_vf_f16m4(x, 1.f, vl)
+#define vfrec7_v_f16m8(x, vl) vfrdiv_vf_f16m8(x, 1.f, vl)
+
+#define vfrsqrt7_v_f32m1(x, vl) vfrdiv_vf_f32m1(vfsqrt_v_f32m1(x, vl), 1.f, vl)
+#define vfrsqrt7_v_f32m2(x, vl) vfrdiv_vf_f32m2(vfsqrt_v_f32m2(x, vl), 1.f, vl)
+#define vfrsqrt7_v_f32m4(x, vl) vfrdiv_vf_f32m4(vfsqrt_v_f32m4(x, vl), 1.f, vl)
+#define vfrsqrt7_v_f32m8(x, vl) vfrdiv_vf_f32m8(vfsqrt_v_f32m8(x, vl), 1.f, vl)
+#define vfrsqrt7_v_f16m1(x, vl) vfrdiv_vf_f16m1(vfsqrt_v_f16m1(x, vl), 1.f, vl)
+#define vfrsqrt7_v_f16m2(x, vl) vfrdiv_vf_f16m2(vfsqrt_v_f16m2(x, vl), 1.f, vl)
+#define vfrsqrt7_v_f16m4(x, vl) vfrdiv_vf_f16m4(vfsqrt_v_f16m4(x, vl), 1.f, vl)
+#define vfrsqrt7_v_f16m8(x, vl) vfrdiv_vf_f16m8(vfsqrt_v_f16m8(x, vl), 1.f, vl)
+
+#endif
+#endif
 ```
 
 Build ncnn with riscv-v vector and simpleocv enabled:
 ```shell
 mkdir -p build-c906
 cd build-c906
-cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906.toolchain.cmake \
-    -DCMAKE_BUILD_TYPE=relwithdebinfo -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON \
+cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v226.toolchain.cmake \
+    -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON \
     -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..
 cmake --build . -j 4
 cmake --build . --target install
@@ -636,7 +671,7 @@ Install app Termux on your phone,and install Ubuntu in Termux.
 
  If you want use ssh, just install openssh in Termux
 
-```
+```shell
 pkg install proot-distro
 proot-distro install ubuntu
 ```
@@ -647,7 +682,7 @@ while you install ubuntu successfully, using `proot-distro login ubuntu` to logi
 
 Then make ncnn,no need to install any other dependencies.
 
-```
+```shell
 git clone https://github.com/Tencent/ncnn.git
 cd ncnn
 git submodule update --init
@@ -661,7 +696,7 @@ Then you can run a test
 
 > on my Pixel 3 XL using Qualcomm 845,cant load `256-ncnn.png`
 
-```
+```shell
 cd ../examples
 ../build/examples/squeezenet ../images/128-ncnn.png
 ```

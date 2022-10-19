@@ -36,6 +36,11 @@ public:
 public:
     ncnn::Layer* padding;
 
+    Mat weight_data_packed;
+    Mat weight_winograd23_data_packed;
+    Mat weight_winograd43_data_packed;
+    Mat bias_data_packed;
+
     VkMat weight_data_gpu;
     VkMat bias_data_gpu;
 
@@ -61,7 +66,8 @@ public:
     Pipeline* pipeline_convolution_3x3s1d1_winograd43_transform_output;
 
     // convolution as fc
-    ncnn::Layer* innerproduct;
+    ncnn::Layer* reshape_1x1xw;
+    ncnn::Layer* reshape_w;
 };
 
 } // namespace ncnn

@@ -139,7 +139,7 @@ static void qsort_descent_inplace(std::vector<Object>& faceobjects)
     qsort_descent_inplace(faceobjects, 0, faceobjects.size() - 1);
 }
 
-static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold)
+static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vector<int>& picked, float nms_threshold, bool agnostic = false)
 {
     picked.clear();
 
@@ -159,6 +159,9 @@ static void nms_sorted_bboxes(const std::vector<Object>& faceobjects, std::vecto
         for (int j = 0; j < (int)picked.size(); j++)
         {
             const Object& b = faceobjects[picked[j]];
+
+            if (!agnostic && a.label != b.label)
+                continue;
 
             // intersection over union
             float inter_area = intersection_area(a, b);
@@ -276,13 +279,17 @@ static int detect_yolov5(const cv::Mat& bgr, std::vector<Object>& objects)
     // original pretrained model from https://github.com/ultralytics/yolov5
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
 #if YOLOV5_V60
-    yolov5.load_param("yolov5s_6.0.param");
-    yolov5.load_model("yolov5s_6.0.bin");
+    if (yolov5.load_param("yolov5s_6.0.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s_6.0.bin"))
+        exit(-1);
 #else
     yolov5.register_custom_layer("YoloV5Focus", YoloV5Focus_layer_creator);
 
-    yolov5.load_param("yolov5s.param");
-    yolov5.load_model("yolov5s.bin");
+    if (yolov5.load_param("yolov5s.param"))
+        exit(-1);
+    if (yolov5.load_model("yolov5s.bin"))
+        exit(-1);
 #endif
 
     const int target_size = 640;

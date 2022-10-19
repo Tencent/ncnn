@@ -49,8 +49,11 @@ net = net.eval()
 
 x = torch.rand(1, 3, 224, 224)
 
+# You could try disabling checking when tracing raises error
+# mod = torch.jit.trace(net, x, check_trace=False)
 mod = torch.jit.trace(net, x)
-torch.jit.save(mod, "resnet18.pt")
+
+mod.save("resnet18.pt")
 ```
 
 2. Convert TorchScript to PNNX
@@ -573,7 +576,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.adaptive_max_pool1d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_max_pool2d      | :heavy_check_mark: | :heavy_check_mark: |
 |F.adaptive_max_pool3d      | :heavy_check_mark: | :heavy_check_mark: |
-|F.affine_grid              | :heavy_check_mark: | :heavy_check_mark: |
+|F.affine_grid              | :heavy_check_mark: |
 |F.alpha_dropout            | :heavy_check_mark: | :heavy_check_mark: |
 |F.avg_pool1d               | :heavy_check_mark: | :heavy_check_mark:* |
 |F.avg_pool2d               | :heavy_check_mark: | :heavy_check_mark:* |

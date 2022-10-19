@@ -14,33 +14,33 @@
 
 #if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
-void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_avx512vnni(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt);
-void conv3x3s1_winograd42_pack8to4_int8_sse_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
+void conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_avx512vnni(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd43_pack8to4_int8_sse_avx512vnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
-void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_avxvnni(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt);
-void conv3x3s1_winograd42_pack8to4_int8_sse_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
+void conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_avxvnni(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd43_pack8to4_int8_sse_avxvnni(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
-void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_avx2(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt);
-void conv3x3s1_winograd42_pack8to4_int8_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
+void conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_avx2(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd43_pack8to4_int8_sse_avx2(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
 #endif
 
 #if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
-void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_xop(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt);
-void conv3x3s1_winograd42_pack8to4_int8_sse_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
+void conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_xop(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt);
+void conv3x3s1_winograd43_pack8to4_int8_sse_xop(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Option& opt);
 #endif
 #endif
 
-static void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse(const Mat& kernel, Mat& kernel_tm_pack8, int inch, int outch, const Option& opt)
 {
 #if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_avx512vnni(kernel, kernel_tm_pack8, inch, outch, opt);
+        conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_avx512vnni(kernel, kernel_tm_pack8, inch, outch, opt);
         return;
     }
 #endif
@@ -48,7 +48,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse(const Mat& k
 #if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_avxvnni(kernel, kernel_tm_pack8, inch, outch, opt);
+        conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_avxvnni(kernel, kernel_tm_pack8, inch, outch, opt);
         return;
     }
 #endif
@@ -56,7 +56,7 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse(const Mat& k
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
-        conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_avx2(kernel, kernel_tm_pack8, inch, outch, opt);
+        conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_avx2(kernel, kernel_tm_pack8, inch, outch, opt);
         return;
     }
 #endif
@@ -64,13 +64,13 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse(const Mat& k
 #if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
     if (ncnn::cpu_support_x86_xop())
     {
-        conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse_xop(kernel, kernel_tm_pack8, inch, outch, opt);
+        conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse_xop(kernel, kernel_tm_pack8, inch, outch, opt);
         return;
     }
 #endif
 #endif
 
-    // winograd42 transform kernel
+    // winograd43 transform kernel
     Mat kernel_tm(6 * 6, inch, outch, (size_t)2u);
 
     const short ktm[6][3] = {
@@ -183,13 +183,13 @@ static void conv3x3s1_winograd42_transform_kernel_pack8to4_int8_sse(const Mat& k
     }
 }
 
-static void conv3x3s1_winograd42_pack8to4_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
+static void conv3x3s1_winograd43_pack8to4_int8_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Option& opt)
 {
 #if !(__AVX512VNNI__ || __AVXVNNI__ || __AVX2__ || __XOP__)
 #if NCNN_RUNTIME_CPU && NCNN_AVX512VNNI && __AVX512F__ && !__AVX512VNNI__
     if (ncnn::cpu_support_x86_avx512_vnni())
     {
-        conv3x3s1_winograd42_pack8to4_int8_sse_avx512vnni(bottom_blob, top_blob, kernel_tm, opt);
+        conv3x3s1_winograd43_pack8to4_int8_sse_avx512vnni(bottom_blob, top_blob, kernel_tm, opt);
         return;
     }
 #endif
@@ -197,7 +197,7 @@ static void conv3x3s1_winograd42_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 #if NCNN_RUNTIME_CPU && NCNN_AVXVNNI && __AVX2__ && !__AVXVNNI__
     if (ncnn::cpu_support_x86_avx_vnni())
     {
-        conv3x3s1_winograd42_pack8to4_int8_sse_avxvnni(bottom_blob, top_blob, kernel_tm, opt);
+        conv3x3s1_winograd43_pack8to4_int8_sse_avxvnni(bottom_blob, top_blob, kernel_tm, opt);
         return;
     }
 #endif
@@ -205,7 +205,7 @@ static void conv3x3s1_winograd42_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 #if NCNN_RUNTIME_CPU && NCNN_AVX2 && __AVX__ && !__AVX2__
     if (ncnn::cpu_support_x86_avx2())
     {
-        conv3x3s1_winograd42_pack8to4_int8_sse_avx2(bottom_blob, top_blob, kernel_tm, opt);
+        conv3x3s1_winograd43_pack8to4_int8_sse_avx2(bottom_blob, top_blob, kernel_tm, opt);
         return;
     }
 #endif
@@ -213,7 +213,7 @@ static void conv3x3s1_winograd42_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 #if NCNN_RUNTIME_CPU && NCNN_XOP && __SSE2__ && !__XOP__
     if (ncnn::cpu_support_x86_xop())
     {
-        conv3x3s1_winograd42_pack8to4_int8_sse_xop(bottom_blob, top_blob, kernel_tm, opt);
+        conv3x3s1_winograd43_pack8to4_int8_sse_xop(bottom_blob, top_blob, kernel_tm, opt);
         return;
     }
 #endif

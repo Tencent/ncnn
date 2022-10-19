@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void conv3x3s1_winograd64_transform_input_pack4_msa(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+static void conv3x3s1_winograd63_transform_input_pack4_msa(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -182,7 +182,7 @@ static void conv3x3s1_winograd64_transform_input_pack4_msa(const Mat& bottom_blo
     }
 }
 
-static void conv3x3s1_winograd64_transform_output_pack4_msa(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd63_transform_output_pack4_msa(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -327,7 +327,7 @@ static void conv3x3s1_winograd64_transform_output_pack4_msa(const Mat& top_blob_
     }
 }
 
-static void conv3x3s1_winograd42_transform_input_pack4_msa(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+static void conv3x3s1_winograd43_transform_input_pack4_msa(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
 {
     const int w = bottom_blob.w;
     const int h = bottom_blob.h;
@@ -442,7 +442,7 @@ static void conv3x3s1_winograd42_transform_input_pack4_msa(const Mat& bottom_blo
     }
 }
 
-static void conv3x3s1_winograd42_transform_output_pack4_msa(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd43_transform_output_pack4_msa(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
 {
     const int outw = top_blob.w;
     const int outh = top_blob.h;
@@ -551,6 +551,176 @@ static void conv3x3s1_winograd42_transform_output_pack4_msa(const Mat& top_blob_
                     __msa_st_w((v4i32)_out01, output0 + 4, 0);
                     __msa_st_w((v4i32)_out02, output0 + 4 * 2, 0);
                     __msa_st_w((v4i32)_out03, output0 + 4 * 3, 0);
+
+                    output0 += outw * 4;
+                }
+            }
+        }
+    }
+}
+
+static void conv3x3s1_winograd23_transform_input_pack4_msa(const Mat& bottom_blob, Mat& bottom_blob_tm, const Option& opt)
+{
+    const int w = bottom_blob.w;
+    const int h = bottom_blob.h;
+    const int inch = bottom_blob.c;
+
+    const int w_tiles = (w - 2) / 2;
+    const int h_tiles = (h - 2) / 2;
+    const int tiles = w_tiles * h_tiles;
+
+    // const float itm[4][4] = {
+    //     {1.0f,  0.0f, -1.0f,  0.0f},
+    //     {0.0f,  1.0f,  1.00f, 0.0f},
+    //     {0.0f, -1.0f,  1.00f, 0.0f},
+    //     {0.0f, -1.0f,  0.00f, 1.0f}
+    // };
+
+    // 0 = r00 - r02
+    // 1 = r01 + r02
+    // 2 = r02 - r01
+    // 3 = r03 - r01
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int q = 0; q < inch; q++)
+    {
+        const Mat img0 = bottom_blob.channel(q);
+        Mat img0_tm = bottom_blob_tm.channel(q);
+
+        float tmp[4][4][4];
+
+        // tile
+        for (int i = 0; i < h_tiles; i++)
+        {
+            for (int j = 0; j < w_tiles; j++)
+            {
+                const float* r0 = img0.row(i * 2) + (j * 2) * 4;
+
+                for (int m = 0; m < 4; m++)
+                {
+                    v4f32 _r00 = (v4f32)__msa_ld_w(r0, 0);
+                    v4f32 _r01 = (v4f32)__msa_ld_w(r0 + 4, 0);
+                    v4f32 _r02 = (v4f32)__msa_ld_w(r0 + 4 * 2, 0);
+                    v4f32 _r03 = (v4f32)__msa_ld_w(r0 + 4 * 3, 0);
+
+                    v4f32 _tmp0m = __msa_fsub_w(_r00, _r02);
+                    v4f32 _tmp1m = __msa_fadd_w(_r01, _r02);
+                    v4f32 _tmp2m = __msa_fsub_w(_r02, _r01);
+                    v4f32 _tmp3m = __msa_fsub_w(_r03, _r01);
+
+                    __msa_st_w((v4i32)_tmp0m, tmp[0][m], 0);
+                    __msa_st_w((v4i32)_tmp1m, tmp[1][m], 0);
+                    __msa_st_w((v4i32)_tmp2m, tmp[2][m], 0);
+                    __msa_st_w((v4i32)_tmp3m, tmp[3][m], 0);
+
+                    r0 += w * 4;
+                }
+
+                float* r0_tm_0 = (float*)img0_tm + (i * w_tiles + j) * 4;
+                float* r0_tm_1 = r0_tm_0 + tiles * 4;
+                float* r0_tm_2 = r0_tm_0 + tiles * 4 * 2;
+                float* r0_tm_3 = r0_tm_0 + tiles * 4 * 3;
+
+                for (int m = 0; m < 4; m++)
+                {
+                    v4f32 _tmp00 = (v4f32)__msa_ld_w(tmp[m][0], 0);
+                    v4f32 _tmp01 = (v4f32)__msa_ld_w(tmp[m][1], 0);
+                    v4f32 _tmp02 = (v4f32)__msa_ld_w(tmp[m][2], 0);
+                    v4f32 _tmp03 = (v4f32)__msa_ld_w(tmp[m][3], 0);
+
+                    v4f32 _r0tm0 = __msa_fsub_w(_tmp00, _tmp02);
+                    v4f32 _r0tm1 = __msa_fadd_w(_tmp01, _tmp02);
+                    v4f32 _r0tm2 = __msa_fsub_w(_tmp02, _tmp01);
+                    v4f32 _r0tm3 = __msa_fsub_w(_tmp03, _tmp01);
+
+                    __msa_st_w((v4i32)_r0tm0, r0_tm_0, 0);
+                    __msa_st_w((v4i32)_r0tm1, r0_tm_1, 0);
+                    __msa_st_w((v4i32)_r0tm2, r0_tm_2, 0);
+                    __msa_st_w((v4i32)_r0tm3, r0_tm_3, 0);
+
+                    r0_tm_0 += tiles * 4 * 4;
+                    r0_tm_1 += tiles * 4 * 4;
+                    r0_tm_2 += tiles * 4 * 4;
+                    r0_tm_3 += tiles * 4 * 4;
+                }
+            }
+        }
+    }
+}
+
+static void conv3x3s1_winograd23_transform_output_pack4_msa(const Mat& top_blob_tm, Mat& top_blob, const Mat& bias, const Option& opt)
+{
+    const int outw = top_blob.w;
+    const int outh = top_blob.h;
+    const int outch = top_blob.c;
+
+    const int w_tiles = outw / 2;
+    const int h_tiles = outh / 2;
+    const int tiles = w_tiles * h_tiles;
+
+    const float* biasptr = bias;
+
+    // const float otm[2][4] = {
+    //     {1.0f,  1.0f,  1.0f,  0.0f},
+    //     {0.0f,  1.0f, -1.0f,  1.0f}
+    // };
+
+    // 0 = r00 + r01 + r02
+    // 1 = r01 - r02 + r03
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int p = 0; p < outch; p++)
+    {
+        const Mat out0_tm = top_blob_tm.channel(p);
+        Mat out0 = top_blob.channel(p);
+
+        v4f32 _bias0 = biasptr ? (v4f32)__msa_ld_w(biasptr + p * 4, 0) : (v4f32)__msa_fill_w(0);
+
+        float tmp[2][4][4];
+
+        // tile
+        for (int i = 0; i < h_tiles; i++)
+        {
+            for (int j = 0; j < w_tiles; j++)
+            {
+                const float* output0_tm_0 = (const float*)out0_tm + (i * w_tiles + j) * 4;
+                const float* output0_tm_1 = output0_tm_0 + tiles * 4;
+                const float* output0_tm_2 = output0_tm_0 + tiles * 4 * 2;
+                const float* output0_tm_3 = output0_tm_0 + tiles * 4 * 3;
+
+                float* output0 = out0.row<float>(i * 2) + (j * 2) * 4;
+
+                for (int m = 0; m < 4; m++)
+                {
+                    v4f32 _out0tm0 = (v4f32)__msa_ld_w(output0_tm_0, 0);
+                    v4f32 _out0tm1 = (v4f32)__msa_ld_w(output0_tm_1, 0);
+                    v4f32 _out0tm2 = (v4f32)__msa_ld_w(output0_tm_2, 0);
+                    v4f32 _out0tm3 = (v4f32)__msa_ld_w(output0_tm_3, 0);
+
+                    v4f32 _tmp0m = __msa_fadd_w(__msa_fadd_w(_out0tm0, _out0tm1), _out0tm2);
+                    v4f32 _tmp1m = __msa_fadd_w(__msa_fsub_w(_out0tm1, _out0tm2), _out0tm3);
+
+                    __msa_st_w((v4i32)_tmp0m, tmp[0][m], 0);
+                    __msa_st_w((v4i32)_tmp1m, tmp[1][m], 0);
+
+                    output0_tm_0 += tiles * 4 * 4;
+                    output0_tm_1 += tiles * 4 * 4;
+                    output0_tm_2 += tiles * 4 * 4;
+                    output0_tm_3 += tiles * 4 * 4;
+                }
+
+                for (int m = 0; m < 2; m++)
+                {
+                    v4f32 _tmp00 = (v4f32)__msa_ld_w(tmp[m][0], 0);
+                    v4f32 _tmp01 = (v4f32)__msa_ld_w(tmp[m][1], 0);
+                    v4f32 _tmp02 = (v4f32)__msa_ld_w(tmp[m][2], 0);
+                    v4f32 _tmp03 = (v4f32)__msa_ld_w(tmp[m][3], 0);
+
+                    v4f32 _out00 = __msa_fadd_w(_bias0, __msa_fadd_w(__msa_fadd_w(_tmp00, _tmp01), _tmp02));
+                    v4f32 _out01 = __msa_fadd_w(_bias0, __msa_fadd_w(__msa_fsub_w(_tmp01, _tmp02), _tmp03));
+
+                    __msa_st_w((v4i32)_out00, output0, 0);
+                    __msa_st_w((v4i32)_out01, output0 + 4, 0);
 
                     output0 += outw * 4;
                 }

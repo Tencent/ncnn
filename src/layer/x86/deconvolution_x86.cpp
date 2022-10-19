@@ -104,11 +104,11 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
     {
         Mat weight_data_r2 = weight_data_transposed.reshape(maxk, num_input, num_output);
 
-        weight_data_packed.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
+        weight_data_tm.create(maxk, num_input / elempack, num_output / out_elempack, (size_t)4u * elempack * out_elempack, elempack * out_elempack);
 
         for (int q = 0; q + (out_elempack - 1) < num_output; q += out_elempack)
         {
-            float* g00 = weight_data_packed.channel(q / out_elempack);
+            float* g00 = weight_data_tm.channel(q / out_elempack);
 
             for (int p = 0; p + (elempack - 1) < num_input; p += elempack)
             {
@@ -130,6 +130,11 @@ int Deconvolution_x86::create_pipeline(const Option& opt)
         }
     }
 
+    if (opt.lightmode)
+    {
+        weight_data.release();
+    }
+
     return 0;
 }
 
@@ -145,7 +150,6 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
-    int channels = bottom_blob.c;
     size_t elemsize = bottom_blob.elemsize;
     int elempack = bottom_blob.elempack;
 
@@ -192,49 +196,49 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (elempack == 16 && out_elempack == 16)
     {
         {
-            deconvolution_pack16_avx512(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 8 && out_elempack == 16)
     {
         {
-            deconvolution_pack8to16_avx512(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack8to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 16 && out_elempack == 8)
     {
         {
-            deconvolution_pack16to8_avx512(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack16to8_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 4 && out_elempack == 16)
     {
         {
-            deconvolution_pack4to16_avx512(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack4to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 16 && out_elempack == 4)
     {
         {
-            deconvolution_pack16to4_avx512(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack16to4_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 1 && out_elempack == 16)
     {
         {
-            deconvolution_pack1to16_avx512(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack1to16_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 16 && out_elempack == 1)
     {
         {
-            deconvolution_pack16to1_avx512(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack16to1_avx512(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 #endif // __AVX512F__
@@ -242,35 +246,35 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (elempack == 8 && out_elempack == 8)
     {
         {
-            deconvolution_pack8_avx(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 4 && out_elempack == 8)
     {
         {
-            deconvolution_pack4to8_avx(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack4to8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 8 && out_elempack == 4)
     {
         {
-            deconvolution_pack8to4_avx(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack8to4_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 1 && out_elempack == 8)
     {
         {
-            deconvolution_pack1to8_avx(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack1to8_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 8 && out_elempack == 1)
     {
         {
-            deconvolution_pack8to1_avx(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack8to1_avx(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 #endif // __AVX__
@@ -278,21 +282,21 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
     if (elempack == 4 && out_elempack == 4)
     {
         {
-            deconvolution_pack4_sse(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack4_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 1 && out_elempack == 4)
     {
         {
-            deconvolution_pack1to4_sse(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack1to4_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 
     if (elempack == 4 && out_elempack == 1)
     {
         {
-            deconvolution_pack4to1_sse(bottom_blob, top_blob_bordered, weight_data_packed, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
+            deconvolution_pack4to1_sse(bottom_blob, top_blob_bordered, weight_data_tm, bias_data, kernel_w, kernel_h, dilation_w, dilation_h, stride_w, stride_h, activation_type, activation_params, opt);
         }
     }
 #endif // __SSE2__
@@ -306,6 +310,13 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
             {
                 float* outptr = top_blob_bordered.channel(p);
 
+                // shadowed variable for less openmp task args
+                const int w = bottom_blob.w;
+                const int h = bottom_blob.h;
+                const int channels = bottom_blob.c;
+                const int outw = top_blob_bordered.w;
+                const int outh = top_blob_bordered.h;
+
                 for (int i = 0; i < outh; i++)
                 {
                     for (int j = 0; j < outw; j++)
@@ -317,7 +328,7 @@ int Deconvolution_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                             sum = bias_data[p];
                         }
 
-                        const float* kptr = (const float*)weight_data_packed.channel(p);
+                        const float* kptr = (const float*)weight_data_tm.channel(p);
 
                         // channels
                         for (int q = 0; q < channels; q++)

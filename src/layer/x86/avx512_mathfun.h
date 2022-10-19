@@ -182,6 +182,48 @@ static NCNN_FORCEINLINE __m512 exp512_ps(__m512 x)
     return y;
 }
 
+_PS512_CONST(tanh_hi, 9.0f);
+_PS512_CONST(tanh_lo, -9.0f);
+
+_PS512_CONST(cephes_tanh_p0, -2.76076847742355E-16f);
+_PS512_CONST(cephes_tanh_p1, 2.00018790482477E-13f);
+_PS512_CONST(cephes_tanh_p2, -8.60467152213735E-11f);
+_PS512_CONST(cephes_tanh_p3, 5.12229709037114E-08f);
+_PS512_CONST(cephes_tanh_p4, 1.48572235717979E-05f);
+_PS512_CONST(cephes_tanh_p5, 6.37261928875436E-04f);
+_PS512_CONST(cephes_tanh_p6, 4.89352455891786E-03f);
+
+_PS512_CONST(cephes_tanh_p7, 1.19825839466702e-06f);
+_PS512_CONST(cephes_tanh_p8, 1.18534705686654e-04f);
+_PS512_CONST(cephes_tanh_p9, 2.26843463243900e-03f);
+
+// an approximation of tanh
+static inline __m512 tanh512_ps(const __m512 x)
+{
+    __m512 value = x;
+    value = _mm512_max_ps(*(__m512*)_ps512_tanh_lo, value);
+    value = _mm512_min_ps(*(__m512*)_ps512_tanh_hi, value);
+
+    __m512 value_squared = _mm512_mul_ps(value, value);
+
+    __m512 p;
+    p = _mm512_fmadd_ps(value_squared, *(__m512*)_ps512_cephes_tanh_p0, *(__m512*)_ps512_cephes_tanh_p1);
+    p = _mm512_fmadd_ps(p, value_squared, *(__m512*)_ps512_cephes_tanh_p2);
+    p = _mm512_fmadd_ps(p, value_squared, *(__m512*)_ps512_cephes_tanh_p3);
+    p = _mm512_fmadd_ps(p, value_squared, *(__m512*)_ps512_cephes_tanh_p4);
+    p = _mm512_fmadd_ps(p, value_squared, *(__m512*)_ps512_cephes_tanh_p5);
+    p = _mm512_fmadd_ps(p, value_squared, *(__m512*)_ps512_cephes_tanh_p6);
+    p = _mm512_mul_ps(p, value);
+
+    __m512 q;
+    q = _mm512_fmadd_ps(value_squared, *(__m512*)_ps512_cephes_tanh_p7, *(__m512*)_ps512_cephes_tanh_p8);
+    q = _mm512_fmadd_ps(q, value_squared, *(__m512*)_ps512_cephes_tanh_p9);
+    q = _mm512_fmadd_ps(q, value_squared, *(__m512*)_ps512_cephes_tanh_p6);
+
+    __m512 dst = _mm512_div_ps(p, q);
+    return dst;
+}
+
 _PS512_CONST(minus_cephes_DP1, -0.78515625f);
 _PS512_CONST(minus_cephes_DP2, -2.4187564849853515625e-4f);
 _PS512_CONST(minus_cephes_DP3, -3.77489497744594108e-8f);

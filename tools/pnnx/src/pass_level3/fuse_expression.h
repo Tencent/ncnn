@@ -16,6 +16,6 @@
 
 namespace pnnx {
 
-void fuse_expression(Graph& graph);
+void fuse_expression(Graph& graph, const std::map<std::string, Attribute>& foldable_constants);
 
 } // namespace pnnx

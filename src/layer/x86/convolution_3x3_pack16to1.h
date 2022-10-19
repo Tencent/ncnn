@@ -99,7 +99,7 @@ static void conv3x3s1_pack16to1_avx512(const Mat& bottom_blob, Mat& top_blob, co
     }
 }
 
-static void conv3x3s1_winograd64_transform_kernel_pack16to1_avx512(const Mat& kernel, Mat& kernel_tm_packed, int inch, int outch, const Option& opt)
+static void conv3x3s1_winograd63_transform_kernel_pack16to1_avx512(const Mat& kernel, Mat& kernel_tm_packed, int inch, int outch, const Option& opt)
 {
     // winograd63 transform kernel
     Mat kernel_tm;
@@ -202,7 +202,7 @@ static void conv3x3s1_winograd64_transform_kernel_pack16to1_avx512(const Mat& ke
     }
 }
 
-static void conv3x3s1_winograd64_pack16to1_avx512(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
+static void conv3x3s1_winograd63_pack16to1_avx512(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel_tm, const Mat& bias, const Option& opt)
 {
     int w = bottom_blob.w;
     int h = bottom_blob.h;
@@ -232,7 +232,7 @@ static void conv3x3s1_winograd64_pack16to1_avx512(const Mat& bottom_blob, Mat& t
         const int tiles = w_tiles * h_tiles;
 
         bottom_blob_tm.create(tiles, 64, inch, elemsize, elempack, opt.workspace_allocator);
-        conv3x3s1_winograd64_transform_input_pack16_avx512(bottom_blob_bordered, bottom_blob_tm, opt);
+        conv3x3s1_winograd63_transform_input_pack16_avx512(bottom_blob_bordered, bottom_blob_tm, opt);
     }
     bottom_blob_bordered = Mat();
     // END transform input
@@ -693,7 +693,7 @@ static void conv3x3s1_winograd64_pack16to1_avx512(const Mat& bottom_blob, Mat& t
         top_blob_bordered.create(outw, outh, outch, 4u, 1, opt.workspace_allocator);
     }
     {
-        conv3x3s1_winograd64_transform_output_sse(top_blob_tm, top_blob_bordered, bias, opt);
+        conv3x3s1_winograd63_transform_output_sse(top_blob_tm, top_blob_bordered, bias, opt);
     }
     // END transform output
 

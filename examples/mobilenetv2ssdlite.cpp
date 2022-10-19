@@ -47,8 +47,10 @@ static int detect_mobilenetv2(const cv::Mat& bgr, std::vector<Object>& objects)
     // original pretrained model from https://github.com/chuanqi305/MobileNetv2-SSDLite
     // https://github.com/chuanqi305/MobileNetv2-SSDLite/blob/master/ssdlite/voc/deploy.prototxt
     // the ncnn model https://github.com/nihui/ncnn-assets/tree/master/models
-    mobilenetv2.load_param("mobilenetv2_ssdlite_voc.param");
-    mobilenetv2.load_model("mobilenetv2_ssdlite_voc.bin");
+    if (mobilenetv2.load_param("mobilenetv2_ssdlite_voc.param"))
+        exit(-1);
+    if (mobilenetv2.load_model("mobilenetv2_ssdlite_voc.bin"))
+        exit(-1);
 
     const int target_size = 300;
 

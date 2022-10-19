@@ -15,15 +15,12 @@
 #include "gelu_riscv.h"
 
 #if __riscv_vector
-#ifdef RVV_SPEC_0_7
-#include "riscv_v_071_fix.h"
-#else
 #include <riscv_vector.h>
-#endif
 #include "rvv_mathfun.h"
 #endif // __riscv_vector
 
 namespace ncnn {
+
 GELU_riscv::GELU_riscv()
 {
 #if __riscv_vector
@@ -35,9 +32,11 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
 {
     int w = bottom_top_blob.w;
     int h = bottom_top_blob.h;
+    int d = bottom_top_blob.d;
     int channels = bottom_top_blob.c;
-    int size = w * h;
     int elempack = bottom_top_blob.elempack;
+    int size = w * h * d * elempack;
+
 #if __riscv_vector
     if (fast_gelu)
     {
@@ -46,10 +45,10 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            int n = size * elempack;
+            int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m4(n);
+                size_t vl = vsetvl_e32m4(n);
 
                 vfloat32m4_t _p = vle32_v_f32m4(ptr, vl);
 
@@ -75,10 +74,10 @@ int GELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         {
             float* ptr = bottom_top_blob.channel(q);
 
-            int n = size * elempack;
+            int n = size;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 auto _p = vle32_v_f32m8(ptr, vl);
                 auto _perfc = vfmul_vf_f32m8(_p, -.70710678f, vl);
                 _p = vfmul_vf_f32m8(_p, .5f, vl);

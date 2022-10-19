@@ -76,13 +76,63 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
+      id: codecov
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-vlen256-retry-1
+      continue-on-error: true
+      id: codecov-vlen256-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-2
+      continue-on-error: true
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-3
+      continue-on-error: true
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-4
+      continue-on-error: true
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-5
+      continue-on-error: true
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
   linux-gcc-gpu-t4:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, t4]
     steps:
     - uses: actions/checkout@v3
       with:
@@ -110,10 +160,60 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
+      id: codecov
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-vlen256-retry-1
+      continue-on-error: true
+      id: codecov-vlen256-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-2
+      continue-on-error: true
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-3
+      continue-on-error: true
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-4
+      continue-on-error: true
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-5
+      continue-on-error: true
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
   linux-gcc-gpu-lavapipe:
     runs-on: [self-hosted, linux, cvm]
@@ -127,7 +227,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: lavapipe-install
-        key: lavapipe-linux-install-20211127-2
+        key: lavapipe-linux-install-20211127-3
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
@@ -164,10 +264,60 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
+      id: codecov
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-vlen256-retry-1
+      continue-on-error: true
+      id: codecov-vlen256-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-2
+      continue-on-error: true
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-3
+      continue-on-error: true
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-4
+      continue-on-error: true
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-5
+      continue-on-error: true
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
   linux-gcc-x64:
     runs-on: ubuntu-latest
@@ -236,7 +386,7 @@ jobs:
         file: build-avx2/lcov.info
 
   linux-gcc-x64-avx512:
-    runs-on: [self-hosted, linux]
+    runs-on: [self-hosted, linux, t4]
     steps:
     - uses: actions/checkout@v3
     - name: build
@@ -258,6 +408,155 @@ jobs:
         lcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/install/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      id: codecov
+      continue-on-error: true
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-1
+      continue-on-error: true
+      id: codecov-vlen256-retry-1
+      if: steps.codecov.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-2
+      continue-on-error: true
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-3
+      continue-on-error: true
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-4
+      continue-on-error: true
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-5
+      continue-on-error: true
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set the status
+      if: always()
+      run: |
+        if ${{ steps.codecov.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
+
+  linux-gcc-x64-avx512-spr:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: update
+      run: sudo apt-get update
+    - name: gcc12
+      run: sudo apt-get install gcc-12 g++-12
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: Setup SDE binaries
+      uses: petarpetrovt/setup-sde@v2
+    - name: build-avx512-spr
+      env:
+        CC: gcc-12
+        CXX: g++-12
+      run: |
+        mkdir build-avx512-spr && cd build-avx512-spr
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=ON -DNCNN_AVX512FP16=ON -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test-avx512-spr
+      run: |
+        cd build-avx512-spr
+        TESTS_EXECUTABLE_LOADER=$SDE_PATH/sde64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-spr;--" ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build-avx512-spr
+        lcov --gcov-tool gcov-12 -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-avx512-spr/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov-avx512-spr
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build-avx512-spr/lcov.info
+
+  linux-gcc-armhf-vfpv3-d16:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+    - name: lcov
+      run: sudo apt-get install lcov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v3
+      with:
+        path: qemu-install
+        key: qemu-arm-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=arm-linux-user --disable-system
+        make -j2
+        make install
+
+    - name: arm-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-arm-linux-gnueabihf
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j 2
+
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j 2
+
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
@@ -305,7 +604,7 @@ jobs:
         sudo apt-get install g++-arm-linux-gnueabi
 
     - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=ON -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 2
 
@@ -431,7 +730,7 @@ jobs:
     - name: build-arm82
       run: |
         mkdir build-arm82 && cd build-arm82
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
@@ -492,7 +791,7 @@ jobs:
     - name: build-arm82-omp
       run: |
         mkdir build-arm82-omp && cd build-arm82-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
@@ -553,7 +852,7 @@ jobs:
     - name: build-arm82dot-omp
       run: |
         mkdir build-arm82dot-omp && cd build-arm82dot-omp
-        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j 2
     - name: test
       run: |
@@ -572,6 +871,67 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build-arm82dot-omp/lcov.info
+
+  linux-gcc-arm84:
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: lcov
+      run: sudo apt-get install lcov
+    - name: cache-qemu
+      id: cache-qemu
+      uses: actions/cache@v3
+      with:
+        path: qemu-install
+        key: qemu-aarch64-install-20220502
+    - name: install-qemu-build-deps
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        sudo apt-get install autoconf automake autotools-dev ninja-build
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
+      with:
+        repository: qemu/qemu
+        path: qemu
+        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    - name: qemu
+      if: steps.cache-qemu.outputs.cache-hit != 'true'
+      run: |
+        cd qemu
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=aarch64-linux-user --disable-system
+        make -j2
+        make install
+
+    - name: aarch64-gnu-toolchain
+      run: |
+        sudo apt-get update
+        sudo apt-get install g++-aarch64-linux-gnu
+
+    - name: build-arm84
+      run: |
+        mkdir build-arm84 && cd build-arm84
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=ON -DNCNN_ARM84BF16=ON -DNCNN_ARM84I8MM=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j 2
+    - name: test
+      run: |
+        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        cd build-arm84
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build-arm84
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm84/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build-arm84/lcov.info
 
   linux-gcc-mipsisa32r6el:
     runs-on: ubuntu-20.04
@@ -775,124 +1135,224 @@ jobs:
         file: build/lcov.info
 
   linux-gcc-riscv64-rvv:
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, linux, centos]
     steps:
     - uses: actions/checkout@v3
 
-    - name: lcov
-      run: sudo apt-get install lcov
+    #- name: lcov
+      #run: sudo apt-get install lcov
 
-    - name: cache-qemu
-      id: cache-qemu
-      uses: actions/cache@v3
-      with:
-        path: qemu-install
-        key: qemu-riscv64-install-20220502-3
-    - name: install-qemu-build-deps
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev ninja-build
-    - name: checkout-qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: qemu/qemu
-        path: qemu
-        ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
-    - name: qemu
-      if: steps.cache-qemu.outputs.cache-hit != 'true'
-      run: |
-        cd qemu
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
-        make -j2
-        make install
+    #- name: cache-qemu
+      #id: cache-qemu
+      #uses: actions/cache@v3
+      #with:
+        #path: qemu-install
+        #key: qemu-riscv64-install-20220502-3
+    #- name: install-qemu-build-deps
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev ninja-build
+    #- name: checkout-qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v3
+      #with:
+        #repository: qemu/qemu
+        #path: qemu
+        #ref: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+    #- name: qemu
+      #if: steps.cache-qemu.outputs.cache-hit != 'true'
+      #run: |
+        #cd qemu
+        #wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        #patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        #./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        #make -j2
+        #make install
 
-    - name: cache-riscv
-      id: cache-riscv
-      uses: actions/cache@v3
-      with:
-        path: rv64gcv-install
-        key: rv64gcv-linux-install-20210504
+    #- name: cache-riscv
+      #id: cache-riscv
+      #uses: actions/cache@v3
+      #with:
+        #path: rv64gcv-install
+        #key: rv64gcv-linux-install-20210504
 
-    - name: install-riscv-build-deps
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+    #- name: install-riscv-build-deps
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #sudo apt-get update
+        #sudo apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
 
-    - name: checkout-riscv-gnu-toolchain
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      uses: actions/checkout@v3
-      with:
-        repository: riscv/riscv-gnu-toolchain
-        path: riscv-gnu-toolchain
-        ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
-    - name: checkout-riscv-gnu-toolchain-submodules
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        cd riscv-gnu-toolchain
-        git submodule update --init --recursive --depth 1 riscv-binutils
-        git submodule update --init --recursive --depth 1 riscv-gcc
-        git submodule update --init --recursive --depth 1 riscv-glibc
-        git submodule update --init --recursive --depth 1 riscv-dejagnu
-        git submodule update --init --recursive --depth 1 riscv-newlib
-        git submodule update --init --recursive --depth 1 riscv-gdb
-    - name: riscv-gnu-toolchain
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: |
-        cd riscv-gnu-toolchain
-        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
-        ./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
-        make linux
+    #- name: checkout-riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #uses: actions/checkout@v3
+      #with:
+        #repository: riscv/riscv-gnu-toolchain
+        #path: riscv-gnu-toolchain
+        #ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
+    #- name: checkout-riscv-gnu-toolchain-submodules
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-gcc
+        #git submodule update --init --recursive --depth 1 riscv-glibc
+        #git submodule update --init --recursive --depth 1 riscv-dejagnu
+        #git submodule update --init --recursive --depth 1 riscv-newlib
+        #git submodule update --init --recursive --depth 1 riscv-gdb
+    #- name: riscv-gnu-toolchain
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: |
+        #cd riscv-gnu-toolchain
+        #sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        #./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
+        #make linux
 
-    - name: riscv-strip-install
-      if: steps.cache-riscv.outputs.cache-hit != 'true'
-      run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
+    #- name: riscv-strip-install
+      #if: steps.cache-riscv.outputs.cache-hit != 'true'
+      #run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
 
     - name: configure
-      run: export RISCV_ROOT_PATH=$GITHUB_WORKSPACE/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: export RISCV_ROOT_PATH=/data/action/osd/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j 2
+      run: cmake --build build -j 4
 
     - name: test-vlen128
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
 
     - name: lcov-collect-vlen128
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
+        lcov --gcov-tool /data/action/osd/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen128
+      id: codecov-vlen128
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-vlen128-retry-1
+      continue-on-error: true
+      id: codecov-vlen128-retry-1
+      if: steps.codecov-vlen128.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-2
+      continue-on-error: true
+      id: codecov-vlen128-retry-2
+      if: steps.codecov-vlen128-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-3
+      continue-on-error: true
+      id: codecov-vlen128-retry-3
+      if: steps.codecov-vlen128-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-4
+      continue-on-error: true
+      id: codecov-vlen128-retry-4
+      if: steps.codecov-vlen128-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen128-retry-5
+      continue-on-error: true
+      id: codecov-vlen128-retry-5
+      if: steps.codecov-vlen128-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set codecov-vlen128 status
+      if: always()
+      run: |
+        if ${{ steps.codecov-vlen128.outcome=='success' || steps.codecov-vlen128-retry-1.outcome=='success' || steps.codecov-vlen128-retry-2.outcome=='success' || steps.codecov-vlen128-retry-3.outcome=='success' || steps.codecov-vlen128-retry-4.outcome=='success' || steps.codecov-vlen128-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi
 
     - name: test-vlen256
       run: |
-        export PATH=$GITHUB_WORKSPACE/qemu-install/bin:$PATH
+        export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;$GITHUB_WORKSPACE/rv64gcv-install/sysroot" ctest --output-on-failure -j 2
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
 
     - name: lcov-collect-vlen256
       run: |
         cd build
-        lcov -d ./src -c -o lcov.info
+        lcov --gcov-tool /data/action/osd/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
         lcov -r lcov.info '/usr/*' -o lcov.info
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen256
+      id: codecov-vlen256
+      continue-on-error: true
       uses: codecov/codecov-action@v3
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/lcov.info
+    - name: codecov-vlen256-retry-1
+      continue-on-error: true
+      id: codecov-vlen256-retry-1
+      if: steps.codecov-vlen256.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-2
+      continue-on-error: true
+      id: codecov-vlen256-retry-2
+      if: steps.codecov-vlen256-retry-1.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-3
+      continue-on-error: true
+      id: codecov-vlen256-retry-3
+      if: steps.codecov-vlen256-retry-2.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-4
+      continue-on-error: true
+      id: codecov-vlen256-retry-4
+      if: steps.codecov-vlen256-retry-3.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: codecov-vlen256-retry-5
+      continue-on-error: true
+      id: codecov-vlen256-retry-5
+      if: steps.codecov-vlen256-retry-4.outcome=='failure'
+      uses: codecov/codecov-action@v3
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: build/lcov.info
+    - name: set codecov-vlen256 status
+      if: always()
+      run: |
+        if ${{ steps.codecov-vlen256.outcome=='success' || steps.codecov-vlen256-retry-1.outcome=='success' || steps.codecov-vlen256-retry-2.outcome=='success' || steps.codecov-vlen256-retry-3.outcome=='success' || steps.codecov-vlen256-retry-4.outcome=='success' || steps.codecov-vlen256-retry-5.outcome=='success' }}; then
+           echo fine
+        else
+           exit 1
+        fi

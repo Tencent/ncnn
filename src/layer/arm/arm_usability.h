@@ -26,6 +26,15 @@ static inline signed char float2int8(float v)
 #if __ARM_NEON
 #include <arm_neon.h>
 
+static inline uint16x4_t bfloat2float(float32x4_t _v)
+{
+    return vshrn_n_u32(vreinterpretq_u32_f32(_v), 16);
+}
+static inline float32x4_t float2bfloat(uint16x4_t _v)
+{
+    return vreinterpretq_f32_u32(vshll_n_u16(_v, 16));
+}
+
 static inline int8x8_t float2int8(float32x4_t _vlow, float32x4_t _vhigh)
 {
 #if __aarch64__

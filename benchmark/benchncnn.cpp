@@ -1,4 +1,4 @@
-﻿// Tencent is pleased to support the open source community by making ncnn available.
+// Tencent is pleased to support the open source community by making ncnn available.
 //
 // Copyright (C) 2018 THL A29 Limited, a Tencent company. All rights reserved.
 //
@@ -199,8 +199,8 @@ int main(int argc, char** argv)
 
     g_loop_count = loop_count;
 
-    g_blob_pool_allocator.set_size_compare_ratio(0.0f);
-    g_workspace_pool_allocator.set_size_compare_ratio(0.5f);
+    g_blob_pool_allocator.set_size_compare_ratio(0.f);
+    g_workspace_pool_allocator.set_size_compare_ratio(0.f);
 
 #if NCNN_VULKAN
     if (use_vulkan_compute)
@@ -318,6 +318,9 @@ int main(int argc, char** argv)
 
     benchmark("yolo-fastestv2", ncnn::Mat(352, 352, 3), opt);
 
+    benchmark("vision_transformer", ncnn::Mat(384, 384, 3), opt);
+
+    benchmark("FastestDet", ncnn::Mat(352, 352, 3), opt);
 #if NCNN_VULKAN
     delete g_blob_vkallocator;
     delete g_staging_vkallocator;

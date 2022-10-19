@@ -35,6 +35,11 @@ void eliminate_slice(Graph& graph)
             if (op->inputs.size() != 1)
                 continue;
 
+            if (!op->inputs[0]->shape.empty() && op->inputs[0]->shape == op->outputs[0]->shape)
+            {
+                matched = true;
+            }
+
             int start = op->params.at("start").i;
             int end = op->params.at("end").i;
             int step = op->params.at("step").i;
@@ -43,7 +48,10 @@ void eliminate_slice(Graph& graph)
             {
                 // delete noop-like slice
                 matched = true;
+            }
 
+            if (matched)
+            {
                 for (auto& x : op->inputs)
                 {
                     x->remove_consumer(op);

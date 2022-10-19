@@ -131,7 +131,7 @@ static void resize_bilinear_image_fp16s(const Mat& src, Mat& dst, float* alpha, 
         int n = w;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m4(n);
+            size_t vl = vsetvl_e16m4(n);
 
             vfloat32m8_t _rows0 = vle32_v_f32m8(rows0p, vl);
             vfloat32m8_t _rows1 = vle32_v_f32m8(rows1p, vl);
@@ -232,7 +232,7 @@ static void resize_bilinear_image_fp16sa(const Mat& src, Mat& dst, __fp16* alpha
         int n = w;
         while (n > 0)
         {
-            word_type vl = vsetvl_e16m8(n);
+            size_t vl = vsetvl_e16m8(n);
 
             vfloat16m8_t _rows0 = vle16_v_f16m8(rows0p, vl);
             vfloat16m8_t _rows1 = vle16_v_f16m8(rows1p, vl);

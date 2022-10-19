@@ -21,7 +21,11 @@
 #include <vulkan/vulkan.h>
 
 #include "glslang/SPIRV/GlslangToSpv.h"
+#if NCNN_SYSTEM_GLSLANG
+#include "glslang/Public/ShaderLang.h"
+#else
 #include "glslang/glslang/Public/ShaderLang.h"
+#endif
 
 #include "vulkan_activation.comp.hex.h"
 

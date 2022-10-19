@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 
+#if __clang__
 extern "C" typedef void (*kmpc_micro)(int32_t* gtid, int32_t* tid, ...);
 extern "C" typedef void (*kmpc_micro_0)(int32_t* gtid, int32_t* tid);
 extern "C" typedef void (*kmpc_micro_1)(int32_t* gtid, int32_t* tid, void*);
@@ -58,6 +59,7 @@ extern "C" typedef void (*kmpc_micro_28)(int32_t* gtid, int32_t* tid, void*, voi
 extern "C" typedef void (*kmpc_micro_29)(int32_t* gtid, int32_t* tid, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
 extern "C" typedef void (*kmpc_micro_30)(int32_t* gtid, int32_t* tid, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
 extern "C" typedef void (*kmpc_micro_31)(int32_t* gtid, int32_t* tid, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*, void*);
+#endif // __clang__
 
 #ifdef __cplusplus
 extern "C" {
@@ -76,9 +78,16 @@ class KMPTask
 {
 public:
     // per-team
+#if __clang__
+    // libomp abi
     kmpc_micro fn;
     int argc;
     void** argv;
+#else
+    // libgomp abi
+    void (*fn)(void*);
+    void* data;
+#endif
     int num_threads;
 
     // per-task
@@ -235,9 +244,14 @@ public:
             ncnn::KMPTask* tasks = (ncnn::KMPTask*)alloca((kmp_max_threads - 1) * sizeof(ncnn::KMPTask));
             for (int i = 0; i < kmp_max_threads - 1; i++)
             {
+#if __clang__
                 tasks[i].fn = 0;
                 tasks[i].argc = 0;
                 tasks[i].argv = (void**)0;
+#else
+                tasks[i].fn = 0;
+                tasks[i].data = 0;
+#endif
                 tasks[i].num_threads = kmp_max_threads;
                 tasks[i].thread_num = i + 1;
                 tasks[i].num_threads_to_wait = 0;
@@ -320,6 +334,7 @@ int omp_get_thread_num()
     return (int)reinterpret_cast<size_t>(tls_thread_num.get());
 }
 
+#if __clang__
 int kmp_get_blocktime()
 {
     return 0;
@@ -439,10 +454,15 @@ static int kmp_invoke_microtask(kmpc_micro fn, int gtid, int tid, int argc, void
 
     return 0;
 }
+#endif // __clang__
 
 static void* kmp_threadfunc(void* args)
 {
+#if __clang__
     int tid = *(int*)args;
+#else
+    (void)args;
+#endif
 
     for (;;)
     {
@@ -457,7 +477,11 @@ static void* kmp_threadfunc(void* args)
         tls_num_threads.set(reinterpret_cast<void*>((size_t)task->num_threads));
         tls_thread_num.set(reinterpret_cast<void*>((size_t)task->thread_num));
 
+#if __clang__
         kmp_invoke_microtask(task->fn, task->thread_num, tid, task->argc, task->argv);
+#else
+        task->fn(task->data);
+#endif
 
         // update finished
         {
@@ -475,6 +499,7 @@ static void* kmp_threadfunc(void* args)
     return 0;
 }
 
+#if __clang__
 int32_t __kmpc_global_thread_num(void* /*loc*/)
 {
     // NCNN_LOGE("__kmpc_global_thread_num");
@@ -539,6 +564,7 @@ void __kmpc_fork_call(void* /*loc*/, int32_t argc, kmpc_micro fn, ...)
 
     // dispatch 0
     {
+        tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
         tls_thread_num.set(reinterpret_cast<void*>((size_t)0));
 
         kmp_invoke_microtask(fn, 0, 0, argc, argv);
@@ -624,6 +650,151 @@ void __kmpc_for_static_fini(void* /*loc*/, int32_t gtid)
     // NCNN_LOGE("__kmpc_for_static_fini");
     (void)gtid;
 }
+#else  // __clang__
+
+static ncnn::ThreadLocalStorage tls_parallel_context;
+
+struct parallel_context
+{
+    int num_threads_to_wait;
+    ncnn::Mutex finish_lock;
+    ncnn::ConditionVariable finish_condition;
+    ncnn::KMPTask* tasks;
+};
+
+void GOMP_parallel_start(void (*fn)(void*), void* data, unsigned num_threads)
+{
+    g_kmp_global.try_init();
+
+    // NCNN_LOGE("GOMP_parallel_start %p %p %u", fn, data, num_threads);
+    if (num_threads == 0)
+    {
+        num_threads = omp_get_max_threads();
+    }
+
+    if (g_kmp_global.kmp_max_threads == 1 || num_threads == 1)
+    {
+        for (unsigned i = 0; i < num_threads; i++)
+        {
+            tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
+            tls_thread_num.set(reinterpret_cast<void*>((size_t)i));
+
+            fn(data);
+        }
+
+        return;
+    }
+
+    parallel_context* pc = new parallel_context;
+
+    tls_parallel_context.set(pc);
+
+    pc->num_threads_to_wait = num_threads - 1;
+
+    pc->tasks = new ncnn::KMPTask[num_threads - 1];
+    for (unsigned i = 0; i < num_threads - 1; i++)
+    {
+        pc->tasks[i].fn = fn;
+        pc->tasks[i].data = data;
+        pc->tasks[i].num_threads = num_threads;
+        pc->tasks[i].thread_num = i + 1;
+        pc->tasks[i].num_threads_to_wait = &pc->num_threads_to_wait;
+        pc->tasks[i].finish_lock = &pc->finish_lock;
+        pc->tasks[i].finish_condition = &pc->finish_condition;
+    }
+
+    // dispatch 1 ~ num_threads
+    g_kmp_global.kmp_task_queue->dispatch(pc->tasks, num_threads - 1);
+
+    // dispatch 0
+    {
+        tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
+        tls_thread_num.set(reinterpret_cast<void*>((size_t)0));
+    }
+}
+
+void GOMP_parallel_end()
+{
+    // NCNN_LOGE("GOMP_parallel_end");
+    parallel_context* pc = (parallel_context*)tls_parallel_context.get();
+    tls_parallel_context.set(0);
+
+    // wait for finished
+    {
+        pc->finish_lock.lock();
+        if (pc->num_threads_to_wait != 0)
+        {
+            pc->finish_condition.wait(pc->finish_lock);
+        }
+        pc->finish_lock.unlock();
+    }
+
+    delete[] pc->tasks;
+    delete pc;
+}
+
+void GOMP_parallel(void (*fn)(void*), void* data, unsigned num_threads, unsigned int /*flags*/)
+{
+    g_kmp_global.try_init();
+
+    // NCNN_LOGE("GOMP_parallel %p %p %u", fn, data, num_threads);
+    if (num_threads == 0)
+    {
+        num_threads = omp_get_max_threads();
+    }
+
+    if (g_kmp_global.kmp_max_threads == 1 || num_threads == 1)
+    {
+        for (unsigned i = 0; i < num_threads; i++)
+        {
+            tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
+            tls_thread_num.set(reinterpret_cast<void*>((size_t)i));
+
+            fn(data);
+        }
+
+        return;
+    }
+
+    int num_threads_to_wait = num_threads - 1;
+    ncnn::Mutex finish_lock;
+    ncnn::ConditionVariable finish_condition;
+
+    // TODO portable stack allocation
+    ncnn::KMPTask* tasks = (ncnn::KMPTask*)alloca((num_threads - 1) * sizeof(ncnn::KMPTask));
+    for (unsigned i = 0; i < num_threads - 1; i++)
+    {
+        tasks[i].fn = fn;
+        tasks[i].data = data;
+        tasks[i].num_threads = num_threads;
+        tasks[i].thread_num = i + 1;
+        tasks[i].num_threads_to_wait = &num_threads_to_wait;
+        tasks[i].finish_lock = &finish_lock;
+        tasks[i].finish_condition = &finish_condition;
+    }
+
+    // dispatch 1 ~ num_threads
+    g_kmp_global.kmp_task_queue->dispatch(tasks, num_threads - 1);
+
+    // dispatch 0
+    {
+        tls_num_threads.set(reinterpret_cast<void*>((size_t)num_threads));
+        tls_thread_num.set(reinterpret_cast<void*>((size_t)0));
+
+        fn(data);
+    }
+
+    // wait for finished
+    {
+        finish_lock.lock();
+        if (num_threads_to_wait != 0)
+        {
+            finish_condition.wait(finish_lock);
+        }
+        finish_lock.unlock();
+    }
+}
+#endif // __clang__
 
 #ifdef __cplusplus
 } // extern "C"

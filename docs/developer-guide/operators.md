@@ -21,6 +21,7 @@
 * [DeconvolutionDepthWise](#deconvolutiondepthwise)
 * [DeconvolutionDepthWise1D](#deconvolutiondepthwise1d)
 * [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
+* [DeformableConv2D](#deformableconv2d)
 * [Dequantize](#dequantize)
 * [Dropout](#dropout)
 * [Eltwise](#eltwise)
@@ -664,6 +665,35 @@ y = activation(x3, act_type, act_params)
 | weight_data   | float/fp16 | [kernel_w, kernel_h, kernel_d, num_input / group, num_output / group, group] |
 | bias_data     | float | [num_output]          |
 
+# DeformableConv2D
+```
+x2 = deformableconv2d(x, offset, mask, weight, kernel, stride, dilation) + bias
+y = activation(x2, act_type, act_params)
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | num_output    | int   | 0         |                   |
+| 1         | kernel_w      | int   | 0         |                   |
+| 2         | dilation_w    | int   | 1         |                   |
+| 3         | stride_w      | int   | 1         |                   |
+| 4         | pad_left      | int   | 0         |                   |
+| 5         | bias_term     | int   | 0         |                   |
+| 6         | weight_data_size| int | 0         |                   |
+| 9         | activation_type| int  | 0         |                   |
+| 10        | activation_params| array | [ ]    |                   |
+| 11        | kernel_h      | int   | kernel_w  |                   |
+| 12        | dilation_h    | int   | dilation_w |                  |
+| 13        | stride_h      | int   | stride_w  |                   |
+| 14        | pad_top       | int   | pad_left  |                   |
+| 15        | pad_right     | int   | pad_left  |                   |
+| 16        | pad_bottom    | int   | pad_top   |                   |
+
+| weight        | type  | shape                 |
+| ------------- | ----- | --------------------- |
+| weight_data   | float/fp16/int8 | [kernel_w, kernel_h, num_input, num_output] |
+| bias_data     | float | [num_output]          |
+
 # Dequantize
 ```
 y = x * scale + bias
@@ -996,15 +1026,17 @@ y0, hidden y1, cell y2 = lstm(x0, hidden x1, cell x2)
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | num_output    | int   | 0         | hidden size of output |
+| 0         | num_output    | int   | 0         | output size of output |
 | 1         | weight_data_size| int | 0         | total size of IFOG weight matrix |
 | 2         | direction     | int   | 0         | 0=forward, 1=reverse, 2=bidirectional |
+| 3         | hidden_size   | int   | num_output| hidden size       |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_xc_data| float/fp16/int8 | [input_size, num_output * 4, num_directions] |
-| bias_c_data   | float/fp16/int8 | [num_output, 4, num_directions] |
-| weight_hc_data| float/fp16/int8 | [num_output, num_output * 4, num_directions] |
+| weight_xc_data| float/fp16/int8 | [input_size, hidden_size * 4, num_directions] |
+| bias_c_data   | float/fp16/int8 | [hidden_size, 4, num_directions] |
+| weight_hc_data| float/fp16/int8 | [num_output, hidden_size * 4, num_directions] |
+| weight_hr_data| float/fp16/int8 | [hidden_size, num_output, num_directions] |
 
 Direction flag:
 - 0 = forward only

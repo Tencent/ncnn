@@ -65,7 +65,11 @@ def test():
     a = net(xq, xk, xv, z, yq, yk, yv, w)
 
     # export torchscript
-    mod = torch.jit.trace(net, (xq, xk, xv, z, yq, yk, yv, w))
+    print(torch.__version__)
+    if version.parse(torch.__version__) >= version.parse('1.12.0'):
+        mod = torch.jit.trace(net, (xq, xk, xv, z, yq, yk, yv, w), check_trace=False)
+    else:
+        mod = torch.jit.trace(net, (xq, xk, xv, z, yq, yk, yv, w))
     mod.save("test_nn_MultiheadAttention.pt")
 
     # torchscript to pnnx

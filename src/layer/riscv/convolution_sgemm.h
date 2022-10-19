@@ -16,7 +16,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 {
 #if __riscv_vector
     const int packn = csrr_vlenb() / 4;
-    const word_type vl = vsetvl_e32m1(packn);
+    const size_t vl = vsetvl_e32m1(packn);
 #endif
 
     // Mat bottom_im2col(size, maxk, inch, 4u, 1, opt.workspace_allocator);
@@ -34,10 +34,16 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 #if __riscv_vector
     if (size >= packn)
         tmp.create(packn * maxk, inch, size / packn + size % packn, 4u, 1, opt.workspace_allocator);
+#else
+    if (size >= 4)
+        tmp.create(4 * maxk, inch, size / 4 + size % 4, 4u, 1, opt.workspace_allocator);
+#endif
     else
         tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
     {
+#if __riscv_vector
         int nn_size = size / packn;
+        int remain_size_start = nn_size * packn;
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int ii = 0; ii < nn_size; ii++)
@@ -58,13 +64,42 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
                 }
             }
         }
+#else // __riscv_vector
+        int nn_size = size / 4;
+        int remain_size_start = nn_size * 4;
 
-        int remain_size_start = nn_size * packn;
+        #pragma omp parallel for num_threads(opt.num_threads)
+        for (int ii = 0; ii < nn_size; ii++)
+        {
+            int i = ii * 4;
+
+            float* tmpptr = tmp.channel(i / 4);
+
+            for (int q = 0; q < inch; q++)
+            {
+                const float* img0 = (const float*)bottom_im2col.channel(q) + i;
+
+                for (int k = 0; k < maxk; k++)
+                {
+                    tmpptr[0] = img0[0];
+                    tmpptr[1] = img0[1];
+                    tmpptr[2] = img0[2];
+                    tmpptr[3] = img0[3];
+                    img0 += size;
+                    tmpptr += 4;
+                }
+            }
+        }
+#endif // __riscv_vector
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int i = remain_size_start; i < size; i++)
         {
+#if __riscv_vector
             float* tmpptr = tmp.channel(i / packn + i % packn);
+#else
+            float* tmpptr = tmp.channel(i / 4 + i % 4);
+#endif
 
             for (int q = 0; q < inch; q++)
             {
@@ -79,28 +114,6 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
             }
         }
     }
-#else // __riscv_vector
-    tmp.create(maxk, inch, size, 4u, 1, opt.workspace_allocator);
-    {
-        #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < size; i++)
-        {
-            float* tmpptr = tmp.channel(i);
-
-            for (int q = 0; q < inch; q++)
-            {
-                const float* img0 = (const float*)bottom_im2col.channel(q) + i;
-
-                for (int k = 0; k < maxk; k++)
-                {
-                    tmpptr[0] = img0[0];
-                    img0 += size;
-                    tmpptr += 1;
-                }
-            }
-        }
-    }
-#endif // __riscv_vector
 
 #if __riscv_vector
     int nn_outch = outch >> 3;
@@ -307,6 +320,92 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
     }
 
     remain_outch_start += nn_outch << 2;
+#else // __riscv_vector
+    int nn_outch = outch >> 1;
+    int remain_outch_start = nn_outch << 1;
+
+    #pragma omp parallel for num_threads(opt.num_threads)
+    for (int pp = 0; pp < nn_outch; pp++)
+    {
+        int p = pp * 2;
+
+        float* outptr0 = top_blob.channel(p);
+        float* outptr1 = top_blob.channel(p + 1);
+
+        const float zeros[2] = {0.f, 0.f};
+        const float* biasptr = bias ? bias + p : zeros;
+
+        int i = 0;
+        for (; i + 3 < size; i += 4)
+        {
+            const float* tmpptr = tmp.channel(i / 4);
+            const float* kptr = kernel.channel(p / 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+            float sum00 = biasptr[0];
+            float sum01 = biasptr[0];
+            float sum02 = biasptr[0];
+            float sum03 = biasptr[0];
+            float sum10 = biasptr[1];
+            float sum11 = biasptr[1];
+            float sum12 = biasptr[1];
+            float sum13 = biasptr[1];
+
+            for (int q = 0; q < nn; q++)
+            {
+                float k0 = kptr[0];
+                float k1 = kptr[1];
+                sum00 += tmpptr[0] * k0;
+                sum01 += tmpptr[1] * k0;
+                sum02 += tmpptr[2] * k0;
+                sum03 += tmpptr[3] * k0;
+                sum10 += tmpptr[0] * k1;
+                sum11 += tmpptr[1] * k1;
+                sum12 += tmpptr[2] * k1;
+                sum13 += tmpptr[3] * k1;
+                tmpptr += 4;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum00;
+            outptr0[1] = sum01;
+            outptr0[2] = sum02;
+            outptr0[3] = sum03;
+            outptr1[0] = sum10;
+            outptr1[1] = sum11;
+            outptr1[2] = sum12;
+            outptr1[3] = sum13;
+
+            outptr0 += 4;
+            outptr1 += 4;
+        }
+        for (; i < size; i++)
+        {
+            const float* tmpptr = tmp.channel(i / 4 + i % 4);
+            const float* kptr = kernel.channel(p / 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+            float sum0 = biasptr[0];
+            float sum1 = biasptr[1];
+
+            for (int q = 0; q < nn; q++)
+            {
+                sum0 += tmpptr[0] * kptr[0];
+                sum1 += tmpptr[0] * kptr[1];
+                tmpptr++;
+                kptr += 2;
+            }
+
+            outptr0[0] = sum0;
+            outptr1[0] = sum1;
+
+            outptr0++;
+            outptr1++;
+        }
+    }
+#endif // __riscv_vector
 
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = remain_outch_start; p < outch; p++)
@@ -316,6 +415,7 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
         const float bias0 = bias ? bias[p] : 0.f;
 
         int i = 0;
+#if __riscv_vector
         for (; i + (packn - 1) < size; i += packn)
         {
             const float* tmpptr = tmp.channel(i / packn);
@@ -336,10 +436,47 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
 
             outptr0 += packn;
         }
+#else  // __riscv_vector
+        for (; i + 3 < size; i += 4)
+        {
+            const float* tmpptr = tmp.channel(i / 4);
+            const float* kptr = kernel.channel(p / 2 + p % 2);
+
+            int nn = inch * maxk; // inch always > 0
+
+            float sum0 = bias0;
+            float sum1 = bias0;
+            float sum2 = bias0;
+            float sum3 = bias0;
+
+            for (int q = 0; q < nn; q++)
+            {
+                float k0 = kptr[0];
+                sum0 += tmpptr[0] * k0;
+                sum1 += tmpptr[1] * k0;
+                sum2 += tmpptr[2] * k0;
+                sum3 += tmpptr[3] * k0;
+                tmpptr += 4;
+                kptr++;
+            }
+
+            outptr0[0] = sum0;
+            outptr0[1] = sum1;
+            outptr0[2] = sum2;
+            outptr0[3] = sum3;
+
+            outptr0 += 4;
+        }
+#endif // __riscv_vector
         for (; i < size; i++)
         {
+#if __riscv_vector
             const float* tmpptr = tmp.channel(i / packn + i % packn);
             const float* kptr = kernel.channel(p / 8 + (p % 8) / 4 + p % 4);
+#else
+            const float* tmpptr = tmp.channel(i / 4 + i % 4);
+            const float* kptr = kernel.channel(p / 2 + p % 2);
+#endif
 
             int nn = inch * maxk; // inch always > 0
 
@@ -357,36 +494,6 @@ static void im2col_sgemm_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat&
             outptr0++;
         }
     }
-#else // __riscv_vector
-    #pragma omp parallel for num_threads(opt.num_threads)
-    for (int p = 0; p < outch; p++)
-    {
-        float* outptr0 = top_blob.channel(p);
-
-        const float bias0 = bias ? bias[p] : 0.f;
-
-        for (int i = 0; i < size; i++)
-        {
-            const float* tmpptr = tmp.channel(i);
-            const float* kptr = kernel.channel(p);
-
-            int nn = inch * maxk; // inch always > 0
-
-            float sum0 = bias0;
-
-            for (int q = 0; q < nn; q++)
-            {
-                sum0 += tmpptr[0] * kptr[0];
-                tmpptr++;
-                kptr++;
-            }
-
-            outptr0[0] = sum0;
-
-            outptr0++;
-        }
-    }
-#endif // __riscv_vector
 }
 
 static void convolution_im2col_sgemm_transform_kernel_rvv(const Mat& _kernel, Mat& kernel_tm, int inch, int outch, int kernel_w, int kernel_h)
@@ -399,8 +506,12 @@ static void convolution_im2col_sgemm_transform_kernel_rvv(const Mat& _kernel, Ma
     Mat kernel = _kernel.reshape(maxk, inch, outch);
 #if __riscv_vector
     kernel_tm.create(8 * maxk, inch, outch / 8 + (outch % 8) / 4 + outch % 4);
+#else
+    kernel_tm.create(2 * maxk, inch, outch / 2 + outch % 2);
+#endif
 
     int q = 0;
+#if __riscv_vector
     for (; q + 7 < outch; q += 8)
     {
         const Mat k0 = kernel.channel(q);
@@ -467,11 +578,38 @@ static void convolution_im2col_sgemm_transform_kernel_rvv(const Mat& _kernel, Ma
             }
         }
     }
+#else
+    for (; q + 1 < outch; q += 2)
+    {
+        const Mat k0 = kernel.channel(q);
+        const Mat k1 = kernel.channel(q + 1);
+
+        float* g00 = kernel_tm.channel(q / 2);
+
+        for (int p = 0; p < inch; p++)
+        {
+            const float* k00 = k0.row(p);
+            const float* k10 = k1.row(p);
+
+            for (int k = 0; k < maxk; k++)
+            {
+                g00[0] = k00[k];
+                g00[1] = k10[k];
+
+                g00 += 2;
+            }
+        }
+    }
+#endif // __riscv_vector
     for (; q < outch; q++)
     {
         const Mat k0 = kernel.channel(q);
 
+#if __riscv_vector
         float* g00 = kernel_tm.channel(q / 8 + (q % 8) / 4 + q % 4);
+#else
+        float* g00 = kernel_tm.channel(q / 2 + q % 2);
+#endif
 
         for (int p = 0; p < inch; p++)
         {
@@ -485,9 +623,6 @@ static void convolution_im2col_sgemm_transform_kernel_rvv(const Mat& _kernel, Ma
             }
         }
     }
-#else
-    kernel_tm = kernel;
-#endif // __riscv_vector
 }
 
 static void convolution_im2col_sgemm_rvv(const Mat& bottom_blob, Mat& top_blob, const Mat& kernel, const Mat& _bias, int kernel_w, int kernel_h, int dilation_w, int dilation_h, int stride_w, int stride_h, const Option& opt)
