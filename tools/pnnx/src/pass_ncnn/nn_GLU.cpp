@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //               2022 Xiaomi Corp.     (author: Fangjun Kuang)
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
@@ -44,7 +44,27 @@ pnnx.Output          output         1 0 out
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
-        op->params["0"] = captured_params.at("dim");
+        const int batch_index = op->inputs[0]->params["__batch_index"].i;
+
+        int input_rank = op->inputs[0]->shape.size();
+
+        if (batch_index >= 0 && batch_index < input_rank)
+            input_rank -= 1;
+
+        int axis = captured_params.at("dim").i;
+        if (axis == batch_index)
+        {
+            fprintf(stderr, "glu along batch axis %d is not supported\n", batch_index);
+            return;
+        }
+
+        if (axis < 0)
+            axis = input_rank + axis;
+
+        if (axis > batch_index)
+            axis -= 1;
+
+        op->params["0"] = axis;
     }
 };
 
