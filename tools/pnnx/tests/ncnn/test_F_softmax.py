@@ -24,7 +24,8 @@ class Model(nn.Module):
         x = F.softmax(x, 0)
         y = F.softmax(y, 1)
         z = F.softmax(z, 2)
-        return x, y, z
+        z2 = F.softmax(z, -1)
+        return x, y, z, z2
 
 def test():
     net = Model()
