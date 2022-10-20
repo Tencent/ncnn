@@ -200,7 +200,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         if (resize_type == 1) // bilinear
         {
             // GSample_bilinear(src, dst, grid, align_corner, padding_mode);
-            #pragma omp parallel for num_threads(opt.num_threads) collapse(2)
+            #pragma omp parallel for num_threads(opt.num_threads) // collapse(2)
             for (int row = 0; row < outh; row++)
             {
                 for (int col = 0; col < outw; col++)
@@ -261,7 +261,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
         else if (resize_type == 2) //nearest
         {
-            #pragma omp parallel for num_threads(opt.num_threads) collapse(2)
+            #pragma omp parallel for num_threads(opt.num_threads) // collapse(2)
             for (int row = 0; row < outh; row++)
             {
                 for (int col = 0; col < outw; col++)
@@ -297,7 +297,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
         else if (resize_type == 3) // bicubic
         {
-            #pragma omp parallel for num_threads(opt.num_threads) collapse(2)
+            #pragma omp parallel for num_threads(opt.num_threads) // collapse(2)
             for (int row = 0; row < outh; row++)
             {
                 for (int col = 0; col < outw; col++)
