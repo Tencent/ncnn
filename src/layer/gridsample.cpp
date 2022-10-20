@@ -12,19 +12,17 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "grid_sample.h"
-#include <cmath>
+#include "gridsample.h"
 
 namespace ncnn {
 
-Grid_Sample::Grid_Sample()
+GridSample::GridSample()
 {
-    // one_blob_only = true;
     one_blob_only = false;
     support_inplace = false;
 }
 
-int Grid_Sample::load_param(const ParamDict& pd)
+int GridSample::load_param(const ParamDict& pd)
 {
     resize_type = pd.get(0, 1);
     padding_mode = pd.get(1, 1);
@@ -176,7 +174,7 @@ static float cubic_interp1d(float x0, float x1, float x2, float x3, float t)
     return x0 * coeffs[0] + x1 * coeffs[1] + x2 * coeffs[2] + x3 * coeffs[3];
 }
 
-int Grid_Sample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
     const Mat& grid = bottom_blobs[1];
@@ -184,6 +182,7 @@ int Grid_Sample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     int w = bottom_blob.w;
     int h = bottom_blob.h;
+    // int d = bottom_blob.d;
     int channels = bottom_blob.c;
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
@@ -198,6 +197,7 @@ int Grid_Sample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
             return -100;
         if (resize_type == 1) // bilinear
         {
+            // GSample_bilinear(src, dst, grid, align_corner, padding_mode);
             #pragma omp parallel for num_threads(opt.num_threads) collapse(2)
             for (int row = 0; row < outh; row++)
             {
@@ -348,6 +348,7 @@ int Grid_Sample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>&
 
     if (dims == 4)
     {
+        // TODO
     }
 
     return 0;

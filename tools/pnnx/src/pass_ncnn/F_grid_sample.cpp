@@ -34,7 +34,7 @@ pnnx.Output             output        1 0 out
 
     const char* type_str() const
     {
-        return "Grid_Sample";
+        return "GridSample";
     }
 
     const char* name_str() const

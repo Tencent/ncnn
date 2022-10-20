@@ -19,10 +19,10 @@
 
 namespace ncnn {
 
-class Grid_Sample : public Layer
+class GridSample : public Layer
 {
 public:
-    Grid_Sample();
+    GridSample();
 
     virtual int load_param(const ParamDict& pd);
 

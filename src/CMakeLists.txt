@@ -157,7 +157,7 @@ ncnn_add_layer(DeconvolutionDepthWise3D)
 ncnn_add_layer(Einsum)
 ncnn_add_layer(DeformableConv2D)
 ncnn_add_layer(GLU)
-ncnn_add_layer(Grid_Sample)
+ncnn_add_layer(GridSample)
 
 if(NCNN_VULKAN)
     ncnn_add_shader(${CMAKE_CURRENT_SOURCE_DIR}/convert_ycbcr.comp)
