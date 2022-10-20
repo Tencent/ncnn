@@ -126,7 +126,17 @@ static std::string eval_expression(const Operator* op)
                 {
                     int bi = std::stoi(b);
                     int r = op->inputs[input_index]->shape[bi];
-                    exprstack.push(std::to_string(r));
+                    if (r == -1)
+                    {
+                        // do not evaluate dynamic size info as -1
+                        // just keep the size expression
+                        std::string r = std::string("size(") + a + "," + b + ")";
+                        exprstack.push(r);
+                    }
+                    else
+                    {
+                        exprstack.push(std::to_string(r));
+                    }
                 }
             }
             else
