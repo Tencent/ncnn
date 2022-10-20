@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "layer/grid_sample.h"
+#include "layer/gridsample.h"
 #include "testutil.h"
 
 static int test_grid_sample(const ncnn::Mat& a, int resize_type, int padding_mode, int align_corner)
