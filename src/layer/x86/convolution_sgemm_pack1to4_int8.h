@@ -464,7 +464,7 @@ static void im2col_sgemm_pack1to4_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
                 _sum00_12 = _mm256_permute4x64_epi64(_sum00_12, _MM_SHUFFLE(2, 1, 3, 0));
 #else
-#if __XOP__
+#if __SSSE3__
                 _sum00 = _mm_hadd_epi32(_sum00, _sum01);
                 _sum10 = _mm_hadd_epi32(_sum10, _sum11);
 #else

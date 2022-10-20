@@ -610,10 +610,8 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
             int nn = inch * maxk; // inch always > 0
 
-            __m256i _sum0_2 = _mm256_setzero_si256();
-            __m256i _sum1_3 = _mm256_setzero_si256();
-            __m256i _sum4_6 = _mm256_setzero_si256();
-            __m256i _sum5_7 = _mm256_setzero_si256();
+            __m256i _sum01 = _mm256_setzero_si256();
+            __m256i _sum23 = _mm256_setzero_si256();
 
             int j = 0;
             for (; j < nn; j++)
@@ -627,31 +625,27 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 __m256i _w01_16 = _mm256_cvtepi8_epi16(_w01);
                 _w01_16 = _mm256_permute4x64_epi64(_w01_16, _MM_SHUFFLE(1, 0, 1, 0));
 
-                __m256i _sl00_10 = _mm256_mullo_epi16(_val01_16, _w01_16);
-                __m256i _sh00_10 = _mm256_mulhi_epi16(_val01_16, _w01_16);
-                __m256i _sl20_30 = _mm256_mullo_epi16(_val23_16, _w01_16);
-                __m256i _sh20_30 = _mm256_mulhi_epi16(_val23_16, _w01_16);
-
-                _sum0_2 = _mm256_add_epi32(_sum0_2, _mm256_unpacklo_epi16(_sl00_10, _sh00_10));
-                _sum1_3 = _mm256_add_epi32(_sum1_3, _mm256_unpackhi_epi16(_sl00_10, _sh00_10));
-                _sum4_6 = _mm256_add_epi32(_sum4_6, _mm256_unpacklo_epi16(_sl20_30, _sh20_30));
-                _sum5_7 = _mm256_add_epi32(_sum5_7, _mm256_unpackhi_epi16(_sl20_30, _sh20_30));
+#if __AVXVNNI__ || __AVX512VNNI__
+                _sum01 = _mm256_dpwssd_epi32(_sum01, _val01_16, _w01_16);
+                _sum23 = _mm256_dpwssd_epi32(_sum23, _val23_16, _w01_16);
+#else
+                _sum01 = _mm256_add_epi32(_sum01, _mm256_madd_epi16(_val01_16, _w01_16));
+                _sum23 = _mm256_add_epi32(_sum23, _mm256_madd_epi16(_val23_16, _w01_16));
+#endif
 
                 tmpptr += 32;
                 kptr0 += 8;
             }
 
-            _sum0_2 = _mm256_add_epi32(_sum0_2, _sum1_3);
-            _sum4_6 = _mm256_add_epi32(_sum4_6, _sum5_7);
-            __m128i _sum0 = _mm256_extracti128_si256(_sum0_2, 0);
-            __m128i _sum2 = _mm256_extracti128_si256(_sum0_2, 1);
-            __m128i _sum4 = _mm256_extracti128_si256(_sum4_6, 0);
-            __m128i _sum6 = _mm256_extracti128_si256(_sum4_6, 1);
+            __m128i _sum0 = _mm256_extracti128_si256(_sum01, 0);
+            __m128i _sum1 = _mm256_extracti128_si256(_sum01, 1);
+            __m128i _sum2 = _mm256_extracti128_si256(_sum23, 0);
+            __m128i _sum3 = _mm256_extracti128_si256(_sum23, 1);
 
             outptr0[0] = _mm_reduce_add_epi32(_sum0);
-            outptr0[1] = _mm_reduce_add_epi32(_sum2);
-            outptr0[2] = _mm_reduce_add_epi32(_sum4);
-            outptr0[3] = _mm_reduce_add_epi32(_sum6);
+            outptr0[1] = _mm_reduce_add_epi32(_sum1);
+            outptr0[2] = _mm_reduce_add_epi32(_sum2);
+            outptr0[3] = _mm_reduce_add_epi32(_sum3);
             outptr0 += 4;
         }
 #endif
@@ -667,11 +661,10 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
             int nn = inch * maxk; // inch always > 0
 
 #if __AVX2__
-            __m256i _sum0_2 = _mm256_setzero_si256();
-            __m256i _sum1_3 = _mm256_setzero_si256();
+            __m256i _sum01 = _mm256_setzero_si256();
 #else
             __m128i _sum0 = _mm_setzero_si128();
-            __m128i _sum2 = _mm_setzero_si128();
+            __m128i _sum1 = _mm_setzero_si128();
 #endif
 
             int j = 0;
@@ -685,11 +678,11 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
                 __m256i _w01_16 = _mm256_cvtepi8_epi16(_w01);
                 _w01_16 = _mm256_permute4x64_epi64(_w01_16, _MM_SHUFFLE(1, 0, 1, 0));
 
-                __m256i _sl00_10 = _mm256_mullo_epi16(_val01_16, _w01_16);
-                __m256i _sh00_10 = _mm256_mulhi_epi16(_val01_16, _w01_16);
-
-                _sum0_2 = _mm256_add_epi32(_sum0_2, _mm256_unpacklo_epi16(_sl00_10, _sh00_10));
-                _sum1_3 = _mm256_add_epi32(_sum1_3, _mm256_unpackhi_epi16(_sl00_10, _sh00_10));
+#if __AVXVNNI__ || __AVX512VNNI__
+                _sum01 = _mm256_dpwssd_epi32(_sum01, _val01_16, _w01_16);
+#else
+                _sum01 = _mm256_add_epi32(_sum01, _mm256_madd_epi16(_val01_16, _w01_16));
+#endif
 #else
                 __m128i _val01 = _mm_loadu_si128((const __m128i*)tmpptr);
                 __m128i _extval01 = _mm_cmpgt_epi8(_mm_setzero_si128(), _val01);
@@ -706,10 +699,10 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
 
 #if __XOP__
                 _sum0 = _mm_maddd_epi16(_val0, _w0, _sum0);
-                _sum2 = _mm_maddd_epi16(_val1, _w0, _sum2);
+                _sum1 = _mm_maddd_epi16(_val1, _w0, _sum1);
 #else
                 _sum0 = _mm_add_epi32(_mm_madd_epi16(_val0, _w0), _sum0);
-                _sum2 = _mm_add_epi32(_mm_madd_epi16(_val1, _w0), _sum2);
+                _sum1 = _mm_add_epi32(_mm_madd_epi16(_val1, _w0), _sum1);
 #endif
 #endif
 
@@ -718,13 +711,12 @@ static void im2col_sgemm_pack8to1_int8_sse(const Mat& bottom_im2col, Mat& top_bl
             }
 
 #if __AVX2__
-            _sum0_2 = _mm256_add_epi32(_sum0_2, _sum1_3);
-            __m128i _sum0 = _mm256_extracti128_si256(_sum0_2, 0);
-            __m128i _sum2 = _mm256_extracti128_si256(_sum0_2, 1);
+            __m128i _sum0 = _mm256_extracti128_si256(_sum01, 0);
+            __m128i _sum1 = _mm256_extracti128_si256(_sum01, 1);
 #endif
 
             outptr0[0] = _mm_reduce_add_epi32(_sum0);
-            outptr0[1] = _mm_reduce_add_epi32(_sum2);
+            outptr0[1] = _mm_reduce_add_epi32(_sum1);
             outptr0 += 2;
         }
         for (; i < size; i++)
