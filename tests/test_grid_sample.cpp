@@ -31,9 +31,9 @@ static int test_grid_sample(const ncnn::Mat& a, const ncnn::Mat& grid, int resiz
     int ret = test_layer<ncnn::GridSample>("GridSample", pd, weights, as);
     if (ret != 0)
     {
-        fprintf(stderr, "test_grid_sample failed a.dims=%d a=(%d %d %d %d) grid.dims=%d grid=(%d %d %d %d) resize_type=%d padding_mode=%d align_corner=%d", 
-                        a.dims, a.w, a.h, a.d, a.c, grid.dims, grid.w, grid.h, grid.d, grid.c, 
-                        resize_type, padding_mode, align_corner);
+        fprintf(stderr, "test_grid_sample failed a.dims=%d a=(%d %d %d %d) grid.dims=%d grid=(%d %d %d %d) resize_type=%d padding_mode=%d align_corner=%d",
+                a.dims, a.w, a.h, a.d, a.c, grid.dims, grid.w, grid.h, grid.d, grid.c,
+                resize_type, padding_mode, align_corner);
     }
 
     return ret;
