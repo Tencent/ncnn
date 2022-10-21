@@ -283,7 +283,7 @@ void solve_batch_index(Graph& graph)
     {
         if (is_known_operator_with_batch_index_0(op))
         {
-            if(op->type == std::string("F.grid_sample"))
+            if (op->type == std::string("F.grid_sample"))
             {
                 // grid_sample's grid input may be a 5d tensor :(
                 op->inputs[1]->params["__batch_index"] = 0;
