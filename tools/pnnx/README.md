@@ -488,6 +488,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.FractionalMaxPool2d     |   |
 |nn.FractionalMaxPool3d     |   |
 |nn.GELU                    | :heavy_check_mark: | :heavy_check_mark: |
+|nn.GLU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GroupNorm               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRUCell                 |   |
@@ -603,7 +604,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.fractional_max_pool2d    |  |
 |F.fractional_max_pool3d    |  |
 |F.gelu                     | :heavy_check_mark: | :heavy_check_mark: |
-|F.glu                      |  |
+|F.glu                      | :heavy_check_mark: | :heavy_check_mark: |
 |F.grid_sample              | :heavy_check_mark: |
 |F.group_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.gumbel_softmax           |  |

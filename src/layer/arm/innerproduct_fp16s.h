@@ -253,10 +253,10 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
             float32x4_t _val = vld1q_f32(sptr);
             uint16x8_t _w01 = vld1q_u16(kptr);
             uint16x8_t _w23 = vld1q_u16(kptr + 8);
-            float32x4_t _w0 = vcvt_f32_f16(vreinterpret_f16_u16(vget_low_u16(_w01)));
-            float32x4_t _w1 = vcvt_f32_f16(vreinterpret_f16_u16(vget_high_u16(_w01)));
-            float32x4_t _w2 = vcvt_f32_f16(vreinterpret_f16_u16(vget_low_u16(_w23)));
-            float32x4_t _w3 = vcvt_f32_f16(vreinterpret_f16_u16(vget_high_u16(_w23)));
+            float32x4_t _w0 = vcvt_f32_f16((float16x4_t)(vget_low_u16(_w01)));
+            float32x4_t _w1 = vcvt_f32_f16((float16x4_t)(vget_high_u16(_w01)));
+            float32x4_t _w2 = vcvt_f32_f16((float16x4_t)(vget_low_u16(_w23)));
+            float32x4_t _w3 = vcvt_f32_f16((float16x4_t)(vget_high_u16(_w23)));
 #endif
 
 #if __aarch64__
@@ -281,7 +281,7 @@ static void innerproduct_pack4_fp16s_neon(const Mat& bottom_blob, Mat& top_blob,
 #if __ARM_FEATURE_FP16_VECTOR_ARITHMETIC
             float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
 #else
-            float32x4_t _w = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr)));
+            float32x4_t _w = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr)));
 #endif
             _sum0 = vfmaq_f32(_sum0, _val, _w);
 
@@ -410,10 +410,10 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
             float32x4_t _w3 = vcvt_f32_f16(vld1_f16(kptr3));
 #else
             float32x4_t _val = vld1q_f32(sptr);
-            float32x4_t _w0 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr0)));
-            float32x4_t _w1 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr1)));
-            float32x4_t _w2 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr2)));
-            float32x4_t _w3 = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr3)));
+            float32x4_t _w0 = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr0)));
+            float32x4_t _w1 = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr1)));
+            float32x4_t _w2 = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr2)));
+            float32x4_t _w3 = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr3)));
 #endif
 
             _sum0 = vfmaq_f32(_sum0, _val, _w0);
@@ -507,7 +507,7 @@ static void innerproduct_fp16s_neon(const Mat& bottom_blob, Mat& top_blob, const
             float32x4_t _w = vcvt_f32_f16(vld1_f16(kptr));
 #else
             float32x4_t _val = vld1q_f32(sptr);
-            float32x4_t _w = vcvt_f32_f16(vreinterpret_f16_u16(vld1_u16(kptr)));
+            float32x4_t _w = vcvt_f32_f16((float16x4_t)(vld1_u16(kptr)));
 #endif
             _sum = vfmaq_f32(_sum, _val, _w);
 
@@ -713,10 +713,10 @@ static void innerproduct_transform_kernel_fp16s_neon(const Mat& weight_data, Mat
             {
                 // transpose 4x4
                 uint16x4x4_t _p;
-                _p.val[0] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k0)));
-                _p.val[1] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k1)));
-                _p.val[2] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k2)));
-                _p.val[3] = vreinterpret_u16_f16(vcvt_f16_f32(vld1q_f32(k3)));
+                _p.val[0] = (uint16x4_t)(vcvt_f16_f32(vld1q_f32(k0)));
+                _p.val[1] = (uint16x4_t)(vcvt_f16_f32(vld1q_f32(k1)));
+                _p.val[2] = (uint16x4_t)(vcvt_f16_f32(vld1q_f32(k2)));
+                _p.val[3] = (uint16x4_t)(vcvt_f16_f32(vld1q_f32(k3)));
                 vst4_u16(g0, _p);
 
                 k0 += 4;

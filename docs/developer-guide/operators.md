@@ -29,6 +29,7 @@
 * [Exp](#exp)
 * [Flatten](#flatten)
 * [GELU](#gelu)
+* [GLU](#glu)
 * [Gemm](#gemm)
 * [GroupNorm](#groupnorm)
 * [GRU](#gru)
@@ -784,6 +785,22 @@ else                y = 0.5 * x * erfc(-0.70710678 * x)
 | --------- | ------------- | ----- | --------- | ----------------- |
 | 0         | fast_gelu     | int   | 0         | use approximation |
 
+# GLU
+
+If axis < 0, we use axis = x.dims + axis
+
+GLU(a,b)=a⊗σ(b)
+
+where a is the first half of the input matrix and b is the second half.
+
+axis specifies the dimension to split the input
+
+* one_blob_only
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | axis          | int   | 0         |                   |
+
 # Gemm
 ```
 a = transA ? transpose(x0) : x0
@@ -1026,15 +1043,17 @@ y0, hidden y1, cell y2 = lstm(x0, hidden x1, cell x2)
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | num_output    | int   | 0         | hidden size of output |
+| 0         | num_output    | int   | 0         | output size of output |
 | 1         | weight_data_size| int | 0         | total size of IFOG weight matrix |
 | 2         | direction     | int   | 0         | 0=forward, 1=reverse, 2=bidirectional |
+| 3         | hidden_size   | int   | num_output| hidden size       |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
-| weight_xc_data| float/fp16/int8 | [input_size, num_output * 4, num_directions] |
-| bias_c_data   | float/fp16/int8 | [num_output, 4, num_directions] |
-| weight_hc_data| float/fp16/int8 | [num_output, num_output * 4, num_directions] |
+| weight_xc_data| float/fp16/int8 | [input_size, hidden_size * 4, num_directions] |
+| bias_c_data   | float/fp16/int8 | [hidden_size, 4, num_directions] |
+| weight_hc_data| float/fp16/int8 | [num_output, hidden_size * 4, num_directions] |
+| weight_hr_data| float/fp16/int8 | [hidden_size, num_output, num_directions] |
 
 Direction flag:
 - 0 = forward only

@@ -125,59 +125,23 @@ static void conv3x3s1_winograd43_transform_kernel_pack8to4_int8_sse(const Mat& k
     int q = 0;
     for (; q + 3 < outch; q += 4)
     {
-        const Mat k0 = kernel_tm.channel(q);
-        const Mat k1 = kernel_tm.channel(q + 1);
-        const Mat k2 = kernel_tm.channel(q + 2);
-        const Mat k3 = kernel_tm.channel(q + 3);
-
-        Mat kernel_tm = kernel_tm_pack8.channel(q / 4);
+        Mat g0 = kernel_tm_pack8.channel(q / 4);
 
         for (int k = 0; k < 36; k++)
         {
-            short* g00 = kernel_tm.row<short>(k);
+            short* g00 = g0.row<short>(k);
 
             for (int p = 0; p + 7 < inch; p += 8)
             {
-#if __AVXVNNI__ || __AVX512VNNI__ || __XOP__
                 for (int i = 0; i < 4; i++)
                 {
-                    const short* k00 = k0.row<const short>(p + i * 2);
-                    const short* k10 = k1.row<const short>(p + i * 2);
-                    const short* k20 = k2.row<const short>(p + i * 2);
-                    const short* k30 = k3.row<const short>(p + i * 2);
-
-                    const short* k01 = k0.row<const short>(p + i * 2 + 1);
-                    const short* k11 = k1.row<const short>(p + i * 2 + 1);
-                    const short* k21 = k2.row<const short>(p + i * 2 + 1);
-                    const short* k31 = k3.row<const short>(p + i * 2 + 1);
-
-                    g00[0] = k00[k];
-                    g00[1] = k01[k];
-                    g00[2] = k10[k];
-                    g00[3] = k11[k];
-                    g00[4] = k20[k];
-                    g00[5] = k21[k];
-                    g00[6] = k30[k];
-                    g00[7] = k31[k];
-
-                    g00 += 8;
+                    for (int j = 0; j < 8; j++)
+                    {
+                        const short* k00 = kernel_tm.channel(q + i).row<const short>(p + j);
+                        g00[0] = k00[k];
+                        g00 += 1;
+                    }
                 }
-#else
-                for (int i = 0; i < 8; i++)
-                {
-                    const short* k00 = k0.row<const short>(p + i);
-                    const short* k10 = k1.row<const short>(p + i);
-                    const short* k20 = k2.row<const short>(p + i);
-                    const short* k30 = k3.row<const short>(p + i);
-
-                    g00[0] = k00[k];
-                    g00[1] = k10[k];
-                    g00[2] = k20[k];
-                    g00[3] = k30[k];
-
-                    g00 += 4;
-                }
-#endif
             }
         }
     }
@@ -482,113 +446,96 @@ static void conv3x3s1_winograd43_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 
                     int nn = inch; // inch always > 0
 
-                    __m256i _sum0_1 = _mm256_setzero_si256();
-                    __m256i _sum2_3 = _mm256_setzero_si256();
-                    __m256i _sum4_5 = _mm256_setzero_si256();
-                    __m256i _sum6_7 = _mm256_setzero_si256();
+                    __m256i _sum00_11 = _mm256_setzero_si256();
+                    __m256i _sum10_01 = _mm256_setzero_si256();
+                    __m256i _sum02_13 = _mm256_setzero_si256();
+                    __m256i _sum12_03 = _mm256_setzero_si256();
+
+                    __m256i _sum04_15 = _mm256_setzero_si256();
+                    __m256i _sum14_05 = _mm256_setzero_si256();
+                    __m256i _sum06_17 = _mm256_setzero_si256();
+                    __m256i _sum16_07 = _mm256_setzero_si256();
 
                     for (int j = 0; j < nn; j++)
                     {
                         // 0 1 2 3 4 5 6 7 8 9 a b c d e f
-                        __m256i _val0 = _mm256_loadu_si256((const __m256i*)r0);
+                        __m256i _val01 = _mm256_loadu_si256((const __m256i*)r0);
 
                         __m256i _w01 = _mm256_loadu_si256((const __m256i*)k0);
                         __m256i _w23 = _mm256_loadu_si256((const __m256i*)(k0 + 16));
 
+                        __m256i _val10 = _mm256_permute4x64_epi64(_val01, 78);
+
 #if __AVXVNNI__ || __AVX512VNNI__
-                        __m256i _val0_0123 = _mm256_permutevar8x32_epi32(_val0, _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0));
-                        __m256i _val0_4567 = _mm256_permutevar8x32_epi32(_val0, _mm256_set_epi32(3, 3, 3, 3, 2, 2, 2, 2));
-                        __m256i _val0_89ab = _mm256_permutevar8x32_epi32(_val0, _mm256_set_epi32(5, 5, 5, 5, 4, 4, 4, 4));
-                        __m256i _val0_cdef = _mm256_permutevar8x32_epi32(_val0, _mm256_set_epi32(7, 7, 7, 7, 6, 6, 6, 6));
-
-                        _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w01, _val0_0123);
-                        _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _w01, _val0_89ab);
-                        _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w23, _val0_4567);
-                        _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _w23, _val0_cdef);
+                        _sum00_11 = _mm256_dpwssd_epi32(_sum00_11, _val01, _w01);
+                        _sum10_01 = _mm256_dpwssd_epi32(_sum10_01, _val10, _w01);
+                        _sum02_13 = _mm256_dpwssd_epi32(_sum02_13, _val01, _w23);
+                        _sum12_03 = _mm256_dpwssd_epi32(_sum12_03, _val10, _w23);
 #else
-                        // 0 0 1 1 2 2 3 3 8 8 9 9 a a b b
-                        // 4 4 5 5 6 6 7 7 c c d d e e f f
-                        __m256i _val0_0123_89ab = _mm256_unpacklo_epi16(_val0, _val0);
-                        __m256i _val0_4567_cdef = _mm256_unpackhi_epi16(_val0, _val0);
-
-                        __m256i _val0_0123 = _mm256_permutevar8x32_epi32(_val0_0123_89ab, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
-                        __m256i _val0_4567 = _mm256_permutevar8x32_epi32(_val0_4567_cdef, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
-                        __m256i _val0_89ab = _mm256_permutevar8x32_epi32(_val0_0123_89ab, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
-                        __m256i _val0_cdef = _mm256_permutevar8x32_epi32(_val0_4567_cdef, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
-
-                        __m256i _sl00_01 = _mm256_mullo_epi16(_w01, _val0_0123);
-                        __m256i _sh00_01 = _mm256_mulhi_epi16(_w01, _val0_0123);
-                        __m256i _sl10_11 = _mm256_mullo_epi16(_w01, _val0_89ab);
-                        __m256i _sh10_11 = _mm256_mulhi_epi16(_w01, _val0_89ab);
-                        __m256i _sl02_03 = _mm256_mullo_epi16(_w23, _val0_4567);
-                        __m256i _sh02_03 = _mm256_mulhi_epi16(_w23, _val0_4567);
-                        __m256i _sl12_13 = _mm256_mullo_epi16(_w23, _val0_cdef);
-                        __m256i _sh12_13 = _mm256_mulhi_epi16(_w23, _val0_cdef);
-
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpacklo_epi16(_sl00_01, _sh00_01));
-                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpacklo_epi16(_sl10_11, _sh10_11));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpacklo_epi16(_sl02_03, _sh02_03));
-                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpacklo_epi16(_sl12_13, _sh12_13));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpackhi_epi16(_sl00_01, _sh00_01));
-                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpackhi_epi16(_sl10_11, _sh10_11));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpackhi_epi16(_sl02_03, _sh02_03));
-                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpackhi_epi16(_sl12_13, _sh12_13));
+                        _sum00_11 = _mm256_add_epi32(_sum00_11, _mm256_madd_epi16(_val01, _w01));
+                        _sum10_01 = _mm256_add_epi32(_sum10_01, _mm256_madd_epi16(_val10, _w01));
+                        _sum02_13 = _mm256_add_epi32(_sum02_13, _mm256_madd_epi16(_val01, _w23));
+                        _sum12_03 = _mm256_add_epi32(_sum12_03, _mm256_madd_epi16(_val10, _w23));
 #endif
 
-                        __m256i _val1 = _mm256_loadu_si256((const __m256i*)(r0 + 16));
+                        __m256i _val23 = _mm256_loadu_si256((const __m256i*)(r0 + 16));
+
+                        __m256i _val32 = _mm256_permute4x64_epi64(_val23, 78);
 
 #if __AVXVNNI__ || __AVX512VNNI__
-                        __m256i _val1_0123 = _mm256_permutevar8x32_epi32(_val1, _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0));
-                        __m256i _val1_4567 = _mm256_permutevar8x32_epi32(_val1, _mm256_set_epi32(3, 3, 3, 3, 2, 2, 2, 2));
-                        __m256i _val1_89ab = _mm256_permutevar8x32_epi32(_val1, _mm256_set_epi32(5, 5, 5, 5, 4, 4, 4, 4));
-                        __m256i _val1_cdef = _mm256_permutevar8x32_epi32(_val1, _mm256_set_epi32(7, 7, 7, 7, 6, 6, 6, 6));
-
-                        _sum4_5 = _mm256_dpwssd_epi32(_sum4_5, _w01, _val1_0123);
-                        _sum6_7 = _mm256_dpwssd_epi32(_sum6_7, _w01, _val1_89ab);
-                        _sum4_5 = _mm256_dpwssd_epi32(_sum4_5, _w23, _val1_4567);
-                        _sum6_7 = _mm256_dpwssd_epi32(_sum6_7, _w23, _val1_cdef);
+                        _sum04_15 = _mm256_dpwssd_epi32(_sum04_15, _val23, _w01);
+                        _sum14_05 = _mm256_dpwssd_epi32(_sum14_05, _val32, _w01);
+                        _sum06_17 = _mm256_dpwssd_epi32(_sum06_17, _val23, _w23);
+                        _sum16_07 = _mm256_dpwssd_epi32(_sum16_07, _val32, _w23);
 #else
-                        __m256i _val1_0123_89ab = _mm256_unpacklo_epi16(_val1, _val1);
-                        __m256i _val1_4567_cdef = _mm256_unpackhi_epi16(_val1, _val1);
-
-                        __m256i _val1_0123 = _mm256_permutevar8x32_epi32(_val1_0123_89ab, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
-                        __m256i _val1_4567 = _mm256_permutevar8x32_epi32(_val1_4567_cdef, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
-                        __m256i _val1_89ab = _mm256_permutevar8x32_epi32(_val1_0123_89ab, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
-                        __m256i _val1_cdef = _mm256_permutevar8x32_epi32(_val1_4567_cdef, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
-
-                        __m256i _sl04_05 = _mm256_mullo_epi16(_w01, _val1_0123);
-                        __m256i _sh04_05 = _mm256_mulhi_epi16(_w01, _val1_0123);
-                        __m256i _sl14_15 = _mm256_mullo_epi16(_w01, _val1_89ab);
-                        __m256i _sh14_15 = _mm256_mulhi_epi16(_w01, _val1_89ab);
-                        __m256i _sl06_07 = _mm256_mullo_epi16(_w23, _val1_4567);
-                        __m256i _sh06_07 = _mm256_mulhi_epi16(_w23, _val1_4567);
-                        __m256i _sl16_17 = _mm256_mullo_epi16(_w23, _val1_cdef);
-                        __m256i _sh16_17 = _mm256_mulhi_epi16(_w23, _val1_cdef);
-
-                        _sum4_5 = _mm256_add_epi32(_sum4_5, _mm256_unpacklo_epi16(_sl04_05, _sh04_05));
-                        _sum6_7 = _mm256_add_epi32(_sum6_7, _mm256_unpacklo_epi16(_sl14_15, _sh14_15));
-                        _sum4_5 = _mm256_add_epi32(_sum4_5, _mm256_unpacklo_epi16(_sl06_07, _sh06_07));
-                        _sum6_7 = _mm256_add_epi32(_sum6_7, _mm256_unpacklo_epi16(_sl16_17, _sh16_17));
-                        _sum4_5 = _mm256_add_epi32(_sum4_5, _mm256_unpackhi_epi16(_sl04_05, _sh04_05));
-                        _sum6_7 = _mm256_add_epi32(_sum6_7, _mm256_unpackhi_epi16(_sl14_15, _sh14_15));
-                        _sum4_5 = _mm256_add_epi32(_sum4_5, _mm256_unpackhi_epi16(_sl06_07, _sh06_07));
-                        _sum6_7 = _mm256_add_epi32(_sum6_7, _mm256_unpackhi_epi16(_sl16_17, _sh16_17));
+                        _sum04_15 = _mm256_add_epi32(_sum04_15, _mm256_madd_epi16(_val23, _w01));
+                        _sum14_05 = _mm256_add_epi32(_sum14_05, _mm256_madd_epi16(_val32, _w01));
+                        _sum06_17 = _mm256_add_epi32(_sum06_17, _mm256_madd_epi16(_val23, _w23));
+                        _sum16_07 = _mm256_add_epi32(_sum16_07, _mm256_madd_epi16(_val32, _w23));
 #endif
 
                         r0 += 32;
                         k0 += 32;
                     }
 
-                    __m256i _sum0_2 = _mm256_permute2x128_si256(_sum0_1, _sum2_3, _MM_SHUFFLE(0, 2, 0, 0));
-                    __m256i _sum1_3 = _mm256_permute2x128_si256(_sum0_1, _sum2_3, _MM_SHUFFLE(0, 3, 0, 1));
-                    _sum0_2 = _mm256_add_epi32(_sum0_2, _sum1_3);
+                    // transpose 4x8
+                    {
+                        __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = _mm256_unpacklo_epi32(_sum00_11, _sum10_01);
+                        _tmp1 = _mm256_unpacklo_epi32(_sum02_13, _sum12_03);
+                        _tmp2 = _mm256_unpackhi_epi32(_sum00_11, _sum10_01);
+                        _tmp3 = _mm256_unpackhi_epi32(_sum02_13, _sum12_03);
+                        _sum00_11 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                        _sum10_01 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                        _sum02_13 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                        _sum12_03 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+                    }
+                    {
+                        __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = _mm256_unpacklo_epi32(_sum04_15, _sum14_05);
+                        _tmp1 = _mm256_unpacklo_epi32(_sum06_17, _sum16_07);
+                        _tmp2 = _mm256_unpackhi_epi32(_sum04_15, _sum14_05);
+                        _tmp3 = _mm256_unpackhi_epi32(_sum06_17, _sum16_07);
+                        _sum04_15 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                        _sum14_05 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                        _sum06_17 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                        _sum16_07 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+                    }
 
-                    __m256i _sum4_6 = _mm256_permute2x128_si256(_sum4_5, _sum6_7, _MM_SHUFFLE(0, 2, 0, 0));
-                    __m256i _sum5_7 = _mm256_permute2x128_si256(_sum4_5, _sum6_7, _MM_SHUFFLE(0, 3, 0, 1));
-                    _sum4_6 = _mm256_add_epi32(_sum4_6, _sum5_7);
+                    _sum00_11 = _mm256_add_epi32(_sum00_11, _sum10_01);
+                    _sum02_13 = _mm256_add_epi32(_sum02_13, _sum12_03);
+                    _sum00_11 = _mm256_add_epi32(_sum00_11, _sum02_13);
 
-                    _mm256_storeu_si256((__m256i*)output0_tm, _sum0_2);
-                    _mm256_storeu_si256((__m256i*)(output0_tm + 8), _sum4_6);
+                    _sum04_15 = _mm256_add_epi32(_sum04_15, _sum14_05);
+                    _sum06_17 = _mm256_add_epi32(_sum06_17, _sum16_07);
+                    _sum04_15 = _mm256_add_epi32(_sum04_15, _sum06_17);
+
+                    __m256i _perm_mask = _mm256_set_epi32(6, 3, 4, 1, 7, 2, 5, 0);
+                    _sum00_11 = _mm256_permutevar8x32_epi32(_sum00_11, _perm_mask);
+                    _sum04_15 = _mm256_permutevar8x32_epi32(_sum04_15, _perm_mask);
+
+                    _mm256_storeu_si256((__m256i*)output0_tm, _sum00_11);
+                    _mm256_storeu_si256((__m256i*)(output0_tm + 8), _sum04_15);
                     output0_tm += 16;
                 }
 #endif
@@ -598,6 +545,150 @@ static void conv3x3s1_winograd43_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
                     const short* r0 = bb2.row<const short>(i / 4 + (i % 4) / 2);
 #else
                     const short* r0 = bb2.row<const short>(i / 2);
+#endif
+                    const short* k0 = kernel0_tm.row<const short>(r);
+
+                    int nn = inch; // inch always > 0
+
+#if __AVX2__
+                    __m256i _sum00_11 = _mm256_setzero_si256();
+                    __m256i _sum10_01 = _mm256_setzero_si256();
+                    __m256i _sum02_13 = _mm256_setzero_si256();
+                    __m256i _sum12_03 = _mm256_setzero_si256();
+#else
+                    __m128i _sum00 = _mm_setzero_si128();
+                    __m128i _sum01 = _mm_setzero_si128();
+                    __m128i _sum02 = _mm_setzero_si128();
+                    __m128i _sum03 = _mm_setzero_si128();
+                    __m128i _sum10 = _mm_setzero_si128();
+                    __m128i _sum11 = _mm_setzero_si128();
+                    __m128i _sum12 = _mm_setzero_si128();
+                    __m128i _sum13 = _mm_setzero_si128();
+#endif
+
+                    for (int j = 0; j < nn; j++)
+                    {
+#if __AVX2__
+                        // 0 1 2 3 4 5 6 7 8 9 a b c d e f
+                        __m256i _val01 = _mm256_loadu_si256((const __m256i*)r0);
+
+                        __m256i _w01 = _mm256_loadu_si256((const __m256i*)k0);
+                        __m256i _w23 = _mm256_loadu_si256((const __m256i*)(k0 + 16));
+
+                        __m256i _val10 = _mm256_permute4x64_epi64(_val01, 78);
+
+#if __AVXVNNI__ || __AVX512VNNI__
+                        _sum00_11 = _mm256_dpwssd_epi32(_sum00_11, _val01, _w01);
+                        _sum10_01 = _mm256_dpwssd_epi32(_sum10_01, _val10, _w01);
+                        _sum02_13 = _mm256_dpwssd_epi32(_sum02_13, _val01, _w23);
+                        _sum12_03 = _mm256_dpwssd_epi32(_sum12_03, _val10, _w23);
+#else
+                        _sum00_11 = _mm256_add_epi32(_sum00_11, _mm256_madd_epi16(_val01, _w01));
+                        _sum10_01 = _mm256_add_epi32(_sum10_01, _mm256_madd_epi16(_val10, _w01));
+                        _sum02_13 = _mm256_add_epi32(_sum02_13, _mm256_madd_epi16(_val01, _w23));
+                        _sum12_03 = _mm256_add_epi32(_sum12_03, _mm256_madd_epi16(_val10, _w23));
+#endif
+#else
+                        // 0 1 2 3 4 5 6 7
+                        __m128i _val0 = _mm_loadu_si128((const __m128i*)r0);
+                        __m128i _val1 = _mm_loadu_si128((const __m128i*)(r0 + 8));
+
+                        __m128i _w0 = _mm_loadu_si128((const __m128i*)k0);
+                        __m128i _w1 = _mm_loadu_si128((const __m128i*)(k0 + 8));
+                        __m128i _w2 = _mm_loadu_si128((const __m128i*)(k0 + 16));
+                        __m128i _w3 = _mm_loadu_si128((const __m128i*)(k0 + 24));
+
+#if __XOP__
+                        _sum00 = _mm_maddd_epi16(_val0, _w0, _sum00);
+                        _sum01 = _mm_maddd_epi16(_val0, _w1, _sum01);
+                        _sum02 = _mm_maddd_epi16(_val0, _w2, _sum02);
+                        _sum03 = _mm_maddd_epi16(_val0, _w3, _sum03);
+                        _sum10 = _mm_maddd_epi16(_val1, _w0, _sum10);
+                        _sum11 = _mm_maddd_epi16(_val1, _w1, _sum11);
+                        _sum12 = _mm_maddd_epi16(_val1, _w2, _sum12);
+                        _sum13 = _mm_maddd_epi16(_val1, _w3, _sum13);
+#else
+                        _sum00 = _mm_add_epi32(_mm_madd_epi16(_val0, _w0), _sum00);
+                        _sum01 = _mm_add_epi32(_mm_madd_epi16(_val0, _w1), _sum01);
+                        _sum02 = _mm_add_epi32(_mm_madd_epi16(_val0, _w2), _sum02);
+                        _sum03 = _mm_add_epi32(_mm_madd_epi16(_val0, _w3), _sum03);
+                        _sum10 = _mm_add_epi32(_mm_madd_epi16(_val1, _w0), _sum10);
+                        _sum11 = _mm_add_epi32(_mm_madd_epi16(_val1, _w1), _sum11);
+                        _sum12 = _mm_add_epi32(_mm_madd_epi16(_val1, _w2), _sum12);
+                        _sum13 = _mm_add_epi32(_mm_madd_epi16(_val1, _w3), _sum13);
+#endif
+#endif
+
+                        r0 += 16;
+                        k0 += 32;
+                    }
+
+#if __AVX2__
+                    // transpose 4x8
+                    {
+                        __m256i _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = _mm256_unpacklo_epi32(_sum00_11, _sum10_01);
+                        _tmp1 = _mm256_unpacklo_epi32(_sum02_13, _sum12_03);
+                        _tmp2 = _mm256_unpackhi_epi32(_sum00_11, _sum10_01);
+                        _tmp3 = _mm256_unpackhi_epi32(_sum02_13, _sum12_03);
+                        _sum00_11 = _mm256_unpacklo_epi64(_tmp0, _tmp1);
+                        _sum10_01 = _mm256_unpackhi_epi64(_tmp0, _tmp1);
+                        _sum02_13 = _mm256_unpacklo_epi64(_tmp2, _tmp3);
+                        _sum12_03 = _mm256_unpackhi_epi64(_tmp2, _tmp3);
+                    }
+
+                    _sum00_11 = _mm256_add_epi32(_sum00_11, _sum10_01);
+                    _sum02_13 = _mm256_add_epi32(_sum02_13, _sum12_03);
+                    _sum00_11 = _mm256_add_epi32(_sum00_11, _sum02_13);
+
+                    __m256i _perm_mask = _mm256_set_epi32(6, 3, 4, 1, 7, 2, 5, 0);
+                    _sum00_11 = _mm256_permutevar8x32_epi32(_sum00_11, _perm_mask);
+
+                    _mm256_storeu_si256((__m256i*)output0_tm, _sum00_11);
+#else
+                    // transpose 4x4
+                    {
+                        __m128i _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = _mm_unpacklo_epi32(_sum00, _sum01);
+                        _tmp1 = _mm_unpacklo_epi32(_sum02, _sum03);
+                        _tmp2 = _mm_unpackhi_epi32(_sum00, _sum01);
+                        _tmp3 = _mm_unpackhi_epi32(_sum02, _sum03);
+                        _sum00 = _mm_unpacklo_epi64(_tmp0, _tmp1);
+                        _sum01 = _mm_unpackhi_epi64(_tmp0, _tmp1);
+                        _sum02 = _mm_unpacklo_epi64(_tmp2, _tmp3);
+                        _sum03 = _mm_unpackhi_epi64(_tmp2, _tmp3);
+                    }
+                    {
+                        __m128i _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = _mm_unpacklo_epi32(_sum10, _sum11);
+                        _tmp1 = _mm_unpacklo_epi32(_sum12, _sum13);
+                        _tmp2 = _mm_unpackhi_epi32(_sum10, _sum11);
+                        _tmp3 = _mm_unpackhi_epi32(_sum12, _sum13);
+                        _sum10 = _mm_unpacklo_epi64(_tmp0, _tmp1);
+                        _sum11 = _mm_unpackhi_epi64(_tmp0, _tmp1);
+                        _sum12 = _mm_unpacklo_epi64(_tmp2, _tmp3);
+                        _sum13 = _mm_unpackhi_epi64(_tmp2, _tmp3);
+                    }
+
+                    _sum00 = _mm_add_epi32(_sum00, _sum01);
+                    _sum02 = _mm_add_epi32(_sum02, _sum03);
+                    _sum10 = _mm_add_epi32(_sum10, _sum11);
+                    _sum12 = _mm_add_epi32(_sum12, _sum13);
+
+                    _sum00 = _mm_add_epi32(_sum00, _sum02);
+                    _sum10 = _mm_add_epi32(_sum10, _sum12);
+
+                    _mm_storeu_si128((__m128i*)output0_tm, _sum00);
+                    _mm_storeu_si128((__m128i*)(output0_tm + 4), _sum10);
+#endif
+                    output0_tm += 8;
+                }
+                for (; i < tiles; i++)
+                {
+#if __AVX2__
+                    const short* r0 = bb2.row<const short>(i / 4 + (i % 4) / 2 + i % 2);
+#else
+                    const short* r0 = bb2.row<const short>(i / 2 + i % 2);
 #endif
                     const short* k0 = kernel0_tm.row<const short>(r);
 
@@ -615,209 +706,20 @@ static void conv3x3s1_winograd43_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 
                     for (int j = 0; j < nn; j++)
                     {
-#if __AVX2__
-                        // 0 1 2 3 4 5 6 7 8 9 a b c d e f
-                        __m256i _val = _mm256_loadu_si256((const __m256i*)r0);
-
-                        __m256i _w01 = _mm256_loadu_si256((const __m256i*)k0);
-                        __m256i _w23 = _mm256_loadu_si256((const __m256i*)(k0 + 16));
-
-#if __AVXVNNI__ || __AVX512VNNI__
-                        __m256i _val_0123 = _mm256_permutevar8x32_epi32(_val, _mm256_set_epi32(1, 1, 1, 1, 0, 0, 0, 0));
-                        __m256i _val_4567 = _mm256_permutevar8x32_epi32(_val, _mm256_set_epi32(3, 3, 3, 3, 2, 2, 2, 2));
-                        __m256i _val_89ab = _mm256_permutevar8x32_epi32(_val, _mm256_set_epi32(5, 5, 5, 5, 4, 4, 4, 4));
-                        __m256i _val_cdef = _mm256_permutevar8x32_epi32(_val, _mm256_set_epi32(7, 7, 7, 7, 6, 6, 6, 6));
-
-                        _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w01, _val_0123);
-                        _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _w01, _val_89ab);
-                        _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w23, _val_4567);
-                        _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _w23, _val_cdef);
-#else
-                        __m256i _val_0123_89ab = _mm256_unpacklo_epi16(_val, _val);
-                        __m256i _val_4567_cdef = _mm256_unpackhi_epi16(_val, _val);
-
-                        __m256i _val_0123 = _mm256_permutevar8x32_epi32(_val_0123_89ab, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
-                        __m256i _val_4567 = _mm256_permutevar8x32_epi32(_val_4567_cdef, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
-                        __m256i _val_89ab = _mm256_permutevar8x32_epi32(_val_0123_89ab, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
-                        __m256i _val_cdef = _mm256_permutevar8x32_epi32(_val_4567_cdef, _mm256_set_epi32(7, 7, 6, 6, 5, 5, 4, 4));
-
-                        __m256i _sl00_01 = _mm256_mullo_epi16(_w01, _val_0123);
-                        __m256i _sh00_01 = _mm256_mulhi_epi16(_w01, _val_0123);
-                        __m256i _sl10_11 = _mm256_mullo_epi16(_w01, _val_89ab);
-                        __m256i _sh10_11 = _mm256_mulhi_epi16(_w01, _val_89ab);
-                        __m256i _sl02_03 = _mm256_mullo_epi16(_w23, _val_4567);
-                        __m256i _sh02_03 = _mm256_mulhi_epi16(_w23, _val_4567);
-                        __m256i _sl12_13 = _mm256_mullo_epi16(_w23, _val_cdef);
-                        __m256i _sh12_13 = _mm256_mulhi_epi16(_w23, _val_cdef);
-
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpacklo_epi16(_sl00_01, _sh00_01));
-                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpacklo_epi16(_sl10_11, _sh10_11));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpacklo_epi16(_sl02_03, _sh02_03));
-                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpacklo_epi16(_sl12_13, _sh12_13));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpackhi_epi16(_sl00_01, _sh00_01));
-                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpackhi_epi16(_sl10_11, _sh10_11));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpackhi_epi16(_sl02_03, _sh02_03));
-                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_unpackhi_epi16(_sl12_13, _sh12_13));
-#endif
-#else
-                        // 0 1 2 3 4 5 6 7
-                        __m128i _val0 = _mm_loadu_si128((const __m128i*)r0);
-                        __m128i _val1 = _mm_loadu_si128((const __m128i*)(r0 + 8));
-
-                        __m128i _w0 = _mm_loadu_si128((const __m128i*)k0);
-                        __m128i _w1 = _mm_loadu_si128((const __m128i*)(k0 + 8));
-                        __m128i _w2 = _mm_loadu_si128((const __m128i*)(k0 + 16));
-                        __m128i _w3 = _mm_loadu_si128((const __m128i*)(k0 + 24));
-
-#if __XOP__
-                        __m128i _val0_01 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(0, 0, 0, 0));
-                        __m128i _val0_23 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(1, 1, 1, 1));
-                        __m128i _val0_45 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(2, 2, 2, 2));
-                        __m128i _val0_67 = _mm_shuffle_epi32(_val0, _MM_SHUFFLE(3, 3, 3, 3));
-                        __m128i _val1_01 = _mm_shuffle_epi32(_val1, _MM_SHUFFLE(0, 0, 0, 0));
-                        __m128i _val1_23 = _mm_shuffle_epi32(_val1, _MM_SHUFFLE(1, 1, 1, 1));
-                        __m128i _val1_45 = _mm_shuffle_epi32(_val1, _MM_SHUFFLE(2, 2, 2, 2));
-                        __m128i _val1_67 = _mm_shuffle_epi32(_val1, _MM_SHUFFLE(3, 3, 3, 3));
-
-                        _sum0 = _mm_maddd_epi16(_val0_01, _w0, _sum0);
-                        _sum1 = _mm_maddd_epi16(_val0_23, _w1, _sum1);
-                        _sum2 = _mm_maddd_epi16(_val1_01, _w0, _sum2);
-                        _sum3 = _mm_maddd_epi16(_val1_23, _w1, _sum3);
-                        _sum0 = _mm_maddd_epi16(_val0_45, _w2, _sum0);
-                        _sum1 = _mm_maddd_epi16(_val0_67, _w3, _sum1);
-                        _sum2 = _mm_maddd_epi16(_val1_45, _w2, _sum2);
-                        _sum3 = _mm_maddd_epi16(_val1_67, _w3, _sum3);
-#else
-                        // 0 0 1 1 2 2 3 3
-                        // 4 4 5 5 6 6 7 7
-                        __m128i _val0_0123 = _mm_unpacklo_epi16(_val0, _val0);
-                        __m128i _val0_4567 = _mm_unpackhi_epi16(_val0, _val0);
-
-                        __m128i _val1_0123 = _mm_unpacklo_epi16(_val1, _val1);
-                        __m128i _val1_4567 = _mm_unpackhi_epi16(_val1, _val1);
-
-                        __m128i _val0_01 = _mm_unpacklo_epi32(_val0_0123, _val0_0123);
-                        __m128i _val0_23 = _mm_unpackhi_epi32(_val0_0123, _val0_0123);
-                        __m128i _val0_45 = _mm_unpacklo_epi32(_val0_4567, _val0_4567);
-                        __m128i _val0_67 = _mm_unpackhi_epi32(_val0_4567, _val0_4567);
-
-                        __m128i _val1_01 = _mm_unpacklo_epi32(_val1_0123, _val1_0123);
-                        __m128i _val1_23 = _mm_unpackhi_epi32(_val1_0123, _val1_0123);
-                        __m128i _val1_45 = _mm_unpacklo_epi32(_val1_4567, _val1_4567);
-                        __m128i _val1_67 = _mm_unpackhi_epi32(_val1_4567, _val1_4567);
-
-                        __m128i _sl00 = _mm_mullo_epi16(_w0, _val0_01);
-                        __m128i _sh00 = _mm_mulhi_epi16(_w0, _val0_01);
-                        __m128i _sl10 = _mm_mullo_epi16(_w0, _val1_01);
-                        __m128i _sh10 = _mm_mulhi_epi16(_w0, _val1_01);
-                        __m128i _sl01 = _mm_mullo_epi16(_w1, _val0_23);
-                        __m128i _sh01 = _mm_mulhi_epi16(_w1, _val0_23);
-                        __m128i _sl11 = _mm_mullo_epi16(_w1, _val1_23);
-                        __m128i _sh11 = _mm_mulhi_epi16(_w1, _val1_23);
-                        __m128i _sl02 = _mm_mullo_epi16(_w2, _val0_45);
-                        __m128i _sh02 = _mm_mulhi_epi16(_w2, _val0_45);
-                        __m128i _sl12 = _mm_mullo_epi16(_w2, _val1_45);
-                        __m128i _sh12 = _mm_mulhi_epi16(_w2, _val1_45);
-                        __m128i _sl03 = _mm_mullo_epi16(_w3, _val0_67);
-                        __m128i _sh03 = _mm_mulhi_epi16(_w3, _val0_67);
-                        __m128i _sl13 = _mm_mullo_epi16(_w3, _val1_67);
-                        __m128i _sh13 = _mm_mulhi_epi16(_w3, _val1_67);
-
-                        _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl00, _sh00));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl00, _sh00));
-                        _sum2 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl10, _sh10));
-                        _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl10, _sh10));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl01, _sh01));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl01, _sh01));
-                        _sum2 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl11, _sh11));
-                        _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl11, _sh11));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl02, _sh02));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl02, _sh02));
-                        _sum2 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl12, _sh12));
-                        _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl12, _sh12));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl03, _sh03));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl03, _sh03));
-                        _sum2 = _mm_add_epi32(_sum2, _mm_unpacklo_epi16(_sl13, _sh13));
-                        _sum3 = _mm_add_epi32(_sum3, _mm_unpackhi_epi16(_sl13, _sh13));
-#endif
-#endif
-
-                        r0 += 16;
-                        k0 += 32;
-                    }
-
-#if __AVX2__
-                    __m256i _sum0_2 = _mm256_permute2x128_si256(_sum0_1, _sum2_3, _MM_SHUFFLE(0, 2, 0, 0));
-                    __m256i _sum1_3 = _mm256_permute2x128_si256(_sum0_1, _sum2_3, _MM_SHUFFLE(0, 3, 0, 1));
-                    _sum0_2 = _mm256_add_epi32(_sum0_2, _sum1_3);
-
-                    _mm256_storeu_si256((__m256i*)output0_tm, _sum0_2);
-#else
-                    _sum0 = _mm_add_epi32(_sum0, _sum1);
-                    _sum2 = _mm_add_epi32(_sum2, _sum3);
-
-                    _mm_storeu_si128((__m128i*)output0_tm, _sum0);
-                    _mm_storeu_si128((__m128i*)(output0_tm + 4), _sum2);
-#endif
-                    output0_tm += 8;
-                }
-                for (; i < tiles; i++)
-                {
-#if __AVX2__
-                    const short* r0 = bb2.row<const short>(i / 4 + (i % 4) / 2 + i % 2);
-#else
-                    const short* r0 = bb2.row<const short>(i / 2 + i % 2);
-#endif
-                    const short* k0 = kernel0_tm.row<const short>(r);
-
-                    int nn = inch; // inch always > 0
-
-#if __AVX2__
-                    __m256i _sum0_1 = _mm256_setzero_si256();
-#else
-                    __m128i _sum0 = _mm_setzero_si128();
-                    __m128i _sum1 = _mm_setzero_si128();
-#endif
-
-                    for (int j = 0; j < nn; j++)
-                    {
                         // 0 1 2 3 4 5 6 7
                         __m128i _val = _mm_loadu_si128((const __m128i*)r0);
 #if __AVX2__
                         __m256i _w01 = _mm256_loadu_si256((const __m256i*)k0);
                         __m256i _w23 = _mm256_loadu_si256((const __m256i*)(k0 + 16));
 
+                        __m256i _valval = _mm256_inserti128_si256(_mm256_castsi128_si256(_val), _val, 1);
+
 #if __AVXVNNI__ || __AVX512VNNI__
-                        // 0 1 0 1 x x x x
-                        // 0 1 0 1 0 1 0 1
-                        __m128i _val_01 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(0, 0, 0, 0));
-                        __m128i _val_23 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(1, 1, 1, 1));
-                        __m128i _val_45 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(2, 2, 2, 2));
-                        __m128i _val_67 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(3, 3, 3, 3));
-
-                        __m256i _val_0123 = _mm256_inserti128_si256(_mm256_castsi128_si256(_val_01), _val_23, 1);
-                        __m256i _val_4567 = _mm256_inserti128_si256(_mm256_castsi128_si256(_val_45), _val_67, 1);
-
-                        _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w01, _val_0123);
-                        _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _w23, _val_4567);
+                        _sum0_1 = _mm256_dpwssd_epi32(_sum0_1, _valval, _w01);
+                        _sum2_3 = _mm256_dpwssd_epi32(_sum2_3, _valval, _w23);
 #else
-                        // 0 0 1 1 2 2 3 3
-                        // 4 4 5 5 6 6 7 7
-                        __m256i _val_0123 = _mm256_castsi128_si256(_mm_unpacklo_epi16(_val, _val));
-                        __m256i _val_4567 = _mm256_castsi128_si256(_mm_unpackhi_epi16(_val, _val));
-
-                        _val_0123 = _mm256_permutevar8x32_epi32(_val_0123, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
-                        _val_4567 = _mm256_permutevar8x32_epi32(_val_4567, _mm256_set_epi32(3, 3, 2, 2, 1, 1, 0, 0));
-
-                        __m256i _sl00_01 = _mm256_mullo_epi16(_w01, _val_0123);
-                        __m256i _sh00_01 = _mm256_mulhi_epi16(_w01, _val_0123);
-                        __m256i _sl02_03 = _mm256_mullo_epi16(_w23, _val_4567);
-                        __m256i _sh02_03 = _mm256_mulhi_epi16(_w23, _val_4567);
-
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpacklo_epi16(_sl00_01, _sh00_01));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpacklo_epi16(_sl02_03, _sh02_03));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpackhi_epi16(_sl00_01, _sh00_01));
-                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_unpackhi_epi16(_sl02_03, _sh02_03));
+                        _sum0_1 = _mm256_add_epi32(_sum0_1, _mm256_madd_epi16(_valval, _w01));
+                        _sum2_3 = _mm256_add_epi32(_sum2_3, _mm256_madd_epi16(_valval, _w23));
 #endif
 #else
                         __m128i _w0 = _mm_loadu_si128((const __m128i*)k0);
@@ -826,43 +728,15 @@ static void conv3x3s1_winograd43_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
                         __m128i _w3 = _mm_loadu_si128((const __m128i*)(k0 + 24));
 
 #if __XOP__
-                        __m128i _val01 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(0, 0, 0, 0));
-                        __m128i _val23 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(1, 1, 1, 1));
-                        __m128i _val45 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(2, 2, 2, 2));
-                        __m128i _val67 = _mm_shuffle_epi32(_val, _MM_SHUFFLE(3, 3, 3, 3));
-
-                        _sum0 = _mm_maddd_epi16(_val01, _w0, _sum0);
-                        _sum1 = _mm_maddd_epi16(_val23, _w1, _sum1);
-                        _sum0 = _mm_maddd_epi16(_val45, _w2, _sum0);
-                        _sum1 = _mm_maddd_epi16(_val67, _w3, _sum1);
+                        _sum0 = _mm_maddd_epi16(_val, _w0, _sum0);
+                        _sum1 = _mm_maddd_epi16(_val, _w1, _sum1);
+                        _sum2 = _mm_maddd_epi16(_val, _w2, _sum2);
+                        _sum3 = _mm_maddd_epi16(_val, _w3, _sum3);
 #else
-                        // 0 0 1 1 2 2 3 3
-                        // 4 4 5 5 6 6 7 7
-                        __m128i _val_0123 = _mm_unpacklo_epi16(_val, _val);
-                        __m128i _val_4567 = _mm_unpackhi_epi16(_val, _val);
-
-                        __m128i _val01 = _mm_unpacklo_epi32(_val_0123, _val_0123);
-                        __m128i _val23 = _mm_unpackhi_epi32(_val_0123, _val_0123);
-                        __m128i _val45 = _mm_unpacklo_epi32(_val_4567, _val_4567);
-                        __m128i _val67 = _mm_unpackhi_epi32(_val_4567, _val_4567);
-
-                        __m128i _sl0 = _mm_mullo_epi16(_w0, _val01);
-                        __m128i _sh0 = _mm_mulhi_epi16(_w0, _val01);
-                        __m128i _sl1 = _mm_mullo_epi16(_w1, _val23);
-                        __m128i _sh1 = _mm_mulhi_epi16(_w1, _val23);
-                        __m128i _sl2 = _mm_mullo_epi16(_w2, _val45);
-                        __m128i _sh2 = _mm_mulhi_epi16(_w2, _val45);
-                        __m128i _sl3 = _mm_mullo_epi16(_w3, _val67);
-                        __m128i _sh3 = _mm_mulhi_epi16(_w3, _val67);
-
-                        _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl0, _sh0));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl0, _sh0));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl1, _sh1));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl1, _sh1));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl2, _sh2));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl2, _sh2));
-                        _sum0 = _mm_add_epi32(_sum0, _mm_unpacklo_epi16(_sl3, _sh3));
-                        _sum1 = _mm_add_epi32(_sum1, _mm_unpackhi_epi16(_sl3, _sh3));
+                        _sum0 = _mm_add_epi32(_mm_madd_epi16(_val, _w0), _sum0);
+                        _sum1 = _mm_add_epi32(_mm_madd_epi16(_val, _w1), _sum1);
+                        _sum2 = _mm_add_epi32(_mm_madd_epi16(_val, _w2), _sum2);
+                        _sum3 = _mm_add_epi32(_mm_madd_epi16(_val, _w3), _sum3);
 #endif
 #endif
 
@@ -873,8 +747,27 @@ static void conv3x3s1_winograd43_pack8to4_int8_sse(const Mat& bottom_blob, Mat& 
 #if __AVX2__
                     __m128i _sum0 = _mm256_extracti128_si256(_sum0_1, 0);
                     __m128i _sum1 = _mm256_extracti128_si256(_sum0_1, 1);
+                    __m128i _sum2 = _mm256_extracti128_si256(_sum2_3, 0);
+                    __m128i _sum3 = _mm256_extracti128_si256(_sum2_3, 1);
 #endif
+
+                    // transpose 4x4
+                    {
+                        __m128i _tmp0, _tmp1, _tmp2, _tmp3;
+                        _tmp0 = _mm_unpacklo_epi32(_sum0, _sum1);
+                        _tmp1 = _mm_unpacklo_epi32(_sum2, _sum3);
+                        _tmp2 = _mm_unpackhi_epi32(_sum0, _sum1);
+                        _tmp3 = _mm_unpackhi_epi32(_sum2, _sum3);
+                        _sum0 = _mm_unpacklo_epi64(_tmp0, _tmp1);
+                        _sum1 = _mm_unpackhi_epi64(_tmp0, _tmp1);
+                        _sum2 = _mm_unpacklo_epi64(_tmp2, _tmp3);
+                        _sum3 = _mm_unpackhi_epi64(_tmp2, _tmp3);
+                    }
+
                     _sum0 = _mm_add_epi32(_sum0, _sum1);
+                    _sum2 = _mm_add_epi32(_sum2, _sum3);
+
+                    _sum0 = _mm_add_epi32(_sum0, _sum2);
 
                     _mm_storeu_si128((__m128i*)output0_tm, _sum0);
                     output0_tm += 4;
