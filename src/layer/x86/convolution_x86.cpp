@@ -16,12 +16,15 @@
 
 #if __SSE2__
 #include <emmintrin.h>
+#if __SSSE3__
+#include <tmmintrin.h>
 #if __SSE4_1__
 #include <smmintrin.h>
 #if __AVX__
 #include <immintrin.h>
 #endif
 #endif // __SSE4_1__
+#endif // __SSSE3__
 #endif // __SSE2__
 #include "x86_activation.h"
 #include "x86_usability.h"
