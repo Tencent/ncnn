@@ -17,12 +17,12 @@
 #include <tuple>
 
 namespace ncnn {
-    enum InterpolationMode
-    {
-        Bilinear = 1,
-        Nearest = 2,
-        Bicubic = 3
-    };
+enum InterpolationMode
+{
+    Bilinear = 1,
+    Nearest = 2,
+    Bicubic = 3
+};
 
     enum PaddingMode
     {
@@ -31,22 +31,20 @@ namespace ncnn {
         Reflection = 3
     };
     
-    template<typename elem_type>
-    static inline elem_type clip_coordinates(elem_type in, int64_t clip_limit) {
-        return std::min(static_cast<elem_type>(clip_limit - static_cast<elem_type>(1)), std::max(in, static_cast<elem_type>(0)));
+    static inline int64_t clip_coordinates(int64_t in, int64_t clip_limit) {
+        return std::min(static_cast<int64_t>(clip_limit - 1), std::max(in, static_cast<int64_t>(0)));
     }
 
-    template<typename elem_type>
-    static inline elem_type reflect_coordinates(elem_type in, int64_t twice_low,
+    static inline int64_t reflect_coordinates(int64_t in, int64_t twice_low,
         int64_t twice_high) {
         if (twice_low == twice_high) {
-            return static_cast<elem_type>(0);
+            return static_cast<int64_t>(0);
         }
-        elem_type min = static_cast<elem_type>(twice_low) / 2;
-        elem_type span = static_cast<elem_type>(twice_high - twice_low) / 2;
+        int64_t min = static_cast<int64_t>(twice_low) / 2;
+        int64_t span = static_cast<int64_t>(twice_high - twice_low) / 2;
         in = std::fabs(in - min);
         // `fmod` returns same sign as `in`, which is positive after the `fabs` above.
-        elem_type extra = std::fmod(in, span);
+        int64_t extra = std::fmod(in, span);
         int flips = static_cast<int>(std::floor(in / span));
         if (flips % 2 == 0) {
             return extra + min;
@@ -102,8 +100,8 @@ namespace ncnn {
         return coord;
     }
 
-    template<InterpolationMode, PaddingMode, bool align_corners>
-    struct ApplyGridSample;
+template<InterpolationMode, PaddingMode, bool align_corners>
+struct ApplyGridSample;
 
     template<PaddingMode padding, bool align_corners>
     struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
@@ -237,48 +235,50 @@ namespace ncnn {
         }
     };
 
-    GridSample::GridSample()
-    {
-        one_blob_only = false;
-        support_inplace = false;
+GridSample::GridSample()
+{
+    one_blob_only = false;
+    support_inplace = false;
+}
+
+int GridSample::load_param(const ParamDict& pd)
+{
+    mode = pd.get(0, 0);
+    padding_mode = pd.get(1, 0);
+    align_corners = pd.get(6, 0);
+
+    return 0;
+}
+
+int GridSample::forward(const std::vector<Mat>& bottom_blobs, Mat& top_blobs, const Option& opt) const
+{
+#define HANDLE_PADDING(interp, padding, align_corners)                                   \
+    case padding:                                                                        \
+    {                                                                                    \
+        printf("mode: %d, padding_mode: %d, align: %d", interp, padding, align_corners); \
+        break;                                                                           \
     }
 
-    int GridSample::load_param(const ParamDict& pd)
-    {
-        mode = pd.get(0, 0);
-        padding_mode = pd.get(1, 0);
-        align_corners = pd.get(6, 0);
-
-        return 0;
+#define HANDLE_INTERP(interp, align_corners)                               \
+    case interp:                                                           \
+    {                                                                      \
+        switch (static_cast<InterpolationMode>(padding_mode))              \
+        {                                                                  \
+            HANDLE_PADDING(interp, PaddingMode::Zeros, align_corners)      \
+            HANDLE_PADDING(interp, PaddingMode::Border, align_corners)     \
+            HANDLE_PADDING(interp, PaddingMode::Reflection, align_corners) \
+        }                                                                  \
+        break;                                                             \
     }
 
-    int GridSample::forward(const std::vector<Mat>& bottom_blobs, Mat& top_blobs, const Option& opt) const
+    switch (static_cast<InterpolationMode>(mode))
     {
-    #define HANDLE_PADDING(interp, padding, align_corners)                      \
-        case padding:{                                                          \
-            printf("mode: %d, padding_mode: %d, align: %d", interp, padding, align_corners); \
-            break;                                                              \
-        }
-
-    #define HANDLE_INTERP(interp, align_corners)                                \
-        case interp:{                                                           \
-            switch(static_cast<InterpolationMode>(padding_mode)) {              \
-                HANDLE_PADDING(interp, PaddingMode::Zeros, align_corners)       \
-                HANDLE_PADDING(interp, PaddingMode::Border, align_corners)      \
-                HANDLE_PADDING(interp, PaddingMode::Reflection, align_corners)  \
-            }                                                                   \
-            break;                                                              \
-        }
-
-
-
-        switch (static_cast<InterpolationMode>(mode)) {
-            HANDLE_INTERP(InterpolationMode::Bilinear, align_corners);
-            HANDLE_INTERP(InterpolationMode::Nearest, align_corners);
-            HANDLE_INTERP(InterpolationMode::Bicubic, align_corners);
-        }
+        HANDLE_INTERP(InterpolationMode::Bilinear, align_corners);
+        HANDLE_INTERP(InterpolationMode::Nearest, align_corners);
+        HANDLE_INTERP(InterpolationMode::Bicubic, align_corners);
+    }
 #undef HANDLE_PADDING
 #undef HANDLE_INTERP
-    }
+}
 
 } // namespace ncnn

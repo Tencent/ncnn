@@ -19,21 +19,21 @@
 
 namespace ncnn {
 
-    class GridSample : public Layer
-    {
-    public:
-        GridSample();
+class GridSample : public Layer
+{
+public:
+    GridSample();
 
-        virtual int load_param(const ParamDict& pd);
+    virtual int load_param(const ParamDict& pd);
 
-        virtual int forward(const std::vector<Mat>& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forward(const std::vector<Mat>& bottom_blob, Mat& top_blob, const Option& opt) const;
 
-    public:
-        // param
-        int mode; //1 bilinear 2 nearest 3 bicubic
-        int padding_mode; //1 zeros 2 border 3 reflection
-        bool align_corners;
-    };
+public:
+    // param
+    int mode;         //1 bilinear 2 nearest 3 bicubic
+    int padding_mode; //1 zeros 2 border 3 reflection
+    bool align_corners;
+};
 
 } // namespace ncnn
 
