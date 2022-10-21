@@ -209,12 +209,11 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
-    int outw = grid.h;
-    int outh = grid.d;
-    int outd = grid.c;
-
     if (dims == 3)
     {
+        int outw = grid.h;
+        int outh = grid.c;
+
         top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
@@ -225,7 +224,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 for (int col = 0; col < outw; col++)
                 {
-                    const float* gridptr = grid.depth(row).row(col);
+                    // const float* gridptr = grid.depth(row).row(col);
+                    const float* gridptr = grid.channel(row).row(col);
 
                     // get the coordinate of every output point
                     float ix = gridptr[0];
@@ -287,7 +287,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 for (int col = 0; col < outw; col++)
                 {
-                    const float* gridptr = grid.depth(row).row(col);
+                    // const float* gridptr = grid.depth(row).row(col);
+                    const float* gridptr = grid.channel(row).row(col);
 
                     // get the coordinate of every output point
                     float ix = gridptr[0];
@@ -323,7 +324,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 for (int col = 0; col < outw; col++)
                 {
-                    const float* gridptr = grid.depth(row).row(col);
+                    // const float* gridptr = grid.depth(row).row(col);
+                    const float* gridptr = grid.channel(row).row(col);
 
                     // get the coordinate of every output point
                     float ix = gridptr[0];
@@ -356,7 +358,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         // Interpolate 4 values in the x directon
                         for (int i = 0; i < 4; i++)
                         {
-                            // interp_x[i] =
+                            // interp_x[i] = 
                             //     coeff_x[0] * get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner)+
                             //     coeff_x[1] * get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner)+
                             //     coeff_x[2] * get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner)+
@@ -371,7 +373,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         }
 
                         // Interpolate the 4 values in the y direction
-                        // outptr[row * outw + col] =  coeff_y[0] * interp_x[0] + coeff_y[1] * interp_x[1] +
+                        // outptr[row * outw + col] =  coeff_y[0] * interp_x[0] + coeff_y[1] * interp_x[1] + 
                         //                             coeff_y[2] * interp_x[2] + coeff_y[3] * interp_x[3];
 
                         // Interpolate in the y direction
@@ -389,6 +391,10 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     if (dims == 4)
     {
+        int outw = grid.h;
+        int outh = grid.d;
+        int outd = grid.c;
+
         top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
         if (resize_type == 1) // bilinear
         {
@@ -542,7 +548,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 }
             }
         }
-        else if (resize_type == 3) // 4d no bicubic !!
+        else if (resize_type == 3)
         {
             NCNN_LOGE("unsupported bicubic when dims == 4");
             return -1;
