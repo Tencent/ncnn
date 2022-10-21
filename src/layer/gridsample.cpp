@@ -356,7 +356,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         // Interpolate 4 values in the x directon
                         for (int i = 0; i < 4; i++)
                         {
-                            // interp_x[i] = 
+                            // interp_x[i] =
                             //     coeff_x[0] * get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner)+
                             //     coeff_x[1] * get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner)+
                             //     coeff_x[2] * get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner)+
@@ -371,7 +371,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         }
 
                         // Interpolate the 4 values in the y direction
-                        // outptr[row * outw + col] =  coeff_y[0] * interp_x[0] + coeff_y[1] * interp_x[1] + 
+                        // outptr[row * outw + col] =  coeff_y[0] * interp_x[0] + coeff_y[1] * interp_x[1] +
                         //                             coeff_y[2] * interp_x[2] + coeff_y[3] * interp_x[3];
 
                         // Interpolate in the y direction
@@ -389,11 +389,11 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
     if (dims == 4)
     {
-        top_blob.create(outw, outh, outd,channels, elemsize, opt.blob_allocator);
+        top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
         if (resize_type == 1) // bilinear
         {
             #pragma omp parallel for num_threads(opt.num_threads) // collapse(2)
-            for(int dep = 0;dep < outd;dep++)
+            for (int dep = 0; dep < outd; dep++)
             {
                 for (int row = 0; row < outh; row++)
                 {
@@ -503,13 +503,12 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         else if (resize_type == 2) //nearest
         {
             #pragma omp parallel for num_threads(opt.num_threads) // collapse(2)
-            for(int dep = 0;dep < outd;dep++)
+            for (int dep = 0; dep < outd; dep++)
             {
                 for (int row = 0; row < outh; row++)
                 {
                     for (int col = 0; col < outw; col++)
                     {
-
                         const float* gridptr = grid.channel(dep).depth(row).row(col);
 
                         // get the coordinate of every output point
@@ -543,7 +542,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                 }
             }
         }
-        else if(resize_type == 3) // 4d no bicubic !!
+        else if (resize_type == 3) // 4d no bicubic !!
         {
             NCNN_LOGE("unsupported bicubic when dims == 4");
             return -1;
