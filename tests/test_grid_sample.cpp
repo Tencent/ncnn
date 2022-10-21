@@ -15,23 +15,25 @@
 #include "layer/gridsample.h"
 #include "testutil.h"
 
-static int test_grid_sample(const ncnn::Mat& a, int resize_type, int padding_mode, int align_corner)
+static int test_grid_sample(const ncnn::Mat& a, const ncnn::Mat& grid, int resize_type, int padding_mode, int align_corner)
 {
     ncnn::ParamDict pd;
     pd.set(0, resize_type);
     pd.set(1, padding_mode);
     pd.set(2, align_corner);
 
-    std::vector<ncnn::Mat> as(2);
-    as[0] = a;
-    as[1] = ncnn::Mat(a.w, a.h, 2);
-
     std::vector<ncnn::Mat> weights(0);
 
-    int ret = test_layer<ncnn::Grid_Sample>("Grid_Sample", pd, weights, as);
+    std::vector<ncnn::Mat> as(2);
+    as[0] = a;
+    as[1] = grid;
+
+    int ret = test_layer<ncnn::GridSample>("GridSample", pd, weights, as);
     if (ret != 0)
     {
-        fprintf(stderr, "test_grid_sample failed a.dims=%d a=(%d %d %d) resize_type=%d padding_mode=%d align_corner=%d", a.dims, a.w, a.h, a.c, resize_type, padding_mode, align_corner);
+        fprintf(stderr, "test_grid_sample failed a.dims=%d a=(%d %d %d %d) grid.dims=%d grid=(%d %d %d %d) resize_type=%d padding_mode=%d align_corner=%d", 
+                        a.dims, a.w, a.h, a.d, a.c, grid.dims, grid.w, grid.h, grid.d, grid.c, 
+                        resize_type, padding_mode, align_corner);
     }
 
     return ret;
@@ -39,31 +41,82 @@ static int test_grid_sample(const ncnn::Mat& a, int resize_type, int padding_mod
 
 static int test_grid_sample_0()
 {
-    // ncnn::Mat a = RandomMat(15, 16, 17);
-    ncnn::Mat a = RandomMat(3, 3, 1);
-
-    // ncnn::Mat c = RandomMat(15, 16, 2);
-    // std::vector<ncnn::Mat> a = {b, c};
-
     return 0
-           || test_grid_sample(a, 1, 1, 0)
-           || test_grid_sample(a, 1, 1, 1)
-           || test_grid_sample(a, 1, 2, 0)
-           || test_grid_sample(a, 1, 2, 1)
-           || test_grid_sample(a, 1, 3, 0)
-           || test_grid_sample(a, 1, 3, 1)
-           || test_grid_sample(a, 2, 1, 0)
-           || test_grid_sample(a, 2, 1, 1)
-           || test_grid_sample(a, 2, 2, 0)
-           || test_grid_sample(a, 2, 2, 1)
-           || test_grid_sample(a, 2, 3, 0)
-           || test_grid_sample(a, 2, 3, 1)
-           || test_grid_sample(a, 3, 1, 0)
-           || test_grid_sample(a, 3, 1, 1)
-           || test_grid_sample(a, 3, 2, 0)
-           || test_grid_sample(a, 3, 2, 1)
-           || test_grid_sample(a, 3, 3, 0)
-           || test_grid_sample(a, 3, 3, 1);
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 1, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 1, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 1, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 1, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 1, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 1, 3, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 2, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 2, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 2, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 2, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 2, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 2, 3, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 3, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 3, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 3, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 3, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 3, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 16, 12), 3, 3, 1);
+}
+
+static int test_grid_sample_1()
+{
+    return 0
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 1, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 1, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 1, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 1, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 1, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 1, 3, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 2, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 2, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 2, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 2, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 2, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 2, 3, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 3, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 3, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 3, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 3, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 3, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 3), RandomMat(2, 27, 21), 3, 3, 1);
+}
+
+static int test_grid_sample_2()
+{
+    return 0
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 1, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 1, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 1, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 1, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 1, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 1, 3, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 2, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 2, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 2, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 2, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 2, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 27, 21, 10), 2, 3, 1);
+}
+
+static int test_grid_sample_3()
+{
+    return 0
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 1, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 1, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 1, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 1, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 1, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 1, 3, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 2, 1, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 2, 1, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 2, 2, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 2, 2, 1)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 2, 3, 0)
+           || test_grid_sample(RandomMat(16, 12, 10, 5), RandomMat(3, 16, 12, 10), 2, 3, 1);
 }
 
 int main()
@@ -71,5 +124,8 @@ int main()
     SRAND(7767517);
 
     return 0
-           || test_grid_sample_0();
+           || test_grid_sample_0()
+           || test_grid_sample_1()
+           || test_grid_sample_2()
+           || test_grid_sample_3();
 }

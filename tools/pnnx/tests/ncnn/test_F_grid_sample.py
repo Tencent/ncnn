@@ -31,7 +31,7 @@ class Model(nn.Module):
         x = F.grid_sample(x, xg2, mode='nearest', padding_mode='reflection', align_corners=False)
         x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='zeros', align_corners=False)
         x = F.grid_sample(x, xg2, mode='bicubic', padding_mode='border', align_corners=False)
-        # x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='reflection', align_corners=False)
+        # x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='reflection', align_corners=False) // temporarily 1e-3.5, not qulify for the 1e-4 request
         x = F.grid_sample(x, xg2, mode='bilinear', padding_mode='zeros', align_corners=True)
         x = F.grid_sample(x, xg1, mode='bilinear', padding_mode='border', align_corners=True)
         x = F.grid_sample(x, xg2, mode='bilinear', padding_mode='reflection', align_corners=True)
@@ -80,7 +80,6 @@ def test():
     os.system("../../src/pnnx test_F_grid_sample.pt inputshape=[1,3,12,16],[1,21,27,2],[1,12,16,2],[1,5,10,12,16],[1,10,21,27,3],[1,10,12,16,3]")
 
     # ncnn inference
-
     import test_F_grid_sample_ncnn
     b0, b1 = test_F_grid_sample_ncnn.test_inference()
 
