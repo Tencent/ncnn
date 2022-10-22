@@ -14,7 +14,6 @@
 
 #include "gridsample.h"
 
-#include <cmath>
 #include <math.h>
 
 namespace ncnn {
@@ -81,10 +80,10 @@ static float reflect_coord(float coord, int low, int high)
     }
     float min = static_cast<int>(low) / 2;
     float span = static_cast<float>(high - low) / 2;
-    coord = std::fabs(coord - min);
+    coord = fabs(coord - min);
     // `fmod` returns same sign as `coord`, which is positive after the `fabs` above.
-    float extra = std::fmod(coord, span);
-    int flips = static_cast<int>(std::floor(coord / span));
+    float extra = fmod(coord, span);
+    int flips = static_cast<int>(floor(coord / span));
 
     return flips % 2 ? (span - extra + min) : (extra + min);
 }
@@ -174,20 +173,6 @@ static void get_cubic_upsample_coefficients(float coeffs[4], float t)
     coeffs[3] = cubic_convolution2(x2 + 1.0, A);
 }
 
-static void get_cubic_coefficients(float (&coeffs)[4], const float tx)
-{
-    float x;
-    float A = -0.75f;
-    x = tx + float(1); // 1 < x = |-1 - tx| < 2
-    coeffs[0] = ((A * x - float(5) * A) * x + float(8) * A) * x - float(4) * A;
-    x = tx; // x = |0 - tx| <= 1
-    coeffs[1] = ((A + float(2)) * x - (A + float(3))) * x * x + float(1);
-    x = float(1) - tx; // x = |1 - tx| <= 1
-    coeffs[2] = ((A + float(2)) * x - (A + float(3))) * x * x + float(1);
-    x = float(2) - tx; // 1 < x = |2 - tx| < 2
-    coeffs[3] = ((A * x - float(5) * A) * x + float(8) * A) * x - float(4) * A;
-}
-
 static float cubic_interp1d(float x0, float x1, float x2, float x3, float t)
 {
     float coeffs[4];
@@ -235,12 +220,12 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                     iy = get_coord(iy, h, padding_mode, align_corner);
 
                     // for 3d, we used north-east-south-west
-                    int xnw = static_cast<int>(std::floor(ix));
+                    int xnw = static_cast<int>(floor(ix));
                     int xne = xnw + 1;
                     int xsw = xnw;
                     int xse = xne;
 
-                    int ynw = static_cast<int>(std::floor(iy));
+                    int ynw = static_cast<int>(floor(iy));
                     int yne = ynw;
                     int ysw = ynw + 1;
                     int yse = ysw;
@@ -334,17 +319,11 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                     ix = grid_sample_unormalize(w, ix, align_corner);
                     iy = grid_sample_unormalize(h, iy, align_corner);
 
-                    float xnw = std::floor(ix);
-                    float ynw = std::floor(iy);
+                    float xnw = floor(ix);
+                    float ynw = floor(iy);
 
                     const float tx = ix - xnw;
                     const float ty = iy - ynw;
-
-                    // float coeff_x[4];
-                    // float coeff_y[4];
-
-                    // get_cubic_coefficients(coeff_x, tx);
-                    // get_cubic_coefficients(coeff_y, ty);
 
                     for (int q = 0; q < channels; q++)
                     {
@@ -353,17 +332,9 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                         float coefficients[4];
 
-                        // float interp_x[4];
-
                         // Interpolate 4 values in the x directon
                         for (int i = 0; i < 4; i++)
                         {
-                            // interp_x[i] =
-                            //     coeff_x[0] * get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner)+
-                            //     coeff_x[1] * get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner)+
-                            //     coeff_x[2] * get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner)+
-                            //     coeff_x[3] * get_value_bounded(ptr, xnw + 2, ynw - 1 + i, w, h, padding_mode, align_corner);
-
                             coefficients[i] = cubic_interp1d(
                                                   get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner),
                                                   get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner),
@@ -373,10 +344,6 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         }
 
                         // Interpolate the 4 values in the y direction
-                        // outptr[row * outw + col] =  coeff_y[0] * interp_x[0] + coeff_y[1] * interp_x[1] +
-                        //                             coeff_y[2] * interp_x[2] + coeff_y[3] * interp_x[3];
-
-                        // Interpolate in the y direction
                         outptr[row * outw + col] = cubic_interp1d(
                                                        coefficients[0],
                                                        coefficients[1],
@@ -418,9 +385,9 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                         // for 3d, we used north-east-south-west
                         // for 4d, we add top-bottom
-                        int xtnw = static_cast<int>(std::floor(ix));
-                        int ytnw = static_cast<int>(std::floor(iy));
-                        int ztnw = static_cast<int>(std::floor(iz));
+                        int xtnw = static_cast<int>(floor(ix));
+                        int ytnw = static_cast<int>(floor(iy));
+                        int ztnw = static_cast<int>(floor(iz));
 
                         int xtne = xtnw + 1;
                         int ytne = ytnw;
