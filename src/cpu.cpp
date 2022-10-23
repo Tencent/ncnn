@@ -88,9 +88,17 @@
 #ifndef CPUFAMILY_ARM_AVALANCHE_BLIZZARD
 #define CPUFAMILY_ARM_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
+// A16
+#ifndef CPUFAMILY_ARM_EVEREST_SAWTOOTH
+#define CPUFAMILY_ARM_EVEREST_SAWTOOTH 0x8765edea
+#endif
 // M1
 #ifndef CPUFAMILY_AARCH64_FIRESTORM_ICESTORM
 #define CPUFAMILY_AARCH64_FIRESTORM_ICESTORM 0x1b588bb3
+#endif
+// M2
+#ifndef CPUFAMILY_AARCH64_AVALANCHE_BLIZZARD
+#define CPUFAMILY_AARCH64_AVALANCHE_BLIZZARD 0xda33d83d
 #endif
 #endif // __APPLE__
 
@@ -272,6 +280,20 @@ static cpu_subtype_t get_hw_cpusubtype()
 static unsigned int g_hw_cpufamily = get_hw_cpufamily();
 static cpu_type_t g_hw_cputype = get_hw_cputype();
 static cpu_subtype_t g_hw_cpusubtype = get_hw_cpusubtype();
+
+static int get_hw_capability(const char* cap)
+{
+    int64_t value = 0;
+    size_t len = sizeof(value);
+    sysctlbyname(cap, &value, &len, NULL, 0);
+    return value;
+}
+
+static int g_hw_optional_arm_FEAT_FP16 = get_hw_capability("hw.optional.arm.FEAT_FP16");
+static int g_hw_optional_arm_FEAT_DotProd = get_hw_capability("hw.optional.arm.FEAT_DotProd");
+static int g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
+static int g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
+static int g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
 #endif // __APPLE__
 
 #if defined __ANDROID__ || defined __linux__
@@ -444,7 +466,13 @@ int cpu_support_arm_asimdhp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
+    return g_hw_optional_arm_FEAT_FP16
+           || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
+           || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -463,7 +491,11 @@ int cpu_support_arm_asimddp()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
+    return g_hw_optional_arm_FEAT_DotProd
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -482,7 +514,11 @@ int cpu_support_arm_asimdfhm()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD;
+    return g_hw_optional_arm_FEAT_FHM
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -501,7 +537,9 @@ int cpu_support_arm_bf16()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return 0; // no known apple cpu support armv8.6 bf16
+    return g_hw_optional_arm_FEAT_BF16
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -520,7 +558,9 @@ int cpu_support_arm_i8mm()
 #endif
 #elif __APPLE__
 #if __aarch64__
-    return 0; // no known apple cpu support armv8.6 i8mm
+    return g_hw_optional_arm_FEAT_I8MM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -1324,6 +1364,7 @@ static int setup_thread_affinity_masks()
     }
 #elif __APPLE__
     // affinity info from cpu model
+    // TODO find a general way to get per-core frequency on macos
     if (g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL)
     {
         // 2 + 4
@@ -1334,11 +1375,16 @@ static int setup_thread_affinity_masks()
         g_thread_affinity_mask_little.enable(4);
         g_thread_affinity_mask_little.enable(5);
     }
-    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD)
+    else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
+             || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+             || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+             || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+             || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH)
     {
-        // 2 + 4 or 4 + 4
-        if (get_cpu_count() == 6)
+        int cpu_count = get_cpu_count();
+        if (cpu_count == 6)
         {
+            // 2 + 4
             g_thread_affinity_mask_big.enable(0);
             g_thread_affinity_mask_big.enable(1);
             g_thread_affinity_mask_little.enable(2);
@@ -1346,8 +1392,9 @@ static int setup_thread_affinity_masks()
             g_thread_affinity_mask_little.enable(4);
             g_thread_affinity_mask_little.enable(5);
         }
-        else
+        else if (cpu_count == 8)
         {
+            // 4 + 4
             g_thread_affinity_mask_big.enable(0);
             g_thread_affinity_mask_big.enable(1);
             g_thread_affinity_mask_big.enable(2);
@@ -1356,6 +1403,42 @@ static int setup_thread_affinity_masks()
             g_thread_affinity_mask_little.enable(5);
             g_thread_affinity_mask_little.enable(6);
             g_thread_affinity_mask_little.enable(7);
+        }
+        else if (cpu_count == 10)
+        {
+            // 8 + 2
+            g_thread_affinity_mask_big.enable(0);
+            g_thread_affinity_mask_big.enable(1);
+            g_thread_affinity_mask_big.enable(2);
+            g_thread_affinity_mask_big.enable(3);
+            g_thread_affinity_mask_big.enable(4);
+            g_thread_affinity_mask_big.enable(5);
+            g_thread_affinity_mask_big.enable(6);
+            g_thread_affinity_mask_big.enable(7);
+            g_thread_affinity_mask_little.enable(8);
+            g_thread_affinity_mask_little.enable(9);
+        }
+        else if (cpu_count == 20)
+        {
+            // 16 + 4
+            g_thread_affinity_mask_big.enable(0);
+            g_thread_affinity_mask_big.enable(1);
+            g_thread_affinity_mask_big.enable(2);
+            g_thread_affinity_mask_big.enable(3);
+            g_thread_affinity_mask_big.enable(4);
+            g_thread_affinity_mask_big.enable(5);
+            g_thread_affinity_mask_big.enable(6);
+            g_thread_affinity_mask_big.enable(7);
+            g_thread_affinity_mask_big.enable(8);
+            g_thread_affinity_mask_big.enable(9);
+            g_thread_affinity_mask_big.enable(10);
+            g_thread_affinity_mask_big.enable(11);
+            g_thread_affinity_mask_big.enable(12);
+            g_thread_affinity_mask_big.enable(13);
+            g_thread_affinity_mask_big.enable(14);
+            g_thread_affinity_mask_big.enable(15);
+            g_thread_affinity_mask_little.enable(16);
+            g_thread_affinity_mask_little.enable(17);
         }
     }
     else
