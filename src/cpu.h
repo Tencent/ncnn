@@ -110,6 +110,10 @@ NCNN_EXPORT int get_cpu_count();
 NCNN_EXPORT int get_little_cpu_count();
 NCNN_EXPORT int get_big_cpu_count();
 
+NCNN_EXPORT int get_physical_cpu_count();
+NCNN_EXPORT int get_physical_little_cpu_count();
+NCNN_EXPORT int get_physical_big_cpu_count();
+
 // bind all threads on little clusters if powersave enabled
 // affects HMP arch cpu like ARM big.LITTLE
 // only implemented on android at the moment

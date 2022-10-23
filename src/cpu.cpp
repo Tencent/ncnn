@@ -42,6 +42,11 @@
 #include <emscripten/threading.h>
 #endif
 
+#if defined _WIN32 && !(defined __MINGW32__)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
+
 #if defined __ANDROID__ || defined __linux__
 #if defined __ANDROID__
 #if __ANDROID_API__ >= 18
@@ -1162,6 +1167,111 @@ int get_big_cpu_count()
 {
     int big_cpu_count = get_cpu_thread_affinity_mask(2).num_enabled();
     return big_cpu_count ? big_cpu_count : g_cpucount;
+}
+
+#if defined __ANDROID__ || defined __linux__
+static int get_thread_siblings(int cpuid)
+{
+    char path[256];
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings", cpuid);
+
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
+        return -1;
+
+    int thread_siblings = -1;
+    int nscan = fscanf(fp, "%x", &thread_siblings);
+    if (nscan != 1)
+    {
+        // ignore
+    }
+
+    fclose(fp);
+
+    return thread_siblings;
+}
+#endif // defined __ANDROID__ || defined __linux__
+
+static int get_physical_cpucount()
+{
+    int count = 0;
+#if (defined _WIN32 && !(defined __MINGW32__))
+    typedef BOOL (WINAPI *LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI) GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi == NULL)
+    {
+        NCNN_LOGE("GetLogicalProcessorInformation is not supported");
+        return g_cpucount;
+    }
+
+    DWORD return_length = 0;
+    glpi(NULL, &return_length);
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+    glpi(buffer, &return_length);
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+    DWORD byte_offset = 0;
+    while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+    {
+        if (ptr->Relationship == RelationProcessorCore)
+        {
+            count++;
+        }
+
+        byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+        ptr++;
+    }
+
+    free(buffer);
+#elif defined __ANDROID__ || defined __linux__
+    std::vector<int> thread_set;
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        int thread_siblings = get_thread_siblings(i);
+        if (thread_siblings == -1)
+        {
+            // ignore malformed one
+            continue;
+        }
+
+        for (size_t j = 0; j < thread_set.size(); j++)
+        {
+            if (thread_set[j] == thread_siblings)
+                continue;
+
+            thread_set.push_back(thread_siblings);
+            count++;
+        }
+    }
+#elif __APPLE__
+    size_t len = sizeof(count);
+    sysctlbyname("hw.physicalcpu_max", &count, &len, NULL, 0);
+#else
+    count = g_cpucount;
+#endif
+
+    if (count > g_cpucount)
+        count = g_cpucount;
+
+    return count;
+}
+
+static int g_physical_cpucount = get_physical_cpucount();
+
+int get_physical_cpu_count()
+{
+    return g_physical_cpucount;
+}
+
+int get_physical_little_cpu_count()
+{
+    return g_physical_cpucount * 2 - g_cpucount;
+}
+
+int get_physical_big_cpu_count()
+{
+    return g_cpucount - g_physical_cpucount;
 }
 
 #if defined __ANDROID__ || defined __linux__
