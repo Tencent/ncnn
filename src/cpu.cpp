@@ -289,11 +289,11 @@ static int get_hw_capability(const char* cap)
     return value;
 }
 
-static unsigned int g_hw_optional_arm_FEAT_FP16 = get_hw_capability("hw.optional.arm.FEAT_FP16");
-static unsigned int g_hw_optional_arm_FEAT_DotProd = get_hw_capability("hw.optional.arm.FEAT_DotProd");
-static unsigned int g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
-static unsigned int g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
-static unsigned int g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
+static int g_hw_optional_arm_FEAT_FP16 = get_hw_capability("hw.optional.arm.FEAT_FP16");
+static int g_hw_optional_arm_FEAT_DotProd = get_hw_capability("hw.optional.arm.FEAT_DotProd");
+static int g_hw_optional_arm_FEAT_FHM = get_hw_capability("hw.optional.arm.FEAT_FHM");
+static int g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT_BF16");
+static int g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
 #endif // __APPLE__
 
 #if defined __ANDROID__ || defined __linux__
