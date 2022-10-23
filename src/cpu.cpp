@@ -467,12 +467,12 @@ int cpu_support_arm_asimdhp()
 #elif __APPLE__
 #if __aarch64__
     return g_hw_optional_arm_FEAT_FP16
-        || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
-        || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
-        || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-        || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-        || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-        || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+           || g_hw_cpufamily == CPUFAMILY_ARM_MONSOON_MISTRAL
+           || g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -492,10 +492,10 @@ int cpu_support_arm_asimddp()
 #elif __APPLE__
 #if __aarch64__
     return g_hw_optional_arm_FEAT_DotProd
-        || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-        || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-        || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-        || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -515,10 +515,10 @@ int cpu_support_arm_asimdfhm()
 #elif __APPLE__
 #if __aarch64__
     return g_hw_optional_arm_FEAT_FHM
-        || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-        || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-        || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-        || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+           || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+           || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -538,8 +538,8 @@ int cpu_support_arm_bf16()
 #elif __APPLE__
 #if __aarch64__
     return g_hw_optional_arm_FEAT_BF16
-        || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-        || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -559,8 +559,8 @@ int cpu_support_arm_i8mm()
 #elif __APPLE__
 #if __aarch64__
     return g_hw_optional_arm_FEAT_I8MM
-        || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-        || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
+           || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+           || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH;
 #else
     return 0;
 #endif
@@ -1376,10 +1376,10 @@ static int setup_thread_affinity_masks()
         g_thread_affinity_mask_little.enable(5);
     }
     else if (g_hw_cpufamily == CPUFAMILY_ARM_VORTEX_TEMPEST
-            || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
-            || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
-            || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
-            || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH)
+             || g_hw_cpufamily == CPUFAMILY_ARM_LIGHTNING_THUNDER
+             || g_hw_cpufamily == CPUFAMILY_ARM_FIRESTORM_ICESTORM
+             || g_hw_cpufamily == CPUFAMILY_ARM_AVALANCHE_BLIZZARD
+             || g_hw_cpufamily == CPUFAMILY_ARM_EVEREST_SAWTOOTH)
     {
         int cpu_count = get_cpu_count();
         if (cpu_count == 6)
