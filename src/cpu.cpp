@@ -1235,11 +1235,18 @@ static int get_physical_cpucount()
             continue;
         }
 
+        bool thread_siblings_exists = false;
         for (size_t j = 0; j < thread_set.size(); j++)
         {
             if (thread_set[j] == thread_siblings)
-                continue;
+            {
+                thread_siblings_exists = true;
+                break;
+            }
+        }
 
+        if (!thread_siblings_exists)
+        {
             thread_set.push_back(thread_siblings);
             count++;
         }
