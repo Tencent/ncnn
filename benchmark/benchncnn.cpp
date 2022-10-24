@@ -161,8 +161,8 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
 int main(int argc, char** argv)
 {
     int loop_count = 4;
-    int num_threads = ncnn::get_cpu_count();
-    int powersave = 0;
+    int num_threads = ncnn::get_physical_big_cpu_count();
+    int powersave = 2;
     int gpu_device = -1;
     int cooling_down = 1;
 
