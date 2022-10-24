@@ -1273,11 +1273,17 @@ int get_physical_cpu_count()
 
 int get_physical_little_cpu_count()
 {
+    if (g_physical_cpucount == g_cpucount)
+        return get_little_cpu_count();
+
     return g_physical_cpucount * 2 - g_cpucount;
 }
 
 int get_physical_big_cpu_count()
 {
+    if (g_physical_cpucount == g_cpucount)
+        return get_big_cpu_count();
+
     return g_cpucount - g_physical_cpucount;
 }
 
