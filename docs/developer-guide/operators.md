@@ -1,83 +1,84 @@
 
-* [AbsVal](#absval)
-* [ArgMax](#argmax)
-* [BatchNorm](#batchnorm)
-* [Bias](#bias)
-* [BinaryOp](#binaryop)
-* [BNLL](#bnll)
-* [Cast](#cast)
-* [Clip](#clip)
-* [Concat](#concat)
-* [Convolution](#convolution)
-* [Convolution1D](#convolution1d)
-* [Convolution3D](#convolution3d)
-* [ConvolutionDepthWise](#convolutiondepthwise)
-* [ConvolutionDepthWise1D](#convolutiondepthwise1d)
-* [ConvolutionDepthWise3D](#convolutiondepthwise3d)
-* [Crop](#crop)
-* [Deconvolution](#deconvolution)
-* [Deconvolution1D](#deconvolution1d)
-* [Deconvolution3D](#deconvolution3d)
-* [DeconvolutionDepthWise](#deconvolutiondepthwise)
-* [DeconvolutionDepthWise1D](#deconvolutiondepthwise1d)
-* [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
-* [DeformableConv2D](#deformableconv2d)
-* [Dequantize](#dequantize)
-* [Dropout](#dropout)
-* [Eltwise](#eltwise)
-* [ELU](#elu)
-* [Exp](#exp)
-* [Flatten](#flatten)
-* [GELU](#gelu)
-* [GLU](#glu)
-* [Gemm](#gemm)
-* [GroupNorm](#groupnorm)
-* [GRU](#gru)
-* [HardSigmoid](#hardsigmoid)
-* [HardSwish](#hardswish)
-* [InnerProduct](#innerproduct)
-* [Input](#input)
-* [InstanceNorm](#instancenorm)
-* [Interp](#interp)
-* [LayerNorm](#layernorm)
-* [Log](#log)
-* [LRN](#lrn)
-* [LSTM](#lstm)
-* [MemoryData](#memorydata)
-* [Mish](#mish)
-* [MultiHeadAttention](#multiheadattention)
-* [MVN](#mvn)
-* [Noop](#noop)
-* [Normalize](#normalize)
-* [Packing](#packing)
-* [Padding](#padding)
-* [Permute](#permute)
-* [PixelShuffle](#pixelshuffle)
-* [Pooling](#pooling)
-* [Pooling1D](#pooling1d)
-* [Pooling3D](#pooling3d)
-* [Power](#power)
-* [PReLU](#prelu)
-* [Quantize](#quantize)
-* [Reduction](#reduction)
-* [ReLU](#relu)
-* [Reorg](#reorg)
-* [Requantize](#requantize)
-* [Reshape](#reshape)
-* [RNN](#rnn)
-* [Scale](#scale)
-* [SELU](#selu)
-* [ShuffleChannel](#shufflechannel)
-* [Sigmoid](#sigmoid)
-* [Slice](#slice)
-* [Softmax](#softmax)
-* [Softplus](#softplus)
-* [Split](#split)
-* [Swish](#swish)
-* [TanH](#tanh)
-* [Threshold](#threshold)
-* [Tile](#tile)
-* [UnaryOp](#unaryop)
+- [AbsVal](#absval)
+- [ArgMax](#argmax)
+- [BatchNorm](#batchnorm)
+- [Bias](#bias)
+- [BinaryOp](#binaryop)
+- [BNLL](#bnll)
+- [Cast](#cast)
+- [Clip](#clip)
+- [Concat](#concat)
+- [Convolution](#convolution)
+- [Convolution1D](#convolution1d)
+- [Convolution3D](#convolution3d)
+- [ConvolutionDepthWise](#convolutiondepthwise)
+- [ConvolutionDepthWise1D](#convolutiondepthwise1d)
+- [ConvolutionDepthWise3D](#convolutiondepthwise3d)
+- [Crop](#crop)
+- [Deconvolution](#deconvolution)
+- [Deconvolution1D](#deconvolution1d)
+- [Deconvolution3D](#deconvolution3d)
+- [DeconvolutionDepthWise](#deconvolutiondepthwise)
+- [DeconvolutionDepthWise1D](#deconvolutiondepthwise1d)
+- [DeconvolutionDepthWise3D](#deconvolutiondepthwise3d)
+- [DeformableConv2D](#deformableconv2d)
+- [Dequantize](#dequantize)
+- [Dropout](#dropout)
+- [Eltwise](#eltwise)
+- [ELU](#elu)
+- [Exp](#exp)
+- [Flatten](#flatten)
+- [GELU](#gelu)
+- [GLU](#glu)
+- [Gemm](#gemm)
+- [GridSample](#gridsample)
+- [GroupNorm](#groupnorm)
+- [GRU](#gru)
+- [HardSigmoid](#hardsigmoid)
+- [HardSwish](#hardswish)
+- [InnerProduct](#innerproduct)
+- [Input](#input)
+- [InstanceNorm](#instancenorm)
+- [Interp](#interp)
+- [LayerNorm](#layernorm)
+- [Log](#log)
+- [LRN](#lrn)
+- [LSTM](#lstm)
+- [MemoryData](#memorydata)
+- [Mish](#mish)
+- [MultiHeadAttention](#multiheadattention)
+- [MVN](#mvn)
+- [Noop](#noop)
+- [Normalize](#normalize)
+- [Packing](#packing)
+- [Padding](#padding)
+- [Permute](#permute)
+- [PixelShuffle](#pixelshuffle)
+- [Pooling](#pooling)
+- [Pooling1D](#pooling1d)
+- [Pooling3D](#pooling3d)
+- [Power](#power)
+- [PReLU](#prelu)
+- [Quantize](#quantize)
+- [Reduction](#reduction)
+- [ReLU](#relu)
+- [Reorg](#reorg)
+- [Requantize](#requantize)
+- [Reshape](#reshape)
+- [RNN](#rnn)
+- [Scale](#scale)
+- [SELU](#selu)
+- [ShuffleChannel](#shufflechannel)
+- [Sigmoid](#sigmoid)
+- [Slice](#slice)
+- [Softmax](#softmax)
+- [Softplus](#softplus)
+- [Split](#split)
+- [Swish](#swish)
+- [TanH](#tanh)
+- [Threshold](#threshold)
+- [Tile](#tile)
+- [UnaryOp](#unaryop)
 
 # AbsVal
 ```
@@ -815,6 +816,34 @@ y = gemm(a, b) * alpha + c * beta
 | 1         | beta          | float | 1.f       |                   |
 | 2         | transA        | int   | 0         |                   |
 | 3         | transb        | int   | 0         |                   |
+
+# GridSample
+```
+Given an input and a flow-field grid, computes the output using input values and pixel locations from grid.
+
+For each output location output[:, h2, w2], the size-2 vector grid[h2, w2, 2] specifies input pixel[:, h1, w1] locations x and y, 
+which are used to interpolate the output value output[:, h2, w2]
+
+This function is often used in conjunction with affine_grid() to build Spatial Transformer Networks .
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | resize_type   | int   | 1         |                   |
+| 1         | padding_mode  | int   | 1         |                   |
+| 2         | align_corner  | int   | 0         |                   |
+
+
+Resize type:
+- 1 = Nearest
+- 2 = Bilinear
+- 3 = Bicubic
+
+Padding mode:
+- 1 = zeros
+- 2 = border
+- 3 = reflection
+
 
 # GroupNorm
 ```
