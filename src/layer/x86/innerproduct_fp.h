@@ -35,8 +35,6 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
     const int outw = top_blob.w;
     const int out_elempack = top_blob.elempack;
 
-    NCNN_LOGE("%d %d %d", num_input, outw, out_elempack);
-
     const float* bias_data_ptr = bias_data;
 
 #if __SSE2__
@@ -438,10 +436,10 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 __m128 _w2 = _mm_loadu_ps(kptr + 8);
                 __m128 _w3 = _mm_loadu_ps(kptr + 12);
 
-                _sum0 = _mm_add_ps(_mm_mul_ps(_val0, _w0), _sum0);
-                _sum1 = _mm_add_ps(_mm_mul_ps(_val1, _w1), _sum1);
-                _sum2 = _mm_add_ps(_mm_mul_ps(_val2, _w2), _sum2);
-                _sum3 = _mm_add_ps(_mm_mul_ps(_val3, _w3), _sum3);
+                _sum0 = _mm_comp_fmadd_ps(_val0, _w0, _sum0);
+                _sum1 = _mm_comp_fmadd_ps(_val1, _w1, _sum1);
+                _sum2 = _mm_comp_fmadd_ps(_val2, _w2, _sum2);
+                _sum3 = _mm_comp_fmadd_ps(_val3, _w3, _sum3);
 #endif
 
                 sptr += 4;
@@ -721,8 +719,8 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 __m128 _w0 = _mm_loadu_ps(w0);
                 __m128 _w1 = _mm_loadu_ps(w1);
 #endif
-                _sum0l = _mm_add_ps(_mm_mul_ps(_m, _w0), _sum0l);
-                _sum1l = _mm_add_ps(_mm_mul_ps(_m, _w1), _sum1l);
+                _sum0l = _mm_comp_fmadd_ps(_m, _w0, _sum0l);
+                _sum1l = _mm_comp_fmadd_ps(_m, _w1, _sum1l);
 
 #if NCNN_IMPL_FP16S
                 __m128 _w2 = _mm_cvtph_ps(_mm_loadl_epi64((const __m128i*)w2));
@@ -731,8 +729,8 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
                 __m128 _w2 = _mm_loadu_ps(w2);
                 __m128 _w3 = _mm_loadu_ps(w3);
 #endif
-                _sum2l = _mm_add_ps(_mm_mul_ps(_m, _w2), _sum2l);
-                _sum3l = _mm_add_ps(_mm_mul_ps(_m, _w3), _sum3l);
+                _sum2l = _mm_comp_fmadd_ps(_m, _w2, _sum2l);
+                _sum3l = _mm_comp_fmadd_ps(_m, _w3, _sum3l);
 
                 m += 4;
                 w0 += 4;
@@ -823,7 +821,7 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
 #else
                 __m128 _w = _mm_loadu_ps(w);
 #endif
-                _suml = _mm_add_ps(_mm_mul_ps(_m, _w), _suml);
+                _suml = _mm_comp_fmadd_ps(_m, _w, _suml);
 
                 m += 4;
                 w += 4;
@@ -842,8 +840,9 @@ static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& w
 
 #if __SSE2__
 #if __AVX__
-            sum += _mm256_reduce_add_ps(_sum);
-#endif
+            _suml = _mm_add_ps(_suml, _mm256_extractf128_ps(_sum, 1));
+            _suml = _mm_add_ps(_suml, _mm256_castps256_ps128(_sum));
+#endif // __AVX__
             sum += _mm_reduce_add_ps(_suml);
 #endif // __SSE2__
 

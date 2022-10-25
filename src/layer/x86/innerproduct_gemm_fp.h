@@ -1158,7 +1158,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 #else
                     __m128 _w = _mm_loadu_ps(kptr);
 #endif
-                    _sum = _mm_add_ps(_mm_mul_ps(_val, _w), _sum);
+                    _sum = _mm_comp_fmadd_ps(_val, _w, _sum);
 
                     m += 1;
                     kptr += 4;
@@ -1214,10 +1214,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     _sum2 = _mm_comp_fmadd_ps(_val2, _w2, _sum2);
                     _sum3 = _mm_comp_fmadd_ps(_val3, _w3, _sum3);
 #else
-                    _sum0 = _mm_add_ps(_mm_mul_ps(_val0, _mm_set1_ps(kptr[0])), _sum0);
-                    _sum1 = _mm_add_ps(_mm_mul_ps(_val1, _mm_set1_ps(kptr[1])), _sum1);
-                    _sum2 = _mm_add_ps(_mm_mul_ps(_val2, _mm_set1_ps(kptr[2])), _sum2);
-                    _sum3 = _mm_add_ps(_mm_mul_ps(_val3, _mm_set1_ps(kptr[3])), _sum3);
+                    _sum0 = _mm_comp_fmadd_ps(_val0, _mm_set1_ps(kptr[0]), _sum0);
+                    _sum1 = _mm_comp_fmadd_ps(_val1, _mm_set1_ps(kptr[1]), _sum1);
+                    _sum2 = _mm_comp_fmadd_ps(_val2, _mm_set1_ps(kptr[2]), _sum2);
+                    _sum3 = _mm_comp_fmadd_ps(_val3, _mm_set1_ps(kptr[3]), _sum3);
 #endif
 
                     m += 16;
@@ -1231,7 +1231,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 #else
                     __m128 _k = _mm_set1_ps(kptr[0]);
 #endif
-                    _sum0 = _mm_add_ps(_mm_mul_ps(_val, _k), _sum0);
+                    _sum0 = _mm_comp_fmadd_ps(_val, _k, _sum0);
 
                     m += 4;
                     kptr += 1;
@@ -1296,7 +1296,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 #else
                     __m128 _w = _mm_loadu_ps(kptr);
 #endif
-                    _suml = _mm_add_ps(_mm_mul_ps(_val, _w), _suml);
+                    _suml = _mm_comp_fmadd_ps(_val, _w, _suml);
 
                     m += 4;
                     kptr += 4;
@@ -1313,7 +1313,8 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
 #if __SSE2__
 #if __AVX__
-                sum += _mm256_reduce_add_ps(_sum);
+                _suml = _mm_add_ps(_suml, _mm256_extractf128_ps(_sum, 1));
+                _suml = _mm_add_ps(_suml, _mm256_castps256_ps128(_sum));
 #endif // __AVX__
                 sum += _mm_reduce_add_ps(_suml);
 #endif // __SSE2__
