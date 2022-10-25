@@ -434,7 +434,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm512_set1_ps(bias_data[p]);
+                    _sum0 = _mm512_set1_ps(bias_data_ptr[p]);
                 }
 
                 int i = 0;
@@ -506,10 +506,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm512_set1_ps(bias_data[p * 4 + 0]);
-                    _sum1 = _mm512_set1_ps(bias_data[p * 4 + 1]);
-                    _sum2 = _mm512_set1_ps(bias_data[p * 4 + 2]);
-                    _sum3 = _mm512_set1_ps(bias_data[p * 4 + 3]);
+                    _sum0 = _mm512_set1_ps(bias_data_ptr[p * 4 + 0]);
+                    _sum1 = _mm512_set1_ps(bias_data_ptr[p * 4 + 1]);
+                    _sum2 = _mm512_set1_ps(bias_data_ptr[p * 4 + 2]);
+                    _sum3 = _mm512_set1_ps(bias_data_ptr[p * 4 + 3]);
                 }
 
                 int i = 0;
@@ -575,14 +575,14 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm512_set1_ps(bias_data[p * 8 + 0]);
-                    _sum1 = _mm512_set1_ps(bias_data[p * 8 + 1]);
-                    _sum2 = _mm512_set1_ps(bias_data[p * 8 + 2]);
-                    _sum3 = _mm512_set1_ps(bias_data[p * 8 + 3]);
-                    _sum4 = _mm512_set1_ps(bias_data[p * 8 + 4]);
-                    _sum5 = _mm512_set1_ps(bias_data[p * 8 + 5]);
-                    _sum6 = _mm512_set1_ps(bias_data[p * 8 + 6]);
-                    _sum7 = _mm512_set1_ps(bias_data[p * 8 + 7]);
+                    _sum0 = _mm512_set1_ps(bias_data_ptr[p * 8 + 0]);
+                    _sum1 = _mm512_set1_ps(bias_data_ptr[p * 8 + 1]);
+                    _sum2 = _mm512_set1_ps(bias_data_ptr[p * 8 + 2]);
+                    _sum3 = _mm512_set1_ps(bias_data_ptr[p * 8 + 3]);
+                    _sum4 = _mm512_set1_ps(bias_data_ptr[p * 8 + 4]);
+                    _sum5 = _mm512_set1_ps(bias_data_ptr[p * 8 + 5]);
+                    _sum6 = _mm512_set1_ps(bias_data_ptr[p * 8 + 6]);
+                    _sum7 = _mm512_set1_ps(bias_data_ptr[p * 8 + 7]);
                 }
 
                 int i = 0;
@@ -946,7 +946,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm256_set1_ps(bias_data[p]);
+                    _sum0 = _mm256_set1_ps(bias_data_ptr[p]);
                 }
 
                 int i = 0;
@@ -1021,10 +1021,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm256_set1_ps(bias_data[p * 4 + 0]);
-                    _sum1 = _mm256_set1_ps(bias_data[p * 4 + 1]);
-                    _sum2 = _mm256_set1_ps(bias_data[p * 4 + 2]);
-                    _sum3 = _mm256_set1_ps(bias_data[p * 4 + 3]);
+                    _sum0 = _mm256_set1_ps(bias_data_ptr[p * 4 + 0]);
+                    _sum1 = _mm256_set1_ps(bias_data_ptr[p * 4 + 1]);
+                    _sum2 = _mm256_set1_ps(bias_data_ptr[p * 4 + 2]);
+                    _sum3 = _mm256_set1_ps(bias_data_ptr[p * 4 + 3]);
                 }
 
                 int i = 0;
@@ -1191,7 +1191,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
                 if (bias_data_ptr)
                 {
-                    _sum0 = _mm_set1_ps(bias_data[p]);
+                    _sum0 = _mm_set1_ps(bias_data_ptr[p]);
                 }
 
                 int i = 0;
@@ -1266,7 +1266,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
 
                 if (bias_data_ptr)
                 {
-                    sum = bias_data[p];
+                    sum = bias_data_ptr[p];
                 }
 
                 int i = 0;
