@@ -23,7 +23,7 @@ static void innerproduct_fp16s_sse(const Mat& bottom_blob, Mat& top_blob, const 
 static void innerproduct_sse(const Mat& bottom_blob, Mat& top_blob, const Mat& weight_data_tm, const Mat& bias_data, int activation_type, const Mat& activation_params, const Option& opt)
 #endif
 {
-#if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
+#if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
         innerproduct_fp16s_sse_f16c(bottom_blob, top_blob, weight_data_tm, bias_data, activation_type, activation_params, opt);
@@ -861,7 +861,7 @@ static void innerproduct_transform_kernel_fp16s_sse(const Mat& weight_data, Mat&
 static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weight_data_tm, int num_input, int num_output, const Option& opt)
 #endif
 {
-#if NCNN_RUNTIME_CPU && NCNN_F16C && __AVX__ && !__F16C__
+#if NCNN_RUNTIME_CPU && NCNN_IMPL_FP16S && NCNN_F16C && __AVX__ && !__F16C__
     if (ncnn::cpu_support_x86_f16c())
     {
         innerproduct_transform_kernel_fp16s_sse_f16c(weight_data, weight_data_tm, num_input, num_output, opt);

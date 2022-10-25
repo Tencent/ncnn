@@ -155,20 +155,20 @@ static NCNN_FORCEINLINE __m128i float2int8_sse(const __m128& _v0, const __m128& 
 }
 
 #ifndef __FMA__
-static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
     return _mm_add_ps(_mm_mul_ps(_a, _b), _c);
 }
-static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
     return _mm_sub_ps(_c, _mm_mul_ps(_a, _b));
 }
 #else
-static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
     return _mm_fmadd_ps(_a, _b, _c);
 }
-static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, const __m128 _b, const __m128 _c)
+static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(const __m128& _a, const __m128& _b, const __m128& _c)
 {
     // return -a * b + c
     return _mm_fnmadd_ps(_a, _b, _c);
@@ -177,32 +177,32 @@ static NCNN_FORCEINLINE __m128 _mm_comp_fnmadd_ps(__m128 _a, const __m128 _b, co
 
 #if __AVX__
 #ifndef __FMA__
-static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     return _mm256_add_ps(_mm256_mul_ps(_a, _b), _c);
 }
-static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     return _mm256_sub_ps(_c, _mm256_mul_ps(_a, _b));
 }
 #else
-static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     return _mm256_fmadd_ps(_a, _b, _c);
 }
-static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(__m256 _a, const __m256 _b, const __m256 _c)
+static NCNN_FORCEINLINE __m256 _mm256_comp_fnmadd_ps(const __m256& _a, const __m256& _b, const __m256& _c)
 {
     // return -a * b + c
     return _mm256_fnmadd_ps(_a, _b, _c);
 }
 #endif
 
-static NCNN_FORCEINLINE __m256 _mm256_fmadd_1_ps(__m256 a, __m256 b, float c)
+static NCNN_FORCEINLINE __m256 _mm256_fmadd_1_ps(const __m256& a, const __m256& b, float c)
 {
     return _mm256_comp_fmadd_ps(b, _mm256_set1_ps(c), a);
 }
 
-static NCNN_FORCEINLINE __m256 _mm256_fmrsub_1_ps(__m256 a, __m256 b, float c)
+static NCNN_FORCEINLINE __m256 _mm256_fmrsub_1_ps(const __m256& a, const __m256& b, float c)
 {
     // return a - b * c
     return _mm256_comp_fnmadd_ps(b, _mm256_set1_ps(c), a);
