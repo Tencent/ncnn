@@ -156,7 +156,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                 _sume = activation_avx512(_sume, activation_type, activation_params);
                 _sumf = activation_avx512(_sumf, activation_type, activation_params);
 
-                transpose16_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7, _sum8, _sum9, _suma, _sumb, _sumc, _sumd, _sume, _sumf);
+                transpose16x16_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7, _sum8, _sum9, _suma, _sumb, _sumc, _sumd, _sume, _sumf);
 
                 _mm512_storeu_ps(outptr, _sum0);
                 _mm512_storeu_ps(outptr + 16, _sum1);
@@ -272,26 +272,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum2 = activation_avx512(_sum2, activation_type, activation_params);
                 _sum3 = activation_avx512(_sum3, activation_type, activation_params);
 
-                // transpose 16x4
-                __m512 _tmp0 = _mm512_unpacklo_ps(_sum0, _sum1);
-                __m512 _tmp1 = _mm512_unpackhi_ps(_sum0, _sum1);
-                __m512 _tmp2 = _mm512_unpacklo_ps(_sum2, _sum3);
-                __m512 _tmp3 = _mm512_unpackhi_ps(_sum2, _sum3);
-
-                __m512 _tmp4 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmp5 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
-                __m512 _tmp6 = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmp7 = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
-
-                _tmp0 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp1 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp2 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
-                _tmp3 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
-
-                _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
-                _sum1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
-                _sum2 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
-                _sum3 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
+                transpose16x4_ps(_sum0, _sum1, _sum2, _sum3);
 
                 _mm512_storeu_ps(outptr, _sum0);
                 _mm512_storeu_ps(outptr + 16, _sum1);
@@ -368,42 +349,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum6 = activation_avx512(_sum6, activation_type, activation_params);
                 _sum7 = activation_avx512(_sum7, activation_type, activation_params);
 
-                // transpose 16x8
-                __m512 _tmp0 = _mm512_unpacklo_ps(_sum0, _sum1);
-                __m512 _tmp1 = _mm512_unpackhi_ps(_sum0, _sum1);
-                __m512 _tmp2 = _mm512_unpacklo_ps(_sum2, _sum3);
-                __m512 _tmp3 = _mm512_unpackhi_ps(_sum2, _sum3);
-                __m512 _tmp4 = _mm512_unpacklo_ps(_sum4, _sum5);
-                __m512 _tmp5 = _mm512_unpackhi_ps(_sum4, _sum5);
-                __m512 _tmp6 = _mm512_unpacklo_ps(_sum6, _sum7);
-                __m512 _tmp7 = _mm512_unpackhi_ps(_sum6, _sum7);
-
-                __m512 _tmp8 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmp9 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
-                __m512 _tmpa = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmpb = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
-                __m512 _tmpc = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmpd = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
-                __m512 _tmpe = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmpf = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
-
-                _tmp0 = _mm512_shuffle_f32x4(_tmp8, _tmpc, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp1 = _mm512_shuffle_f32x4(_tmp9, _tmpd, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp2 = _mm512_shuffle_f32x4(_tmpa, _tmpe, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp3 = _mm512_shuffle_f32x4(_tmpb, _tmpf, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp4 = _mm512_shuffle_f32x4(_tmp8, _tmpc, _MM_SHUFFLE(3, 1, 3, 1));
-                _tmp5 = _mm512_shuffle_f32x4(_tmp9, _tmpd, _MM_SHUFFLE(3, 1, 3, 1));
-                _tmp6 = _mm512_shuffle_f32x4(_tmpa, _tmpe, _MM_SHUFFLE(3, 1, 3, 1));
-                _tmp7 = _mm512_shuffle_f32x4(_tmpb, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
-
-                _sum0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
-                _sum1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
-                _sum2 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
-                _sum3 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
-                _sum4 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
-                _sum5 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
-                _sum6 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
-                _sum7 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+                transpose16x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
 
                 _mm512_storeu_ps(outptr, _sum0);
                 _mm512_storeu_ps(outptr + 16, _sum1);
@@ -709,7 +655,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum6 = activation_avx(_sum6, activation_type, activation_params);
                 _sum7 = activation_avx(_sum7, activation_type, activation_params);
 
-                transpose8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
+                transpose8x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
 
                 _mm256_storeu_ps(outptr, _sum0);
                 _mm256_storeu_ps(outptr + 8, _sum1);
@@ -904,19 +850,7 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum2 = activation_avx(_sum2, activation_type, activation_params);
                 _sum3 = activation_avx(_sum3, activation_type, activation_params);
 
-                // transpose 8x4
-                __m256 _tmp0 = _mm256_unpacklo_ps(_sum0, _sum1);
-                __m256 _tmp1 = _mm256_unpackhi_ps(_sum0, _sum1);
-                __m256 _tmp2 = _mm256_unpacklo_ps(_sum2, _sum3);
-                __m256 _tmp3 = _mm256_unpackhi_ps(_sum2, _sum3);
-                __m256 _tmp4 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmp5 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
-                __m256 _tmp6 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmp7 = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
-                _sum0 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
-                _sum1 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
-                _sum2 = _mm256_permute2f128_ps(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
-                _sum3 = _mm256_permute2f128_ps(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
+                transpose8x4_ps(_sum0, _sum1, _sum2, _sum3);
 
                 _mm256_storeu_ps(outptr, _sum0);
                 _mm256_storeu_ps(outptr + 8, _sum1);

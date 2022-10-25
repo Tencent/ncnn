@@ -945,73 +945,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m256i _re = _mm512_cvtps_ph(_mm512_loadu_ps(ke), _MM_FROUND_TRUNC);
                 __m256i _rf = _mm512_cvtps_ph(_mm512_loadu_ps(kf), _MM_FROUND_TRUNC);
 
-                __m256i _tmp0 = _mm256_unpacklo_epi16(_r0, _r1);
-                __m256i _tmp1 = _mm256_unpackhi_epi16(_r0, _r1);
-                __m256i _tmp2 = _mm256_unpacklo_epi16(_r2, _r3);
-                __m256i _tmp3 = _mm256_unpackhi_epi16(_r2, _r3);
-                __m256i _tmp4 = _mm256_unpacklo_epi16(_r4, _r5);
-                __m256i _tmp5 = _mm256_unpackhi_epi16(_r4, _r5);
-                __m256i _tmp6 = _mm256_unpacklo_epi16(_r6, _r7);
-                __m256i _tmp7 = _mm256_unpackhi_epi16(_r6, _r7);
-                __m256i _tmp8 = _mm256_unpacklo_epi16(_r8, _r9);
-                __m256i _tmp9 = _mm256_unpackhi_epi16(_r8, _r9);
-                __m256i _tmpa = _mm256_unpacklo_epi16(_ra, _rb);
-                __m256i _tmpb = _mm256_unpackhi_epi16(_ra, _rb);
-                __m256i _tmpc = _mm256_unpacklo_epi16(_rc, _rd);
-                __m256i _tmpd = _mm256_unpackhi_epi16(_rc, _rd);
-                __m256i _tmpe = _mm256_unpacklo_epi16(_re, _rf);
-                __m256i _tmpf = _mm256_unpackhi_epi16(_re, _rf);
-
-                __m256i _tmpg = _mm256_unpacklo_epi32(_tmp0, _tmp2);
-                __m256i _tmph = _mm256_unpackhi_epi32(_tmp0, _tmp2);
-                __m256i _tmpi = _mm256_unpacklo_epi32(_tmp1, _tmp3);
-                __m256i _tmpj = _mm256_unpackhi_epi32(_tmp1, _tmp3);
-                __m256i _tmpk = _mm256_unpacklo_epi32(_tmp4, _tmp6);
-                __m256i _tmpl = _mm256_unpackhi_epi32(_tmp4, _tmp6);
-                __m256i _tmpm = _mm256_unpacklo_epi32(_tmp5, _tmp7);
-                __m256i _tmpn = _mm256_unpackhi_epi32(_tmp5, _tmp7);
-                __m256i _tmpo = _mm256_unpacklo_epi32(_tmp8, _tmpa);
-                __m256i _tmpp = _mm256_unpackhi_epi32(_tmp8, _tmpa);
-                __m256i _tmpq = _mm256_unpacklo_epi32(_tmp9, _tmpb);
-                __m256i _tmpr = _mm256_unpackhi_epi32(_tmp9, _tmpb);
-                __m256i _tmps = _mm256_unpacklo_epi32(_tmpc, _tmpe);
-                __m256i _tmpt = _mm256_unpackhi_epi32(_tmpc, _tmpe);
-                __m256i _tmpu = _mm256_unpacklo_epi32(_tmpd, _tmpf);
-                __m256i _tmpv = _mm256_unpackhi_epi32(_tmpd, _tmpf);
-
-                _tmp0 = _mm256_unpacklo_epi64(_tmpg, _tmpk);
-                _tmp1 = _mm256_unpackhi_epi64(_tmpg, _tmpk);
-                _tmp2 = _mm256_unpacklo_epi64(_tmph, _tmpl);
-                _tmp3 = _mm256_unpackhi_epi64(_tmph, _tmpl);
-                _tmp4 = _mm256_unpacklo_epi64(_tmpi, _tmpm);
-                _tmp5 = _mm256_unpackhi_epi64(_tmpi, _tmpm);
-                _tmp6 = _mm256_unpacklo_epi64(_tmpj, _tmpn);
-                _tmp7 = _mm256_unpackhi_epi64(_tmpj, _tmpn);
-                _tmp8 = _mm256_unpacklo_epi64(_tmpo, _tmps);
-                _tmp9 = _mm256_unpackhi_epi64(_tmpo, _tmps);
-                _tmpa = _mm256_unpacklo_epi64(_tmpp, _tmpt);
-                _tmpb = _mm256_unpackhi_epi64(_tmpp, _tmpt);
-                _tmpc = _mm256_unpacklo_epi64(_tmpq, _tmpu);
-                _tmpd = _mm256_unpackhi_epi64(_tmpq, _tmpu);
-                _tmpe = _mm256_unpacklo_epi64(_tmpr, _tmpv);
-                _tmpf = _mm256_unpackhi_epi64(_tmpr, _tmpv);
-
-                _r0 = _mm256_permute2x128_si256(_tmp0, _tmp8, _MM_SHUFFLE(0, 2, 0, 0));
-                _r1 = _mm256_permute2x128_si256(_tmp1, _tmp9, _MM_SHUFFLE(0, 2, 0, 0));
-                _r2 = _mm256_permute2x128_si256(_tmp2, _tmpa, _MM_SHUFFLE(0, 2, 0, 0));
-                _r3 = _mm256_permute2x128_si256(_tmp3, _tmpb, _MM_SHUFFLE(0, 2, 0, 0));
-                _r4 = _mm256_permute2x128_si256(_tmp4, _tmpc, _MM_SHUFFLE(0, 2, 0, 0));
-                _r5 = _mm256_permute2x128_si256(_tmp5, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
-                _r6 = _mm256_permute2x128_si256(_tmp6, _tmpe, _MM_SHUFFLE(0, 2, 0, 0));
-                _r7 = _mm256_permute2x128_si256(_tmp7, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
-                _r8 = _mm256_permute2x128_si256(_tmp0, _tmp8, _MM_SHUFFLE(0, 3, 0, 1));
-                _r9 = _mm256_permute2x128_si256(_tmp1, _tmp9, _MM_SHUFFLE(0, 3, 0, 1));
-                _ra = _mm256_permute2x128_si256(_tmp2, _tmpa, _MM_SHUFFLE(0, 3, 0, 1));
-                _rb = _mm256_permute2x128_si256(_tmp3, _tmpb, _MM_SHUFFLE(0, 3, 0, 1));
-                _rc = _mm256_permute2x128_si256(_tmp4, _tmpc, _MM_SHUFFLE(0, 3, 0, 1));
-                _rd = _mm256_permute2x128_si256(_tmp5, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
-                _re = _mm256_permute2x128_si256(_tmp6, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
-                _rf = _mm256_permute2x128_si256(_tmp7, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+                transpose16x16_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
                 _mm256_storeu_si256((__m256i*)g0, _r0);
                 _mm256_storeu_si256((__m256i*)(g0 + 16), _r1);
@@ -1047,7 +981,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m512 _re = _mm512_loadu_ps(ke);
                 __m512 _rf = _mm512_loadu_ps(kf);
 
-                transpose16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
                 _mm512_storeu_ps(g0, _r0);
                 _mm512_storeu_ps(g0 + 16, _r1);
@@ -1087,7 +1021,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
             }
             for (; p + 7 < num_input; p += 8)
             {
-                // transpose 16x8
+                // transpose 8x16
 #if NCNN_IMPL_FP16S
                 __m128i _r0 = _mm256_cvtps_ph(_mm256_loadu_ps(k0), _MM_FROUND_TRUNC);
                 __m128i _r1 = _mm256_cvtps_ph(_mm256_loadu_ps(k1), _MM_FROUND_TRUNC);
@@ -1168,56 +1102,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m256 _re = _mm256_loadu_ps(ke);
                 __m256 _rf = _mm256_loadu_ps(kf);
 
-                __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
-                __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
-                __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
-                __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
-                __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
-                __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
-                __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
-                __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
-                __m256 _tmp8 = _mm256_unpacklo_ps(_r8, _r9);
-                __m256 _tmp9 = _mm256_unpackhi_ps(_r8, _r9);
-                __m256 _tmpa = _mm256_unpacklo_ps(_ra, _rb);
-                __m256 _tmpb = _mm256_unpackhi_ps(_ra, _rb);
-                __m256 _tmpc = _mm256_unpacklo_ps(_rc, _rd);
-                __m256 _tmpd = _mm256_unpackhi_ps(_rc, _rd);
-                __m256 _tmpe = _mm256_unpacklo_ps(_re, _rf);
-                __m256 _tmpf = _mm256_unpackhi_ps(_re, _rf);
-
-                __m256 _tmpg = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmph = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
-                __m256 _tmpi = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmpj = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
-                __m256 _tmpk = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmpl = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
-                __m256 _tmpm = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmpn = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
-                __m256 _tmpo = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmpp = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
-                __m256 _tmpq = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmpr = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
-                __m256 _tmps = _mm256_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmpt = _mm256_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(3, 2, 3, 2));
-                __m256 _tmpu = _mm256_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(1, 0, 1, 0));
-                __m256 _tmpv = _mm256_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(3, 2, 3, 2));
-
-                _r0 = _mm256_permute2f128_ps(_tmpg, _tmpk, _MM_SHUFFLE(0, 2, 0, 0));
-                _r1 = _mm256_permute2f128_ps(_tmpo, _tmps, _MM_SHUFFLE(0, 2, 0, 0));
-                _r2 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 2, 0, 0));
-                _r3 = _mm256_permute2f128_ps(_tmpp, _tmpt, _MM_SHUFFLE(0, 2, 0, 0));
-                _r4 = _mm256_permute2f128_ps(_tmpi, _tmpm, _MM_SHUFFLE(0, 2, 0, 0));
-                _r5 = _mm256_permute2f128_ps(_tmpq, _tmpu, _MM_SHUFFLE(0, 2, 0, 0));
-                _r6 = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 2, 0, 0));
-                _r7 = _mm256_permute2f128_ps(_tmpr, _tmpv, _MM_SHUFFLE(0, 2, 0, 0));
-                _r8 = _mm256_permute2f128_ps(_tmpg, _tmpk, _MM_SHUFFLE(0, 3, 0, 1));
-                _r9 = _mm256_permute2f128_ps(_tmpo, _tmps, _MM_SHUFFLE(0, 3, 0, 1));
-                _ra = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 3, 0, 1));
-                _rb = _mm256_permute2f128_ps(_tmpp, _tmpt, _MM_SHUFFLE(0, 3, 0, 1));
-                _rc = _mm256_permute2f128_ps(_tmpi, _tmpm, _MM_SHUFFLE(0, 3, 0, 1));
-                _rd = _mm256_permute2f128_ps(_tmpq, _tmpu, _MM_SHUFFLE(0, 3, 0, 1));
-                _re = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
-                _rf = _mm256_permute2f128_ps(_tmpr, _tmpv, _MM_SHUFFLE(0, 3, 0, 1));
+                transpose8x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
                 _mm256_storeu_ps(g0, _r0);
                 _mm256_storeu_ps(g0 + 8, _r1);
@@ -1329,7 +1214,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
 #if __AVX512F__
             for (; p + 15 < num_input; p += 16)
             {
-                // transpose 8x16
+                // transpose 16x8
 #if NCNN_IMPL_FP16S
                 __m256i _r0 = _mm512_cvtps_ph(_mm512_loadu_ps(k0), _MM_FROUND_TRUNC);
                 __m256i _r1 = _mm512_cvtps_ph(_mm512_loadu_ps(k1), _MM_FROUND_TRUNC);
@@ -1340,41 +1225,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m256i _r6 = _mm512_cvtps_ph(_mm512_loadu_ps(k6), _MM_FROUND_TRUNC);
                 __m256i _r7 = _mm512_cvtps_ph(_mm512_loadu_ps(k7), _MM_FROUND_TRUNC);
 
-                __m256i _tmp0 = _mm256_unpacklo_epi16(_r0, _r1);
-                __m256i _tmp1 = _mm256_unpackhi_epi16(_r0, _r1);
-                __m256i _tmp2 = _mm256_unpacklo_epi16(_r2, _r3);
-                __m256i _tmp3 = _mm256_unpackhi_epi16(_r2, _r3);
-                __m256i _tmp4 = _mm256_unpacklo_epi16(_r4, _r5);
-                __m256i _tmp5 = _mm256_unpackhi_epi16(_r4, _r5);
-                __m256i _tmp6 = _mm256_unpacklo_epi16(_r6, _r7);
-                __m256i _tmp7 = _mm256_unpackhi_epi16(_r6, _r7);
-
-                __m256i _tmpg = _mm256_unpacklo_epi32(_tmp0, _tmp2);
-                __m256i _tmph = _mm256_unpackhi_epi32(_tmp0, _tmp2);
-                __m256i _tmpi = _mm256_unpacklo_epi32(_tmp1, _tmp3);
-                __m256i _tmpj = _mm256_unpackhi_epi32(_tmp1, _tmp3);
-                __m256i _tmpk = _mm256_unpacklo_epi32(_tmp4, _tmp6);
-                __m256i _tmpl = _mm256_unpackhi_epi32(_tmp4, _tmp6);
-                __m256i _tmpm = _mm256_unpacklo_epi32(_tmp5, _tmp7);
-                __m256i _tmpn = _mm256_unpackhi_epi32(_tmp5, _tmp7);
-
-                _tmp0 = _mm256_unpacklo_epi64(_tmpg, _tmpk);
-                _tmp1 = _mm256_unpackhi_epi64(_tmpg, _tmpk);
-                _tmp2 = _mm256_unpacklo_epi64(_tmph, _tmpl);
-                _tmp3 = _mm256_unpackhi_epi64(_tmph, _tmpl);
-                _tmp4 = _mm256_unpacklo_epi64(_tmpi, _tmpm);
-                _tmp5 = _mm256_unpackhi_epi64(_tmpi, _tmpm);
-                _tmp6 = _mm256_unpacklo_epi64(_tmpj, _tmpn);
-                _tmp7 = _mm256_unpackhi_epi64(_tmpj, _tmpn);
-
-                _r0 = _mm256_permute2x128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 2, 0, 0));
-                _r1 = _mm256_permute2x128_si256(_tmp2, _tmp3, _MM_SHUFFLE(0, 2, 0, 0));
-                _r2 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 2, 0, 0));
-                _r3 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 2, 0, 0));
-                _r4 = _mm256_permute2x128_si256(_tmp0, _tmp1, _MM_SHUFFLE(0, 3, 0, 1));
-                _r5 = _mm256_permute2x128_si256(_tmp2, _tmp3, _MM_SHUFFLE(0, 3, 0, 1));
-                _r6 = _mm256_permute2x128_si256(_tmp4, _tmp5, _MM_SHUFFLE(0, 3, 0, 1));
-                _r7 = _mm256_permute2x128_si256(_tmp6, _tmp7, _MM_SHUFFLE(0, 3, 0, 1));
+                transpose16x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
                 _mm256_storeu_si256((__m256i*)g0, _r0);
                 _mm256_storeu_si256((__m256i*)(g0 + 16), _r1);
@@ -1394,41 +1245,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m512 _r6 = _mm512_loadu_ps(k6);
                 __m512 _r7 = _mm512_loadu_ps(k7);
 
-                __m512 _tmp0 = _mm512_unpacklo_ps(_r0, _r1);
-                __m512 _tmp1 = _mm512_unpackhi_ps(_r0, _r1);
-                __m512 _tmp2 = _mm512_unpacklo_ps(_r2, _r3);
-                __m512 _tmp3 = _mm512_unpackhi_ps(_r2, _r3);
-                __m512 _tmp4 = _mm512_unpacklo_ps(_r4, _r5);
-                __m512 _tmp5 = _mm512_unpackhi_ps(_r4, _r5);
-                __m512 _tmp6 = _mm512_unpacklo_ps(_r6, _r7);
-                __m512 _tmp7 = _mm512_unpackhi_ps(_r6, _r7);
-
-                __m512 _tmp8 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmp9 = _mm512_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
-                __m512 _tmpa = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmpb = _mm512_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
-                __m512 _tmpc = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmpd = _mm512_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
-                __m512 _tmpe = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
-                __m512 _tmpf = _mm512_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
-
-                _tmp0 = _mm512_shuffle_f32x4(_tmp8, _tmpc, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp1 = _mm512_shuffle_f32x4(_tmp9, _tmpd, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp2 = _mm512_shuffle_f32x4(_tmpa, _tmpe, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp3 = _mm512_shuffle_f32x4(_tmpb, _tmpf, _MM_SHUFFLE(2, 0, 2, 0));
-                _tmp4 = _mm512_shuffle_f32x4(_tmp8, _tmpc, _MM_SHUFFLE(3, 1, 3, 1));
-                _tmp5 = _mm512_shuffle_f32x4(_tmp9, _tmpd, _MM_SHUFFLE(3, 1, 3, 1));
-                _tmp6 = _mm512_shuffle_f32x4(_tmpa, _tmpe, _MM_SHUFFLE(3, 1, 3, 1));
-                _tmp7 = _mm512_shuffle_f32x4(_tmpb, _tmpf, _MM_SHUFFLE(3, 1, 3, 1));
-
-                _r0 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(2, 0, 2, 0));
-                _r1 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(2, 0, 2, 0));
-                _r2 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(2, 0, 2, 0));
-                _r3 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(2, 0, 2, 0));
-                _r4 = _mm512_shuffle_f32x4(_tmp0, _tmp1, _MM_SHUFFLE(3, 1, 3, 1));
-                _r5 = _mm512_shuffle_f32x4(_tmp2, _tmp3, _MM_SHUFFLE(3, 1, 3, 1));
-                _r6 = _mm512_shuffle_f32x4(_tmp4, _tmp5, _MM_SHUFFLE(3, 1, 3, 1));
-                _r7 = _mm512_shuffle_f32x4(_tmp6, _tmp7, _MM_SHUFFLE(3, 1, 3, 1));
+                transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
                 _mm512_storeu_ps(g0, _r0);
                 _mm512_storeu_ps(g0 + 16, _r1);
@@ -1464,32 +1281,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m128i _r6 = _mm256_cvtps_ph(_mm256_loadu_ps(k6), _MM_FROUND_TRUNC);
                 __m128i _r7 = _mm256_cvtps_ph(_mm256_loadu_ps(k7), _MM_FROUND_TRUNC);
 
-                __m128i _tmp0 = _mm_unpacklo_epi16(_r0, _r1);
-                __m128i _tmp1 = _mm_unpackhi_epi16(_r0, _r1);
-                __m128i _tmp2 = _mm_unpacklo_epi16(_r2, _r3);
-                __m128i _tmp3 = _mm_unpackhi_epi16(_r2, _r3);
-                __m128i _tmp4 = _mm_unpacklo_epi16(_r4, _r5);
-                __m128i _tmp5 = _mm_unpackhi_epi16(_r4, _r5);
-                __m128i _tmp6 = _mm_unpacklo_epi16(_r6, _r7);
-                __m128i _tmp7 = _mm_unpackhi_epi16(_r6, _r7);
-
-                __m128i _tmp8 = _mm_unpacklo_epi32(_tmp0, _tmp2);
-                __m128i _tmp9 = _mm_unpackhi_epi32(_tmp0, _tmp2);
-                __m128i _tmpa = _mm_unpacklo_epi32(_tmp1, _tmp3);
-                __m128i _tmpb = _mm_unpackhi_epi32(_tmp1, _tmp3);
-                __m128i _tmpc = _mm_unpacklo_epi32(_tmp4, _tmp6);
-                __m128i _tmpd = _mm_unpackhi_epi32(_tmp4, _tmp6);
-                __m128i _tmpe = _mm_unpacklo_epi32(_tmp5, _tmp7);
-                __m128i _tmpf = _mm_unpackhi_epi32(_tmp5, _tmp7);
-
-                _r0 = _mm_unpacklo_epi64(_tmp8, _tmpc);
-                _r1 = _mm_unpackhi_epi64(_tmp8, _tmpc);
-                _r2 = _mm_unpacklo_epi64(_tmp9, _tmpd);
-                _r3 = _mm_unpackhi_epi64(_tmp9, _tmpd);
-                _r4 = _mm_unpacklo_epi64(_tmpa, _tmpe);
-                _r5 = _mm_unpackhi_epi64(_tmpa, _tmpe);
-                _r6 = _mm_unpacklo_epi64(_tmpb, _tmpf);
-                _r7 = _mm_unpackhi_epi64(_tmpb, _tmpf);
+                transpose8x8_epi16(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
                 _mm_storeu_si128((__m128i*)g0, _r0);
                 _mm_storeu_si128((__m128i*)(g0 + 8), _r1);
@@ -1509,7 +1301,7 @@ static void innerproduct_transform_kernel_sse(const Mat& weight_data, Mat& weigh
                 __m256 _r6 = _mm256_loadu_ps(k6);
                 __m256 _r7 = _mm256_loadu_ps(k7);
 
-                transpose8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
                 _mm256_storeu_ps(g0, _r0);
                 _mm256_storeu_ps(g0 + 8, _r1);
