@@ -37,6 +37,13 @@ jobs:
       run: |
         apt-get update
         apt-get install -y lcov libvulkan-dev
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
 
     - name: cache-swiftshader
       id: cache-swiftshader
@@ -54,30 +61,27 @@ jobs:
         localPath: swiftshader
         enableSubmodule: false
         enableGitLfs: false
-    - name: checkout-swiftshader-submodules
-      if: steps.cache-swiftshader.outputs.cacheHit != 'true'
-      run: |
-        cd swiftshader
-        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
 
     - name: swiftshader
       if: steps.cache-swiftshader.outputs.cacheHit != 'true'
       run: |
         cd swiftshader
+        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
         mkdir -p build; cd build
         cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j $(nproc)
-        mkdir ${ci.workspace}/swiftshader-install
-        cp Linux/* ${ci.workspace}/swiftshader-install
+        mkdir ${{ci.workspace}}/swiftshader-install
+        cp Linux/* ${{ci.workspace}}/swiftshader-install
 
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j $(nproc)
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
     - name: test
       run: |
         printf "[Processor]\nThreadCount=4\n" > build/tests/SwiftShader.ini
-        export VK_ICD_FILENAMES="${ci.workspace}/swiftshader-install/vk_swiftshader_icd.json"
+        export VK_ICD_FILENAMES="${{ci.workspace}}/swiftshader-install/vk_swiftshader_icd.json"
         cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
@@ -88,15 +92,7 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      run: |
-        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
-        curl -Os https://uploader.codecov.io/latest/linux/codecov
-        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
-        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
-        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
-        shasum -a 256 -c codecov.SHA256SUM
-        chmod +x codecov
-        ./codecov -t ${{ variables.CODECOV_TOKEN }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
 
   linux-gcc-gpu-lavapipe:
     runs-on:
@@ -113,6 +109,13 @@ jobs:
       run: |
         apt-get update
         apt-get install -y lcov libvulkan-dev
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
 
     - name: cache-lavapipe
       id: cache-lavapipe
@@ -134,26 +137,27 @@ jobs:
     - name: lavapipe
       if: steps.cache-lavapipe.outputs.cacheHit != 'true'
       run: |
-        mkdir -p "${ci.workspace}/lavapipe-install"
         echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
         echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
         apt-get update
         apt-get build-dep -y mesa
+        mkdir -p "${{ci.workspace}}/lavapipe-install"
         cd mesa
         mkdir build
         cd build
-        meson -Dprefix="${ci.workspace}/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
+        meson -Dprefix="${{ci.workspace}}/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
         ninja -j$(nproc)
         ninja install
 
-    - name: configure
-      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
-      run: cmake --build build -j $(nproc)
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
     - name: test
       run: |
         export LP_NUM_THREADS=4
-        export VK_ICD_FILENAMES="${ci.workspace}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
+        export VK_ICD_FILENAMES="${{ci.workspace}}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
         cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
@@ -164,7 +168,23 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
+
+  linux-gcc-x64:
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        enableGitLfs: false
+
+    - name: install-deps
       run: |
+        apt-get update
+        apt-get install -y lcov
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -172,4 +192,309 @@ jobs:
         gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
         shasum -a 256 -c codecov.SHA256SUM
         chmod +x codecov
-        ./codecov -t ${{ variables.CODECOV_TOKEN }} -f build/lcov.info
+
+    - name: build-sse2
+      run: |
+        mkdir build-sse2 && cd build-sse2
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX=OFF -DNCNN_AVX2=OFF -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-sse2
+      run: cd build-sse2 && ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-sse2
+      run: |
+        cd build-sse2
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-sse2/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-avx
+      run: |
+        mkdir build-avx && cd build-avx
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=OFF -DNCNN_AVX=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-avx
+      run: cd build-avx && ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-avx
+      run: |
+        cd build-avx
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-avx/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-avx2
+      run: |
+        mkdir build-avx2 && cd build-avx2
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-avx2
+      run: cd build-avx2 && ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-avx2
+      run: |
+        cd build-avx2
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-avx2/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-avx512
+      run: |
+        mkdir build-avx512 && cd build-avx512
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=ON -DNCNN_XOP=OFF -DNCNN_AVXVNNI=OFF -DNCNN_AVX512VNNI=ON -DNCNN_AVX512BF16=OFF -DNCNN_AVX512FP16=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-avx512
+      run: cd build-avx512 && ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-avx512
+      run: |
+        cd build-avx512
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-avx512/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      run: |
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-sse2/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-avx/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-avx2/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-avx512/lcov.info
+
+  linux-gcc-arm:
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-arm-linux-gnueabi g++-arm-linux-gnueabihf
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-arm-install-20220502
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        apt-get update
+        apt-get install -y autoconf automake autotools-dev ninja-build
+        cd qemu
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=arm-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=ON -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-armhf-vfpv3-d16
+      run: |
+        mkdir build-armhf-vfpv3-d16 && cd build-armhf-vfpv3-d16
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-armhf-vfpv3-d16
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build-armhf-vfpv3-d16
+        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-armhf-vfpv3-d16
+      run: |
+        cd build-armhf-vfpv3-d16
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-armhf-vfpv3-d16/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      run: |
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-armhf-vfpv3-d16/lcov.info
+
+  linux-gcc-aarch64:
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-aarch64-linux-gnu
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-aarch64-install-20220502
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        apt-get update
+        apt-get install -y autoconf automake autotools-dev ninja-build
+        cd qemu
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=aarch64-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-arm82
+      run: |
+        mkdir build-arm82 && cd build-arm82
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-arm82
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build-arm82
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-arm82
+      run: |
+        cd build-arm82
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm82/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-arm82-omp
+      run: |
+        mkdir build-arm82-omp && cd build-arm82-omp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_ARM82=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-arm82-omp
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build-arm82-omp
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-arm82-omp
+      run: |
+        cd build-arm82-omp
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm82-omp/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-arm82dot-omp
+      run: |
+        mkdir build-arm82dot-omp && cd build-arm82dot-omp
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=OFF -DNCNN_ARM84BF16=OFF -DNCNN_ARM84I8MM=OFF -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-arm82dot-omp
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build-arm82dot-omp
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-arm82dot-omp
+      run: |
+        cd build-arm82dot-omp
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm82dot-omp/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-arm84
+      run: |
+        mkdir build-arm84 && cd build-arm84
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=ON -DNCNN_ARM82=ON -DNCNN_ARM82DOT=ON -DNCNN_ARM82FP16FML=ON -DNCNN_ARM84BF16=ON -DNCNN_ARM84I8MM=ON -DNCNN_OPENMP=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-arm84
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build-arm84
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-arm84
+      run: |
+        cd build-arm84
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-arm84/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      run: |
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-arm82/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-arm82-omp/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-arm82dot-omp/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-arm84/lcov.info
