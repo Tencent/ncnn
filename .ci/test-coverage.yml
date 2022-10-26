@@ -76,8 +76,9 @@ jobs:
       run: cmake --build build -j $(nproc)
     - name: test
       run: |
+        printf "[Processor]\nThreadCount=4\n" > build/tests/SwiftShader.ini
         export VK_ICD_FILENAMES="${ci.workspace}/swiftshader-install/vk_swiftshader_icd.json"
-        cd build && ctest --output-on-failure -j 2
+        cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -126,6 +127,8 @@ jobs:
         mkdir -p "${ci.workspace}/lavapipe-install"
         echo 'deb-src http://mirrors.cloud.tencent.com/ubuntu focal main' | tee -a /etc/apt/sources.list
         echo 'deb-src http://mirrors.cloud.tencent.com/ubuntu focal-updates main' | tee -a /etc/apt/sources.list
+        apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 3B4FE6ACC0B21F32
+        apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 871920D1991BC93C
         apt-get update
         apt-get build-dep -y mesa
         cd mesa
