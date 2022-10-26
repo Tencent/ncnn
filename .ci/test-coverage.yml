@@ -160,7 +160,11 @@ jobs:
       run: |
         export LP_NUM_THREADS=4
         export VK_ICD_FILENAMES="${{ci.workspace}}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
-        cd build && ctest --output-on-failure -j 4
+        cd build
+        find ${{ci.workspace}}/lavapipe-install
+        cat ${{ci.workspace}}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json
+        strace ./tests/test_absval
+        ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -276,7 +280,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-arm-linux-gnueabi g++-arm-linux-gnueabihf libcapstone4
+        apt-get install -y lcov g++-arm-linux-gnueabi g++-arm-linux-gnueabihf libcapstone4 libglib2.0-0
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -369,7 +373,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-aarch64-linux-gnu libcapstone4
+        apt-get install -y lcov g++-aarch64-linux-gnu libcapstone4 libglib2.0-0
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -519,7 +523,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-mipsisa32r6el-linux-gnu libcapstone4
+        apt-get install -y lcov g++-mipsisa32r6el-linux-gnu libcapstone4 libglib2.0-0
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -591,7 +595,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-mipsisa64r6el-linux-gnu libcapstone4
+        apt-get install -y lcov g++-mipsisa64r6el-linux-gnu libcapstone4 libglib2.0-0
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -675,7 +679,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-riscv64-linux-gnu libcapstone4
+        apt-get install -y lcov g++-riscv64-linux-gnu libcapstone4 libglib2.0-0
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -749,7 +753,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov libcapstone4
+        apt-get install -y lcov libcapstone4 libglib2.0-0
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -811,6 +815,8 @@ jobs:
       run: |
         apt-get update
         apt-get install -y autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+        pwd
+        ls
         cd riscv-gnu-toolchain
         git submodule update --init --recursive --depth 1 glibc
         git submodule update --init --recursive --depth 1 newlib
@@ -818,7 +824,7 @@ jobs:
         git submodule update --init --recursive --depth 1 riscv-gcc
         git submodule update --init --recursive --depth 1 riscv-dejagnu
         git submodule update --init --recursive --depth 1 riscv-gdb
-        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        sed -i '/__OBSOLETE_MATH/d' newlib/newlib/libm/common/math_errf.c
         ./configure --prefix=${{ci.workspace}}/rv64gcv-install --with-arch=rv64gcv_zfh
         make linux -j$(nproc)
         find ${{ci.workspace}}/rv64gcv-install -type f | xargs -i strip -g {} || true
