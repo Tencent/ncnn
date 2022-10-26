@@ -76,8 +76,9 @@ jobs:
       run: cmake --build build -j $(nproc)
     - name: test
       run: |
+        printf "[Processor]\nThreadCount=4\n" > build/tests/SwiftShader.ini
         export VK_ICD_FILENAMES="${ci.workspace}/swiftshader-install/vk_swiftshader_icd.json"
-        cd build && ctest --output-on-failure -j 1
+        cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
@@ -118,7 +119,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: lavapipe-install
-        cacheKey: lavapipe-linux-install-20211127
+        cacheKey: lavapipe-linux-install-20211127-2
 
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cacheHit != 'true'
@@ -144,7 +145,6 @@ jobs:
         meson -Dprefix="${ci.workspace}/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
         ninja -j$(nproc)
         ninja install
-        sed -ie "s@${ci.workspace}/lavapipe-install/lib/x86_64-linux-gnu/libvulkan_lvp.so@../../../lib/x86_64-linux-gnu/libvulkan_lvp.so@g" ${ci.workspace}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json
 
     - name: configure
       run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
@@ -152,8 +152,9 @@ jobs:
       run: cmake --build build -j $(nproc)
     - name: test
       run: |
+        export LP_NUM_THREADS=4
         export VK_ICD_FILENAMES="${ci.workspace}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
-        cd build && ctest --output-on-failure -j 1
+        cd build && ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
         cd build
