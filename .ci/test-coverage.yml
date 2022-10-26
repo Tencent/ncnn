@@ -122,7 +122,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: lavapipe-install
-        cacheKey: lavapipe-linux-install-20211127-2
+        cacheKey: lavapipe-linux-install-20211127-3
 
     - name: checkout-lavapipe
       if: steps.cache-lavapipe.outputs.cacheHit != 'true'
@@ -148,6 +148,8 @@ jobs:
         meson -Dprefix="${{ci.workspace}}/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
         ninja -j$(nproc)
         ninja install
+        find ${{ci.workspace}}/lavapipe-install
+        cat ${{ci.workspace}}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json
 
     - name: build
       run: |
@@ -303,8 +305,10 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
         apt-get update
-        apt-get install -y autoconf automake autotools-dev ninja-build
+        apt-get build-dep -y qemu
         cd qemu
         ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=arm-linux-user --disable-system
         make -j$(nproc)
@@ -394,8 +398,10 @@ jobs:
     - name: qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
         apt-get update
-        apt-get install -y autoconf automake autotools-dev ninja-build
+        apt-get build-dep -y qemu
         cd qemu
         ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=aarch64-linux-user --disable-system
         make -j$(nproc)
