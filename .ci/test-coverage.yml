@@ -276,7 +276,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-arm-linux-gnueabi g++-arm-linux-gnueabihf
+        apt-get install -y lcov g++-arm-linux-gnueabi g++-arm-linux-gnueabihf libcapstone4
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -369,7 +369,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-aarch64-linux-gnu
+        apt-get install -y lcov g++-aarch64-linux-gnu libcapstone4
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -519,7 +519,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-mipsisa32r6el-linux-gnu
+        apt-get install -y lcov g++-mipsisa32r6el-linux-gnu libcapstone4
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -591,7 +591,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-mipsisa64r6el-linux-gnu
+        apt-get install -y lcov g++-mipsisa64r6el-linux-gnu libcapstone4
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -675,7 +675,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-riscv64-linux-gnu
+        apt-get install -y lcov g++-riscv64-linux-gnu libcapstone4
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -749,7 +749,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov
+        apt-get install -y lcov libcapstone4
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -810,7 +810,7 @@ jobs:
       if: steps.cache-rv64gcv.outputs.cacheHit != 'true'
       run: |
         apt-get update
-        apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+        apt-get install -y autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
         cd riscv-gnu-toolchain
         git submodule update --init --recursive --depth 1 glibc
         git submodule update --init --recursive --depth 1 newlib
