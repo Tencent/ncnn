@@ -27,7 +27,7 @@ on:
     - '!tools/pnnx/**'
     - 'examples/**'
 concurrency:
-  group: linux-x64-cpu-gcc-${{ ci.base_ref }}
+  group: linux-x64-cpu-gcc-${{ ci.head_ref }}
 
 jobs:
   linux-gcc:
