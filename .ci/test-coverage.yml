@@ -38,7 +38,15 @@ jobs:
         apt-get update
         apt-get install -y lcov libvulkan-dev
 
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: cache@2.*
+      with:
+        cachePaths: swiftshader-install
+        cacheKey: swiftshader-linux-install-20221026
+
     - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cacheHit != 'true'
       checkout: https://github.com/google/swiftshader.git
       with:
         pullType: COMMIT_ID
@@ -47,11 +55,13 @@ jobs:
         enableSubmodule: false
         enableGitLfs: false
     - name: checkout-swiftshader-submodules
+      if: steps.cache-swiftshader.outputs.cacheHit != 'true'
       run: |
         cd swiftshader
         git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
 
     - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cacheHit != 'true'
       run: |
         cd swiftshader
         mkdir -p build; cd build
@@ -66,9 +76,74 @@ jobs:
       run: cmake --build build -j $(nproc)
     - name: test
       run: |
-        printf "[Processor]\nThreadCount=1\n" > build/tests/SwiftShader.ini
         export VK_ICD_FILENAMES="${ci.workspace}/swiftshader-install/vk_swiftshader_icd.json"
-        cd build && ctest --output-on-failure -j $(nproc)
+        cd build && ctest --output-on-failure -j 2
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/glslang/*' -o lcov.info
+        lcov --list lcov.info
+
+  linux-gcc-gpu-lavapipe:
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov libvulkan-dev
+
+    - name: cache-lavapipe
+      id: cache-lavapipe
+      uses: cache@2.*
+      with:
+        cachePaths: lavapipe-install
+        cacheKey: lavapipe-linux-install-20211127
+
+    - name: checkout-lavapipe
+      if: steps.cache-lavapipe.outputs.cacheHit != 'true'
+      checkout: https://github.com/mesa3d/mesa.git
+      with:
+        pullType: COMMIT_ID
+        refName: cd39180cfab20734744b379b085cc3b5c2cecd3a
+        localPath: mesa
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: lavapipe
+      if: steps.cache-lavapipe.outputs.cacheHit != 'true'
+      run: |
+        mkdir -p "${ci.workspace}/lavapipe-install"
+        echo 'deb-src http://mirrors.cloud.tencent.com/ubuntu focal main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/ubuntu focal-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y mesa
+        cd mesa
+        mkdir build
+        cd build
+        meson -Dprefix="${ci.workspace}/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
+        ninja -j$(nproc)
+        ninja install
+        sed -ie "s@${ci.workspace}/lavapipe-install/lib/x86_64-linux-gnu/libvulkan_lvp.so@../../../lib/x86_64-linux-gnu/libvulkan_lvp.so@g" ${ci.workspace}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json
+
+    - name: configure
+      run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+    - name: build
+      run: cmake --build build -j $(nproc)
+    - name: test
+      run: |
+        export VK_ICD_FILENAMES="${ci.workspace}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
+        cd build && ctest --output-on-failure -j 2
     - name: lcov-collect
       run: |
         cd build
