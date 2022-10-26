@@ -40,7 +40,7 @@ jobs:
 
     - name: cache-swiftshader
       id: cache-swiftshader
-      uses: cache@2.*
+      uses: cache@1.*
       with:
         cachePaths: swiftshader-install
         cacheKey: swiftshader-linux-install-20221026
@@ -105,7 +105,7 @@ jobs:
 
     - name: cache-lavapipe
       id: cache-lavapipe
-      uses: cache@2.*
+      uses: cache@1.*
       with:
         cachePaths: lavapipe-install
         cacheKey: lavapipe-linux-install-20211127
