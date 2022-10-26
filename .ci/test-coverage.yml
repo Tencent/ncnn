@@ -504,3 +504,358 @@ jobs:
         ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-arm82-omp/lcov.info
         ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-arm82dot-omp/lcov.info
         ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-arm84/lcov.info
+
+  linux-gcc-mipsisa32r6el:
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-mipsisa32r6el-linux-gnu
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-mipsel-install-20220502
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mipsel-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=OFF -DNCNN_MMI=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
+
+  linux-gcc-mipsisa64r6el:
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-mipsisa64r6el-linux-gnu
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-mips64el-install-20220502
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0001-target-mips-Fix-SAT_S-trans-helper.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
+        patch -p1 -i 0001-target-mips-Fix-SAT_S-trans-helper.patch
+        patch -p1 -i 0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
+        patch -p1 -i 0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
+        patch -p1 -i 0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
+        patch -p1 -i 0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
+        patch -p1 -i 0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mips64el-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=ON -DNCNN_MMI=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
+
+  linux-gcc-riscv64:
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-riscv64-linux-gnu
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-riscv64-install-20220502
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
+
+  linux-gcc-riscv64-rvv:
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-riscv64-install-20220502
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: cache-rv64gcv
+      id: cache-rv64gcv
+      uses: cache@1.*
+      with:
+        cachePaths: rv64gcv-install
+        cacheKey: rv64gcv-linux-install-20210504
+
+    - name: checkout-riscv-gnu-toolchain
+      if: steps.cache-rv64gcv.outputs.cacheHit != 'true'
+      checkout: https://github.com/riscv/riscv-gnu-toolchain.git
+      with:
+        pullType: COMMIT_ID
+        refName: da01ba455ce3802ffa84fdca3a089079996dbfc3
+        path: riscv-gnu-toolchain
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: riscv-gnu-toolchain
+      if: steps.cache-rv64gcv.outputs.cacheHit != 'true'
+      run: |
+        apt-get update
+        apt-get install autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+        cd riscv-gnu-toolchain
+        git submodule update --init --recursive --depth 1 glibc
+        git submodule update --init --recursive --depth 1 newlib
+        git submodule update --init --recursive --depth 1 riscv-binutils
+        git submodule update --init --recursive --depth 1 riscv-gcc
+        git submodule update --init --recursive --depth 1 riscv-dejagnu
+        git submodule update --init --recursive --depth 1 riscv-gdb
+        sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
+        ./configure --prefix=${{ci.workspace}}/rv64gcv-install --with-arch=rv64gcv_zfh
+        make linux -j$(nproc)
+        find ${{ci.workspace}}/rv64gcv-install -type f | xargs -i strip -g {} || true
+
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=${{ci.workspace}}/rv64gcv-install
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-vlen128
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-vlen128
+      run: |
+        cd build
+        lcov --gcov-tool ${{ci.workspace}}/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov-vlen128
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
+    - name: test-vlen256
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-vlen256
+      run: |
+        cd build
+        lcov --gcov-tool ${{ci.workspace}}/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov-vlen256
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
