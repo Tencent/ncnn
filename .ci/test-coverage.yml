@@ -96,7 +96,7 @@ jobs:
         gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
         shasum -a 256 -c codecov.SHA256SUM
         chmod +x codecov
-        ./codecov -t ${variables.CODECOV_TOKEN} -f build/lcov.info
+        ./codecov -t ${{ variables.CODECOV_TOKEN }} -f build/lcov.info
 
   linux-gcc-gpu-lavapipe:
     runs-on:
@@ -172,4 +172,4 @@ jobs:
         gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
         shasum -a 256 -c codecov.SHA256SUM
         chmod +x codecov
-        ./codecov -t ${variables.CODECOV_TOKEN} -f build/lcov.info
+        ./codecov -t ${{ variables.CODECOV_TOKEN }} -f build/lcov.info
