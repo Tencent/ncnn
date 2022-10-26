@@ -76,9 +76,8 @@ jobs:
       run: cmake --build build -j $(nproc)
     - name: test
       run: |
-        printf "[Processor]\nThreadCount=4\n" > build/tests/SwiftShader.ini
         export VK_ICD_FILENAMES="${ci.workspace}/swiftshader-install/vk_swiftshader_icd.json"
-        cd build && ctest --output-on-failure -j 4
+        cd build && ctest --output-on-failure -j 1
     - name: lcov-collect
       run: |
         cd build
@@ -87,6 +86,16 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
+    - name: codecov
+      run: |
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+        ./codecov -t ${variables.CODECOV_TOKEN} -f build/lcov.info
 
   linux-gcc-gpu-lavapipe:
     runs-on:
@@ -144,7 +153,7 @@ jobs:
     - name: test
       run: |
         export VK_ICD_FILENAMES="${ci.workspace}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
-        cd build && ctest --output-on-failure -j 2
+        cd build && ctest --output-on-failure -j 1
     - name: lcov-collect
       run: |
         cd build
@@ -153,3 +162,13 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
+    - name: codecov
+      run: |
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+        ./codecov -t ${variables.CODECOV_TOKEN} -f build/lcov.info
