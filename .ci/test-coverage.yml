@@ -41,7 +41,7 @@ jobs:
     - name: checkout-swiftshader
       checkout: https://github.com/google/swiftshader.git
       with:
-        refName: 0863290dc7f6cc1649bab1858790e812b8aef02a
+        refName: 04d007924c2d33ea1ac4be78ae423507a0b08b61
         localPath: swiftshader
         enableSubmodule: false
         enableGitLfs: false
