@@ -110,7 +110,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov libvulkan-dev libxcb-shm0 strace
+        apt-get install -y lcov libvulkan-dev libxcb-shm0
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -163,9 +163,6 @@ jobs:
         export LP_NUM_THREADS=4
         export VK_ICD_FILENAMES="${{ci.workspace}}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
         cd build
-        find ${{ci.workspace}}/lavapipe-install
-        cat ${{ci.workspace}}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json
-        strace ./tests/test_absval
         ctest --output-on-failure -j 4
     - name: lcov-collect
       run: |
@@ -824,6 +821,7 @@ jobs:
         git submodule update --init --recursive --depth 1 riscv-gcc
         git submodule update --init --recursive --depth 1 riscv-dejagnu
         git submodule update --init --recursive --depth 1 riscv-gdb
+        rm -rf riscv-binutils
         git clone -b binutils-2_39-branch https://sourceware.org/git/binutils-gdb.git riscv-binutils
         sed -i '/__OBSOLETE_MATH/d' newlib/newlib/libm/common/math_errf.c
         ./configure --prefix=${{ci.workspace}}/rv64gcv-install --with-arch=rv64gcv_zfh
