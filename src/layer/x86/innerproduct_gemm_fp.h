@@ -995,10 +995,10 @@ static void innerproduct_gemm_sse(const Mat& bottom_blob, Mat& top_blob, const M
                     __m256 _w2 = _mm256_permute_ps(_ww, _MM_SHUFFLE(2, 2, 2, 2));
                     __m256 _w3 = _mm256_permute_ps(_ww, _MM_SHUFFLE(3, 3, 3, 3));
 #else
-                   __m256 _w0 = _mm256_set1_ps(kptr[0]);
-                   __m256 _w1 = _mm256_set1_ps(kptr[1]);
-                   __m256 _w2 = _mm256_set1_ps(kptr[2]);
-                   __m256 _w3 = _mm256_set1_ps(kptr[3]);
+                    __m256 _w0 = _mm256_set1_ps(kptr[0]);
+                    __m256 _w1 = _mm256_set1_ps(kptr[1]);
+                    __m256 _w2 = _mm256_set1_ps(kptr[2]);
+                    __m256 _w3 = _mm256_set1_ps(kptr[3]);
 #endif
 
                     _sum0 = _mm256_comp_fmadd_ps(_val, _w0, _sum0);
