@@ -108,7 +108,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov libvulkan-dev
+        apt-get install -y lcov libvulkan-dev strace
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -570,7 +570,7 @@ jobs:
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
       run: |
         cd build
@@ -595,7 +595,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov g++-mipsisa64r6el-linux-gnu libcapstone4 libglib2.0-0
+        apt-get install -y lcov g++-mipsisa64r6el-linux-gnuabi64 libcapstone4 libglib2.0-0
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -654,7 +654,7 @@ jobs:
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
       run: |
         cd build
@@ -728,7 +728,7 @@ jobs:
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
       run: |
         cd build
@@ -806,7 +806,7 @@ jobs:
       with:
         pullType: COMMIT_ID
         refName: da01ba455ce3802ffa84fdca3a089079996dbfc3
-        path: riscv-gnu-toolchain
+        localPath: riscv-gnu-toolchain
         enableSubmodule: false
         enableGitLfs: false
 
