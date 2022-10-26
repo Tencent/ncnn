@@ -23,6 +23,7 @@ concurrency:
 
 jobs:
   linux-gcc-gpu:
+    name: linux-gcc-gpu
     runs-on:
       pool-name: docker
       container:
@@ -95,6 +96,7 @@ jobs:
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
 
   linux-gcc-gpu-lavapipe:
+    name: linux-gcc-gpu-lavapipe
     runs-on:
       pool-name: docker
       container:
@@ -108,7 +110,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y lcov libvulkan-dev strace
+        apt-get install -y lcov libvulkan-dev libxcb-shm0 strace
         curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
         curl -Os https://uploader.codecov.io/latest/linux/codecov
         curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
@@ -815,15 +817,14 @@ jobs:
       run: |
         apt-get update
         apt-get install -y autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
-        pwd
-        ls
         cd riscv-gnu-toolchain
         git submodule update --init --recursive --depth 1 glibc
         git submodule update --init --recursive --depth 1 newlib
-        git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-binutils
         git submodule update --init --recursive --depth 1 riscv-gcc
         git submodule update --init --recursive --depth 1 riscv-dejagnu
         git submodule update --init --recursive --depth 1 riscv-gdb
+        git clone -b binutils-2_39-branch https://sourceware.org/git/binutils-gdb.git riscv-binutils
         sed -i '/__OBSOLETE_MATH/d' newlib/newlib/libm/common/math_errf.c
         ./configure --prefix=${{ci.workspace}}/rv64gcv-install --with-arch=rv64gcv_zfh
         make linux -j$(nproc)
