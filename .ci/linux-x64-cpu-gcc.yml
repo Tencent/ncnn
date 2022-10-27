@@ -34,17 +34,13 @@ jobs:
     name: linux-gcc
     strategy:
       matrix:
-        SSE2: ['OFF', 'ON']
-        AVX: ['OFF', 'ON']
-        AVX2: ['OFF', 'ON']
-        AVX512: ['OFF', 'ON']
-        exclude:
-          - SSE2: 'OFF'
-            AVX: 'ON'
-          - AVX: 'OFF'
-            AVX2: 'ON'
-          - AVX2: 'OFF'
-            AVX512: 'ON'
+        opt: [
+          { SSE2: 'OFF', AVX: 'OFF', AVX2: 'OFF', AVX512: 'OFF' },
+          { SSE2: 'ON',  AVX: 'OFF', AVX2: 'OFF', AVX512: 'OFF' },
+          { SSE2: 'ON',  AVX: 'ON',  AVX2: 'OFF', AVX512: 'OFF' },
+          { SSE2: 'ON',  AVX: 'ON',  AVX2: 'ON',  AVX512: 'OFF' },
+          { SSE2: 'ON',  AVX: 'ON',  AVX2: 'ON',  AVX512: 'ON'  }
+        ]
 
     runs-on:
       pool-name: docker
@@ -64,19 +60,19 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DNCNN_SSE2=${{matrix.SSE2}} -DNCNN_AVX=${{matrix.AVX}} -DNCNN_AVX2=${{matrix.AVX2}} -DNCNN_AVX512=${{matrix.AVX512}} -DNCNN_BUILD_TESTS=ON ..
+        cmake -DNCNN_SSE2=${{matrix.opt.SSE2}} -DNCNN_AVX=${{matrix.opt.AVX}} -DNCNN_AVX2=${{matrix.opt.AVX2}} -DNCNN_AVX512=${{matrix.opt.AVX512}} -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test
       run: cd build && ctest --output-on-failure -j $(nproc)
     - name: build-shared
       run: |
         mkdir build-shared && cd build-shared
-        cmake -DNCNN_SSE2=${{matrix.SSE2}} -DNCNN_AVX=${{matrix.AVX}} -DNCNN_AVX2=${{matrix.AVX2}} -DNCNN_AVX512=${{matrix.AVX512}} -DNCNN_SHARED_LIB=ON ..
+        cmake -DNCNN_SSE2=${{matrix.opt.SSE2}} -DNCNN_AVX=${{matrix.opt.AVX}} -DNCNN_AVX2=${{matrix.opt.AVX2}} -DNCNN_AVX512=${{matrix.opt.AVX512}} -DNCNN_SHARED_LIB=ON ..
         cmake --build . -j $(nproc)
     - name: build-noint8
       run: |
         mkdir build-noint8 && cd build-noint8
-        cmake -DNCNN_SSE2=${{matrix.SSE2}} -DNCNN_AVX=${{matrix.AVX}} -DNCNN_AVX2=${{matrix.AVX2}} -DNCNN_AVX512=${{matrix.AVX512}} -DNCNN_INT8=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake -DNCNN_SSE2=${{matrix.opt.SSE2}} -DNCNN_AVX=${{matrix.opt.AVX}} -DNCNN_AVX2=${{matrix.opt.AVX2}} -DNCNN_AVX512=${{matrix.opt.AVX512}} -DNCNN_INT8=OFF -DNCNN_BUILD_TESTS=ON ..
         cmake --build . -j $(nproc)
     - name: test-noint8
       run: cd build-noint8 && ctest --output-on-failure -j $(nproc)
