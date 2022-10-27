@@ -35,7 +35,7 @@ pnnx.Output             output      1 0 out
 
     const char* type_str() const
     {
-        return "Grid_sample";
+        return "GridSample";
     }
 
     const char* name_str() const
@@ -55,7 +55,7 @@ pnnx.Output             output      1 0 out
         if (mode == "bicubic")
             op->params["0"] = 3;
 
-        if (padding_mode == "zeors")
+        if (padding_mode == "zeros")
             op->params["1"] = 1;
         if (padding_mode == "border")
             op->params["1"] = 2;

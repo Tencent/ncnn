@@ -12,8 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef LAYER_UNARYOP_H
-#define LAYER_UNARYOP_H
+#ifndef LAYER_GRIDSAMPLE_H
+#define LAYER_GRIDSAMPLE_H
 
 #include "layer.h"
 
@@ -26,7 +26,7 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
-    virtual int forward(const std::vector<Mat>& bottom_blob, Mat& top_blob, const Option& opt) const;
+    virtual int forward(const std::vector<Mat>& bottom_blob, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
     // param

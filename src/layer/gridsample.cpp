@@ -17,12 +17,12 @@
 #include <tuple>
 
 namespace ncnn {
-enum InterpolationMode
-{
-    Bilinear = 1,
-    Nearest = 2,
-    Bicubic = 3
-};
+    enum InterpolationMode
+    {
+        Bilinear = 1,
+        Nearest = 2,
+        Bicubic = 3
+    };
 
     enum PaddingMode
     {
@@ -30,21 +30,21 @@ enum InterpolationMode
         Border = 2,
         Reflection = 3
     };
-    
-    static inline int64_t clip_coordinates(int64_t in, int64_t clip_limit) {
-        return std::min(static_cast<int64_t>(clip_limit - 1), std::max(in, static_cast<int64_t>(0)));
+
+    static inline float clip_coordinates(float in, int64_t clip_limit) {
+        return std::min(static_cast<float>(clip_limit - 1), std::max(in, static_cast<float>(0)));
     }
 
-    static inline int64_t reflect_coordinates(int64_t in, int64_t twice_low,
+    static inline float reflect_coordinates(float in, int64_t twice_low,
         int64_t twice_high) {
         if (twice_low == twice_high) {
-            return static_cast<int64_t>(0);
+            return static_cast<float>(0);
         }
-        int64_t min = static_cast<int64_t>(twice_low) / 2;
-        int64_t span = static_cast<int64_t>(twice_high - twice_low) / 2;
+        float min = static_cast<float>(twice_low) / 2;
+        float span = static_cast<float>(twice_high - twice_low) / 2;
         in = std::fabs(in - min);
         // `fmod` returns same sign as `in`, which is positive after the `fabs` above.
-        int64_t extra = std::fmod(in, span);
+        float extra = std::fmod(in, span);
         int flips = static_cast<int>(std::floor(in / span));
         if (flips % 2 == 0) {
             return extra + min;
@@ -54,8 +54,7 @@ enum InterpolationMode
         }
     }
 
-    template<typename elem_type>
-    static inline elem_type compute_coordinates(elem_type coord, int64_t size,
+    static inline float compute_coordinates(float coord, int64_t size,
         PaddingMode padding_mode,
         bool align_corners) {
         if (padding_mode == PaddingMode::Border) {
@@ -76,8 +75,7 @@ enum InterpolationMode
         return coord;
     }
 
-    template <typename elem_type>
-    static inline elem_type grid_sampler_unnormalize(elem_type coord, int64_t size,
+    static inline float grid_sampler_unnormalize(float coord, int64_t size,
         bool align_corners) {
         if (align_corners) {
             // unnormalize coord from [-1, 1] to [0, size - 1]
@@ -89,9 +87,8 @@ enum InterpolationMode
         }
     }
 
-    template <typename elem_type>
-    static inline elem_type grid_sampler_compute_source_index(
-        elem_type coord,
+    static inline float grid_sampler_compute_source_index(
+        float coord,
         int64_t size,
         PaddingMode padding_mode,
         bool align_corners) {
@@ -100,8 +97,8 @@ enum InterpolationMode
         return coord;
     }
 
-template<InterpolationMode, PaddingMode, bool align_corners>
-struct ApplyGridSample;
+    template<InterpolationMode, PaddingMode, bool align_corners>
+    struct ApplyGridSample;
 
     template<PaddingMode padding, bool align_corners>
     struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
@@ -127,31 +124,35 @@ struct ApplyGridSample;
 
         inline int forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
         {
-            int dims = input.dims;
-            int w = input.w;
-            int h = input.h;
-            int channels = input.c;
+            const int dims = input.dims;
+            const int w = input.w;
+            const int h = input.h;
+            const int outW = grid.h;
+            const int outH = grid.c;
+            const int channels = input.c;
 
             if (dims == 3)
             {
-                #pragma omp parallel for num_threads(opt.num_threads)
+                output.create(outW, outH, input.c);
+#pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    float* output_ptr = output.data;
+                    float* output_ptr = static_cast<float*>(output.channel(q).data);
 
                     const Mat image = input.channel(q);
 
-                    const float* gx_ptr = grid.channel(0);
-                    const float* gy_ptr = grid.channel(1);
+                    //const float* gxy_ptr = static_cast<float*>(grid.data);
 
-                    for (int y = 0; y < h; y++) 
+                    for (int y = 0; y < outH; y++)
                     {
-                        for (int x = 0; x < w; x++)
+                        for (int x = 0; x < outW; x++)
                         {
-                            auto gx = grid_sampler_compute_source_index(*gx_ptr, w, padding, align_corners);
-                            auto gy = grid_sampler_compute_source_index(*gy_ptr, h, padding, align_corners);
+                            const float* gxy_ptr = grid.channel(y).row(x);
+                            auto gx = grid_sampler_compute_source_index(gxy_ptr[0], w, padding, align_corners);
+                            auto gy = grid_sampler_compute_source_index(gxy_ptr[1], h, padding, align_corners);
 
                             auto interp_params = compute_interp_params_d3(gx, gy);
+
 
                             auto nw = std::get<0>(interp_params);
                             auto ne = std::get<1>(interp_params);
@@ -162,13 +163,13 @@ struct ApplyGridSample;
                             auto i_y = static_cast<int>(std::floor(gy));
 
                             float v = 0.0f;
-                            if (must_in_bound) 
+                            if (must_in_bound)
                             {
                                 //out of range, val is 0 https://github.com/pytorch/pytorch/blob/435e78e5237d9fb3e433fff6ce028569db937264/aten/src/ATen/native/cpu/GridSamplerKernel.cpp#L520
-                                auto nw_val = image.row(i_x)[i_y];
-                                auto ne_val = i_y + 1 < h ? image.row(i_x)[i_y + 1] : 0;
-                                auto sw_val = i_x + 1 < w ? image.row(i_x + 1)[i_y] : 0;
-                                auto se_val = i_x + 1 < w && i_y + 1 < h ? image.row(i_x + 1)[i_y + 1] : 0;
+                                auto nw_val = image.row(i_y)[i_x];
+                                auto ne_val = i_x + 1 < w ? image.row(i_y)[i_x + 1] : 0;
+                                auto sw_val = i_y + 1 < h ? image.row(i_y + 1)[i_x] : 0;
+                                auto se_val = ((i_x + 1 < w) & (i_y + 1 < h)) ? image.row(i_y + 1)[i_x + 1] : 0;
 
                                 v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
                             }
@@ -181,27 +182,28 @@ struct ApplyGridSample;
 
                                 auto x0_in_range = (x0 > -1) & (x0 < w);
                                 auto x1_in_range = (x1 > -1) & (x1 < w);
-                                auto y0_in_range = (y0 > -1) & (y0 < w);
-                                auto y1_in_range = (y1 > -1) & (y1 < w);
+                                auto y0_in_range = (y0 > -1) & (y0 < h);
+                                auto y1_in_range = (y1 > -1) & (y1 < h);
 
                                 auto v00_in_range = x0_in_range & y0_in_range;
                                 auto v01_in_range = x0_in_range & y1_in_range;
                                 auto v10_in_range = x1_in_range & y0_in_range;
                                 auto v11_in_range = x1_in_range & y1_in_range;
 
-                                auto nw_val = v00_in_range ? image.row(x0)[y0] : 0;
-                                auto ne_val = v01_in_range ? image.row(x0)[y1] : 0;
-                                auto sw_val = v10_in_range ? image.row(x1)[y0] : 0;
-                                auto se_val = v11_in_range ? image.row(x1)[y1] : 0;
+                                auto nw_val = v00_in_range ? image.row(y0)[x0] : 0;
+                                auto ne_val = v10_in_range ? image.row(y0)[x1] : 0;
+                                auto sw_val = v01_in_range ? image.row(y1)[x0] : 0;
+                                auto se_val = v11_in_range ? image.row(y1)[x1] : 0;
 
                                 v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
                             }
 
-                            *output = v;
 
-                            output++;
-                            fxptr++;
-                            fyptr++;
+
+                            *output_ptr = v;
+
+                            output_ptr++;
+                            gxy_ptr += 2;
                         }
                     }
                 }
@@ -220,7 +222,7 @@ struct ApplyGridSample;
     template<PaddingMode padding, bool align_corners>
     struct ApplyGridSample<InterpolationMode::Nearest, padding, align_corners>
     {
-        inline void forward(const Mat& input, const Mat& grid, Mat& output)
+        inline void forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
         {
 
         }
@@ -229,56 +231,74 @@ struct ApplyGridSample;
     template<PaddingMode padding, bool align_corners>
     struct ApplyGridSample<InterpolationMode::Bicubic, padding, align_corners>
     {
-        inline void forward(const Mat& input, const Mat& grid, Mat& output)
+        inline void forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
         {
 
         }
     };
 
-GridSample::GridSample()
-{
-    one_blob_only = false;
-    support_inplace = false;
-}
-
-int GridSample::load_param(const ParamDict& pd)
-{
-    mode = pd.get(0, 0);
-    padding_mode = pd.get(1, 0);
-    align_corners = pd.get(6, 0);
-
-    return 0;
-}
-
-int GridSample::forward(const std::vector<Mat>& bottom_blobs, Mat& top_blobs, const Option& opt) const
-{
-#define HANDLE_PADDING(interp, padding, align_corners)                                   \
-    case padding:                                                                        \
-    {                                                                                    \
-        printf("mode: %d, padding_mode: %d, align: %d", interp, padding, align_corners); \
-        break;                                                                           \
-    }
-
-#define HANDLE_INTERP(interp, align_corners)                               \
-    case interp:                                                           \
-    {                                                                      \
-        switch (static_cast<InterpolationMode>(padding_mode))              \
-        {                                                                  \
-            HANDLE_PADDING(interp, PaddingMode::Zeros, align_corners)      \
-            HANDLE_PADDING(interp, PaddingMode::Border, align_corners)     \
-            HANDLE_PADDING(interp, PaddingMode::Reflection, align_corners) \
-        }                                                                  \
-        break;                                                             \
-    }
-
-    switch (static_cast<InterpolationMode>(mode))
+    GridSample::GridSample()
     {
-        HANDLE_INTERP(InterpolationMode::Bilinear, align_corners);
-        HANDLE_INTERP(InterpolationMode::Nearest, align_corners);
-        HANDLE_INTERP(InterpolationMode::Bicubic, align_corners);
+        one_blob_only = false;
+        support_inplace = false;
     }
-#undef HANDLE_PADDING
-#undef HANDLE_INTERP
-}
+
+    int GridSample::load_param(const ParamDict& pd)
+    {
+        mode = pd.get(0, 0);
+        padding_mode = pd.get(1, 0);
+        align_corners = pd.get(6, 0);
+
+        return 0;
+    }
+
+    int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
+    {
+    #define HANDLE_PADDING(interp, padding, align_corners)                                   \
+        case padding:                                                                        \
+        {                                                                                    \
+            ApplyGridSample<interp, padding, align_corners> func;                            \
+            func.forward(bottom_blobs[0], bottom_blobs[1], top_blobs[0], opt);               \
+            break;                                                                           \
+        }
+
+    #define HANDLE_INTERP(interp, align_corners)                               \
+        case interp:                                                           \
+        {                                                                      \
+            switch (static_cast<InterpolationMode>(padding_mode))              \
+            {                                                                  \
+                HANDLE_PADDING(interp, PaddingMode::Zeros, align_corners)      \
+                HANDLE_PADDING(interp, PaddingMode::Border, align_corners)     \
+                HANDLE_PADDING(interp, PaddingMode::Reflection, align_corners) \
+            }                                                                  \
+            break;                                                             \
+        }
+
+
+
+        if (align_corners == true)
+        {
+            switch (static_cast<InterpolationMode>(mode))
+            {
+                HANDLE_INTERP(InterpolationMode::Bilinear, true);
+                HANDLE_INTERP(InterpolationMode::Nearest, true);
+                HANDLE_INTERP(InterpolationMode::Bicubic, true);
+            }
+        }
+        else
+        {
+            switch (static_cast<InterpolationMode>(mode))
+            {
+                HANDLE_INTERP(InterpolationMode::Bilinear, false);
+                HANDLE_INTERP(InterpolationMode::Nearest, false);
+                HANDLE_INTERP(InterpolationMode::Bicubic, false);
+            }
+        }
+    #undef HANDLE_PADDING
+    #undef HANDLE_INTERP
+
+        
+        return 0;
+    }
 
 } // namespace ncnn
