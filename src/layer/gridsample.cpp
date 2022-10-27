@@ -56,24 +56,29 @@ namespace ncnn {
 
     static inline float compute_coordinates(float coord, int64_t size,
         PaddingMode padding_mode,
-        bool align_corners) {
-        if (padding_mode == PaddingMode::Border) {
-            // clip coordinates to image borders
-            coord = clip_coordinates(coord, size);
-        }
-        else if (padding_mode == PaddingMode::Reflection) {
-            // reflect coordinates by image borders
-            if (align_corners) {
-                coord = reflect_coordinates(coord, 0, 2 * (size - 1));
-            }
-            else {
-                coord = reflect_coordinates(coord, -1, 2 * size - 1);
-            }
-            // clip coordinates to image borders
-            coord = clip_coordinates(coord, size);
-        }
-        return coord;
+        bool align_corners)
+{
+    if (padding_mode == PaddingMode::Border)
+    {
+        // clip coordinates to image borders
+        coord = clip_coordinates(coord, size);
     }
+    else if (padding_mode == PaddingMode::Reflection)
+    {
+        // reflect coordinates by image borders
+        if (align_corners)
+        {
+            coord = reflect_coordinates(coord, 0, 2 * (size - 1));
+        }
+        else
+        {
+            coord = reflect_coordinates(coord, -1, 2 * size - 1);
+        }
+        // clip coordinates to image borders
+        coord = clip_coordinates(coord, size);
+    }
+    return coord;
+}
 
     static inline float grid_sampler_unnormalize(float coord, int64_t size,
         bool align_corners) {
@@ -100,27 +105,27 @@ namespace ncnn {
     template<InterpolationMode, PaddingMode, bool align_corners>
     struct ApplyGridSample;
 
-    template<PaddingMode padding, bool align_corners>
-    struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
+template<PaddingMode padding, bool align_corners>
+struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
+{
+    const bool must_in_bound = padding != PaddingMode::Zeros;
+    inline std::tuple<float, float, float, float> compute_interp_params_d3(float x, float y) const
     {
-        const bool must_in_bound = padding != PaddingMode::Zeros;
-        inline std::tuple<float, float, float, float> compute_interp_params_d3(float x, float y) const
-        {
-            auto x_w = std::floor(x);
-            auto y_n = std::floor(y);
+        auto x_w = std::floor(x);
+        auto y_n = std::floor(y);
 
-            auto w = x - x_w;
-            auto e = 1.0f - w;
-            auto n = y - y_n;
-            auto s = 1.0f - n;
+        auto w = x - x_w;
+        auto e = 1.0f - w;
+        auto n = y - y_n;
+        auto s = 1.0f - n;
 
-            auto nw = s * e;
-            auto ne = s * w;
-            auto sw = n * e;
-            auto se = n * w;
+        auto nw = s * e;
+        auto ne = s * w;
+        auto sw = n * e;
+        auto se = n * w;
 
-            return std::make_tuple(nw, ne, sw, se);
-        }
+        return std::make_tuple(nw, ne, sw, se);
+    }
 
         inline int forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
         {
@@ -139,7 +144,7 @@ namespace ncnn {
                 {
                     float* output_ptr = static_cast<float*>(output.channel(q).data);
 
-                    const Mat image = input.channel(q);
+                const Mat image = input.channel(q);
 
                     //const float* gxy_ptr = static_cast<float*>(grid.data);
 
@@ -151,7 +156,7 @@ namespace ncnn {
                             auto gx = grid_sampler_compute_source_index(gxy_ptr[0], w, padding, align_corners);
                             auto gy = grid_sampler_compute_source_index(gxy_ptr[1], h, padding, align_corners);
 
-                            auto interp_params = compute_interp_params_d3(gx, gy);
+                        auto interp_params = compute_interp_params_d3(gx, gy);
 
 
                             auto nw = std::get<0>(interp_params);
@@ -159,8 +164,8 @@ namespace ncnn {
                             auto sw = std::get<2>(interp_params);
                             auto se = std::get<3>(interp_params);
 
-                            auto i_x = static_cast<int>(std::floor(gx));
-                            auto i_y = static_cast<int>(std::floor(gy));
+                        auto i_x = static_cast<int>(std::floor(gx));
+                        auto i_y = static_cast<int>(std::floor(gy));
 
                             float v = 0.0f;
                             if (must_in_bound)
@@ -171,32 +176,32 @@ namespace ncnn {
                                 auto sw_val = i_y + 1 < h ? image.row(i_y + 1)[i_x] : 0;
                                 auto se_val = ((i_x + 1 < w) & (i_y + 1 < h)) ? image.row(i_y + 1)[i_x + 1] : 0;
 
-                                v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
-                            }
-                            else //PaddingMode::Zeors 
-                            {
-                                auto x0 = i_x;
-                                auto x1 = i_x + 1;
-                                auto y0 = i_y;
-                                auto y1 = i_y + 1;
+                            v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
+                        }
+                        else //PaddingMode::Zeors
+                        {
+                            auto x0 = i_x;
+                            auto x1 = i_x + 1;
+                            auto y0 = i_y;
+                            auto y1 = i_y + 1;
 
                                 auto x0_in_range = (x0 > -1) & (x0 < w);
                                 auto x1_in_range = (x1 > -1) & (x1 < w);
                                 auto y0_in_range = (y0 > -1) & (y0 < h);
                                 auto y1_in_range = (y1 > -1) & (y1 < h);
 
-                                auto v00_in_range = x0_in_range & y0_in_range;
-                                auto v01_in_range = x0_in_range & y1_in_range;
-                                auto v10_in_range = x1_in_range & y0_in_range;
-                                auto v11_in_range = x1_in_range & y1_in_range;
+                            auto v00_in_range = x0_in_range & y0_in_range;
+                            auto v01_in_range = x0_in_range & y1_in_range;
+                            auto v10_in_range = x1_in_range & y0_in_range;
+                            auto v11_in_range = x1_in_range & y1_in_range;
 
                                 auto nw_val = v00_in_range ? image.row(y0)[x0] : 0;
                                 auto ne_val = v10_in_range ? image.row(y0)[x1] : 0;
                                 auto sw_val = v01_in_range ? image.row(y1)[x0] : 0;
                                 auto se_val = v11_in_range ? image.row(y1)[x1] : 0;
 
-                                v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
-                            }
+                            v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
+                        }
 
 
 
