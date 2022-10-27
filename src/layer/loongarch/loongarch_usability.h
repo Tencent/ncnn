@@ -48,14 +48,14 @@ static NCNN_FORCEINLINE v4f32 __lsx_vreplfr2vr_s(float val)
 static NCNN_FORCEINLINE float __lsx_reduce_fadd_s(v4f32 _v)
 {
     // TODO find a more efficient way
-	float *_v_p = (float *)&_v;
+    float* _v_p = (float*)&_v;
     return _v_p[0] + _v_p[1] + _v_p[2] + _v_p[3];
 }
 
 static NCNN_FORCEINLINE int __lsx_reduce_add_w(__m128i _v)
 {
     // TODO find a more efficient way
-	int *_v_p = (int *)&_v;
+    int* _v_p = (int*)&_v;
     return _v_p[0] + _v_p[1] + _v_p[2] + _v_p[3];
 }
 
