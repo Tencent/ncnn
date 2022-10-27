@@ -295,14 +295,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-arm-install-20220502
+        cacheKey: qemu-arm-install-20220831
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -389,14 +389,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-aarch64-install-20220502
+        cacheKey: qemu-aarch64-install-20220831
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -540,14 +540,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-mipsel-install-20220502
+        cacheKey: qemu-mipsel-install-20220831
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -560,7 +560,7 @@ jobs:
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mipsel-linux-user --disable-system
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=mipsel-linux-user --disable-system
         make -j$(nproc)
         make install
 
@@ -572,7 +572,6 @@ jobs:
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
-        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
@@ -614,14 +613,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-mips64el-install-20220502
+        cacheKey: qemu-mips64el-install-20220831
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -634,19 +633,7 @@ jobs:
         apt-get update
         apt-get build-dep -y qemu
         cd qemu
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0001-target-mips-Fix-SAT_S-trans-helper.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
-        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
-        patch -p1 -i 0001-target-mips-Fix-SAT_S-trans-helper.patch
-        patch -p1 -i 0002-target-mips-Fix-df_extract_val-and-df_extract_df-dfe.patch
-        patch -p1 -i 0003-target-mips-Fix-msa-checking-condition-in-trans_msa_.patch
-        patch -p1 -i 0004-target-mips-Do-not-treat-msa-INSERT-as-NOP-when-wd-i.patch
-        patch -p1 -i 0005-target-mips-Fix-FTRUNC_S-and-FTRUNC_U-trans-helper.patch
-        patch -p1 -i 0006-target-mips-Fix-store-adress-of-high-64bit-in-helper.patch
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=mips64el-linux-user --disable-system
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=mips64el-linux-user --disable-system
         make -j$(nproc)
         make install
 
@@ -658,7 +645,6 @@ jobs:
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
-        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
@@ -700,14 +686,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20220502
+        cacheKey: qemu-riscv64-install-20220831
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -722,7 +708,7 @@ jobs:
         cd qemu
         wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
         patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=riscv64-linux-user --disable-system
         make -j$(nproc)
         make install
 
@@ -734,7 +720,6 @@ jobs:
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
-        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
@@ -776,14 +761,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20220502
+        cacheKey: qemu-riscv64-install-20220831
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -798,7 +783,7 @@ jobs:
         cd qemu
         wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
         patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
-        ./configure --prefix=$GITHUB_WORKSPACE/qemu-install --target-list=riscv64-linux-user --disable-system
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=riscv64-linux-user --disable-system
         make -j$(nproc)
         make install
 
@@ -847,7 +832,6 @@ jobs:
     - name: test-vlen128
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
-        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect-vlen128
@@ -863,7 +847,6 @@ jobs:
     - name: test-vlen256
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
-        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect-vlen256
