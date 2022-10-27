@@ -79,7 +79,7 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
             _p = exp_ps(__lsx_vfsub_s(_p, _max));
 
-            __lsx_vst((__m128i)_p, ptr, 0);
+            __lsx_vst(_p, ptr, 0);
 
             ptr += 4;
             maxptr += 4;
@@ -118,7 +118,7 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             v4f32 _sum = (v4f32)__lsx_vld(sumptr, 0);
             _sum = __lsx_vfadd_s(_sum, _p);
-            __lsx_vst((__m128i)_sum, sumptr, 0);
+            __lsx_vst(_sum, sumptr, 0);
 
             ptr += 4;
             sumptr += 4;
@@ -153,7 +153,7 @@ int Softmax_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             v4f32 _sum = (v4f32)__lsx_vld(sumptr, 0);
             _p = __lsx_vfdiv_s(_p, _sum);
-            __lsx_vst((__m128i)_p, ptr, 0);
+            __lsx_vst(_p, ptr, 0);
 
             ptr += 4;
             sumptr += 4;

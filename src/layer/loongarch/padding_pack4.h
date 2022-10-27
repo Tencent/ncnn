@@ -22,7 +22,7 @@ static void padding_constant_pack4_lsx(const Mat& src, Mat& dst, int top, int bo
     // fill top
     for (int y = 0; y < top_size; y++)
     {
-        __lsx_vst((__m128i)v, outptr, 0);
+        __lsx_vst(v, outptr, 0);
         outptr += 4;
     }
     // fill center
@@ -30,7 +30,7 @@ static void padding_constant_pack4_lsx(const Mat& src, Mat& dst, int top, int bo
     {
         for (int x = 0; x < left; x++)
         {
-            __lsx_vst((__m128i)v, outptr, 0);
+            __lsx_vst(v, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
@@ -42,14 +42,14 @@ static void padding_constant_pack4_lsx(const Mat& src, Mat& dst, int top, int bo
         }
         for (int x = 0; x < right; x++)
         {
-            __lsx_vst((__m128i)v, outptr, 0);
+            __lsx_vst(v, outptr, 0);
             outptr += 4;
         }
     }
     // fill top
     for (int y = 0; y < bottom_size; y++)
     {
-        __lsx_vst((__m128i)v, outptr, 0);
+        __lsx_vst(v, outptr, 0);
         outptr += 4;
     }
 }
@@ -66,19 +66,19 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
         v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
         for (int x = 0; x < left; x++)
         {
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
             _p = (v4f32)__lsx_vld(ptr0, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             ptr0 += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
     }
@@ -88,19 +88,19 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
         v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
         for (int x = 0; x < left; x++)
         {
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
             _p = (v4f32)__lsx_vld(ptr, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             ptr += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
     }
@@ -112,19 +112,19 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
         v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
         for (int x = 0; x < left; x++)
         {
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
             _p = (v4f32)__lsx_vld(ptr0, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             ptr0 += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
     }
@@ -143,20 +143,20 @@ static void padding_reflect_pack4_lsx(const Mat& src, Mat& dst, int top, int bot
         for (int x = 0; x < left; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr0 + (left - x) * 4, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             ptr0 += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr0 - 8 - x * 4, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         ptr -= src.w * 4;
@@ -167,20 +167,20 @@ static void padding_reflect_pack4_lsx(const Mat& src, Mat& dst, int top, int bot
         for (int x = 0; x < left; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr + (left - x) * 4, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             ptr += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr - 8 - x * 4, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
     }
@@ -192,20 +192,20 @@ static void padding_reflect_pack4_lsx(const Mat& src, Mat& dst, int top, int bot
         for (int x = 0; x < left; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr0 + (left - x) * 4, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             ptr0 += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr0 - 8 - x * 4, 0);
-            __lsx_vst((__m128i)_p, outptr, 0);
+            __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         ptr -= src.w * 4;

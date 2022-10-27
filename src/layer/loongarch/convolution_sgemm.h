@@ -124,8 +124,8 @@ static void im2col_sgemm_lsx(const Mat& bottom_im2col, Mat& top_blob, const Mat&
                 __builtin_prefetch(tmpptr + 16);
                 __builtin_prefetch(kptr + 32);
                 v4f32 _val = (v4f32)__lsx_vld(tmpptr, 0);
-                __m128i _w0123 = (__m128i)__lsx_vld(kptr, 0);
-                __m128i _w4567 = (__m128i)__lsx_vld(kptr + 4, 0);
+                __m128i _w0123 = __lsx_vld(kptr, 0);
+                __m128i _w4567 = __lsx_vld(kptr + 4, 0);
                 _sum0 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 0), _val, _sum0);
                 _sum1 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 1), _val, _sum1);
                 _sum2 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 2), _val, _sum2);
@@ -139,14 +139,14 @@ static void im2col_sgemm_lsx(const Mat& bottom_im2col, Mat& top_blob, const Mat&
                 kptr += 8;
             }
 
-            __lsx_vst((__m128i)_sum0, outptr0, 0);
-            __lsx_vst((__m128i)_sum1, outptr1, 0);
-            __lsx_vst((__m128i)_sum2, outptr2, 0);
-            __lsx_vst((__m128i)_sum3, outptr3, 0);
-            __lsx_vst((__m128i)_sum4, outptr4, 0);
-            __lsx_vst((__m128i)_sum5, outptr5, 0);
-            __lsx_vst((__m128i)_sum6, outptr6, 0);
-            __lsx_vst((__m128i)_sum7, outptr7, 0);
+            __lsx_vst(_sum0, outptr0, 0);
+            __lsx_vst(_sum1, outptr1, 0);
+            __lsx_vst(_sum2, outptr2, 0);
+            __lsx_vst(_sum3, outptr3, 0);
+            __lsx_vst(_sum4, outptr4, 0);
+            __lsx_vst(_sum5, outptr5, 0);
+            __lsx_vst(_sum6, outptr6, 0);
+            __lsx_vst(_sum7, outptr7, 0);
 
             outptr0 += 4;
             outptr1 += 4;
@@ -240,7 +240,7 @@ static void im2col_sgemm_lsx(const Mat& bottom_im2col, Mat& top_blob, const Mat&
                 __builtin_prefetch(tmpptr + 16);
                 __builtin_prefetch(kptr + 16);
                 v4f32 _val = (v4f32)__lsx_vld(tmpptr, 0);
-                __m128i _w0123 = (__m128i)__lsx_vld(kptr, 0);
+                __m128i _w0123 = __lsx_vld(kptr, 0);
                 _sum0 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 0), _val, _sum0);
                 _sum1 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 1), _val, _sum1);
                 _sum2 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 2), _val, _sum2);
@@ -250,10 +250,10 @@ static void im2col_sgemm_lsx(const Mat& bottom_im2col, Mat& top_blob, const Mat&
                 kptr += 4;
             }
 
-            __lsx_vst((__m128i)_sum0, outptr0, 0);
-            __lsx_vst((__m128i)_sum1, outptr1, 0);
-            __lsx_vst((__m128i)_sum2, outptr2, 0);
-            __lsx_vst((__m128i)_sum3, outptr3, 0);
+            __lsx_vst(_sum0, outptr0, 0);
+            __lsx_vst(_sum1, outptr1, 0);
+            __lsx_vst(_sum2, outptr2, 0);
+            __lsx_vst(_sum3, outptr3, 0);
 
             outptr0 += 4;
             outptr1 += 4;
@@ -415,7 +415,7 @@ static void im2col_sgemm_lsx(const Mat& bottom_im2col, Mat& top_blob, const Mat&
                 kptr++;
             }
 
-            __lsx_vst((__m128i)_sum0, outptr0, 0);
+            __lsx_vst(_sum0, outptr0, 0);
 
             outptr0 += 4;
 #else

@@ -67,10 +67,10 @@ static void convolution_pack1to4_int8_lsx(const Mat& bottom_blob, Mat& top_blob,
                         __m128i _val = __lsx_vreplgr2vr_h((short)sptr[space_ofs[k]]);
 
                         __m128i _w = __lsx_vld(kptr, 0);
-                        __m128i _w16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
+                        __m128i _w16 = __lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
 
                         __m128i _s0 = __lsx_vmul_h(_val, _w16);
-                        __m128i _s032 = (__m128i)__lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0);
+                        __m128i _s032 = __lsx_vilvl_h(__lsx_vslti_h(_s0, 0), _s0);
 
                         _sum = __lsx_vadd_w(_sum, _s032);
 

@@ -53,7 +53,7 @@ int ReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                 __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmax_s(_p, _zero);
-                __lsx_vst((__m128i)_p, ptr, 0);
+                __lsx_vst(_p, ptr, 0);
 
                 ptr += 4;
             }
@@ -78,7 +78,7 @@ int ReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
                 v4f32 _ps = __lsx_vfmul_s(_p, _slope);
                 _p = (v4f32)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
-                __lsx_vst((__m128i)_p, ptr, 0);
+                __lsx_vst(_p, ptr, 0);
 
                 ptr += 4;
             }

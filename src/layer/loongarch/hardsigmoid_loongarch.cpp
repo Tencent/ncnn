@@ -56,7 +56,7 @@ int HardSigmoid_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& o
             _p = __lsx_vfmadd_s(_alpha, _p, _beta);
             _p = __lsx_vfmax_s(_p, _zero);
             _p = __lsx_vfmin_s(_p, _one);
-            __lsx_vst((__m128i)_p, ptr, 0);
+            __lsx_vst(_p, ptr, 0);
 
             ptr += 4;
         }

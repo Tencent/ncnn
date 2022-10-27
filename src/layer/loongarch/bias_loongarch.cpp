@@ -51,7 +51,7 @@ int Bias_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
         {
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             v4f32 _outp = __lsx_vfadd_s(_p, _bias);
-            __lsx_vst((__m128i)_outp, ptr, 0);
+            __lsx_vst(_outp, ptr, 0);
 
             ptr += 4;
         }

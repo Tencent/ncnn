@@ -32,7 +32,7 @@ static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat
     {
         v4f32 _zero = (v4f32)__lsx_vreplgr2vr_w(0);
         v4f32 _slope = (v4f32)__lsx_vreplfr2vr_s(activation_params[0]);
-        __m128i _lemask = (__m128i)__lsx_vfcmp_cle_s((__m128)_v, _zero);
+        __m128i _lemask = __lsx_vfcmp_cle_s((__m128)_v, _zero);
         v4f32 _ps = __lsx_vfmul_s(_v, _slope);
         _v = (v4f32)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_v, (__m128i)_ps);
     }

@@ -68,16 +68,16 @@ static void convolution_pack8to4_int8_lsx(const Mat& bottom_blob, Mat& top_blob,
                     for (int k = 0; k < maxk; k++)
                     {
                         __m128i _val = __lsx_vld(sptr + space_ofs[k] * 8, 0);
-                        __m128i _val16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_val, 0), _val);
+                        __m128i _val16 = __lsx_vilvl_b(__lsx_vslti_b(_val, 0), _val);
 
                         __m128i _w01 = __lsx_vld(kptr, 0);
                         __m128i _w23 = __lsx_vld(kptr + 16, 0);
                         __m128i _extw01 = __lsx_vslti_b(_w01, 0);
                         __m128i _extw23 = __lsx_vslti_b(_w23, 0);
-                        __m128i _w0 = (__m128i)__lsx_vilvl_b(_extw01, _w01);
-                        __m128i _w1 = (__m128i)__lsx_vilvh_b(_extw01, _w01);
-                        __m128i _w2 = (__m128i)__lsx_vilvl_b(_extw23, _w23);
-                        __m128i _w3 = (__m128i)__lsx_vilvh_b(_extw23, _w23);
+                        __m128i _w0 = __lsx_vilvl_b(_extw01, _w01);
+                        __m128i _w1 = __lsx_vilvh_b(_extw01, _w01);
+                        __m128i _w2 = __lsx_vilvl_b(_extw23, _w23);
+                        __m128i _w3 = __lsx_vilvh_b(_extw23, _w23);
 
                         __m128i _s0 = __lsx_vmul_h(_val16, _w0);
                         __m128i _s1 = __lsx_vmul_h(_val16, _w1);
@@ -100,10 +100,10 @@ static void convolution_pack8to4_int8_lsx(const Mat& bottom_blob, Mat& top_blob,
                     _tmp1 = __lsx_vilvl_w(_sum3, _sum2);
                     _tmp2 = __lsx_vilvh_w(_sum1, _sum0);
                     _tmp3 = __lsx_vilvh_w(_sum3, _sum2);
-                    _sum0 = (__m128i)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp0);
-                    _sum1 = (__m128i)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp0);
-                    _sum2 = (__m128i)__lsx_vilvl_d((__m128i)_tmp3, (__m128i)_tmp2);
-                    _sum3 = (__m128i)__lsx_vilvh_d((__m128i)_tmp3, (__m128i)_tmp2);
+                    _sum0 = __lsx_vilvl_d(_tmp1, _tmp0);
+                    _sum1 = __lsx_vilvh_d(_tmp1, _tmp0);
+                    _sum2 = __lsx_vilvl_d(_tmp3, _tmp2);
+                    _sum3 = __lsx_vilvh_d(_tmp3, _tmp2);
                 }
 
                 _sum0 = __lsx_vadd_w(_sum0, _sum1);

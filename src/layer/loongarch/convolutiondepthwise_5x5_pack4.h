@@ -193,8 +193,8 @@ static void convdw5x5s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum1 = __lsx_vfmadd_s(_r53, _k43, _sum1);
                 _sum1 = __lsx_vfmadd_s(_r54, _k44, _sum1);
 
-                __lsx_vst((__m128i)_sum0, outptr0, 0);
-                __lsx_vst((__m128i)_sum1, outptr1, 0);
+                __lsx_vst(_sum0, outptr0, 0);
+                __lsx_vst(_sum1, outptr1, 0);
 
                 outptr0 += 4;
                 outptr1 += 4;
@@ -327,7 +327,7 @@ static void convdw5x5s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum0 = __lsx_vfmadd_s(_r43, _k43, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r44, _k44, _sum0);
 
-                __lsx_vst((__m128i)_sum0, outptr0, 0);
+                __lsx_vst(_sum0, outptr0, 0);
 
                 outptr0 += 4;
 
@@ -490,7 +490,7 @@ static void convdw5x5s2_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum0 = __lsx_vfmadd_s(_r43, _k43, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r44, _k44, _sum0);
 
-                __lsx_vst((__m128i)_sum0, outptr0, 0);
+                __lsx_vst(_sum0, outptr0, 0);
 
                 outptr0 += 4;
 

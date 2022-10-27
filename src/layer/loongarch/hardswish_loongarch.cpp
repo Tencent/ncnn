@@ -57,7 +57,7 @@ int HardSwish_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             _outp = __lsx_vfmax_s(_outp, _zero);
             _outp = __lsx_vfmin_s(_outp, _one);
             _outp = __lsx_vfmul_s(_outp, _p);
-            __lsx_vst((__m128i)_outp, ptr, 0);
+            __lsx_vst(_outp, ptr, 0);
 
             ptr += 4;
         }

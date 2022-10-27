@@ -272,7 +272,7 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
 
                             _sum = activation_ps(_sum, activation_type, activation_params);
 
-                            __lsx_vst((__m128i)_sum, outptr + j * 4, 0);
+                            __lsx_vst(_sum, outptr + j * 4, 0);
                         }
 
                         outptr += outw * 4;

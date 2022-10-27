@@ -52,7 +52,7 @@ int Swish_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             _p = __lsx_vfdiv_s(_p, __lsx_vfadd_s(_one, exp_ps((v4f32)__lsx_vbitrevi_w((__m128i)_p, 31))));
-            __lsx_vst((__m128i)_p, ptr, 0);
+            __lsx_vst(_p, ptr, 0);
 
             ptr += 4;
         }

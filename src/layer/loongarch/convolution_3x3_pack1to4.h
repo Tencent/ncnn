@@ -187,14 +187,14 @@ static void conv3x3s1_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum6 = __lsx_vfmadd_s(_k22, _r28, _sum6);
                     _sum7 = __lsx_vfmadd_s(_k22, _r29, _sum7);
 
-                    __lsx_vst((__m128i)_sum0, outptr0, 0);
-                    __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
-                    __lsx_vst((__m128i)_sum2, outptr0 + 4 * 2, 0);
-                    __lsx_vst((__m128i)_sum3, outptr0 + 4 * 3, 0);
-                    __lsx_vst((__m128i)_sum4, outptr0 + 4 * 4, 0);
-                    __lsx_vst((__m128i)_sum5, outptr0 + 4 * 5, 0);
-                    __lsx_vst((__m128i)_sum6, outptr0 + 4 * 6, 0);
-                    __lsx_vst((__m128i)_sum7, outptr0 + 4 * 7, 0);
+                    __lsx_vst(_sum0, outptr0, 0);
+                    __lsx_vst(_sum1, outptr0 + 4, 0);
+                    __lsx_vst(_sum2, outptr0 + 4 * 2, 0);
+                    __lsx_vst(_sum3, outptr0 + 4 * 3, 0);
+                    __lsx_vst(_sum4, outptr0 + 4 * 4, 0);
+                    __lsx_vst(_sum5, outptr0 + 4 * 5, 0);
+                    __lsx_vst(_sum6, outptr0 + 4 * 6, 0);
+                    __lsx_vst(_sum7, outptr0 + 4 * 7, 0);
 
                     outptr0 += 4 * 8;
 
@@ -278,10 +278,10 @@ static void conv3x3s1_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum2 = __lsx_vfmadd_s(_k22, _r24, _sum2);
                     _sum3 = __lsx_vfmadd_s(_k22, _r25, _sum3);
 
-                    __lsx_vst((__m128i)_sum0, outptr0, 0);
-                    __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
-                    __lsx_vst((__m128i)_sum2, outptr0 + 4 * 2, 0);
-                    __lsx_vst((__m128i)_sum3, outptr0 + 4 * 3, 0);
+                    __lsx_vst(_sum0, outptr0, 0);
+                    __lsx_vst(_sum1, outptr0 + 4, 0);
+                    __lsx_vst(_sum2, outptr0 + 4 * 2, 0);
+                    __lsx_vst(_sum3, outptr0 + 4 * 3, 0);
 
                     outptr0 += 4 * 4;
 
@@ -333,8 +333,8 @@ static void conv3x3s1_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum0 = __lsx_vfmadd_s(_k22, _r22, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k22, _r23, _sum1);
 
-                    __lsx_vst((__m128i)_sum0, outptr0, 0);
-                    __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
+                    __lsx_vst(_sum0, outptr0, 0);
+                    __lsx_vst(_sum1, outptr0 + 4, 0);
 
                     outptr0 += 4 * 2;
 
@@ -373,7 +373,7 @@ static void conv3x3s1_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum0 = __lsx_vfmadd_s(_k21, _r21, _sum0);
                     _sum0 = __lsx_vfmadd_s(_k22, _r22, _sum0);
 
-                    __lsx_vst((__m128i)_sum0, outptr0, 0);
+                    __lsx_vst(_sum0, outptr0, 0);
 
                     outptr0 += 4;
 
@@ -594,14 +594,14 @@ static void conv3x3s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum6 = __lsx_vfmadd_s(_k22, _r2e, _sum6);
                     _sum7 = __lsx_vfmadd_s(_k22, _r2g, _sum7);
 
-                    __lsx_vst((__m128i)_sum0, outptr0, 0);
-                    __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
-                    __lsx_vst((__m128i)_sum2, outptr0 + 4 * 2, 0);
-                    __lsx_vst((__m128i)_sum3, outptr0 + 4 * 3, 0);
-                    __lsx_vst((__m128i)_sum4, outptr0 + 4 * 4, 0);
-                    __lsx_vst((__m128i)_sum5, outptr0 + 4 * 5, 0);
-                    __lsx_vst((__m128i)_sum6, outptr0 + 4 * 6, 0);
-                    __lsx_vst((__m128i)_sum7, outptr0 + 4 * 7, 0);
+                    __lsx_vst(_sum0, outptr0, 0);
+                    __lsx_vst(_sum1, outptr0 + 4, 0);
+                    __lsx_vst(_sum2, outptr0 + 4 * 2, 0);
+                    __lsx_vst(_sum3, outptr0 + 4 * 3, 0);
+                    __lsx_vst(_sum4, outptr0 + 4 * 4, 0);
+                    __lsx_vst(_sum5, outptr0 + 4 * 5, 0);
+                    __lsx_vst(_sum6, outptr0 + 4 * 6, 0);
+                    __lsx_vst(_sum7, outptr0 + 4 * 7, 0);
 
                     outptr0 += 4 * 8;
 
@@ -694,10 +694,10 @@ static void conv3x3s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum2 = __lsx_vfmadd_s(_k22, _r26, _sum2);
                     _sum3 = __lsx_vfmadd_s(_k22, _r28, _sum3);
 
-                    __lsx_vst((__m128i)_sum0, outptr0, 0);
-                    __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
-                    __lsx_vst((__m128i)_sum2, outptr0 + 4 * 2, 0);
-                    __lsx_vst((__m128i)_sum3, outptr0 + 4 * 3, 0);
+                    __lsx_vst(_sum0, outptr0, 0);
+                    __lsx_vst(_sum1, outptr0 + 4, 0);
+                    __lsx_vst(_sum2, outptr0 + 4 * 2, 0);
+                    __lsx_vst(_sum3, outptr0 + 4 * 3, 0);
 
                     outptr0 += 4 * 4;
 
@@ -752,8 +752,8 @@ static void conv3x3s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum0 = __lsx_vfmadd_s(_k22, _r22, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k22, _r24, _sum1);
 
-                    __lsx_vst((__m128i)_sum0, outptr0, 0);
-                    __lsx_vst((__m128i)_sum1, outptr0 + 4, 0);
+                    __lsx_vst(_sum0, outptr0, 0);
+                    __lsx_vst(_sum1, outptr0 + 4, 0);
 
                     outptr0 += 4 * 2;
 
@@ -792,7 +792,7 @@ static void conv3x3s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum0 = __lsx_vfmadd_s(_k21, _r21, _sum0);
                     _sum0 = __lsx_vfmadd_s(_k22, _r22, _sum0);
 
-                    __lsx_vst((__m128i)_sum0, outptr0, 0);
+                    __lsx_vst(_sum0, outptr0, 0);
 
                     outptr0 += 4;
 

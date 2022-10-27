@@ -81,7 +81,7 @@ static void convolution_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, cons
 
                 _sum = activation_ps(_sum, activation_type, activation_params);
 
-                __lsx_vst((__m128i)_sum, outptr + j * 4, 0);
+                __lsx_vst(_sum, outptr + j * 4, 0);
             }
 
             outptr += outw * 4;

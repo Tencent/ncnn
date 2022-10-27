@@ -123,14 +123,14 @@ static void convolution_winograd_dot_pack8to1_int8_lsx(Mat& bottom_blob_tm, int 
                     __m128i _extw2 = __lsx_vslti_h(_w2, 0);
                     __m128i _extw3 = __lsx_vslti_h(_w3, 0);
 
-                    __m128i _w0l = (__m128i)__lsx_vilvl_h(_extw0, _w0);
-                    __m128i _w0h = (__m128i)__lsx_vilvh_h(_extw0, _w0);
-                    __m128i _w1l = (__m128i)__lsx_vilvl_h(_extw1, _w1);
-                    __m128i _w1h = (__m128i)__lsx_vilvh_h(_extw1, _w1);
-                    __m128i _w2l = (__m128i)__lsx_vilvl_h(_extw2, _w2);
-                    __m128i _w2h = (__m128i)__lsx_vilvh_h(_extw2, _w2);
-                    __m128i _w3l = (__m128i)__lsx_vilvl_h(_extw3, _w3);
-                    __m128i _w3h = (__m128i)__lsx_vilvh_h(_extw3, _w3);
+                    __m128i _w0l = __lsx_vilvl_h(_extw0, _w0);
+                    __m128i _w0h = __lsx_vilvh_h(_extw0, _w0);
+                    __m128i _w1l = __lsx_vilvl_h(_extw1, _w1);
+                    __m128i _w1h = __lsx_vilvh_h(_extw1, _w1);
+                    __m128i _w2l = __lsx_vilvl_h(_extw2, _w2);
+                    __m128i _w2h = __lsx_vilvh_h(_extw2, _w2);
+                    __m128i _w3l = __lsx_vilvl_h(_extw3, _w3);
+                    __m128i _w3h = __lsx_vilvh_h(_extw3, _w3);
 
                     __m128i _val0_0 = __lsx_vreplgr2vr_w(r0[0]);
                     __m128i _val0_1 = __lsx_vreplgr2vr_w(r0[1]);
@@ -214,14 +214,14 @@ static void convolution_winograd_dot_pack8to1_int8_lsx(Mat& bottom_blob_tm, int 
                     __m128i _extw2 = __lsx_vslti_h(_w2, 0);
                     __m128i _extw3 = __lsx_vslti_h(_w3, 0);
 
-                    __m128i _w0l = (__m128i)__lsx_vilvl_h(_extw0, _w0);
-                    __m128i _w0h = (__m128i)__lsx_vilvh_h(_extw0, _w0);
-                    __m128i _w1l = (__m128i)__lsx_vilvl_h(_extw1, _w1);
-                    __m128i _w1h = (__m128i)__lsx_vilvh_h(_extw1, _w1);
-                    __m128i _w2l = (__m128i)__lsx_vilvl_h(_extw2, _w2);
-                    __m128i _w2h = (__m128i)__lsx_vilvh_h(_extw2, _w2);
-                    __m128i _w3l = (__m128i)__lsx_vilvl_h(_extw3, _w3);
-                    __m128i _w3h = (__m128i)__lsx_vilvh_h(_extw3, _w3);
+                    __m128i _w0l = __lsx_vilvl_h(_extw0, _w0);
+                    __m128i _w0h = __lsx_vilvh_h(_extw0, _w0);
+                    __m128i _w1l = __lsx_vilvl_h(_extw1, _w1);
+                    __m128i _w1h = __lsx_vilvh_h(_extw1, _w1);
+                    __m128i _w2l = __lsx_vilvl_h(_extw2, _w2);
+                    __m128i _w2h = __lsx_vilvh_h(_extw2, _w2);
+                    __m128i _w3l = __lsx_vilvl_h(_extw3, _w3);
+                    __m128i _w3h = __lsx_vilvh_h(_extw3, _w3);
 
                     __m128i _val0 = __lsx_vreplgr2vr_w(r0[0]);
                     __m128i _val1 = __lsx_vreplgr2vr_w(r0[1]);
@@ -295,16 +295,16 @@ static void convolution_winograd_dot_pack8to1_int8_lsx(Mat& bottom_blob_tm, int 
 
                     __m128i _extval0 = __lsx_vslti_h(_val0, 0);
                     __m128i _extval1 = __lsx_vslti_h(_val1, 0);
-                    __m128i _val0l = (__m128i)__lsx_vilvl_h(_extval0, _val0);
-                    __m128i _val0h = (__m128i)__lsx_vilvh_h(_extval0, _val0);
-                    __m128i _val1l = (__m128i)__lsx_vilvl_h(_extval1, _val1);
-                    __m128i _val1h = (__m128i)__lsx_vilvh_h(_extval1, _val1);
+                    __m128i _val0l = __lsx_vilvl_h(_extval0, _val0);
+                    __m128i _val0h = __lsx_vilvh_h(_extval0, _val0);
+                    __m128i _val1l = __lsx_vilvl_h(_extval1, _val1);
+                    __m128i _val1h = __lsx_vilvh_h(_extval1, _val1);
 
                     __m128i _w0 = __lsx_vld(k0, 0);
 
                     __m128i _extw0 = __lsx_vslti_h(_w0, 0);
-                    __m128i _w0l = (__m128i)__lsx_vilvl_h(_extw0, _w0);
-                    __m128i _w0h = (__m128i)__lsx_vilvh_h(_extw0, _w0);
+                    __m128i _w0l = __lsx_vilvl_h(_extw0, _w0);
+                    __m128i _w0h = __lsx_vilvh_h(_extw0, _w0);
 
                     _sum0 = __lsx_vmadd_w(_sum0, _w0l, _val0l);
                     _sum1 = __lsx_vmadd_w(_sum1, _w0h, _val0h);
@@ -337,14 +337,14 @@ static void convolution_winograd_dot_pack8to1_int8_lsx(Mat& bottom_blob_tm, int 
                     __m128i _val = __lsx_vld(r0, 0);
 
                     __m128i _extval = __lsx_vslti_h(_val, 0);
-                    __m128i _vall = (__m128i)__lsx_vilvl_h(_extval, _val);
-                    __m128i _valh = (__m128i)__lsx_vilvh_h(_extval, _val);
+                    __m128i _vall = __lsx_vilvl_h(_extval, _val);
+                    __m128i _valh = __lsx_vilvh_h(_extval, _val);
 
                     __m128i _w0 = __lsx_vld(k0, 0);
 
                     __m128i _extw0 = __lsx_vslti_h(_w0, 0);
-                    __m128i _w0l = (__m128i)__lsx_vilvl_h(_extw0, _w0);
-                    __m128i _w0h = (__m128i)__lsx_vilvh_h(_extw0, _w0);
+                    __m128i _w0l = __lsx_vilvl_h(_extw0, _w0);
+                    __m128i _w0h = __lsx_vilvh_h(_extw0, _w0);
 
                     _sum0 = __lsx_vmadd_w(_sum0, _w0l, _vall);
                     _sum1 = __lsx_vmadd_w(_sum1, _w0h, _valh);

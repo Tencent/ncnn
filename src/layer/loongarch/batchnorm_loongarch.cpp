@@ -57,7 +57,7 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
             v4f32 _a = (v4f32)__lsx_vld((const float*)a_data + i * 4, 0);
             v4f32 _b = (v4f32)__lsx_vld((const float*)b_data + i * 4, 0);
             _p = __lsx_vfmadd_s(_b, _p, _a);
-            __lsx_vst((__m128i)_p, ptr0, 0);
+            __lsx_vst(_p, ptr0, 0);
         }
 #endif // __loongarch_sx
 
@@ -89,7 +89,7 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
                 __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmadd_s(_b, _p, _a);
-                __lsx_vst((__m128i)_p, ptr, 0);
+                __lsx_vst(_p, ptr, 0);
 
                 ptr += 4;
             }
@@ -126,7 +126,7 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
                 __builtin_prefetch(ptr + 16);
                 v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmadd_s(_b, _p, _a);
-                __lsx_vst((__m128i)_p, ptr, 0);
+                __lsx_vst(_p, ptr, 0);
 
                 ptr += 4;
             }

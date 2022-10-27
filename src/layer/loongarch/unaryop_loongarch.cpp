@@ -54,7 +54,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             _p = op.func_pack4(_p);
-            __lsx_vst((__m128i)_p, ptr, 0);
+            __lsx_vst(_p, ptr, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx
@@ -109,7 +109,7 @@ struct unary_op_floor
     {
         // TODO msa optimize
         float tmp[4];
-        __lsx_vst((__m128i)x, tmp, 0);
+        __lsx_vst(x, tmp, 0);
         tmp[0] = floor(tmp[0]);
         tmp[1] = floor(tmp[1]);
         tmp[2] = floor(tmp[2]);
@@ -130,7 +130,7 @@ struct unary_op_ceil
     {
         // TODO msa optimize
         float tmp[4];
-        __lsx_vst((__m128i)x, tmp, 0);
+        __lsx_vst(x, tmp, 0);
         tmp[0] = ceil(tmp[0]);
         tmp[1] = ceil(tmp[1]);
         tmp[2] = ceil(tmp[2]);
@@ -221,7 +221,7 @@ struct unary_op_sin
     {
         // TODO msa optimize
         float tmp[4];
-        __lsx_vst((__m128i)x, tmp, 0);
+        __lsx_vst(x, tmp, 0);
         tmp[0] = sin(tmp[0]);
         tmp[1] = sin(tmp[1]);
         tmp[2] = sin(tmp[2]);
@@ -242,7 +242,7 @@ struct unary_op_cos
     {
         // TODO msa optimize
         float tmp[4];
-        __lsx_vst((__m128i)x, tmp, 0);
+        __lsx_vst(x, tmp, 0);
         tmp[0] = cos(tmp[0]);
         tmp[1] = cos(tmp[1]);
         tmp[2] = cos(tmp[2]);
@@ -263,7 +263,7 @@ struct unary_op_tan
     {
         // TODO msa optimize
         float tmp[4];
-        __lsx_vst((__m128i)x, tmp, 0);
+        __lsx_vst(x, tmp, 0);
         tmp[0] = tan(tmp[0]);
         tmp[1] = tan(tmp[1]);
         tmp[2] = tan(tmp[2]);
@@ -284,7 +284,7 @@ struct unary_op_asin
     {
         // TODO msa optimize
         float tmp[4];
-        __lsx_vst((__m128i)x, tmp, 0);
+        __lsx_vst(x, tmp, 0);
         tmp[0] = asin(tmp[0]);
         tmp[1] = asin(tmp[1]);
         tmp[2] = asin(tmp[2]);
@@ -305,7 +305,7 @@ struct unary_op_acos
     {
         // TODO msa optimize
         float tmp[4];
-        __lsx_vst((__m128i)x, tmp, 0);
+        __lsx_vst(x, tmp, 0);
         tmp[0] = acos(tmp[0]);
         tmp[1] = acos(tmp[1]);
         tmp[2] = acos(tmp[2]);
@@ -326,7 +326,7 @@ struct unary_op_atan
     {
         // TODO msa optimize
         float tmp[4];
-        __lsx_vst((__m128i)x, tmp, 0);
+        __lsx_vst(x, tmp, 0);
         tmp[0] = atan(tmp[0]);
         tmp[1] = atan(tmp[1]);
         tmp[2] = atan(tmp[2]);

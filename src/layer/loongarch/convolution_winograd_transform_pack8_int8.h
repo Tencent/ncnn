@@ -61,12 +61,12 @@ static void conv3x3s1_winograd43_transform_input_pack8_int8_lsx(const Mat& botto
                     __m128i _extr0001 = __lsx_vslti_b(_r00_01, 0);
                     __m128i _extr0203 = __lsx_vslti_b(_r02_03, 0);
                     __m128i _extr0405 = __lsx_vslti_b(_r04_05, 0);
-                    __m128i _r00 = (__m128i)__lsx_vilvl_b(_extr0001, _r00_01);
-                    __m128i _r01 = (__m128i)__lsx_vilvh_b(_extr0001, _r00_01);
-                    __m128i _r02 = (__m128i)__lsx_vilvl_b(_extr0203, _r02_03);
-                    __m128i _r03 = (__m128i)__lsx_vilvh_b(_extr0203, _r02_03);
-                    __m128i _r04 = (__m128i)__lsx_vilvl_b(_extr0405, _r04_05);
-                    __m128i _r05 = (__m128i)__lsx_vilvh_b(_extr0405, _r04_05);
+                    __m128i _r00 = __lsx_vilvl_b(_extr0001, _r00_01);
+                    __m128i _r01 = __lsx_vilvh_b(_extr0001, _r00_01);
+                    __m128i _r02 = __lsx_vilvl_b(_extr0203, _r02_03);
+                    __m128i _r03 = __lsx_vilvh_b(_extr0203, _r02_03);
+                    __m128i _r04 = __lsx_vilvl_b(_extr0405, _r04_05);
+                    __m128i _r05 = __lsx_vilvh_b(_extr0405, _r04_05);
 
                     __m128i _v5 = __lsx_vreplgr2vr_h(5);
 

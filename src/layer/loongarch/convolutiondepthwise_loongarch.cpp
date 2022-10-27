@@ -353,7 +353,7 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
 
                             _sum = activation_ps(_sum, activation_type, activation_params);
 
-                            __lsx_vst((__m128i)_sum, outptr + j * 4, 0);
+                            __lsx_vst(_sum, outptr + j * 4, 0);
                         }
 
                         outptr += outw * 4;
@@ -730,15 +730,15 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                             for (int k = 0; k < maxk; k++)
                             {
                                 __m128i _val = __lsx_vld(sptr + space_ofs[k] * 8, 0);
-                                __m128i _val16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_val, 0), _val);
+                                __m128i _val16 = __lsx_vilvl_b(__lsx_vslti_b(_val, 0), _val);
 
                                 __m128i _w = __lsx_vld(kptr + k * 8, 0);
-                                __m128i _w16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
+                                __m128i _w16 = __lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
 
                                 __m128i _s0 = __lsx_vmul_h(_val16, _w16);
                                 __m128i _exts0 = __lsx_vslti_h(_s0, 0);
-                                __m128i _s0l = (__m128i)__lsx_vilvl_h(_exts0, _s0);
-                                __m128i _s0h = (__m128i)__lsx_vilvh_h(_exts0, _s0);
+                                __m128i _s0l = __lsx_vilvl_h(_exts0, _s0);
+                                __m128i _s0h = __lsx_vilvh_h(_exts0, _s0);
 
                                 _sum0 = __lsx_vadd_w(_sum0, _s0l);
                                 _sum1 = __lsx_vadd_w(_sum1, _s0h);
@@ -789,8 +789,8 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                             else
                             {
                                 // dequantize and relu
-                                __lsx_vst((__m128i)_sumfp32_0, outptr_f32, 0);
-                                __lsx_vst((__m128i)_sumfp32_1, outptr_f32 + 4, 0);
+                                __lsx_vst(_sumfp32_0, outptr_f32, 0);
+                                __lsx_vst(_sumfp32_1, outptr_f32 + 4, 0);
                                 outptr_f32 += 8;
                             }
                         }

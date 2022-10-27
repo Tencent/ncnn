@@ -57,7 +57,7 @@ int Sigmoid_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
             _p = exp_ps(_p);
             _p = __lsx_vfadd_s(_p, _one);
             v4f32 _outp = __lsx_vfdiv_s(_one, _p);
-            __lsx_vst((__m128i)_outp, ptr, 0);
+            __lsx_vst(_outp, ptr, 0);
 
             ptr += 4;
         }

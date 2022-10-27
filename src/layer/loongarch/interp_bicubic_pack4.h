@@ -67,7 +67,7 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 _rows3 = __lsx_vfmadd_s(_a1, _S31, _rows3);
                 _rows3 = __lsx_vfmadd_s(_a2, _S32, _rows3);
                 _rows3 = __lsx_vfmadd_s(_a3, _S33, _rows3);
-                __lsx_vst((__m128i)_rows3, rows3p + dx * 4, 0);
+                __lsx_vst(_rows3, rows3p + dx * 4, 0);
 
                 alphap += 4;
             }
@@ -114,8 +114,8 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 _rows3 = __lsx_vfmadd_s(_a2, _S32, _rows3);
                 _rows2 = __lsx_vfmadd_s(_a3, _S23, _rows2);
                 _rows3 = __lsx_vfmadd_s(_a3, _S33, _rows3);
-                __lsx_vst((__m128i)_rows2, rows2p + dx * 4, 0);
-                __lsx_vst((__m128i)_rows3, rows3p + dx * 4, 0);
+                __lsx_vst(_rows2, rows2p + dx * 4, 0);
+                __lsx_vst(_rows3, rows3p + dx * 4, 0);
 
                 alphap += 4;
             }
@@ -174,9 +174,9 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 _rows1 = __lsx_vfmadd_s(_a3, _S13, _rows1);
                 _rows2 = __lsx_vfmadd_s(_a3, _S23, _rows2);
                 _rows3 = __lsx_vfmadd_s(_a3, _S33, _rows3);
-                __lsx_vst((__m128i)_rows1, rows1p + dx * 4, 0);
-                __lsx_vst((__m128i)_rows2, rows2p + dx * 4, 0);
-                __lsx_vst((__m128i)_rows3, rows3p + dx * 4, 0);
+                __lsx_vst(_rows1, rows1p + dx * 4, 0);
+                __lsx_vst(_rows2, rows2p + dx * 4, 0);
+                __lsx_vst(_rows3, rows3p + dx * 4, 0);
 
                 alphap += 4;
             }
@@ -239,10 +239,10 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 _rows1 = __lsx_vfmadd_s(_a3, _S13, _rows1);
                 _rows2 = __lsx_vfmadd_s(_a3, _S23, _rows2);
                 _rows3 = __lsx_vfmadd_s(_a3, _S33, _rows3);
-                __lsx_vst((__m128i)_rows0, rows0p + dx * 4, 0);
-                __lsx_vst((__m128i)_rows1, rows1p + dx * 4, 0);
-                __lsx_vst((__m128i)_rows2, rows2p + dx * 4, 0);
-                __lsx_vst((__m128i)_rows3, rows3p + dx * 4, 0);
+                __lsx_vst(_rows0, rows0p + dx * 4, 0);
+                __lsx_vst(_rows1, rows1p + dx * 4, 0);
+                __lsx_vst(_rows2, rows2p + dx * 4, 0);
+                __lsx_vst(_rows3, rows3p + dx * 4, 0);
 
                 alphap += 4;
             }
@@ -272,7 +272,7 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
             _D = __lsx_vfmadd_s(_b1, _rows1, _D);
             _D = __lsx_vfmadd_s(_b2, _rows2, _D);
             _D = __lsx_vfmadd_s(_b3, _rows3, _D);
-            __lsx_vst((__m128i)_D, Dp, 0);
+            __lsx_vst(_D, Dp, 0);
 
             Dp += 4;
             rows0p += 4;

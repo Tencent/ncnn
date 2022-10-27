@@ -113,17 +113,17 @@ static void im2col_sgemm_pack8to1_int8_lsx(const Mat& bottom_im2col, Mat& top_bl
                 __builtin_prefetch(kptr + 128);
                 __m128i _val01 = __lsx_vld(tmpptr, 0);
                 __m128i _extval01 = __lsx_vslti_b(_val01, 0);
-                __m128i _val0 = (__m128i)__lsx_vilvl_b(_extval01, _val01);
-                __m128i _val1 = (__m128i)__lsx_vilvh_b(_extval01, _val01);
+                __m128i _val0 = __lsx_vilvl_b(_extval01, _val01);
+                __m128i _val1 = __lsx_vilvh_b(_extval01, _val01);
 
                 __m128i _w01 = __lsx_vld(kptr, 0);
                 __m128i _w23 = __lsx_vld(kptr + 16, 0);
                 __m128i _extw01 = __lsx_vslti_b(_w01, 0);
                 __m128i _extw23 = __lsx_vslti_b(_w23, 0);
-                __m128i _w0 = (__m128i)__lsx_vilvl_b(_extw01, _w01);
-                __m128i _w1 = (__m128i)__lsx_vilvh_b(_extw01, _w01);
-                __m128i _w2 = (__m128i)__lsx_vilvl_b(_extw23, _w23);
-                __m128i _w3 = (__m128i)__lsx_vilvh_b(_extw23, _w23);
+                __m128i _w0 = __lsx_vilvl_b(_extw01, _w01);
+                __m128i _w1 = __lsx_vilvh_b(_extw01, _w01);
+                __m128i _w2 = __lsx_vilvl_b(_extw23, _w23);
+                __m128i _w3 = __lsx_vilvh_b(_extw23, _w23);
 
                 __m128i _s00 = __lsx_vmul_h(_val0, _w0);
                 __m128i _s01 = __lsx_vmul_h(_val0, _w1);
@@ -154,10 +154,10 @@ static void im2col_sgemm_pack8to1_int8_lsx(const Mat& bottom_im2col, Mat& top_bl
                 _tmp1 = __lsx_vilvl_w(_sum03, _sum02);
                 _tmp2 = __lsx_vilvh_w(_sum01, _sum00);
                 _tmp3 = __lsx_vilvh_w(_sum03, _sum02);
-                _sum00 = (__m128i)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp0);
-                _sum01 = (__m128i)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp0);
-                _sum02 = (__m128i)__lsx_vilvl_d((__m128i)_tmp3, (__m128i)_tmp2);
-                _sum03 = (__m128i)__lsx_vilvh_d((__m128i)_tmp3, (__m128i)_tmp2);
+                _sum00 = __lsx_vilvl_d(_tmp1, _tmp0);
+                _sum01 = __lsx_vilvh_d(_tmp1, _tmp0);
+                _sum02 = __lsx_vilvl_d(_tmp3, _tmp2);
+                _sum03 = __lsx_vilvh_d(_tmp3, _tmp2);
             }
             {
                 __m128i _tmp0, _tmp1, _tmp2, _tmp3;
@@ -165,10 +165,10 @@ static void im2col_sgemm_pack8to1_int8_lsx(const Mat& bottom_im2col, Mat& top_bl
                 _tmp1 = __lsx_vilvl_w(_sum13, _sum12);
                 _tmp2 = __lsx_vilvh_w(_sum11, _sum10);
                 _tmp3 = __lsx_vilvh_w(_sum13, _sum12);
-                _sum10 = (__m128i)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp0);
-                _sum11 = (__m128i)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp0);
-                _sum12 = (__m128i)__lsx_vilvl_d((__m128i)_tmp3, (__m128i)_tmp2);
-                _sum13 = (__m128i)__lsx_vilvh_d((__m128i)_tmp3, (__m128i)_tmp2);
+                _sum10 = __lsx_vilvl_d(_tmp1, _tmp0);
+                _sum11 = __lsx_vilvh_d(_tmp1, _tmp0);
+                _sum12 = __lsx_vilvl_d(_tmp3, _tmp2);
+                _sum13 = __lsx_vilvh_d(_tmp3, _tmp2);
             }
 
             _sum00 = __lsx_vadd_w(_sum00, _sum01);
@@ -214,16 +214,16 @@ static void im2col_sgemm_pack8to1_int8_lsx(const Mat& bottom_im2col, Mat& top_bl
                 __builtin_prefetch(tmpptr + 32);
                 __builtin_prefetch(kptr + 128);
                 __m128i _val = __lsx_vld(tmpptr, 0);
-                __m128i _val16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_val, 0), _val);
+                __m128i _val16 = __lsx_vilvl_b(__lsx_vslti_b(_val, 0), _val);
 
                 __m128i _w01 = __lsx_vld(kptr, 0);
                 __m128i _w23 = __lsx_vld(kptr + 16, 0);
                 __m128i _extw01 = __lsx_vslti_b(_w01, 0);
                 __m128i _extw23 = __lsx_vslti_b(_w23, 0);
-                __m128i _w0 = (__m128i)__lsx_vilvl_b(_extw01, _w01);
-                __m128i _w1 = (__m128i)__lsx_vilvh_b(_extw01, _w01);
-                __m128i _w2 = (__m128i)__lsx_vilvl_b(_extw23, _w23);
-                __m128i _w3 = (__m128i)__lsx_vilvh_b(_extw23, _w23);
+                __m128i _w0 = __lsx_vilvl_b(_extw01, _w01);
+                __m128i _w1 = __lsx_vilvh_b(_extw01, _w01);
+                __m128i _w2 = __lsx_vilvl_b(_extw23, _w23);
+                __m128i _w3 = __lsx_vilvh_b(_extw23, _w23);
 
                 __m128i _s0 = __lsx_vmul_h(_val16, _w0);
                 __m128i _s1 = __lsx_vmul_h(_val16, _w1);
@@ -246,10 +246,10 @@ static void im2col_sgemm_pack8to1_int8_lsx(const Mat& bottom_im2col, Mat& top_bl
                 _tmp1 = __lsx_vilvl_w(_sum3, _sum2);
                 _tmp2 = __lsx_vilvh_w(_sum1, _sum0);
                 _tmp3 = __lsx_vilvh_w(_sum3, _sum2);
-                _sum0 = (__m128i)__lsx_vilvl_d((__m128i)_tmp1, (__m128i)_tmp0);
-                _sum1 = (__m128i)__lsx_vilvh_d((__m128i)_tmp1, (__m128i)_tmp0);
-                _sum2 = (__m128i)__lsx_vilvl_d((__m128i)_tmp3, (__m128i)_tmp2);
-                _sum3 = (__m128i)__lsx_vilvh_d((__m128i)_tmp3, (__m128i)_tmp2);
+                _sum0 = __lsx_vilvl_d(_tmp1, _tmp0);
+                _sum1 = __lsx_vilvh_d(_tmp1, _tmp0);
+                _sum2 = __lsx_vilvl_d(_tmp3, _tmp2);
+                _sum3 = __lsx_vilvh_d(_tmp3, _tmp2);
             }
 
             _sum0 = __lsx_vadd_w(_sum0, _sum1);
@@ -296,11 +296,11 @@ static void im2col_sgemm_pack8to1_int8_lsx(const Mat& bottom_im2col, Mat& top_bl
                 __builtin_prefetch(kptr + 32);
                 __m128i _val01 = __lsx_vld(tmpptr, 0);
                 __m128i _extval01 = __lsx_vslti_b(_val01, 0);
-                __m128i _val0 = (__m128i)__lsx_vilvl_b(_extval01, _val01);
-                __m128i _val1 = (__m128i)__lsx_vilvh_b(_extval01, _val01);
+                __m128i _val0 = __lsx_vilvl_b(_extval01, _val01);
+                __m128i _val1 = __lsx_vilvh_b(_extval01, _val01);
 
                 __m128i _w = __lsx_vld(kptr, 0);
-                __m128i _w16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
+                __m128i _w16 = __lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
 
                 __m128i _s0 = __lsx_vmul_h(_val0, _w16);
                 __m128i _s1 = __lsx_vmul_h(_val1, _w16);
@@ -331,10 +331,10 @@ static void im2col_sgemm_pack8to1_int8_lsx(const Mat& bottom_im2col, Mat& top_bl
                 __builtin_prefetch(tmpptr + 32);
                 __builtin_prefetch(kptr + 32);
                 __m128i _val = __lsx_vld(tmpptr, 0);
-                __m128i _val16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_val, 0), _val);
+                __m128i _val16 = __lsx_vilvl_b(__lsx_vslti_b(_val, 0), _val);
 
                 __m128i _w = __lsx_vld(kptr, 0);
-                __m128i _w16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
+                __m128i _w16 = __lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
 
                 __m128i _s0 = __lsx_vmul_h(_val16, _w16);
 

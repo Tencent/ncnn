@@ -53,7 +53,7 @@ int Clip_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             _p = __lsx_vfmax_s(_p, _min);
             _p = __lsx_vfmin_s(_p, _max);
-            __lsx_vst((__m128i)_p, ptr, 0);
+            __lsx_vst(_p, ptr, 0);
 
             ptr += 4;
         }

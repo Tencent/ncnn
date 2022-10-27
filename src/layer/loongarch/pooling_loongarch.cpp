@@ -90,7 +90,7 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     }
 
                     float* outptr = top_blob;
-                    __lsx_vst((__m128i)_max, outptr + q * 4, 0);
+                    __lsx_vst(_max, outptr + q * 4, 0);
                 }
             }
             else if (pooling_type == PoolMethod_AVE)
@@ -111,7 +111,7 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     v4f32 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(1.f / size));
 
                     float* outptr = top_blob;
-                    __lsx_vst((__m128i)_avg, outptr + q * 4, 0);
+                    __lsx_vst(_avg, outptr + q * 4, 0);
                 }
             }
 
@@ -176,7 +176,7 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                             _max = __lsx_vfmax_s(_max, _val);
                         }
 
-                        __lsx_vst((__m128i)_max, outptr + j * 4, 0);
+                        __lsx_vst(_max, outptr + j * 4, 0);
                     }
 
                     outptr += outw * 4;
@@ -240,7 +240,7 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                             }
 
                             v4f32 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(1.f / area));
-                            __lsx_vst((__m128i)_avg, outptr + j * 4, 0);
+                            __lsx_vst(_avg, outptr + j * 4, 0);
                         }
 
                         outptr += outw * 4;
@@ -272,7 +272,7 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                             }
 
                             v4f32 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(inv_maxk));
-                            __lsx_vst((__m128i)_avg, outptr + j * 4, 0);
+                            __lsx_vst(_avg, outptr + j * 4, 0);
                         }
 
                         outptr += outw * 4;

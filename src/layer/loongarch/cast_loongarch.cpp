@@ -136,8 +136,8 @@ int Cast_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
                 __m128i _p = __lsx_vld(ptr, 0);
                 v4f32 _p0 = __lsx_vfcvtl_s_h(_p);
                 v4f32 _p1 = __lsx_vfcvth_s_h(_p);
-                __lsx_vst((__m128i)_p0, outptr, 0);
-                __lsx_vst((__m128i)_p1, outptr + 4, 0);
+                __lsx_vst(_p0, outptr, 0);
+                __lsx_vst(_p1, outptr + 4, 0);
 
                 ptr += 8;
                 outptr += 8;

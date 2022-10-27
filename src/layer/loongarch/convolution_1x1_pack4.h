@@ -51,7 +51,7 @@ static void conv1x1s2_sgemm_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, con
             for (int j = 0; j < outw; j++)
             {
                 v4f32 _val = (v4f32)__lsx_vld(r0, 0);
-                __lsx_vst((__m128i)_val, outptr, 0);
+                __lsx_vst(_val, outptr, 0);
 
                 r0 += 4 * 2;
                 outptr += 4;

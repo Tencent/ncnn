@@ -146,7 +146,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             v4f32 _D = __lsx_vfmul_s(_rows0, _b0);
             _D = __lsx_vfmadd_s(_b1, _rows1, _D);
 
-            __lsx_vst((__m128i)_D, Dp, 0);
+            __lsx_vst(_D, Dp, 0);
 
             v4f32 _rows0n = (v4f32)__lsx_vld(rows0p + 4, 0);
             v4f32 _rows1n = (v4f32)__lsx_vld(rows1p + 4, 0);
@@ -154,7 +154,7 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
             v4f32 _Dn = __lsx_vfmul_s(_rows0n, _b0);
             _Dn = __lsx_vfmadd_s(_b1, _rows1n, _Dn);
 
-            __lsx_vst((__m128i)_Dn, Dp + 4, 0);
+            __lsx_vst(_Dn, Dp + 4, 0);
 
             Dp += 8;
             rows0p += 8;

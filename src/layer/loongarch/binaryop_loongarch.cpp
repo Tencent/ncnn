@@ -62,7 +62,7 @@ static int binary_op_2_3_4_20(const Mat& a, const Mat& b, Mat& c, const Option& 
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             v4f32 _outp = op(_a0, _p);
-            __lsx_vst((__m128i)_outp, outptr, 0);
+            __lsx_vst(_outp, outptr, 0);
             ptr += 4;
             outptr += 4;
         }
@@ -110,7 +110,7 @@ static int binary_op_6_11_16_25(const Mat& a, const Mat& b, Mat& c, const Option
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             v4f32 _outp = op(_p, _b0);
-            __lsx_vst((__m128i)_outp, outptr, 0);
+            __lsx_vst(_outp, outptr, 0);
             ptr += 4;
             outptr += 4;
         }
@@ -159,7 +159,7 @@ static int binary_op_7_13_19_29(const Mat& a, const Mat& b, Mat& c, const Option
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
             v4f32 _outp = op(_p, _p1);
-            __lsx_vst((__m128i)_outp, outptr, 0);
+            __lsx_vst(_outp, outptr, 0);
             ptr += 4;
             ptr1 += 4;
             outptr += 4;
@@ -234,7 +234,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                             __builtin_prefetch(ptr + 16);
                             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                             v4f32 _outp = op(_p, _b0);
-                            __lsx_vst((__m128i)_outp, outptr, 0);
+                            __lsx_vst(_outp, outptr, 0);
                             ptr += 4;
                             outptr += 4;
                         }
@@ -267,7 +267,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                             __builtin_prefetch(ptr + 16);
                             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                             v4f32 _outp = op(_p, _b0);
-                            __lsx_vst((__m128i)_outp, outptr, 0);
+                            __lsx_vst(_outp, outptr, 0);
                             ptr += 4;
                             outptr += 4;
                         }
@@ -301,7 +301,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                     v4f32 _outp = op(_p, _b0);
-                    __lsx_vst((__m128i)_outp, outptr, 0);
+                    __lsx_vst(_outp, outptr, 0);
                     ptr += 4;
                     outptr += 4;
                 }
@@ -336,7 +336,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                             __builtin_prefetch(ptr1 + 16);
                             v4f32 _p = (v4f32)__lsx_vld(ptr1, 0);
                             v4f32 _outp = op(_a0, _p);
-                            __lsx_vst((__m128i)_outp, outptr, 0);
+                            __lsx_vst(_outp, outptr, 0);
                             ptr1 += 4;
                             outptr += 4;
                         }
@@ -370,7 +370,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                         v4f32 _outp = op(_p, _b0);
-                        __lsx_vst((__m128i)_outp, outptr, 0);
+                        __lsx_vst(_outp, outptr, 0);
                         ptr += 4;
                         outptr += 4;
                     }
@@ -398,7 +398,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                         v4f32 _p1 = __lsx_vreplfr2vr_s(ptr1[0]);
                         v4f32 _outp = op(_p, _p1);
-                        __lsx_vst((__m128i)_outp, outptr, 0);
+                        __lsx_vst(_outp, outptr, 0);
                         ptr += 4;
                         ptr1 += 1;
                         outptr += 4;
@@ -427,7 +427,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         __builtin_prefetch(ptr1 + 16);
                         v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                         v4f32 _outp = op(_a0, _p1);
-                        __lsx_vst((__m128i)_outp, outptr, 0);
+                        __lsx_vst(_outp, outptr, 0);
                         ptr1 += 4;
                         outptr += 4;
                     }
@@ -456,7 +456,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         v4f32 _p = __lsx_vreplfr2vr_s(ptr[0]);
                         v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                         v4f32 _outp = op(_p, _p1);
-                        __lsx_vst((__m128i)_outp, outptr, 0);
+                        __lsx_vst(_outp, outptr, 0);
                         ptr += 1;
                         ptr1 += 4;
                         outptr += 4;
@@ -488,7 +488,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                             __builtin_prefetch(ptr + 16);
                             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                             v4f32 _outp = op(_p, _p1);
-                            __lsx_vst((__m128i)_outp, outptr, 0);
+                            __lsx_vst(_outp, outptr, 0);
 
                             ptr += 4;
                             outptr += 4;
@@ -521,7 +521,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                             v4f32 _p1 = (v4f32)__lsx_vld(ptr1 + x * 4, 0);
                             v4f32 _outp = op(_p, _p1);
-                            __lsx_vst((__m128i)_outp, outptr, 0);
+                            __lsx_vst(_outp, outptr, 0);
 
                             ptr += 4;
                             outptr += 4;
@@ -554,7 +554,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                             __builtin_prefetch(ptr1 + 16);
                             v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                             v4f32 _outp = op(_p, _p1);
-                            __lsx_vst((__m128i)_outp, outptr, 0);
+                            __lsx_vst(_outp, outptr, 0);
 
                             ptr1 += 4;
                             outptr += 4;
@@ -587,7 +587,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                             v4f32 _p = (v4f32)__lsx_vld(ptr + x * 4, 0);
                             v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                             v4f32 _outp = op(_p, _p1);
-                            __lsx_vst((__m128i)_outp, outptr, 0);
+                            __lsx_vst(_outp, outptr, 0);
 
                             ptr1 += 4;
                             outptr += 4;
@@ -624,7 +624,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         __builtin_prefetch(ptr + 16);
                         v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                         v4f32 _outp = op(_p, _b0);
-                        __lsx_vst((__m128i)_outp, outptr, 0);
+                        __lsx_vst(_outp, outptr, 0);
                         ptr += 4;
                         outptr += 4;
                     }
@@ -657,7 +657,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                     v4f32 _outp = op(_p, _b0);
-                    __lsx_vst((__m128i)_outp, outptr, 0);
+                    __lsx_vst(_outp, outptr, 0);
                     ptr += 4;
                     outptr += 4;
                 }
@@ -692,7 +692,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                             __builtin_prefetch(ptr1 + 16);
                             v4f32 _p = (v4f32)__lsx_vld(ptr1, 0);
                             v4f32 _outp = op(_a0, _p);
-                            __lsx_vst((__m128i)_outp, outptr, 0);
+                            __lsx_vst(_outp, outptr, 0);
                             ptr1 += 4;
                             outptr += 4;
                         }
@@ -727,7 +727,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                         __builtin_prefetch(ptr1 + 16);
                         v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                         v4f32 _outp = op(_a0, _p1);
-                        __lsx_vst((__m128i)_outp, outptr, 0);
+                        __lsx_vst(_outp, outptr, 0);
                         ptr1 += 4;
                         outptr += 4;
                     }
@@ -774,7 +774,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     __builtin_prefetch(ptr + 16);
                     v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                     v4f32 _outp = op(_p, _b0);
-                    __lsx_vst((__m128i)_outp, outptr, 0);
+                    __lsx_vst(_outp, outptr, 0);
                     ptr += 4;
                     outptr += 4;
                 }
@@ -812,7 +812,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     __builtin_prefetch(ptr1 + 16);
                     v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                     v4f32 _outp = op(_a0, _p1);
-                    __lsx_vst((__m128i)_outp, outptr, 0);
+                    __lsx_vst(_outp, outptr, 0);
                     ptr1 += 4;
                     outptr += 4;
                 }
@@ -840,7 +840,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     __builtin_prefetch(ptr1 + 16);
                     v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                     v4f32 _outp = op(_a0, _p1);
-                    __lsx_vst((__m128i)_outp, outptr, 0);
+                    __lsx_vst(_outp, outptr, 0);
                     ptr1 += 4;
                     outptr += 4;
                 }
@@ -868,7 +868,7 @@ static int binary_op_pack4(const Mat& a, const Mat& b, Mat& c, const Option& opt
                     __builtin_prefetch(ptr1 + 16);
                     v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                     v4f32 _outp = op(_a0, _p1);
-                    __lsx_vst((__m128i)_outp, outptr, 0);
+                    __lsx_vst(_outp, outptr, 0);
                     ptr1 += 4;
                     outptr += 4;
                 }
@@ -925,7 +925,7 @@ static int binary_op_scalar_inplace(Mat& a, float b, const Option& opt)
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
             _p = op(_p, _b);
-            __lsx_vst((__m128i)_p, ptr, 0);
+            __lsx_vst(_p, ptr, 0);
             ptr += 4;
         }
 #endif // __loongarch_sx

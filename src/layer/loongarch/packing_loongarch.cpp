@@ -131,15 +131,15 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     __m128i _r01l = __lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
                     __m128i _r23r = __lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
                     __m128i _r23l = __lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
-                    __m128i _r0123_0 = __lsx_vilvl_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_1 = __lsx_vilvh_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_2 = __lsx_vilvl_d((__m128i)_r23l, (__m128i)_r01l);
-                    __m128i _r0123_3 = __lsx_vilvh_d((__m128i)_r23l, (__m128i)_r01l);
+                    __m128i _r0123_0 = __lsx_vilvl_d(_r23r, _r01r);
+                    __m128i _r0123_1 = __lsx_vilvh_d(_r23r, _r01r);
+                    __m128i _r0123_2 = __lsx_vilvl_d(_r23l, _r01l);
+                    __m128i _r0123_3 = __lsx_vilvh_d(_r23l, _r01l);
 
-                    __lsx_vst((__m128i)_r0123_0, outptr, 0);
-                    __lsx_vst((__m128i)_r0123_1, outptr + 4, 0);
-                    __lsx_vst((__m128i)_r0123_2, outptr + 4 * 2, 0);
-                    __lsx_vst((__m128i)_r0123_3, outptr + 4 * 3, 0);
+                    __lsx_vst(_r0123_0, outptr, 0);
+                    __lsx_vst(_r0123_1, outptr + 4, 0);
+                    __lsx_vst(_r0123_2, outptr + 4 * 2, 0);
+                    __lsx_vst(_r0123_3, outptr + 4 * 3, 0);
 
                     r0 += 4;
                     r1 += 4;
@@ -185,15 +185,15 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     __m128i _r01l = __lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
                     __m128i _r23r = __lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
                     __m128i _r23l = __lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
-                    __m128i _r0123_0 = __lsx_vilvl_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_1 = __lsx_vilvh_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_2 = __lsx_vilvl_d((__m128i)_r23l, (__m128i)_r01l);
-                    __m128i _r0123_3 = __lsx_vilvh_d((__m128i)_r23l, (__m128i)_r01l);
+                    __m128i _r0123_0 = __lsx_vilvl_d(_r23r, _r01r);
+                    __m128i _r0123_1 = __lsx_vilvh_d(_r23r, _r01r);
+                    __m128i _r0123_2 = __lsx_vilvl_d(_r23l, _r01l);
+                    __m128i _r0123_3 = __lsx_vilvh_d(_r23l, _r01l);
 
-                    __lsx_vst((__m128i)_r0123_0, outptr0, 0);
-                    __lsx_vst((__m128i)_r0123_1, outptr1, 0);
-                    __lsx_vst((__m128i)_r0123_2, outptr2, 0);
-                    __lsx_vst((__m128i)_r0123_3, outptr3, 0);
+                    __lsx_vst(_r0123_0, outptr0, 0);
+                    __lsx_vst(_r0123_1, outptr1, 0);
+                    __lsx_vst(_r0123_2, outptr2, 0);
+                    __lsx_vst(_r0123_3, outptr3, 0);
 
                     r0 += 16;
                     outptr0 += 4;
@@ -256,15 +256,15 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     __m128i _r01l = __lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
                     __m128i _r23r = __lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
                     __m128i _r23l = __lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
-                    __m128i _r0123_0 = __lsx_vilvl_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_1 = __lsx_vilvh_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_2 = __lsx_vilvl_d((__m128i)_r23l, (__m128i)_r01l);
-                    __m128i _r0123_3 = __lsx_vilvh_d((__m128i)_r23l, (__m128i)_r01l);
+                    __m128i _r0123_0 = __lsx_vilvl_d(_r23r, _r01r);
+                    __m128i _r0123_1 = __lsx_vilvh_d(_r23r, _r01r);
+                    __m128i _r0123_2 = __lsx_vilvl_d(_r23l, _r01l);
+                    __m128i _r0123_3 = __lsx_vilvh_d(_r23l, _r01l);
 
-                    __lsx_vst((__m128i)_r0123_0, outptr, 0);
-                    __lsx_vst((__m128i)_r0123_1, outptr + 4, 0);
-                    __lsx_vst((__m128i)_r0123_2, outptr + 4 * 2, 0);
-                    __lsx_vst((__m128i)_r0123_3, outptr + 4 * 3, 0);
+                    __lsx_vst(_r0123_0, outptr, 0);
+                    __lsx_vst(_r0123_1, outptr + 4, 0);
+                    __lsx_vst(_r0123_2, outptr + 4 * 2, 0);
+                    __lsx_vst(_r0123_3, outptr + 4 * 3, 0);
 
                     r0 += 4;
                     r1 += 4;
@@ -310,15 +310,15 @@ int Packing_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     __m128i _r01l = __lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
                     __m128i _r23r = __lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
                     __m128i _r23l = __lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
-                    __m128i _r0123_0 = __lsx_vilvl_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_1 = __lsx_vilvh_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_2 = __lsx_vilvl_d((__m128i)_r23l, (__m128i)_r01l);
-                    __m128i _r0123_3 = __lsx_vilvh_d((__m128i)_r23l, (__m128i)_r01l);
+                    __m128i _r0123_0 = __lsx_vilvl_d(_r23r, _r01r);
+                    __m128i _r0123_1 = __lsx_vilvh_d(_r23r, _r01r);
+                    __m128i _r0123_2 = __lsx_vilvl_d(_r23l, _r01l);
+                    __m128i _r0123_3 = __lsx_vilvh_d(_r23l, _r01l);
 
-                    __lsx_vst((__m128i)_r0123_0, outptr0, 0);
-                    __lsx_vst((__m128i)_r0123_1, outptr1, 0);
-                    __lsx_vst((__m128i)_r0123_2, outptr2, 0);
-                    __lsx_vst((__m128i)_r0123_3, outptr3, 0);
+                    __lsx_vst(_r0123_0, outptr0, 0);
+                    __lsx_vst(_r0123_1, outptr1, 0);
+                    __lsx_vst(_r0123_2, outptr2, 0);
+                    __lsx_vst(_r0123_3, outptr3, 0);
 
                     r0 += 16;
                     outptr0 += 4;

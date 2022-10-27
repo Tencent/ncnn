@@ -47,9 +47,9 @@ int AbsVal_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) c
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            __m128i _p = (__m128i)__lsx_vld(ptr, 0);
+            __m128i _p = __lsx_vld(ptr, 0);
             v4f32 _outp = (v4f32)__lsx_vbitclri_w(_p, 31);
-            __lsx_vst((__m128i)_outp, ptr, 0);
+            __lsx_vst(_outp, ptr, 0);
 
             ptr += 4;
         }

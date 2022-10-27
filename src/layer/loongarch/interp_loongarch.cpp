@@ -116,7 +116,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                         int in_x = std::min((int)(x * ws), (w - 1));
 
                         v4f32 _p = (v4f32)__lsx_vld(ptr + in_x * 4, 0);
-                        __lsx_vst((__m128i)_p, outptr, 0);
+                        __lsx_vst(_p, outptr, 0);
 
                         outptr += 4;
                     }
@@ -151,7 +151,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                         v4f32 _S1 = (v4f32)__lsx_vld(Sp + 4, 0);
                         v4f32 _p = __lsx_vfmul_s(_S0, _a0);
                         _p = __lsx_vfmadd_s(_a1, _S1, _p);
-                        __lsx_vst((__m128i)_p, outptr, 0);
+                        __lsx_vst(_p, outptr, 0);
 
                         alphap += 2;
                         outptr += 4;
@@ -195,7 +195,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                         _p = __lsx_vfmadd_s(_a1, _S1, _p);
                         _p = __lsx_vfmadd_s(_a2, _S2, _p);
                         _p = __lsx_vfmadd_s(_a3, _S3, _p);
-                        __lsx_vst((__m128i)_p, outptr, 0);
+                        __lsx_vst(_p, outptr, 0);
 
                         alphap += 4;
                         outptr += 4;
@@ -326,7 +326,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                         int in_x = std::min((int)(x * ws), (w - 1));
 
                         v4f32 _p = (v4f32)__lsx_vld(ptr + in_x * 4, 0);
-                        __lsx_vst((__m128i)_p, outptr, 0);
+                        __lsx_vst(_p, outptr, 0);
 
                         outptr += 4;
                     }
