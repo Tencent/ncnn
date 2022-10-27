@@ -176,6 +176,7 @@ jobs:
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
 
   linux-gcc-x64:
+    name: linux-gcc-x64
     runs-on:
       pool-name: docker
       container:
@@ -266,6 +267,7 @@ jobs:
         ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-avx512/lcov.info
 
   linux-gcc-arm:
+    name: linux-gcc-arm
     runs-on:
       pool-name: docker
       container:
@@ -359,6 +361,7 @@ jobs:
         ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-armhf-vfpv3-d16/lcov.info
 
   linux-gcc-aarch64:
+    name: linux-gcc-aarch64
     runs-on:
       pool-name: docker
       container:
@@ -509,6 +512,7 @@ jobs:
         ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build-arm84/lcov.info
 
   linux-gcc-mipsisa32r6el:
+    name: linux-gcc-mipsisa32r6el
     runs-on:
       pool-name: docker
       container:
@@ -568,6 +572,7 @@ jobs:
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
@@ -581,6 +586,7 @@ jobs:
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
 
   linux-gcc-mipsisa64r6el:
+    name: linux-gcc-mipsisa64r6el
     runs-on:
       pool-name: docker
       container:
@@ -652,6 +658,7 @@ jobs:
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
@@ -665,6 +672,7 @@ jobs:
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
 
   linux-gcc-riscv64:
+    name: linux-gcc-riscv64
     runs-on:
       pool-name: docker
       container:
@@ -726,6 +734,7 @@ jobs:
     - name: test
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect
@@ -739,6 +748,7 @@ jobs:
       run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -f build/lcov.info
 
   linux-gcc-riscv64-rvv:
+    name: linux-gcc-riscv64-rvv
     runs-on:
       pool-name: docker
       container:
@@ -837,6 +847,7 @@ jobs:
     - name: test-vlen128
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect-vlen128
@@ -852,6 +863,7 @@ jobs:
     - name: test-vlen256
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        export QEMU_STRACE=1
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
     - name: lcov-collect-vlen256
