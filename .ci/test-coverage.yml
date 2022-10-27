@@ -686,14 +686,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20220831
+        cacheKey: qemu-riscv64-install-20220502
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -761,14 +761,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20220831
+        cacheKey: qemu-riscv64-install-20220502
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        refName: f5643914a9e8f79c606a76e6a9d7ea82a3fc3e65
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
