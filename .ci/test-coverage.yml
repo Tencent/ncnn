@@ -179,28 +179,28 @@ jobs:
     name: linux-gcc-x64
     strategy:
       matrix:
-        OPENMP: [OFF, ON]
-        SSE2: [OFF, ON]
-        AVX: [OFF, ON]
-        XOP: [OFF]
-        FMA: [OFF, ON]
-        AVX2: [OFF, ON]
-        AVX512: [OFF, ON]
-        AVX512VNNI: [OFF, ON]
-        AVXVNNI: [OFF]
-        AVX512BF16: [OFF]
-        AVX512FP16: [OFF]
+        OPENMP: ['OFF', 'ON']
+        SSE2: ['OFF', 'ON']
+        AVX: ['OFF', 'ON']
+        XOP: ['OFF']
+        FMA: ['OFF', 'ON']
+        AVX2: ['OFF', 'ON']
+        AVX512: ['OFF', 'ON']
+        AVX512VNNI: ['OFF', 'ON']
+        AVXVNNI: ['OFF']
+        AVX512BF16: ['OFF']
+        AVX512FP16: ['OFF']
         exclude:
-          - SSE2: OFF
-            AVX: ON
-          - AVX: OFF
-            FMA: ON
-          - FMA: OFF
-            AVX2: ON
-          - AVX2: OFF
-            AVX512: ON
-          - AVX512: OFF
-            AVX512VNNI: ON
+          - SSE2: 'OFF'
+            AVX: 'ON'
+          - AVX: 'OFF'
+            FMA: 'ON'
+          - FMA: 'OFF'
+            AVX2: 'ON'
+          - AVX2: 'OFF'
+            AVX512: 'ON'
+          - AVX512: 'OFF'
+            AVX512VNNI: 'ON'
 
     runs-on:
       pool-name: docker
@@ -350,29 +350,29 @@ jobs:
     name: linux-gcc-aarch64
     strategy:
       matrix:
-        OPENMP: [OFF, ON]
-        ARM82: [OFF, ON]
-        ARM82DOT: [OFF, ON]
-        ARM82FP16FML: [OFF, ON]
-        ARM84BF16: [OFF, ON]
-        ARM84I8MM: [OFF, ON]
+        OPENMP: ['OFF', 'ON']
+        ARM82: ['OFF', 'ON']
+        ARM82DOT: ['OFF', 'ON']
+        ARM82FP16FML: ['OFF', 'ON']
+        ARM84BF16: ['OFF', 'ON']
+        ARM84I8MM: ['OFF', 'ON']
         exclude:
-          - ARM82: OFF
-            ARM82DOT: ON
-          - ARM82: OFF
-            ARM82FP16FML: ON
-          - ARM82DOT: OFF
-            ARM82FP16FML: ON
-          - ARM82FP16FML: OFF
-            ARM82DOT: ON
-          - ARM82DOT: OFF
-            ARM84BF16: ON
-          - ARM82DOT: OFF
-            ARM84I8MM: ON
-          - ARM84BF16: OFF
-            ARM84I8MM: ON
-          - ARM84I8MM: OFF
-            ARM84BF16: ON
+          - ARM82: 'OFF'
+            ARM82DOT: 'ON'
+          - ARM82: 'OFF'
+            ARM82FP16FML: 'ON'
+          - ARM82DOT: 'OFF'
+            ARM82FP16FML: 'ON'
+          - ARM82FP16FML: 'OFF'
+            ARM82DOT: 'ON'
+          - ARM82DOT: 'OFF'
+            ARM84BF16: 'ON'
+          - ARM82DOT: 'OFF'
+            ARM84I8MM: 'ON'
+          - ARM84BF16: 'OFF'
+            ARM84I8MM: 'ON'
+          - ARM84I8MM: 'OFF'
+            ARM84BF16: 'ON'
 
     runs-on:
       pool-name: docker

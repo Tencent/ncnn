@@ -34,17 +34,17 @@ jobs:
     name: linux-gcc
     strategy:
       matrix:
-        SSE2: [OFF, ON]
-        AVX: [OFF, ON]
-        AVX2: [OFF, ON]
-        AVX512: [OFF, ON]
+        SSE2: ['OFF', 'ON']
+        AVX: ['OFF', 'ON']
+        AVX2: ['OFF', 'ON']
+        AVX512: ['OFF', 'ON']
         exclude:
-          - SSE2: OFF
-            AVX: ON
-          - AVX: OFF
-            AVX2: ON
-          - AVX2: OFF
-            AVX512: ON
+          - SSE2: 'OFF'
+            AVX: 'ON'
+          - AVX: 'OFF'
+            AVX2: 'ON'
+          - AVX2: 'OFF'
+            AVX512: 'ON'
 
     runs-on:
       pool-name: docker
