@@ -179,28 +179,13 @@ jobs:
     name: linux-gcc-x64
     strategy:
       matrix:
-        OPENMP: ['OFF', 'ON']
-        SSE2: ['OFF', 'ON']
-        AVX: ['OFF', 'ON']
-        XOP: ['OFF']
-        FMA: ['OFF', 'ON']
-        AVX2: ['OFF', 'ON']
-        AVX512: ['OFF', 'ON']
-        AVX512VNNI: ['OFF', 'ON']
-        AVXVNNI: ['OFF']
-        AVX512BF16: ['OFF']
-        AVX512FP16: ['OFF']
-        exclude:
-          - SSE2: 'OFF'
-            AVX: 'ON'
-          - AVX: 'OFF'
-            FMA: 'ON'
-          - FMA: 'OFF'
-            AVX2: 'ON'
-          - AVX2: 'OFF'
-            AVX512: 'ON'
-          - AVX512: 'OFF'
-            AVX512VNNI: 'ON'
+        # openmp: ['OFF', 'ON']
+        include:
+          - { SSE2: 'OFF', AVX: 'OFF', XOP: 'OFF', F16C: 'OFF', FMA: 'OFF', AVX2: 'OFF', AVX512: 'OFF', AVX512VNNI: 'OFF', AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+          - { SSE2: 'ON',  AVX: 'OFF', XOP: 'OFF', F16C: 'OFF', FMA: 'OFF', AVX2: 'OFF', AVX512: 'OFF', AVX512VNNI: 'OFF', AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+          - { SSE2: 'ON',  AVX: 'ON',  XOP: 'OFF', F16C: 'OFF', FMA: 'OFF', AVX2: 'OFF', AVX512: 'OFF', AVX512VNNI: 'OFF', AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+          - { SSE2: 'ON',  AVX: 'ON',  XOP: 'OFF', F16C: 'ON',  FMA: 'ON',  AVX2: 'ON',  AVX512: 'OFF', AVX512VNNI: 'OFF', AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+          - { SSE2: 'ON',  AVX: 'ON',  XOP: 'OFF', F16C: 'ON',  FMA: 'ON',  AVX2: 'ON',  AVX512: 'ON',  AVX512VNNI: 'ON',  AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
 
     runs-on:
       pool-name: docker
@@ -227,10 +212,11 @@ jobs:
     - name: build
       run: |
         mkdir build && cd build
-        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON \
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON \
             -DNCNN_SSE2=${{matrix.SSE2}} \
             -DNCNN_AVX=${{matrix.AVX}} \
             -DNCNN_XOP=${{matrix.XOP}} \
+            -DNCNN_F16C=${{matrix.F16C}} \
             -DNCNN_FMA=${{matrix.FMA}} \
             -DNCNN_AVX2=${{matrix.AVX2}} \
             -DNCNN_AVX512=${{matrix.AVX512}} \
@@ -350,29 +336,12 @@ jobs:
     name: linux-gcc-aarch64
     strategy:
       matrix:
-        OPENMP: ['OFF', 'ON']
-        ARM82: ['OFF', 'ON']
-        ARM82DOT: ['OFF', 'ON']
-        ARM82FP16FML: ['OFF', 'ON']
-        ARM84BF16: ['OFF', 'ON']
-        ARM84I8MM: ['OFF', 'ON']
-        exclude:
-          - ARM82: 'OFF'
-            ARM82DOT: 'ON'
-          - ARM82: 'OFF'
-            ARM82FP16FML: 'ON'
-          - ARM82DOT: 'OFF'
-            ARM82FP16FML: 'ON'
-          - ARM82FP16FML: 'OFF'
-            ARM82DOT: 'ON'
-          - ARM82DOT: 'OFF'
-            ARM84BF16: 'ON'
-          - ARM82DOT: 'OFF'
-            ARM84I8MM: 'ON'
-          - ARM84BF16: 'OFF'
-            ARM84I8MM: 'ON'
-          - ARM84I8MM: 'OFF'
-            ARM84BF16: 'ON'
+        # openmp: ['OFF', 'ON']
+        include:
+          - { ARM82: 'OFF', ARM82DOT: 'OFF', ARM82FP16FML: 'OFF', ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { ARM82: 'ON',  ARM82DOT: 'OFF', ARM82FP16FML: 'OFF', ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'ON',  ARM84I8MM: 'ON',  ARM86SVE: 'OFF'}
 
     runs-on:
       pool-name: docker
@@ -429,7 +398,7 @@ jobs:
       run: |
         mkdir build && cd build
         cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake \
-            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON \
             -DNCNN_ARM82=${{matrix.ARM82}} \
             -DNCNN_ARM82DOT=${{matrix.ARM82DOT}} \
             -DNCNN_ARM82FP16FML=${{matrix.ARM82FP16FML}} \
