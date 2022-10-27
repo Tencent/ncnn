@@ -1362,6 +1362,27 @@ static int get_max_freq_khz(int cpuid)
     return max_freq_khz;
 }
 
+static int get_thread_siblings_list_count(int cpuid)
+{
+    char path[256];
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
+
+    FILE* fp = fopen(path, "rb");
+    if (!fp)
+        return 1;
+
+    int count = 1;
+    while (!feof(fp))
+    {
+        if (fgetc(fp) == ',')
+            count++;
+    }
+
+    fclose(fp);
+
+    return count;
+}
+
 static int set_sched_affinity(const CpuSet& thread_affinity_mask)
 {
     // set affinity for thread
@@ -1480,6 +1501,13 @@ static int setup_thread_affinity_masks()
 
     for (int i = 0; i < g_cpucount; i++)
     {
+        if (get_thread_siblings_list_count(i) > 1)
+        {
+            // always treat smt core as big core
+            g_thread_affinity_mask_big.enable(i);
+            continue;
+        }
+
         if (cpu_max_freq_khz[i] < max_freq_khz_medium)
             g_thread_affinity_mask_little.enable(i);
         else
