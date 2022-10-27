@@ -85,10 +85,10 @@ static void deconvolution_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const
                             v4f32 _w1 = (v4f32)__lsx_vld(kptr + k + 4, 0);
                             v4f32 _w2 = (v4f32)__lsx_vld(kptr + k + 8, 0);
                             v4f32 _w3 = (v4f32)__lsx_vld(kptr + k + 12, 0);
-                            _sum = __lsx_vfmadd_s(_sum, _val0, _w0);
-                            _sum = __lsx_vfmadd_s(_sum, _val1, _w1);
-                            _sum = __lsx_vfmadd_s(_sum, _val2, _w2);
-                            _sum = __lsx_vfmadd_s(_sum, _val3, _w3);
+                            _sum = __lsx_vfmadd_s(_w0, _val0, _sum);
+                            _sum = __lsx_vfmadd_s(_w1, _val1, _sum);
+                            _sum = __lsx_vfmadd_s(_w2, _val2, _sum);
+                            _sum = __lsx_vfmadd_s(_w3, _val3, _sum);
                         }
                     }
 

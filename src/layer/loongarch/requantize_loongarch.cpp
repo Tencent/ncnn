@@ -91,8 +91,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias, _v0, _scale_in);
-                        _v1 = __lsx_vfmadd_s(_bias, _v1, _scale_in);
+                        _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias);
+                        _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out);
@@ -112,8 +112,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale_in);
-                        _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale_in);
+                        _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias0);
+                        _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out);
@@ -161,8 +161,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias, _v0, _scale_in);
-                        _v1 = __lsx_vfmadd_s(_bias, _v1, _scale_in);
+                        _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias);
+                        _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out0);
@@ -184,8 +184,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale_in);
-                        _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale_in);
+                        _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias0);
+                        _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out0);
@@ -233,8 +233,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias, _v0, _scale_in0);
-                        _v1 = __lsx_vfmadd_s(_bias, _v1, _scale_in1);
+                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias);
+                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out);
@@ -256,8 +256,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale_in0);
-                        _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale_in1);
+                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
+                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out);
@@ -307,8 +307,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias, _v0, _scale_in0);
-                        _v1 = __lsx_vfmadd_s(_bias, _v1, _scale_in1);
+                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias);
+                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out0);
@@ -332,8 +332,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale_in0);
-                        _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale_in1);
+                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
+                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out0);
@@ -404,8 +404,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         __builtin_prefetch(intptr + 32);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale_in0);
-                        _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale_in1);
+                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
+                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out0);
@@ -493,8 +493,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         __builtin_prefetch(intptr + 32);
                         v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale_in0);
-                        _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale_in1);
+                        _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
+                        _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
                         _v1 = activation_ps(_v1, activation_type, activation_params);
                         _v0 = __lsx_vfmul_s(_v0, _scale_out0);
@@ -558,7 +558,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
                         v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
                         v16i8 v = (v16i8)float2int8(_v);
@@ -578,7 +578,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                         v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
                         v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
                         v16i8 v = (v16i8)float2int8(_v);
@@ -625,7 +625,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                         v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
                         v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
                         v16i8 v = (v16i8)float2int8(_v);
@@ -646,7 +646,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
                         v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
                         v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
                         v16i8 v = (v16i8)float2int8(_v);
@@ -693,7 +693,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                         v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
                         v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
                         v16i8 v = (v16i8)float2int8(_v);
@@ -714,7 +714,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
                         v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
                         v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
                         v16i8 v = (v16i8)float2int8(_v);
@@ -761,7 +761,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
                         v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
                         v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
                         v16i8 v = (v16i8)float2int8(_v);
@@ -783,7 +783,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
                         v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
                         v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                        _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
                         v16i8 v = (v16i8)float2int8(_v);
@@ -865,8 +865,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             __builtin_prefetch(intptr1 + 16);
                             v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
                             v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                            _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale_in0);
-                            _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale_in1);
+                            _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
+                            _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                             _v0 = activation_ps(_v0, activation_type, activation_params);
                             _v1 = activation_ps(_v1, activation_type, activation_params);
                             _v0 = __lsx_vfmul_s(_v0, _scale_out0);
@@ -936,7 +936,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         {
                             __builtin_prefetch(intptr + 16);
                             v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                            _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                            _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
                             v16i8 v = (v16i8)float2int8(_v);
@@ -1039,8 +1039,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                             __builtin_prefetch(intptr1 + 16);
                             v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
                             v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                            _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale_in0);
-                            _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale_in1);
+                            _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
+                            _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                             _v0 = activation_ps(_v0, activation_type, activation_params);
                             _v1 = activation_ps(_v1, activation_type, activation_params);
                             _v0 = __lsx_vfmul_s(_v0, _scale_out0);
@@ -1110,7 +1110,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         {
                             __builtin_prefetch(intptr + 16);
                             v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                            _v = __lsx_vfmadd_s(_bias, _v, _scale_in);
+                            _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
                             v16i8 v = (v16i8)float2int8(_v);

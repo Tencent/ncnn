@@ -155,10 +155,10 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
                             v4f32 _w2 = (v4f32)__lsx_vld(kptr + 8, 0);
                             v4f32 _w3 = (v4f32)__lsx_vld(kptr + 12, 0);
 
-                            _sum = __lsx_vfmadd_s(_sum, _val0, _w0);
-                            _sum = __lsx_vfmadd_s(_sum, _val1, _w1);
-                            _sum = __lsx_vfmadd_s(_sum, _val2, _w2);
-                            _sum = __lsx_vfmadd_s(_sum, _val3, _w3);
+                            _sum = __lsx_vfmadd_s(_w0, _val0, _sum);
+                            _sum = __lsx_vfmadd_s(_w1, _val1, _sum);
+                            _sum = __lsx_vfmadd_s(_w2, _val2, _sum);
+                            _sum = __lsx_vfmadd_s(_w3, _val3, _sum);
 
                             sptr += dilation_w * 4;
                             kptr += 16;
@@ -201,7 +201,7 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             v4f32 _val = __lsx_vreplfr2vr_s(sptr[0]);
                             v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
-                            _sum = __lsx_vfmadd_s(_sum, _val, _w);
+                            _sum = __lsx_vfmadd_s(_w, _val, _sum);
 
                             sptr += dilation_w;
                             kptr += 4;
@@ -246,7 +246,7 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
                         {
                             v4f32 _val = (v4f32)__lsx_vld(sptr, 0);
                             v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
-                            _sum = __lsx_vfmadd_s(_sum, _val, _w);
+                            _sum = __lsx_vfmadd_s(_w, _val, _sum);
 
                             sptr += dilation_w * 4;
                             kptr += 4;

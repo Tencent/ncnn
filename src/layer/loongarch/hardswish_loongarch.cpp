@@ -53,7 +53,7 @@ int HardSwish_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
         {
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
-            v4f32 _outp = __lsx_vfmadd_s(_beta, _p, _alpha);
+            v4f32 _outp = __lsx_vfmadd_s(_alpha, _p, _beta);
             _outp = __lsx_vfmax_s(_outp, _zero);
             _outp = __lsx_vfmin_s(_outp, _one);
             _outp = __lsx_vfmul_s(_outp, _p);

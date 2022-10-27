@@ -91,14 +91,14 @@ static inline v4f32 log_ps(v4f32 x)
 
     v4f32 y = (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p0.i);
 
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p1.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p2.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p3.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p4.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p5.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p6.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p7.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p8.i), y, x);
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p1.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p2.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p3.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p4.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p5.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p6.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p7.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_log_p8.i));
     y = __lsx_vfmul_s(y, x);
 
     y = __lsx_vfmul_s(y, z);
@@ -161,11 +161,11 @@ static inline v4f32 exp_ps(v4f32 x)
 
     z = __lsx_vfmul_s(x, x);
 
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p1.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p2.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p3.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p4.i), y, x);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p5.i), y, x);
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p1.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p2.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p3.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p4.i));
+    y = __lsx_vfmadd_s(x, y, (v4f32)__lsx_vreplgr2vr_w(c_cephes_exp_p5.i));
 
     y = __lsx_vfmul_s(y, z);
     y = __lsx_vfadd_s(y, x);
@@ -214,19 +214,19 @@ static inline v4f32 tanh_ps(v4f32 x)
 
     // evaluate the numerator polynomial y.
     v4f32 y = (v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_13.i);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_11.i), y, z);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_9.i), y, z);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_7.i), y, z);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_5.i), y, z);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_3.i), y, z);
-    y = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_1.i), y, z);
+    y = __lsx_vfmadd_s(z, y, (v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_11.i));
+    y = __lsx_vfmadd_s(z, y, (v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_9.i));
+    y = __lsx_vfmadd_s(z, y, (v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_7.i));
+    y = __lsx_vfmadd_s(z, y, (v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_5.i));
+    y = __lsx_vfmadd_s(z, y, (v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_3.i));
+    y = __lsx_vfmadd_s(z, y, (v4f32)__lsx_vreplgr2vr_w(c_tanh_alpha_1.i));
     y = __lsx_vfmul_s(y, x2);
 
     // evaluate the denominator polynomial w.
     v4f32 w = (v4f32)__lsx_vreplgr2vr_w(c_tanh_beta_6.i);
-    w = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_beta_4.i), w, z);
-    w = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_beta_2.i), w, z);
-    w = __lsx_vfmadd_s((v4f32)__lsx_vreplgr2vr_w(c_tanh_beta_0.i), w, z);
+    w = __lsx_vfmadd_s(z, w, (v4f32)__lsx_vreplgr2vr_w(c_tanh_beta_4.i));
+    w = __lsx_vfmadd_s(z, w, (v4f32)__lsx_vreplgr2vr_w(c_tanh_beta_2.i));
+    w = __lsx_vfmadd_s(z, w, (v4f32)__lsx_vreplgr2vr_w(c_tanh_beta_0.i));
 
     // divide the numerator by the denominator.
     y = __lsx_vfdiv_s(y, w);

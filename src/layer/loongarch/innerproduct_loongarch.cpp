@@ -189,10 +189,10 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                         __builtin_prefetch(kptr + 16);
                         v4f32 _val = (v4f32)__lsx_vld(m, 0);
                         __m128i _w = __lsx_vld(kptr, 0);
-                        _sum0 = __lsx_vfmadd_s(_sum0, _val, (v4f32)__lsx_vreplvei_w(_w, 0));
-                        _sum1 = __lsx_vfmadd_s(_sum1, _val, (v4f32)__lsx_vreplvei_w(_w, 1));
-                        _sum2 = __lsx_vfmadd_s(_sum2, _val, (v4f32)__lsx_vreplvei_w(_w, 2));
-                        _sum3 = __lsx_vfmadd_s(_sum3, _val, (v4f32)__lsx_vreplvei_w(_w, 3));
+                        _sum0 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w, 0), _val, _sum0);
+                        _sum1 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w, 1), _val, _sum1);
+                        _sum2 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w, 2), _val, _sum2);
+                        _sum3 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w, 3), _val, _sum3);
 
                         m += 4;
                         kptr += 4;
@@ -240,10 +240,10 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                         v4f32 _w1 = (v4f32)__lsx_vld(kptr + 4, 0);
                         v4f32 _w2 = (v4f32)__lsx_vld(kptr + 8, 0);
                         v4f32 _w3 = (v4f32)__lsx_vld(kptr + 12, 0);
-                        _sum0 = __lsx_vfmadd_s(_sum0, (v4f32)__lsx_vreplvei_w(_val, 0), _w0);
-                        _sum1 = __lsx_vfmadd_s(_sum1, (v4f32)__lsx_vreplvei_w(_val, 1), _w1);
-                        _sum2 = __lsx_vfmadd_s(_sum2, (v4f32)__lsx_vreplvei_w(_val, 2), _w2);
-                        _sum3 = __lsx_vfmadd_s(_sum3, (v4f32)__lsx_vreplvei_w(_val, 3), _w3);
+                        _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val, 0), _sum0);
+                        _sum1 = __lsx_vfmadd_s(_w1, (v4f32)__lsx_vreplvei_w(_val, 1), _sum1);
+                        _sum2 = __lsx_vfmadd_s(_w2, (v4f32)__lsx_vreplvei_w(_val, 2), _sum2);
+                        _sum3 = __lsx_vfmadd_s(_w3, (v4f32)__lsx_vreplvei_w(_val, 3), _sum3);
 
                         m += 4;
                         kptr += 16;
@@ -252,7 +252,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                     {
                         v4f32 _val = __lsx_vreplfr2vr_s(m[0]);
                         v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
-                        _sum0 = __lsx_vfmadd_s(_sum0, _val, _w);
+                        _sum0 = __lsx_vfmadd_s(_w, _val, _sum0);
 
                         m += 1;
                         kptr += 4;
@@ -291,7 +291,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                         __builtin_prefetch(kptr + 4);
                         v4f32 _val = (v4f32)__lsx_vld(m, 0);
                         v4f32 _k = __lsx_vreplfr2vr_s(kptr[0]);
-                        _sum = __lsx_vfmadd_s(_sum, _val, _k);
+                        _sum = __lsx_vfmadd_s(_k, _val, _sum);
 
                         m += 4;
                         kptr += 1;
@@ -330,7 +330,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                         __builtin_prefetch(kptr + 16);
                         v4f32 _m = (v4f32)__lsx_vld(m, 0);
                         v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
-                        _sum = __lsx_vfmadd_s(_sum, _m, _w);
+                        _sum = __lsx_vfmadd_s(_w, _m, _sum);
 
                         m += 4;
                         kptr += 4;
@@ -412,10 +412,10 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                 v4f32 _w1 = (v4f32)__lsx_vld(kptr + 4, 0);
                 v4f32 _w2 = (v4f32)__lsx_vld(kptr + 8, 0);
                 v4f32 _w3 = (v4f32)__lsx_vld(kptr + 12, 0);
-                _sum0 = __lsx_vfmadd_s(_sum0, (v4f32)__lsx_vreplvei_w(_val, 0), _w0);
-                _sum1 = __lsx_vfmadd_s(_sum1, (v4f32)__lsx_vreplvei_w(_val, 1), _w1);
-                _sum2 = __lsx_vfmadd_s(_sum2, (v4f32)__lsx_vreplvei_w(_val, 2), _w2);
-                _sum3 = __lsx_vfmadd_s(_sum3, (v4f32)__lsx_vreplvei_w(_val, 3), _w3);
+                _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val, 0), _sum0);
+                _sum1 = __lsx_vfmadd_s(_w1, (v4f32)__lsx_vreplvei_w(_val, 1), _sum1);
+                _sum2 = __lsx_vfmadd_s(_w2, (v4f32)__lsx_vreplvei_w(_val, 2), _sum2);
+                _sum3 = __lsx_vfmadd_s(_w3, (v4f32)__lsx_vreplvei_w(_val, 3), _sum3);
 
                 sptr += 4;
                 kptr += 16;
@@ -424,7 +424,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
             {
                 v4f32 _val = __lsx_vreplfr2vr_s(sptr[0]);
                 v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
-                _sum0 = __lsx_vfmadd_s(_sum0, _val, _w);
+                _sum0 = __lsx_vfmadd_s(_w, _val, _sum0);
 
                 sptr += 1;
                 kptr += 4;
@@ -490,10 +490,10 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                 v4f32 _w1 = (v4f32)__lsx_vld(w1, 0);
                 v4f32 _w2 = (v4f32)__lsx_vld(w2, 0);
                 v4f32 _w3 = (v4f32)__lsx_vld(w3, 0);
-                _sum0 = __lsx_vfmadd_s(_sum0, _m, _w0);
-                _sum1 = __lsx_vfmadd_s(_sum1, _m, _w1);
-                _sum2 = __lsx_vfmadd_s(_sum2, _m, _w2);
-                _sum3 = __lsx_vfmadd_s(_sum3, _m, _w3);
+                _sum0 = __lsx_vfmadd_s(_w0, _m, _sum0);
+                _sum1 = __lsx_vfmadd_s(_w1, _m, _sum1);
+                _sum2 = __lsx_vfmadd_s(_w2, _m, _sum2);
+                _sum3 = __lsx_vfmadd_s(_w3, _m, _sum3);
 
                 m += 4;
                 w0 += 4;
@@ -556,7 +556,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                 __builtin_prefetch(w + 16);
                 v4f32 _m = (v4f32)__lsx_vld(m, 0);
                 v4f32 _w = (v4f32)__lsx_vld(w, 0);
-                _sum0 = __lsx_vfmadd_s(_sum0, _m, _w);
+                _sum0 = __lsx_vfmadd_s(_w, _m, _sum0);
 
                 m += 4;
                 w += 4;
@@ -716,10 +716,10 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         __builtin_prefetch(kptr + 16);
                         v4f32 _val = (v4f32)__lsx_vld(m, 0);
                         __m128i _w = (__m128i)__lsx_vfcvtl_s_h(__lsx_vld(kptr, 0));
-                        _sum0 = __lsx_vfmadd_s(_sum0, _val, (v4f32)__lsx_vreplvei_w(_w, 0));
-                        _sum1 = __lsx_vfmadd_s(_sum1, _val, (v4f32)__lsx_vreplvei_w(_w, 1));
-                        _sum2 = __lsx_vfmadd_s(_sum2, _val, (v4f32)__lsx_vreplvei_w(_w, 2));
-                        _sum3 = __lsx_vfmadd_s(_sum3, _val, (v4f32)__lsx_vreplvei_w(_w, 3));
+                        _sum0 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w, 0), _val, _sum0);
+                        _sum1 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w, 1), _val, _sum1);
+                        _sum2 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w, 2), _val, _sum2);
+                        _sum3 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w, 3), _val, _sum3);
 
                         m += 4;
                         kptr += 4;
@@ -769,10 +769,10 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         v4f32 _w1 = __lsx_vfcvth_s_h(_w01);
                         v4f32 _w2 = __lsx_vfcvtl_s_h(_w23);
                         v4f32 _w3 = __lsx_vfcvth_s_h(_w23);
-                        _sum0 = __lsx_vfmadd_s(_sum0, (v4f32)__lsx_vreplvei_w(_val, 0), _w0);
-                        _sum1 = __lsx_vfmadd_s(_sum1, (v4f32)__lsx_vreplvei_w(_val, 1), _w1);
-                        _sum2 = __lsx_vfmadd_s(_sum2, (v4f32)__lsx_vreplvei_w(_val, 2), _w2);
-                        _sum3 = __lsx_vfmadd_s(_sum3, (v4f32)__lsx_vreplvei_w(_val, 3), _w3);
+                        _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val, 0), _sum0);
+                        _sum1 = __lsx_vfmadd_s(_w1, (v4f32)__lsx_vreplvei_w(_val, 1), _sum1);
+                        _sum2 = __lsx_vfmadd_s(_w2, (v4f32)__lsx_vreplvei_w(_val, 2), _sum2);
+                        _sum3 = __lsx_vfmadd_s(_w3, (v4f32)__lsx_vreplvei_w(_val, 3), _sum3);
 
                         m += 4;
                         kptr += 16;
@@ -781,7 +781,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                     {
                         v4f32 _val = __lsx_vreplfr2vr_s(m[0]);
                         v4f32 _w = __lsx_vfcvtl_s_h(__lsx_vld(kptr, 0));
-                        _sum0 = __lsx_vfmadd_s(_sum0, _val, _w);
+                        _sum0 = __lsx_vfmadd_s(_w, _val, _sum0);
 
                         m += 1;
                         kptr += 4;
@@ -820,7 +820,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         __builtin_prefetch(kptr + 4);
                         v4f32 _val = (v4f32)__lsx_vld(m, 0);
                         v4f32 _k = __lsx_vreplfr2vr_s(float16_to_float32(kptr[0]));
-                        _sum = __lsx_vfmadd_s(_sum, _val, _k);
+                        _sum = __lsx_vfmadd_s(_k, _val, _sum);
 
                         m += 4;
                         kptr += 1;
@@ -857,7 +857,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                         __builtin_prefetch(kptr + 16);
                         v4f32 _m = (v4f32)__lsx_vld(m, 0);
                         v4f32 _w = __lsx_vfcvtl_s_h(__lsx_vld(kptr, 0));
-                        _sum = __lsx_vfmadd_s(_sum, _m, _w);
+                        _sum = __lsx_vfmadd_s(_w, _m, _sum);
 
                         m += 4;
                         kptr += 4;
@@ -937,10 +937,10 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                 v4f32 _w1 = __lsx_vfcvth_s_h(_w01);
                 v4f32 _w2 = __lsx_vfcvtl_s_h(_w23);
                 v4f32 _w3 = __lsx_vfcvth_s_h(_w23);
-                _sum0 = __lsx_vfmadd_s(_sum0, (v4f32)__lsx_vreplvei_w(_val, 0), _w0);
-                _sum1 = __lsx_vfmadd_s(_sum1, (v4f32)__lsx_vreplvei_w(_val, 1), _w1);
-                _sum2 = __lsx_vfmadd_s(_sum2, (v4f32)__lsx_vreplvei_w(_val, 2), _w2);
-                _sum3 = __lsx_vfmadd_s(_sum3, (v4f32)__lsx_vreplvei_w(_val, 3), _w3);
+                _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val, 0), _sum0);
+                _sum1 = __lsx_vfmadd_s(_w1, (v4f32)__lsx_vreplvei_w(_val, 1), _sum1);
+                _sum2 = __lsx_vfmadd_s(_w2, (v4f32)__lsx_vreplvei_w(_val, 2), _sum2);
+                _sum3 = __lsx_vfmadd_s(_w3, (v4f32)__lsx_vreplvei_w(_val, 3), _sum3);
 
                 sptr += 4;
                 kptr += 16;
@@ -949,7 +949,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
             {
                 v4f32 _val = __lsx_vreplfr2vr_s(sptr[0]);
                 v4f32 _w = __lsx_vfcvtl_s_h(__lsx_vld(kptr, 0));
-                _sum0 = __lsx_vfmadd_s(_sum0, _val, _w);
+                _sum0 = __lsx_vfmadd_s(_w, _val, _sum0);
 
                 sptr += 1;
                 kptr += 4;
@@ -1013,10 +1013,10 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                 v4f32 _w1 = __lsx_vfcvtl_s_h(__lsx_vld(w1, 0));
                 v4f32 _w2 = __lsx_vfcvtl_s_h(__lsx_vld(w2, 0));
                 v4f32 _w3 = __lsx_vfcvtl_s_h(__lsx_vld(w3, 0));
-                _sum0 = __lsx_vfmadd_s(_sum0, _m, _w0);
-                _sum1 = __lsx_vfmadd_s(_sum1, _m, _w1);
-                _sum2 = __lsx_vfmadd_s(_sum2, _m, _w2);
-                _sum3 = __lsx_vfmadd_s(_sum3, _m, _w3);
+                _sum0 = __lsx_vfmadd_s(_w0, _m, _sum0);
+                _sum1 = __lsx_vfmadd_s(_w1, _m, _sum1);
+                _sum2 = __lsx_vfmadd_s(_w2, _m, _sum2);
+                _sum3 = __lsx_vfmadd_s(_w3, _m, _sum3);
 
                 m += 4;
                 w0 += 4;
@@ -1075,7 +1075,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                 __builtin_prefetch(w + 16);
                 v4f32 _m = (v4f32)__lsx_vld(m, 0);
                 v4f32 _w = __lsx_vfcvtl_s_h(__lsx_vld(w, 0));
-                _sum0 = __lsx_vfmadd_s(_sum0, _m, _w);
+                _sum0 = __lsx_vfmadd_s(_w, _m, _sum0);
 
                 m += 4;
                 w += 4;
@@ -1290,14 +1290,14 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                     {
                         v4f32 _bias0 = (v4f32)__lsx_vld((const float*)bias_data + p * 8, 0);
                         v4f32 _bias1 = (v4f32)__lsx_vld((const float*)bias_data + p * 8 + 4, 0);
-                        _sumfp32_00 = __lsx_vfmadd_s(_bias0, _sumfp32_00, _scale_in0);
-                        _sumfp32_01 = __lsx_vfmadd_s(_bias1, _sumfp32_01, _scale_in1);
-                        _sumfp32_10 = __lsx_vfmadd_s(_bias0, _sumfp32_10, _scale_in0);
-                        _sumfp32_11 = __lsx_vfmadd_s(_bias1, _sumfp32_11, _scale_in1);
-                        _sumfp32_20 = __lsx_vfmadd_s(_bias0, _sumfp32_20, _scale_in0);
-                        _sumfp32_21 = __lsx_vfmadd_s(_bias1, _sumfp32_21, _scale_in1);
-                        _sumfp32_30 = __lsx_vfmadd_s(_bias0, _sumfp32_30, _scale_in0);
-                        _sumfp32_31 = __lsx_vfmadd_s(_bias1, _sumfp32_31, _scale_in1);
+                        _sumfp32_00 = __lsx_vfmadd_s(_scale_in0, _sumfp32_00, _bias0);
+                        _sumfp32_01 = __lsx_vfmadd_s(_scale_in1, _sumfp32_01, _bias1);
+                        _sumfp32_10 = __lsx_vfmadd_s(_scale_in0, _sumfp32_10, _bias0);
+                        _sumfp32_11 = __lsx_vfmadd_s(_scale_in1, _sumfp32_11, _bias1);
+                        _sumfp32_20 = __lsx_vfmadd_s(_scale_in0, _sumfp32_20, _bias0);
+                        _sumfp32_21 = __lsx_vfmadd_s(_scale_in1, _sumfp32_21, _bias1);
+                        _sumfp32_30 = __lsx_vfmadd_s(_scale_in0, _sumfp32_30, _bias0);
+                        _sumfp32_31 = __lsx_vfmadd_s(_scale_in1, _sumfp32_31, _bias1);
                     }
                     else
                     {
@@ -1453,8 +1453,8 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                     {
                         v4f32 _bias0 = (v4f32)__lsx_vld((const float*)bias_data + p * 8, 0);
                         v4f32 _bias1 = (v4f32)__lsx_vld((const float*)bias_data + p * 8 + 4, 0);
-                        _sumfp32_0 = __lsx_vfmadd_s(_bias0, _sumfp32_0, _scale_in0);
-                        _sumfp32_1 = __lsx_vfmadd_s(_bias1, _sumfp32_1, _scale_in1);
+                        _sumfp32_0 = __lsx_vfmadd_s(_scale_in0, _sumfp32_0, _bias0);
+                        _sumfp32_1 = __lsx_vfmadd_s(_scale_in1, _sumfp32_1, _bias1);
                     }
                     else
                     {
@@ -1576,8 +1576,8 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
             {
                 v4f32 _bias0 = (v4f32)__lsx_vld((const float*)bias_data + p * 8, 0);
                 v4f32 _bias1 = (v4f32)__lsx_vld((const float*)bias_data + p * 8 + 4, 0);
-                _sumfp32_0 = __lsx_vfmadd_s(_bias0, _sumfp32_0, _scale_in0);
-                _sumfp32_1 = __lsx_vfmadd_s(_bias1, _sumfp32_1, _scale_in1);
+                _sumfp32_0 = __lsx_vfmadd_s(_scale_in0, _sumfp32_0, _bias0);
+                _sumfp32_1 = __lsx_vfmadd_s(_scale_in1, _sumfp32_1, _bias1);
             }
             else
             {

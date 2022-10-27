@@ -73,7 +73,7 @@ static void convolution_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, cons
                     {
                         v4f32 _val = __lsx_vreplfr2vr_s(sptr[space_ofs[k]]);
                         v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
-                        _sum = __lsx_vfmadd_s(_sum, _val, _w);
+                        _sum = __lsx_vfmadd_s(_w, _val, _sum);
 
                         kptr += 4;
                     }

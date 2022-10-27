@@ -266,7 +266,7 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
 
                                     v4f32 _val = (v4f32)__lsx_vld(sptr, 0);
                                     v4f32 _w = (v4f32)__lsx_vld(kptr + k * 4, 0);
-                                    _sum = __lsx_vfmadd_s(_sum, _val, _w);
+                                    _sum = __lsx_vfmadd_s(_w, _val, _sum);
                                 }
                             }
 

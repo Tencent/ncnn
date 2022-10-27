@@ -138,14 +138,14 @@ static void requantize_leakyrelu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob
                 v4f32 _v5 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 20, 0));
                 v4f32 _v6 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 24, 0));
                 v4f32 _v7 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 28, 0));
-                _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale0);
-                _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale1);
-                _v2 = __lsx_vfmadd_s(_bias0, _v2, _scale0);
-                _v3 = __lsx_vfmadd_s(_bias1, _v3, _scale1);
-                _v4 = __lsx_vfmadd_s(_bias0, _v4, _scale0);
-                _v5 = __lsx_vfmadd_s(_bias1, _v5, _scale1);
-                _v6 = __lsx_vfmadd_s(_bias0, _v6, _scale0);
-                _v7 = __lsx_vfmadd_s(_bias1, _v7, _scale1);
+                _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
+                _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
+                _v2 = __lsx_vfmadd_s(_scale0, _v2, _bias0);
+                _v3 = __lsx_vfmadd_s(_scale1, _v3, _bias1);
+                _v4 = __lsx_vfmadd_s(_scale0, _v4, _bias0);
+                _v5 = __lsx_vfmadd_s(_scale1, _v5, _bias1);
+                _v6 = __lsx_vfmadd_s(_scale0, _v6, _bias0);
+                _v7 = __lsx_vfmadd_s(_scale1, _v7, _bias1);
                 *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
                 *((int64_t*)(ptr + 8)) = float2int8leakyrelu(_v2, _v3, _slope);
                 *((int64_t*)(ptr + 16)) = float2int8leakyrelu(_v4, _v5, _slope);
@@ -161,10 +161,10 @@ static void requantize_leakyrelu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob
                 v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                 v4f32 _v2 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
                 v4f32 _v3 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
-                _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale0);
-                _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale1);
-                _v2 = __lsx_vfmadd_s(_bias0, _v2, _scale0);
-                _v3 = __lsx_vfmadd_s(_bias1, _v3, _scale1);
+                _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
+                _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
+                _v2 = __lsx_vfmadd_s(_scale0, _v2, _bias0);
+                _v3 = __lsx_vfmadd_s(_scale1, _v3, _bias1);
                 *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
                 *((int64_t*)(ptr + 8)) = float2int8leakyrelu(_v2, _v3, _slope);
 
@@ -176,8 +176,8 @@ static void requantize_leakyrelu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob
                 __builtin_prefetch(intptr + 32);
                 v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
                 v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale0);
-                _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale1);
+                _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
+                _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                 *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
 
                 intptr += 8;

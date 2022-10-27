@@ -57,7 +57,7 @@ static inline v4f32 activation_ps(v4f32 _v, int activation_type, const ncnn::Mat
         v4f32 _beta = (v4f32)__lsx_vreplfr2vr_s(activation_params[1]);
         v4f32 _zero = (v4f32)__lsx_vreplgr2vr_w(0);
         v4f32 _one = (v4f32)__lsx_vreplfr2vr_s(1.f);
-        v4f32 _outp = __lsx_vfmadd_s(_beta, _v, _alpha);
+        v4f32 _outp = __lsx_vfmadd_s(_alpha, _v, _beta);
         _outp = __lsx_vfmax_s(_outp, _zero);
         _outp = __lsx_vfmin_s(_outp, _one);
         _v = __lsx_vfmul_s(_outp, _v);

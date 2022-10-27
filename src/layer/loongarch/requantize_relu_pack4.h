@@ -130,14 +130,14 @@ static void requantize_relu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, con
                     v4f32 _v11 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 4, 0));
                     v4f32 _v12 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 8, 0));
                     v4f32 _v13 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 12, 0));
-                    _v00 = __lsx_vfmadd_s(_bias0, _v00, _scale0);
-                    _v01 = __lsx_vfmadd_s(_bias0, _v01, _scale0);
-                    _v02 = __lsx_vfmadd_s(_bias0, _v02, _scale0);
-                    _v03 = __lsx_vfmadd_s(_bias0, _v03, _scale0);
-                    _v10 = __lsx_vfmadd_s(_bias1, _v10, _scale1);
-                    _v11 = __lsx_vfmadd_s(_bias1, _v11, _scale1);
-                    _v12 = __lsx_vfmadd_s(_bias1, _v12, _scale1);
-                    _v13 = __lsx_vfmadd_s(_bias1, _v13, _scale1);
+                    _v00 = __lsx_vfmadd_s(_scale0, _v00, _bias0);
+                    _v01 = __lsx_vfmadd_s(_scale0, _v01, _bias0);
+                    _v02 = __lsx_vfmadd_s(_scale0, _v02, _bias0);
+                    _v03 = __lsx_vfmadd_s(_scale0, _v03, _bias0);
+                    _v10 = __lsx_vfmadd_s(_scale1, _v10, _bias1);
+                    _v11 = __lsx_vfmadd_s(_scale1, _v11, _bias1);
+                    _v12 = __lsx_vfmadd_s(_scale1, _v12, _bias1);
+                    _v13 = __lsx_vfmadd_s(_scale1, _v13, _bias1);
                     *((int64_t*)ptr) = float2int8relu(_v00, _v10);
                     *((int64_t*)(ptr + 8)) = float2int8relu(_v01, _v11);
                     *((int64_t*)(ptr + 16)) = float2int8relu(_v02, _v12);
@@ -155,10 +155,10 @@ static void requantize_relu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, con
                     v4f32 _v01 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0 + 4, 0));
                     v4f32 _v10 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
                     v4f32 _v11 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 4, 0));
-                    _v00 = __lsx_vfmadd_s(_bias0, _v00, _scale0);
-                    _v01 = __lsx_vfmadd_s(_bias0, _v01, _scale0);
-                    _v10 = __lsx_vfmadd_s(_bias1, _v10, _scale1);
-                    _v11 = __lsx_vfmadd_s(_bias1, _v11, _scale1);
+                    _v00 = __lsx_vfmadd_s(_scale0, _v00, _bias0);
+                    _v01 = __lsx_vfmadd_s(_scale0, _v01, _bias0);
+                    _v10 = __lsx_vfmadd_s(_scale1, _v10, _bias1);
+                    _v11 = __lsx_vfmadd_s(_scale1, _v11, _bias1);
                     *((int64_t*)ptr) = float2int8relu(_v00, _v10);
                     *((int64_t*)(ptr + 8)) = float2int8relu(_v01, _v11);
 
@@ -172,8 +172,8 @@ static void requantize_relu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, con
                     __builtin_prefetch(intptr1 + 16);
                     v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
                     v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                    _v0 = __lsx_vfmadd_s(_bias0, _v0, _scale0);
-                    _v1 = __lsx_vfmadd_s(_bias1, _v1, _scale1);
+                    _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
+                    _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                     *((int64_t*)ptr) = float2int8relu(_v0, _v1);
 
                     intptr0 += 4;
@@ -247,7 +247,7 @@ static void requantize_relu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, con
                 {
                     __builtin_prefetch(intptr + 16);
                     v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                    _v = __lsx_vfmadd_s(_bias, _v, _scale);
+                    _v = __lsx_vfmadd_s(_scale, _v, _bias);
                     __m128i v = float2int8relu(_v);
 					vp = (signed char *)&v;
                     ptr0[0] = vp[0];

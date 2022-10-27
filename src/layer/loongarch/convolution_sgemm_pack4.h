@@ -300,18 +300,18 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
                 __m128i _val4567 = __lsx_vld(tmpptr + 4, 0);
                 __m128i _val89ab = __lsx_vld(tmpptr + 8, 0);
                 v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
-                _sum0 = __lsx_vfmadd_s(_sum0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _w0);
-                _sum1 = __lsx_vfmadd_s(_sum1, (v4f32)__lsx_vreplvei_w(_val0123, 1), _w0);
-                _sum2 = __lsx_vfmadd_s(_sum2, (v4f32)__lsx_vreplvei_w(_val0123, 2), _w0);
-                _sum3 = __lsx_vfmadd_s(_sum3, (v4f32)__lsx_vreplvei_w(_val0123, 3), _w0);
-                _sum4 = __lsx_vfmadd_s(_sum4, (v4f32)__lsx_vreplvei_w(_val4567, 0), _w0);
-                _sum5 = __lsx_vfmadd_s(_sum5, (v4f32)__lsx_vreplvei_w(_val4567, 1), _w0);
-                _sum6 = __lsx_vfmadd_s(_sum6, (v4f32)__lsx_vreplvei_w(_val4567, 2), _w0);
-                _sum7 = __lsx_vfmadd_s(_sum7, (v4f32)__lsx_vreplvei_w(_val4567, 3), _w0);
-                _sum8 = __lsx_vfmadd_s(_sum8, (v4f32)__lsx_vreplvei_w(_val89ab, 0), _w0);
-                _sum9 = __lsx_vfmadd_s(_sum9, (v4f32)__lsx_vreplvei_w(_val89ab, 1), _w0);
-                _suma = __lsx_vfmadd_s(_suma, (v4f32)__lsx_vreplvei_w(_val89ab, 2), _w0);
-                _sumb = __lsx_vfmadd_s(_sumb, (v4f32)__lsx_vreplvei_w(_val89ab, 3), _w0);
+                _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _sum0);
+                _sum1 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 1), _sum1);
+                _sum2 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 2), _sum2);
+                _sum3 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 3), _sum3);
+                _sum4 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 0), _sum4);
+                _sum5 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 1), _sum5);
+                _sum6 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 2), _sum6);
+                _sum7 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 3), _sum7);
+                _sum8 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val89ab, 0), _sum8);
+                _sum9 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val89ab, 1), _sum9);
+                _suma = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val89ab, 2), _suma);
+                _sumb = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val89ab, 3), _sumb);
 
                 tmpptr += 12;
                 kptr0 += 4;
@@ -355,14 +355,14 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
                 __m128i _val0123 = __lsx_vld(tmpptr, 0);
                 __m128i _val4567 = __lsx_vld(tmpptr + 4, 0);
                 v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
-                _sum0 = __lsx_vfmadd_s(_sum0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _w0);
-                _sum1 = __lsx_vfmadd_s(_sum1, (v4f32)__lsx_vreplvei_w(_val0123, 1), _w0);
-                _sum2 = __lsx_vfmadd_s(_sum2, (v4f32)__lsx_vreplvei_w(_val0123, 2), _w0);
-                _sum3 = __lsx_vfmadd_s(_sum3, (v4f32)__lsx_vreplvei_w(_val0123, 3), _w0);
-                _sum4 = __lsx_vfmadd_s(_sum4, (v4f32)__lsx_vreplvei_w(_val4567, 0), _w0);
-                _sum5 = __lsx_vfmadd_s(_sum5, (v4f32)__lsx_vreplvei_w(_val4567, 1), _w0);
-                _sum6 = __lsx_vfmadd_s(_sum6, (v4f32)__lsx_vreplvei_w(_val4567, 2), _w0);
-                _sum7 = __lsx_vfmadd_s(_sum7, (v4f32)__lsx_vreplvei_w(_val4567, 3), _w0);
+                _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _sum0);
+                _sum1 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 1), _sum1);
+                _sum2 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 2), _sum2);
+                _sum3 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 3), _sum3);
+                _sum4 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 0), _sum4);
+                _sum5 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 1), _sum5);
+                _sum6 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 2), _sum6);
+                _sum7 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 3), _sum7);
 
                 tmpptr += 8;
                 kptr0 += 4;
@@ -397,10 +397,10 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
                 __builtin_prefetch(kptr0 + 16);
                 __m128i _val0123 = __lsx_vld(tmpptr, 0);
                 v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
-                _sum0 = __lsx_vfmadd_s(_sum0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _w0);
-                _sum1 = __lsx_vfmadd_s(_sum1, (v4f32)__lsx_vreplvei_w(_val0123, 1), _w0);
-                _sum2 = __lsx_vfmadd_s(_sum2, (v4f32)__lsx_vreplvei_w(_val0123, 2), _w0);
-                _sum3 = __lsx_vfmadd_s(_sum3, (v4f32)__lsx_vreplvei_w(_val0123, 3), _w0);
+                _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _sum0);
+                _sum1 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 1), _sum1);
+                _sum2 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 2), _sum2);
+                _sum3 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 3), _sum3);
 
                 tmpptr += 4;
                 kptr0 += 4;
@@ -430,8 +430,8 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
                 v4f32 _val0 = __lsx_vreplfr2vr_s(*tmpptr++);
                 v4f32 _val1 = __lsx_vreplfr2vr_s(*tmpptr++);
                 v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
-                _sum0 = __lsx_vfmadd_s(_sum0, _val0, _w0);
-                _sum1 = __lsx_vfmadd_s(_sum1, _val1, _w0);
+                _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
+                _sum1 = __lsx_vfmadd_s(_w0, _val1, _sum1);
 
                 kptr0 += 4;
             }
@@ -456,7 +456,7 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
                 __builtin_prefetch(kptr0 + 16);
                 v4f32 _val0 = __lsx_vreplfr2vr_s(*tmpptr++);
                 v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
-                _sum = __lsx_vfmadd_s(_sum, _val0, _w0);
+                _sum = __lsx_vfmadd_s(_w0, _val0, _sum);
 
                 kptr0 += 4;
             }

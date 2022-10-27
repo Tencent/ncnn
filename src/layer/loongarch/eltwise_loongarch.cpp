@@ -203,7 +203,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
                     v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
                     v4f32 _p1 = (v4f32)__lsx_vld(ptr1, 0);
                     _p = __lsx_vfmul_s(_p, _coeff0);
-                    _p = __lsx_vfmadd_s(_p, _p1, _coeff1);
+                    _p = __lsx_vfmadd_s(_coeff1, _p1, _p);
                     __lsx_vst((__m128i)_p, outptr, 0);
 
                     ptr += 4;
@@ -240,7 +240,7 @@ int Eltwise_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector
                     {
                         v4f32 _p = (v4f32)__lsx_vld(outptr, 0);
                         v4f32 _p1 = (v4f32)__lsx_vld(ptr, 0);
-                        _p = __lsx_vfmadd_s(_p, _p1, _coeff);
+                        _p = __lsx_vfmadd_s(_coeff, _p1, _p);
                         __lsx_vst((__m128i)_p, outptr, 0);
 
                         ptr += 4;

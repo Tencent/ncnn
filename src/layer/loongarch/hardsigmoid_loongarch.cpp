@@ -53,7 +53,7 @@ int HardSigmoid_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& o
         {
             __builtin_prefetch(ptr + 16);
             v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
-            _p = __lsx_vfmadd_s(_beta, _p, _alpha);
+            _p = __lsx_vfmadd_s(_alpha, _p, _beta);
             _p = __lsx_vfmax_s(_p, _zero);
             _p = __lsx_vfmin_s(_p, _one);
             __lsx_vst((__m128i)_p, ptr, 0);
