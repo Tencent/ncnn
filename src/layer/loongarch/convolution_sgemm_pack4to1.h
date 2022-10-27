@@ -409,6 +409,7 @@ static void im2col_sgemm_pack4to1_lsx(const Mat& bottom_im2col, Mat& top_blob, c
             int nn = inch * maxk * 4; // inch always > 0
 
             v4f32 _sum = (v4f32)__lsx_vld(biasptr, 0);
+            float *_sum_p = (float *)&_sum;
 
             for (int j = 0; j < nn; j++)
             {
@@ -421,10 +422,10 @@ static void im2col_sgemm_pack4to1_lsx(const Mat& bottom_im2col, Mat& top_blob, c
                 kptr0 += 4;
             }
 
-            outptr0[0] = _sum[0];
-            outptr1[0] = _sum[1];
-            outptr2[0] = _sum[2];
-            outptr3[0] = _sum[3];
+            outptr0[0] = _sum_p[0];
+            outptr1[0] = _sum_p[1];
+            outptr2[0] = _sum_p[2];
+            outptr3[0] = _sum_p[3];
 
             outptr0 += 1;
             outptr1 += 1;

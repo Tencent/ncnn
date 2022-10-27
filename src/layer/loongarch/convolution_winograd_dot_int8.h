@@ -512,8 +512,8 @@ static void convolution_winograd_dot_int8_lsx(Mat& bottom_blob_tm, int outch, co
                         k0 += 4;
                     }
 
-                    sum0 = _sum0[0] + _sum0[1] + _sum0[2] + _sum0[3];
-                    sum1 = _sum1[0] + _sum1[1] + _sum1[2] + _sum1[3];
+                    sum0 = __lsx_reduce_add_w(_sum0);
+                    sum1 = __lsx_reduce_add_w(_sum1);
                 }
 #else  // __loongarch_sx
                 int nn1 = inch;
@@ -569,7 +569,7 @@ static void convolution_winograd_dot_int8_lsx(Mat& bottom_blob_tm, int outch, co
                         k0 += 4;
                     }
 
-                    sum = _sum[0] + _sum[1] + _sum[2] + _sum[3];
+                    sum = __lsx_reduce_add_w(_sum);
                 }
 #else  // __loongarch_sx
                 int nn1 = inch;

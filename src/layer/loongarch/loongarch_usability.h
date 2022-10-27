@@ -48,13 +48,15 @@ static NCNN_FORCEINLINE v4f32 __lsx_vreplfr2vr_s(float val)
 static NCNN_FORCEINLINE float __lsx_reduce_fadd_s(v4f32 _v)
 {
     // TODO find a more efficient way
-    return _v[0] + _v[1] + _v[2] + _v[3];
+	float *_v_p = (float *)&_v;
+    return _v_p[0] + _v_p[1] + _v_p[2] + _v_p[3];
 }
 
 static NCNN_FORCEINLINE int __lsx_reduce_add_w(__m128i _v)
 {
     // TODO find a more efficient way
-    return _v[0] + _v[1] + _v[2] + _v[3];
+	int *_v_p = (int *)&_v;
+    return _v_p[0] + _v_p[1] + _v_p[2] + _v_p[3];
 }
 
 #endif // __loongarch_sx
@@ -108,7 +110,7 @@ static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
     __m128i _v16 = (__m128i)__lsx_vpickev_h(_vhigh32_16, _vlow32_16);
     _v16 = (__m128i)__lsx_vmax_h((__m128i)_v16, __lsx_vreplgr2vr_h(-127));
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
-    __m128i _v8 = (__m128i)__lsx_vpickev_b(_v16_8, _v16_8);
+    v2i64 _v8 = (v2i64)__lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }
@@ -153,7 +155,7 @@ static NCNN_FORCEINLINE int64_t float2int8relu(v4f32 _vlow, v4f32 _vhigh)
     __m128i _v16 = __lsx_vpickev_h(_vhigh32_16, _vlow32_16);
     _v16 = __lsx_vmaxi_h(_v16, 0);
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
-    __m128i _v8 = (__m128i)__lsx_vpickev_b(_v16_8, _v16_8);
+    v2i64 _v8 = (v2i64)__lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }
@@ -226,7 +228,7 @@ static NCNN_FORCEINLINE int64_t float2int8leakyrelu(v4f32 _vlow, v4f32 _vhigh, v
 
     _v16 = __lsx_vmax_h(_v16, _v16_leaky);
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
-    __m128i _v8 = (__m128i)__lsx_vpickev_b(_v16_8, _v16_8);
+    v2i64 _v8 = (v2i64)__lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }
