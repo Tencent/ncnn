@@ -127,7 +127,107 @@ struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
         return std::make_tuple(nw, ne, sw, se);
     }
 
-        inline int forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
+    inline int forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
+    {
+        const int dims = input.dims;
+        const int w = input.w;
+        const int h = input.h;
+        const int outW = grid.h;
+        const int outH = grid.c;
+        const int channels = input.c;
+
+        if (dims == 3)
+        {
+            output.create(outW, outH, input.c);
+#pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* output_ptr = static_cast<float*>(output.channel(q).data);
+
+                const Mat image = input.channel(q);
+
+                //const float* gxy_ptr = static_cast<float*>(grid.data);
+
+                for (int y = 0; y < outH; y++)
+                {
+                    for (int x = 0; x < outW; x++)
+                    {
+                        const float* gxy_ptr = grid.channel(y).row(x);
+                        auto gx = grid_sampler_compute_source_index(gxy_ptr[0], w, padding, align_corners);
+                        auto gy = grid_sampler_compute_source_index(gxy_ptr[1], h, padding, align_corners);
+
+                        auto interp_params = compute_interp_params_d3(gx, gy);
+
+
+                        auto nw = std::get<0>(interp_params);
+                        auto ne = std::get<1>(interp_params);
+                        auto sw = std::get<2>(interp_params);
+                        auto se = std::get<3>(interp_params);
+
+                        auto i_x = static_cast<int>(std::floor(gx));
+                        auto i_y = static_cast<int>(std::floor(gy));
+
+                        float v = 0.0f;
+                        if (must_in_bound)
+                        {
+                            //out of range, val is 0 https://github.com/pytorch/pytorch/blob/435e78e5237d9fb3e433fff6ce028569db937264/aten/src/ATen/native/cpu/GridSamplerKernel.cpp#L520
+                            auto nw_val = image.row(i_y)[i_x];
+                            auto ne_val = i_x + 1 < w ? image.row(i_y)[i_x + 1] : 0;
+                            auto sw_val = i_y + 1 < h ? image.row(i_y + 1)[i_x] : 0;
+                            auto se_val = ((i_x + 1 < w) & (i_y + 1 < h)) ? image.row(i_y + 1)[i_x + 1] : 0;
+
+                            v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
+                        }
+                        else //PaddingMode::Zeors
+                        {
+                            auto x0 = i_x;
+                            auto x1 = i_x + 1;
+                            auto y0 = i_y;
+                            auto y1 = i_y + 1;
+
+                            auto x0_in_range = (x0 > -1) & (x0 < w);
+                            auto x1_in_range = (x1 > -1) & (x1 < w);
+                            auto y0_in_range = (y0 > -1) & (y0 < h);
+                            auto y1_in_range = (y1 > -1) & (y1 < h);
+
+                            auto v00_in_range = x0_in_range & y0_in_range;
+                            auto v01_in_range = x0_in_range & y1_in_range;
+                            auto v10_in_range = x1_in_range & y0_in_range;
+                            auto v11_in_range = x1_in_range & y1_in_range;
+
+                            auto nw_val = v00_in_range ? image.row(y0)[x0] : 0;
+                            auto ne_val = v10_in_range ? image.row(y0)[x1] : 0;
+                            auto sw_val = v01_in_range ? image.row(y1)[x0] : 0;
+                            auto se_val = v11_in_range ? image.row(y1)[x1] : 0;
+
+                            v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
+                        }
+
+
+
+                        *output_ptr = v;
+
+                        output_ptr++;
+                    }
+                }
+            }
+        }
+        else if (dims == 4)
+        {
+
+        }
+        else
+        {
+            return -100;
+        }
+    }
+};
+
+    template<PaddingMode padding, bool align_corners>
+    struct ApplyGridSample<InterpolationMode::Nearest, padding, align_corners>
+    {
+        const bool must_in_bound = padding != PaddingMode::Zeros;
+        inline void forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
         {
             const int dims = input.dims;
             const int w = input.w;
@@ -144,7 +244,7 @@ struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
                 {
                     float* output_ptr = static_cast<float*>(output.channel(q).data);
 
-                const Mat image = input.channel(q);
+                    const Mat image = input.channel(q);
 
                     //const float* gxy_ptr = static_cast<float*>(grid.data);
 
@@ -156,59 +256,18 @@ struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
                             auto gx = grid_sampler_compute_source_index(gxy_ptr[0], w, padding, align_corners);
                             auto gy = grid_sampler_compute_source_index(gxy_ptr[1], h, padding, align_corners);
 
-                        auto interp_params = compute_interp_params_d3(gx, gy);
+                            auto x_nearest = static_cast<int>(std::round(gx));
+                            auto y_nearest = static_cast<int>(std::round(gy));
 
-
-                            auto nw = std::get<0>(interp_params);
-                            auto ne = std::get<1>(interp_params);
-                            auto sw = std::get<2>(interp_params);
-                            auto se = std::get<3>(interp_params);
-
-                        auto i_x = static_cast<int>(std::floor(gx));
-                        auto i_y = static_cast<int>(std::floor(gy));
-
-                            float v = 0.0f;
-                            if (must_in_bound)
+                            float v = image.row(y_nearest)[x_nearest];
+                            if (!must_in_bound)
                             {
-                                //out of range, val is 0 https://github.com/pytorch/pytorch/blob/435e78e5237d9fb3e433fff6ce028569db937264/aten/src/ATen/native/cpu/GridSamplerKernel.cpp#L520
-                                auto nw_val = image.row(i_y)[i_x];
-                                auto ne_val = i_x + 1 < w ? image.row(i_y)[i_x + 1] : 0;
-                                auto sw_val = i_y + 1 < h ? image.row(i_y + 1)[i_x] : 0;
-                                auto se_val = ((i_x + 1 < w) & (i_y + 1 < h)) ? image.row(i_y + 1)[i_x + 1] : 0;
-
-                            v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
-                        }
-                        else //PaddingMode::Zeors
-                        {
-                            auto x0 = i_x;
-                            auto x1 = i_x + 1;
-                            auto y0 = i_y;
-                            auto y1 = i_y + 1;
-
-                                auto x0_in_range = (x0 > -1) & (x0 < w);
-                                auto x1_in_range = (x1 > -1) & (x1 < w);
-                                auto y0_in_range = (y0 > -1) & (y0 < h);
-                                auto y1_in_range = (y1 > -1) & (y1 < h);
-
-                            auto v00_in_range = x0_in_range & y0_in_range;
-                            auto v01_in_range = x0_in_range & y1_in_range;
-                            auto v10_in_range = x1_in_range & y0_in_range;
-                            auto v11_in_range = x1_in_range & y1_in_range;
-
-                                auto nw_val = v00_in_range ? image.row(y0)[x0] : 0;
-                                auto ne_val = v10_in_range ? image.row(y0)[x1] : 0;
-                                auto sw_val = v01_in_range ? image.row(y1)[x0] : 0;
-                                auto se_val = v11_in_range ? image.row(y1)[x1] : 0;
-
-                            v = nw_val * nw + ne_val * ne + sw_val * sw + se_val * se;
-                        }
-
-
+                                v = ((x_nearest < w) & (x_nearest > -1) & (y_nearest < h) & (y_nearest > -1)) ? v : 0;
+                            }
 
                             *output_ptr = v;
 
                             output_ptr++;
-                            gxy_ptr += 2;
                         }
                     }
                 }
@@ -219,17 +278,8 @@ struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
             }
             else
             {
-                return -100;
+
             }
-        }
-    };
-
-    template<PaddingMode padding, bool align_corners>
-    struct ApplyGridSample<InterpolationMode::Nearest, padding, align_corners>
-    {
-        inline void forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
-        {
-
         }
     };
 
