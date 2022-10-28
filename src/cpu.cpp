@@ -1362,25 +1362,37 @@ static int get_max_freq_khz(int cpuid)
     return max_freq_khz;
 }
 
-static int get_thread_siblings_list_count(int cpuid)
+static bool is_smt_cpu(int cpuid)
 {
+    // https://github.com/torvalds/linux/blob/v6.0/Documentation/ABI/stable/sysfs-devices-system-cpu#L68-72
     char path[256];
-    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
+    sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/core_cpus_list", cpuid);
 
     FILE* fp = fopen(path, "rb");
-    if (!fp)
-        return 1;
 
-    int count = 1;
+    if (!fp)
+    {
+        sprintf(path, "/sys/devices/system/cpu/cpu%d/topology/thread_siblings_list", cpuid);
+        fp = fopen(path, "rb");
+
+        if (!fp)
+            return false;
+    }
+
+    bool is_smt = false;
     while (!feof(fp))
     {
-        if (fgetc(fp) == ',')
-            count++;
+        char ch = fgetc(fp);
+        if (ch == ',' || ch == '-')
+        {
+            is_smt = true;
+            break;
+        }
     }
 
     fclose(fp);
 
-    return count;
+    return is_smt;
 }
 
 static int set_sched_affinity(const CpuSet& thread_affinity_mask)
@@ -1501,7 +1513,7 @@ static int setup_thread_affinity_masks()
 
     for (int i = 0; i < g_cpucount; i++)
     {
-        if (get_thread_siblings_list_count(i) > 1)
+        if (is_smt_cpu(i))
         {
             // always treat smt core as big core
             g_thread_affinity_mask_big.enable(i);
