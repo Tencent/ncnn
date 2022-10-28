@@ -596,14 +596,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20221026
+        cacheKey: qemu-riscv64-install-20220831
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: 344744e148e6e865f5a57e745b02a87e5ea534ad
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -671,14 +671,14 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: qemu-install
-        cacheKey: qemu-riscv64-install-20221026
+        cacheKey: qemu-riscv64-install-20220831
 
     - name: checkout-qemu
       if: steps.cache-qemu.outputs.cacheHit != 'true'
       checkout: https://github.com/qemu/qemu.git
       with:
         pullType: COMMIT_ID
-        refName: 344744e148e6e865f5a57e745b02a87e5ea534ad
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
         localPath: qemu
         enableSubmodule: false
         enableGitLfs: false
@@ -728,6 +728,9 @@ jobs:
         git submodule update --init --recursive --depth 1 riscv-gdb
         rm -rf riscv-binutils
         git clone -b binutils-2_39-branch https://sourceware.org/git/binutils-gdb.git riscv-binutils
+        cd riscv-gcc
+        git checkout 42df346446308053814cb61601a1470e26ab1cf7
+        cd ..
         sed -i '/__OBSOLETE_MATH/d' newlib/newlib/libm/common/math_errf.c
         ./configure --prefix=${{ci.workspace}}/rv64gcv-install --with-arch=rv64gcv_zfh
         make linux -j$(nproc)
