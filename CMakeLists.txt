@@ -295,13 +295,13 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64|loongarch32)")
 
     include(CheckCXXCompilerFlag)
 
-	check_cxx_compiler_flag("-mlsx" NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
+    check_cxx_compiler_flag("-mlsx" NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
 
-	if(NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
-		option(NCNN_LSX "optimize loongarch platform with lsx extension" ON)
-	else()
-		message(WARNING "The compiler does not support lsx extension. NCNN_LSX will be OFF.")
-	endif()
+    if(NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
+        option(NCNN_LSX "optimize loongarch platform with lsx extension" ON)
+    else()
+        message(WARNING "The compiler does not support lsx extension. NCNN_LSX will be OFF.")
+    endif()
 
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     set(NCNN_TARGET_ARCH riscv)

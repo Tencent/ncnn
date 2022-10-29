@@ -1,8 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+// yala is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2019 Leo <leo@nullptr.com.cn>. All rights reserved.
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 //
+// Copyright (C) 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>. All rights reserved.
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
 //

@@ -1,7 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+// yala is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 //
+// Copyright (C) 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>. All rights reserved.
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
 //
@@ -16,7 +16,7 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
-#include "msa_mathfun.h"
+#include "lsx_mathfun.h"
 #endif // __loongarch_sx
 
 namespace ncnn {
@@ -101,24 +101,24 @@ int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 for (; j + 3 < w; j += 4)
                 {
                     // transpose 4x4
-                    v4f32 _r0 = (v4f32)__lsx_vld(ptr, 0);
-                    v4f32 _r1 = (v4f32)__lsx_vld(ptr + 4, 0);
-                    v4f32 _r2 = (v4f32)__lsx_vld(ptr + 4 * 2, 0);
-                    v4f32 _r3 = (v4f32)__lsx_vld(ptr + 4 * 3, 0);
+                    __m128i _r0 = __lsx_vld(ptr, 0);
+                    __m128i _r1 = __lsx_vld(ptr + 4, 0);
+                    __m128i _r2 = __lsx_vld(ptr + 4 * 2, 0);
+                    __m128i _r3 = __lsx_vld(ptr + 4 * 3, 0);
 
-                    __m128i _r01r = __lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
-                    __m128i _r01l = __lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
-                    __m128i _r23r = __lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
-                    __m128i _r23l = __lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
-                    __m128i _r0123_0 = __lsx_vilvl_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_1 = __lsx_vilvh_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_2 = __lsx_vilvl_d((__m128i)_r23l, (__m128i)_r01l);
-                    __m128i _r0123_3 = __lsx_vilvh_d((__m128i)_r23l, (__m128i)_r01l);
+                    __m128i _r01r = __lsx_vilvl_w(_r1, _r0);
+                    __m128i _r01l = __lsx_vilvh_w(_r1, _r0);
+                    __m128i _r23r = __lsx_vilvl_w(_r3, _r2);
+                    __m128i _r23l = __lsx_vilvh_w(_r3, _r2);
+                    __m128i _r0123_0 = __lsx_vilvl_d(_r23r, _r01r);
+                    __m128i _r0123_1 = __lsx_vilvh_d(_r23r, _r01r);
+                    __m128i _r0123_2 = __lsx_vilvl_d(_r23l, _r01l);
+                    __m128i _r0123_3 = __lsx_vilvh_d(_r23l, _r01l);
 
-                    __lsx_vst((__m128i)_r0123_0, outptr0, 0);
-                    __lsx_vst((__m128i)_r0123_1, outptr1, 0);
-                    __lsx_vst((__m128i)_r0123_2, outptr2, 0);
-                    __lsx_vst((__m128i)_r0123_3, outptr3, 0);
+                    __lsx_vst(_r0123_0, outptr0, 0);
+                    __lsx_vst(_r0123_1, outptr1, 0);
+                    __lsx_vst(_r0123_2, outptr2, 0);
+                    __lsx_vst(_r0123_3, outptr3, 0);
 
                     ptr += 16;
                     outptr0 += 4;
@@ -158,24 +158,24 @@ int Flatten_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 for (; i + 3 < size; i += 4)
                 {
                     // transpose 4x4
-                    v4f32 _r0 = (v4f32)__lsx_vld(ptr, 0);
-                    v4f32 _r1 = (v4f32)__lsx_vld(ptr + 4, 0);
-                    v4f32 _r2 = (v4f32)__lsx_vld(ptr + 4 * 2, 0);
-                    v4f32 _r3 = (v4f32)__lsx_vld(ptr + 4 * 3, 0);
+                    __m128i _r0 = __lsx_vld(ptr, 0);
+                    __m128i _r1 = __lsx_vld(ptr + 4, 0);
+                    __m128i _r2 = __lsx_vld(ptr + 4 * 2, 0);
+                    __m128i _r3 = __lsx_vld(ptr + 4 * 3, 0);
 
-                    __m128i _r01r = __lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
-                    __m128i _r01l = __lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
-                    __m128i _r23r = __lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
-                    __m128i _r23l = __lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
-                    __m128i _r0123_0 = __lsx_vilvl_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_1 = __lsx_vilvh_d((__m128i)_r23r, (__m128i)_r01r);
-                    __m128i _r0123_2 = __lsx_vilvl_d((__m128i)_r23l, (__m128i)_r01l);
-                    __m128i _r0123_3 = __lsx_vilvh_d((__m128i)_r23l, (__m128i)_r01l);
+                    __m128i _r01r = __lsx_vilvl_w(_r1, _r0);
+                    __m128i _r01l = __lsx_vilvh_w(_r1, _r0);
+                    __m128i _r23r = __lsx_vilvl_w(_r3, _r2);
+                    __m128i _r23l = __lsx_vilvh_w(_r3, _r2);
+                    __m128i _r0123_0 = __lsx_vilvl_d(_r23r, _r01r);
+                    __m128i _r0123_1 = __lsx_vilvh_d(_r23r, _r01r);
+                    __m128i _r0123_2 = __lsx_vilvl_d(_r23l, _r01l);
+                    __m128i _r0123_3 = __lsx_vilvh_d(_r23l, _r01l);
 
-                    __lsx_vst((__m128i)_r0123_0, outptr0, 0);
-                    __lsx_vst((__m128i)_r0123_1, outptr1, 0);
-                    __lsx_vst((__m128i)_r0123_2, outptr2, 0);
-                    __lsx_vst((__m128i)_r0123_3, outptr3, 0);
+                    __lsx_vst(_r0123_0, outptr0, 0);
+                    __lsx_vst(_r0123_1, outptr1, 0);
+                    __lsx_vst(_r0123_2, outptr2, 0);
+                    __lsx_vst(_r0123_3, outptr3, 0);
 
                     ptr += 16;
                     outptr0 += 4;

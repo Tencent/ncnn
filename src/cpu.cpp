@@ -159,7 +159,7 @@ static unsigned int get_elf_hwcap_from_proc_self_auxv(unsigned int type)
         return 0;
     }
 
-#if __aarch64__ || __mips64 || __riscv_xlen || __loongarch64
+#if __aarch64__ || __mips64 || __riscv_xlen == 64 || __loongarch64
     struct
     {
         uint64_t tag;
@@ -1019,6 +1019,20 @@ int cpu_support_loongarch_lsx()
     return 0;
 #endif
 }
+
+int cpu_support_loongarch_lasx()
+{
+#if defined __ANDROID__ || defined __linux__
+#if __loongarch64
+    return g_hwcaps & HWCAP_LOONGARCH_LASX;
+#else
+    return 0;
+#endif
+#else
+    return 0;
+#endif
+}
+
 int cpu_support_loongson_mmi()
 {
 #if defined __ANDROID__ || defined __linux__

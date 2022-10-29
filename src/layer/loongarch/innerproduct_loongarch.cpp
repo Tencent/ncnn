@@ -1,7 +1,7 @@
-// Tencent is pleased to support the open source community by making ncnn available.
+// yala is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 //
+// Copyright (C) 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>. All rights reserved.
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
 //
@@ -18,7 +18,7 @@
 
 #if __loongarch_sx
 #include <lsxintrin.h>
-#include "msa_mathfun.h"
+#include "lsx_mathfun.h"
 #endif // __loongarch_sx
 
 #include "loongarch_activation.h"
@@ -203,10 +203,10 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
                     _sum2 = activation_ps(_sum2, activation_type, activation_params);
                     _sum3 = activation_ps(_sum3, activation_type, activation_params);
 
-                    __lsx_vst((__m128i)_sum0, outptr, 0);
-                    __lsx_vst((__m128i)_sum1, outptr + 4, 0);
-                    __lsx_vst((__m128i)_sum2, outptr + 8, 0);
-                    __lsx_vst((__m128i)_sum3, outptr + 12, 0);
+                    __lsx_vst(_sum0, outptr, 0);
+                    __lsx_vst(_sum1, outptr + 4, 0);
+                    __lsx_vst(_sum2, outptr + 8, 0);
+                    __lsx_vst(_sum3, outptr + 12, 0);
                     outptr += 16;
                 }
             }
@@ -264,7 +264,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
 
                     _sum0 = activation_ps(_sum0, activation_type, activation_params);
 
-                    __lsx_vst((__m128i)_sum0, outptr, 0);
+                    __lsx_vst(_sum0, outptr, 0);
                     outptr += 4;
                 }
             }
@@ -299,7 +299,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
 
                     _sum = activation_ps(_sum, activation_type, activation_params);
 
-                    __lsx_vst((__m128i)_sum, outptr, 0);
+                    __lsx_vst(_sum, outptr, 0);
                     outptr += 4;
                 }
             }
@@ -437,7 +437,7 @@ int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const
             _sum0 = activation_ps(_sum0, activation_type, activation_params);
 
             float* outptr = top_blob;
-            __lsx_vst((__m128i)_sum0, outptr + p * 4, 0);
+            __lsx_vst(_sum0, outptr + p * 4, 0);
         }
     }
 #endif // __loongarch_sx
@@ -612,19 +612,19 @@ int InnerProduct_loongarch::create_pipeline_fp16s(const Option& opt)
             for (; p + 3 < num_input; p += 4)
             {
                 // transpose 4x4
-                v4f32 _r0 = (v4f32)__lsx_vld(k0, 0);
-                v4f32 _r1 = (v4f32)__lsx_vld(k1, 0);
-                v4f32 _r2 = (v4f32)__lsx_vld(k2, 0);
-                v4f32 _r3 = (v4f32)__lsx_vld(k3, 0);
+                __m128i _r0 = __lsx_vld(k0, 0);
+                __m128i _r1 = __lsx_vld(k1, 0);
+                __m128i _r2 = __lsx_vld(k2, 0);
+                __m128i _r3 = __lsx_vld(k3, 0);
 
-                __m128i _r01r = __lsx_vilvl_w((__m128i)_r1, (__m128i)_r0);
-                __m128i _r01l = __lsx_vilvh_w((__m128i)_r1, (__m128i)_r0);
-                __m128i _r23r = __lsx_vilvl_w((__m128i)_r3, (__m128i)_r2);
-                __m128i _r23l = __lsx_vilvh_w((__m128i)_r3, (__m128i)_r2);
-                __m128i _r0123_0 = __lsx_vilvl_d((__m128i)_r23r, (__m128i)_r01r);
-                __m128i _r0123_1 = __lsx_vilvh_d((__m128i)_r23r, (__m128i)_r01r);
-                __m128i _r0123_2 = __lsx_vilvl_d((__m128i)_r23l, (__m128i)_r01l);
-                __m128i _r0123_3 = __lsx_vilvh_d((__m128i)_r23l, (__m128i)_r01l);
+                __m128i _r01r = __lsx_vilvl_w(_r1, _r0);
+                __m128i _r01l = __lsx_vilvh_w(_r1, _r0);
+                __m128i _r23r = __lsx_vilvl_w(_r3, _r2);
+                __m128i _r23l = __lsx_vilvh_w(_r3, _r2);
+                __m128i _r0123_0 = __lsx_vilvl_d(_r23r, _r01r);
+                __m128i _r0123_1 = __lsx_vilvh_d(_r23r, _r01r);
+                __m128i _r0123_2 = __lsx_vilvl_d(_r23l, _r01l);
+                __m128i _r0123_3 = __lsx_vilvh_d(_r23l, _r01l);
 
                 __m128i _p0 = __lsx_vfcvt_h_s((v4f32)_r0123_1, (v4f32)_r0123_0);
                 __m128i _p1 = __lsx_vfcvt_h_s((v4f32)_r0123_3, (v4f32)_r0123_2);
@@ -703,10 +703,10 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
 
                     if (bias_term)
                     {
-                        _sum0 = __lsx_vreplfr2vr_s(bias_data[p * 4 + 0]);
-                        _sum1 = __lsx_vreplfr2vr_s(bias_data[p * 4 + 1]);
-                        _sum2 = __lsx_vreplfr2vr_s(bias_data[p * 4 + 2]);
-                        _sum3 = __lsx_vreplfr2vr_s(bias_data[p * 4 + 3]);
+                        _sum0 = (v4f32)__lsx_vreplfr2vr_s(bias_data[p * 4 + 0]);
+                        _sum1 = (v4f32)__lsx_vreplfr2vr_s(bias_data[p * 4 + 1]);
+                        _sum2 = (v4f32)__lsx_vreplfr2vr_s(bias_data[p * 4 + 2]);
+                        _sum3 = (v4f32)__lsx_vreplfr2vr_s(bias_data[p * 4 + 3]);
                     }
 
                     int i = 0;
@@ -730,10 +730,10 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
                     _sum2 = activation_ps(_sum2, activation_type, activation_params);
                     _sum3 = activation_ps(_sum3, activation_type, activation_params);
 
-                    __lsx_vst((__m128i)_sum0, outptr, 0);
-                    __lsx_vst((__m128i)_sum1, outptr + 4, 0);
-                    __lsx_vst((__m128i)_sum2, outptr + 8, 0);
-                    __lsx_vst((__m128i)_sum3, outptr + 12, 0);
+                    __lsx_vst(_sum0, outptr, 0);
+                    __lsx_vst(_sum1, outptr + 4, 0);
+                    __lsx_vst(_sum2, outptr + 8, 0);
+                    __lsx_vst(_sum3, outptr + 12, 0);
                     outptr += 16;
                 }
             }
@@ -793,7 +793,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
 
                     _sum0 = activation_ps(_sum0, activation_type, activation_params);
 
-                    __lsx_vst((__m128i)_sum0, outptr, 0);
+                    __lsx_vst(_sum0, outptr, 0);
                     outptr += 4;
                 }
             }
@@ -828,7 +828,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
 
                     _sum = activation_ps(_sum, activation_type, activation_params);
 
-                    __lsx_vst((__m128i)_sum, outptr, 0);
+                    __lsx_vst(_sum, outptr, 0);
                     outptr += 4;
                 }
             }
@@ -962,7 +962,7 @@ int InnerProduct_loongarch::forward_fp16s(const Mat& bottom_blob, Mat& top_blob,
             _sum0 = activation_ps(_sum0, activation_type, activation_params);
 
             float* outptr = top_blob;
-            __lsx_vst((__m128i)_sum0, outptr + p * 4, 0);
+            __lsx_vst(_sum0, outptr + p * 4, 0);
         }
     }
 
@@ -1239,7 +1239,7 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                         __m128i _val3 = __lsx_vreplgr2vr_h((short)m3[0]);
 
                         __m128i _w = __lsx_vld(kptr, 0);
-                        __m128i _w16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
+                        __m128i _w16 = __lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
 
                         __m128i _s0 = __lsx_vmul_h(_val0, _w16);
                         __m128i _s1 = __lsx_vmul_h(_val1, _w16);
@@ -1249,14 +1249,14 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                         __m128i _exts1 = __lsx_vslti_h(_s1, 0);
                         __m128i _exts2 = __lsx_vslti_h(_s2, 0);
                         __m128i _exts3 = __lsx_vslti_h(_s3, 0);
-                        __m128i _s0l = (__m128i)__lsx_vilvl_h(_exts0, _s0);
-                        __m128i _s0h = (__m128i)__lsx_vilvh_h(_exts0, _s0);
-                        __m128i _s1l = (__m128i)__lsx_vilvl_h(_exts1, _s1);
-                        __m128i _s1h = (__m128i)__lsx_vilvh_h(_exts1, _s1);
-                        __m128i _s2l = (__m128i)__lsx_vilvl_h(_exts2, _s2);
-                        __m128i _s2h = (__m128i)__lsx_vilvh_h(_exts2, _s2);
-                        __m128i _s3l = (__m128i)__lsx_vilvl_h(_exts3, _s3);
-                        __m128i _s3h = (__m128i)__lsx_vilvh_h(_exts3, _s3);
+                        __m128i _s0l = __lsx_vilvl_h(_exts0, _s0);
+                        __m128i _s0h = __lsx_vilvh_h(_exts0, _s0);
+                        __m128i _s1l = __lsx_vilvl_h(_exts1, _s1);
+                        __m128i _s1h = __lsx_vilvh_h(_exts1, _s1);
+                        __m128i _s2l = __lsx_vilvl_h(_exts2, _s2);
+                        __m128i _s2h = __lsx_vilvh_h(_exts2, _s2);
+                        __m128i _s3l = __lsx_vilvl_h(_exts3, _s3);
+                        __m128i _s3h = __lsx_vilvh_h(_exts3, _s3);
 
                         _sum00 = __lsx_vadd_w(_sum00, _s0l);
                         _sum01 = __lsx_vadd_w(_sum01, _s0h);
@@ -1329,23 +1329,23 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                     __m128i _r45l = __lsx_vilvh_w((__m128i)_sumfp32_11, (__m128i)_sumfp32_01);
                     __m128i _r67r = __lsx_vilvl_w((__m128i)_sumfp32_31, (__m128i)_sumfp32_21);
                     __m128i _r67l = __lsx_vilvh_w((__m128i)_sumfp32_31, (__m128i)_sumfp32_21);
-                    _sumfp32_00 = (v4f32)__lsx_vilvl_d((__m128i)_r23r, (__m128i)_r01r);
-                    _sumfp32_10 = (v4f32)__lsx_vilvh_d((__m128i)_r23r, (__m128i)_r01r);
-                    _sumfp32_20 = (v4f32)__lsx_vilvl_d((__m128i)_r23l, (__m128i)_r01l);
-                    _sumfp32_30 = (v4f32)__lsx_vilvh_d((__m128i)_r23l, (__m128i)_r01l);
-                    _sumfp32_01 = (v4f32)__lsx_vilvl_d((__m128i)_r67r, (__m128i)_r45r);
-                    _sumfp32_11 = (v4f32)__lsx_vilvh_d((__m128i)_r67r, (__m128i)_r45r);
-                    _sumfp32_21 = (v4f32)__lsx_vilvl_d((__m128i)_r67l, (__m128i)_r45l);
-                    _sumfp32_31 = (v4f32)__lsx_vilvh_d((__m128i)_r67l, (__m128i)_r45l);
+                    _sumfp32_00 = (v4f32)__lsx_vilvl_d(_r23r, _r01r);
+                    _sumfp32_10 = (v4f32)__lsx_vilvh_d(_r23r, _r01r);
+                    _sumfp32_20 = (v4f32)__lsx_vilvl_d(_r23l, _r01l);
+                    _sumfp32_30 = (v4f32)__lsx_vilvh_d(_r23l, _r01l);
+                    _sumfp32_01 = (v4f32)__lsx_vilvl_d(_r67r, _r45r);
+                    _sumfp32_11 = (v4f32)__lsx_vilvh_d(_r67r, _r45r);
+                    _sumfp32_21 = (v4f32)__lsx_vilvl_d(_r67l, _r45l);
+                    _sumfp32_31 = (v4f32)__lsx_vilvh_d(_r67l, _r45l);
 
-                    __lsx_vst((__m128i)_sumfp32_00, outptr, 0);
-                    __lsx_vst((__m128i)_sumfp32_10, outptr + 4, 0);
-                    __lsx_vst((__m128i)_sumfp32_20, outptr + 8, 0);
-                    __lsx_vst((__m128i)_sumfp32_30, outptr + 12, 0);
-                    __lsx_vst((__m128i)_sumfp32_01, outptr + 16, 0);
-                    __lsx_vst((__m128i)_sumfp32_11, outptr + 20, 0);
-                    __lsx_vst((__m128i)_sumfp32_21, outptr + 24, 0);
-                    __lsx_vst((__m128i)_sumfp32_31, outptr + 28, 0);
+                    __lsx_vst(_sumfp32_00, outptr, 0);
+                    __lsx_vst(_sumfp32_10, outptr + 4, 0);
+                    __lsx_vst(_sumfp32_20, outptr + 8, 0);
+                    __lsx_vst(_sumfp32_30, outptr + 12, 0);
+                    __lsx_vst(_sumfp32_01, outptr + 16, 0);
+                    __lsx_vst(_sumfp32_11, outptr + 20, 0);
+                    __lsx_vst(_sumfp32_21, outptr + 24, 0);
+                    __lsx_vst(_sumfp32_31, outptr + 28, 0);
 
                     outptr += 32;
                 }
@@ -1428,12 +1428,12 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                         __m128i _val = __lsx_vreplgr2vr_h((short)m[0]);
 
                         __m128i _w = __lsx_vld(kptr, 0);
-                        __m128i _w16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
+                        __m128i _w16 = __lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
 
                         __m128i _s0 = __lsx_vmul_h(_val, _w16);
                         __m128i _exts0 = __lsx_vslti_h(_s0, 0);
-                        __m128i _s0l = (__m128i)__lsx_vilvl_h(_exts0, _s0);
-                        __m128i _s0h = (__m128i)__lsx_vilvh_h(_exts0, _s0);
+                        __m128i _s0l = __lsx_vilvl_h(_exts0, _s0);
+                        __m128i _s0h = __lsx_vilvh_h(_exts0, _s0);
 
                         _sum0 = __lsx_vadd_w(_sum0, _s0l);
                         _sum1 = __lsx_vadd_w(_sum1, _s0h);
@@ -1465,8 +1465,8 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                     _sumfp32_0 = activation_ps(_sumfp32_0, activation_type, activation_params);
                     _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
 
-                    __lsx_vst((__m128i)_sumfp32_0, outptr, 0);
-                    __lsx_vst((__m128i)_sumfp32_1, outptr + 4, 0);
+                    __lsx_vst(_sumfp32_0, outptr, 0);
+                    __lsx_vst(_sumfp32_1, outptr + 4, 0);
                     outptr += 8;
                 }
             }
@@ -1551,12 +1551,12 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
                 __m128i _val = __lsx_vreplgr2vr_h((short)sptr[0]);
 
                 __m128i _w = __lsx_vld(kptr, 0);
-                __m128i _w16 = (__m128i)__lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
+                __m128i _w16 = __lsx_vilvl_b(__lsx_vslti_b(_w, 0), _w);
 
                 __m128i _s0 = __lsx_vmul_h(_val, _w16);
                 __m128i _exts0 = __lsx_vslti_h(_s0, 0);
-                __m128i _s0l = (__m128i)__lsx_vilvl_h(_exts0, _s0);
-                __m128i _s0h = (__m128i)__lsx_vilvh_h(_exts0, _s0);
+                __m128i _s0l = __lsx_vilvl_h(_exts0, _s0);
+                __m128i _s0h = __lsx_vilvh_h(_exts0, _s0);
 
                 _sum0 = __lsx_vadd_w(_sum0, _s0l);
                 _sum1 = __lsx_vadd_w(_sum1, _s0h);
@@ -1589,8 +1589,8 @@ int InnerProduct_loongarch::forward_int8_loongarch(const Mat& bottom_blob, Mat& 
             _sumfp32_1 = activation_ps(_sumfp32_1, activation_type, activation_params);
 
             float* outptr = (float*)top_blob + p * 8;
-            __lsx_vst((__m128i)_sumfp32_0, outptr, 0);
-            __lsx_vst((__m128i)_sumfp32_1, outptr + 4, 0);
+            __lsx_vst(_sumfp32_0, outptr, 0);
+            __lsx_vst(_sumfp32_1, outptr + 4, 0);
         }
     }
 #endif // __loongarch_sx

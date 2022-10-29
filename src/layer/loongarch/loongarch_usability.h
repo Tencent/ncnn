@@ -1,8 +1,7 @@
-// Leo is pleased to support the open source community by making ncnn available.
+// yala is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2020 Leo <leo@nullptr.com.cn>. All rights reserved.
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
 //
+// Copyright (C) 2022 yala <zhaojunchao@loongson.cn>;<junchao82@qq.com>. All rights reserved.
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
 //
@@ -74,18 +73,18 @@ static NCNN_FORCEINLINE __m128i float2int8(v4f32 _v)
 {
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
-    __m128i _signmask = (__m128i)__lsx_vreplgr2vr_w(1 << 31);
+    __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
-    __m128i _sign = (__m128i)__lsx_vand_v((__m128i)_v, (__m128i)_signmask);
+    __m128i _sign = __lsx_vand_v((__m128i)_v, _signmask);
     v4f32 _p5s = (v4f32)__lsx_vor_v((__m128i)_p5, (__m128i)_sign);
     v4f32 _v5 = __lsx_vfadd_s(_v, _p5s);
-    __m128i _v32 = (__m128i)__lsx_vftintrz_w_s(_v5);
+    __m128i _v32 = __lsx_vftintrz_w_s(_v5);
 
-    __m128i _v32_16 = (__m128i)__lsx_vsat_w(_v32, 15);
+    __m128i _v32_16 = __lsx_vsat_w(_v32, 15);
     __m128i _v16 = __lsx_vpickev_h(_v32_16, _v32_16);
     _v16 = __lsx_vmax_h(_v16, __lsx_vreplgr2vr_h(-127));
-    __m128i _v16_8 = (__m128i)__lsx_vsat_h(_v16, 7);
-    __m128i _v8 = (__m128i)__lsx_vpickev_b(_v16_8, _v16_8);
+    __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
+    __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8;
 }
@@ -94,7 +93,7 @@ static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
 {
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
-    __m128i _signmask = (__m128i)__lsx_vreplgr2vr_w(1 << 31);
+    __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _signlow = __lsx_vand_v((__m128i)_vlow, _signmask);
     __m128i _signhigh = __lsx_vand_v((__m128i)_vhigh, _signmask);
@@ -102,13 +101,13 @@ static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
     v4f32 _p5high = (v4f32)__lsx_vor_v((__m128i)_p5, _signhigh);
     v4f32 _vlow5 = __lsx_vfadd_s(_vlow, _p5low);
     v4f32 _vhigh5 = __lsx_vfadd_s(_vhigh, _p5high);
-    __m128i _vlow32 = (__m128i)__lsx_vftintrz_w_s(_vlow5);
-    __m128i _vhigh32 = (__m128i)__lsx_vftintrz_w_s(_vhigh5);
+    __m128i _vlow32 = __lsx_vftintrz_w_s(_vlow5);
+    __m128i _vhigh32 = __lsx_vftintrz_w_s(_vhigh5);
 
     __m128i _vlow32_16 = __lsx_vsat_w(_vlow32, 15);
     __m128i _vhigh32_16 = __lsx_vsat_w(_vhigh32, 15);
-    __m128i _v16 = (__m128i)__lsx_vpickev_h(_vhigh32_16, _vlow32_16);
-    _v16 = (__m128i)__lsx_vmax_h((__m128i)_v16, __lsx_vreplgr2vr_h(-127));
+    __m128i _v16 = __lsx_vpickev_h(_vhigh32_16, _vlow32_16);
+    _v16 = __lsx_vmax_h(_v16, __lsx_vreplgr2vr_h(-127));
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
     v2i64 _v8 = (v2i64)__lsx_vpickev_b(_v16_8, _v16_8);
 
@@ -119,7 +118,7 @@ static NCNN_FORCEINLINE __m128i float2int8relu(v4f32 _v)
 {
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
-    __m128i _signmask = (__m128i)__lsx_vreplgr2vr_w(1 << 31);
+    __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _sign = __lsx_vand_v((__m128i)_v, _signmask);
     v4f32 _p5s = (v4f32)__lsx_vor_v((__m128i)_p5, _sign);
@@ -130,7 +129,7 @@ static NCNN_FORCEINLINE __m128i float2int8relu(v4f32 _v)
     __m128i _v16 = __lsx_vpickev_h(_v32_16, _v32_16);
     _v16 = __lsx_vmaxi_h(_v16, 0);
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
-    __m128i _v8 = (__m128i)__lsx_vpickev_b(_v16_8, _v16_8);
+    __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8;
 }
@@ -139,7 +138,7 @@ static NCNN_FORCEINLINE int64_t float2int8relu(v4f32 _vlow, v4f32 _vhigh)
 {
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
-    __m128i _signmask = (__m128i)__lsx_vreplgr2vr_w(1 << 31);
+    __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _signlow = __lsx_vand_v((__m128i)_vlow, _signmask);
     __m128i _signhigh = __lsx_vand_v((__m128i)_vhigh, _signmask);
@@ -166,7 +165,7 @@ static NCNN_FORCEINLINE __m128i float2int8leakyrelu(v4f32 _v, v4f32 _slope)
 
     // simulate round to nearest via +/-0.5
     v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
-    __m128i _signmask = (__m128i)__lsx_vreplgr2vr_w(1 << 31);
+    __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _sign = __lsx_vand_v((__m128i)_v, _signmask);
     v4f32 _p5s = (v4f32)__lsx_vor_v((__m128i)_p5, _sign);
@@ -186,7 +185,7 @@ static NCNN_FORCEINLINE __m128i float2int8leakyrelu(v4f32 _v, v4f32 _slope)
 
     _v16 = __lsx_vmax_h(_v16, _v16_leaky);
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
-    __m128i _v8 = (__m128i)__lsx_vpickev_b(_v16_8, _v16_8);
+    __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8;
 }
