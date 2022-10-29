@@ -723,13 +723,15 @@ jobs:
         git submodule update --init --recursive --depth 1 glibc
         git submodule update --init --recursive --depth 1 newlib
         #git submodule update --init --recursive --depth 1 riscv-binutils
-        git submodule update --init --recursive --depth 1 riscv-gcc
+        #git submodule update --init --recursive --depth 1 riscv-gcc
         git submodule update --init --recursive --depth 1 riscv-dejagnu
         git submodule update --init --recursive --depth 1 riscv-gdb
         rm -rf riscv-binutils
         git clone -b binutils-2_39-branch https://sourceware.org/git/binutils-gdb.git riscv-binutils
+        rm -rf riscv-gcc
+        git clone -b riscv-gcc-rvv-next https://github.com/riscv-collab/riscv-gcc.git riscv-gcc
         cd riscv-gcc
-        git checkout 42df346446308053814cb61601a1470e26ab1cf7
+        git checkout 8a0c1b106f01c455a8fb478cfe52d859a69020fd
         cd ..
         sed -i '/__OBSOLETE_MATH/d' newlib/newlib/libm/common/math_errf.c
         ./configure --prefix=${{ci.workspace}}/rv64gcv-install --with-arch=rv64gcv_zfh
