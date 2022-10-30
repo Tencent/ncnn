@@ -302,7 +302,44 @@ static int g_hw_optional_arm_FEAT_BF16 = get_hw_capability("hw.optional.arm.FEAT
 static int g_hw_optional_arm_FEAT_I8MM = get_hw_capability("hw.optional.arm.FEAT_I8MM");
 #endif // __APPLE__
 
-#if defined __ANDROID__ || defined __linux__
+#if (defined _WIN32 && !(defined __MINGW32__))
+CpuSet::CpuSet()
+{
+    disable_all();
+}
+
+void CpuSet::enable(int cpu)
+{
+    mask |= (1 << cpu);
+}
+
+void CpuSet::disable(int cpu)
+{
+    mask &= ~(1 << cpu);
+}
+
+void CpuSet::disable_all()
+{
+    mask = 0;
+}
+
+bool CpuSet::is_enabled(int cpu) const
+{
+    return mask & (1 << cpu);
+}
+
+int CpuSet::num_enabled() const
+{
+    int num_enabled = 0;
+    for (int i = 0; i < (int)sizeof(mask) * 8; i++)
+    {
+        if (is_enabled(i))
+            num_enabled++;
+    }
+
+    return num_enabled;
+}
+#elif defined __ANDROID__ || defined __linux__
 CpuSet::CpuSet()
 {
     disable_all();
@@ -1293,32 +1330,16 @@ int get_physical_big_cpu_count()
 }
 
 #if (defined _WIN32 && !(defined __MINGW32__))
-static int count_set_bits(ULONG_PTR bitMask)
+static CpuSet get_smt_cpu_mask()
 {
-    DWORD LSHIFT = sizeof(ULONG_PTR) * 8 - 1;
-    int bitSetCount = 0;
-    ULONG_PTR bitTest = (ULONG_PTR)1 << LSHIFT;
-    DWORD i;
-
-    for (i = 0; i <= LSHIFT; ++i)
-    {
-        bitSetCount += ((bitMask & bitTest) ? 1 : 0);
-        bitTest /= 2;
-    }
-
-    return bitSetCount;
-}
-
-static ULONG_PTR get_smt_cpu_mask()
-{
-    ULONG_PTR smt_cpu_mask = 0;
+    CpuSet smt_cpu_mask;
 
     typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
     LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
     if (glpi == NULL)
     {
         NCNN_LOGE("GetLogicalProcessorInformation is not supported");
-        return 0;
+        return smt_cpu_mask;
     }
 
     DWORD return_length = 0;
@@ -1333,11 +1354,12 @@ static ULONG_PTR get_smt_cpu_mask()
     {
         if (ptr->Relationship == RelationProcessorCore)
         {
-            int smt_count = count_set_bits(ptr->ProcessorMask);
-            if (smt_count > 1)
+            CpuSet smt_set;
+            smt_set.mask = ptr->ProcessorMask;
+            if (smt_set.num_enabled() > 1)
             {
                 // this core is smt
-                smt_cpu_mask |= ptr->ProcessorMask;
+                smt_cpu_mask.mask |= smt_set.mask;
             }
         }
 
@@ -1362,11 +1384,14 @@ static std::vector<int> get_max_freq_mhz()
         ULONG CurrentIdleState;
     } PROCESSOR_POWER_INFORMATION, *PPROCESSOR_POWER_INFORMATION;
 
+    HMODULE powrprof = LoadLibrary(TEXT("powrprof.dll"));
+
     typedef LONG(WINAPI * LPFN_CNPI)(POWER_INFORMATION_LEVEL, PVOID, ULONG, PVOID, ULONG);
-    LPFN_CNPI cnpi = (LPFN_CNPI)GetProcAddress(GetModuleHandle(TEXT("powrprof")), "CallNtPowerInformation");
+    LPFN_CNPI cnpi = (LPFN_CNPI)GetProcAddress(powrprof, "CallNtPowerInformation");
     if (cnpi == NULL)
     {
         NCNN_LOGE("CallNtPowerInformation is not supported");
+        FreeLibrary(powrprof);
         return std::vector<int>(g_cpucount, 0);
     }
 
@@ -1383,7 +1408,20 @@ static std::vector<int> get_max_freq_mhz()
     }
 
     free(buffer);
+    FreeLibrary(powrprof);
     return ret;
+}
+
+static int set_sched_affinity(const CpuSet& thread_affinity_mask)
+{
+    DWORD_PTR prev_mask = SetThreadAffinityMask(GetCurrentThread(), thread_affinity_mask.mask);
+    if (prev_mask == 0)
+    {
+        NCNN_LOGE("SetThreadAffinityMask failed %d", GetLastError());
+        return -1;
+    }
+
+    return 0;
 }
 #endif // (defined _WIN32 && !(defined __MINGW32__))
 
@@ -1610,11 +1648,11 @@ static int setup_thread_affinity_masks()
         return 0;
     }
 
-    ULONG_PTR smt_cpu_mask = get_smt_cpu_mask();
+    CpuSet smt_cpu_mask = get_smt_cpu_mask();
 
     for (int i = 0; i < g_cpucount; i++)
     {
-        if (smt_cpu_mask & (1 << i))
+        if (smt_cpu_mask.is_enabled(i))
         {
             // always treat smt core as big core
             g_thread_affinity_mask_big.enable(i);
@@ -1781,7 +1819,7 @@ const CpuSet& get_cpu_thread_affinity_mask(int powersave)
 
 int set_cpu_thread_affinity(const CpuSet& thread_affinity_mask)
 {
-#if defined __ANDROID__ || defined __linux__
+#if defined __ANDROID__ || defined __linux__ || (defined _WIN32 && !(defined __MINGW32__))
     int num_threads = thread_affinity_mask.num_enabled();
 
 #ifdef _OPENMP
