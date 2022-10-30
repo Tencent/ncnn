@@ -214,7 +214,6 @@ struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
                         *output_ptr = v;
 
                         output_ptr++;
-                        gxy_ptr += 2;
                     }
                 }
             }
@@ -232,8 +231,58 @@ struct ApplyGridSample<InterpolationMode::Bilinear, padding, align_corners>
 template<PaddingMode padding, bool align_corners>
 struct ApplyGridSample<InterpolationMode::Nearest, padding, align_corners>
 {
+    const bool must_in_bound = padding != PaddingMode::Zeros;
     inline void forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
     {
+        const int dims = input.dims;
+        const int w = input.w;
+        const int h = input.h;
+        const int outW = grid.h;
+        const int outH = grid.c;
+        const int channels = input.c;
+
+        if (dims == 3)
+        {
+            output.create(outW, outH, input.c);
+            #pragma omp parallel for num_threads(opt.num_threads)
+            for (int q = 0; q < channels; q++)
+            {
+                float* output_ptr = static_cast<float*>(output.channel(q).data);
+
+                const Mat image = input.channel(q);
+
+                //const float* gxy_ptr = static_cast<float*>(grid.data);
+
+                for (int y = 0; y < outH; y++)
+                {
+                    for (int x = 0; x < outW; x++)
+                    {
+                        const float* gxy_ptr = grid.channel(y).row(x);
+                        auto gx = grid_sampler_compute_source_index(gxy_ptr[0], w, padding, align_corners);
+                        auto gy = grid_sampler_compute_source_index(gxy_ptr[1], h, padding, align_corners);
+
+                        auto x_nearest = static_cast<int>(std::round(gx));
+                        auto y_nearest = static_cast<int>(std::round(gy));
+
+                        float v = image.row(y_nearest)[x_nearest];
+                        if (!must_in_bound)
+                        {
+                            v = ((x_nearest < w) & (x_nearest > -1) & (y_nearest < h) & (y_nearest > -1)) ? v : 0;
+                        }
+
+                        *output_ptr = v;
+
+                        output_ptr++;
+                    }
+                }
+            }
+        }
+        else if (dims == 4)
+        {
+        }
+        else
+        {
+        }
     }
 };
 
@@ -242,6 +291,7 @@ struct ApplyGridSample<InterpolationMode::Bicubic, padding, align_corners>
 {
     inline void forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
     {
+
     }
 };
 
