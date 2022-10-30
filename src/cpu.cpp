@@ -1352,14 +1352,15 @@ static ULONG_PTR get_smt_cpu_mask()
 
 static std::vector<int> get_max_freq_mhz()
 {
-    typedef struct _PROCESSOR_POWER_INFORMATION {
+    typedef struct _PROCESSOR_POWER_INFORMATION
+    {
         ULONG Number;
         ULONG MaxMhz;
         ULONG CurrentMhz;
         ULONG MhzLimit;
         ULONG MaxIdleState;
         ULONG CurrentIdleState;
-    } PROCESSOR_POWER_INFORMATION, * PPROCESSOR_POWER_INFORMATION;
+    } PROCESSOR_POWER_INFORMATION, *PPROCESSOR_POWER_INFORMATION;
 
     typedef LONG(WINAPI * LPFN_CNPI)(POWER_INFORMATION_LEVEL, PVOID, ULONG, PVOID, ULONG);
     LPFN_CNPI cnpi = (LPFN_CNPI)GetProcAddress(GetModuleHandle(TEXT("powrprof")), "CallNtPowerInformation");
