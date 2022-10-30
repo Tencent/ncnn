@@ -45,6 +45,7 @@
 #if defined _WIN32 && !(defined __MINGW32__)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <powerbase.h>
 #endif
 
 #if defined __ANDROID__ || defined __linux__
@@ -1114,6 +1115,10 @@ static int get_cpucount()
         count = emscripten_num_logical_cores();
     else
         count = 1;
+#elif (defined _WIN32 && !(defined __MINGW32__))
+    SYSTEM_INFO system_info;
+    GetSystemInfo(&system_info);
+    count = system_info.dwNumberOfProcessors;
 #elif defined __ANDROID__ || defined __linux__
     // get cpu count from /proc/cpuinfo
     FILE* fp = fopen("/proc/cpuinfo", "rb");
@@ -1286,6 +1291,100 @@ int get_physical_big_cpu_count()
 
     return g_cpucount - g_physical_cpucount;
 }
+
+#if (defined _WIN32 && !(defined __MINGW32__))
+static int count_set_bits(ULONG_PTR bitMask)
+{
+    DWORD LSHIFT = sizeof(ULONG_PTR) * 8 - 1;
+    int bitSetCount = 0;
+    ULONG_PTR bitTest = (ULONG_PTR)1 << LSHIFT;
+    DWORD i;
+
+    for (i = 0; i <= LSHIFT; ++i)
+    {
+        bitSetCount += ((bitMask & bitTest) ? 1 : 0);
+        bitTest /= 2;
+    }
+
+    return bitSetCount;
+}
+
+static ULONG_PTR get_smt_cpu_mask()
+{
+    ULONG_PTR smt_cpu_mask = 0;
+
+    typedef BOOL(WINAPI * LPFN_GLPI)(PSYSTEM_LOGICAL_PROCESSOR_INFORMATION, PDWORD);
+    LPFN_GLPI glpi = (LPFN_GLPI)GetProcAddress(GetModuleHandle(TEXT("kernel32")), "GetLogicalProcessorInformation");
+    if (glpi == NULL)
+    {
+        NCNN_LOGE("GetLogicalProcessorInformation is not supported");
+        return 0;
+    }
+
+    DWORD return_length = 0;
+    glpi(NULL, &return_length);
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)malloc(return_length);
+    glpi(buffer, &return_length);
+
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION ptr = buffer;
+    DWORD byte_offset = 0;
+    while (byte_offset + sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION) <= return_length)
+    {
+        if (ptr->Relationship == RelationProcessorCore)
+        {
+            int smt_count = count_set_bits(ptr->ProcessorMask);
+            if (smt_count > 1)
+            {
+                // this core is smt
+                smt_cpu_mask |= ptr->ProcessorMask;
+            }
+        }
+
+        byte_offset += sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION);
+        ptr++;
+    }
+
+    free(buffer);
+
+    return smt_cpu_mask;
+}
+
+static std::vector<int> get_max_freq_mhz()
+{
+    typedef struct _PROCESSOR_POWER_INFORMATION {
+        ULONG Number;
+        ULONG MaxMhz;
+        ULONG CurrentMhz;
+        ULONG MhzLimit;
+        ULONG MaxIdleState;
+        ULONG CurrentIdleState;
+    } PROCESSOR_POWER_INFORMATION, * PPROCESSOR_POWER_INFORMATION;
+
+    typedef LONG(WINAPI * LPFN_CNPI)(POWER_INFORMATION_LEVEL, PVOID, ULONG, PVOID, ULONG);
+    LPFN_CNPI cnpi = (LPFN_CNPI)GetProcAddress(GetModuleHandle(TEXT("powrprof")), "CallNtPowerInformation");
+    if (cnpi == NULL)
+    {
+        NCNN_LOGE("CallNtPowerInformation is not supported");
+        return std::vector<int>(g_cpucount, 0);
+    }
+
+    DWORD return_length = sizeof(PROCESSOR_POWER_INFORMATION) * g_cpucount;
+    PPROCESSOR_POWER_INFORMATION buffer = (PPROCESSOR_POWER_INFORMATION)malloc(return_length);
+
+    cnpi(ProcessorInformation, NULL, 0, buffer, return_length);
+
+    std::vector<int> ret;
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        ULONG max_mhz = buffer[i].MaxMhz;
+        ret.push_back(max_mhz);
+    }
+
+    free(buffer);
+    return ret;
+}
+#endif // (defined _WIN32 && !(defined __MINGW32__))
 
 #if defined __ANDROID__ || defined __linux__
 static int get_max_freq_khz(int cpuid)
@@ -1485,7 +1584,48 @@ static int setup_thread_affinity_masks()
 {
     g_thread_affinity_mask_all.disable_all();
 
-#if defined __ANDROID__ || defined __linux__
+#if (defined _WIN32 && !(defined __MINGW32__))
+    // get max freq mhz for all cores
+    int max_freq_mhz_min = INT_MAX;
+    int max_freq_mhz_max = 0;
+    std::vector<int> all_max_freq_mhz = get_max_freq_mhz();
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        int max_freq_mhz = all_max_freq_mhz[i];
+
+        // NCNN_LOGE("%d max freq = %d khz", i, max_freq_mhz);
+
+        if (max_freq_mhz > max_freq_mhz_max)
+            max_freq_mhz_max = max_freq_mhz;
+        if (max_freq_mhz < max_freq_mhz_min)
+            max_freq_mhz_min = max_freq_mhz;
+    }
+
+    int max_freq_mhz_medium = (max_freq_mhz_min + max_freq_mhz_max) / 2;
+    if (max_freq_mhz_medium == max_freq_mhz_max)
+    {
+        g_thread_affinity_mask_little.disable_all();
+        g_thread_affinity_mask_big = g_thread_affinity_mask_all;
+        return 0;
+    }
+
+    ULONG_PTR smt_cpu_mask = get_smt_cpu_mask();
+
+    for (int i = 0; i < g_cpucount; i++)
+    {
+        if (smt_cpu_mask & (1 << i))
+        {
+            // always treat smt core as big core
+            g_thread_affinity_mask_big.enable(i);
+            continue;
+        }
+
+        if (cpu_max_freq_mhz[i] < max_freq_mhz_medium)
+            g_thread_affinity_mask_little.enable(i);
+        else
+            g_thread_affinity_mask_big.enable(i);
+    }
+#elif defined __ANDROID__ || defined __linux__
     int max_freq_khz_min = INT_MAX;
     int max_freq_khz_max = 0;
     std::vector<int> cpu_max_freq_khz(g_cpucount);
