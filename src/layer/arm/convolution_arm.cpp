@@ -387,10 +387,8 @@ int Convolution_arm::create_pipeline(const Option& opt)
                 // conv3x3s1_winograd63_transform_kernel_neon(weight_data, weight_winograd63_data, num_input, num_output, opt);
                 conv3x3s1_winograd63_transform_kernel_neon5(weight_data, weight_winograd63_data, num_input, num_output, opt);
             }
-            else
-            {
-                weight_data_tm = weight_data;
-            }
+
+            weight_data_tm = weight_data;
         }
         else if (kernel_w == 3 && kernel_h == 3 && dilation_w == 1 && dilation_h == 1 && stride_w == 2 && stride_h == 2)
         {
