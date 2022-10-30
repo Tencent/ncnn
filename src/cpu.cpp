@@ -1627,10 +1627,10 @@ static int setup_thread_affinity_masks()
     // get max freq mhz for all cores
     int max_freq_mhz_min = INT_MAX;
     int max_freq_mhz_max = 0;
-    std::vector<int> all_max_freq_mhz = get_max_freq_mhz();
+    std::vector<int> cpu_max_freq_mhz = get_max_freq_mhz();
     for (int i = 0; i < g_cpucount; i++)
     {
-        int max_freq_mhz = all_max_freq_mhz[i];
+        int max_freq_mhz = cpu_max_freq_mhz[i];
 
         // NCNN_LOGE("%d max freq = %d khz", i, max_freq_mhz);
 
