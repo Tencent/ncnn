@@ -702,7 +702,7 @@ jobs:
       uses: cache@1.*
       with:
         cachePaths: rv64gcv-install
-        cacheKey: rv64gcv-linux-install-20210504
+        cacheKey: rv64gcv-linux-install-20221028
 
     - name: checkout-riscv-gnu-toolchain
       if: steps.cache-rv64gcv.outputs.cacheHit != 'true'
