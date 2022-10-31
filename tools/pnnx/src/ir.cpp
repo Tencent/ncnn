@@ -14,6 +14,7 @@
 
 #include "ir.h"
 
+#include <limits.h>
 #include <stdint.h>
 #include <algorithm>
 #include <fstream>
@@ -177,7 +178,10 @@ Parameter::Parameter(const torch::jit::Node* value_node)
         case c10::TypeKind::IntType:
         {
             type = 2;
-            i = (int)value_node->i(torch::jit::attr::value);
+            int64_t i64 = value_node->i(torch::jit::attr::value);
+            if (i64 == LONG_MAX) i64 = INT_MAX;
+            if (i64 == LONG_MIN) i64 = INT_MIN;
+            i = (int)i64;
             break;
         }
         case c10::TypeKind::FloatType:
@@ -201,7 +205,10 @@ Parameter::Parameter(const torch::jit::Node* value_node)
                 if (t.scalar_type() == c10::ScalarType::Long)
                 {
                     type = 2;
-                    i = (int)t.item<int64_t>();
+                    int64_t i64 = t.item<int64_t>();
+                    if (i64 == LONG_MAX) i64 = INT_MAX;
+                    if (i64 == LONG_MIN) i64 = INT_MIN;
+                    i = (int)i64;
                 }
                 else if (t.scalar_type() == c10::ScalarType::Int)
                 {
@@ -1245,7 +1252,7 @@ static std::string make_slice_expression(const Operator* op)
         {
             std::vector<int> ends = op->params.at("ends").ai;
             int end = ends[i];
-            if (end != -1)
+            if (end != INT_MAX)
                 r += std::to_string(end);
         }
         else

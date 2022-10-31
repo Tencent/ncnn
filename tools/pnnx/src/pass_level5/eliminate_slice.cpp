@@ -14,6 +14,7 @@
 
 #include "eliminate_slice.h"
 
+#include <limits.h>
 #include <algorithm>
 #include "pass_level2.h"
 
@@ -44,7 +45,7 @@ void eliminate_slice(Graph& graph)
             int end = op->params.at("end").i;
             int step = op->params.at("step").i;
 
-            if (start == 0 && end == -1 && step == 1)
+            if (start == 0 && end == INT_MAX && step == 1)
             {
                 // delete noop-like slice
                 matched = true;
