@@ -72,6 +72,11 @@ static unsigned short float32_to_float16(float value)
     return fp16;
 }
 
+static size_t alignSize(size_t sz, int n)
+{
+    return (sz + n - 1) & -n;
+}
+
 void convert_to_fp16_model(Graph& graph)
 {
     for (Operator* op : graph.ops)
@@ -86,11 +91,18 @@ void convert_to_fp16_model(Graph& graph)
                 // fp32 -> fp16
                 const float* p = (const float*)attr.data.data();
                 int len = attr.data.size() / 4;
-                std::vector<char> data_fp16(len * 2);
+                std::vector<char> data_fp16(alignSize(len * 2, 4));
                 unsigned short* p_fp16 = (unsigned short*)data_fp16.data();
                 for (int i = 0; i < len; i++)
                 {
                     p_fp16[i] = float32_to_float16(p[i]);
+                }
+
+                // pad size to 4bytes
+                if (len % 2 == 1)
+                {
+                    // pad with fixed value for model hash consistency
+                    p_fp16[len] = 0x2283;
                 }
 
                 attr.type = 3;

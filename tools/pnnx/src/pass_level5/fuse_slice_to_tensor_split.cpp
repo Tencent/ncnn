@@ -14,6 +14,7 @@
 
 #include "fuse_slice_to_tensor_split.h"
 
+#include <limits.h>
 #include <algorithm>
 #include "pass_level2.h"
 
@@ -102,7 +103,7 @@ void fuse_slice_to_tensor_split(Graph& graph)
                     cur = op2;
 
                 int end2 = op2->params.at("ends").ai[0];
-                if (end2 == -1)
+                if (end2 == INT_MAX)
                 {
                     slice_n_ops.push_back(op2);
                     full_dimsize_slice = true;
