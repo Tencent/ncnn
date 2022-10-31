@@ -45,12 +45,6 @@ int GridSample::load_param(const ParamDict& pd)
     return 0;
 }
 
-#if defined(__GNUC__) && defined(__powerpc__) && defined(__ALTIVEC__)
-// NOTE gcc altivec optimized version produce wrong result
-// so I have to disable vectorize here  --- nihui
-__attribute__((optimize("no-tree-vectorize")))
-#endif
-
 // Restore normalized location to acutal image location
 //   When align_corners is true:
 //     Normalized location (-1, -1) points to the top-left pixel.
@@ -78,7 +72,7 @@ static float reflect_coord(float coord, int low, int high)
     {
         return 0;
     }
-    float min = static_cast<int>(low) / 2;
+    float min = static_cast<float>(low) / 2;
     float span = static_cast<float>(high - low) / 2;
     coord = fabs(coord - min);
     // `fmod` returns same sign as `coord`, which is positive after the `fabs` above.
