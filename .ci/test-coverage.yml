@@ -93,7 +93,7 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
   linux-gcc-gpu-lavapipe:
     name: linux-gcc-gpu-lavapipe
@@ -173,7 +173,7 @@ jobs:
         lcov -r lcov.info '*/glslang/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
   linux-gcc-x64:
     name: linux-gcc-x64
@@ -236,7 +236,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
   linux-gcc-arm:
     name: linux-gcc-arm
@@ -329,8 +329,8 @@ jobs:
 
     - name: codecov
       run: |
-        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
-        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build-armhf-vfpv3-d16/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build-armhf-vfpv3-d16/lcov.info
 
   linux-gcc-aarch64:
     name: linux-gcc-aarch64
@@ -419,7 +419,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
   linux-gcc-mipsisa32r6el:
     name: linux-gcc-mipsisa32r6el
@@ -492,7 +492,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
   linux-gcc-mipsisa64r6el:
     name: linux-gcc-mipsisa64r6el
@@ -565,7 +565,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
   linux-gcc-riscv64:
     name: linux-gcc-riscv64
@@ -640,7 +640,7 @@ jobs:
         lcov -r lcov.info '*/build/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
 
   linux-gcc-riscv64-rvv:
     name: linux-gcc-riscv64-rvv
@@ -758,7 +758,7 @@ jobs:
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen128
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
     - name: test-vlen256
       run: |
         export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
@@ -773,4 +773,4 @@ jobs:
         lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
         lcov --list lcov.info
     - name: codecov-vlen256
-      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -B ${{ ci.head_ref }} -f build/lcov.info
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
