@@ -93,7 +93,7 @@ jobs:
     - name: build-ncnn
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
-        pip3 install -U --user pytest setuptools wheel twine
+        pip3 install -U pytest setuptools wheel twine
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j $(nproc)
