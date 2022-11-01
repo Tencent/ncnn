@@ -110,9 +110,19 @@ static NCNN_FORCEINLINE bool in_bounds(int x, int y, int w, int h)
     return x >= 0 && y >= 0 && x < w && y < h;
 }
 
-static NCNN_FORCEINLINE bool in_bounds_3d(int x, int y, int z, int w, int h, int d)
+static NCNN_FORCEINLINE bool in_bounds(int x, int y, int z, int w, int h, int d)
 {
     return x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < d;
+}
+
+static NCNN_FORCEINLINE float get_value_bounded(const float* data, int x, int y, int w, int h)
+{
+    return in_bounds(x, y, w, h) ? data[y * w + x] : 0.f;
+}
+
+static NCNN_FORCEINLINE float get_value_bounded(const float* data, int x, int y, int z, int w, int h, int d)
+{
+    return in_bounds(x, y, z, w, h, d) ? data[z * h * w + y * w + x] : 0.f;
 }
 
 static float get_value_bounded(const float* data, float x, float y, int w, int h,
@@ -124,7 +134,17 @@ static float get_value_bounded(const float* data, float x, float y, int w, int h
     int ix = static_cast<int>(x);
     int iy = static_cast<int>(y);
 
-    return in_bounds(ix, iy, w, h) ? data[iy * w + ix] : 0.f;
+    return get_value_bounded(data, ix, iy, w, h);
+}
+
+static NCNN_FORCEINLINE float linear_interp1d(float coeffs[4], float x0, float x1, float x2, float x3)
+{
+    return x0 * coeffs[0] + x1 * coeffs[1] + x2 * coeffs[2] + x3 * coeffs[3];
+}
+
+static NCNN_FORCEINLINE float linear_interp3d(float coeffs[8], float x0, float x1, float x2, float x3, float x4, float x5, float x6, float x7)
+{
+    return linear_interp1d(coeffs, x0, x1, x2, x3) + linear_interp1d(coeffs + 4, x4, x5, x6, x7);
 }
 
 // Based on
@@ -216,36 +236,25 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                     float fsw = (xne - ix) * (iy - yne);
                     float fse = (ix - xnw) * (iy - ynw);
 
+                    float coeffs[4] = {fnw, fne, fsw, fse};
+
                     for (int q = 0; q < channels; q++)
                     {
                         const float* ptr = bottom_blob.channel(q);
                         float* outptr = top_blob.channel(q);
 
-                        float ans = 0.f;
-
-                        if (in_bounds(xnw, ynw, w, h))
-                        {
-                            ans += ptr[ynw * w + xnw] * fnw;
-                        }
-                        if (in_bounds(xne, yne, w, h))
-                        {
-                            ans += ptr[yne * w + xne] * fne;
-                        }
-                        if (in_bounds(xsw, ysw, w, h))
-                        {
-                            ans += ptr[ysw * w + xsw] * fsw;
-                        }
-                        if (in_bounds(xse, yse, w, h))
-                        {
-                            ans += ptr[yse * w + xse] * fse;
-                        }
-
-                        outptr[row * outw + col] = ans;
+                        outptr[row * outw + col] = linear_interp1d(
+                            coeffs,
+                            get_value_bounded(ptr, xnw, ynw, w, h),
+                            get_value_bounded(ptr, xne, yne, w, h),
+                            get_value_bounded(ptr, xsw, ysw, w, h),
+                            get_value_bounded(ptr, xse, yse, w, h)
+                        );
                     }
                 }
             }
         }
-        else if (resize_type == 2) //nearest
+        else if (resize_type == 2) // nearest
         {
             #pragma omp parallel for num_threads(opt.num_threads) // collapse(2)
             for (int row = 0; row < outh; row++)
@@ -270,14 +279,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         const float* ptr = bottom_blob.channel(q);
                         float* outptr = top_blob.channel(q);
 
-                        float ans = 0.f;
-
-                        if (in_bounds(x, y, w, h))
-                        {
-                            ans += ptr[y * w + x];
-                        }
-
-                        outptr[row * outw + col] = ans;
+                        outptr[row * outw + col] = ptr[y * w + x];
                     }
                 }
             }
@@ -289,7 +291,6 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             {
                 for (int col = 0; col < outw; col++)
                 {
-                    // const float* gridptr = grid.depth(row).row(col);
                     const float* gridptr = grid.channel(row).row(col);
 
                     // get the coordinate of every output point
@@ -407,53 +408,30 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         float fbsw = (xtne - ix) * (iy - ytne) * (iz - ztne);
                         float fbse = (ix - xtnw) * (iy - ytnw) * (iz - ztnw);
 
+                        float coeffs[8] = {ftnw, ftne, ftsw, ftse, fbnw, fbne, fbsw, fbse};
+
                         for (int q = 0; q < channels; q++)
                         {
                             const float* ptr = bottom_blob.channel(q);
                             float* outptr = top_blob.channel(q);
 
-                            float ans = 0.f;
-
-                            if (in_bounds_3d(ztnw, ytnw, xtnw, d, h, w))
-                            {
-                                ans += ptr[ztnw * h * w + ytnw * w + xtnw] * ftnw;
-                            }
-                            if (in_bounds_3d(ztne, ytne, xtne, d, h, w))
-                            {
-                                ans += ptr[ztne * h * w + ytne * w + xtne] * ftne;
-                            }
-                            if (in_bounds_3d(ztsw, ytsw, xtsw, d, h, w))
-                            {
-                                ans += ptr[ztsw * h * w + ytsw * w + xtsw] * ftsw;
-                            }
-                            if (in_bounds_3d(ztse, ytse, xtse, d, h, w))
-                            {
-                                ans += ptr[ztse * h * w + ytse * w + xtse] * ftse;
-                            }
-                            if (in_bounds_3d(zbnw, ybnw, xbnw, d, h, w))
-                            {
-                                ans += ptr[zbnw * h * w + ybnw * w + xbnw] * fbnw;
-                            }
-                            if (in_bounds_3d(zbne, ybne, xbne, d, h, w))
-                            {
-                                ans += ptr[zbne * h * w + ybne * w + xbne] * fbne;
-                            }
-                            if (in_bounds_3d(zbsw, ybsw, xbsw, d, h, w))
-                            {
-                                ans += ptr[zbsw * h * w + ybsw * w + xbsw] * fbsw;
-                            }
-                            if (in_bounds_3d(zbse, ybse, xbse, d, h, w))
-                            {
-                                ans += ptr[zbse * h * w + ybse * w + xbse] * fbse;
-                            }
-
-                            outptr[dep * outh * outw + row * outw + col] = ans;
+                            outptr[dep * outh * outw + row * outw + col] = linear_interp3d(
+                                coeffs,
+                                get_value_bounded(ptr, xtnw, ytnw, ztnw, w, h, d),
+                                get_value_bounded(ptr, xtne, ytne, ztne, w, h, d),
+                                get_value_bounded(ptr, xtsw, ytsw, ztsw, w, h, d),
+                                get_value_bounded(ptr, xtse, ytse, ztse, w, h, d),
+                                get_value_bounded(ptr, xbnw, ybnw, zbnw, w, h, d),
+                                get_value_bounded(ptr, xbne, ybne, zbne, w, h, d),
+                                get_value_bounded(ptr, xbsw, ybsw, zbsw, w, h, d),
+                                get_value_bounded(ptr, xbse, ybse, zbse, w, h, d)
+                            );
                         }
                     }
                 }
             }
         }
-        else if (resize_type == 2) //nearest
+        else if (resize_type == 2) // nearest
         {
             #pragma omp parallel for num_threads(opt.num_threads) // collapse(2)
             for (int dep = 0; dep < outd; dep++)
@@ -482,14 +460,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             const float* ptr = bottom_blob.channel(q);
                             float* outptr = top_blob.channel(q);
 
-                            float ans = 0.f;
-
-                            if (in_bounds_3d(x, y, z, w, h, d))
-                            {
-                                ans += ptr[z * h * w + y * w + x];
-                            }
-
-                            outptr[dep * outh * outw + row * outw + col] = ans;
+                            outptr[dep * outh * outw + row * outw + col] = ptr[z * h * w + y * w + x];
                         }
                     }
                 }
@@ -506,3 +477,4 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 }
 
 } // namespace ncnn
+
