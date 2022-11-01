@@ -45,10 +45,15 @@ jobs:
       with:
         enableGitLfs: false
 
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y python3-pip
+
     - name: setup pytorch-${{matrix.torch-version}}
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
-        pip install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+        pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
     - name: cache-torchvision-${{matrix.torchvision-version}}
       id: cache-torchvision
@@ -77,13 +82,13 @@ jobs:
     - name: build-ncnn
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
-        pip install --user pytest setuptools wheel twine
+        pip3 install --user pytest setuptools wheel twine
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j $(nproc)
         cd ..
         export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
-        pip install --user .
+        pip3 install --user .
 
     - name: build-pnnx
       run: |
@@ -99,6 +104,6 @@ jobs:
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
-        pip install --upgrade requests
+        pip3 install --upgrade requests
         cd tools/pnnx
         cd build && ctest --output-on-failure -j $(nproc)
