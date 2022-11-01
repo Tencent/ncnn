@@ -57,7 +57,7 @@ jobs:
     - name: install-deps
       run: |
         apt-get update
-        apt-get install -y python3-pip
+        apt-get install -y python3-pip libjpeg-dev libpng-dev
         python3 -m pip install --upgrade pip
         pip3 uninstall -y setuptools
         pip3 install -U pytest setuptools wheel twine distribute requests
@@ -85,8 +85,6 @@ jobs:
     - name: torchvision
       if: steps.cache-torchvision.outputs.cacheHit != 'true'
       run: |
-        apt-get update
-        apt-get install -y libjpeg-dev libpng-dev
         cd vision
         mkdir -p build; cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}/lib/python3.9/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
