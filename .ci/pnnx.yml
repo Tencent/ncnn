@@ -80,7 +80,7 @@ jobs:
       run: |
         cd vision
         mkdir -p build; cd build
-        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}/lib/python3.8/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}/lib/python3.9/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j $(nproc)
         cmake --build . --target install
 
