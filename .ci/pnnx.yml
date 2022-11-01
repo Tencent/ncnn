@@ -58,6 +58,7 @@ jobs:
       run: |
         apt-get update
         apt-get install -y python3-pip
+        pip3 install -U pytest setuptools wheel twine distribute requests
 
     - name: setup pytorch
       run: |
@@ -93,7 +94,6 @@ jobs:
     - name: build-ncnn
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
-        pip3 install -U pytest setuptools wheel twine
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
         cmake --build . -j $(nproc)
@@ -115,6 +115,5 @@ jobs:
         export OMP_NUM_THREADS=1
         export MKL_NUM_THREADS=1
         export MKL_ENABLE_INSTRUCTIONS=SSE4_2
-        pip3 install --upgrade requests
         cd tools/pnnx
         cd build && ctest --output-on-failure -j $(nproc)
