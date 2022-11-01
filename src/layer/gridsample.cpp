@@ -54,13 +54,13 @@ int GridSample::load_param(const ParamDict& pd)
 //     pixel coord both directions, i.e, (-0.5, -0.5) coord acutal image space.
 //     Normalized location (1, 1) points to the bottom-tight pixel plus half
 //     pixel coord both directions, i.e. (H - 0.5, W - 0.5) coord acutal image space.
-static float
+static float NCNN_FORCEINLINE
 grid_sample_unormalize(int w, float coordx, int align_corner)
 {
     return align_corner ? (coordx + 1) / 2.f * (w - 1) : ((coordx + 1) * w - 1) / 2.f;
 }
 
-static float border_coord(float coord, int border)
+static NCNN_FORCEINLINE float border_coord(float coord, int border)
 {
     return std::min(static_cast<float>(border), std::max(coord, static_cast<float>(0)));
 }
@@ -119,12 +119,12 @@ static float get_coord(float x, int w, int padding_mode, int align_corner)
     return coord;
 }
 
-static bool in_bounds(int x, int y, int w, int h)
+static NCNN_FORCEINLINE bool in_bounds(int x, int y, int w, int h)
 {
     return x >= 0 && y >= 0 && x < w && y < h;
 }
 
-static bool in_bounds_3d(int x, int y, int z, int w, int h, int d)
+static NCNN_FORCEINLINE bool in_bounds_3d(int x, int y, int z, int w, int h, int d)
 {
     return x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < d;
 }
@@ -143,12 +143,12 @@ static float get_value_bounded(const float* data, float x, float y, int w, int h
 
 // Based on
 // https://en.wikipedia.org/wiki/Bicubic_interpolation#Bicubic_convolution_algorithm
-static float cubic_convolution1(float x, float A)
+static NCNN_FORCEINLINE float cubic_convolution1(float x, float A)
 {
     return ((A + 2) * x - (A + 3)) * x * x + 1;
 }
 
-static float cubic_convolution2(float x, float A)
+static NCNN_FORCEINLINE float cubic_convolution2(float x, float A)
 {
     return ((A * x - 5 * A) * x + 8 * A) * x - 4 * A;
 }

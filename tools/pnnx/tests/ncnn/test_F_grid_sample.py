@@ -31,7 +31,7 @@ class Model(nn.Module):
         x = F.grid_sample(x, xg2, mode='nearest', padding_mode='reflection', align_corners=False)
         x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='zeros', align_corners=False)
         x = F.grid_sample(x, xg2, mode='bicubic', padding_mode='border', align_corners=False)
-        # x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='reflection', align_corners=False) // temporarily 1e-3.5, not qulify for the 1e-4 request
+        x = F.grid_sample(x, xg1, mode='bicubic', padding_mode='reflection', align_corners=False)
         x = F.grid_sample(x, xg2, mode='bilinear', padding_mode='zeros', align_corners=True)
         x = F.grid_sample(x, xg1, mode='bilinear', padding_mode='border', align_corners=True)
         x = F.grid_sample(x, xg2, mode='bilinear', padding_mode='reflection', align_corners=True)
