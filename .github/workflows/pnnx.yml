@@ -41,6 +41,9 @@ jobs:
           - torch-version: 1.12.0
             torchvision-version: 0.13.0
 
+          - torch-version: 1.13.0
+            torchvision-version: 0.14.0
+
     steps:
     - uses: actions/checkout@v3
       with:
