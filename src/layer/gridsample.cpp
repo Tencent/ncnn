@@ -65,46 +65,32 @@ static NCNN_FORCEINLINE float border_coord(float coord, int border)
     return std::min(static_cast<float>(border), std::max(coord, static_cast<float>(0)));
 }
 
-// Reflects coordinates until they fall between low and high (inclusive).
-static float reflect_coord(float coord, int low, int high)
+static float reflect_coord(float x, float high)
 {
-    if (low == high)
-    {
-        return 0;
-    }
-    float min = static_cast<float>(low) / 2;
-    float span = static_cast<float>(high - low) / 2;
-    coord = fabs(coord - min);
-    // `fmod` returns same sign as `coord`, which is positive after the `fabs` above.
-    float extra = fmod(coord, span);
-    int flips = static_cast<int>(floor(coord / span));
-
-    return flips % 2 ? (span - extra + min) : (extra + min);
+    x = abs(x);
+    x = high - abs(x - high);
+    return x;
 }
 
-static float compute_coord(float sx, int w,
-                           int padding_mode, int align_corner)
+static float compute_coord(float sx, int w, int padding_mode, int align_corner)
 {
-    // correct the coordinates according to the padding_mode
     if (padding_mode == 2) // border
     {
-        // clip coordinates to image borders
         sx = border_coord(sx, w - 1);
     }
     else if (padding_mode == 3) // reflection
     {
-        // reflect coordinates by image borders
         if (align_corner)
         {
-            sx = reflect_coord(sx, 0, 2 * (w - 1));
+            sx = reflect_coord(sx, w - 1);
         }
         else
         {
-            sx = reflect_coord(sx, -1, 2 * w - 1);
+            sx = reflect_coord(sx + 0.5, w) - 0.5;
+            sx = border_coord(sx, w - 1);
         }
-        // clip coordinates to image borders
-        sx = border_coord(sx, w - 1);
     }
+
     return sx;
 }
 
