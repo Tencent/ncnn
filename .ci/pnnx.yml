@@ -40,6 +40,10 @@ jobs:
             torchvision-version: 0.13.0
             torchvision-cache-key: '0_13_0'
 
+          - torch-version: 1.13.0
+            torchvision-version: 0.14.0
+            torchvision-cache-key: '0_14_0'
+
     runs-on:
       pool-name: docker
       container:
@@ -78,6 +82,8 @@ jobs:
     - name: torchvision
       if: steps.cache-torchvision.outputs.cacheHit != 'true'
       run: |
+        apt-get update
+        apt-get install -y libjpeg-dev libpng-dev
         cd vision
         mkdir -p build; cd build
         cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}/lib/python3.9/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
