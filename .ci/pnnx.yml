@@ -22,18 +22,23 @@ jobs:
         include:
           - torch-version: 1.8.1
             torchvision-version: 0.9.1
+            torchvision-cache-key: '0_9_1'
 
           - torch-version: 1.9.1
             torchvision-version: 0.10.1
+            torchvision-cache-key: '0_10_1'
 
           - torch-version: 1.10.0
             torchvision-version: 0.11.1
+            torchvision-cache-key: '0_11_1'
 
           - torch-version: 1.11.0
             torchvision-version: 0.12.0
+            torchvision-cache-key: '0_12_0'
 
           - torch-version: 1.12.0
             torchvision-version: 0.13.0
+            torchvision-cache-key: '0_13_0'
 
     runs-on:
       pool-name: docker
@@ -50,18 +55,18 @@ jobs:
         apt-get update
         apt-get install -y python3-pip
 
-    - name: setup pytorch-${{matrix.torch-version}}
+    - name: setup pytorch
       run: |
         export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
         pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
 
-    - name: cache-torchvision-${{matrix.torchvision-version}}
+    - name: cache-torchvision
       id: cache-torchvision
       uses: cache@1.*
       with:
         cachePaths: torchvision-${{matrix.torchvision-version}}-install
-        cacheKey: torchvision-${{matrix.torchvision-version}}-linux-install-20211228
-    - name: checkout-torchvision-${{matrix.torchvision-version}}
+        cacheKey: torchvision-${{matrix.torchvision-cache-key}}-linux-install-20211228
+    - name: checkout-torchvision
       if: steps.cache-torchvision.outputs.cacheHit != 'true'
       checkout: https://github.com/pytorch/vision.git
       with:
@@ -70,7 +75,7 @@ jobs:
         localPath: vision
         enableSubmodule: false
         enableGitLfs: false
-    - name: torchvision-${{matrix.torchvision-version}}
+    - name: torchvision
       if: steps.cache-torchvision.outputs.cacheHit != 'true'
       run: |
         cd vision
