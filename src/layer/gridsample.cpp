@@ -244,11 +244,11 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         float* outptr = top_blob.channel(q);
 
                         outptr[row * outw + col] = linear_interp1d(
-                            coeffs,
-                            get_value_bounded(ptr, xnw, ynw, w, h),
-                            get_value_bounded(ptr, xne, yne, w, h),
-                            get_value_bounded(ptr, xsw, ysw, w, h),
-                            get_value_bounded(ptr, xse, yse, w, h));
+                                                       coeffs,
+                                                       get_value_bounded(ptr, xnw, ynw, w, h),
+                                                       get_value_bounded(ptr, xne, yne, w, h),
+                                                       get_value_bounded(ptr, xsw, ysw, w, h),
+                                                       get_value_bounded(ptr, xse, yse, w, h));
                     }
                 }
             }
@@ -319,20 +319,20 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             for (int i = 0; i < 4; i++)
                             {
                                 coefficients[i] = cubic_interp1d(
-                                    get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                    get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                    get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                    get_value_bounded(ptr, xnw + 2, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                    tx);
+                                                      get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                                      get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                                      get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                                      get_value_bounded(ptr, xnw + 2, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                                      tx);
                             }
 
                             // Interpolate the 4 values in the y direction
                             outptr[row * outw + col] = cubic_interp1d(
-                                coefficients[0],
-                                coefficients[1],
-                                coefficients[2],
-                                coefficients[3],
-                                ty);
+                                                           coefficients[0],
+                                                           coefficients[1],
+                                                           coefficients[2],
+                                                           coefficients[3],
+                                                           ty);
                         }
                     }
                 }
@@ -420,15 +420,15 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                                 float* outptr = top_blob.channel(q);
 
                                 outptr[dep * outh * outw + row * outw + col] = linear_interp3d(
-                                    coeffs,
-                                    get_value_bounded(ptr, xtnw, ytnw, ztnw, w, h, d),
-                                    get_value_bounded(ptr, xtne, ytne, ztne, w, h, d),
-                                    get_value_bounded(ptr, xtsw, ytsw, ztsw, w, h, d),
-                                    get_value_bounded(ptr, xtse, ytse, ztse, w, h, d),
-                                    get_value_bounded(ptr, xbnw, ybnw, zbnw, w, h, d),
-                                    get_value_bounded(ptr, xbne, ybne, zbne, w, h, d),
-                                    get_value_bounded(ptr, xbsw, ybsw, zbsw, w, h, d),
-                                    get_value_bounded(ptr, xbse, ybse, zbse, w, h, d));
+                                            coeffs,
+                                            get_value_bounded(ptr, xtnw, ytnw, ztnw, w, h, d),
+                                            get_value_bounded(ptr, xtne, ytne, ztne, w, h, d),
+                                            get_value_bounded(ptr, xtsw, ytsw, ztsw, w, h, d),
+                                            get_value_bounded(ptr, xtse, ytse, ztse, w, h, d),
+                                            get_value_bounded(ptr, xbnw, ybnw, zbnw, w, h, d),
+                                            get_value_bounded(ptr, xbne, ybne, zbne, w, h, d),
+                                            get_value_bounded(ptr, xbsw, ybsw, zbsw, w, h, d),
+                                            get_value_bounded(ptr, xbse, ybse, zbse, w, h, d));
                             }
                         }
                     }
