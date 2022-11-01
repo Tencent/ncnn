@@ -58,6 +58,7 @@ jobs:
       run: |
         apt-get update
         apt-get install -y python3-pip
+        python3 -m pip install -U pip
         pip3 install -U pytest setuptools wheel twine distribute requests
 
     - name: setup pytorch
