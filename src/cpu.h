@@ -17,6 +17,10 @@
 
 #include <stddef.h>
 
+#if (defined _WIN32 && !(defined __MINGW32__))
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#endif
 #if defined __ANDROID__ || defined __linux__
 #include <sched.h> // cpu_set_t
 #endif
@@ -36,6 +40,9 @@ public:
     int num_enabled() const;
 
 public:
+#if (defined _WIN32 && !(defined __MINGW32__))
+    ULONG_PTR mask;
+#endif
 #if defined __ANDROID__ || defined __linux__
     cpu_set_t cpu_set;
 #endif
@@ -109,6 +116,10 @@ NCNN_EXPORT int cpu_riscv_vlenb();
 NCNN_EXPORT int get_cpu_count();
 NCNN_EXPORT int get_little_cpu_count();
 NCNN_EXPORT int get_big_cpu_count();
+
+NCNN_EXPORT int get_physical_cpu_count();
+NCNN_EXPORT int get_physical_little_cpu_count();
+NCNN_EXPORT int get_physical_big_cpu_count();
 
 // bind all threads on little clusters if powersave enabled
 // affects HMP arch cpu like ARM big.LITTLE

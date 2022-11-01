@@ -56,30 +56,7 @@ static void im2col_sgemm_pack8to1_avx(const Mat& bottom_im2col, Mat& top_blob, c
                     __m256 _r6 = _mm256_load_ps(img0 + 8 * 6);
                     __m256 _r7 = _mm256_load_ps(img0 + 8 * 7);
 
-                    __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
-                    __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
-                    __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
-                    __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
-                    __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
-                    __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
-                    __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
-                    __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
-                    __m256 _tmp8 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m256 _tmp9 = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
-                    __m256 _tmpa = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m256 _tmpb = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
-                    __m256 _tmpc = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m256 _tmpd = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
-                    __m256 _tmpe = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
-                    __m256 _tmpf = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
-                    _r0 = _mm256_permute2f128_ps(_tmp8, _tmpc, _MM_SHUFFLE(0, 2, 0, 0));
-                    _r1 = _mm256_permute2f128_ps(_tmp9, _tmpd, _MM_SHUFFLE(0, 2, 0, 0));
-                    _r2 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 2, 0, 0));
-                    _r3 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 2, 0, 0));
-                    _r4 = _mm256_permute2f128_ps(_tmp8, _tmpc, _MM_SHUFFLE(0, 3, 0, 1));
-                    _r5 = _mm256_permute2f128_ps(_tmp9, _tmpd, _MM_SHUFFLE(0, 3, 0, 1));
-                    _r6 = _mm256_permute2f128_ps(_tmpa, _tmpe, _MM_SHUFFLE(0, 3, 0, 1));
-                    _r7 = _mm256_permute2f128_ps(_tmpb, _tmpf, _MM_SHUFFLE(0, 3, 0, 1));
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
                     _mm256_store_ps(tmpptr, _r0);
                     _mm256_store_ps(tmpptr + 8, _r1);

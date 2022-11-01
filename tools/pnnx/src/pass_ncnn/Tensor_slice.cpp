@@ -14,6 +14,8 @@
 
 #include "pass_ncnn.h"
 
+#include <limits.h>
+
 namespace pnnx {
 
 namespace ncnn {
@@ -75,7 +77,7 @@ pnnx.Output             output      1 0 out
 
         for (int i = 0; i < axes_rank; i++)
         {
-            if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != -1))
+            if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != INT_MAX))
             {
                 fprintf(stderr, "slice along batch axis is not supported\n");
                 return;
@@ -90,7 +92,7 @@ pnnx.Output             output      1 0 out
             if (axes[i] > batch_index)
                 axes[i] -= 1;
 
-            if (ends[i] == -1)
+            if (ends[i] == INT_MAX)
                 ends[i] = -233;
         }
 

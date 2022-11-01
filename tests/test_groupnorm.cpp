@@ -40,6 +40,17 @@ static int test_groupnorm(const ncnn::Mat& a, int group, float eps)
 static int test_groupnorm_0()
 {
     return 0
+           || test_groupnorm(RandomMat(3, 6, 4, 2), 1, 0.01f)
+           || test_groupnorm(RandomMat(2, 3, 3, 8), 2, 0.002f)
+           || test_groupnorm(RandomMat(3, 4, 5, 6), 3, 0.01f)
+           || test_groupnorm(RandomMat(4, 5, 6, 12), 4, 0.02f)
+           || test_groupnorm(RandomMat(5, 6, 7, 24), 2, 0.001f)
+           || test_groupnorm(RandomMat(2, 8, 9, 24), 3, 0.0001f);
+}
+
+static int test_groupnorm_1()
+{
+    return 0
            || test_groupnorm(RandomMat(6, 4, 2), 1, 0.01f)
            || test_groupnorm(RandomMat(3, 3, 8), 2, 0.002f)
            || test_groupnorm(RandomMat(4, 5, 6), 3, 0.01f)
@@ -48,10 +59,35 @@ static int test_groupnorm_0()
            || test_groupnorm(RandomMat(8, 9, 24), 3, 0.0001f);
 }
 
+static int test_groupnorm_2()
+{
+    return 0
+           || test_groupnorm(RandomMat(24, 2), 1, 0.01f)
+           || test_groupnorm(RandomMat(23, 8), 2, 0.002f)
+           || test_groupnorm(RandomMat(25, 6), 3, 0.01f)
+           || test_groupnorm(RandomMat(26, 12), 4, 0.02f)
+           || test_groupnorm(RandomMat(27, 24), 2, 0.001f)
+           || test_groupnorm(RandomMat(29, 24), 3, 0.0001f);
+}
+
+static int test_groupnorm_3()
+{
+    return 0
+           || test_groupnorm(RandomMat(12), 1, 0.01f)
+           || test_groupnorm(RandomMat(18), 2, 0.002f)
+           || test_groupnorm(RandomMat(36), 3, 0.01f)
+           || test_groupnorm(RandomMat(212), 4, 0.02f)
+           || test_groupnorm(RandomMat(124), 2, 0.001f)
+           || test_groupnorm(RandomMat(324), 3, 0.0001f);
+}
+
 int main()
 {
     SRAND(7767517);
 
     return 0
-           || test_groupnorm_0();
+           || test_groupnorm_0()
+           || test_groupnorm_1()
+           || test_groupnorm_2()
+           || test_groupnorm_3();
 }
