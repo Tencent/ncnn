@@ -37,6 +37,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_Dropout3d.cpp
     pass_level1/nn_ELU.cpp
     pass_level1/nn_Embedding.cpp
+    pass_level1/nn_Fold.cpp
     pass_level1/nn_GELU.cpp
     pass_level1/nn_GLU.cpp
     pass_level1/nn_GroupNorm.cpp
@@ -86,6 +87,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_Tanh.cpp
     pass_level1/nn_Tanhshrink.cpp
     pass_level1/nn_Threshold.cpp
+    pass_level1/nn_Unfold.cpp
     pass_level1/nn_Upsample.cpp
     pass_level1/nn_UpsamplingBilinear2d.cpp
     pass_level1/nn_UpsamplingNearest2d.cpp
