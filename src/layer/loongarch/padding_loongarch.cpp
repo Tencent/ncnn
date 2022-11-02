@@ -71,7 +71,7 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 if (top_blob.empty())
                     return -100;
 
-                v4f32 pad_value = __lsx_vreplfr2vr_s(value);
+                __m128 pad_value = __lsx_vreplfr2vr_s(value);
                 padding_constant_pack4_lsx(bottom_blob, top_blob, 0, 0, left / 4, right / 4, pad_value);
 
                 return 0;
@@ -92,7 +92,7 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 if (top_blob.empty())
                     return -100;
 
-                v4f32 pad_value = __lsx_vreplfr2vr_s(value);
+                __m128 pad_value = __lsx_vreplfr2vr_s(value);
                 padding_constant_pack4_lsx(bottom_blob, top_blob, top / 4, bottom / 4, left, right, pad_value);
 
                 return 0;
@@ -120,7 +120,7 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 {
                     Mat borderm = top_blob.channel(q);
 
-                    v4f32 pad_value = per_channel_pad_data_size ? (v4f32)__lsx_vld((const float*)per_channel_pad_data + q * 4, 0) : __lsx_vreplfr2vr_s(value);
+                    __m128 pad_value = per_channel_pad_data_size ? (__m128)__lsx_vld((const float*)per_channel_pad_data + q * 4, 0) : __lsx_vreplfr2vr_s(value);
                     //Channel padding
                     if ((q - front_) < 0 || (q - front_) >= channels)
                     {
@@ -157,7 +157,7 @@ int Padding_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 #pragma omp parallel for num_threads(opt.num_threads)
                 for (int q = 0; q < channels; q++)
                 {
-                    v4f32 pad_value = per_channel_pad_data_size ? (v4f32)__lsx_vld((const float*)per_channel_pad_data + q * 4, 0) : __lsx_vreplfr2vr_s(value);
+                    __m128 pad_value = per_channel_pad_data_size ? (__m128)__lsx_vld((const float*)per_channel_pad_data + q * 4, 0) : __lsx_vreplfr2vr_s(value);
 
                     for (int z = 0; z < outd; z++)
                     {

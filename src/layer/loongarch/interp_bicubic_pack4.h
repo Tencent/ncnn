@@ -54,16 +54,16 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 int sx = xofs[dx] * 4;
                 const float* S3p = S3 + sx;
 
-                v4f32 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
-                v4f32 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
-                v4f32 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
-                v4f32 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
+                __m128 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
+                __m128 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
 
-                v4f32 _S30 = (v4f32)__lsx_vld(S3p - 4, 0);
-                v4f32 _S31 = (v4f32)__lsx_vld(S3p + 0, 0);
-                v4f32 _S32 = (v4f32)__lsx_vld(S3p + 4, 0);
-                v4f32 _S33 = (v4f32)__lsx_vld(S3p + 8, 0);
-                v4f32 _rows3 = __lsx_vfmul_s(_S30, _a0);
+                __m128 _S30 = (__m128)__lsx_vld(S3p - 4, 0);
+                __m128 _S31 = (__m128)__lsx_vld(S3p + 0, 0);
+                __m128 _S32 = (__m128)__lsx_vld(S3p + 4, 0);
+                __m128 _S33 = (__m128)__lsx_vld(S3p + 8, 0);
+                __m128 _rows3 = __lsx_vfmul_s(_S30, _a0);
                 _rows3 = __lsx_vfmadd_s(_a1, _S31, _rows3);
                 _rows3 = __lsx_vfmadd_s(_a2, _S32, _rows3);
                 _rows3 = __lsx_vfmadd_s(_a3, _S33, _rows3);
@@ -93,21 +93,21 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 const float* S2p = S2 + sx;
                 const float* S3p = S3 + sx;
 
-                v4f32 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
-                v4f32 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
-                v4f32 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
-                v4f32 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
+                __m128 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
+                __m128 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
 
-                v4f32 _S20 = (v4f32)__lsx_vld(S2p - 4, 0);
-                v4f32 _S21 = (v4f32)__lsx_vld(S2p + 0, 0);
-                v4f32 _S22 = (v4f32)__lsx_vld(S2p + 4, 0);
-                v4f32 _S23 = (v4f32)__lsx_vld(S2p + 8, 0);
-                v4f32 _S30 = (v4f32)__lsx_vld(S3p - 4, 0);
-                v4f32 _S31 = (v4f32)__lsx_vld(S3p + 0, 0);
-                v4f32 _S32 = (v4f32)__lsx_vld(S3p + 4, 0);
-                v4f32 _S33 = (v4f32)__lsx_vld(S3p + 8, 0);
-                v4f32 _rows2 = __lsx_vfmul_s(_S20, _a0);
-                v4f32 _rows3 = __lsx_vfmul_s(_S30, _a0);
+                __m128 _S20 = (__m128)__lsx_vld(S2p - 4, 0);
+                __m128 _S21 = (__m128)__lsx_vld(S2p + 0, 0);
+                __m128 _S22 = (__m128)__lsx_vld(S2p + 4, 0);
+                __m128 _S23 = (__m128)__lsx_vld(S2p + 8, 0);
+                __m128 _S30 = (__m128)__lsx_vld(S3p - 4, 0);
+                __m128 _S31 = (__m128)__lsx_vld(S3p + 0, 0);
+                __m128 _S32 = (__m128)__lsx_vld(S3p + 4, 0);
+                __m128 _S33 = (__m128)__lsx_vld(S3p + 8, 0);
+                __m128 _rows2 = __lsx_vfmul_s(_S20, _a0);
+                __m128 _rows3 = __lsx_vfmul_s(_S30, _a0);
                 _rows2 = __lsx_vfmadd_s(_a1, _S21, _rows2);
                 _rows3 = __lsx_vfmadd_s(_a1, _S31, _rows3);
                 _rows2 = __lsx_vfmadd_s(_a2, _S22, _rows2);
@@ -145,26 +145,26 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 const float* S2p = S2 + sx;
                 const float* S3p = S3 + sx;
 
-                v4f32 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
-                v4f32 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
-                v4f32 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
-                v4f32 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
+                __m128 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
+                __m128 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
 
-                v4f32 _S10 = (v4f32)__lsx_vld(S1p - 4, 0);
-                v4f32 _S11 = (v4f32)__lsx_vld(S1p + 0, 0);
-                v4f32 _S12 = (v4f32)__lsx_vld(S1p + 4, 0);
-                v4f32 _S13 = (v4f32)__lsx_vld(S1p + 8, 0);
-                v4f32 _S20 = (v4f32)__lsx_vld(S2p - 4, 0);
-                v4f32 _S21 = (v4f32)__lsx_vld(S2p + 0, 0);
-                v4f32 _S22 = (v4f32)__lsx_vld(S2p + 4, 0);
-                v4f32 _S23 = (v4f32)__lsx_vld(S2p + 8, 0);
-                v4f32 _S30 = (v4f32)__lsx_vld(S3p - 4, 0);
-                v4f32 _S31 = (v4f32)__lsx_vld(S3p + 0, 0);
-                v4f32 _S32 = (v4f32)__lsx_vld(S3p + 4, 0);
-                v4f32 _S33 = (v4f32)__lsx_vld(S3p + 8, 0);
-                v4f32 _rows1 = __lsx_vfmul_s(_S10, _a0);
-                v4f32 _rows2 = __lsx_vfmul_s(_S20, _a0);
-                v4f32 _rows3 = __lsx_vfmul_s(_S30, _a0);
+                __m128 _S10 = (__m128)__lsx_vld(S1p - 4, 0);
+                __m128 _S11 = (__m128)__lsx_vld(S1p + 0, 0);
+                __m128 _S12 = (__m128)__lsx_vld(S1p + 4, 0);
+                __m128 _S13 = (__m128)__lsx_vld(S1p + 8, 0);
+                __m128 _S20 = (__m128)__lsx_vld(S2p - 4, 0);
+                __m128 _S21 = (__m128)__lsx_vld(S2p + 0, 0);
+                __m128 _S22 = (__m128)__lsx_vld(S2p + 4, 0);
+                __m128 _S23 = (__m128)__lsx_vld(S2p + 8, 0);
+                __m128 _S30 = (__m128)__lsx_vld(S3p - 4, 0);
+                __m128 _S31 = (__m128)__lsx_vld(S3p + 0, 0);
+                __m128 _S32 = (__m128)__lsx_vld(S3p + 4, 0);
+                __m128 _S33 = (__m128)__lsx_vld(S3p + 8, 0);
+                __m128 _rows1 = __lsx_vfmul_s(_S10, _a0);
+                __m128 _rows2 = __lsx_vfmul_s(_S20, _a0);
+                __m128 _rows3 = __lsx_vfmul_s(_S30, _a0);
                 _rows1 = __lsx_vfmadd_s(_a1, _S11, _rows1);
                 _rows2 = __lsx_vfmadd_s(_a1, _S21, _rows2);
                 _rows3 = __lsx_vfmadd_s(_a1, _S31, _rows3);
@@ -202,31 +202,31 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
                 const float* S2p = S2 + sx;
                 const float* S3p = S3 + sx;
 
-                v4f32 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
-                v4f32 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
-                v4f32 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
-                v4f32 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
+                __m128 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
+                __m128 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
 
-                v4f32 _S00 = (v4f32)__lsx_vld(S0p - 4, 0);
-                v4f32 _S01 = (v4f32)__lsx_vld(S0p + 0, 0);
-                v4f32 _S02 = (v4f32)__lsx_vld(S0p + 4, 0);
-                v4f32 _S03 = (v4f32)__lsx_vld(S0p + 8, 0);
-                v4f32 _S10 = (v4f32)__lsx_vld(S1p - 4, 0);
-                v4f32 _S11 = (v4f32)__lsx_vld(S1p + 0, 0);
-                v4f32 _S12 = (v4f32)__lsx_vld(S1p + 4, 0);
-                v4f32 _S13 = (v4f32)__lsx_vld(S1p + 8, 0);
-                v4f32 _S20 = (v4f32)__lsx_vld(S2p - 4, 0);
-                v4f32 _S21 = (v4f32)__lsx_vld(S2p + 0, 0);
-                v4f32 _S22 = (v4f32)__lsx_vld(S2p + 4, 0);
-                v4f32 _S23 = (v4f32)__lsx_vld(S2p + 8, 0);
-                v4f32 _S30 = (v4f32)__lsx_vld(S3p - 4, 0);
-                v4f32 _S31 = (v4f32)__lsx_vld(S3p + 0, 0);
-                v4f32 _S32 = (v4f32)__lsx_vld(S3p + 4, 0);
-                v4f32 _S33 = (v4f32)__lsx_vld(S3p + 8, 0);
-                v4f32 _rows0 = __lsx_vfmul_s(_S00, _a0);
-                v4f32 _rows1 = __lsx_vfmul_s(_S10, _a0);
-                v4f32 _rows2 = __lsx_vfmul_s(_S20, _a0);
-                v4f32 _rows3 = __lsx_vfmul_s(_S30, _a0);
+                __m128 _S00 = (__m128)__lsx_vld(S0p - 4, 0);
+                __m128 _S01 = (__m128)__lsx_vld(S0p + 0, 0);
+                __m128 _S02 = (__m128)__lsx_vld(S0p + 4, 0);
+                __m128 _S03 = (__m128)__lsx_vld(S0p + 8, 0);
+                __m128 _S10 = (__m128)__lsx_vld(S1p - 4, 0);
+                __m128 _S11 = (__m128)__lsx_vld(S1p + 0, 0);
+                __m128 _S12 = (__m128)__lsx_vld(S1p + 4, 0);
+                __m128 _S13 = (__m128)__lsx_vld(S1p + 8, 0);
+                __m128 _S20 = (__m128)__lsx_vld(S2p - 4, 0);
+                __m128 _S21 = (__m128)__lsx_vld(S2p + 0, 0);
+                __m128 _S22 = (__m128)__lsx_vld(S2p + 4, 0);
+                __m128 _S23 = (__m128)__lsx_vld(S2p + 8, 0);
+                __m128 _S30 = (__m128)__lsx_vld(S3p - 4, 0);
+                __m128 _S31 = (__m128)__lsx_vld(S3p + 0, 0);
+                __m128 _S32 = (__m128)__lsx_vld(S3p + 4, 0);
+                __m128 _S33 = (__m128)__lsx_vld(S3p + 8, 0);
+                __m128 _rows0 = __lsx_vfmul_s(_S00, _a0);
+                __m128 _rows1 = __lsx_vfmul_s(_S10, _a0);
+                __m128 _rows2 = __lsx_vfmul_s(_S20, _a0);
+                __m128 _rows3 = __lsx_vfmul_s(_S30, _a0);
                 _rows0 = __lsx_vfmadd_s(_a1, _S01, _rows0);
                 _rows1 = __lsx_vfmadd_s(_a1, _S11, _rows1);
                 _rows2 = __lsx_vfmadd_s(_a1, _S21, _rows2);
@@ -251,10 +251,10 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
         prev_sy1 = sy;
 
         // vresize
-        v4f32 _b0 = __lsx_vreplfr2vr_s(beta[0]);
-        v4f32 _b1 = __lsx_vreplfr2vr_s(beta[1]);
-        v4f32 _b2 = __lsx_vreplfr2vr_s(beta[2]);
-        v4f32 _b3 = __lsx_vreplfr2vr_s(beta[3]);
+        __m128 _b0 = __lsx_vreplfr2vr_s(beta[0]);
+        __m128 _b1 = __lsx_vreplfr2vr_s(beta[1]);
+        __m128 _b2 = __lsx_vreplfr2vr_s(beta[2]);
+        __m128 _b3 = __lsx_vreplfr2vr_s(beta[3]);
 
         float* rows0p = rows0;
         float* rows1p = rows1;
@@ -264,11 +264,11 @@ static void resize_bicubic_image_pack4(const Mat& src, Mat& dst, float* alpha, i
 
         for (int dx = 0; dx < w; dx++)
         {
-            v4f32 _rows0 = (v4f32)__lsx_vld(rows0p, 0);
-            v4f32 _rows1 = (v4f32)__lsx_vld(rows1p, 0);
-            v4f32 _rows2 = (v4f32)__lsx_vld(rows2p, 0);
-            v4f32 _rows3 = (v4f32)__lsx_vld(rows3p, 0);
-            v4f32 _D = __lsx_vfmul_s(_rows0, _b0);
+            __m128 _rows0 = (__m128)__lsx_vld(rows0p, 0);
+            __m128 _rows1 = (__m128)__lsx_vld(rows1p, 0);
+            __m128 _rows2 = (__m128)__lsx_vld(rows2p, 0);
+            __m128 _rows3 = (__m128)__lsx_vld(rows3p, 0);
+            __m128 _D = __lsx_vfmul_s(_rows0, _b0);
             _D = __lsx_vfmadd_s(_b1, _rows1, _D);
             _D = __lsx_vfmadd_s(_b2, _rows2, _D);
             _D = __lsx_vfmadd_s(_b3, _rows3, _D);

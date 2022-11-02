@@ -42,28 +42,28 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 const int* intptr1 = bottom_blob.channel(q * 2 + 1);
                 signed char* ptr = top_blob.channel(q);
 
-                v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
+                __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
+                __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
+                __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
+                __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
 
-                v4f32 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
-                v4f32 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
-                v4f32 _slope = (v4f32)__lsx_vreplfr2vr_s(slope);
+                __m128 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
+                __m128 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
+                __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
 
                 int i = 0;
                 for (; i + 3 < size; i += 4)
                 {
                     __builtin_prefetch(intptr0 + 64);
                     __builtin_prefetch(intptr1 + 64);
-                    v4f32 _v00 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                    v4f32 _v01 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0 + 4, 0));
-                    v4f32 _v02 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0 + 8, 0));
-                    v4f32 _v03 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0 + 12, 0));
-                    v4f32 _v10 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                    v4f32 _v11 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 4, 0));
-                    v4f32 _v12 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 8, 0));
-                    v4f32 _v13 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 12, 0));
+                    __m128 _v00 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                    __m128 _v01 = __lsx_vffint_s_w(__lsx_vld(intptr0 + 4, 0));
+                    __m128 _v02 = __lsx_vffint_s_w(__lsx_vld(intptr0 + 8, 0));
+                    __m128 _v03 = __lsx_vffint_s_w(__lsx_vld(intptr0 + 12, 0));
+                    __m128 _v10 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                    __m128 _v11 = __lsx_vffint_s_w(__lsx_vld(intptr1 + 4, 0));
+                    __m128 _v12 = __lsx_vffint_s_w(__lsx_vld(intptr1 + 8, 0));
+                    __m128 _v13 = __lsx_vffint_s_w(__lsx_vld(intptr1 + 12, 0));
                     _v00 = __lsx_vfmul_s(_v00, _scale0);
                     _v01 = __lsx_vfmul_s(_v01, _scale0);
                     _v02 = __lsx_vfmul_s(_v02, _scale0);
@@ -85,8 +85,8 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 {
                     __builtin_prefetch(intptr0 + 16);
                     __builtin_prefetch(intptr1 + 16);
-                    v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                    v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                    __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                    __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
                     _v0 = __lsx_vfmul_s(_v0, _scale0);
                     _v1 = __lsx_vfmul_s(_v1, _scale1);
                     *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
@@ -106,32 +106,32 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 const int* intptr1 = bottom_blob.channel(q * 2 + 1);
                 signed char* ptr = top_blob.channel(q);
 
-                v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
-                v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8, 0);
-                v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
+                __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
+                __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
+                __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
+                __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
+                __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8, 0);
+                __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
 
-                v4f32 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
-                v4f32 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
+                __m128 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
+                __m128 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
                 _bias0 = __lsx_vfmul_s(_bias0, _scale_out0);
                 _bias1 = __lsx_vfmul_s(_bias1, _scale_out1);
-                v4f32 _slope = (v4f32)__lsx_vreplfr2vr_s(slope);
+                __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
 
                 int i = 0;
                 for (; i + 3 < size; i += 4)
                 {
                     __builtin_prefetch(intptr0 + 64);
                     __builtin_prefetch(intptr1 + 64);
-                    v4f32 _v00 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                    v4f32 _v01 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0 + 4, 0));
-                    v4f32 _v02 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0 + 8, 0));
-                    v4f32 _v03 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0 + 12, 0));
-                    v4f32 _v10 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                    v4f32 _v11 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 4, 0));
-                    v4f32 _v12 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 8, 0));
-                    v4f32 _v13 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 12, 0));
+                    __m128 _v00 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                    __m128 _v01 = __lsx_vffint_s_w(__lsx_vld(intptr0 + 4, 0));
+                    __m128 _v02 = __lsx_vffint_s_w(__lsx_vld(intptr0 + 8, 0));
+                    __m128 _v03 = __lsx_vffint_s_w(__lsx_vld(intptr0 + 12, 0));
+                    __m128 _v10 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                    __m128 _v11 = __lsx_vffint_s_w(__lsx_vld(intptr1 + 4, 0));
+                    __m128 _v12 = __lsx_vffint_s_w(__lsx_vld(intptr1 + 8, 0));
+                    __m128 _v13 = __lsx_vffint_s_w(__lsx_vld(intptr1 + 12, 0));
                     _v00 = __lsx_vfmadd_s(_scale0, _v00, _bias0);
                     _v01 = __lsx_vfmadd_s(_scale0, _v01, _bias0);
                     _v02 = __lsx_vfmadd_s(_scale0, _v02, _bias0);
@@ -153,10 +153,10 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 {
                     __builtin_prefetch(intptr0 + 32);
                     __builtin_prefetch(intptr1 + 32);
-                    v4f32 _v00 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                    v4f32 _v01 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0 + 4, 0));
-                    v4f32 _v10 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
-                    v4f32 _v11 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1 + 4, 0));
+                    __m128 _v00 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                    __m128 _v01 = __lsx_vffint_s_w(__lsx_vld(intptr0 + 4, 0));
+                    __m128 _v10 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                    __m128 _v11 = __lsx_vffint_s_w(__lsx_vld(intptr1 + 4, 0));
                     _v00 = __lsx_vfmadd_s(_scale0, _v00, _bias0);
                     _v01 = __lsx_vfmadd_s(_scale0, _v01, _bias0);
                     _v10 = __lsx_vfmadd_s(_scale1, _v10, _bias1);
@@ -172,8 +172,8 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 {
                     __builtin_prefetch(intptr0 + 16);
                     __builtin_prefetch(intptr1 + 16);
-                    v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                    v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                    __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                    __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
                     _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
                     _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                     *((int64_t*)ptr) = float2int8leakyrelu(_v0, _v1, _slope);
@@ -199,17 +199,17 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 signed char* ptr3 = top_blob.channel(q * 4 + 3);
                 signed char* vp;
 
-                v4f32 _scale_in = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 4, 0);
-                v4f32 _scale_out = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 4, 0);
+                __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 4, 0);
+                __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 4, 0);
 
-                v4f32 _scale = __lsx_vfmul_s(_scale_in, _scale_out);
-                v4f32 _slope = (v4f32)__lsx_vreplfr2vr_s(slope);
+                __m128 _scale = __lsx_vfmul_s(_scale_in, _scale_out);
+                __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
 
                 int i = 0;
                 for (; i < size; i++)
                 {
                     __builtin_prefetch(intptr + 16);
-                    v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                    __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                     _v = __lsx_vfmul_s(_v, _scale);
                     __m128i v = float2int8leakyrelu(_v, _slope);
                     vp = (signed char*)&v;
@@ -238,19 +238,19 @@ static void requantize_leakyrelu_pack4_lsx(const Mat& bottom_blob, Mat& top_blob
                 signed char* ptr3 = top_blob.channel(q * 4 + 3);
                 signed char* vp;
 
-                v4f32 _scale_in = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 4, 0);
-                v4f32 _scale_out = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 4, 0);
-                v4f32 _bias = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 4, 0);
+                __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 4, 0);
+                __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 4, 0);
+                __m128 _bias = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 4, 0);
 
-                v4f32 _scale = __lsx_vfmul_s(_scale_in, _scale_out);
+                __m128 _scale = __lsx_vfmul_s(_scale_in, _scale_out);
                 _bias = __lsx_vfmul_s(_bias, _scale_out);
-                v4f32 _slope = (v4f32)__lsx_vreplfr2vr_s(slope);
+                __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
 
                 int i = 0;
                 for (; i < size; i++)
                 {
                     __builtin_prefetch(intptr + 16);
-                    v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                    __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                     _v = __lsx_vfmadd_s(_scale, _v, _bias);
                     __m128i v = float2int8leakyrelu(_v, _slope);
                     vp = (signed char*)&v;

@@ -30,7 +30,7 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
     {
         Mat out0 = top_blob.channel(p);
 
-        v4f32 _bias0 = bias ? (v4f32)__lsx_vld(bias + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
+        __m128 _bias0 = bias ? (__m128)__lsx_vld(bias + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
         out0.fill(_bias0);
 
         for (int q = 0; q < inch; q++)
@@ -56,18 +56,18 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                 int j = 0;
                 for (; j + 3 < outw; j += 4)
                 {
-                    v4f32 _sum0 = (v4f32)__lsx_vld(outptr0, 0);
-                    v4f32 _sum1 = (v4f32)__lsx_vld(outptr0 + 4, 0);
-                    v4f32 _sum2 = (v4f32)__lsx_vld(outptr0 + 4 * 2, 0);
-                    v4f32 _sum3 = (v4f32)__lsx_vld(outptr0 + 4 * 3, 0);
+                    __m128 _sum0 = (__m128)__lsx_vld(outptr0, 0);
+                    __m128 _sum1 = (__m128)__lsx_vld(outptr0 + 4, 0);
+                    __m128 _sum2 = (__m128)__lsx_vld(outptr0 + 4 * 2, 0);
+                    __m128 _sum3 = (__m128)__lsx_vld(outptr0 + 4 * 3, 0);
 
-                    v4f32 _k00 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k01 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k02 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k03 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k04 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k05 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k06 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k00 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k01 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k02 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k03 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k04 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k05 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k06 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
@@ -75,19 +75,19 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m128i _r0n = __lsx_vld(r0 + 4, 0);
                     __m128i _r0nn = __lsx_vld(r0 + 8, 0);
 
-                    v4f32 _r00 = (v4f32)__lsx_vreplvei_w(_r0, 0);
-                    v4f32 _r01 = (v4f32)__lsx_vreplvei_w(_r0, 1);
-                    v4f32 _r02 = (v4f32)__lsx_vreplvei_w(_r0, 2);
-                    v4f32 _r03 = (v4f32)__lsx_vreplvei_w(_r0, 3);
-                    v4f32 _r04 = (v4f32)__lsx_vreplvei_w(_r0n, 0);
-                    v4f32 _r05 = (v4f32)__lsx_vreplvei_w(_r0n, 1);
-                    v4f32 _r06 = (v4f32)__lsx_vreplvei_w(_r0n, 2);
-                    v4f32 _r07 = (v4f32)__lsx_vreplvei_w(_r0n, 3);
-                    v4f32 _r08 = (v4f32)__lsx_vreplvei_w(_r0nn, 0);
-                    v4f32 _r09 = (v4f32)__lsx_vreplvei_w(_r0nn, 1);
-                    v4f32 _r0a = (v4f32)__lsx_vreplvei_w(_r0nn, 2);
-                    v4f32 _r0b = (v4f32)__lsx_vreplvei_w(_r0nn, 3);
-                    v4f32 _r0c = __lsx_vreplfr2vr_s(r0[12]);
+                    __m128 _r00 = (__m128)__lsx_vreplvei_w(_r0, 0);
+                    __m128 _r01 = (__m128)__lsx_vreplvei_w(_r0, 1);
+                    __m128 _r02 = (__m128)__lsx_vreplvei_w(_r0, 2);
+                    __m128 _r03 = (__m128)__lsx_vreplvei_w(_r0, 3);
+                    __m128 _r04 = (__m128)__lsx_vreplvei_w(_r0n, 0);
+                    __m128 _r05 = (__m128)__lsx_vreplvei_w(_r0n, 1);
+                    __m128 _r06 = (__m128)__lsx_vreplvei_w(_r0n, 2);
+                    __m128 _r07 = (__m128)__lsx_vreplvei_w(_r0n, 3);
+                    __m128 _r08 = (__m128)__lsx_vreplvei_w(_r0nn, 0);
+                    __m128 _r09 = (__m128)__lsx_vreplvei_w(_r0nn, 1);
+                    __m128 _r0a = (__m128)__lsx_vreplvei_w(_r0nn, 2);
+                    __m128 _r0b = (__m128)__lsx_vreplvei_w(_r0nn, 3);
+                    __m128 _r0c = __lsx_vreplfr2vr_s(r0[12]);
 
                     _sum0 = __lsx_vfmadd_s(_k00, _r00, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k00, _r02, _sum1);
@@ -118,13 +118,13 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum2 = __lsx_vfmadd_s(_k06, _r0a, _sum2);
                     _sum3 = __lsx_vfmadd_s(_k06, _r0c, _sum3);
 
-                    v4f32 _k10 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k11 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k12 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k13 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k14 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k15 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k16 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k10 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k11 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k12 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k13 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k14 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k15 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k16 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
@@ -132,19 +132,19 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m128i _r1n = __lsx_vld(r1 + 4, 0);
                     __m128i _r1nn = __lsx_vld(r1 + 8, 0);
 
-                    v4f32 _r10 = (v4f32)__lsx_vreplvei_w(_r1, 0);
-                    v4f32 _r11 = (v4f32)__lsx_vreplvei_w(_r1, 1);
-                    v4f32 _r12 = (v4f32)__lsx_vreplvei_w(_r1, 2);
-                    v4f32 _r13 = (v4f32)__lsx_vreplvei_w(_r1, 3);
-                    v4f32 _r14 = (v4f32)__lsx_vreplvei_w(_r1n, 0);
-                    v4f32 _r15 = (v4f32)__lsx_vreplvei_w(_r1n, 1);
-                    v4f32 _r16 = (v4f32)__lsx_vreplvei_w(_r1n, 2);
-                    v4f32 _r17 = (v4f32)__lsx_vreplvei_w(_r1n, 3);
-                    v4f32 _r18 = (v4f32)__lsx_vreplvei_w(_r1nn, 0);
-                    v4f32 _r19 = (v4f32)__lsx_vreplvei_w(_r1nn, 1);
-                    v4f32 _r1a = (v4f32)__lsx_vreplvei_w(_r1nn, 2);
-                    v4f32 _r1b = (v4f32)__lsx_vreplvei_w(_r1nn, 3);
-                    v4f32 _r1c = __lsx_vreplfr2vr_s(r1[12]);
+                    __m128 _r10 = (__m128)__lsx_vreplvei_w(_r1, 0);
+                    __m128 _r11 = (__m128)__lsx_vreplvei_w(_r1, 1);
+                    __m128 _r12 = (__m128)__lsx_vreplvei_w(_r1, 2);
+                    __m128 _r13 = (__m128)__lsx_vreplvei_w(_r1, 3);
+                    __m128 _r14 = (__m128)__lsx_vreplvei_w(_r1n, 0);
+                    __m128 _r15 = (__m128)__lsx_vreplvei_w(_r1n, 1);
+                    __m128 _r16 = (__m128)__lsx_vreplvei_w(_r1n, 2);
+                    __m128 _r17 = (__m128)__lsx_vreplvei_w(_r1n, 3);
+                    __m128 _r18 = (__m128)__lsx_vreplvei_w(_r1nn, 0);
+                    __m128 _r19 = (__m128)__lsx_vreplvei_w(_r1nn, 1);
+                    __m128 _r1a = (__m128)__lsx_vreplvei_w(_r1nn, 2);
+                    __m128 _r1b = (__m128)__lsx_vreplvei_w(_r1nn, 3);
+                    __m128 _r1c = __lsx_vreplfr2vr_s(r1[12]);
 
                     _sum0 = __lsx_vfmadd_s(_k10, _r10, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k10, _r12, _sum1);
@@ -175,13 +175,13 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum2 = __lsx_vfmadd_s(_k16, _r1a, _sum2);
                     _sum3 = __lsx_vfmadd_s(_k16, _r1c, _sum3);
 
-                    v4f32 _k20 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k21 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k22 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k23 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k24 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k25 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k26 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k20 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k21 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k22 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k23 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k24 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k25 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k26 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
@@ -189,19 +189,19 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m128i _r2n = __lsx_vld(r2 + 4, 0);
                     __m128i _r2nn = __lsx_vld(r2 + 8, 0);
 
-                    v4f32 _r20 = (v4f32)__lsx_vreplvei_w(_r2, 0);
-                    v4f32 _r21 = (v4f32)__lsx_vreplvei_w(_r2, 1);
-                    v4f32 _r22 = (v4f32)__lsx_vreplvei_w(_r2, 2);
-                    v4f32 _r23 = (v4f32)__lsx_vreplvei_w(_r2, 3);
-                    v4f32 _r24 = (v4f32)__lsx_vreplvei_w(_r2n, 0);
-                    v4f32 _r25 = (v4f32)__lsx_vreplvei_w(_r2n, 1);
-                    v4f32 _r26 = (v4f32)__lsx_vreplvei_w(_r2n, 2);
-                    v4f32 _r27 = (v4f32)__lsx_vreplvei_w(_r2n, 3);
-                    v4f32 _r28 = (v4f32)__lsx_vreplvei_w(_r2nn, 0);
-                    v4f32 _r29 = (v4f32)__lsx_vreplvei_w(_r2nn, 1);
-                    v4f32 _r2a = (v4f32)__lsx_vreplvei_w(_r2nn, 2);
-                    v4f32 _r2b = (v4f32)__lsx_vreplvei_w(_r2nn, 3);
-                    v4f32 _r2c = __lsx_vreplfr2vr_s(r2[12]);
+                    __m128 _r20 = (__m128)__lsx_vreplvei_w(_r2, 0);
+                    __m128 _r21 = (__m128)__lsx_vreplvei_w(_r2, 1);
+                    __m128 _r22 = (__m128)__lsx_vreplvei_w(_r2, 2);
+                    __m128 _r23 = (__m128)__lsx_vreplvei_w(_r2, 3);
+                    __m128 _r24 = (__m128)__lsx_vreplvei_w(_r2n, 0);
+                    __m128 _r25 = (__m128)__lsx_vreplvei_w(_r2n, 1);
+                    __m128 _r26 = (__m128)__lsx_vreplvei_w(_r2n, 2);
+                    __m128 _r27 = (__m128)__lsx_vreplvei_w(_r2n, 3);
+                    __m128 _r28 = (__m128)__lsx_vreplvei_w(_r2nn, 0);
+                    __m128 _r29 = (__m128)__lsx_vreplvei_w(_r2nn, 1);
+                    __m128 _r2a = (__m128)__lsx_vreplvei_w(_r2nn, 2);
+                    __m128 _r2b = (__m128)__lsx_vreplvei_w(_r2nn, 3);
+                    __m128 _r2c = __lsx_vreplfr2vr_s(r2[12]);
 
                     _sum0 = __lsx_vfmadd_s(_k20, _r20, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k20, _r22, _sum1);
@@ -232,13 +232,13 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum2 = __lsx_vfmadd_s(_k26, _r2a, _sum2);
                     _sum3 = __lsx_vfmadd_s(_k26, _r2c, _sum3);
 
-                    v4f32 _k30 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k31 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k32 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k33 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k34 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k35 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k36 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k30 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k31 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k32 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k33 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k34 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k35 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k36 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
@@ -246,19 +246,19 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m128i _r3n = __lsx_vld(r3 + 4, 0);
                     __m128i _r3nn = __lsx_vld(r3 + 8, 0);
 
-                    v4f32 _r30 = (v4f32)__lsx_vreplvei_w(_r3, 0);
-                    v4f32 _r31 = (v4f32)__lsx_vreplvei_w(_r3, 1);
-                    v4f32 _r32 = (v4f32)__lsx_vreplvei_w(_r3, 2);
-                    v4f32 _r33 = (v4f32)__lsx_vreplvei_w(_r3, 3);
-                    v4f32 _r34 = (v4f32)__lsx_vreplvei_w(_r3n, 0);
-                    v4f32 _r35 = (v4f32)__lsx_vreplvei_w(_r3n, 1);
-                    v4f32 _r36 = (v4f32)__lsx_vreplvei_w(_r3n, 2);
-                    v4f32 _r37 = (v4f32)__lsx_vreplvei_w(_r3n, 3);
-                    v4f32 _r38 = (v4f32)__lsx_vreplvei_w(_r3nn, 0);
-                    v4f32 _r39 = (v4f32)__lsx_vreplvei_w(_r3nn, 1);
-                    v4f32 _r3a = (v4f32)__lsx_vreplvei_w(_r3nn, 2);
-                    v4f32 _r3b = (v4f32)__lsx_vreplvei_w(_r3nn, 3);
-                    v4f32 _r3c = __lsx_vreplfr2vr_s(r3[12]);
+                    __m128 _r30 = (__m128)__lsx_vreplvei_w(_r3, 0);
+                    __m128 _r31 = (__m128)__lsx_vreplvei_w(_r3, 1);
+                    __m128 _r32 = (__m128)__lsx_vreplvei_w(_r3, 2);
+                    __m128 _r33 = (__m128)__lsx_vreplvei_w(_r3, 3);
+                    __m128 _r34 = (__m128)__lsx_vreplvei_w(_r3n, 0);
+                    __m128 _r35 = (__m128)__lsx_vreplvei_w(_r3n, 1);
+                    __m128 _r36 = (__m128)__lsx_vreplvei_w(_r3n, 2);
+                    __m128 _r37 = (__m128)__lsx_vreplvei_w(_r3n, 3);
+                    __m128 _r38 = (__m128)__lsx_vreplvei_w(_r3nn, 0);
+                    __m128 _r39 = (__m128)__lsx_vreplvei_w(_r3nn, 1);
+                    __m128 _r3a = (__m128)__lsx_vreplvei_w(_r3nn, 2);
+                    __m128 _r3b = (__m128)__lsx_vreplvei_w(_r3nn, 3);
+                    __m128 _r3c = __lsx_vreplfr2vr_s(r3[12]);
 
                     _sum0 = __lsx_vfmadd_s(_k30, _r30, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k30, _r32, _sum1);
@@ -289,13 +289,13 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum2 = __lsx_vfmadd_s(_k36, _r3a, _sum2);
                     _sum3 = __lsx_vfmadd_s(_k36, _r3c, _sum3);
 
-                    v4f32 _k40 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k41 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k42 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k43 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k44 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k45 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k46 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k40 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k41 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k42 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k43 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k44 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k45 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k46 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
@@ -303,19 +303,19 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m128i _r4n = __lsx_vld(r4 + 4, 0);
                     __m128i _r4nn = __lsx_vld(r4 + 8, 0);
 
-                    v4f32 _r40 = (v4f32)__lsx_vreplvei_w(_r4, 0);
-                    v4f32 _r41 = (v4f32)__lsx_vreplvei_w(_r4, 1);
-                    v4f32 _r42 = (v4f32)__lsx_vreplvei_w(_r4, 2);
-                    v4f32 _r43 = (v4f32)__lsx_vreplvei_w(_r4, 3);
-                    v4f32 _r44 = (v4f32)__lsx_vreplvei_w(_r4n, 0);
-                    v4f32 _r45 = (v4f32)__lsx_vreplvei_w(_r4n, 1);
-                    v4f32 _r46 = (v4f32)__lsx_vreplvei_w(_r4n, 2);
-                    v4f32 _r47 = (v4f32)__lsx_vreplvei_w(_r4n, 3);
-                    v4f32 _r48 = (v4f32)__lsx_vreplvei_w(_r4nn, 0);
-                    v4f32 _r49 = (v4f32)__lsx_vreplvei_w(_r4nn, 1);
-                    v4f32 _r4a = (v4f32)__lsx_vreplvei_w(_r4nn, 2);
-                    v4f32 _r4b = (v4f32)__lsx_vreplvei_w(_r4nn, 3);
-                    v4f32 _r4c = __lsx_vreplfr2vr_s(r4[12]);
+                    __m128 _r40 = (__m128)__lsx_vreplvei_w(_r4, 0);
+                    __m128 _r41 = (__m128)__lsx_vreplvei_w(_r4, 1);
+                    __m128 _r42 = (__m128)__lsx_vreplvei_w(_r4, 2);
+                    __m128 _r43 = (__m128)__lsx_vreplvei_w(_r4, 3);
+                    __m128 _r44 = (__m128)__lsx_vreplvei_w(_r4n, 0);
+                    __m128 _r45 = (__m128)__lsx_vreplvei_w(_r4n, 1);
+                    __m128 _r46 = (__m128)__lsx_vreplvei_w(_r4n, 2);
+                    __m128 _r47 = (__m128)__lsx_vreplvei_w(_r4n, 3);
+                    __m128 _r48 = (__m128)__lsx_vreplvei_w(_r4nn, 0);
+                    __m128 _r49 = (__m128)__lsx_vreplvei_w(_r4nn, 1);
+                    __m128 _r4a = (__m128)__lsx_vreplvei_w(_r4nn, 2);
+                    __m128 _r4b = (__m128)__lsx_vreplvei_w(_r4nn, 3);
+                    __m128 _r4c = __lsx_vreplfr2vr_s(r4[12]);
 
                     _sum0 = __lsx_vfmadd_s(_k40, _r40, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k40, _r42, _sum1);
@@ -346,13 +346,13 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum2 = __lsx_vfmadd_s(_k46, _r4a, _sum2);
                     _sum3 = __lsx_vfmadd_s(_k46, _r4c, _sum3);
 
-                    v4f32 _k50 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k51 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k52 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k53 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k54 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k55 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k56 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k50 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k51 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k52 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k53 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k54 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k55 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k56 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
@@ -360,19 +360,19 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m128i _r5n = __lsx_vld(r5 + 4, 0);
                     __m128i _r5nn = __lsx_vld(r5 + 8, 0);
 
-                    v4f32 _r50 = (v4f32)__lsx_vreplvei_w(_r5, 0);
-                    v4f32 _r51 = (v4f32)__lsx_vreplvei_w(_r5, 1);
-                    v4f32 _r52 = (v4f32)__lsx_vreplvei_w(_r5, 2);
-                    v4f32 _r53 = (v4f32)__lsx_vreplvei_w(_r5, 3);
-                    v4f32 _r54 = (v4f32)__lsx_vreplvei_w(_r5n, 0);
-                    v4f32 _r55 = (v4f32)__lsx_vreplvei_w(_r5n, 1);
-                    v4f32 _r56 = (v4f32)__lsx_vreplvei_w(_r5n, 2);
-                    v4f32 _r57 = (v4f32)__lsx_vreplvei_w(_r5n, 3);
-                    v4f32 _r58 = (v4f32)__lsx_vreplvei_w(_r5nn, 0);
-                    v4f32 _r59 = (v4f32)__lsx_vreplvei_w(_r5nn, 1);
-                    v4f32 _r5a = (v4f32)__lsx_vreplvei_w(_r5nn, 2);
-                    v4f32 _r5b = (v4f32)__lsx_vreplvei_w(_r5nn, 3);
-                    v4f32 _r5c = __lsx_vreplfr2vr_s(r5[12]);
+                    __m128 _r50 = (__m128)__lsx_vreplvei_w(_r5, 0);
+                    __m128 _r51 = (__m128)__lsx_vreplvei_w(_r5, 1);
+                    __m128 _r52 = (__m128)__lsx_vreplvei_w(_r5, 2);
+                    __m128 _r53 = (__m128)__lsx_vreplvei_w(_r5, 3);
+                    __m128 _r54 = (__m128)__lsx_vreplvei_w(_r5n, 0);
+                    __m128 _r55 = (__m128)__lsx_vreplvei_w(_r5n, 1);
+                    __m128 _r56 = (__m128)__lsx_vreplvei_w(_r5n, 2);
+                    __m128 _r57 = (__m128)__lsx_vreplvei_w(_r5n, 3);
+                    __m128 _r58 = (__m128)__lsx_vreplvei_w(_r5nn, 0);
+                    __m128 _r59 = (__m128)__lsx_vreplvei_w(_r5nn, 1);
+                    __m128 _r5a = (__m128)__lsx_vreplvei_w(_r5nn, 2);
+                    __m128 _r5b = (__m128)__lsx_vreplvei_w(_r5nn, 3);
+                    __m128 _r5c = __lsx_vreplfr2vr_s(r5[12]);
 
                     _sum0 = __lsx_vfmadd_s(_k50, _r50, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k50, _r52, _sum1);
@@ -403,13 +403,13 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     _sum2 = __lsx_vfmadd_s(_k56, _r5a, _sum2);
                     _sum3 = __lsx_vfmadd_s(_k56, _r5c, _sum3);
 
-                    v4f32 _k60 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k61 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k62 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k63 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k64 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k65 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k66 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k60 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k61 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k62 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k63 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k64 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k65 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k66 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr -= 4 * 42;
 
@@ -417,19 +417,19 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                     __m128i _r6n = __lsx_vld(r6 + 4, 0);
                     __m128i _r6nn = __lsx_vld(r6 + 8, 0);
 
-                    v4f32 _r60 = (v4f32)__lsx_vreplvei_w(_r6, 0);
-                    v4f32 _r61 = (v4f32)__lsx_vreplvei_w(_r6, 1);
-                    v4f32 _r62 = (v4f32)__lsx_vreplvei_w(_r6, 2);
-                    v4f32 _r63 = (v4f32)__lsx_vreplvei_w(_r6, 3);
-                    v4f32 _r64 = (v4f32)__lsx_vreplvei_w(_r6n, 0);
-                    v4f32 _r65 = (v4f32)__lsx_vreplvei_w(_r6n, 1);
-                    v4f32 _r66 = (v4f32)__lsx_vreplvei_w(_r6n, 2);
-                    v4f32 _r67 = (v4f32)__lsx_vreplvei_w(_r6n, 3);
-                    v4f32 _r68 = (v4f32)__lsx_vreplvei_w(_r6nn, 0);
-                    v4f32 _r69 = (v4f32)__lsx_vreplvei_w(_r6nn, 1);
-                    v4f32 _r6a = (v4f32)__lsx_vreplvei_w(_r6nn, 2);
-                    v4f32 _r6b = (v4f32)__lsx_vreplvei_w(_r6nn, 3);
-                    v4f32 _r6c = __lsx_vreplfr2vr_s(r6[12]);
+                    __m128 _r60 = (__m128)__lsx_vreplvei_w(_r6, 0);
+                    __m128 _r61 = (__m128)__lsx_vreplvei_w(_r6, 1);
+                    __m128 _r62 = (__m128)__lsx_vreplvei_w(_r6, 2);
+                    __m128 _r63 = (__m128)__lsx_vreplvei_w(_r6, 3);
+                    __m128 _r64 = (__m128)__lsx_vreplvei_w(_r6n, 0);
+                    __m128 _r65 = (__m128)__lsx_vreplvei_w(_r6n, 1);
+                    __m128 _r66 = (__m128)__lsx_vreplvei_w(_r6n, 2);
+                    __m128 _r67 = (__m128)__lsx_vreplvei_w(_r6n, 3);
+                    __m128 _r68 = (__m128)__lsx_vreplvei_w(_r6nn, 0);
+                    __m128 _r69 = (__m128)__lsx_vreplvei_w(_r6nn, 1);
+                    __m128 _r6a = (__m128)__lsx_vreplvei_w(_r6nn, 2);
+                    __m128 _r6b = (__m128)__lsx_vreplvei_w(_r6nn, 3);
+                    __m128 _r6c = __lsx_vreplfr2vr_s(r6[12]);
 
                     _sum0 = __lsx_vfmadd_s(_k60, _r60, _sum0);
                     _sum1 = __lsx_vfmadd_s(_k60, _r62, _sum1);
@@ -477,154 +477,154 @@ static void conv7x7s2_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, const 
                 }
                 for (; j < outw; j++)
                 {
-                    v4f32 _sum0 = (v4f32)__lsx_vld(outptr0, 0);
+                    __m128 _sum0 = (__m128)__lsx_vld(outptr0, 0);
 
-                    v4f32 _k00 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k01 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k02 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k03 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k04 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k05 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k06 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k00 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k01 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k02 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k03 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k04 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k05 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k06 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
                     __m128i _r0 = __lsx_vld(r0, 0);
                     __m128i _r0n = __lsx_vld(r0 + 4, 0);
 
-                    _sum0 = __lsx_vfmadd_s(_k00, (v4f32)__lsx_vreplvei_w(_r0, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k01, (v4f32)__lsx_vreplvei_w(_r0, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k02, (v4f32)__lsx_vreplvei_w(_r0, 2), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k03, (v4f32)__lsx_vreplvei_w(_r0, 3), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k04, (v4f32)__lsx_vreplvei_w(_r0n, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k05, (v4f32)__lsx_vreplvei_w(_r0n, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k06, (v4f32)__lsx_vreplvei_w(_r0n, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k00, (__m128)__lsx_vreplvei_w(_r0, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k01, (__m128)__lsx_vreplvei_w(_r0, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k02, (__m128)__lsx_vreplvei_w(_r0, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k03, (__m128)__lsx_vreplvei_w(_r0, 3), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k04, (__m128)__lsx_vreplvei_w(_r0n, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k05, (__m128)__lsx_vreplvei_w(_r0n, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k06, (__m128)__lsx_vreplvei_w(_r0n, 2), _sum0);
 
-                    v4f32 _k10 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k11 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k12 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k13 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k14 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k15 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k16 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k10 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k11 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k12 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k13 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k14 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k15 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k16 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
                     __m128i _r1 = __lsx_vld(r1, 0);
                     __m128i _r1n = __lsx_vld(r1 + 4, 0);
 
-                    _sum0 = __lsx_vfmadd_s(_k10, (v4f32)__lsx_vreplvei_w(_r1, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k11, (v4f32)__lsx_vreplvei_w(_r1, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k12, (v4f32)__lsx_vreplvei_w(_r1, 2), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k13, (v4f32)__lsx_vreplvei_w(_r1, 3), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k14, (v4f32)__lsx_vreplvei_w(_r1n, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k15, (v4f32)__lsx_vreplvei_w(_r1n, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k16, (v4f32)__lsx_vreplvei_w(_r1n, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k10, (__m128)__lsx_vreplvei_w(_r1, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k11, (__m128)__lsx_vreplvei_w(_r1, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k12, (__m128)__lsx_vreplvei_w(_r1, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k13, (__m128)__lsx_vreplvei_w(_r1, 3), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k14, (__m128)__lsx_vreplvei_w(_r1n, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k15, (__m128)__lsx_vreplvei_w(_r1n, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k16, (__m128)__lsx_vreplvei_w(_r1n, 2), _sum0);
 
-                    v4f32 _k20 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k21 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k22 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k23 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k24 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k25 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k26 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k20 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k21 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k22 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k23 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k24 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k25 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k26 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
                     __m128i _r2 = __lsx_vld(r2, 0);
                     __m128i _r2n = __lsx_vld(r2 + 4, 0);
 
-                    _sum0 = __lsx_vfmadd_s(_k20, (v4f32)__lsx_vreplvei_w(_r2, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k21, (v4f32)__lsx_vreplvei_w(_r2, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k22, (v4f32)__lsx_vreplvei_w(_r2, 2), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k23, (v4f32)__lsx_vreplvei_w(_r2, 3), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k24, (v4f32)__lsx_vreplvei_w(_r2n, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k25, (v4f32)__lsx_vreplvei_w(_r2n, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k26, (v4f32)__lsx_vreplvei_w(_r2n, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k20, (__m128)__lsx_vreplvei_w(_r2, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k21, (__m128)__lsx_vreplvei_w(_r2, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k22, (__m128)__lsx_vreplvei_w(_r2, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k23, (__m128)__lsx_vreplvei_w(_r2, 3), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k24, (__m128)__lsx_vreplvei_w(_r2n, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k25, (__m128)__lsx_vreplvei_w(_r2n, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k26, (__m128)__lsx_vreplvei_w(_r2n, 2), _sum0);
 
-                    v4f32 _k30 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k31 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k32 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k33 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k34 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k35 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k36 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k30 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k31 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k32 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k33 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k34 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k35 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k36 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
                     __m128i _r3 = __lsx_vld(r3, 0);
                     __m128i _r3n = __lsx_vld(r3 + 4, 0);
 
-                    _sum0 = __lsx_vfmadd_s(_k30, (v4f32)__lsx_vreplvei_w(_r3, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k31, (v4f32)__lsx_vreplvei_w(_r3, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k32, (v4f32)__lsx_vreplvei_w(_r3, 2), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k33, (v4f32)__lsx_vreplvei_w(_r3, 3), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k34, (v4f32)__lsx_vreplvei_w(_r3n, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k35, (v4f32)__lsx_vreplvei_w(_r3n, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k36, (v4f32)__lsx_vreplvei_w(_r3n, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k30, (__m128)__lsx_vreplvei_w(_r3, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k31, (__m128)__lsx_vreplvei_w(_r3, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k32, (__m128)__lsx_vreplvei_w(_r3, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k33, (__m128)__lsx_vreplvei_w(_r3, 3), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k34, (__m128)__lsx_vreplvei_w(_r3n, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k35, (__m128)__lsx_vreplvei_w(_r3n, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k36, (__m128)__lsx_vreplvei_w(_r3n, 2), _sum0);
 
-                    v4f32 _k40 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k41 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k42 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k43 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k44 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k45 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k46 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k40 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k41 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k42 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k43 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k44 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k45 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k46 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
                     __m128i _r4 = __lsx_vld(r4, 0);
                     __m128i _r4n = __lsx_vld(r4 + 4, 0);
 
-                    _sum0 = __lsx_vfmadd_s(_k40, (v4f32)__lsx_vreplvei_w(_r4, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k41, (v4f32)__lsx_vreplvei_w(_r4, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k42, (v4f32)__lsx_vreplvei_w(_r4, 2), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k43, (v4f32)__lsx_vreplvei_w(_r4, 3), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k44, (v4f32)__lsx_vreplvei_w(_r4n, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k45, (v4f32)__lsx_vreplvei_w(_r4n, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k46, (v4f32)__lsx_vreplvei_w(_r4n, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k40, (__m128)__lsx_vreplvei_w(_r4, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k41, (__m128)__lsx_vreplvei_w(_r4, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k42, (__m128)__lsx_vreplvei_w(_r4, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k43, (__m128)__lsx_vreplvei_w(_r4, 3), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k44, (__m128)__lsx_vreplvei_w(_r4n, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k45, (__m128)__lsx_vreplvei_w(_r4n, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k46, (__m128)__lsx_vreplvei_w(_r4n, 2), _sum0);
 
-                    v4f32 _k50 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k51 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k52 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k53 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k54 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k55 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k56 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k50 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k51 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k52 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k53 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k54 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k55 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k56 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr += 4 * 7;
 
                     __m128i _r5 = __lsx_vld(r5, 0);
                     __m128i _r5n = __lsx_vld(r5 + 4, 0);
 
-                    _sum0 = __lsx_vfmadd_s(_k50, (v4f32)__lsx_vreplvei_w(_r5, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k51, (v4f32)__lsx_vreplvei_w(_r5, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k52, (v4f32)__lsx_vreplvei_w(_r5, 2), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k53, (v4f32)__lsx_vreplvei_w(_r5, 3), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k54, (v4f32)__lsx_vreplvei_w(_r5n, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k55, (v4f32)__lsx_vreplvei_w(_r5n, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k56, (v4f32)__lsx_vreplvei_w(_r5n, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k50, (__m128)__lsx_vreplvei_w(_r5, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k51, (__m128)__lsx_vreplvei_w(_r5, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k52, (__m128)__lsx_vreplvei_w(_r5, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k53, (__m128)__lsx_vreplvei_w(_r5, 3), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k54, (__m128)__lsx_vreplvei_w(_r5n, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k55, (__m128)__lsx_vreplvei_w(_r5n, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k56, (__m128)__lsx_vreplvei_w(_r5n, 2), _sum0);
 
-                    v4f32 _k60 = (v4f32)__lsx_vld(kptr, 0);
-                    v4f32 _k61 = (v4f32)__lsx_vld(kptr + 4, 0);
-                    v4f32 _k62 = (v4f32)__lsx_vld(kptr + 4 * 2, 0);
-                    v4f32 _k63 = (v4f32)__lsx_vld(kptr + 4 * 3, 0);
-                    v4f32 _k64 = (v4f32)__lsx_vld(kptr + 4 * 4, 0);
-                    v4f32 _k65 = (v4f32)__lsx_vld(kptr + 4 * 5, 0);
-                    v4f32 _k66 = (v4f32)__lsx_vld(kptr + 4 * 6, 0);
+                    __m128 _k60 = (__m128)__lsx_vld(kptr, 0);
+                    __m128 _k61 = (__m128)__lsx_vld(kptr + 4, 0);
+                    __m128 _k62 = (__m128)__lsx_vld(kptr + 4 * 2, 0);
+                    __m128 _k63 = (__m128)__lsx_vld(kptr + 4 * 3, 0);
+                    __m128 _k64 = (__m128)__lsx_vld(kptr + 4 * 4, 0);
+                    __m128 _k65 = (__m128)__lsx_vld(kptr + 4 * 5, 0);
+                    __m128 _k66 = (__m128)__lsx_vld(kptr + 4 * 6, 0);
 
                     kptr -= 4 * 42;
 
                     __m128i _r6 = __lsx_vld(r6, 0);
                     __m128i _r6n = __lsx_vld(r6 + 4, 0);
 
-                    _sum0 = __lsx_vfmadd_s(_k60, (v4f32)__lsx_vreplvei_w(_r6, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k61, (v4f32)__lsx_vreplvei_w(_r6, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k62, (v4f32)__lsx_vreplvei_w(_r6, 2), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k63, (v4f32)__lsx_vreplvei_w(_r6, 3), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k64, (v4f32)__lsx_vreplvei_w(_r6n, 0), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k65, (v4f32)__lsx_vreplvei_w(_r6n, 1), _sum0);
-                    _sum0 = __lsx_vfmadd_s(_k66, (v4f32)__lsx_vreplvei_w(_r6n, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k60, (__m128)__lsx_vreplvei_w(_r6, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k61, (__m128)__lsx_vreplvei_w(_r6, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k62, (__m128)__lsx_vreplvei_w(_r6, 2), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k63, (__m128)__lsx_vreplvei_w(_r6, 3), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k64, (__m128)__lsx_vreplvei_w(_r6n, 0), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k65, (__m128)__lsx_vreplvei_w(_r6n, 1), _sum0);
+                    _sum0 = __lsx_vfmadd_s(_k66, (__m128)__lsx_vreplvei_w(_r6n, 2), _sum0);
 
                     __lsx_vst(_sum0, outptr0, 0);
 

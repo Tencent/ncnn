@@ -54,11 +54,11 @@ static void convolution_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, cons
         {
             for (int j = 0; j < outw; j++)
             {
-                v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
                 if (bias_data_ptr)
                 {
-                    _sum = (v4f32)__lsx_vld(bias_data_ptr + p * 4, 0);
+                    _sum = (__m128)__lsx_vld(bias_data_ptr + p * 4, 0);
                 }
 
                 const float* kptr = (const float*)weight_data_pack1ton + maxk * channels * p * 4;
@@ -71,8 +71,8 @@ static void convolution_pack1to4_lsx(const Mat& bottom_blob, Mat& top_blob, cons
 
                     for (int k = 0; k < maxk; k++) // 29.23
                     {
-                        v4f32 _val = __lsx_vreplfr2vr_s(sptr[space_ofs[k]]);
-                        v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
+                        __m128 _val = __lsx_vreplfr2vr_s(sptr[space_ofs[k]]);
+                        __m128 _w = (__m128)__lsx_vld(kptr, 0);
                         _sum = __lsx_vfmadd_s(_w, _val, _sum);
 
                         kptr += 4;

@@ -279,18 +279,18 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             int nn = inch * maxk * 4; // inch always > 0
 
-            v4f32 _sum0 = bias ? (v4f32)__lsx_vld(bias + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
-            v4f32 _sum1 = _sum0;
-            v4f32 _sum2 = _sum0;
-            v4f32 _sum3 = _sum0;
-            v4f32 _sum4 = _sum0;
-            v4f32 _sum5 = _sum0;
-            v4f32 _sum6 = _sum0;
-            v4f32 _sum7 = _sum0;
-            v4f32 _sum8 = _sum0;
-            v4f32 _sum9 = _sum0;
-            v4f32 _suma = _sum0;
-            v4f32 _sumb = _sum0;
+            __m128 _sum0 = bias ? (__m128)__lsx_vld(bias + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum1 = _sum0;
+            __m128 _sum2 = _sum0;
+            __m128 _sum3 = _sum0;
+            __m128 _sum4 = _sum0;
+            __m128 _sum5 = _sum0;
+            __m128 _sum6 = _sum0;
+            __m128 _sum7 = _sum0;
+            __m128 _sum8 = _sum0;
+            __m128 _sum9 = _sum0;
+            __m128 _suma = _sum0;
+            __m128 _sumb = _sum0;
 
             for (int j = 0; j < nn; j++)
             {
@@ -299,19 +299,19 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
                 __m128i _val0123 = __lsx_vld(tmpptr, 0);
                 __m128i _val4567 = __lsx_vld(tmpptr + 4, 0);
                 __m128i _val89ab = __lsx_vld(tmpptr + 8, 0);
-                v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
-                _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _sum0);
-                _sum1 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 1), _sum1);
-                _sum2 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 2), _sum2);
-                _sum3 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 3), _sum3);
-                _sum4 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 0), _sum4);
-                _sum5 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 1), _sum5);
-                _sum6 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 2), _sum6);
-                _sum7 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 3), _sum7);
-                _sum8 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val89ab, 0), _sum8);
-                _sum9 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val89ab, 1), _sum9);
-                _suma = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val89ab, 2), _suma);
-                _sumb = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val89ab, 3), _sumb);
+                __m128 _w0 = (__m128)__lsx_vld(kptr0, 0);
+                _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 0), _sum0);
+                _sum1 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 1), _sum1);
+                _sum2 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 2), _sum2);
+                _sum3 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 3), _sum3);
+                _sum4 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val4567, 0), _sum4);
+                _sum5 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val4567, 1), _sum5);
+                _sum6 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val4567, 2), _sum6);
+                _sum7 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val4567, 3), _sum7);
+                _sum8 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val89ab, 0), _sum8);
+                _sum9 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val89ab, 1), _sum9);
+                _suma = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val89ab, 2), _suma);
+                _sumb = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val89ab, 3), _sumb);
 
                 tmpptr += 12;
                 kptr0 += 4;
@@ -339,14 +339,14 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             int nn = inch * maxk * 4; // inch always > 0
 
-            v4f32 _sum0 = bias ? (v4f32)__lsx_vld(bias + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
-            v4f32 _sum1 = _sum0;
-            v4f32 _sum2 = _sum0;
-            v4f32 _sum3 = _sum0;
-            v4f32 _sum4 = _sum0;
-            v4f32 _sum5 = _sum0;
-            v4f32 _sum6 = _sum0;
-            v4f32 _sum7 = _sum0;
+            __m128 _sum0 = bias ? (__m128)__lsx_vld(bias + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum1 = _sum0;
+            __m128 _sum2 = _sum0;
+            __m128 _sum3 = _sum0;
+            __m128 _sum4 = _sum0;
+            __m128 _sum5 = _sum0;
+            __m128 _sum6 = _sum0;
+            __m128 _sum7 = _sum0;
 
             for (int j = 0; j < nn; j++)
             {
@@ -354,15 +354,15 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
                 __builtin_prefetch(kptr0 + 16);
                 __m128i _val0123 = __lsx_vld(tmpptr, 0);
                 __m128i _val4567 = __lsx_vld(tmpptr + 4, 0);
-                v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
-                _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _sum0);
-                _sum1 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 1), _sum1);
-                _sum2 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 2), _sum2);
-                _sum3 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 3), _sum3);
-                _sum4 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 0), _sum4);
-                _sum5 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 1), _sum5);
-                _sum6 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 2), _sum6);
-                _sum7 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val4567, 3), _sum7);
+                __m128 _w0 = (__m128)__lsx_vld(kptr0, 0);
+                _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 0), _sum0);
+                _sum1 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 1), _sum1);
+                _sum2 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 2), _sum2);
+                _sum3 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 3), _sum3);
+                _sum4 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val4567, 0), _sum4);
+                _sum5 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val4567, 1), _sum5);
+                _sum6 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val4567, 2), _sum6);
+                _sum7 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val4567, 3), _sum7);
 
                 tmpptr += 8;
                 kptr0 += 4;
@@ -386,21 +386,21 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             int nn = inch * maxk * 4; // inch always > 0
 
-            v4f32 _sum0 = bias ? (v4f32)__lsx_vld(bias + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
-            v4f32 _sum1 = _sum0;
-            v4f32 _sum2 = _sum0;
-            v4f32 _sum3 = _sum0;
+            __m128 _sum0 = bias ? (__m128)__lsx_vld(bias + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum1 = _sum0;
+            __m128 _sum2 = _sum0;
+            __m128 _sum3 = _sum0;
 
             for (int j = 0; j < nn; j++)
             {
                 __builtin_prefetch(tmpptr + 16);
                 __builtin_prefetch(kptr0 + 16);
                 __m128i _val0123 = __lsx_vld(tmpptr, 0);
-                v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
-                _sum0 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 0), _sum0);
-                _sum1 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 1), _sum1);
-                _sum2 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 2), _sum2);
-                _sum3 = __lsx_vfmadd_s(_w0, (v4f32)__lsx_vreplvei_w(_val0123, 3), _sum3);
+                __m128 _w0 = (__m128)__lsx_vld(kptr0, 0);
+                _sum0 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 0), _sum0);
+                _sum1 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 1), _sum1);
+                _sum2 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 2), _sum2);
+                _sum3 = __lsx_vfmadd_s(_w0, (__m128)__lsx_vreplvei_w(_val0123, 3), _sum3);
 
                 tmpptr += 4;
                 kptr0 += 4;
@@ -420,16 +420,16 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             int nn = inch * maxk * 4; // inch always > 0
 
-            v4f32 _sum0 = bias ? (v4f32)__lsx_vld(bias + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
-            v4f32 _sum1 = _sum0;
+            __m128 _sum0 = bias ? (__m128)__lsx_vld(bias + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _sum1 = _sum0;
 
             for (int j = 0; j < nn; j++)
             {
                 __builtin_prefetch(tmpptr + 8);
                 __builtin_prefetch(kptr0 + 16);
-                v4f32 _val0 = __lsx_vreplfr2vr_s(*tmpptr++);
-                v4f32 _val1 = __lsx_vreplfr2vr_s(*tmpptr++);
-                v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
+                __m128 _val0 = __lsx_vreplfr2vr_s(*tmpptr++);
+                __m128 _val1 = __lsx_vreplfr2vr_s(*tmpptr++);
+                __m128 _w0 = (__m128)__lsx_vld(kptr0, 0);
                 _sum0 = __lsx_vfmadd_s(_w0, _val0, _sum0);
                 _sum1 = __lsx_vfmadd_s(_w0, _val1, _sum1);
 
@@ -448,14 +448,14 @@ static void im2col_sgemm_pack4_lsx(const Mat& bottom_im2col, Mat& top_blob, cons
 
             int nn = inch * maxk * 4; // inch always > 0
 
-            v4f32 _sum = bias ? (v4f32)__lsx_vld(bias + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
+            __m128 _sum = bias ? (__m128)__lsx_vld(bias + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
 
             for (int j = 0; j < nn; j++)
             {
                 __builtin_prefetch(tmpptr + 4);
                 __builtin_prefetch(kptr0 + 16);
-                v4f32 _val0 = __lsx_vreplfr2vr_s(*tmpptr++);
-                v4f32 _w0 = (v4f32)__lsx_vld(kptr0, 0);
+                __m128 _val0 = __lsx_vreplfr2vr_s(*tmpptr++);
+                __m128 _w0 = (__m128)__lsx_vld(kptr0, 0);
                 _sum = __lsx_vfmadd_s(_w0, _val0, _sum);
 
                 kptr0 += 4;
@@ -501,7 +501,7 @@ static void convolution_im2col_sgemm_pack4_lsx(const Mat& bottom_blob, Mat& top_
                         int j = 0;
                         for (; j < outw; j++)
                         {
-                            v4f32 _val = (v4f32)__lsx_vld(sptr, 0);
+                            __m128 _val = (__m128)__lsx_vld(sptr, 0);
                             __lsx_vst(_val, ptr, 0);
 
                             sptr += stride_w * 4;

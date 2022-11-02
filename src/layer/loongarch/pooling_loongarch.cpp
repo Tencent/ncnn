@@ -81,10 +81,10 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 {
                     const float* ptr = bottom_blob.channel(q);
 
-                    v4f32 _max = (v4f32)__lsx_vld(ptr, 0);
+                    __m128 _max = (__m128)__lsx_vld(ptr, 0);
                     for (int i = 0; i < size; i++)
                     {
-                        v4f32 _val = (v4f32)__lsx_vld(ptr, 0);
+                        __m128 _val = (__m128)__lsx_vld(ptr, 0);
                         _max = __lsx_vfmax_s(_max, _val);
                         ptr += 4;
                     }
@@ -100,15 +100,15 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                 {
                     const float* ptr = bottom_blob.channel(q);
 
-                    v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                    __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
                     for (int i = 0; i < size; i++)
                     {
-                        v4f32 _val = (v4f32)__lsx_vld(ptr, 0);
+                        __m128 _val = (__m128)__lsx_vld(ptr, 0);
                         _sum = __lsx_vfadd_s(_sum, _val);
                         ptr += 4;
                     }
 
-                    v4f32 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(1.f / size));
+                    __m128 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(1.f / size));
 
                     float* outptr = top_blob;
                     __lsx_vst(_avg, outptr + q * 4, 0);
@@ -168,11 +168,11 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                     {
                         const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
 
-                        v4f32 _max = (v4f32)__lsx_vld(sptr, 0);
+                        __m128 _max = (__m128)__lsx_vld(sptr, 0);
 
                         for (int k = 0; k < maxk; k++)
                         {
-                            v4f32 _val = (v4f32)__lsx_vld(sptr + space_ofs[k] * 4, 0);
+                            __m128 _val = (__m128)__lsx_vld(sptr + space_ofs[k] * 4, 0);
                             _max = __lsx_vfmax_s(_max, _val);
                         }
 
@@ -210,7 +210,7 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         {
                             int sx0 = j * stride_w;
 
-                            v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                            __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
                             int area = 0;
 
                             for (int ki = 0; ki < kernel_h; ki++)
@@ -233,13 +233,13 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                                     if (sx >= w - pad_right - wtailpad)
                                         break;
 
-                                    v4f32 _val = (v4f32)__lsx_vld(m.row(sy) + sx * 4, 0);
+                                    __m128 _val = (__m128)__lsx_vld(m.row(sy) + sx * 4, 0);
                                     _sum = __lsx_vfadd_s(_sum, _val);
                                     area += 1;
                                 }
                             }
 
-                            v4f32 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(1.f / area));
+                            __m128 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(1.f / area));
                             __lsx_vst(_avg, outptr + j * 4, 0);
                         }
 
@@ -263,15 +263,15 @@ int Pooling_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opti
                         {
                             const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
 
-                            v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                            __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                v4f32 _val = (v4f32)__lsx_vld(sptr + space_ofs[k] * 4, 0);
+                                __m128 _val = (__m128)__lsx_vld(sptr + space_ofs[k] * 4, 0);
                                 _sum = __lsx_vfadd_s(_sum, _val);
                             }
 
-                            v4f32 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(inv_maxk));
+                            __m128 _avg = __lsx_vfmul_s(_sum, __lsx_vreplfr2vr_s(inv_maxk));
                             __lsx_vst(_avg, outptr + j * 4, 0);
                         }
 

@@ -38,13 +38,13 @@ typedef union
     static const ncnn::FloatInt Name = {.f = Val}
 
 /* float type data load instructions */
-static NCNN_FORCEINLINE v4f32 __lsx_vreplfr2vr_s(float val)
+static NCNN_FORCEINLINE __m128 __lsx_vreplfr2vr_s(float val)
 {
     ncnn::FloatInt fi_tmpval = {.f = val};
-    return (v4f32)__lsx_vreplgr2vr_w(fi_tmpval.i);
+    return (__m128)__lsx_vreplgr2vr_w(fi_tmpval.i);
 }
 
-static NCNN_FORCEINLINE float __lsx_reduce_fadd_s(v4f32 _v)
+static NCNN_FORCEINLINE float __lsx_reduce_fadd_s(__m128 _v)
 {
     // TODO find a more efficient way
     float* _v_p = (float*)&_v;
@@ -69,15 +69,15 @@ static NCNN_FORCEINLINE signed char float2int8(float v)
 }
 
 #if __loongarch_sx
-static NCNN_FORCEINLINE __m128i float2int8(v4f32 _v)
+static NCNN_FORCEINLINE __m128i float2int8(__m128 _v)
 {
     // simulate round to nearest via +/-0.5
-    v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
+    __m128 _p5 = (__m128)__lsx_vreplfr2vr_s(0.5f);
     __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _sign = __lsx_vand_v((__m128i)_v, _signmask);
-    v4f32 _p5s = (v4f32)__lsx_vor_v((__m128i)_p5, (__m128i)_sign);
-    v4f32 _v5 = __lsx_vfadd_s(_v, _p5s);
+    __m128 _p5s = (__m128)__lsx_vor_v((__m128i)_p5, (__m128i)_sign);
+    __m128 _v5 = __lsx_vfadd_s(_v, _p5s);
     __m128i _v32 = __lsx_vftintrz_w_s(_v5);
 
     __m128i _v32_16 = __lsx_vsat_w(_v32, 15);
@@ -89,18 +89,18 @@ static NCNN_FORCEINLINE __m128i float2int8(v4f32 _v)
     return _v8;
 }
 
-static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
+static NCNN_FORCEINLINE int64_t float2int8(__m128 _vlow, __m128 _vhigh)
 {
     // simulate round to nearest via +/-0.5
-    v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
+    __m128 _p5 = (__m128)__lsx_vreplfr2vr_s(0.5f);
     __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _signlow = __lsx_vand_v((__m128i)_vlow, _signmask);
     __m128i _signhigh = __lsx_vand_v((__m128i)_vhigh, _signmask);
-    v4f32 _p5low = (v4f32)__lsx_vor_v((__m128i)_p5, _signlow);
-    v4f32 _p5high = (v4f32)__lsx_vor_v((__m128i)_p5, _signhigh);
-    v4f32 _vlow5 = __lsx_vfadd_s(_vlow, _p5low);
-    v4f32 _vhigh5 = __lsx_vfadd_s(_vhigh, _p5high);
+    __m128 _p5low = (__m128)__lsx_vor_v((__m128i)_p5, _signlow);
+    __m128 _p5high = (__m128)__lsx_vor_v((__m128i)_p5, _signhigh);
+    __m128 _vlow5 = __lsx_vfadd_s(_vlow, _p5low);
+    __m128 _vhigh5 = __lsx_vfadd_s(_vhigh, _p5high);
     __m128i _vlow32 = __lsx_vftintrz_w_s(_vlow5);
     __m128i _vhigh32 = __lsx_vftintrz_w_s(_vhigh5);
 
@@ -114,15 +114,15 @@ static NCNN_FORCEINLINE int64_t float2int8(v4f32 _vlow, v4f32 _vhigh)
     return _v8[0];
 }
 
-static NCNN_FORCEINLINE __m128i float2int8relu(v4f32 _v)
+static NCNN_FORCEINLINE __m128i float2int8relu(__m128 _v)
 {
     // simulate round to nearest via +/-0.5
-    v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
+    __m128 _p5 = (__m128)__lsx_vreplfr2vr_s(0.5f);
     __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _sign = __lsx_vand_v((__m128i)_v, _signmask);
-    v4f32 _p5s = (v4f32)__lsx_vor_v((__m128i)_p5, _sign);
-    v4f32 _v5 = __lsx_vfadd_s(_v, _p5s);
+    __m128 _p5s = (__m128)__lsx_vor_v((__m128i)_p5, _sign);
+    __m128 _v5 = __lsx_vfadd_s(_v, _p5s);
     __m128i _v32 = __lsx_vftintrz_w_s(_v5);
 
     __m128i _v32_16 = __lsx_vsat_w(_v32, 15);
@@ -134,18 +134,18 @@ static NCNN_FORCEINLINE __m128i float2int8relu(v4f32 _v)
     return _v8;
 }
 
-static NCNN_FORCEINLINE int64_t float2int8relu(v4f32 _vlow, v4f32 _vhigh)
+static NCNN_FORCEINLINE int64_t float2int8relu(__m128 _vlow, __m128 _vhigh)
 {
     // simulate round to nearest via +/-0.5
-    v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
+    __m128 _p5 = (__m128)__lsx_vreplfr2vr_s(0.5f);
     __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _signlow = __lsx_vand_v((__m128i)_vlow, _signmask);
     __m128i _signhigh = __lsx_vand_v((__m128i)_vhigh, _signmask);
-    v4f32 _p5low = (v4f32)__lsx_vor_v((__m128i)_p5, _signlow);
-    v4f32 _p5high = (v4f32)__lsx_vor_v((__m128i)_p5, _signhigh);
-    v4f32 _vlow5 = __lsx_vfadd_s(_vlow, _p5low);
-    v4f32 _vhigh5 = __lsx_vfadd_s(_vhigh, _p5high);
+    __m128 _p5low = (__m128)__lsx_vor_v((__m128i)_p5, _signlow);
+    __m128 _p5high = (__m128)__lsx_vor_v((__m128i)_p5, _signhigh);
+    __m128 _vlow5 = __lsx_vfadd_s(_vlow, _p5low);
+    __m128 _vhigh5 = __lsx_vfadd_s(_vhigh, _p5high);
     __m128i _vlow32 = __lsx_vftintrz_w_s(_vlow5);
     __m128i _vhigh32 = __lsx_vftintrz_w_s(_vhigh5);
 
@@ -159,22 +159,22 @@ static NCNN_FORCEINLINE int64_t float2int8relu(v4f32 _vlow, v4f32 _vhigh)
     return _v8[0];
 }
 
-static NCNN_FORCEINLINE __m128i float2int8leakyrelu(v4f32 _v, v4f32 _slope)
+static NCNN_FORCEINLINE __m128i float2int8leakyrelu(__m128 _v, __m128 _slope)
 {
-    v4f32 _v_leaky = __lsx_vfmul_s(_v, _slope);
+    __m128 _v_leaky = __lsx_vfmul_s(_v, _slope);
 
     // simulate round to nearest via +/-0.5
-    v4f32 _p5 = (v4f32)__lsx_vreplfr2vr_s(0.5f);
+    __m128 _p5 = (__m128)__lsx_vreplfr2vr_s(0.5f);
     __m128i _signmask = __lsx_vreplgr2vr_w(1 << 31);
 
     __m128i _sign = __lsx_vand_v((__m128i)_v, _signmask);
-    v4f32 _p5s = (v4f32)__lsx_vor_v((__m128i)_p5, _sign);
-    v4f32 _v5 = __lsx_vfadd_s(_v, _p5s);
+    __m128 _p5s = (__m128)__lsx_vor_v((__m128i)_p5, _sign);
+    __m128 _v5 = __lsx_vfadd_s(_v, _p5s);
     __m128i _v32 = __lsx_vftintrz_w_s(_v5);
 
     __m128i _sign_leaky = __lsx_vand_v((__m128i)_v_leaky, _signmask);
-    v4f32 _p5_leaky = (v4f32)__lsx_vor_v((__m128i)_p5, _sign_leaky);
-    v4f32 _v5_leaky = __lsx_vfadd_s(_v_leaky, _p5_leaky);
+    __m128 _p5_leaky = (__m128)__lsx_vor_v((__m128i)_p5, _sign_leaky);
+    __m128 _v5_leaky = __lsx_vfadd_s(_v_leaky, _p5_leaky);
     __m128i _v32_leaky = __lsx_vftintrz_w_s(_v5_leaky);
 
     __m128i _v32_16 = __lsx_vsat_w(_v32, 15);
@@ -190,10 +190,10 @@ static NCNN_FORCEINLINE __m128i float2int8leakyrelu(v4f32 _v, v4f32 _slope)
     return _v8;
 }
 
-static NCNN_FORCEINLINE int64_t float2int8leakyrelu(v4f32 _vlow, v4f32 _vhigh, v4f32 _slope)
+static NCNN_FORCEINLINE int64_t float2int8leakyrelu(__m128 _vlow, __m128 _vhigh, __m128 _slope)
 {
-    v4f32 _vlow_leaky = __lsx_vfmul_s(_vlow, _slope);
-    v4f32 _vhigh_leaky = __lsx_vfmul_s(_vhigh, _slope);
+    __m128 _vlow_leaky = __lsx_vfmul_s(_vlow, _slope);
+    __m128 _vhigh_leaky = __lsx_vfmul_s(_vhigh, _slope);
 
     // simulate round to nearest via +/-0.5
     __m128i _p5 = (__m128i)__lsx_vreplfr2vr_s(0.5f);
@@ -201,21 +201,21 @@ static NCNN_FORCEINLINE int64_t float2int8leakyrelu(v4f32 _vlow, v4f32 _vhigh, v
 
     __m128i _signlow = __lsx_vand_v((__m128i)_vlow, _signmask);
     __m128i _signhigh = __lsx_vand_v((__m128i)_vhigh, _signmask);
-    v4f32 _p5low = (v4f32)__lsx_vor_v(_p5, _signlow);
-    v4f32 _p5high = (v4f32)__lsx_vor_v(_p5, _signhigh);
-    v4f32 _vlow5 = __lsx_vfadd_s(_vlow, _p5low);
-    v4f32 _vhigh5 = __lsx_vfadd_s(_vhigh, _p5high);
-    __m128i _vlow32 = __lsx_vftintrz_w_s((__m128)_vlow5);
-    __m128i _vhigh32 = __lsx_vftintrz_w_s((__m128)_vhigh5);
+    __m128 _p5low = (__m128)__lsx_vor_v(_p5, _signlow);
+    __m128 _p5high = (__m128)__lsx_vor_v(_p5, _signhigh);
+    __m128 _vlow5 = __lsx_vfadd_s(_vlow, _p5low);
+    __m128 _vhigh5 = __lsx_vfadd_s(_vhigh, _p5high);
+    __m128i _vlow32 = __lsx_vftintrz_w_s(_vlow5);
+    __m128i _vhigh32 = __lsx_vftintrz_w_s(_vhigh5);
 
     __m128i _signlow_leaky = __lsx_vand_v((__m128i)_vlow_leaky, _signmask);
     __m128i _signhigh_leaky = __lsx_vand_v((__m128i)_vhigh_leaky, _signmask);
-    v4f32 _p5low_leaky = (v4f32)__lsx_vor_v(_p5, _signlow_leaky);
-    v4f32 _p5high_leaky = (v4f32)__lsx_vor_v(_p5, _signhigh_leaky);
-    v4f32 _vlow5_leaky = __lsx_vfadd_s(_vlow_leaky, _p5low_leaky);
-    v4f32 _vhigh5_leaky = __lsx_vfadd_s(_vhigh_leaky, _p5high_leaky);
-    __m128i _vlow32_leaky = __lsx_vftintrz_w_s((__m128)_vlow5_leaky);
-    __m128i _vhigh32_leaky = __lsx_vftintrz_w_s((__m128)_vhigh5_leaky);
+    __m128 _p5low_leaky = (__m128)__lsx_vor_v(_p5, _signlow_leaky);
+    __m128 _p5high_leaky = (__m128)__lsx_vor_v(_p5, _signhigh_leaky);
+    __m128 _vlow5_leaky = __lsx_vfadd_s(_vlow_leaky, _p5low_leaky);
+    __m128 _vhigh5_leaky = __lsx_vfadd_s(_vhigh_leaky, _p5high_leaky);
+    __m128i _vlow32_leaky = __lsx_vftintrz_w_s(_vlow5_leaky);
+    __m128i _vhigh32_leaky = __lsx_vftintrz_w_s(_vhigh5_leaky);
 
     __m128i _vlow32_16 = __lsx_vsat_w(_vlow32, 15);
     __m128i _vhigh32_16 = __lsx_vsat_w(_vhigh32, 15);

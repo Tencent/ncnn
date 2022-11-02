@@ -50,11 +50,11 @@ int Dropout_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
         int i = 0;
 #if __loongarch_sx
-        v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale);
+        __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = __lsx_vfmul_s(_p, _scale);
             __lsx_vst(_p, ptr, 0);
 

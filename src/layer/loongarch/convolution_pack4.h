@@ -53,11 +53,11 @@ static void convolution_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
         {
             for (int j = 0; j < outw; j++)
             {
-                v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
                 if (bias_data_ptr)
                 {
-                    _sum = (v4f32)__lsx_vld(bias_data_ptr + p * 4, 0);
+                    _sum = (__m128)__lsx_vld(bias_data_ptr + p * 4, 0);
                 }
 
                 const float* kptr = (const float*)weight_data_pack4.channel(p);
@@ -72,15 +72,15 @@ static void convolution_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                     {
                         const float* slptr = sptr + space_ofs[k] * 4;
 
-                        v4f32 _val0 = __lsx_vreplfr2vr_s(slptr[0]);
-                        v4f32 _val1 = __lsx_vreplfr2vr_s(slptr[1]);
-                        v4f32 _val2 = __lsx_vreplfr2vr_s(slptr[2]);
-                        v4f32 _val3 = __lsx_vreplfr2vr_s(slptr[3]);
+                        __m128 _val0 = __lsx_vreplfr2vr_s(slptr[0]);
+                        __m128 _val1 = __lsx_vreplfr2vr_s(slptr[1]);
+                        __m128 _val2 = __lsx_vreplfr2vr_s(slptr[2]);
+                        __m128 _val3 = __lsx_vreplfr2vr_s(slptr[3]);
 
-                        v4f32 _w0 = (v4f32)__lsx_vld(kptr, 0);
-                        v4f32 _w1 = (v4f32)__lsx_vld(kptr + 4, 0);
-                        v4f32 _w2 = (v4f32)__lsx_vld(kptr + 8, 0);
-                        v4f32 _w3 = (v4f32)__lsx_vld(kptr + 12, 0);
+                        __m128 _w0 = (__m128)__lsx_vld(kptr, 0);
+                        __m128 _w1 = (__m128)__lsx_vld(kptr + 4, 0);
+                        __m128 _w2 = (__m128)__lsx_vld(kptr + 8, 0);
+                        __m128 _w3 = (__m128)__lsx_vld(kptr + 12, 0);
 
                         _sum = __lsx_vfmadd_s(_w0, _val0, _sum);
                         _sum = __lsx_vfmadd_s(_w1, _val1, _sum);

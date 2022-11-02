@@ -59,14 +59,14 @@ static void conv3x3s1_winograd63_transform_input_pack4_lsx(const Mat& bottom_blo
 
         float tmp[8][8][4];
 
-        v4f32 _v5_25 = __lsx_vreplfr2vr_s(5.25f);
-        v4f32 _vm4_25 = __lsx_vreplfr2vr_s(-4.25f);
-        v4f32 _vm1_25 = __lsx_vreplfr2vr_s(-1.25f);
-        v4f32 _v0_25 = __lsx_vreplfr2vr_s(0.25f);
-        v4f32 _vm2_5 = __lsx_vreplfr2vr_s(-2.5f);
-        v4f32 _v0_5 = __lsx_vreplfr2vr_s(0.5f);
-        v4f32 _v2 = __lsx_vreplfr2vr_s(2.f);
-        v4f32 _v4 = __lsx_vreplfr2vr_s(4.f);
+        __m128 _v5_25 = __lsx_vreplfr2vr_s(5.25f);
+        __m128 _vm4_25 = __lsx_vreplfr2vr_s(-4.25f);
+        __m128 _vm1_25 = __lsx_vreplfr2vr_s(-1.25f);
+        __m128 _v0_25 = __lsx_vreplfr2vr_s(0.25f);
+        __m128 _vm2_5 = __lsx_vreplfr2vr_s(-2.5f);
+        __m128 _v0_5 = __lsx_vreplfr2vr_s(0.5f);
+        __m128 _v2 = __lsx_vreplfr2vr_s(2.f);
+        __m128 _v4 = __lsx_vreplfr2vr_s(4.f);
 
         // tile
         for (int i = 0; i < h_tiles; i++)
@@ -77,41 +77,41 @@ static void conv3x3s1_winograd63_transform_input_pack4_lsx(const Mat& bottom_blo
 
                 for (int m = 0; m < 8; m++)
                 {
-                    v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                    v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                    v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
-                    v4f32 _r03 = (v4f32)__lsx_vld(r0 + 4 * 3, 0);
-                    v4f32 _r04 = (v4f32)__lsx_vld(r0 + 4 * 4, 0);
-                    v4f32 _r05 = (v4f32)__lsx_vld(r0 + 4 * 5, 0);
-                    v4f32 _r06 = (v4f32)__lsx_vld(r0 + 4 * 6, 0);
-                    v4f32 _r07 = (v4f32)__lsx_vld(r0 + 4 * 7, 0);
+                    __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                    __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                    __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                    __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
+                    __m128 _r04 = (__m128)__lsx_vld(r0 + 4 * 4, 0);
+                    __m128 _r05 = (__m128)__lsx_vld(r0 + 4 * 5, 0);
+                    __m128 _r06 = (__m128)__lsx_vld(r0 + 4 * 6, 0);
+                    __m128 _r07 = (__m128)__lsx_vld(r0 + 4 * 7, 0);
 
-                    v4f32 _tmp0m = __lsx_vfmadd_s(__lsx_vfsub_s(_r04, _r02), _v5_25, __lsx_vfsub_s(_r00, _r06));
-                    v4f32 _tmp7m = __lsx_vfmadd_s(__lsx_vfsub_s(_r03, _r05), _v5_25, __lsx_vfsub_s(_r07, _r01));
+                    __m128 _tmp0m = __lsx_vfmadd_s(__lsx_vfsub_s(_r04, _r02), _v5_25, __lsx_vfsub_s(_r00, _r06));
+                    __m128 _tmp7m = __lsx_vfmadd_s(__lsx_vfsub_s(_r03, _r05), _v5_25, __lsx_vfsub_s(_r07, _r01));
                     __lsx_vst(_tmp0m, tmp[0][m], 0);
                     __lsx_vst(_tmp7m, tmp[7][m], 0);
 
-                    v4f32 _tmp12a = __lsx_vfmadd_s(_r04, _vm4_25, __lsx_vfadd_s(_r02, _r06));
-                    v4f32 _tmp12b = __lsx_vfmadd_s(_r03, _vm4_25, __lsx_vfadd_s(_r01, _r05));
+                    __m128 _tmp12a = __lsx_vfmadd_s(_r04, _vm4_25, __lsx_vfadd_s(_r02, _r06));
+                    __m128 _tmp12b = __lsx_vfmadd_s(_r03, _vm4_25, __lsx_vfadd_s(_r01, _r05));
 
-                    v4f32 _tmp1m = __lsx_vfadd_s(_tmp12a, _tmp12b);
-                    v4f32 _tmp2m = __lsx_vfsub_s(_tmp12a, _tmp12b);
+                    __m128 _tmp1m = __lsx_vfadd_s(_tmp12a, _tmp12b);
+                    __m128 _tmp2m = __lsx_vfsub_s(_tmp12a, _tmp12b);
                     __lsx_vst(_tmp1m, tmp[1][m], 0);
                     __lsx_vst(_tmp2m, tmp[2][m], 0);
 
-                    v4f32 _tmp34a = __lsx_vfmadd_s(_r04, _vm1_25, __lsx_vfmadd_s(_r02, _v0_25, _r06));
-                    v4f32 _tmp34b = __lsx_vfmadd_s(_r05, _v2, __lsx_vfmadd_s(_r03, _vm2_5, __lsx_vfmul_s(_r01, _v0_5)));
+                    __m128 _tmp34a = __lsx_vfmadd_s(_r04, _vm1_25, __lsx_vfmadd_s(_r02, _v0_25, _r06));
+                    __m128 _tmp34b = __lsx_vfmadd_s(_r05, _v2, __lsx_vfmadd_s(_r03, _vm2_5, __lsx_vfmul_s(_r01, _v0_5)));
 
-                    v4f32 _tmp3m = __lsx_vfadd_s(_tmp34a, _tmp34b);
-                    v4f32 _tmp4m = __lsx_vfsub_s(_tmp34a, _tmp34b);
+                    __m128 _tmp3m = __lsx_vfadd_s(_tmp34a, _tmp34b);
+                    __m128 _tmp4m = __lsx_vfsub_s(_tmp34a, _tmp34b);
                     __lsx_vst(_tmp3m, tmp[3][m], 0);
                     __lsx_vst(_tmp4m, tmp[4][m], 0);
 
-                    v4f32 _tmp56a = __lsx_vfmadd_s(__lsx_vfmadd_s(_r04, _vm1_25, _r02), _v4, _r06);
-                    v4f32 _tmp56b = __lsx_vfmadd_s(_r05, _v0_5, __lsx_vfmadd_s(_r03, _vm2_5, __lsx_vfmul_s(_r01, _v2)));
+                    __m128 _tmp56a = __lsx_vfmadd_s(__lsx_vfmadd_s(_r04, _vm1_25, _r02), _v4, _r06);
+                    __m128 _tmp56b = __lsx_vfmadd_s(_r05, _v0_5, __lsx_vfmadd_s(_r03, _vm2_5, __lsx_vfmul_s(_r01, _v2)));
 
-                    v4f32 _tmp5m = __lsx_vfadd_s(_tmp56a, _tmp56b);
-                    v4f32 _tmp6m = __lsx_vfsub_s(_tmp56a, _tmp56b);
+                    __m128 _tmp5m = __lsx_vfadd_s(_tmp56a, _tmp56b);
+                    __m128 _tmp6m = __lsx_vfsub_s(_tmp56a, _tmp56b);
                     __lsx_vst(_tmp5m, tmp[5][m], 0);
                     __lsx_vst(_tmp6m, tmp[6][m], 0);
 
@@ -129,35 +129,35 @@ static void conv3x3s1_winograd63_transform_input_pack4_lsx(const Mat& bottom_blo
 
                 for (int m = 0; m < 8; m++)
                 {
-                    v4f32 _tmp00 = (v4f32)__lsx_vld(tmp[m][0], 0);
-                    v4f32 _tmp01 = (v4f32)__lsx_vld(tmp[m][1], 0);
-                    v4f32 _tmp02 = (v4f32)__lsx_vld(tmp[m][2], 0);
-                    v4f32 _tmp03 = (v4f32)__lsx_vld(tmp[m][3], 0);
-                    v4f32 _tmp04 = (v4f32)__lsx_vld(tmp[m][4], 0);
-                    v4f32 _tmp05 = (v4f32)__lsx_vld(tmp[m][5], 0);
-                    v4f32 _tmp06 = (v4f32)__lsx_vld(tmp[m][6], 0);
-                    v4f32 _tmp07 = (v4f32)__lsx_vld(tmp[m][7], 0);
+                    __m128 _tmp00 = (__m128)__lsx_vld(tmp[m][0], 0);
+                    __m128 _tmp01 = (__m128)__lsx_vld(tmp[m][1], 0);
+                    __m128 _tmp02 = (__m128)__lsx_vld(tmp[m][2], 0);
+                    __m128 _tmp03 = (__m128)__lsx_vld(tmp[m][3], 0);
+                    __m128 _tmp04 = (__m128)__lsx_vld(tmp[m][4], 0);
+                    __m128 _tmp05 = (__m128)__lsx_vld(tmp[m][5], 0);
+                    __m128 _tmp06 = (__m128)__lsx_vld(tmp[m][6], 0);
+                    __m128 _tmp07 = (__m128)__lsx_vld(tmp[m][7], 0);
 
-                    v4f32 _r0tm0 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp04, _tmp02), _v5_25, __lsx_vfsub_s(_tmp00, _tmp06));
-                    v4f32 _r0tm7 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp03, _tmp05), _v5_25, __lsx_vfsub_s(_tmp07, _tmp01));
+                    __m128 _r0tm0 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp04, _tmp02), _v5_25, __lsx_vfsub_s(_tmp00, _tmp06));
+                    __m128 _r0tm7 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp03, _tmp05), _v5_25, __lsx_vfsub_s(_tmp07, _tmp01));
 
-                    v4f32 _tmp12a = __lsx_vfmadd_s(_tmp04, _vm4_25, __lsx_vfadd_s(_tmp02, _tmp06));
-                    v4f32 _tmp12b = __lsx_vfmadd_s(_tmp03, _vm4_25, __lsx_vfadd_s(_tmp01, _tmp05));
+                    __m128 _tmp12a = __lsx_vfmadd_s(_tmp04, _vm4_25, __lsx_vfadd_s(_tmp02, _tmp06));
+                    __m128 _tmp12b = __lsx_vfmadd_s(_tmp03, _vm4_25, __lsx_vfadd_s(_tmp01, _tmp05));
 
-                    v4f32 _r0tm1 = __lsx_vfadd_s(_tmp12a, _tmp12b);
-                    v4f32 _r0tm2 = __lsx_vfsub_s(_tmp12a, _tmp12b);
+                    __m128 _r0tm1 = __lsx_vfadd_s(_tmp12a, _tmp12b);
+                    __m128 _r0tm2 = __lsx_vfsub_s(_tmp12a, _tmp12b);
 
-                    v4f32 _tmp34a = __lsx_vfmadd_s(_tmp04, _vm1_25, __lsx_vfmadd_s(_tmp02, _v0_25, _tmp06));
-                    v4f32 _tmp34b = __lsx_vfmadd_s(_tmp05, _v2, __lsx_vfmadd_s(_tmp03, _vm2_5, __lsx_vfmul_s(_tmp01, _v0_5)));
+                    __m128 _tmp34a = __lsx_vfmadd_s(_tmp04, _vm1_25, __lsx_vfmadd_s(_tmp02, _v0_25, _tmp06));
+                    __m128 _tmp34b = __lsx_vfmadd_s(_tmp05, _v2, __lsx_vfmadd_s(_tmp03, _vm2_5, __lsx_vfmul_s(_tmp01, _v0_5)));
 
-                    v4f32 _r0tm3 = __lsx_vfadd_s(_tmp34a, _tmp34b);
-                    v4f32 _r0tm4 = __lsx_vfsub_s(_tmp34a, _tmp34b);
+                    __m128 _r0tm3 = __lsx_vfadd_s(_tmp34a, _tmp34b);
+                    __m128 _r0tm4 = __lsx_vfsub_s(_tmp34a, _tmp34b);
 
-                    v4f32 _tmp56a = __lsx_vfmadd_s(__lsx_vfmadd_s(_tmp04, _vm1_25, _tmp02), _v4, _tmp06);
-                    v4f32 _tmp56b = __lsx_vfmadd_s(_tmp05, _v0_5, __lsx_vfmadd_s(_tmp03, _vm2_5, __lsx_vfmul_s(_tmp01, _v2)));
+                    __m128 _tmp56a = __lsx_vfmadd_s(__lsx_vfmadd_s(_tmp04, _vm1_25, _tmp02), _v4, _tmp06);
+                    __m128 _tmp56b = __lsx_vfmadd_s(_tmp05, _v0_5, __lsx_vfmadd_s(_tmp03, _vm2_5, __lsx_vfmul_s(_tmp01, _v2)));
 
-                    v4f32 _r0tm5 = __lsx_vfadd_s(_tmp56a, _tmp56b);
-                    v4f32 _r0tm6 = __lsx_vfsub_s(_tmp56a, _tmp56b);
+                    __m128 _r0tm5 = __lsx_vfadd_s(_tmp56a, _tmp56b);
+                    __m128 _r0tm6 = __lsx_vfsub_s(_tmp56a, _tmp56b);
 
                     __lsx_vst(_r0tm0, r0_tm_0, 0);
                     __lsx_vst(_r0tm1, r0_tm_1, 0);
@@ -216,15 +216,15 @@ static void conv3x3s1_winograd63_transform_output_pack4_lsx(const Mat& top_blob_
         const Mat out0_tm = top_blob_tm.channel(p);
         Mat out0 = top_blob.channel(p);
 
-        v4f32 _bias0 = biasptr ? (v4f32)__lsx_vld(biasptr + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
+        __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
 
         float tmp[6][8][4];
 
-        v4f32 _v32 = __lsx_vreplfr2vr_s(32.f);
-        v4f32 _v16 = __lsx_vreplfr2vr_s(16.f);
-        v4f32 _v8 = __lsx_vreplfr2vr_s(8.f);
-        v4f32 _v4 = __lsx_vreplfr2vr_s(4.f);
-        v4f32 _v2 = __lsx_vreplfr2vr_s(2.f);
+        __m128 _v32 = __lsx_vreplfr2vr_s(32.f);
+        __m128 _v16 = __lsx_vreplfr2vr_s(16.f);
+        __m128 _v8 = __lsx_vreplfr2vr_s(8.f);
+        __m128 _v4 = __lsx_vreplfr2vr_s(4.f);
+        __m128 _v2 = __lsx_vreplfr2vr_s(2.f);
 
         // tile
         for (int i = 0; i < h_tiles; i++)
@@ -244,34 +244,34 @@ static void conv3x3s1_winograd63_transform_output_pack4_lsx(const Mat& top_blob_
 
                 for (int m = 0; m < 8; m++)
                 {
-                    v4f32 _out0tm0 = (v4f32)__lsx_vld(output0_tm_0, 0);
-                    v4f32 _out0tm1 = (v4f32)__lsx_vld(output0_tm_1, 0);
-                    v4f32 _out0tm2 = (v4f32)__lsx_vld(output0_tm_2, 0);
-                    v4f32 _out0tm3 = (v4f32)__lsx_vld(output0_tm_3, 0);
-                    v4f32 _out0tm4 = (v4f32)__lsx_vld(output0_tm_4, 0);
-                    v4f32 _out0tm5 = (v4f32)__lsx_vld(output0_tm_5, 0);
-                    v4f32 _out0tm6 = (v4f32)__lsx_vld(output0_tm_6, 0);
-                    v4f32 _out0tm7 = (v4f32)__lsx_vld(output0_tm_7, 0);
+                    __m128 _out0tm0 = (__m128)__lsx_vld(output0_tm_0, 0);
+                    __m128 _out0tm1 = (__m128)__lsx_vld(output0_tm_1, 0);
+                    __m128 _out0tm2 = (__m128)__lsx_vld(output0_tm_2, 0);
+                    __m128 _out0tm3 = (__m128)__lsx_vld(output0_tm_3, 0);
+                    __m128 _out0tm4 = (__m128)__lsx_vld(output0_tm_4, 0);
+                    __m128 _out0tm5 = (__m128)__lsx_vld(output0_tm_5, 0);
+                    __m128 _out0tm6 = (__m128)__lsx_vld(output0_tm_6, 0);
+                    __m128 _out0tm7 = (__m128)__lsx_vld(output0_tm_7, 0);
 
-                    v4f32 _tmp024a = __lsx_vfadd_s(_out0tm1, _out0tm2);
-                    v4f32 _tmp135a = __lsx_vfsub_s(_out0tm1, _out0tm2);
+                    __m128 _tmp024a = __lsx_vfadd_s(_out0tm1, _out0tm2);
+                    __m128 _tmp135a = __lsx_vfsub_s(_out0tm1, _out0tm2);
 
-                    v4f32 _tmp024b = __lsx_vfadd_s(_out0tm3, _out0tm4);
-                    v4f32 _tmp135b = __lsx_vfsub_s(_out0tm3, _out0tm4);
+                    __m128 _tmp024b = __lsx_vfadd_s(_out0tm3, _out0tm4);
+                    __m128 _tmp135b = __lsx_vfsub_s(_out0tm3, _out0tm4);
 
-                    v4f32 _tmp024c = __lsx_vfadd_s(_out0tm5, _out0tm6);
-                    v4f32 _tmp135c = __lsx_vfsub_s(_out0tm5, _out0tm6);
+                    __m128 _tmp024c = __lsx_vfadd_s(_out0tm5, _out0tm6);
+                    __m128 _tmp135c = __lsx_vfsub_s(_out0tm5, _out0tm6);
 
-                    v4f32 _tmp0m = __lsx_vfadd_s(__lsx_vfadd_s(_out0tm0, _tmp024a), __lsx_vfmadd_s(_tmp024c, _v32, _tmp024b));
-                    v4f32 _tmp2m = __lsx_vfmadd_s(_tmp024c, _v8, __lsx_vfmadd_s(_tmp024b, _v4, _tmp024a));
-                    v4f32 _tmp4m = __lsx_vfmadd_s(_tmp024c, _v2, __lsx_vfmadd_s(_tmp024b, _v16, _tmp024a));
+                    __m128 _tmp0m = __lsx_vfadd_s(__lsx_vfadd_s(_out0tm0, _tmp024a), __lsx_vfmadd_s(_tmp024c, _v32, _tmp024b));
+                    __m128 _tmp2m = __lsx_vfmadd_s(_tmp024c, _v8, __lsx_vfmadd_s(_tmp024b, _v4, _tmp024a));
+                    __m128 _tmp4m = __lsx_vfmadd_s(_tmp024c, _v2, __lsx_vfmadd_s(_tmp024b, _v16, _tmp024a));
                     __lsx_vst(_tmp0m, tmp[0][m], 0);
                     __lsx_vst(_tmp2m, tmp[2][m], 0);
                     __lsx_vst(_tmp4m, tmp[4][m], 0);
 
-                    v4f32 _tmp1m = __lsx_vfmadd_s(_tmp135c, _v16, __lsx_vfmadd_s(_tmp135b, _v2, _tmp135a));
-                    v4f32 _tmp3m = __lsx_vfmadd_s(_tmp135c, _v4, __lsx_vfmadd_s(_tmp135b, _v8, _tmp135a));
-                    v4f32 _tmp5m = __lsx_vfadd_s(__lsx_vfadd_s(_out0tm7, _tmp135a), __lsx_vfmadd_s(_tmp135b, _v32, _tmp135c));
+                    __m128 _tmp1m = __lsx_vfmadd_s(_tmp135c, _v16, __lsx_vfmadd_s(_tmp135b, _v2, _tmp135a));
+                    __m128 _tmp3m = __lsx_vfmadd_s(_tmp135c, _v4, __lsx_vfmadd_s(_tmp135b, _v8, _tmp135a));
+                    __m128 _tmp5m = __lsx_vfadd_s(__lsx_vfadd_s(_out0tm7, _tmp135a), __lsx_vfmadd_s(_tmp135b, _v32, _tmp135c));
                     __lsx_vst(_tmp1m, tmp[1][m], 0);
                     __lsx_vst(_tmp3m, tmp[3][m], 0);
                     __lsx_vst(_tmp5m, tmp[5][m], 0);
@@ -288,34 +288,34 @@ static void conv3x3s1_winograd63_transform_output_pack4_lsx(const Mat& top_blob_
 
                 for (int m = 0; m < 6; m++)
                 {
-                    v4f32 _tmp00 = (v4f32)__lsx_vld(tmp[m][0], 0);
-                    v4f32 _tmp01 = (v4f32)__lsx_vld(tmp[m][1], 0);
-                    v4f32 _tmp02 = (v4f32)__lsx_vld(tmp[m][2], 0);
-                    v4f32 _tmp03 = (v4f32)__lsx_vld(tmp[m][3], 0);
-                    v4f32 _tmp04 = (v4f32)__lsx_vld(tmp[m][4], 0);
-                    v4f32 _tmp05 = (v4f32)__lsx_vld(tmp[m][5], 0);
-                    v4f32 _tmp06 = (v4f32)__lsx_vld(tmp[m][6], 0);
-                    v4f32 _tmp07 = (v4f32)__lsx_vld(tmp[m][7], 0);
+                    __m128 _tmp00 = (__m128)__lsx_vld(tmp[m][0], 0);
+                    __m128 _tmp01 = (__m128)__lsx_vld(tmp[m][1], 0);
+                    __m128 _tmp02 = (__m128)__lsx_vld(tmp[m][2], 0);
+                    __m128 _tmp03 = (__m128)__lsx_vld(tmp[m][3], 0);
+                    __m128 _tmp04 = (__m128)__lsx_vld(tmp[m][4], 0);
+                    __m128 _tmp05 = (__m128)__lsx_vld(tmp[m][5], 0);
+                    __m128 _tmp06 = (__m128)__lsx_vld(tmp[m][6], 0);
+                    __m128 _tmp07 = (__m128)__lsx_vld(tmp[m][7], 0);
 
-                    v4f32 _tmp024a = __lsx_vfadd_s(_tmp01, _tmp02);
-                    v4f32 _tmp135a = __lsx_vfsub_s(_tmp01, _tmp02);
+                    __m128 _tmp024a = __lsx_vfadd_s(_tmp01, _tmp02);
+                    __m128 _tmp135a = __lsx_vfsub_s(_tmp01, _tmp02);
 
-                    v4f32 _tmp024b = __lsx_vfadd_s(_tmp03, _tmp04);
-                    v4f32 _tmp135b = __lsx_vfsub_s(_tmp03, _tmp04);
+                    __m128 _tmp024b = __lsx_vfadd_s(_tmp03, _tmp04);
+                    __m128 _tmp135b = __lsx_vfsub_s(_tmp03, _tmp04);
 
-                    v4f32 _tmp024c = __lsx_vfadd_s(_tmp05, _tmp06);
-                    v4f32 _tmp135c = __lsx_vfsub_s(_tmp05, _tmp06);
+                    __m128 _tmp024c = __lsx_vfadd_s(_tmp05, _tmp06);
+                    __m128 _tmp135c = __lsx_vfsub_s(_tmp05, _tmp06);
 
-                    v4f32 _out00 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_tmp00, _tmp024a), __lsx_vfmadd_s(_tmp024c, _v32, _tmp024b)));
-                    v4f32 _out02 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp024c, _v8, __lsx_vfmadd_s(_tmp024b, _v4, _tmp024a)));
-                    v4f32 _out04 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp024c, _v2, __lsx_vfmadd_s(_tmp024b, _v16, _tmp024a)));
+                    __m128 _out00 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_tmp00, _tmp024a), __lsx_vfmadd_s(_tmp024c, _v32, _tmp024b)));
+                    __m128 _out02 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp024c, _v8, __lsx_vfmadd_s(_tmp024b, _v4, _tmp024a)));
+                    __m128 _out04 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp024c, _v2, __lsx_vfmadd_s(_tmp024b, _v16, _tmp024a)));
                     __lsx_vst(_out00, output0, 0);
                     __lsx_vst(_out02, output0 + 4 * 2, 0);
                     __lsx_vst(_out04, output0 + 4 * 4, 0);
 
-                    v4f32 _out01 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp135c, _v16, __lsx_vfmadd_s(_tmp135b, _v2, _tmp135a)));
-                    v4f32 _out03 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp135c, _v4, __lsx_vfmadd_s(_tmp135b, _v8, _tmp135a)));
-                    v4f32 _out05 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_tmp07, _tmp135a), __lsx_vfmadd_s(_tmp135b, _v32, _tmp135c)));
+                    __m128 _out01 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp135c, _v16, __lsx_vfmadd_s(_tmp135b, _v2, _tmp135a)));
+                    __m128 _out03 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp135c, _v4, __lsx_vfmadd_s(_tmp135b, _v8, _tmp135a)));
+                    __m128 _out05 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_tmp07, _tmp135a), __lsx_vfmadd_s(_tmp135b, _v32, _tmp135c)));
                     __lsx_vst(_out01, output0 + 4, 0);
                     __lsx_vst(_out03, output0 + 4 * 3, 0);
                     __lsx_vst(_out05, output0 + 4 * 5, 0);
@@ -361,11 +361,11 @@ static void conv3x3s1_winograd43_transform_input_pack4_lsx(const Mat& bottom_blo
 
         float tmp[6][6][4];
 
-        v4f32 _vm5 = __lsx_vreplfr2vr_s(-5.f);
-        v4f32 _vm4 = __lsx_vreplfr2vr_s(-4.f);
-        v4f32 _v4 = __lsx_vreplfr2vr_s(4.f);
-        v4f32 _vm2 = __lsx_vreplfr2vr_s(-2.f);
-        v4f32 _v2 = __lsx_vreplfr2vr_s(2.f);
+        __m128 _vm5 = __lsx_vreplfr2vr_s(-5.f);
+        __m128 _vm4 = __lsx_vreplfr2vr_s(-4.f);
+        __m128 _v4 = __lsx_vreplfr2vr_s(4.f);
+        __m128 _vm2 = __lsx_vreplfr2vr_s(-2.f);
+        __m128 _v2 = __lsx_vreplfr2vr_s(2.f);
 
         // tile
         for (int i = 0; i < h_tiles; i++)
@@ -376,19 +376,19 @@ static void conv3x3s1_winograd43_transform_input_pack4_lsx(const Mat& bottom_blo
 
                 for (int m = 0; m < 6; m++)
                 {
-                    v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                    v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                    v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
-                    v4f32 _r03 = (v4f32)__lsx_vld(r0 + 4 * 3, 0);
-                    v4f32 _r04 = (v4f32)__lsx_vld(r0 + 4 * 4, 0);
-                    v4f32 _r05 = (v4f32)__lsx_vld(r0 + 4 * 5, 0);
+                    __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                    __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                    __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                    __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
+                    __m128 _r04 = (__m128)__lsx_vld(r0 + 4 * 4, 0);
+                    __m128 _r05 = (__m128)__lsx_vld(r0 + 4 * 5, 0);
 
-                    v4f32 _tmp0m = __lsx_vfmadd_s(_r02, _vm5, __lsx_vfmadd_s(_r00, _v4, _r04));
-                    v4f32 _tmp1m = __lsx_vfmadd_s(__lsx_vfadd_s(_r01, _r02), _vm4, __lsx_vfadd_s(_r04, _r03));
-                    v4f32 _tmp2m = __lsx_vfmadd_s(__lsx_vfsub_s(_r01, _r02), _v4, __lsx_vfsub_s(_r04, _r03));
-                    v4f32 _tmp3m = __lsx_vfmadd_s(__lsx_vfsub_s(_r01, _r03), _vm2, __lsx_vfsub_s(_r04, _r02));
-                    v4f32 _tmp4m = __lsx_vfmadd_s(__lsx_vfsub_s(_r01, _r03), _v2, __lsx_vfsub_s(_r04, _r02));
-                    v4f32 _tmp5m = __lsx_vfmadd_s(_r03, _vm5, __lsx_vfmadd_s(_r01, _v4, _r05));
+                    __m128 _tmp0m = __lsx_vfmadd_s(_r02, _vm5, __lsx_vfmadd_s(_r00, _v4, _r04));
+                    __m128 _tmp1m = __lsx_vfmadd_s(__lsx_vfadd_s(_r01, _r02), _vm4, __lsx_vfadd_s(_r04, _r03));
+                    __m128 _tmp2m = __lsx_vfmadd_s(__lsx_vfsub_s(_r01, _r02), _v4, __lsx_vfsub_s(_r04, _r03));
+                    __m128 _tmp3m = __lsx_vfmadd_s(__lsx_vfsub_s(_r01, _r03), _vm2, __lsx_vfsub_s(_r04, _r02));
+                    __m128 _tmp4m = __lsx_vfmadd_s(__lsx_vfsub_s(_r01, _r03), _v2, __lsx_vfsub_s(_r04, _r02));
+                    __m128 _tmp5m = __lsx_vfmadd_s(_r03, _vm5, __lsx_vfmadd_s(_r01, _v4, _r05));
 
                     __lsx_vst(_tmp0m, tmp[0][m], 0);
                     __lsx_vst(_tmp1m, tmp[1][m], 0);
@@ -409,19 +409,19 @@ static void conv3x3s1_winograd43_transform_input_pack4_lsx(const Mat& bottom_blo
 
                 for (int m = 0; m < 6; m++)
                 {
-                    v4f32 _tmp00 = (v4f32)__lsx_vld(tmp[m][0], 0);
-                    v4f32 _tmp01 = (v4f32)__lsx_vld(tmp[m][1], 0);
-                    v4f32 _tmp02 = (v4f32)__lsx_vld(tmp[m][2], 0);
-                    v4f32 _tmp03 = (v4f32)__lsx_vld(tmp[m][3], 0);
-                    v4f32 _tmp04 = (v4f32)__lsx_vld(tmp[m][4], 0);
-                    v4f32 _tmp05 = (v4f32)__lsx_vld(tmp[m][5], 0);
+                    __m128 _tmp00 = (__m128)__lsx_vld(tmp[m][0], 0);
+                    __m128 _tmp01 = (__m128)__lsx_vld(tmp[m][1], 0);
+                    __m128 _tmp02 = (__m128)__lsx_vld(tmp[m][2], 0);
+                    __m128 _tmp03 = (__m128)__lsx_vld(tmp[m][3], 0);
+                    __m128 _tmp04 = (__m128)__lsx_vld(tmp[m][4], 0);
+                    __m128 _tmp05 = (__m128)__lsx_vld(tmp[m][5], 0);
 
-                    v4f32 _r0tm0 = __lsx_vfmadd_s(_tmp02, _vm5, __lsx_vfmadd_s(_tmp00, _v4, _tmp04));
-                    v4f32 _r0tm1 = __lsx_vfmadd_s(__lsx_vfadd_s(_tmp01, _tmp02), _vm4, __lsx_vfadd_s(_tmp04, _tmp03));
-                    v4f32 _r0tm2 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp01, _tmp02), _v4, __lsx_vfsub_s(_tmp04, _tmp03));
-                    v4f32 _r0tm3 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp01, _tmp03), _vm2, __lsx_vfsub_s(_tmp04, _tmp02));
-                    v4f32 _r0tm4 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp01, _tmp03), _v2, __lsx_vfsub_s(_tmp04, _tmp02));
-                    v4f32 _r0tm5 = __lsx_vfmadd_s(_tmp03, _vm5, __lsx_vfmadd_s(_tmp01, _v4, _tmp05));
+                    __m128 _r0tm0 = __lsx_vfmadd_s(_tmp02, _vm5, __lsx_vfmadd_s(_tmp00, _v4, _tmp04));
+                    __m128 _r0tm1 = __lsx_vfmadd_s(__lsx_vfadd_s(_tmp01, _tmp02), _vm4, __lsx_vfadd_s(_tmp04, _tmp03));
+                    __m128 _r0tm2 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp01, _tmp02), _v4, __lsx_vfsub_s(_tmp04, _tmp03));
+                    __m128 _r0tm3 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp01, _tmp03), _vm2, __lsx_vfsub_s(_tmp04, _tmp02));
+                    __m128 _r0tm4 = __lsx_vfmadd_s(__lsx_vfsub_s(_tmp01, _tmp03), _v2, __lsx_vfsub_s(_tmp04, _tmp02));
+                    __m128 _r0tm5 = __lsx_vfmadd_s(_tmp03, _vm5, __lsx_vfmadd_s(_tmp01, _v4, _tmp05));
 
                     __lsx_vst(_r0tm0, r0_tm_0, 0);
                     __lsx_vst(_r0tm1, r0_tm_1, 0);
@@ -472,13 +472,13 @@ static void conv3x3s1_winograd43_transform_output_pack4_lsx(const Mat& top_blob_
         const Mat out0_tm = top_blob_tm.channel(p);
         Mat out0 = top_blob.channel(p);
 
-        v4f32 _bias0 = biasptr ? (v4f32)__lsx_vld(biasptr + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
+        __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
 
         float tmp[4][6][4];
 
-        v4f32 _v2 = __lsx_vreplfr2vr_s(2.f);
-        v4f32 _v4 = __lsx_vreplfr2vr_s(4.f);
-        v4f32 _v8 = __lsx_vreplfr2vr_s(8.f);
+        __m128 _v2 = __lsx_vreplfr2vr_s(2.f);
+        __m128 _v4 = __lsx_vreplfr2vr_s(4.f);
+        __m128 _v8 = __lsx_vreplfr2vr_s(8.f);
 
         // tile
         for (int i = 0; i < h_tiles; i++)
@@ -496,23 +496,23 @@ static void conv3x3s1_winograd43_transform_output_pack4_lsx(const Mat& top_blob_
 
                 for (int m = 0; m < 6; m++)
                 {
-                    v4f32 _out0tm0 = (v4f32)__lsx_vld(output0_tm_0, 0);
-                    v4f32 _out0tm1 = (v4f32)__lsx_vld(output0_tm_1, 0);
-                    v4f32 _out0tm2 = (v4f32)__lsx_vld(output0_tm_2, 0);
-                    v4f32 _out0tm3 = (v4f32)__lsx_vld(output0_tm_3, 0);
-                    v4f32 _out0tm4 = (v4f32)__lsx_vld(output0_tm_4, 0);
-                    v4f32 _out0tm5 = (v4f32)__lsx_vld(output0_tm_5, 0);
+                    __m128 _out0tm0 = (__m128)__lsx_vld(output0_tm_0, 0);
+                    __m128 _out0tm1 = (__m128)__lsx_vld(output0_tm_1, 0);
+                    __m128 _out0tm2 = (__m128)__lsx_vld(output0_tm_2, 0);
+                    __m128 _out0tm3 = (__m128)__lsx_vld(output0_tm_3, 0);
+                    __m128 _out0tm4 = (__m128)__lsx_vld(output0_tm_4, 0);
+                    __m128 _out0tm5 = (__m128)__lsx_vld(output0_tm_5, 0);
 
-                    v4f32 _tmp02a = __lsx_vfadd_s(_out0tm1, _out0tm2);
-                    v4f32 _tmp13a = __lsx_vfsub_s(_out0tm1, _out0tm2);
+                    __m128 _tmp02a = __lsx_vfadd_s(_out0tm1, _out0tm2);
+                    __m128 _tmp13a = __lsx_vfsub_s(_out0tm1, _out0tm2);
 
-                    v4f32 _tmp02b = __lsx_vfadd_s(_out0tm3, _out0tm4);
-                    v4f32 _tmp13b = __lsx_vfsub_s(_out0tm3, _out0tm4);
+                    __m128 _tmp02b = __lsx_vfadd_s(_out0tm3, _out0tm4);
+                    __m128 _tmp13b = __lsx_vfsub_s(_out0tm3, _out0tm4);
 
-                    v4f32 _tmp0m = __lsx_vfadd_s(__lsx_vfadd_s(_out0tm0, _tmp02a), _tmp02b);
-                    v4f32 _tmp1m = __lsx_vfmadd_s(_tmp13b, _v2, _tmp13a);
-                    v4f32 _tmp2m = __lsx_vfmadd_s(_tmp02b, _v4, _tmp02a);
-                    v4f32 _tmp3m = __lsx_vfmadd_s(_tmp13b, _v8, __lsx_vfadd_s(_out0tm5, _tmp13a));
+                    __m128 _tmp0m = __lsx_vfadd_s(__lsx_vfadd_s(_out0tm0, _tmp02a), _tmp02b);
+                    __m128 _tmp1m = __lsx_vfmadd_s(_tmp13b, _v2, _tmp13a);
+                    __m128 _tmp2m = __lsx_vfmadd_s(_tmp02b, _v4, _tmp02a);
+                    __m128 _tmp3m = __lsx_vfmadd_s(_tmp13b, _v8, __lsx_vfadd_s(_out0tm5, _tmp13a));
 
                     __lsx_vst(_tmp0m, tmp[0][m], 0);
                     __lsx_vst(_tmp1m, tmp[1][m], 0);
@@ -529,23 +529,23 @@ static void conv3x3s1_winograd43_transform_output_pack4_lsx(const Mat& top_blob_
 
                 for (int m = 0; m < 4; m++)
                 {
-                    v4f32 _tmp00 = (v4f32)__lsx_vld(tmp[m][0], 0);
-                    v4f32 _tmp01 = (v4f32)__lsx_vld(tmp[m][1], 0);
-                    v4f32 _tmp02 = (v4f32)__lsx_vld(tmp[m][2], 0);
-                    v4f32 _tmp03 = (v4f32)__lsx_vld(tmp[m][3], 0);
-                    v4f32 _tmp04 = (v4f32)__lsx_vld(tmp[m][4], 0);
-                    v4f32 _tmp05 = (v4f32)__lsx_vld(tmp[m][5], 0);
+                    __m128 _tmp00 = (__m128)__lsx_vld(tmp[m][0], 0);
+                    __m128 _tmp01 = (__m128)__lsx_vld(tmp[m][1], 0);
+                    __m128 _tmp02 = (__m128)__lsx_vld(tmp[m][2], 0);
+                    __m128 _tmp03 = (__m128)__lsx_vld(tmp[m][3], 0);
+                    __m128 _tmp04 = (__m128)__lsx_vld(tmp[m][4], 0);
+                    __m128 _tmp05 = (__m128)__lsx_vld(tmp[m][5], 0);
 
-                    v4f32 _tmp02a = __lsx_vfadd_s(_tmp01, _tmp02);
-                    v4f32 _tmp13a = __lsx_vfsub_s(_tmp01, _tmp02);
+                    __m128 _tmp02a = __lsx_vfadd_s(_tmp01, _tmp02);
+                    __m128 _tmp13a = __lsx_vfsub_s(_tmp01, _tmp02);
 
-                    v4f32 _tmp02b = __lsx_vfadd_s(_tmp03, _tmp04);
-                    v4f32 _tmp13b = __lsx_vfsub_s(_tmp03, _tmp04);
+                    __m128 _tmp02b = __lsx_vfadd_s(_tmp03, _tmp04);
+                    __m128 _tmp13b = __lsx_vfsub_s(_tmp03, _tmp04);
 
-                    v4f32 _out00 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_tmp00, _tmp02a), _tmp02b));
-                    v4f32 _out01 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp13b, _v2, _tmp13a));
-                    v4f32 _out02 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp02b, _v4, _tmp02a));
-                    v4f32 _out03 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp13b, _v8, __lsx_vfadd_s(_tmp05, _tmp13a)));
+                    __m128 _out00 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_tmp00, _tmp02a), _tmp02b));
+                    __m128 _out01 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp13b, _v2, _tmp13a));
+                    __m128 _out02 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp02b, _v4, _tmp02a));
+                    __m128 _out03 = __lsx_vfadd_s(_bias0, __lsx_vfmadd_s(_tmp13b, _v8, __lsx_vfadd_s(_tmp05, _tmp13a)));
 
                     __lsx_vst(_out00, output0, 0);
                     __lsx_vst(_out01, output0 + 4, 0);
@@ -598,15 +598,15 @@ static void conv3x3s1_winograd23_transform_input_pack4_lsx(const Mat& bottom_blo
 
                 for (int m = 0; m < 4; m++)
                 {
-                    v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                    v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                    v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
-                    v4f32 _r03 = (v4f32)__lsx_vld(r0 + 4 * 3, 0);
+                    __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                    __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                    __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                    __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
 
-                    v4f32 _tmp0m = __lsx_vfsub_s(_r00, _r02);
-                    v4f32 _tmp1m = __lsx_vfadd_s(_r01, _r02);
-                    v4f32 _tmp2m = __lsx_vfsub_s(_r02, _r01);
-                    v4f32 _tmp3m = __lsx_vfsub_s(_r03, _r01);
+                    __m128 _tmp0m = __lsx_vfsub_s(_r00, _r02);
+                    __m128 _tmp1m = __lsx_vfadd_s(_r01, _r02);
+                    __m128 _tmp2m = __lsx_vfsub_s(_r02, _r01);
+                    __m128 _tmp3m = __lsx_vfsub_s(_r03, _r01);
 
                     __lsx_vst(_tmp0m, tmp[0][m], 0);
                     __lsx_vst(_tmp1m, tmp[1][m], 0);
@@ -623,15 +623,15 @@ static void conv3x3s1_winograd23_transform_input_pack4_lsx(const Mat& bottom_blo
 
                 for (int m = 0; m < 4; m++)
                 {
-                    v4f32 _tmp00 = (v4f32)__lsx_vld(tmp[m][0], 0);
-                    v4f32 _tmp01 = (v4f32)__lsx_vld(tmp[m][1], 0);
-                    v4f32 _tmp02 = (v4f32)__lsx_vld(tmp[m][2], 0);
-                    v4f32 _tmp03 = (v4f32)__lsx_vld(tmp[m][3], 0);
+                    __m128 _tmp00 = (__m128)__lsx_vld(tmp[m][0], 0);
+                    __m128 _tmp01 = (__m128)__lsx_vld(tmp[m][1], 0);
+                    __m128 _tmp02 = (__m128)__lsx_vld(tmp[m][2], 0);
+                    __m128 _tmp03 = (__m128)__lsx_vld(tmp[m][3], 0);
 
-                    v4f32 _r0tm0 = __lsx_vfsub_s(_tmp00, _tmp02);
-                    v4f32 _r0tm1 = __lsx_vfadd_s(_tmp01, _tmp02);
-                    v4f32 _r0tm2 = __lsx_vfsub_s(_tmp02, _tmp01);
-                    v4f32 _r0tm3 = __lsx_vfsub_s(_tmp03, _tmp01);
+                    __m128 _r0tm0 = __lsx_vfsub_s(_tmp00, _tmp02);
+                    __m128 _r0tm1 = __lsx_vfadd_s(_tmp01, _tmp02);
+                    __m128 _r0tm2 = __lsx_vfsub_s(_tmp02, _tmp01);
+                    __m128 _r0tm3 = __lsx_vfsub_s(_tmp03, _tmp01);
 
                     __lsx_vst(_r0tm0, r0_tm_0, 0);
                     __lsx_vst(_r0tm1, r0_tm_1, 0);
@@ -674,7 +674,7 @@ static void conv3x3s1_winograd23_transform_output_pack4_lsx(const Mat& top_blob_
         const Mat out0_tm = top_blob_tm.channel(p);
         Mat out0 = top_blob.channel(p);
 
-        v4f32 _bias0 = biasptr ? (v4f32)__lsx_vld(biasptr + p * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
+        __m128 _bias0 = biasptr ? (__m128)__lsx_vld(biasptr + p * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
 
         float tmp[2][4][4];
 
@@ -692,13 +692,13 @@ static void conv3x3s1_winograd23_transform_output_pack4_lsx(const Mat& top_blob_
 
                 for (int m = 0; m < 4; m++)
                 {
-                    v4f32 _out0tm0 = (v4f32)__lsx_vld(output0_tm_0, 0);
-                    v4f32 _out0tm1 = (v4f32)__lsx_vld(output0_tm_1, 0);
-                    v4f32 _out0tm2 = (v4f32)__lsx_vld(output0_tm_2, 0);
-                    v4f32 _out0tm3 = (v4f32)__lsx_vld(output0_tm_3, 0);
+                    __m128 _out0tm0 = (__m128)__lsx_vld(output0_tm_0, 0);
+                    __m128 _out0tm1 = (__m128)__lsx_vld(output0_tm_1, 0);
+                    __m128 _out0tm2 = (__m128)__lsx_vld(output0_tm_2, 0);
+                    __m128 _out0tm3 = (__m128)__lsx_vld(output0_tm_3, 0);
 
-                    v4f32 _tmp0m = __lsx_vfadd_s(__lsx_vfadd_s(_out0tm0, _out0tm1), _out0tm2);
-                    v4f32 _tmp1m = __lsx_vfadd_s(__lsx_vfsub_s(_out0tm1, _out0tm2), _out0tm3);
+                    __m128 _tmp0m = __lsx_vfadd_s(__lsx_vfadd_s(_out0tm0, _out0tm1), _out0tm2);
+                    __m128 _tmp1m = __lsx_vfadd_s(__lsx_vfsub_s(_out0tm1, _out0tm2), _out0tm3);
 
                     __lsx_vst(_tmp0m, tmp[0][m], 0);
                     __lsx_vst(_tmp1m, tmp[1][m], 0);
@@ -711,13 +711,13 @@ static void conv3x3s1_winograd23_transform_output_pack4_lsx(const Mat& top_blob_
 
                 for (int m = 0; m < 2; m++)
                 {
-                    v4f32 _tmp00 = (v4f32)__lsx_vld(tmp[m][0], 0);
-                    v4f32 _tmp01 = (v4f32)__lsx_vld(tmp[m][1], 0);
-                    v4f32 _tmp02 = (v4f32)__lsx_vld(tmp[m][2], 0);
-                    v4f32 _tmp03 = (v4f32)__lsx_vld(tmp[m][3], 0);
+                    __m128 _tmp00 = (__m128)__lsx_vld(tmp[m][0], 0);
+                    __m128 _tmp01 = (__m128)__lsx_vld(tmp[m][1], 0);
+                    __m128 _tmp02 = (__m128)__lsx_vld(tmp[m][2], 0);
+                    __m128 _tmp03 = (__m128)__lsx_vld(tmp[m][3], 0);
 
-                    v4f32 _out00 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_tmp00, _tmp01), _tmp02));
-                    v4f32 _out01 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfsub_s(_tmp01, _tmp02), _tmp03));
+                    __m128 _out00 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfadd_s(_tmp00, _tmp01), _tmp02));
+                    __m128 _out01 = __lsx_vfadd_s(_bias0, __lsx_vfadd_s(__lsx_vfsub_s(_tmp01, _tmp02), _tmp03));
 
                     __lsx_vst(_out00, output0, 0);
                     __lsx_vst(_out01, output0 + 4, 0);

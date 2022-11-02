@@ -57,12 +57,12 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             {
                 float* ptr0 = ptr + i * 4;
 
-                v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
-                v4f32 _zero = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _slope = (v4f32)__lsx_vld(slope + i * 4, 0);
+                __m128 _p = (__m128)__lsx_vld(ptr0, 0);
+                __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _slope = (__m128)__lsx_vld(slope + i * 4, 0);
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
-                v4f32 _ps = __lsx_vfmul_s(_p, _slope);
-                _p = (v4f32)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
+                __m128 _ps = __lsx_vfmul_s(_p, _slope);
+                _p = (__m128)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
                 __lsx_vst(_p, ptr0, 0);
             }
 #endif // __loongarch_sx
@@ -85,12 +85,12 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
             {
                 float* ptr0 = ptr + i * 4;
 
-                v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
-                v4f32 _zero = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _slope = (v4f32)__lsx_vreplfr2vr_s(slope);
+                __m128 _p = (__m128)__lsx_vld(ptr0, 0);
+                __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _slope = (__m128)__lsx_vreplfr2vr_s(slope);
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
-                v4f32 _ps = __lsx_vfmul_s(_p, _slope);
-                _p = (v4f32)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
+                __m128 _ps = __lsx_vfmul_s(_p, _slope);
+                _p = (__m128)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
                 __lsx_vst(_p, ptr0, 0);
             }
 #endif // __loongarch_sx
@@ -119,16 +119,16 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
             int j = 0;
 #if __loongarch_sx
-            v4f32 _zero = (v4f32)__lsx_vreplgr2vr_w(0);
-            v4f32 _slope = (elempack == 4 && num_slope > 1) ? (v4f32)__lsx_vld((const float*)slope_data + i * 4, 0) : (v4f32)__lsx_vreplfr2vr_s(slope);
+            __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _slope = (elempack == 4 && num_slope > 1) ? (__m128)__lsx_vld((const float*)slope_data + i * 4, 0) : (__m128)__lsx_vreplfr2vr_s(slope);
 
             for (; j + 3 < w; j += 4)
             {
                 __builtin_prefetch(ptr + 16);
-                v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+                __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
-                v4f32 _ps = __lsx_vfmul_s(_p, _slope);
-                _p = (v4f32)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
+                __m128 _ps = __lsx_vfmul_s(_p, _slope);
+                _p = (__m128)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
                 __lsx_vst(_p, ptr, 0);
 
                 ptr += 4;
@@ -162,16 +162,16 @@ int PReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
             int i = 0;
 #if __loongarch_sx
-            v4f32 _zero = (v4f32)__lsx_vreplgr2vr_w(0);
-            v4f32 _slope = (elempack == 4 && num_slope > 1) ? (v4f32)__lsx_vld((const float*)slope_data + q * 4, 0) : (v4f32)__lsx_vreplfr2vr_s(slope);
+            __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+            __m128 _slope = (elempack == 4 && num_slope > 1) ? (__m128)__lsx_vld((const float*)slope_data + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(slope);
 
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
-                v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+                __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
-                v4f32 _ps = __lsx_vfmul_s(_p, _slope);
-                _p = (v4f32)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
+                __m128 _ps = __lsx_vfmul_s(_p, _slope);
+                _p = (__m128)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
                 __lsx_vst(_p, ptr, 0);
 
                 ptr += 4;

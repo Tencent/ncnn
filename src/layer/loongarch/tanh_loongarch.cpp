@@ -49,7 +49,7 @@ int TanH_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = tanh_ps(_p);
             __lsx_vst(_p, ptr, 0);
 

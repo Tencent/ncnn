@@ -46,11 +46,11 @@ int Mish_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
         int i = 0;
 #if __loongarch_sx
-        v4f32 _one = (v4f32)__lsx_vreplfr2vr_s(1.f);
+        __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = __lsx_vfmul_s(_p, tanh_ps(log_ps(__lsx_vfadd_s(exp_ps(_p), _one))));
             __lsx_vst(_p, ptr, 0);
 

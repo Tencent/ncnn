@@ -41,7 +41,7 @@ static void crop_pack4_lsx(const Mat& src, Mat& dst, int top, int left)
     {
         for (int x = 0; x < w; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
             __lsx_vst(_p, outptr, 0);
 
             ptr += 4;

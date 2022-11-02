@@ -52,7 +52,7 @@ static int unary_op_inplace(Mat& a, const Option& opt)
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = op.func_pack4(_p);
             __lsx_vst(_p, ptr, 0);
             ptr += 4;
@@ -77,9 +77,9 @@ struct unary_op_abs
         return (float)fabs(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
-        return (v4f32)__lsx_vbitclri_w((__m128i)x, 31);
+        return (__m128)__lsx_vbitclri_w((__m128i)x, 31);
     }
 #endif // __loongarch_sx
 };
@@ -91,9 +91,9 @@ struct unary_op_neg
         return -x;
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
-        return (v4f32)__lsx_vbitrevi_w((__m128i)x, 31);
+        return (__m128)__lsx_vbitrevi_w((__m128i)x, 31);
     }
 #endif // __loongarch_sx
 };
@@ -105,7 +105,7 @@ struct unary_op_floor
         return (float)floor(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -114,7 +114,7 @@ struct unary_op_floor
         tmp[1] = floor(tmp[1]);
         tmp[2] = floor(tmp[2]);
         tmp[3] = floor(tmp[3]);
-        return (v4f32)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vld(tmp, 0);
     }
 #endif // __loongarch_sx
 };
@@ -126,7 +126,7 @@ struct unary_op_ceil
         return (float)ceil(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -135,7 +135,7 @@ struct unary_op_ceil
         tmp[1] = ceil(tmp[1]);
         tmp[2] = ceil(tmp[2]);
         tmp[3] = ceil(tmp[3]);
-        return (v4f32)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vld(tmp, 0);
     }
 #endif // __loongarch_sx
 };
@@ -147,7 +147,7 @@ struct unary_op_square
         return x * x;
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         return __lsx_vfmul_s(x, x);
     }
@@ -161,7 +161,7 @@ struct unary_op_sqrt
         return (float)sqrt(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         return __lsx_vfsqrt_s(x);
     }
@@ -175,7 +175,7 @@ struct unary_op_rsqrt
         return (float)(1.f / sqrt(x));
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         return __lsx_vfrsqrt_s(x);
     }
@@ -189,7 +189,7 @@ struct unary_op_exp
         return (float)exp(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         return exp_ps(x);
     }
@@ -203,7 +203,7 @@ struct unary_op_log
         return (float)log(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         return log_ps(x);
     }
@@ -217,7 +217,7 @@ struct unary_op_sin
         return (float)sin(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -226,7 +226,7 @@ struct unary_op_sin
         tmp[1] = sin(tmp[1]);
         tmp[2] = sin(tmp[2]);
         tmp[3] = sin(tmp[3]);
-        return (v4f32)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vld(tmp, 0);
     }
 #endif // __loongarch_sx
 };
@@ -238,7 +238,7 @@ struct unary_op_cos
         return (float)cos(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -247,7 +247,7 @@ struct unary_op_cos
         tmp[1] = cos(tmp[1]);
         tmp[2] = cos(tmp[2]);
         tmp[3] = cos(tmp[3]);
-        return (v4f32)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vld(tmp, 0);
     }
 #endif // __loongarch_sx
 };
@@ -259,7 +259,7 @@ struct unary_op_tan
         return (float)tan(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -268,7 +268,7 @@ struct unary_op_tan
         tmp[1] = tan(tmp[1]);
         tmp[2] = tan(tmp[2]);
         tmp[3] = tan(tmp[3]);
-        return (v4f32)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vld(tmp, 0);
     }
 #endif // __loongarch_sx
 };
@@ -280,7 +280,7 @@ struct unary_op_asin
         return (float)asin(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -289,7 +289,7 @@ struct unary_op_asin
         tmp[1] = asin(tmp[1]);
         tmp[2] = asin(tmp[2]);
         tmp[3] = asin(tmp[3]);
-        return (v4f32)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vld(tmp, 0);
     }
 #endif // __loongarch_sx
 };
@@ -301,7 +301,7 @@ struct unary_op_acos
         return (float)acos(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -310,7 +310,7 @@ struct unary_op_acos
         tmp[1] = acos(tmp[1]);
         tmp[2] = acos(tmp[2]);
         tmp[3] = acos(tmp[3]);
-        return (v4f32)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vld(tmp, 0);
     }
 #endif // __loongarch_sx
 };
@@ -322,7 +322,7 @@ struct unary_op_atan
         return (float)atan(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         // TODO msa optimize
         float tmp[4];
@@ -331,7 +331,7 @@ struct unary_op_atan
         tmp[1] = atan(tmp[1]);
         tmp[2] = atan(tmp[2]);
         tmp[3] = atan(tmp[3]);
-        return (v4f32)__lsx_vld(tmp, 0);
+        return (__m128)__lsx_vld(tmp, 0);
     }
 #endif // __loongarch_sx
 };
@@ -343,7 +343,7 @@ struct unary_op_reciprocal
         return 1.f / x;
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         return __lsx_vfrecip_s(x);
     }
@@ -357,7 +357,7 @@ struct unary_op_tanh
         return (float)tanh(x);
     }
 #if __loongarch_sx
-    v4f32 func_pack4(const v4f32& x) const
+    __m128 func_pack4(const __m128& x) const
     {
         return tanh_ps(x);
     }

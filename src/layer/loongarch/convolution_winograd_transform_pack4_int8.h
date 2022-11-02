@@ -147,7 +147,7 @@ static void conv3x3s1_winograd43_transform_output_pack4_int8_lsx(const Mat& top_
                     __m128i _out03 = __lsx_vadd_w(__lsx_vadd_w(_tmp05, _tmp13a), __lsx_vslli_w(_tmp13b, 3));
 
                     // TODO use integer trick for division by 576
-                    v4f32 _v576 = __lsx_vreplfr2vr_s(1.0 / 576);
+                    __m128 _v576 = __lsx_vreplfr2vr_s(1.0 / 576);
                     _out00 = __lsx_vftint_w_s(__lsx_vfmul_s(__lsx_vffint_s_w(_out00), _v576));
                     _out01 = __lsx_vftint_w_s(__lsx_vfmul_s(__lsx_vffint_s_w(_out01), _v576));
                     _out02 = __lsx_vftint_w_s(__lsx_vfmul_s(__lsx_vffint_s_w(_out02), _v576));

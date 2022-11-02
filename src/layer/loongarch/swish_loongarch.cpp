@@ -46,12 +46,12 @@ int Swish_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) co
 
         int i = 0;
 #if __loongarch_sx
-        v4f32 _one = (v4f32)__lsx_vreplfr2vr_s(1.f);
+        __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
-            _p = __lsx_vfdiv_s(_p, __lsx_vfadd_s(_one, exp_ps((v4f32)__lsx_vbitrevi_w((__m128i)_p, 31))));
+            __m128i _p = __lsx_vld(ptr, 0);
+            _p = (__m128i)__lsx_vfdiv_s((__m128)_p, __lsx_vfadd_s(_one, exp_ps((__m128)__lsx_vbitrevi_w(_p, 31))));
             __lsx_vst(_p, ptr, 0);
 
             ptr += 4;

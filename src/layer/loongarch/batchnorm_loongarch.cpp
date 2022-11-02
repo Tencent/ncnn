@@ -53,9 +53,9 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
         {
             float* ptr0 = ptr + i * 4;
 
-            v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
-            v4f32 _a = (v4f32)__lsx_vld((const float*)a_data + i * 4, 0);
-            v4f32 _b = (v4f32)__lsx_vld((const float*)b_data + i * 4, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr0, 0);
+            __m128 _a = (__m128)__lsx_vld((const float*)a_data + i * 4, 0);
+            __m128 _b = (__m128)__lsx_vld((const float*)b_data + i * 4, 0);
             _p = __lsx_vfmadd_s(_b, _p, _a);
             __lsx_vst(_p, ptr0, 0);
         }
@@ -82,12 +82,12 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
 
             int j = 0;
 #if __loongarch_sx
-            v4f32 _a = elempack == 4 ? (v4f32)__lsx_vld((const float*)a_data + i * 4, 0) : (v4f32)__lsx_vreplfr2vr_s(a);
-            v4f32 _b = elempack == 4 ? (v4f32)__lsx_vld((const float*)b_data + i * 4, 0) : (v4f32)__lsx_vreplfr2vr_s(b);
+            __m128 _a = elempack == 4 ? (__m128)__lsx_vld((const float*)a_data + i * 4, 0) : (__m128)__lsx_vreplfr2vr_s(a);
+            __m128 _b = elempack == 4 ? (__m128)__lsx_vld((const float*)b_data + i * 4, 0) : (__m128)__lsx_vreplfr2vr_s(b);
             for (; j + 3 < w; j += 4)
             {
                 __builtin_prefetch(ptr + 16);
-                v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+                __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmadd_s(_b, _p, _a);
                 __lsx_vst(_p, ptr, 0);
 
@@ -119,12 +119,12 @@ int BatchNorm_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt
 
             int i = 0;
 #if __loongarch_sx
-            v4f32 _a = elempack == 4 ? (v4f32)__lsx_vld((const float*)a_data + q * 4, 0) : (v4f32)__lsx_vreplfr2vr_s(a);
-            v4f32 _b = elempack == 4 ? (v4f32)__lsx_vld((const float*)b_data + q * 4, 0) : (v4f32)__lsx_vreplfr2vr_s(b);
+            __m128 _a = elempack == 4 ? (__m128)__lsx_vld((const float*)a_data + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(a);
+            __m128 _b = elempack == 4 ? (__m128)__lsx_vld((const float*)b_data + q * 4, 0) : (__m128)__lsx_vreplfr2vr_s(b);
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(ptr + 16);
-                v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+                __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 _p = __lsx_vfmadd_s(_b, _p, _a);
                 __lsx_vst(_p, ptr, 0);
 

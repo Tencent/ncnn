@@ -45,14 +45,14 @@ int HardSigmoid_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& o
 
         int i = 0;
 #if __loongarch_sx
-        v4f32 _zero = (v4f32)__lsx_vreplgr2vr_w(0);
-        v4f32 _one = (v4f32)__lsx_vreplfr2vr_s(1.f);
-        v4f32 _alpha = (v4f32)__lsx_vreplfr2vr_s(alpha);
-        v4f32 _beta = (v4f32)__lsx_vreplfr2vr_s(beta);
+        __m128 _zero = (__m128)__lsx_vreplgr2vr_w(0);
+        __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
+        __m128 _alpha = (__m128)__lsx_vreplfr2vr_s(alpha);
+        __m128 _beta = (__m128)__lsx_vreplfr2vr_s(beta);
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = __lsx_vfmadd_s(_alpha, _p, _beta);
             _p = __lsx_vfmax_s(_p, _zero);
             _p = __lsx_vfmin_s(_p, _one);

@@ -48,15 +48,15 @@ int Sigmoid_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) 
 
         int i = 0;
 #if __loongarch_sx
-        v4f32 _one = (v4f32)__lsx_vreplfr2vr_s(1.f);
+        __m128 _one = (__m128)__lsx_vreplfr2vr_s(1.f);
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
-            _p = (v4f32)__lsx_vbitrevi_w((__m128i)_p, 31);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
+            _p = (__m128)__lsx_vbitrevi_w((__m128i)_p, 31);
             _p = exp_ps(_p);
             _p = __lsx_vfadd_s(_p, _one);
-            v4f32 _outp = __lsx_vfdiv_s(_one, _p);
+            __m128 _outp = __lsx_vfdiv_s(_one, _p);
             __lsx_vst(_outp, ptr, 0);
 
             ptr += 4;

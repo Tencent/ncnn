@@ -233,11 +233,11 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                            __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
                             if (bias_term)
                             {
-                                _sum = (v4f32)__lsx_vld((const float*)bias_data + g * 4, 0);
+                                _sum = (__m128)__lsx_vld((const float*)bias_data + g * 4, 0);
                             }
 
                             for (int y = 0; y < kernel_h; y++)
@@ -264,8 +264,8 @@ int DeconvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_b
 
                                     int k = y * kernel_w + x;
 
-                                    v4f32 _val = (v4f32)__lsx_vld(sptr, 0);
-                                    v4f32 _w = (v4f32)__lsx_vld(kptr + k * 4, 0);
+                                    __m128 _val = (__m128)__lsx_vld(sptr, 0);
+                                    __m128 _w = (__m128)__lsx_vld(kptr + k * 4, 0);
                                     _sum = __lsx_vfmadd_s(_w, _val, _sum);
                                 }
                             }

@@ -136,22 +136,22 @@ static void resize_bilinear_image(const Mat& src, Mat& dst, float* alpha, int* x
         int remain = w - (nn << 3);
 
 #if __loongarch_sx
-        v4f32 _b0 = __lsx_vreplfr2vr_s(b0);
-        v4f32 _b1 = __lsx_vreplfr2vr_s(b1);
+        __m128 _b0 = __lsx_vreplfr2vr_s(b0);
+        __m128 _b1 = __lsx_vreplfr2vr_s(b1);
         for (; nn > 0; nn--)
         {
-            v4f32 _rows0 = (v4f32)__lsx_vld(rows0p, 0);
-            v4f32 _rows1 = (v4f32)__lsx_vld(rows1p, 0);
+            __m128 _rows0 = (__m128)__lsx_vld(rows0p, 0);
+            __m128 _rows1 = (__m128)__lsx_vld(rows1p, 0);
 
-            v4f32 _D = __lsx_vfmul_s(_rows0, _b0);
+            __m128 _D = __lsx_vfmul_s(_rows0, _b0);
             _D = __lsx_vfmadd_s(_b1, _rows1, _D);
 
             __lsx_vst(_D, Dp, 0);
 
-            v4f32 _rows0n = (v4f32)__lsx_vld(rows0p + 4, 0);
-            v4f32 _rows1n = (v4f32)__lsx_vld(rows1p + 4, 0);
+            __m128 _rows0n = (__m128)__lsx_vld(rows0p + 4, 0);
+            __m128 _rows1n = (__m128)__lsx_vld(rows1p + 4, 0);
 
-            v4f32 _Dn = __lsx_vfmul_s(_rows0n, _b0);
+            __m128 _Dn = __lsx_vfmul_s(_rows0n, _b0);
             _Dn = __lsx_vfmadd_s(_b1, _rows1n, _Dn);
 
             __lsx_vst(_Dn, Dp + 4, 0);

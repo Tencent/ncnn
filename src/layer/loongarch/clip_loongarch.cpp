@@ -45,12 +45,12 @@ int Clip_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 
         int i = 0;
 #if __loongarch_sx
-        v4f32 _max = (v4f32)__lsx_vreplfr2vr_s(max);
-        v4f32 _min = (v4f32)__lsx_vreplfr2vr_s(min);
+        __m128 _max = (__m128)__lsx_vreplfr2vr_s(max);
+        __m128 _min = (__m128)__lsx_vreplfr2vr_s(min);
         for (; i + 3 < size; i += 4)
         {
             __builtin_prefetch(ptr + 16);
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
             _p = __lsx_vfmax_s(_p, _min);
             _p = __lsx_vfmin_s(_p, _max);
             __lsx_vst(_p, ptr, 0);

@@ -68,7 +68,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
             for (int q = 0; q < w; q++)
             {
                 Mat top_blob_c = top_blob.channel(q);
-                v4f32 _v = (v4f32)__lsx_vld((const float*)bottom_blob + q * 4, 0);
+                __m128 _v = (__m128)__lsx_vld((const float*)bottom_blob + q * 4, 0);
                 top_blob_c.fill(_v);
             }
 
@@ -115,7 +115,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                     {
                         int in_x = std::min((int)(x * ws), (w - 1));
 
-                        v4f32 _p = (v4f32)__lsx_vld(ptr + in_x * 4, 0);
+                        __m128 _p = (__m128)__lsx_vld(ptr + in_x * 4, 0);
                         __lsx_vst(_p, outptr, 0);
 
                         outptr += 4;
@@ -144,12 +144,12 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                         int sx = xofs[x] * 4;
                         const float* Sp = ptr + sx;
 
-                        v4f32 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
-                        v4f32 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
+                        __m128 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
+                        __m128 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
 
-                        v4f32 _S0 = (v4f32)__lsx_vld(Sp, 0);
-                        v4f32 _S1 = (v4f32)__lsx_vld(Sp + 4, 0);
-                        v4f32 _p = __lsx_vfmul_s(_S0, _a0);
+                        __m128 _S0 = (__m128)__lsx_vld(Sp, 0);
+                        __m128 _S1 = (__m128)__lsx_vld(Sp + 4, 0);
+                        __m128 _p = __lsx_vfmul_s(_S0, _a0);
                         _p = __lsx_vfmadd_s(_a1, _S1, _p);
                         __lsx_vst(_p, outptr, 0);
 
@@ -182,16 +182,16 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                         int sx = xofs[x] * 4;
                         const float* Sp = ptr + sx;
 
-                        v4f32 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
-                        v4f32 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
-                        v4f32 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
-                        v4f32 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
+                        __m128 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
+                        __m128 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
+                        __m128 _a2 = __lsx_vreplfr2vr_s(alphap[2]);
+                        __m128 _a3 = __lsx_vreplfr2vr_s(alphap[3]);
 
-                        v4f32 _S0 = (v4f32)__lsx_vld(Sp - 4, 0);
-                        v4f32 _S1 = (v4f32)__lsx_vld(Sp + 0, 0);
-                        v4f32 _S2 = (v4f32)__lsx_vld(Sp + 4, 0);
-                        v4f32 _S3 = (v4f32)__lsx_vld(Sp + 8, 0);
-                        v4f32 _p = __lsx_vfmul_s(_S0, _a0);
+                        __m128 _S0 = (__m128)__lsx_vld(Sp - 4, 0);
+                        __m128 _S1 = (__m128)__lsx_vld(Sp + 0, 0);
+                        __m128 _S2 = (__m128)__lsx_vld(Sp + 4, 0);
+                        __m128 _S3 = (__m128)__lsx_vld(Sp + 8, 0);
+                        __m128 _p = __lsx_vfmul_s(_S0, _a0);
                         _p = __lsx_vfmadd_s(_a1, _S1, _p);
                         _p = __lsx_vfmadd_s(_a2, _S2, _p);
                         _p = __lsx_vfmadd_s(_a3, _S3, _p);
@@ -325,7 +325,7 @@ int Interp_loongarch::forward(const std::vector<Mat>& bottom_blobs, std::vector<
                     {
                         int in_x = std::min((int)(x * ws), (w - 1));
 
-                        v4f32 _p = (v4f32)__lsx_vld(ptr + in_x * 4, 0);
+                        __m128 _p = (__m128)__lsx_vld(ptr + in_x * 4, 0);
                         __lsx_vst(_p, outptr, 0);
 
                         outptr += 4;

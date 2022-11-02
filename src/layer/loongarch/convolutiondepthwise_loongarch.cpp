@@ -335,19 +335,19 @@ int ConvolutionDepthWise_loongarch::forward(const Mat& bottom_blob, Mat& top_blo
                     {
                         for (int j = 0; j < outw; j++)
                         {
-                            v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                            __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
                             if (bias_term)
                             {
-                                _sum = (v4f32)__lsx_vld((const float*)bias_data + g * 4, 0);
+                                _sum = (__m128)__lsx_vld((const float*)bias_data + g * 4, 0);
                             }
 
                             const float* sptr = m.row(i * stride_h) + j * stride_w * 4;
 
                             for (int k = 0; k < maxk; k++)
                             {
-                                v4f32 _val = (v4f32)__lsx_vld(sptr + space_ofs[k] * 4, 0);
-                                v4f32 _w = (v4f32)__lsx_vld(kptr + k * 4, 0);
+                                __m128 _val = (__m128)__lsx_vld(sptr + space_ofs[k] * 4, 0);
+                                __m128 _w = (__m128)__lsx_vld(kptr + k * 4, 0);
                                 _sum = __lsx_vfmadd_s(_w, _val, _sum);
                             }
 
@@ -744,29 +744,29 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                                 _sum1 = __lsx_vadd_w(_sum1, _s0h);
                             }
 
-                            v4f32 _scale_in0;
-                            v4f32 _scale_in1;
+                            __m128 _scale_in0;
+                            __m128 _scale_in1;
                             {
-                                v4f32 _bottom_blob_int8_scales0 = (v4f32)__lsx_vld((const float*)bottom_blob_int8_scales + g * 8, 0);
-                                v4f32 _bottom_blob_int8_scales1 = (v4f32)__lsx_vld((const float*)bottom_blob_int8_scales + g * 8 + 4, 0);
-                                v4f32 _weight_data_int8_scales0 = (v4f32)__lsx_vld((const float*)weight_data_int8_scales + g * 8, 0);
-                                v4f32 _weight_data_int8_scales1 = (v4f32)__lsx_vld((const float*)weight_data_int8_scales + g * 8 + 4, 0);
+                                __m128 _bottom_blob_int8_scales0 = (__m128)__lsx_vld((const float*)bottom_blob_int8_scales + g * 8, 0);
+                                __m128 _bottom_blob_int8_scales1 = (__m128)__lsx_vld((const float*)bottom_blob_int8_scales + g * 8 + 4, 0);
+                                __m128 _weight_data_int8_scales0 = (__m128)__lsx_vld((const float*)weight_data_int8_scales + g * 8, 0);
+                                __m128 _weight_data_int8_scales1 = (__m128)__lsx_vld((const float*)weight_data_int8_scales + g * 8 + 4, 0);
                                 _scale_in0 = __lsx_vfrecip_s(__lsx_vfmul_s(_bottom_blob_int8_scales0, _weight_data_int8_scales0));
                                 _scale_in1 = __lsx_vfrecip_s(__lsx_vfmul_s(_bottom_blob_int8_scales1, _weight_data_int8_scales1));
 
                                 __m128i _m0 = __lsx_vfcmp_cne_s(_weight_data_int8_scales0, __lsx_vreplfr2vr_s(0.f));
                                 __m128i _m1 = __lsx_vfcmp_cne_s(_weight_data_int8_scales1, __lsx_vreplfr2vr_s(0.f));
-                                _scale_in0 = (v4f32)__lsx_vand_v((__m128i)_scale_in0, (__m128i)_m0);
-                                _scale_in1 = (v4f32)__lsx_vand_v((__m128i)_scale_in1, (__m128i)_m1);
+                                _scale_in0 = (__m128)__lsx_vand_v((__m128i)_scale_in0, (__m128i)_m0);
+                                _scale_in1 = (__m128)__lsx_vand_v((__m128i)_scale_in1, (__m128i)_m1);
                             }
 
-                            v4f32 _sumfp32_0 = __lsx_vfmul_s(__lsx_vffint_s_w(_sum0), _scale_in0);
-                            v4f32 _sumfp32_1 = __lsx_vfmul_s(__lsx_vffint_s_w(_sum1), _scale_in1);
+                            __m128 _sumfp32_0 = __lsx_vfmul_s(__lsx_vffint_s_w(_sum0), _scale_in0);
+                            __m128 _sumfp32_1 = __lsx_vfmul_s(__lsx_vffint_s_w(_sum1), _scale_in1);
 
                             if (bias_term)
                             {
-                                v4f32 _bias0 = (v4f32)__lsx_vld((const float*)bias_data + g * 8, 0);
-                                v4f32 _bias1 = (v4f32)__lsx_vld((const float*)bias_data + g * 8 + 4, 0);
+                                __m128 _bias0 = (__m128)__lsx_vld((const float*)bias_data + g * 8, 0);
+                                __m128 _bias1 = (__m128)__lsx_vld((const float*)bias_data + g * 8 + 4, 0);
                                 _sumfp32_0 = __lsx_vfadd_s(_sumfp32_0, _bias0);
                                 _sumfp32_1 = __lsx_vfadd_s(_sumfp32_1, _bias1);
                             }
@@ -777,8 +777,8 @@ int ConvolutionDepthWise_loongarch::forward_int8_loongarch(const Mat& bottom_blo
                             if (use_int8_requantize)
                             {
                                 // requantize and relu
-                                v4f32 _scale_out0 = (v4f32)__lsx_vld((const float*)top_blob_int8_scales + g * 8, 0);
-                                v4f32 _scale_out1 = (v4f32)__lsx_vld((const float*)top_blob_int8_scales + g * 8 + 4, 0);
+                                __m128 _scale_out0 = (__m128)__lsx_vld((const float*)top_blob_int8_scales + g * 8, 0);
+                                __m128 _scale_out1 = (__m128)__lsx_vld((const float*)top_blob_int8_scales + g * 8 + 4, 0);
                                 _sumfp32_0 = __lsx_vfmul_s(_sumfp32_0, _scale_out0);
                                 _sumfp32_1 = __lsx_vfmul_s(_sumfp32_1, _scale_out1);
                                 int64_t _sum8 = float2int8(_sumfp32_0, _sumfp32_1);

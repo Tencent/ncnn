@@ -57,8 +57,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
             if (scale_in_data_size == 1 && scale_out_data_size == 1)
             {
-                v4f32 _scale_in = (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]);
-                v4f32 _scale_out = (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]);
+                __m128 _scale_in = (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]);
+                __m128 _scale_out = (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]);
 
                 if (bias_data_size == 0)
                 {
@@ -68,8 +68,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale_in);
                         _v1 = __lsx_vfmul_s(_v1, _scale_in);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -81,7 +81,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -89,8 +89,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias);
                         _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -108,10 +108,10 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
+                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -124,7 +124,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
             }
             else if (scale_in_data_size == 1 && scale_out_data_size > 1)
             {
-                v4f32 _scale_in = (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]);
+                __m128 _scale_in = (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]);
 
                 if (bias_data_size == 0)
                 {
@@ -134,10 +134,10 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale_in);
                         _v1 = __lsx_vfmul_s(_v1, _scale_in);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -149,7 +149,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -157,10 +157,10 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias);
                         _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -178,12 +178,12 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
+                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale_in, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -196,7 +196,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
             }
             else if (scale_in_data_size > 1 && scale_out_data_size == 1)
             {
-                v4f32 _scale_out = (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]);
+                __m128 _scale_out = (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]);
 
                 if (bias_data_size == 0)
                 {
@@ -206,10 +206,10 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale_in0);
                         _v1 = __lsx_vfmul_s(_v1, _scale_in1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -221,7 +221,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -229,10 +229,10 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias);
                         _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -250,12 +250,12 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
+                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -276,12 +276,12 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale_in0);
                         _v1 = __lsx_vfmul_s(_v1, _scale_in1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -293,7 +293,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -301,12 +301,12 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias);
                         _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -324,14 +324,14 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 8;
                         signed char* ptr = (signed char*)top_blob + i * 8;
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
+                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -361,16 +361,16 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     const int* intptr = bottom_blob.row<const int>(i);
                     signed char* ptr = top_blob.row<signed char>(i);
 
-                    v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                    v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                    v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                    v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                    __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                    __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                    __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                    __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale_in0);
                         _v1 = __lsx_vfmul_s(_v1, _scale_in1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -392,18 +392,18 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     const int* intptr = bottom_blob.row<const int>(i);
                     signed char* ptr = top_blob.row<signed char>(i);
 
-                    v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                    v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                    v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                    v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                    v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8, 0);
-                    v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
+                    __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                    __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                    __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                    __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                    __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
+                    __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -450,16 +450,16 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     const int* intptr = bottom_blob.channel(q);
                     signed char* ptr = top_blob.channel(q);
 
-                    v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                    v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                    v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                    v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
+                    __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
+                    __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
+                    __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
+                    __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
 
                     for (int i = 0; i < size; i++)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale_in0);
                         _v1 = __lsx_vfmul_s(_v1, _scale_in1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -481,18 +481,18 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     const int* intptr = bottom_blob.channel(q);
                     signed char* ptr = top_blob.channel(q);
 
-                    v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                    v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                    v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                    v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
-                    v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8, 0);
-                    v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
+                    __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
+                    __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
+                    __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
+                    __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
+                    __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8, 0);
+                    __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
 
                     for (int i = 0; i < size; i++)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                         _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -525,8 +525,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
             if (scale_in_data_size == 1 && scale_out_data_size == 1)
             {
-                v4f32 _scale_in = (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]);
-                v4f32 _scale_out = (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]);
+                __m128 _scale_in = (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]);
+                __m128 _scale_out = (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]);
 
                 if (bias_data_size == 0)
                 {
@@ -536,7 +536,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -549,7 +549,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -557,7 +557,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -576,8 +576,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -591,7 +591,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
             }
             else if (scale_in_data_size == 1 && scale_out_data_size > 1)
             {
-                v4f32 _scale_in = (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]);
+                __m128 _scale_in = (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]);
 
                 if (bias_data_size == 0)
                 {
@@ -601,8 +601,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -615,7 +615,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -623,8 +623,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -643,9 +643,9 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
+                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -659,7 +659,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
             }
             else if (scale_in_data_size > 1 && scale_out_data_size == 1)
             {
-                v4f32 _scale_out = (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]);
+                __m128 _scale_out = (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]);
 
                 if (bias_data_size == 0)
                 {
@@ -669,8 +669,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -683,7 +683,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -691,8 +691,8 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -711,9 +711,9 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
+                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -735,9 +735,9 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
+                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale_in);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -750,7 +750,7 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -758,9 +758,9 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
+                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -779,10 +779,10 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         signed char* ptr = (signed char*)top_blob + i * 4;
 
-                        v4f32 _scale_in = (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        v4f32 _scale_out = (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale_in = (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
+                        __m128 _scale_out = (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
+                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                         _v = activation_ps(_v, activation_type, activation_params);
                         _v = __lsx_vfmul_s(_v, _scale_out);
@@ -818,17 +818,17 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr1 = bottom_blob.row<const int>(i * 2 + 1);
                         signed char* ptr = top_blob.row<signed char>(i);
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
 
                         for (int j = 0; j < w; j++)
                         {
                             __builtin_prefetch(intptr0 + 16);
                             __builtin_prefetch(intptr1 + 16);
-                            v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                            v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
                             _v0 = __lsx_vfmul_s(_v0, _scale_in0);
                             _v1 = __lsx_vfmul_s(_v1, _scale_in1);
                             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -852,19 +852,19 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr1 = bottom_blob.row<const int>(i * 2 + 1);
                         signed char* ptr = top_blob.row<signed char>(i);
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
-                        v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8, 0);
-                        v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 8 + 4, 0);
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 8 + 4, 0);
+                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
+                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
 
                         for (int j = 0; j < w; j++)
                         {
                             __builtin_prefetch(intptr0 + 16);
                             __builtin_prefetch(intptr1 + 16);
-                            v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                            v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
                             _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
                             _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -893,13 +893,13 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         signed char* ptr2 = top_blob.row<signed char>(i * 4 + 2);
                         signed char* ptr3 = top_blob.row<signed char>(i * 4 + 3);
 
-                        v4f32 _scale_in = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        v4f32 _scale_out = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
+                        __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
+                        __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
 
                         for (int j = 0; j < w; j++)
                         {
                             __builtin_prefetch(intptr + 16);
-                            v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                             _v = __lsx_vfmul_s(_v, _scale_in);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
@@ -928,14 +928,14 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         signed char* ptr2 = top_blob.row<signed char>(i * 4 + 2);
                         signed char* ptr3 = top_blob.row<signed char>(i * 4 + 3);
 
-                        v4f32 _scale_in = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + i * 4, 0);
-                        v4f32 _scale_out = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + i * 4, 0);
-                        v4f32 _bias = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + i * 4, 0);
+                        __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + i * 4, 0);
+                        __m128 _bias = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
 
                         for (int j = 0; j < w; j++)
                         {
                             __builtin_prefetch(intptr + 16);
-                            v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                             _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
@@ -992,17 +992,17 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr1 = bottom_blob.channel(q * 2 + 1);
                         signed char* ptr = top_blob.channel(q);
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
 
                         for (int i = 0; i < size; i++)
                         {
                             __builtin_prefetch(intptr0 + 16);
                             __builtin_prefetch(intptr1 + 16);
-                            v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                            v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
                             _v0 = __lsx_vfmul_s(_v0, _scale_in0);
                             _v1 = __lsx_vfmul_s(_v1, _scale_in1);
                             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -1026,19 +1026,19 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr1 = bottom_blob.channel(q * 2 + 1);
                         signed char* ptr = top_blob.channel(q);
 
-                        v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-                        v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-                        v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-                        v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
-                        v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8, 0);
-                        v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
+                        __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
+                        __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
+                        __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
+                        __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
+                        __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8, 0);
+                        __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
 
                         for (int i = 0; i < size; i++)
                         {
                             __builtin_prefetch(intptr0 + 16);
                             __builtin_prefetch(intptr1 + 16);
-                            v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr0, 0));
-                            v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr1, 0));
+                            __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr0, 0));
+                            __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr1, 0));
                             _v0 = __lsx_vfmadd_s(_scale_in0, _v0, _bias0);
                             _v1 = __lsx_vfmadd_s(_scale_in1, _v1, _bias1);
                             _v0 = activation_ps(_v0, activation_type, activation_params);
@@ -1067,13 +1067,13 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         signed char* ptr2 = top_blob.channel(q * 4 + 2);
                         signed char* ptr3 = top_blob.channel(q * 4 + 3);
 
-                        v4f32 _scale_in = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 4, 0);
-                        v4f32 _scale_out = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 4, 0);
+                        __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 4, 0);
+                        __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 4, 0);
 
                         for (int i = 0; i < size; i++)
                         {
                             __builtin_prefetch(intptr + 16);
-                            v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                             _v = __lsx_vfmul_s(_v, _scale_in);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);
@@ -1102,14 +1102,14 @@ int Requantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         signed char* ptr2 = top_blob.channel(q * 4 + 2);
                         signed char* ptr3 = top_blob.channel(q * 4 + 3);
 
-                        v4f32 _scale_in = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 4, 0);
-                        v4f32 _scale_out = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 4, 0);
-                        v4f32 _bias = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 4, 0);
+                        __m128 _scale_in = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 4, 0);
+                        __m128 _scale_out = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 4, 0);
+                        __m128 _bias = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 4, 0);
 
                         for (int i = 0; i < size; i++)
                         {
                             __builtin_prefetch(intptr + 16);
-                            v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                            __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                             _v = __lsx_vfmadd_s(_scale_in, _v, _bias);
                             _v = activation_ps(_v, activation_type, activation_params);
                             _v = __lsx_vfmul_s(_v, _scale_out);

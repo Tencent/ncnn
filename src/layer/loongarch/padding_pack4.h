@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static void padding_constant_pack4_lsx(const Mat& src, Mat& dst, int top, int bottom, int left, int right, v4f32 v)
+static void padding_constant_pack4_lsx(const Mat& src, Mat& dst, int top, int bottom, int left, int right, __m128 v)
 {
     const float* ptr = src;
     float* outptr = dst;
@@ -63,7 +63,7 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
     for (int y = 0; y < top; y++)
     {
         const float* ptr0 = ptr;
-        v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
+        __m128 _p = (__m128)__lsx_vld(ptr0, 0);
         for (int x = 0; x < left; x++)
         {
             __lsx_vst(_p, outptr, 0);
@@ -71,7 +71,7 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = (v4f32)__lsx_vld(ptr0, 0);
+            _p = (__m128)__lsx_vld(ptr0, 0);
             __lsx_vst(_p, outptr, 0);
             ptr0 += 4;
             outptr += 4;
@@ -85,7 +85,7 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
     // fill center
     for (int y = 0; y < src.h; y++)
     {
-        v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+        __m128 _p = (__m128)__lsx_vld(ptr, 0);
         for (int x = 0; x < left; x++)
         {
             __lsx_vst(_p, outptr, 0);
@@ -93,7 +93,7 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = (v4f32)__lsx_vld(ptr, 0);
+            _p = (__m128)__lsx_vld(ptr, 0);
             __lsx_vst(_p, outptr, 0);
             ptr += 4;
             outptr += 4;
@@ -109,7 +109,7 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
     for (int y = 0; y < bottom; y++)
     {
         const float* ptr0 = ptr;
-        v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
+        __m128 _p = (__m128)__lsx_vld(ptr0, 0);
         for (int x = 0; x < left; x++)
         {
             __lsx_vst(_p, outptr, 0);
@@ -117,7 +117,7 @@ static void padding_replicate_pack4_lsx(const Mat& src, Mat& dst, int top, int b
         }
         for (int x = 0; x < src.w; x++)
         {
-            _p = (v4f32)__lsx_vld(ptr0, 0);
+            _p = (__m128)__lsx_vld(ptr0, 0);
             __lsx_vst(_p, outptr, 0);
             ptr0 += 4;
             outptr += 4;
@@ -142,20 +142,20 @@ static void padding_reflect_pack4_lsx(const Mat& src, Mat& dst, int top, int bot
         const float* ptr0 = ptr;
         for (int x = 0; x < left; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr0 + (left - x) * 4, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr0 + (left - x) * 4, 0);
             __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr0, 0);
             __lsx_vst(_p, outptr, 0);
             ptr0 += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr0 - 8 - x * 4, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr0 - 8 - x * 4, 0);
             __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
@@ -166,20 +166,20 @@ static void padding_reflect_pack4_lsx(const Mat& src, Mat& dst, int top, int bot
     {
         for (int x = 0; x < left; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr + (left - x) * 4, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr + (left - x) * 4, 0);
             __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
             __lsx_vst(_p, outptr, 0);
             ptr += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr - 8 - x * 4, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr - 8 - x * 4, 0);
             __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
@@ -191,20 +191,20 @@ static void padding_reflect_pack4_lsx(const Mat& src, Mat& dst, int top, int bot
         const float* ptr0 = ptr;
         for (int x = 0; x < left; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr0 + (left - x) * 4, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr0 + (left - x) * 4, 0);
             __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }
         for (int x = 0; x < src.w; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr0, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr0, 0);
             __lsx_vst(_p, outptr, 0);
             ptr0 += 4;
             outptr += 4;
         }
         for (int x = 0; x < right; x++)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr0 - 8 - x * 4, 0);
+            __m128 _p = (__m128)__lsx_vld(ptr0 - 8 - x * 4, 0);
             __lsx_vst(_p, outptr, 0);
             outptr += 4;
         }

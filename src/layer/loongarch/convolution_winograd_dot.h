@@ -112,31 +112,31 @@ static void convolution_winograd_dot_lsx(Mat& bottom_blob_tm, int outch, const M
 
                 int nn = inch; // inch always > 0
 
-                v4f32 _sum0 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum1 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum2 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum3 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum4 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum5 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum6 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum7 = (v4f32)__lsx_vreplgr2vr_w(0);
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum4 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum5 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum6 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum7 = (__m128)__lsx_vreplgr2vr_w(0);
 
                 int j = 0;
                 for (; j < nn; j++)
                 {
                     __builtin_prefetch(r0 + 16);
                     __builtin_prefetch(k0 + 32);
-                    v4f32 _val = (v4f32)__lsx_vld(r0, 0);
+                    __m128 _val = (__m128)__lsx_vld(r0, 0);
                     __m128i _w0123 = __lsx_vld(k0, 0);
                     __m128i _w4567 = __lsx_vld(k0 + 4, 0);
-                    _sum0 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 0), _val, _sum0);
-                    _sum1 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 1), _val, _sum1);
-                    _sum2 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 2), _val, _sum2);
-                    _sum3 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 3), _val, _sum3);
-                    _sum4 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w4567, 0), _val, _sum4);
-                    _sum5 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w4567, 1), _val, _sum5);
-                    _sum6 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w4567, 2), _val, _sum6);
-                    _sum7 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w4567, 3), _val, _sum7);
+                    _sum0 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w0123, 0), _val, _sum0);
+                    _sum1 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w0123, 1), _val, _sum1);
+                    _sum2 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w0123, 2), _val, _sum2);
+                    _sum3 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w0123, 3), _val, _sum3);
+                    _sum4 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w4567, 0), _val, _sum4);
+                    _sum5 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w4567, 1), _val, _sum5);
+                    _sum6 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w4567, 2), _val, _sum6);
+                    _sum7 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w4567, 3), _val, _sum7);
 
                     r0 += 4;
                     k0 += 8;
@@ -239,22 +239,22 @@ static void convolution_winograd_dot_lsx(Mat& bottom_blob_tm, int outch, const M
 
                 int nn = inch; // inch always > 0
 
-                v4f32 _sum0 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum1 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum2 = (v4f32)__lsx_vreplgr2vr_w(0);
-                v4f32 _sum3 = (v4f32)__lsx_vreplgr2vr_w(0);
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum1 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum2 = (__m128)__lsx_vreplgr2vr_w(0);
+                __m128 _sum3 = (__m128)__lsx_vreplgr2vr_w(0);
 
                 int j = 0;
                 for (; j < nn; j++)
                 {
                     __builtin_prefetch(r0 + 16);
                     __builtin_prefetch(k0 + 16);
-                    v4f32 _val = (v4f32)__lsx_vld(r0, 0);
+                    __m128 _val = (__m128)__lsx_vld(r0, 0);
                     __m128i _w0123 = __lsx_vld(k0, 0);
-                    _sum0 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 0), _val, _sum0);
-                    _sum1 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 1), _val, _sum1);
-                    _sum2 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 2), _val, _sum2);
-                    _sum3 = __lsx_vfmadd_s((v4f32)__lsx_vreplvei_w(_w0123, 3), _val, _sum3);
+                    _sum0 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w0123, 0), _val, _sum0);
+                    _sum1 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w0123, 1), _val, _sum1);
+                    _sum2 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w0123, 2), _val, _sum2);
+                    _sum3 = __lsx_vfmadd_s((__m128)__lsx_vreplvei_w(_w0123, 3), _val, _sum3);
 
                     r0 += 4;
                     k0 += 4;
@@ -430,11 +430,11 @@ static void convolution_winograd_dot_lsx(Mat& bottom_blob_tm, int outch, const M
 
                 int j = 0;
 #if __loongarch_sx
-                v4f32 _sum0 = (v4f32)__lsx_vreplgr2vr_w(0);
+                __m128 _sum0 = (__m128)__lsx_vreplgr2vr_w(0);
 
                 for (; j < nn; j++)
                 {
-                    _sum0 = __lsx_vfmadd_s((v4f32)__lsx_vld(r0, 0), __lsx_vreplfr2vr_s(k0[0]), _sum0);
+                    _sum0 = __lsx_vfmadd_s((__m128)__lsx_vld(r0, 0), __lsx_vreplfr2vr_s(k0[0]), _sum0);
                     r0 += 4;
                     k0++;
                 }

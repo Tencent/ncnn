@@ -50,7 +50,7 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
             if (scale_data_size == 1)
             {
-                v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale_data[0]);
+                __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale_data[0]);
 
                 if (bias_data_size == 0)
                 {
@@ -60,14 +60,14 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale);
                         __lsx_vst(_v, ptr, 0);
                     }
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outw; i++)
@@ -75,7 +75,7 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
                     }
@@ -88,8 +88,8 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
                     }
@@ -105,15 +105,15 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _scale = (v4f32)__lsx_vld((const float*)scale_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale = (__m128)__lsx_vld((const float*)scale_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale);
                         __lsx_vst(_v, ptr, 0);
                     }
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outw; i++)
@@ -121,8 +121,8 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _scale = (v4f32)__lsx_vld((const float*)scale_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale = (__m128)__lsx_vld((const float*)scale_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
                     }
@@ -135,9 +135,9 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _scale = (v4f32)__lsx_vld((const float*)scale_data + i * 4, 0);
-                        v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale = (__m128)__lsx_vld((const float*)scale_data + i * 4, 0);
+                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
                     }
@@ -164,14 +164,14 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     float* ptr0 = top_blob.row(i * 2);
                     float* ptr1 = top_blob.row(i * 2 + 1);
 
-                    v4f32 _scale0 = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + i * 8, 0);
-                    v4f32 _scale1 = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + i * 8 + 4, 0);
+                    __m128 _scale0 = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + i * 8, 0);
+                    __m128 _scale1 = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + i * 8 + 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale0);
                         _v1 = __lsx_vfmul_s(_v1, _scale1);
                         __lsx_vst(_v0, ptr0, 0);
@@ -192,16 +192,16 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     float* ptr0 = top_blob.row(i * 2);
                     float* ptr1 = top_blob.row(i * 2 + 1);
 
-                    v4f32 _scale0 = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + i * 8, 0);
-                    v4f32 _scale1 = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + i * 8 + 4, 0);
-                    v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8, 0);
-                    v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
+                    __m128 _scale0 = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + i * 8, 0);
+                    __m128 _scale1 = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + i * 8 + 4, 0);
+                    __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8, 0);
+                    __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 8 + 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                         __lsx_vst(_v0, ptr0, 0);
@@ -236,17 +236,17 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     float* ptr0 = top_blob.channel(q * 2);
                     float* ptr1 = top_blob.channel(q * 2 + 1);
 
-                    v4f32 _scale0 = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + q * 8, 0);
-                    v4f32 _scale1 = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + q * 8 + 4, 0);
+                    __m128 _scale0 = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + q * 8, 0);
+                    __m128 _scale1 = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + q * 8 + 4, 0);
 
                     int i = 0;
                     for (; i + 1 < size; i += 2)
                     {
                         __builtin_prefetch(intptr + 64);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        v4f32 _v2 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
-                        v4f32 _v3 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v2 = __lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
+                        __m128 _v3 = __lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale0);
                         _v1 = __lsx_vfmul_s(_v1, _scale1);
                         _v2 = __lsx_vfmul_s(_v2, _scale0);
@@ -263,8 +263,8 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     for (; i < size; i++)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale0);
                         _v1 = __lsx_vfmul_s(_v1, _scale1);
                         __lsx_vst(_v0, ptr0, 0);
@@ -285,19 +285,19 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     float* ptr0 = top_blob.channel(q * 2);
                     float* ptr1 = top_blob.channel(q * 2 + 1);
 
-                    v4f32 _scale0 = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + q * 8, 0);
-                    v4f32 _scale1 = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + q * 8 + 4, 0);
-                    v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8, 0);
-                    v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
+                    __m128 _scale0 = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + q * 8, 0);
+                    __m128 _scale1 = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + q * 8 + 4, 0);
+                    __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8, 0);
+                    __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
 
                     int i = 0;
                     for (; i + 1 < size; i += 2)
                     {
                         __builtin_prefetch(intptr + 64);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                        v4f32 _v2 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
-                        v4f32 _v3 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v2 = __lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
+                        __m128 _v3 = __lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
                         _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                         _v2 = __lsx_vfmadd_s(_scale0, _v2, _bias0);
@@ -314,8 +314,8 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     for (; i < size; i++)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
                         _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                         __lsx_vst(_v0, ptr0, 0);
@@ -344,7 +344,7 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
             if (scale_data_size == 1)
             {
-                v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale_data[0]);
+                __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale_data[0]);
 
                 if (bias_data_size == 0)
                 {
@@ -354,14 +354,14 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale);
                         __lsx_vst(_v, ptr, 0);
                     }
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -369,7 +369,7 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
                     }
@@ -382,8 +382,8 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
                     }
@@ -399,15 +399,15 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _scale = (v4f32)__lsx_vld((const float*)scale_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale = (__m128)__lsx_vld((const float*)scale_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale);
                         __lsx_vst(_v, ptr, 0);
                     }
                 }
                 else if (bias_data_size == 1)
                 {
-                    v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias_data[0]);
+                    __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < w; i++)
@@ -415,8 +415,8 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _scale = (v4f32)__lsx_vld((const float*)scale_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale = (__m128)__lsx_vld((const float*)scale_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
                     }
@@ -429,9 +429,9 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                         const int* intptr = (const int*)bottom_blob + i * 4;
                         float* ptr = (float*)top_blob + i * 4;
 
-                        v4f32 _scale = (v4f32)__lsx_vld((const float*)scale_data + i * 4, 0);
-                        v4f32 _bias = (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _scale = (__m128)__lsx_vld((const float*)scale_data + i * 4, 0);
+                        __m128 _bias = (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
                     }
@@ -456,12 +456,12 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     const int* intptr = bottom_blob.row<const int>(i);
                     float* ptr = top_blob.row(i);
 
-                    v4f32 _scale = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + i * 4, 0);
+                    __m128 _scale = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + i * 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
                         __builtin_prefetch(intptr + 16);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale);
                         __lsx_vst(_v, ptr, 0);
 
@@ -478,13 +478,13 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     const int* intptr = bottom_blob.row<const int>(i);
                     float* ptr = top_blob.row(i);
 
-                    v4f32 _scale = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + i * 4, 0);
-                    v4f32 _bias = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + i * 4, 0);
+                    __m128 _scale = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + i * 4, 0);
+                    __m128 _bias = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + i * 4, 0);
 
                     for (int j = 0; j < w; j++)
                     {
                         __builtin_prefetch(intptr + 16);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
 
@@ -514,14 +514,14 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     const int* intptr = bottom_blob.channel(q);
                     float* ptr = top_blob.channel(q);
 
-                    v4f32 _scale = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + q * 4, 0);
+                    __m128 _scale = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + q * 4, 0);
 
                     int i = 0;
                     for (; i + 1 < size; i += 2)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmul_s(_v0, _scale);
                         _v1 = __lsx_vfmul_s(_v1, _scale);
                         __lsx_vst(_v0, ptr, 0);
@@ -533,7 +533,7 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     for (; i < size; i++)
                     {
                         __builtin_prefetch(intptr + 16);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmul_s(_v, _scale);
                         __lsx_vst(_v, ptr, 0);
 
@@ -550,15 +550,15 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     const int* intptr = bottom_blob.channel(q);
                     float* ptr = top_blob.channel(q);
 
-                    v4f32 _scale = scale_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_data[0]) : (v4f32)__lsx_vld((const float*)scale_data + q * 4, 0);
-                    v4f32 _bias = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 4, 0);
+                    __m128 _scale = scale_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_data[0]) : (__m128)__lsx_vld((const float*)scale_data + q * 4, 0);
+                    __m128 _bias = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 4, 0);
 
                     int i = 0;
                     for (; i + 1 < size; i += 2)
                     {
                         __builtin_prefetch(intptr + 32);
-                        v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                        v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                        __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                         _v0 = __lsx_vfmadd_s(_scale, _v0, _bias);
                         _v1 = __lsx_vfmadd_s(_scale, _v1, _bias);
                         __lsx_vst(_v0, ptr, 0);
@@ -570,7 +570,7 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                     for (; i < size; i++)
                     {
                         __builtin_prefetch(intptr + 16);
-                        v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                        __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                         _v = __lsx_vfmadd_s(_scale, _v, _bias);
                         __lsx_vst(_v, ptr, 0);
 
@@ -679,11 +679,11 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                 int j = 0;
 #if __loongarch_sx
-                v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale);
+                __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
                 for (; j + 3 < w; j += 4)
                 {
                     __builtin_prefetch(intptr + 16);
-                    v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                    __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                     _v = __lsx_vfmul_s(_v, _scale);
                     __lsx_vst(_v, ptr, 0);
 
@@ -710,12 +710,12 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                 int j = 0;
 #if __loongarch_sx
-                v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale);
-                v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias);
+                __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
+                __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias);
                 for (; j + 3 < w; j += 4)
                 {
                     __builtin_prefetch(intptr + 16);
-                    v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                    __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                     _v = __lsx_vfmadd_s(_scale, _v, _bias);
                     __lsx_vst(_v, ptr, 0);
 
@@ -754,12 +754,12 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                 int i = 0;
 #if __loongarch_sx
-                v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale);
+                __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
                 for (; i + 7 < size; i += 8)
                 {
                     __builtin_prefetch(intptr + 32);
-                    v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                    v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                    __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                    __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                     _v0 = __lsx_vfmul_s(_v0, _scale);
                     _v1 = __lsx_vfmul_s(_v1, _scale);
                     __lsx_vst(_v0, ptr, 0);
@@ -771,7 +771,7 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 for (; i + 3 < size; i += 4)
                 {
                     __builtin_prefetch(intptr + 16);
-                    v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                    __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                     _v = __lsx_vfmul_s(_v, _scale);
                     __lsx_vst(_v, ptr, 0);
 
@@ -798,13 +798,13 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
 
                 int i = 0;
 #if __loongarch_sx
-                v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale);
-                v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias);
+                __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
+                __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias);
                 for (; i + 7 < size; i += 8)
                 {
                     __builtin_prefetch(intptr + 32);
-                    v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                    v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                    __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                    __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                     _v0 = __lsx_vfmadd_s(_scale, _v0, _bias);
                     _v1 = __lsx_vfmadd_s(_scale, _v1, _bias);
                     __lsx_vst(_v0, ptr, 0);
@@ -816,7 +816,7 @@ int Dequantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const O
                 for (; i + 3 < size; i += 4)
                 {
                     __builtin_prefetch(intptr + 16);
-                    v4f32 _v = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                    __m128 _v = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
                     _v = __lsx_vfmadd_s(_scale, _v, _bias);
                     __lsx_vst(_v, ptr, 0);
 

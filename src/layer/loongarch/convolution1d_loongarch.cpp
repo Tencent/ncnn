@@ -130,11 +130,11 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
 
                 for (int j = 0; j < outw; j++)
                 {
-                    v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                    __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
                     if (bias_term)
                     {
-                        _sum = (v4f32)__lsx_vld((const float*)bias_data + p * 4, 0);
+                        _sum = (__m128)__lsx_vld((const float*)bias_data + p * 4, 0);
                     }
 
                     const float* kptr = weight_data_packed.channel(p);
@@ -145,15 +145,15 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
 
                         for (int k = 0; k < kernel_w; k++)
                         {
-                            v4f32 _val0 = __lsx_vreplfr2vr_s(sptr[0]);
-                            v4f32 _val1 = __lsx_vreplfr2vr_s(sptr[1]);
-                            v4f32 _val2 = __lsx_vreplfr2vr_s(sptr[2]);
-                            v4f32 _val3 = __lsx_vreplfr2vr_s(sptr[3]);
+                            __m128 _val0 = __lsx_vreplfr2vr_s(sptr[0]);
+                            __m128 _val1 = __lsx_vreplfr2vr_s(sptr[1]);
+                            __m128 _val2 = __lsx_vreplfr2vr_s(sptr[2]);
+                            __m128 _val3 = __lsx_vreplfr2vr_s(sptr[3]);
 
-                            v4f32 _w0 = (v4f32)__lsx_vld(kptr, 0);
-                            v4f32 _w1 = (v4f32)__lsx_vld(kptr + 4, 0);
-                            v4f32 _w2 = (v4f32)__lsx_vld(kptr + 8, 0);
-                            v4f32 _w3 = (v4f32)__lsx_vld(kptr + 12, 0);
+                            __m128 _w0 = (__m128)__lsx_vld(kptr, 0);
+                            __m128 _w1 = (__m128)__lsx_vld(kptr + 4, 0);
+                            __m128 _w2 = (__m128)__lsx_vld(kptr + 8, 0);
+                            __m128 _w3 = (__m128)__lsx_vld(kptr + 12, 0);
 
                             _sum = __lsx_vfmadd_s(_w0, _val0, _sum);
                             _sum = __lsx_vfmadd_s(_w1, _val1, _sum);
@@ -184,11 +184,11 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
 
                 for (int j = 0; j < outw; j++)
                 {
-                    v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                    __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
                     if (bias_term)
                     {
-                        _sum = (v4f32)__lsx_vld((const float*)bias_data + p * 4, 0);
+                        _sum = (__m128)__lsx_vld((const float*)bias_data + p * 4, 0);
                     }
 
                     const float* kptr = weight_data_packed.channel(p);
@@ -199,8 +199,8 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
 
                         for (int k = 0; k < kernel_w; k++)
                         {
-                            v4f32 _val = __lsx_vreplfr2vr_s(sptr[0]);
-                            v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
+                            __m128 _val = __lsx_vreplfr2vr_s(sptr[0]);
+                            __m128 _w = (__m128)__lsx_vld(kptr, 0);
                             _sum = __lsx_vfmadd_s(_w, _val, _sum);
 
                             sptr += dilation_w;
@@ -234,7 +234,7 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
                         sum = bias_data[p];
                     }
 
-                    v4f32 _sum = (v4f32)__lsx_vreplgr2vr_w(0);
+                    __m128 _sum = (__m128)__lsx_vreplgr2vr_w(0);
 
                     const float* kptr = weight_data_packed.channel(p);
 
@@ -244,8 +244,8 @@ int Convolution1D_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, cons
 
                         for (int k = 0; k < kernel_w; k++)
                         {
-                            v4f32 _val = (v4f32)__lsx_vld(sptr, 0);
-                            v4f32 _w = (v4f32)__lsx_vld(kptr, 0);
+                            __m128 _val = (__m128)__lsx_vld(sptr, 0);
+                            __m128 _w = (__m128)__lsx_vld(kptr, 0);
                             _sum = __lsx_vfmadd_s(_w, _val, _sum);
 
                             sptr += dilation_w * 4;

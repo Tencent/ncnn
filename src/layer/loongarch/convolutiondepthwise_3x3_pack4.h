@@ -28,7 +28,7 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
     {
         Mat out = top_blob.channel(g);
 
-        v4f32 _bias0 = bias ? (v4f32)__lsx_vld(bias + g * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
+        __m128 _bias0 = bias ? (__m128)__lsx_vld(bias + g * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
 
         const float* k0 = kernel.row(g);
 
@@ -42,15 +42,15 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
         const float* r2 = img0.row(2);
         const float* r3 = img0.row(3);
 
-        v4f32 _k00 = (v4f32)__lsx_vld(k0, 0);
-        v4f32 _k01 = (v4f32)__lsx_vld(k0 + 4, 0);
-        v4f32 _k02 = (v4f32)__lsx_vld(k0 + 4 * 2, 0);
-        v4f32 _k10 = (v4f32)__lsx_vld(k0 + 4 * 3, 0);
-        v4f32 _k11 = (v4f32)__lsx_vld(k0 + 4 * 4, 0);
-        v4f32 _k12 = (v4f32)__lsx_vld(k0 + 4 * 5, 0);
-        v4f32 _k20 = (v4f32)__lsx_vld(k0 + 4 * 6, 0);
-        v4f32 _k21 = (v4f32)__lsx_vld(k0 + 4 * 7, 0);
-        v4f32 _k22 = (v4f32)__lsx_vld(k0 + 4 * 8, 0);
+        __m128 _k00 = (__m128)__lsx_vld(k0, 0);
+        __m128 _k01 = (__m128)__lsx_vld(k0 + 4, 0);
+        __m128 _k02 = (__m128)__lsx_vld(k0 + 4 * 2, 0);
+        __m128 _k10 = (__m128)__lsx_vld(k0 + 4 * 3, 0);
+        __m128 _k11 = (__m128)__lsx_vld(k0 + 4 * 4, 0);
+        __m128 _k12 = (__m128)__lsx_vld(k0 + 4 * 5, 0);
+        __m128 _k20 = (__m128)__lsx_vld(k0 + 4 * 6, 0);
+        __m128 _k21 = (__m128)__lsx_vld(k0 + 4 * 7, 0);
+        __m128 _k22 = (__m128)__lsx_vld(k0 + 4 * 8, 0);
 
         int i = 0;
         for (; i + 1 < outh; i += 2)
@@ -63,15 +63,15 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 __builtin_prefetch(r2 + 32);
                 __builtin_prefetch(r3 + 32);
 
-                v4f32 _sum00 = _bias0;
-                v4f32 _sum01 = _bias0;
-                v4f32 _sum10 = _bias0;
-                v4f32 _sum11 = _bias0;
+                __m128 _sum00 = _bias0;
+                __m128 _sum01 = _bias0;
+                __m128 _sum10 = _bias0;
+                __m128 _sum11 = _bias0;
 
-                v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
-                v4f32 _r03 = (v4f32)__lsx_vld(r0 + 4 * 3, 0);
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r00, _k00, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r01, _k01, _sum00);
@@ -80,10 +80,10 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum01 = __lsx_vfmadd_s(_r02, _k01, _sum01);
                 _sum01 = __lsx_vfmadd_s(_r03, _k02, _sum01);
 
-                v4f32 _r10 = (v4f32)__lsx_vld(r1, 0);
-                v4f32 _r11 = (v4f32)__lsx_vld(r1 + 4, 0);
-                v4f32 _r12 = (v4f32)__lsx_vld(r1 + 4 * 2, 0);
-                v4f32 _r13 = (v4f32)__lsx_vld(r1 + 4 * 3, 0);
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r13 = (__m128)__lsx_vld(r1 + 4 * 3, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r10, _k10, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r11, _k11, _sum00);
@@ -98,10 +98,10 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum11 = __lsx_vfmadd_s(_r12, _k01, _sum11);
                 _sum11 = __lsx_vfmadd_s(_r13, _k02, _sum11);
 
-                v4f32 _r20 = (v4f32)__lsx_vld(r2, 0);
-                v4f32 _r21 = (v4f32)__lsx_vld(r2 + 4, 0);
-                v4f32 _r22 = (v4f32)__lsx_vld(r2 + 4 * 2, 0);
-                v4f32 _r23 = (v4f32)__lsx_vld(r2 + 4 * 3, 0);
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r23 = (__m128)__lsx_vld(r2 + 4 * 3, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r20, _k20, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r21, _k21, _sum00);
@@ -116,10 +116,10 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum11 = __lsx_vfmadd_s(_r22, _k11, _sum11);
                 _sum11 = __lsx_vfmadd_s(_r23, _k12, _sum11);
 
-                v4f32 _r30 = (v4f32)__lsx_vld(r3, 0);
-                v4f32 _r31 = (v4f32)__lsx_vld(r3 + 4, 0);
-                v4f32 _r32 = (v4f32)__lsx_vld(r3 + 4 * 2, 0);
-                v4f32 _r33 = (v4f32)__lsx_vld(r3 + 4 * 3, 0);
+                __m128 _r30 = (__m128)__lsx_vld(r3, 0);
+                __m128 _r31 = (__m128)__lsx_vld(r3 + 4, 0);
+                __m128 _r32 = (__m128)__lsx_vld(r3 + 4 * 2, 0);
+                __m128 _r33 = (__m128)__lsx_vld(r3 + 4 * 3, 0);
 
                 _sum10 = __lsx_vfmadd_s(_r30, _k20, _sum10);
                 _sum10 = __lsx_vfmadd_s(_r31, _k21, _sum10);
@@ -148,20 +148,20 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 __builtin_prefetch(r2 + 16);
                 __builtin_prefetch(r3 + 16);
 
-                v4f32 _sum0 = _bias0;
-                v4f32 _sum1 = _bias0;
+                __m128 _sum0 = _bias0;
+                __m128 _sum1 = _bias0;
 
-                v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r00, _k00, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r01, _k01, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r02, _k02, _sum0);
 
-                v4f32 _r10 = (v4f32)__lsx_vld(r1, 0);
-                v4f32 _r11 = (v4f32)__lsx_vld(r1 + 4, 0);
-                v4f32 _r12 = (v4f32)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r10, _k10, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r11, _k11, _sum0);
@@ -170,9 +170,9 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum1 = __lsx_vfmadd_s(_r11, _k01, _sum1);
                 _sum1 = __lsx_vfmadd_s(_r12, _k02, _sum1);
 
-                v4f32 _r20 = (v4f32)__lsx_vld(r2, 0);
-                v4f32 _r21 = (v4f32)__lsx_vld(r2 + 4, 0);
-                v4f32 _r22 = (v4f32)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r20, _k20, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r21, _k21, _sum0);
@@ -181,9 +181,9 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum1 = __lsx_vfmadd_s(_r21, _k11, _sum1);
                 _sum1 = __lsx_vfmadd_s(_r22, _k12, _sum1);
 
-                v4f32 _r30 = (v4f32)__lsx_vld(r3, 0);
-                v4f32 _r31 = (v4f32)__lsx_vld(r3 + 4, 0);
-                v4f32 _r32 = (v4f32)__lsx_vld(r3 + 4 * 2, 0);
+                __m128 _r30 = (__m128)__lsx_vld(r3, 0);
+                __m128 _r31 = (__m128)__lsx_vld(r3 + 4, 0);
+                __m128 _r32 = (__m128)__lsx_vld(r3 + 4 * 2, 0);
 
                 _sum1 = __lsx_vfmadd_s(_r30, _k20, _sum1);
                 _sum1 = __lsx_vfmadd_s(_r31, _k21, _sum1);
@@ -218,13 +218,13 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 __builtin_prefetch(r1 + 32);
                 __builtin_prefetch(r2 + 32);
 
-                v4f32 _sum00 = _bias0;
-                v4f32 _sum01 = _bias0;
+                __m128 _sum00 = _bias0;
+                __m128 _sum01 = _bias0;
 
-                v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
-                v4f32 _r03 = (v4f32)__lsx_vld(r0 + 4 * 3, 0);
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r00, _k00, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r01, _k01, _sum00);
@@ -233,10 +233,10 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum01 = __lsx_vfmadd_s(_r02, _k01, _sum01);
                 _sum01 = __lsx_vfmadd_s(_r03, _k02, _sum01);
 
-                v4f32 _r10 = (v4f32)__lsx_vld(r1, 0);
-                v4f32 _r11 = (v4f32)__lsx_vld(r1 + 4, 0);
-                v4f32 _r12 = (v4f32)__lsx_vld(r1 + 4 * 2, 0);
-                v4f32 _r13 = (v4f32)__lsx_vld(r1 + 4 * 3, 0);
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r13 = (__m128)__lsx_vld(r1 + 4 * 3, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r10, _k10, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r11, _k11, _sum00);
@@ -245,10 +245,10 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum01 = __lsx_vfmadd_s(_r12, _k11, _sum01);
                 _sum01 = __lsx_vfmadd_s(_r13, _k12, _sum01);
 
-                v4f32 _r20 = (v4f32)__lsx_vld(r2, 0);
-                v4f32 _r21 = (v4f32)__lsx_vld(r2 + 4, 0);
-                v4f32 _r22 = (v4f32)__lsx_vld(r2 + 4 * 2, 0);
-                v4f32 _r23 = (v4f32)__lsx_vld(r2 + 4 * 3, 0);
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r23 = (__m128)__lsx_vld(r2 + 4 * 3, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r20, _k20, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r21, _k21, _sum00);
@@ -272,27 +272,27 @@ static void convdw3x3s1_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 __builtin_prefetch(r1 + 16);
                 __builtin_prefetch(r2 + 16);
 
-                v4f32 _sum0 = _bias0;
+                __m128 _sum0 = _bias0;
 
-                v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r00, _k00, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r01, _k01, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r02, _k02, _sum0);
 
-                v4f32 _r10 = (v4f32)__lsx_vld(r1, 0);
-                v4f32 _r11 = (v4f32)__lsx_vld(r1 + 4, 0);
-                v4f32 _r12 = (v4f32)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r10, _k10, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r11, _k11, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r12, _k12, _sum0);
 
-                v4f32 _r20 = (v4f32)__lsx_vld(r2, 0);
-                v4f32 _r21 = (v4f32)__lsx_vld(r2 + 4, 0);
-                v4f32 _r22 = (v4f32)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r20, _k20, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r21, _k21, _sum0);
@@ -332,7 +332,7 @@ static void convdw3x3s2_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
     {
         Mat out = top_blob.channel(g);
 
-        v4f32 _bias0 = bias ? (v4f32)__lsx_vld(bias + g * 4, 0) : (v4f32)__lsx_vreplgr2vr_w(0);
+        __m128 _bias0 = bias ? (__m128)__lsx_vld(bias + g * 4, 0) : (__m128)__lsx_vreplgr2vr_w(0);
 
         const float* k0 = kernel.row(g);
 
@@ -344,15 +344,15 @@ static void convdw3x3s2_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
         const float* r1 = img0.row(1);
         const float* r2 = img0.row(2);
 
-        v4f32 _k00 = (v4f32)__lsx_vld(k0, 0);
-        v4f32 _k01 = (v4f32)__lsx_vld(k0 + 4, 0);
-        v4f32 _k02 = (v4f32)__lsx_vld(k0 + 4 * 2, 0);
-        v4f32 _k10 = (v4f32)__lsx_vld(k0 + 4 * 3, 0);
-        v4f32 _k11 = (v4f32)__lsx_vld(k0 + 4 * 4, 0);
-        v4f32 _k12 = (v4f32)__lsx_vld(k0 + 4 * 5, 0);
-        v4f32 _k20 = (v4f32)__lsx_vld(k0 + 4 * 6, 0);
-        v4f32 _k21 = (v4f32)__lsx_vld(k0 + 4 * 7, 0);
-        v4f32 _k22 = (v4f32)__lsx_vld(k0 + 4 * 8, 0);
+        __m128 _k00 = (__m128)__lsx_vld(k0, 0);
+        __m128 _k01 = (__m128)__lsx_vld(k0 + 4, 0);
+        __m128 _k02 = (__m128)__lsx_vld(k0 + 4 * 2, 0);
+        __m128 _k10 = (__m128)__lsx_vld(k0 + 4 * 3, 0);
+        __m128 _k11 = (__m128)__lsx_vld(k0 + 4 * 4, 0);
+        __m128 _k12 = (__m128)__lsx_vld(k0 + 4 * 5, 0);
+        __m128 _k20 = (__m128)__lsx_vld(k0 + 4 * 6, 0);
+        __m128 _k21 = (__m128)__lsx_vld(k0 + 4 * 7, 0);
+        __m128 _k22 = (__m128)__lsx_vld(k0 + 4 * 8, 0);
 
         int i = 0;
         for (; i < outh; i++)
@@ -364,14 +364,14 @@ static void convdw3x3s2_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 __builtin_prefetch(r1 + 64);
                 __builtin_prefetch(r2 + 64);
 
-                v4f32 _sum00 = _bias0;
-                v4f32 _sum01 = _bias0;
+                __m128 _sum00 = _bias0;
+                __m128 _sum01 = _bias0;
 
-                v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
-                v4f32 _r03 = (v4f32)__lsx_vld(r0 + 4 * 3, 0);
-                v4f32 _r04 = (v4f32)__lsx_vld(r0 + 4 * 4, 0);
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r03 = (__m128)__lsx_vld(r0 + 4 * 3, 0);
+                __m128 _r04 = (__m128)__lsx_vld(r0 + 4 * 4, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r00, _k00, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r01, _k01, _sum00);
@@ -380,11 +380,11 @@ static void convdw3x3s2_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum01 = __lsx_vfmadd_s(_r03, _k01, _sum01);
                 _sum01 = __lsx_vfmadd_s(_r04, _k02, _sum01);
 
-                v4f32 _r10 = (v4f32)__lsx_vld(r1, 0);
-                v4f32 _r11 = (v4f32)__lsx_vld(r1 + 4, 0);
-                v4f32 _r12 = (v4f32)__lsx_vld(r1 + 4 * 2, 0);
-                v4f32 _r13 = (v4f32)__lsx_vld(r1 + 4 * 3, 0);
-                v4f32 _r14 = (v4f32)__lsx_vld(r1 + 4 * 4, 0);
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r13 = (__m128)__lsx_vld(r1 + 4 * 3, 0);
+                __m128 _r14 = (__m128)__lsx_vld(r1 + 4 * 4, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r10, _k10, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r11, _k11, _sum00);
@@ -393,11 +393,11 @@ static void convdw3x3s2_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 _sum01 = __lsx_vfmadd_s(_r13, _k11, _sum01);
                 _sum01 = __lsx_vfmadd_s(_r14, _k12, _sum01);
 
-                v4f32 _r20 = (v4f32)__lsx_vld(r2, 0);
-                v4f32 _r21 = (v4f32)__lsx_vld(r2 + 4, 0);
-                v4f32 _r22 = (v4f32)__lsx_vld(r2 + 4 * 2, 0);
-                v4f32 _r23 = (v4f32)__lsx_vld(r2 + 4 * 3, 0);
-                v4f32 _r24 = (v4f32)__lsx_vld(r2 + 4 * 4, 0);
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r23 = (__m128)__lsx_vld(r2 + 4 * 3, 0);
+                __m128 _r24 = (__m128)__lsx_vld(r2 + 4 * 4, 0);
 
                 _sum00 = __lsx_vfmadd_s(_r20, _k20, _sum00);
                 _sum00 = __lsx_vfmadd_s(_r21, _k21, _sum00);
@@ -421,27 +421,27 @@ static void convdw3x3s2_pack4_lsx(const Mat& bottom_blob, Mat& top_blob, const M
                 __builtin_prefetch(r1 + 32);
                 __builtin_prefetch(r2 + 32);
 
-                v4f32 _sum0 = _bias0;
+                __m128 _sum0 = _bias0;
 
-                v4f32 _r00 = (v4f32)__lsx_vld(r0, 0);
-                v4f32 _r01 = (v4f32)__lsx_vld(r0 + 4, 0);
-                v4f32 _r02 = (v4f32)__lsx_vld(r0 + 4 * 2, 0);
+                __m128 _r00 = (__m128)__lsx_vld(r0, 0);
+                __m128 _r01 = (__m128)__lsx_vld(r0 + 4, 0);
+                __m128 _r02 = (__m128)__lsx_vld(r0 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r00, _k00, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r01, _k01, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r02, _k02, _sum0);
 
-                v4f32 _r10 = (v4f32)__lsx_vld(r1, 0);
-                v4f32 _r11 = (v4f32)__lsx_vld(r1 + 4, 0);
-                v4f32 _r12 = (v4f32)__lsx_vld(r1 + 4 * 2, 0);
+                __m128 _r10 = (__m128)__lsx_vld(r1, 0);
+                __m128 _r11 = (__m128)__lsx_vld(r1 + 4, 0);
+                __m128 _r12 = (__m128)__lsx_vld(r1 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r10, _k10, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r11, _k11, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r12, _k12, _sum0);
 
-                v4f32 _r20 = (v4f32)__lsx_vld(r2, 0);
-                v4f32 _r21 = (v4f32)__lsx_vld(r2 + 4, 0);
-                v4f32 _r22 = (v4f32)__lsx_vld(r2 + 4 * 2, 0);
+                __m128 _r20 = (__m128)__lsx_vld(r2, 0);
+                __m128 _r21 = (__m128)__lsx_vld(r2 + 4, 0);
+                __m128 _r22 = (__m128)__lsx_vld(r2 + 4 * 2, 0);
 
                 _sum0 = __lsx_vfmadd_s(_r20, _k20, _sum0);
                 _sum0 = __lsx_vfmadd_s(_r21, _k21, _sum0);

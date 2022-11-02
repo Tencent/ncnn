@@ -46,11 +46,11 @@ int Bias_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
 #endif // __loongarch_sx
 
 #if __loongarch_sx
-        v4f32 _bias = (v4f32)__lsx_vreplfr2vr_s(bias);
+        __m128 _bias = (__m128)__lsx_vreplfr2vr_s(bias);
         for (; nn > 0; nn--)
         {
-            v4f32 _p = (v4f32)__lsx_vld(ptr, 0);
-            v4f32 _outp = __lsx_vfadd_s(_p, _bias);
+            __m128 _p = (__m128)__lsx_vld(ptr, 0);
+            __m128 _outp = __lsx_vfadd_s(_p, _bias);
             __lsx_vst(_outp, ptr, 0);
 
             ptr += 4;

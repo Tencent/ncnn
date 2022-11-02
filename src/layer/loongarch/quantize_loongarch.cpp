@@ -96,7 +96,7 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             {
                 if (scale_data_size == 1)
                 {
-                    v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale_data[0]);
+                    __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int i = 0; i < outh; i++)
@@ -109,8 +109,8 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         {
                             __builtin_prefetch(ptr0 + 16);
                             __builtin_prefetch(ptr1 + 16);
-                            v4f32 _vlow = (v4f32)__lsx_vld(ptr0, 0);
-                            v4f32 _vhigh = (v4f32)__lsx_vld(ptr1, 0);
+                            __m128 _vlow = (__m128)__lsx_vld(ptr0, 0);
+                            __m128 _vhigh = (__m128)__lsx_vld(ptr1, 0);
                             _vlow = __lsx_vfmul_s(_vlow, _scale);
                             _vhigh = __lsx_vfmul_s(_vhigh, _scale);
                             *((int64_t*)outptr) = float2int8(_vlow, _vhigh);
@@ -130,15 +130,15 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         const float* ptr1 = bottom_blob.row(i * 2 + 1);
                         signed char* outptr = top_blob.row<signed char>(i);
 
-                        v4f32 _scale0 = (v4f32)__lsx_vld((const float*)scale_data + i * 8, 0);
-                        v4f32 _scale1 = (v4f32)__lsx_vld((const float*)scale_data + i * 8 + 4, 0);
+                        __m128 _scale0 = (__m128)__lsx_vld((const float*)scale_data + i * 8, 0);
+                        __m128 _scale1 = (__m128)__lsx_vld((const float*)scale_data + i * 8 + 4, 0);
 
                         for (int j = 0; j < w; j++)
                         {
                             __builtin_prefetch(ptr0 + 16);
                             __builtin_prefetch(ptr1 + 16);
-                            v4f32 _vlow = (v4f32)__lsx_vld(ptr0, 0);
-                            v4f32 _vhigh = (v4f32)__lsx_vld(ptr1, 0);
+                            __m128 _vlow = (__m128)__lsx_vld(ptr0, 0);
+                            __m128 _vhigh = (__m128)__lsx_vld(ptr1, 0);
                             _vlow = __lsx_vfmul_s(_vlow, _scale0);
                             _vhigh = __lsx_vfmul_s(_vhigh, _scale1);
                             *((int64_t*)outptr) = float2int8(_vlow, _vhigh);
@@ -231,7 +231,7 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             {
                 if (scale_data_size == 1)
                 {
-                    v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale_data[0]);
+                    __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale_data[0]);
 
                     #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < outc; q++)
@@ -245,10 +245,10 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         {
                             __builtin_prefetch(ptr0 + 32);
                             __builtin_prefetch(ptr1 + 32);
-                            v4f32 _v0 = (v4f32)__lsx_vld(ptr0, 0);
-                            v4f32 _v1 = (v4f32)__lsx_vld(ptr0 + 4, 0);
-                            v4f32 _v2 = (v4f32)__lsx_vld(ptr1, 0);
-                            v4f32 _v3 = (v4f32)__lsx_vld(ptr1 + 4, 0);
+                            __m128 _v0 = (__m128)__lsx_vld(ptr0, 0);
+                            __m128 _v1 = (__m128)__lsx_vld(ptr0 + 4, 0);
+                            __m128 _v2 = (__m128)__lsx_vld(ptr1, 0);
+                            __m128 _v3 = (__m128)__lsx_vld(ptr1 + 4, 0);
                             _v0 = __lsx_vfmul_s(_v0, _scale);
                             _v1 = __lsx_vfmul_s(_v1, _scale);
                             _v2 = __lsx_vfmul_s(_v2, _scale);
@@ -264,8 +264,8 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         {
                             __builtin_prefetch(ptr0 + 16);
                             __builtin_prefetch(ptr1 + 16);
-                            v4f32 _vlow = (v4f32)__lsx_vld(ptr0, 0);
-                            v4f32 _vhigh = (v4f32)__lsx_vld(ptr1, 0);
+                            __m128 _vlow = (__m128)__lsx_vld(ptr0, 0);
+                            __m128 _vhigh = (__m128)__lsx_vld(ptr1, 0);
                             _vlow = __lsx_vfmul_s(_vlow, _scale);
                             _vhigh = __lsx_vfmul_s(_vhigh, _scale);
                             *((int64_t*)outptr) = float2int8(_vlow, _vhigh);
@@ -285,16 +285,16 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
                         const float* ptr1 = bottom_blob.channel(q * 2 + 1);
                         signed char* outptr = top_blob.channel(q);
 
-                        v4f32 _scale0 = (v4f32)__lsx_vld((const float*)scale_data + q * 8, 0);
-                        v4f32 _scale1 = (v4f32)__lsx_vld((const float*)scale_data + q * 8 + 4, 0);
+                        __m128 _scale0 = (__m128)__lsx_vld((const float*)scale_data + q * 8, 0);
+                        __m128 _scale1 = (__m128)__lsx_vld((const float*)scale_data + q * 8 + 4, 0);
 
                         int i = 0;
                         for (; i < size; i++)
                         {
                             __builtin_prefetch(ptr0 + 16);
                             __builtin_prefetch(ptr1 + 16);
-                            v4f32 _vlow = (v4f32)__lsx_vld(ptr0, 0);
-                            v4f32 _vhigh = (v4f32)__lsx_vld(ptr1, 0);
+                            __m128 _vlow = (__m128)__lsx_vld(ptr0, 0);
+                            __m128 _vhigh = (__m128)__lsx_vld(ptr1, 0);
                             _vlow = __lsx_vfmul_s(_vlow, _scale0);
                             _vhigh = __lsx_vfmul_s(_vhigh, _scale1);
                             *((int64_t*)outptr) = float2int8(_vlow, _vhigh);
@@ -450,14 +450,14 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             int i = 0;
 #if __loongarch_sx
-            v4f32 _scale = (v4f32)__lsx_vreplfr2vr_s(scale);
+            __m128 _scale = (__m128)__lsx_vreplfr2vr_s(scale);
             for (; i + 15 < size; i += 16)
             {
                 __builtin_prefetch(ptr + 64);
-                v4f32 _v0 = (v4f32)__lsx_vld(ptr, 0);
-                v4f32 _v1 = (v4f32)__lsx_vld(ptr + 4, 0);
-                v4f32 _v2 = (v4f32)__lsx_vld(ptr + 8, 0);
-                v4f32 _v3 = (v4f32)__lsx_vld(ptr + 12, 0);
+                __m128 _v0 = (__m128)__lsx_vld(ptr, 0);
+                __m128 _v1 = (__m128)__lsx_vld(ptr + 4, 0);
+                __m128 _v2 = (__m128)__lsx_vld(ptr + 8, 0);
+                __m128 _v3 = (__m128)__lsx_vld(ptr + 12, 0);
                 _v0 = __lsx_vfmul_s(_v0, _scale);
                 _v1 = __lsx_vfmul_s(_v1, _scale);
                 _v2 = __lsx_vfmul_s(_v2, _scale);
@@ -471,8 +471,8 @@ int Quantize_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
             for (; i + 7 < size; i += 8)
             {
                 __builtin_prefetch(ptr + 32);
-                v4f32 _v0 = (v4f32)__lsx_vld(ptr, 0);
-                v4f32 _v1 = (v4f32)__lsx_vld(ptr + 4, 0);
+                __m128 _v0 = (__m128)__lsx_vld(ptr, 0);
+                __m128 _v1 = (__m128)__lsx_vld(ptr + 4, 0);
                 _v0 = __lsx_vfmul_s(_v0, _scale);
                 _v1 = __lsx_vfmul_s(_v1, _scale);
                 *((int64_t*)outptr) = float2int8(_v0, _v1);

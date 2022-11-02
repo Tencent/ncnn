@@ -49,12 +49,12 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
                 int sx = xofs[dx] * 4;
                 const float* S1p = S1 + sx;
 
-                v4f32 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
-                v4f32 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
 
-                v4f32 _S10 = (v4f32)__lsx_vld(S1p, 0);
-                v4f32 _S11 = (v4f32)__lsx_vld(S1p + 4, 0);
-                v4f32 _rows1 = __lsx_vfmul_s(_S10, _a0);
+                __m128 _S10 = (__m128)__lsx_vld(S1p, 0);
+                __m128 _S11 = (__m128)__lsx_vld(S1p + 4, 0);
+                __m128 _rows1 = __lsx_vfmul_s(_S10, _a0);
                 _rows1 = __lsx_vfmadd_s(_a1, _S11, _rows1);
                 __lsx_vst(_rows1, rows1p + dx * 4, 0);
 
@@ -77,15 +77,15 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
                 const float* S0p = S0 + sx;
                 const float* S1p = S1 + sx;
 
-                v4f32 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
-                v4f32 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
+                __m128 _a0 = __lsx_vreplfr2vr_s(alphap[0]);
+                __m128 _a1 = __lsx_vreplfr2vr_s(alphap[1]);
 
-                v4f32 _S00 = (v4f32)__lsx_vld(S0p, 0);
-                v4f32 _S01 = (v4f32)__lsx_vld(S0p + 4, 0);
-                v4f32 _S10 = (v4f32)__lsx_vld(S1p, 0);
-                v4f32 _S11 = (v4f32)__lsx_vld(S1p + 4, 0);
-                v4f32 _rows0 = __lsx_vfmul_s(_S00, _a0);
-                v4f32 _rows1 = __lsx_vfmul_s(_S10, _a0);
+                __m128 _S00 = (__m128)__lsx_vld(S0p, 0);
+                __m128 _S01 = (__m128)__lsx_vld(S0p + 4, 0);
+                __m128 _S10 = (__m128)__lsx_vld(S1p, 0);
+                __m128 _S11 = (__m128)__lsx_vld(S1p + 4, 0);
+                __m128 _rows0 = __lsx_vfmul_s(_S00, _a0);
+                __m128 _rows1 = __lsx_vfmul_s(_S10, _a0);
                 _rows0 = __lsx_vfmadd_s(_a1, _S01, _rows0);
                 _rows1 = __lsx_vfmadd_s(_a1, _S11, _rows1);
                 __lsx_vst(_rows0, rows0p + dx * 4, 0);
@@ -98,8 +98,8 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
         prev_sy1 = sy;
 
         // vresize
-        v4f32 _b0 = __lsx_vreplfr2vr_s(beta[0]);
-        v4f32 _b1 = __lsx_vreplfr2vr_s(beta[1]);
+        __m128 _b0 = __lsx_vreplfr2vr_s(beta[0]);
+        __m128 _b1 = __lsx_vreplfr2vr_s(beta[1]);
 
         float* rows0p = rows0;
         float* rows1p = rows1;
@@ -107,9 +107,9 @@ static void resize_bilinear_image_pack4(const Mat& src, Mat& dst, float* alpha, 
 
         for (int dx = 0; dx < w; dx++)
         {
-            v4f32 _rows0 = (v4f32)__lsx_vld(rows0p, 0);
-            v4f32 _rows1 = (v4f32)__lsx_vld(rows1p, 0);
-            v4f32 _D = __lsx_vfmul_s(_rows0, _b0);
+            __m128 _rows0 = (__m128)__lsx_vld(rows0p, 0);
+            __m128 _rows1 = (__m128)__lsx_vld(rows1p, 0);
+            __m128 _D = __lsx_vfmul_s(_rows0, _b0);
             _D = __lsx_vfmadd_s(_b1, _rows1, _D);
             __lsx_vst(_D, Dp, 0);
 

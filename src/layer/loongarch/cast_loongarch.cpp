@@ -102,8 +102,8 @@ int Cast_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             for (; i + 7 < size; i += 8)
             {
                 __builtin_prefetch(ptr + 16);
-                v4f32 _p0 = (v4f32)__lsx_vld(ptr, 0);
-                v4f32 _p1 = (v4f32)__lsx_vld(ptr + 4, 0);
+                __m128 _p0 = (__m128)__lsx_vld(ptr, 0);
+                __m128 _p1 = (__m128)__lsx_vld(ptr + 4, 0);
                 __m128i _p = __lsx_vfcvt_h_s(_p1, _p0);
                 __lsx_vst(_p, outptr, 0);
 
@@ -134,8 +134,8 @@ int Cast_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option&
             {
                 __builtin_prefetch(ptr + 16);
                 __m128i _p = __lsx_vld(ptr, 0);
-                v4f32 _p0 = __lsx_vfcvtl_s_h(_p);
-                v4f32 _p1 = __lsx_vfcvth_s_h(_p);
+                __m128 _p0 = __lsx_vfcvtl_s_h(_p);
+                __m128 _p1 = __lsx_vfcvth_s_h(_p);
                 __lsx_vst(_p0, outptr, 0);
                 __lsx_vst(_p1, outptr + 4, 0);
 

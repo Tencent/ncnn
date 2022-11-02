@@ -37,26 +37,26 @@ static void requantize_relu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob, con
             const int* intptr = bottom_blob.channel(q);
             signed char* ptr = top_blob.channel(q);
 
-            v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-            v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-            v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-            v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
+            __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
+            __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
+            __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
+            __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
 
-            v4f32 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
-            v4f32 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
+            __m128 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
+            __m128 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
 
             int i = 0;
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(intptr + 128);
-                v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                v4f32 _v2 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
-                v4f32 _v3 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
-                v4f32 _v4 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 16, 0));
-                v4f32 _v5 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 20, 0));
-                v4f32 _v6 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 24, 0));
-                v4f32 _v7 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 28, 0));
+                __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                __m128 _v2 = __lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
+                __m128 _v3 = __lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
+                __m128 _v4 = __lsx_vffint_s_w(__lsx_vld(intptr + 16, 0));
+                __m128 _v5 = __lsx_vffint_s_w(__lsx_vld(intptr + 20, 0));
+                __m128 _v6 = __lsx_vffint_s_w(__lsx_vld(intptr + 24, 0));
+                __m128 _v7 = __lsx_vffint_s_w(__lsx_vld(intptr + 28, 0));
                 _v0 = __lsx_vfmul_s(_v0, _scale0);
                 _v1 = __lsx_vfmul_s(_v1, _scale1);
                 _v2 = __lsx_vfmul_s(_v2, _scale0);
@@ -76,10 +76,10 @@ static void requantize_relu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob, con
             for (; i + 1 < size; i += 2)
             {
                 __builtin_prefetch(intptr + 64);
-                v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                v4f32 _v2 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
-                v4f32 _v3 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
+                __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                __m128 _v2 = __lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
+                __m128 _v3 = __lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
                 _v0 = __lsx_vfmul_s(_v0, _scale0);
                 _v1 = __lsx_vfmul_s(_v1, _scale1);
                 _v2 = __lsx_vfmul_s(_v2, _scale0);
@@ -93,8 +93,8 @@ static void requantize_relu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob, con
             for (; i < size; i++)
             {
                 __builtin_prefetch(intptr + 32);
-                v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                 _v0 = __lsx_vfmul_s(_v0, _scale0);
                 _v1 = __lsx_vfmul_s(_v1, _scale1);
                 *((int64_t*)ptr) = float2int8relu(_v0, _v1);
@@ -112,15 +112,15 @@ static void requantize_relu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob, con
             const int* intptr = bottom_blob.channel(q);
             signed char* ptr = top_blob.channel(q);
 
-            v4f32 _scale_in0 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8, 0);
-            v4f32 _scale_in1 = scale_in_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_in_data[0]) : (v4f32)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
-            v4f32 _scale_out0 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8, 0);
-            v4f32 _scale_out1 = scale_out_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(scale_out_data[0]) : (v4f32)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
-            v4f32 _bias0 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8, 0);
-            v4f32 _bias1 = bias_data_size == 1 ? (v4f32)__lsx_vreplfr2vr_s(bias_data[0]) : (v4f32)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
+            __m128 _scale_in0 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8, 0);
+            __m128 _scale_in1 = scale_in_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_in_data[0]) : (__m128)__lsx_vld((const float*)scale_in_data + q * 8 + 4, 0);
+            __m128 _scale_out0 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8, 0);
+            __m128 _scale_out1 = scale_out_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(scale_out_data[0]) : (__m128)__lsx_vld((const float*)scale_out_data + q * 8 + 4, 0);
+            __m128 _bias0 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8, 0);
+            __m128 _bias1 = bias_data_size == 1 ? (__m128)__lsx_vreplfr2vr_s(bias_data[0]) : (__m128)__lsx_vld((const float*)bias_data + q * 8 + 4, 0);
 
-            v4f32 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
-            v4f32 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
+            __m128 _scale0 = __lsx_vfmul_s(_scale_in0, _scale_out0);
+            __m128 _scale1 = __lsx_vfmul_s(_scale_in1, _scale_out1);
             _bias0 = __lsx_vfmul_s(_bias0, _scale_out0);
             _bias1 = __lsx_vfmul_s(_bias1, _scale_out1);
 
@@ -128,14 +128,14 @@ static void requantize_relu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob, con
             for (; i + 3 < size; i += 4)
             {
                 __builtin_prefetch(intptr + 128);
-                v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                v4f32 _v2 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
-                v4f32 _v3 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
-                v4f32 _v4 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 16, 0));
-                v4f32 _v5 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 20, 0));
-                v4f32 _v6 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 24, 0));
-                v4f32 _v7 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 28, 0));
+                __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                __m128 _v2 = __lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
+                __m128 _v3 = __lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
+                __m128 _v4 = __lsx_vffint_s_w(__lsx_vld(intptr + 16, 0));
+                __m128 _v5 = __lsx_vffint_s_w(__lsx_vld(intptr + 20, 0));
+                __m128 _v6 = __lsx_vffint_s_w(__lsx_vld(intptr + 24, 0));
+                __m128 _v7 = __lsx_vffint_s_w(__lsx_vld(intptr + 28, 0));
                 _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
                 _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                 _v2 = __lsx_vfmadd_s(_scale0, _v2, _bias0);
@@ -155,10 +155,10 @@ static void requantize_relu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob, con
             for (; i + 1 < size; i += 2)
             {
                 __builtin_prefetch(intptr + 64);
-                v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
-                v4f32 _v2 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
-                v4f32 _v3 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
+                __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                __m128 _v2 = __lsx_vffint_s_w(__lsx_vld(intptr + 8, 0));
+                __m128 _v3 = __lsx_vffint_s_w(__lsx_vld(intptr + 12, 0));
                 _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
                 _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                 _v2 = __lsx_vfmadd_s(_scale0, _v2, _bias0);
@@ -172,8 +172,8 @@ static void requantize_relu_pack8_lsx(const Mat& bottom_blob, Mat& top_blob, con
             for (; i < size; i++)
             {
                 __builtin_prefetch(intptr + 32);
-                v4f32 _v0 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr, 0));
-                v4f32 _v1 = (v4f32)__lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
+                __m128 _v0 = __lsx_vffint_s_w(__lsx_vld(intptr, 0));
+                __m128 _v1 = __lsx_vffint_s_w(__lsx_vld(intptr + 4, 0));
                 _v0 = __lsx_vfmadd_s(_scale0, _v0, _bias0);
                 _v1 = __lsx_vfmadd_s(_scale1, _v1, _bias1);
                 *((int64_t*)ptr) = float2int8relu(_v0, _v1);
