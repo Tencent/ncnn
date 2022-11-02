@@ -204,7 +204,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             return -100;
         if (sample_type == 1) // bilinear
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -242,18 +242,18 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         float coeffs[4] = {fnw, fne, fsw, fse};
 
                         outptr[y * outw + x] = linear_interp1d(
-                            coeffs,
-                            get_value_bounded(ptr, xnw, ynw, w, h),
-                            get_value_bounded(ptr, xne, yne, w, h),
-                            get_value_bounded(ptr, xsw, ysw, w, h),
-                            get_value_bounded(ptr, xse, yse, w, h));
+                                                   coeffs,
+                                                   get_value_bounded(ptr, xnw, ynw, w, h),
+                                                   get_value_bounded(ptr, xne, yne, w, h),
+                                                   get_value_bounded(ptr, xsw, ysw, w, h),
+                                                   get_value_bounded(ptr, xse, yse, w, h));
                     }
                 }
             }
         }
         else if (sample_type == 2) // nearest
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -281,7 +281,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
         else if (sample_type == 3) // bicubic
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -311,20 +311,20 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         for (int i = 0; i < 4; i++)
                         {
                             coefficients[i] = cubic_interp1d(
-                                get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                get_value_bounded(ptr, xnw + 2, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                tx);
+                                                  get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                                  get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                                  get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                                  get_value_bounded(ptr, xnw + 2, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                                  tx);
                         }
 
                         // Interpolate the 4 values in the y direction
                         outptr[y * outw + x] = cubic_interp1d(
-                            coefficients[0],
-                            coefficients[1],
-                            coefficients[2],
-                            coefficients[3],
-                            ty);
+                                                   coefficients[0],
+                                                   coefficients[1],
+                                                   coefficients[2],
+                                                   coefficients[3],
+                                                   ty);
                     }
                 }
             }
@@ -340,7 +340,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
         if (sample_type == 1) // bilinear
         {
-#pragma omp parallel for num_threads(opt.num_threads) 
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
@@ -409,15 +409,15 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             float coeffs[8] = {ftnw, ftne, ftsw, ftse, fbnw, fbne, fbsw, fbse};
 
                             outptr[z * outh * outw + y * outw + x] = linear_interp3d(
-                                coeffs,
-                                get_value_bounded(ptr, xtnw, ytnw, ztnw, w, h, d),
-                                get_value_bounded(ptr, xtne, ytne, ztne, w, h, d),
-                                get_value_bounded(ptr, xtsw, ytsw, ztsw, w, h, d),
-                                get_value_bounded(ptr, xtse, ytse, ztse, w, h, d),
-                                get_value_bounded(ptr, xbnw, ybnw, zbnw, w, h, d),
-                                get_value_bounded(ptr, xbne, ybne, zbne, w, h, d),
-                                get_value_bounded(ptr, xbsw, ybsw, zbsw, w, h, d),
-                                get_value_bounded(ptr, xbse, ybse, zbse, w, h, d));
+                                        coeffs,
+                                        get_value_bounded(ptr, xtnw, ytnw, ztnw, w, h, d),
+                                        get_value_bounded(ptr, xtne, ytne, ztne, w, h, d),
+                                        get_value_bounded(ptr, xtsw, ytsw, ztsw, w, h, d),
+                                        get_value_bounded(ptr, xtse, ytse, ztse, w, h, d),
+                                        get_value_bounded(ptr, xbnw, ybnw, zbnw, w, h, d),
+                                        get_value_bounded(ptr, xbne, ybne, zbne, w, h, d),
+                                        get_value_bounded(ptr, xbsw, ybsw, zbsw, w, h, d),
+                                        get_value_bounded(ptr, xbse, ybse, zbse, w, h, d));
                         }
                     }
                 }
@@ -425,7 +425,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         }
         else if (sample_type == 2) // nearest
         {
-#pragma omp parallel for num_threads(opt.num_threads)
+            #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = bottom_blob.channel(q);
