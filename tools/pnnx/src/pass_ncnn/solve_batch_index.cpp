@@ -98,6 +98,7 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "nn.ReplicationPad1d",
         "nn.ReplicationPad2d",
         "nn.ReplicationPad3d",
+        "nn.Softmax2d",
         "nn.Upsample",
         "nn.UpsamplingBilinear2d",
         "nn.UpsamplingNearest2d",
