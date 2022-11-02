@@ -829,12 +829,12 @@ This function is often used in conjunction with affine_grid() to build Spatial T
 
 | param id  | name          | type  | default   | description       |
 | --------- | ------------- | ----- | --------- | ----------------- |
-| 0         | resize_type   | int   | 1         |                   |
+| 0         | sample_type   | int   | 1         |                   |
 | 1         | padding_mode  | int   | 1         |                   |
 | 2         | align_corner  | int   | 0         |                   |
 
 
-Resize type:
+Sample type:
 - 1 = Nearest
 - 2 = Bilinear
 - 3 = Bicubic

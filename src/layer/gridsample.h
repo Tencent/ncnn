@@ -12,8 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef GRID_SAMPLE_H
-#define GRID_SAMPLE_H
+#ifndef GRIDSAMPLE_H
+#define GRIDSAMPLE_H
 
 #include "layer.h"
 
@@ -30,7 +30,7 @@ public:
 
 public:
     // param
-    int resize_type;  // 1=bilinear  2=nearest  3=bicubic
+    int sample_type;  // 1=bilinear  2=nearest  3=bicubic
     int padding_mode; // 1=zeros     2=border   3=reflection
     int align_corner;
 };

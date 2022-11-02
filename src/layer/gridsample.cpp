@@ -26,13 +26,13 @@ GridSample::GridSample()
 
 int GridSample::load_param(const ParamDict& pd)
 {
-    resize_type = pd.get(0, 1);
+    sample_type = pd.get(0, 1);
     padding_mode = pd.get(1, 1);
     align_corner = pd.get(2, 0);
 
-    if (resize_type < 1 || resize_type > 3)
+    if (sample_type < 1 || sample_type > 3)
     {
-        NCNN_LOGE("unsupported resize type %d", resize_type);
+        NCNN_LOGE("unsupported sample type %d", sample_type);
         return -1;
     }
 
@@ -202,17 +202,18 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
-        if (resize_type == 1) // bilinear
+        if (sample_type == 1) // bilinear
         {
-            #pragma omp parallel for num_threads(opt.num_threads) // collapse(3)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                for (int row = 0; row < outh; row++)
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+                for (int y = 0; y < outh; y++)
                 {
-                    for (int col = 0; col < outw; col++)
+                    for (int x = 0; x < outw; x++)
                     {
-                        // const float* gridptr = grid.depth(row).row(col);
-                        const float* gridptr = grid.channel(row).row(col);
+                        const float* gridptr = grid.channel(y).row(x);
 
                         // get the coordinate of every output point
                         float ix = gridptr[0];
@@ -240,30 +241,28 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                         float coeffs[4] = {fnw, fne, fsw, fse};
 
-                        const float* ptr = bottom_blob.channel(q);
-                        float* outptr = top_blob.channel(q);
-
-                        outptr[row * outw + col] = linear_interp1d(
-                                                       coeffs,
-                                                       get_value_bounded(ptr, xnw, ynw, w, h),
-                                                       get_value_bounded(ptr, xne, yne, w, h),
-                                                       get_value_bounded(ptr, xsw, ysw, w, h),
-                                                       get_value_bounded(ptr, xse, yse, w, h));
+                        outptr[y * outw + x] = linear_interp1d(
+                            coeffs,
+                            get_value_bounded(ptr, xnw, ynw, w, h),
+                            get_value_bounded(ptr, xne, yne, w, h),
+                            get_value_bounded(ptr, xsw, ysw, w, h),
+                            get_value_bounded(ptr, xse, yse, w, h));
                     }
                 }
             }
         }
-        else if (resize_type == 2) // nearest
+        else if (sample_type == 2) // nearest
         {
-            #pragma omp parallel for num_threads(opt.num_threads) // collapse(3)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                for (int row = 0; row < outh; row++)
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+                for (int y = 0; y < outh; y++)
                 {
-                    for (int col = 0; col < outw; col++)
+                    for (int x = 0; x < outw; x++)
                     {
-                        // const float* gridptr = grid.depth(row).row(col);
-                        const float* gridptr = grid.channel(row).row(col);
+                        const float* gridptr = grid.channel(y).row(x);
 
                         // get the coordinate of every output point
                         float ix = gridptr[0];
@@ -272,29 +271,26 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         ix = get_coord(ix, w, padding_mode, align_corner);
                         iy = get_coord(iy, h, padding_mode, align_corner);
 
-                        int x = static_cast<int>(round(ix));
-                        int y = static_cast<int>(round(iy));
+                        int inx = static_cast<int>(round(ix));
+                        int iny = static_cast<int>(round(iy));
 
-                        {
-                            const float* ptr = bottom_blob.channel(q);
-                            float* outptr = top_blob.channel(q);
-
-                            outptr[row * outw + col] = ptr[y * w + x];
-                        }
+                        outptr[y * outw + x] = ptr[iny * w + inx];
                     }
                 }
             }
         }
-        else if (resize_type == 3) // bicubic
+        else if (sample_type == 3) // bicubic
         {
-            #pragma omp parallel for num_threads(opt.num_threads) // collapse(3)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                for (int row = 0; row < outh; row++)
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+                for (int y = 0; y < outh; y++)
                 {
-                    for (int col = 0; col < outw; col++)
+                    for (int x = 0; x < outw; x++)
                     {
-                        const float* gridptr = grid.channel(row).row(col);
+                        const float* gridptr = grid.channel(y).row(x);
 
                         // get the coordinate of every output point
                         float ix = gridptr[0];
@@ -309,31 +305,26 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         const float tx = ix - xnw;
                         const float ty = iy - ynw;
 
+                        float coefficients[4];
+
+                        // Interpolate 4 values in the x directon
+                        for (int i = 0; i < 4; i++)
                         {
-                            const float* ptr = bottom_blob.channel(q);
-                            float* outptr = top_blob.channel(q);
-
-                            float coefficients[4];
-
-                            // Interpolate 4 values in the x directon
-                            for (int i = 0; i < 4; i++)
-                            {
-                                coefficients[i] = cubic_interp1d(
-                                                      get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                                      get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                                      get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                                      get_value_bounded(ptr, xnw + 2, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                                      tx);
-                            }
-
-                            // Interpolate the 4 values in the y direction
-                            outptr[row * outw + col] = cubic_interp1d(
-                                                           coefficients[0],
-                                                           coefficients[1],
-                                                           coefficients[2],
-                                                           coefficients[3],
-                                                           ty);
+                            coefficients[i] = cubic_interp1d(
+                                get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                get_value_bounded(ptr, xnw + 2, ynw - 1 + i, w, h, padding_mode, align_corner),
+                                tx);
                         }
+
+                        // Interpolate the 4 values in the y direction
+                        outptr[y * outw + x] = cubic_interp1d(
+                            coefficients[0],
+                            coefficients[1],
+                            coefficients[2],
+                            coefficients[3],
+                            ty);
                     }
                 }
             }
@@ -347,18 +338,20 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         int outd = grid.c;
 
         top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
-        if (resize_type == 1) // bilinear
+        if (sample_type == 1) // bilinear
         {
-            #pragma omp parallel for num_threads(opt.num_threads) // collapse(4)
+#pragma omp parallel for num_threads(opt.num_threads) 
             for (int q = 0; q < channels; q++)
             {
-                for (int dep = 0; dep < outd; dep++)
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+                for (int z = 0; z < outd; z++)
                 {
-                    for (int row = 0; row < outh; row++)
+                    for (int y = 0; y < outh; y++)
                     {
-                        for (int col = 0; col < outw; col++)
+                        for (int x = 0; x < outw; x++)
                         {
-                            const float* gridptr = grid.channel(dep).depth(row).row(col);
+                            const float* gridptr = grid.channel(z).depth(y).row(x);
 
                             // get the coordinate of every output point
                             float ix = gridptr[0];
@@ -415,38 +408,35 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
 
                             float coeffs[8] = {ftnw, ftne, ftsw, ftse, fbnw, fbne, fbsw, fbse};
 
-                            {
-                                const float* ptr = bottom_blob.channel(q);
-                                float* outptr = top_blob.channel(q);
-
-                                outptr[dep * outh * outw + row * outw + col] = linear_interp3d(
-                                            coeffs,
-                                            get_value_bounded(ptr, xtnw, ytnw, ztnw, w, h, d),
-                                            get_value_bounded(ptr, xtne, ytne, ztne, w, h, d),
-                                            get_value_bounded(ptr, xtsw, ytsw, ztsw, w, h, d),
-                                            get_value_bounded(ptr, xtse, ytse, ztse, w, h, d),
-                                            get_value_bounded(ptr, xbnw, ybnw, zbnw, w, h, d),
-                                            get_value_bounded(ptr, xbne, ybne, zbne, w, h, d),
-                                            get_value_bounded(ptr, xbsw, ybsw, zbsw, w, h, d),
-                                            get_value_bounded(ptr, xbse, ybse, zbse, w, h, d));
-                            }
+                            outptr[z * outh * outw + y * outw + x] = linear_interp3d(
+                                coeffs,
+                                get_value_bounded(ptr, xtnw, ytnw, ztnw, w, h, d),
+                                get_value_bounded(ptr, xtne, ytne, ztne, w, h, d),
+                                get_value_bounded(ptr, xtsw, ytsw, ztsw, w, h, d),
+                                get_value_bounded(ptr, xtse, ytse, ztse, w, h, d),
+                                get_value_bounded(ptr, xbnw, ybnw, zbnw, w, h, d),
+                                get_value_bounded(ptr, xbne, ybne, zbne, w, h, d),
+                                get_value_bounded(ptr, xbsw, ybsw, zbsw, w, h, d),
+                                get_value_bounded(ptr, xbse, ybse, zbse, w, h, d));
                         }
                     }
                 }
             }
         }
-        else if (resize_type == 2) // nearest
+        else if (sample_type == 2) // nearest
         {
-            #pragma omp parallel for num_threads(opt.num_threads) // collapse(4)
+#pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                for (int dep = 0; dep < outd; dep++)
+                const float* ptr = bottom_blob.channel(q);
+                float* outptr = top_blob.channel(q);
+                for (int z = 0; z < outd; z++)
                 {
-                    for (int row = 0; row < outh; row++)
+                    for (int y = 0; y < outh; y++)
                     {
-                        for (int col = 0; col < outw; col++)
+                        for (int x = 0; x < outw; x++)
                         {
-                            const float* gridptr = grid.channel(dep).depth(row).row(col);
+                            const float* gridptr = grid.channel(z).depth(y).row(x);
 
                             // get the coordinate of every output point
                             float ix = gridptr[0];
@@ -457,20 +447,17 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             iy = get_coord(iy, h, padding_mode, align_corner);
                             iz = get_coord(iz, d, padding_mode, align_corner);
 
-                            int x = static_cast<int>(round(ix));
-                            int y = static_cast<int>(round(iy));
-                            int z = static_cast<int>(round(iz));
+                            int inx = static_cast<int>(round(ix));
+                            int iny = static_cast<int>(round(iy));
+                            int inz = static_cast<int>(round(iz));
 
-                            const float* ptr = bottom_blob.channel(q);
-                            float* outptr = top_blob.channel(q);
-
-                            outptr[dep * outh * outw + row * outw + col] = ptr[z * h * w + y * w + x];
+                            outptr[z * outh * outw + y * outw + x] = ptr[inz * h * w + iny * w + inx];
                         }
                     }
                 }
             }
         }
-        else if (resize_type == 3)
+        else if (sample_type == 3)
         {
             NCNN_LOGE("unsupported bicubic when dims == 4");
             return -1;
