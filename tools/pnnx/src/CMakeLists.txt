@@ -79,6 +79,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_Sigmoid.cpp
     pass_level1/nn_SiLU.cpp
     pass_level1/nn_Softmax.cpp
+    pass_level1/nn_Softmax2d.cpp
     pass_level1/nn_Softmin.cpp
     pass_level1/nn_Softplus.cpp
     pass_level1/nn_Softshrink.cpp
@@ -454,6 +455,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Sigmoid.cpp
     pass_ncnn/nn_SiLU.cpp
     pass_ncnn/nn_Softmax.cpp
+    pass_ncnn/nn_Softmax2d.cpp
     pass_ncnn/nn_Tanh.cpp
     pass_ncnn/nn_Upsample.cpp
     pass_ncnn/nn_UpsamplingBilinear2d.cpp

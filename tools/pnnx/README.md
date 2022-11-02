@@ -547,7 +547,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Sigmoid                 | :heavy_check_mark: | :heavy_check_mark: |
 |nn.SiLU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmax                 | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Softmax2d               |   |
+|nn.Softmax2d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmin                 | :heavy_check_mark: |
 |nn.Softplus                | :heavy_check_mark: |
 |nn.Softshrink              | :heavy_check_mark: |
