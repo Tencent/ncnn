@@ -126,6 +126,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_elu.cpp
     pass_level2/F_embedding.cpp
     pass_level2/F_feature_alpha_dropout.cpp
+    pass_level2/F_fold.cpp
     pass_level2/F_gelu.cpp
     pass_level2/F_glu.cpp
     pass_level2/F_grid_sample.cpp
@@ -167,6 +168,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_tanh.cpp
     pass_level2/F_tanhshrink.cpp
     pass_level2/F_threshold.cpp
+    pass_level2/F_unfold.cpp
     pass_level2/F_upsample_bilinear.cpp
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
