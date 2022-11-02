@@ -31,7 +31,7 @@ def test():
     net.eval()
 
     torch.manual_seed(0)
-    x = torch.rand(12, 24, 64)
+    x = torch.rand(1, 12, 24, 64)
 
     a = net(x)
 
@@ -41,7 +41,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../../src/pnnx test_nn_Softmax2d.pt inputshape=[12,24,64]")
+    os.system("../../src/pnnx test_nn_Softmax2d.pt inputshape=[1,12,24,64]")
 
     # ncnn inference
     import test_nn_Softmax2d_ncnn
