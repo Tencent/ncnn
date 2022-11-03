@@ -24,7 +24,7 @@ class Model(nn.Module):
     def forward(self, x, y, z):
         x = F.fold(x, output_size=22, kernel_size=3)
         y = F.fold(y, output_size=(17,18), kernel_size=(2,4), stride=(2,1), padding=2, dilation=1)
-        z = F.fold(z, output_size=(5,11), kernel_size=(1,3), stride=1, padding=(2,4), dilation=1)
+        z = F.fold(z, output_size=(5,11), kernel_size=(2,3), stride=1, padding=(2,4), dilation=(1,2))
 
         return x, y, z
 
@@ -35,7 +35,7 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 108, 400)
     y = torch.rand(1, 96, 190)
-    z = torch.rand(1, 33, 153)
+    z = torch.rand(1, 36, 120)
 
     a0, a1, a2 = net(x, y, z)
 
@@ -45,7 +45,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_fold.pt inputshape=[1,108,400],[1,96,190],[1,33,153]")
+    os.system("../src/pnnx test_F_fold.pt inputshape=[1,108,400],[1,96,190],[1,36,120]")
 
     # pnnx inference
     import test_F_fold_pnnx

@@ -49,6 +49,8 @@ jobs:
     - name: checkout
       checkout: self
       with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
         enableGitLfs: false
 
     - name: install-deps
@@ -85,6 +87,8 @@ jobs:
     - name: checkout
       checkout: self
       with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
         enableGitLfs: false
 
     - name: build-nostdio

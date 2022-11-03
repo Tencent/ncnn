@@ -35,21 +35,24 @@ def test():
     torch.manual_seed(0)
     x = torch.rand(1, 12, 64, 64)
 
-    a0, a1, a2 = net(x)
+    a = net(x)
 
     # export torchscript
     mod = torch.jit.trace(net, x)
     mod.save("test_F_unfold.pt")
 
-    # torchscript to pnnx
+    # torchscript to ncnn
     import os
-    os.system("../src/pnnx test_F_unfold.pt inputshape=[1,12,64,64]")
+    os.system("../../src/pnnx test_F_unfold.pt inputshape=[1,12,64,64]")
 
-    # pnnx inference
-    import test_F_unfold_pnnx
-    b0, b1, b2 = test_F_unfold_pnnx.test_inference()
+    # ncnn inference
+    import test_F_unfold_ncnn
+    b = test_F_unfold_ncnn.test_inference()
 
-    return torch.equal(a0, b0) and torch.equal(a1, b1) and torch.equal(a2, b2)
+    for a0, b0 in zip(a, b):
+        if not torch.allclose(a0, b0, 1e-4, 1e-4):
+            return False
+    return True
 
 if __name__ == "__main__":
     if test():
