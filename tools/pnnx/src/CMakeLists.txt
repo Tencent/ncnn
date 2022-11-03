@@ -372,6 +372,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_conv3d.cpp
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_embedding.cpp
+    pass_ncnn/F_fold.cpp
     pass_ncnn/F_gelu.cpp
     pass_ncnn/F_glu.cpp
     pass_ncnn/F_group_norm.cpp
@@ -400,6 +401,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_silu.cpp
     pass_ncnn/F_softmax.cpp
     pass_ncnn/F_tanh.cpp
+    pass_ncnn/F_unfold.cpp
     pass_ncnn/F_upsample_bilinear.cpp
     pass_ncnn/F_upsample_nearest.cpp
     pass_ncnn/F_upsample.cpp

@@ -484,7 +484,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Embedding               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.EmbeddingBag            |   |
 |nn.Flatten                 | :heavy_check_mark: |
-|nn.Fold                    | :heavy_check_mark: |
+|nn.Fold                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.FractionalMaxPool2d     |   |
 |nn.FractionalMaxPool3d     |   |
 |nn.GELU                    | :heavy_check_mark: | :heavy_check_mark: |
@@ -562,7 +562,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.TransformerEncoder      |   |
 |nn.TransformerEncoderLayer |   |
 |nn.Unflatten               |   |
-|nn.Unfold                  | :heavy_check_mark: |
+|nn.Unfold                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Upsample                | :heavy_check_mark: | :heavy_check_mark: |
 |nn.UpsamplingBilinear2d    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.UpsamplingNearest2d     | :heavy_check_mark: | :heavy_check_mark: |
@@ -600,7 +600,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.embedding                | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding_bag            |  |
 |F.feature_alpha_dropout    | :heavy_check_mark: | :heavy_check_mark: |
-|F.fold                     | :heavy_check_mark: |
+|F.fold                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.fractional_max_pool2d    |  |
 |F.fractional_max_pool3d    |  |
 |F.gelu                     | :heavy_check_mark: | :heavy_check_mark: |
@@ -656,7 +656,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.tanhshrink               | :heavy_check_mark: |
 |F.threshold                | :heavy_check_mark: |
 |F.threshold_               | :heavy_check_mark: |
-|F.unfold                   | :heavy_check_mark: |
+|F.unfold                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample                 | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_bilinear        | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_nearest         | :heavy_check_mark: | :heavy_check_mark: |
