@@ -274,7 +274,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         int inx = static_cast<int>(round(ix));
                         int iny = static_cast<int>(round(iy));
 
-                        outptr[y * outw + x] = ptr[iny * w + inx];
+                        outptr[y * outw + x] = in_bounds(inx, iny, w, h) ? ptr[iny * w + inx] : 0.f;
                     }
                 }
             }
@@ -451,7 +451,7 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             int iny = static_cast<int>(round(iy));
                             int inz = static_cast<int>(round(iz));
 
-                            outptr[z * outh * outw + y * outw + x] = ptr[inz * h * w + iny * w + inx];
+                            outptr[z * outh * outw + y * outw + x] = in_bounds(inx, iny, inz, w, h, d) ? ptr[inz * h * w + iny * w + inx] : 0.f;
                         }
                     }
                 }
