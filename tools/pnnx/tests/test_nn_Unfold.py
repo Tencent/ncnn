@@ -23,7 +23,7 @@ class Model(nn.Module):
 
         self.unfold_0 = nn.Unfold(kernel_size=3)
         self.unfold_1 = nn.Unfold(kernel_size=(2,4), stride=(2,1), padding=2, dilation=1)
-        self.unfold_2 = nn.Unfold(kernel_size=(1,3), stride=1, padding=(2,4), dilation=1)
+        self.unfold_2 = nn.Unfold(kernel_size=(1,3), stride=1, padding=(2,4), dilation=(1,2))
 
     def forward(self, x):
         x0 = self.unfold_0(x)

@@ -24,7 +24,7 @@ class Model(nn.Module):
     def forward(self, x):
         x0 = F.unfold(x, kernel_size=3)
         x1 = F.unfold(x, kernel_size=(2,4), stride=(2,1), padding=2, dilation=1)
-        x2 = F.unfold(x, kernel_size=(1,3), stride=1, padding=(2,4), dilation=1)
+        x2 = F.unfold(x, kernel_size=(1,3), stride=1, padding=(2,4), dilation=(1,2))
 
         return x0, x1, x2
 
