@@ -31,7 +31,7 @@ public:
         return "nn.Fold";
     }
 
-    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph, const torch::jit::Module& mod) const
+    void write(Operator* op, const std::shared_ptr<torch::jit::Graph>& graph) const
     {
         const torch::jit::Node* col2im = find_node_by_kind(graph, "aten::col2im");
 
