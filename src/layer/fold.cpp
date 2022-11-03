@@ -14,8 +14,6 @@
 
 #include "fold.h"
 
-#include <algorithm>
-
 namespace ncnn {
 
 Fold::Fold()
