@@ -427,6 +427,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ConvTranspose3d.cpp
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_Embedding.cpp
+    pass_ncnn/nn_Fold.cpp
     pass_ncnn/nn_GELU.cpp
     pass_ncnn/nn_GLU.cpp
     pass_ncnn/nn_GroupNorm.cpp
@@ -461,6 +462,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Softmax.cpp
     pass_ncnn/nn_Softmax2d.cpp
     pass_ncnn/nn_Tanh.cpp
+    pass_ncnn/nn_Unfold.cpp
     pass_ncnn/nn_Upsample.cpp
     pass_ncnn/nn_UpsamplingBilinear2d.cpp
     pass_ncnn/nn_UpsamplingNearest2d.cpp

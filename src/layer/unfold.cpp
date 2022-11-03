@@ -76,7 +76,7 @@ int Unfold::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) co
         {
             for (int v = 0; v < kernel_w; v++)
             {
-                const float* sptr = bottom_blob_bordered.row(dilation_h * u) + dilation_w * v;
+                const float* sptr = img.row(dilation_h * u) + dilation_w * v;
 
                 for (int i = 0; i < outh; i++)
                 {
