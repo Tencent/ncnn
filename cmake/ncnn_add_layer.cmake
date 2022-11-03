@@ -270,7 +270,7 @@ macro(ncnn_add_layer class)
         endif()
     endif()
 
-    if(NCNN_RUNTIME_CPU AND NCNN_TARGET_ARCH STREQUAL "loongarch64")
+    if(NCNN_RUNTIME_CPU AND NCNN_TARGET_ARCH STREQUAL "loongarch")
         if(NCNN_LSX)
             ncnn_add_arch_opt_layer(${class} lsx "-mlsx")
         endif()
