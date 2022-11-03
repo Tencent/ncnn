@@ -41,9 +41,14 @@ int Unfold::load_param(const ParamDict& pd)
 int Unfold::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
 {
     Mat bottom_blob_bordered;
-    make_padding(bottom_blob, bottom_blob_bordered, opt);
-    if (bottom_blob_bordered.empty())
-        return -100;
+    {
+        Option opt_b = opt;
+        opt_b.blob_allocator = opt.workspace_allocator;
+        opt_b.use_packing_layout = false;
+        make_padding(bottom_blob, bottom_blob_bordered, opt_b);
+        if (bottom_blob_bordered.empty())
+            return -100;
+    }
 
     const int w = bottom_blob_bordered.w;
     const int h = bottom_blob_bordered.h;

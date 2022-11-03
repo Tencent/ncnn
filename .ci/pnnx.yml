@@ -53,7 +53,6 @@ jobs:
       checkout: self
       with:
         strategy: FRESH_CHECKOUT
-        enableSubmodule: false
         enableGitLfs: false
 
     - name: install-deps

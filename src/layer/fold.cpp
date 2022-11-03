@@ -115,7 +115,9 @@ int Fold::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
 
     if (pad_left > 0 || pad_right > 0 || pad_top > 0 || pad_bottom > 0)
     {
-        copy_cut_border(top_blob_bordered, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt);
+        Option opt_b = opt;
+        opt_b.use_packing_layout = false;
+        copy_cut_border(top_blob_bordered, top_blob, pad_top, pad_bottom, pad_left, pad_right, opt_b);
         if (top_blob.empty())
             return -100;
     }
