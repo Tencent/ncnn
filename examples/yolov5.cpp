@@ -29,7 +29,7 @@
 //#define YOLOV5_V60 1 //YOLOv5 v6.0
 #define  YOLOV5_V62 1 //YOLOv5 v6.2 export  onnx model method https://github.com/shaoshengsong/yolov5_62_export_ncnn
 
-#if YOLOV5_V60 ||  YOLOV5_V62
+#if YOLOV5_V60 ||  YOLOV5_V62  
 #define MAX_STRIDE 64
 #else
 #define MAX_STRIDE 32
