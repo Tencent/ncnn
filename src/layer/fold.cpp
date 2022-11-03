@@ -73,42 +73,34 @@ int Fold::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) cons
         return -100;
 
     // col2im
+    const int gap = outw * stride_h - inw * stride_w;
+
     #pragma omp parallel for num_threads(opt.num_threads)
     for (int p = 0; p < channels; p++)
     {
-        float* ptr = top_blob_bordered.channel(p);
+        const float* sptr = bottom_blob.row(p * maxk);
+        Mat outm = top_blob_bordered.channel(p);
 
-        for (int i = 0; i < outh; i++)
+        outm.fill(0.f);
+
+        for (int u = 0; u < kernel_h; u++)
         {
-            for (int j = 0; j < outw; j++)
+            for (int v = 0; v < kernel_w; v++)
             {
-                float sum = 0.f;
+                float* ptr = outm.row(dilation_h * u) + dilation_w * v;
 
-                const int sx_start = (j < kernel_extent_w) ? 0 : (j - kernel_extent_w) / stride_w + 1;
-                const int sx_end = std::min(j / stride_w + 1, inw);
-
-                const int sy_start = (i < kernel_extent_h) ? 0 : (i - kernel_extent_h) / stride_h + 1;
-                const int sy_end = std::min(i / stride_h + 1, inh);
-
-                for (int sy = sy_start; sy < sy_end; sy += 1)
+                for (int i = 0; i < inh; i++)
                 {
-                    for (int sx = sx_start; sx < sx_end; sx += 1)
+                    for (int j = 0; j < inw; j++)
                     {
-                        int h_k = (i - sy * stride_h);
-                        int w_k = (j - sx * stride_w);
+                        ptr[0] += sptr[0];
 
-                        if (h_k % dilation_h == 0 && w_k % dilation_w == 0)
-                        {
-                            h_k /= dilation_h;
-                            w_k /= dilation_w;
-
-                            sum += bottom_blob.row(p * maxk + h_k * kernel_w + w_k)[sy * inw + sx];
-                        }
+                        ptr += stride_w;
+                        sptr += 1;
                     }
-                }
 
-                ptr[0] = sum;
-                ptr += 1;
+                    ptr += gap;
+                }
             }
         }
     }
