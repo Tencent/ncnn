@@ -16,19 +16,22 @@
 
 #include "pass_level0/constant_unpooling.h"
 #include "pass_level0/inline_block.h"
+#include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
 
 namespace pnnx {
 
-void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& g, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, std::map<std::string, Attribute>& foldable_constants)
+void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& g, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::map<std::string, Attribute>& foldable_constants)
 {
     inline_block(g, module_operators);
+
+    reset_device(g, device);
 
     constant_unpooling(g);
 
     if (!input_tensors.empty())
     {
-        shape_inference(mod, g, input_tensors, input_tensors2, module_operators, ptpath, foldable_constants);
+        shape_inference(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants);
     }
 }
 

@@ -327,7 +327,7 @@ int main(int argc, char** argv)
 
     try
     {
-        mod = torch::jit::load(ptpath);
+        mod = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
     }
     catch (const c10::Error& e)
     {
@@ -359,7 +359,7 @@ int main(int argc, char** argv)
     fprintf(stderr, "############# pass_level0\n");
 
     std::map<std::string, pnnx::Attribute> foldable_constants;
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, foldable_constants);
+    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants);
 
     //     g->dump();
 

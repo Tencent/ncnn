@@ -4,6 +4,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(pnnx_pass_level0_SRCS
     pass_level0/constant_unpooling.cpp
     pass_level0/inline_block.cpp
+    pass_level0/reset_device.cpp
     pass_level0/shape_inference.cpp
 )
 
