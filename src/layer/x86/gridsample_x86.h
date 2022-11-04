@@ -24,7 +24,7 @@ class GridSample_x86 : virtual public GridSample
 public:
     GridSample_x86();
 
-    virtual int forward_inplace(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
+    virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 };
 
 } // namespace ncnn
