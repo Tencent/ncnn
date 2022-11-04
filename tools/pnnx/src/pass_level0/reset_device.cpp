@@ -1,6 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -12,16 +12,25 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef PNNX_PASS_LEVEL0_H
-#define PNNX_PASS_LEVEL0_H
-
-#include <torch/script.h>
-#include "ir.h"
+#include "reset_device.h"
+#include "../pass_level1.h"
 
 namespace pnnx {
 
-void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& g, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::map<std::string, Attribute>& foldable_constants);
+void reset_device(std::shared_ptr<torch::jit::Graph>& graph, const std::string& device)
+{
+    for (torch::jit::Node* n : graph->nodes())
+    {
+        if (n->kind().toDisplayString() == std::string("aten::to"))
+        {
+            if (n->hasNamedInput("device"))
+            {
+                torch::jit::Node* device_node = n->namedInput("device")->node();
+
+                device_node->s_(torch::jit::attr::value, (device == "gpu") ? "cuda" : "cpu");
+            }
+        }
+    }
+}
 
 } // namespace pnnx
-
-#endif // PNNX_PASS_LEVEL0_H
