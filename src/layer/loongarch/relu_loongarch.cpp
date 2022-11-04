@@ -77,7 +77,7 @@ int ReLU_loongarch::forward_inplace(Mat& bottom_top_blob, const Option& opt) con
                 __m128 _p = (__m128)__lsx_vld(ptr, 0);
                 __m128i _lemask = __lsx_vfcmp_cle_s(_p, _zero);
                 __m128 _ps = __lsx_vfmul_s(_p, _slope);
-                _p = (__m128)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_p, (__m128i)_ps);
+                _p = (__m128)__lsx_vbitsel_v((__m128i)_p, (__m128i)_ps, (__m128i)_lemask);
                 __lsx_vst(_p, ptr, 0);
 
                 ptr += 4;

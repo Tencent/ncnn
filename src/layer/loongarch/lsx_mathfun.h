@@ -207,7 +207,7 @@ static inline __m128 tanh_ps(__m128 x)
 
     // clamp the inputs to the range [-9, 9] since anything outside
     // this range is -/+1.0f in single-precision.
-    x2 = (__m128)__lsx_vbitsel_v((__m128i)__lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_tanh_hi.i), (__m128)x2), (__m128i)x2, (__m128i)__lsx_vreplgr2vr_w(c_tanh_hi.i));
+    x2 = (__m128)__lsx_vbitsel_v((__m128i)x2, (__m128i)__lsx_vreplgr2vr_w(c_tanh_hi.i), (__m128i)__lsx_vfcmp_clt_s((__m128)__lsx_vreplgr2vr_w(c_tanh_hi.i), (__m128)x2));
 
     // since the polynomials are odd/even, we need x**2.
     __m128 z = __lsx_vfmul_s(x2, x2);
@@ -235,7 +235,7 @@ static inline __m128 tanh_ps(__m128 x)
     y = (__m128)__lsx_vor_v((__m128i)y, sig_save);
 
     // when the argument is very small in magnitude it's more accurate to just return it.
-    y = (__m128)__lsx_vbitsel_v((__m128i)tiny_mask, (__m128i)y, (__m128i)x);
+    y = (__m128)__lsx_vbitsel_v((__m128i)y, (__m128i)x, (__m128i)tiny_mask);
 
     return y;
 }

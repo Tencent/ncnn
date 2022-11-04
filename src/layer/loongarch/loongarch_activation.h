@@ -34,7 +34,7 @@ static inline __m128 activation_ps(__m128 _v, int activation_type, const ncnn::M
         __m128 _slope = (__m128)__lsx_vreplfr2vr_s(activation_params[0]);
         __m128i _lemask = __lsx_vfcmp_cle_s(_v, _zero);
         __m128 _ps = __lsx_vfmul_s(_v, _slope);
-        _v = (__m128)__lsx_vbitsel_v((__m128i)_lemask, (__m128i)_v, (__m128i)_ps);
+        _v = (__m128)__lsx_vbitsel_v((__m128i)_v, (__m128i)_ps, (__m128i)_lemask);
     }
     else if (activation_type == 3)
     {
