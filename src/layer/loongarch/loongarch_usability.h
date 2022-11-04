@@ -109,7 +109,7 @@ static NCNN_FORCEINLINE int64_t float2int8(__m128 _vlow, __m128 _vhigh)
     __m128i _v16 = __lsx_vpickev_h(_vhigh32_16, _vlow32_16);
     _v16 = __lsx_vmax_h(_v16, __lsx_vreplgr2vr_h(-127));
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
-    v2i64 _v8 = (v2i64)__lsx_vpickev_b(_v16_8, _v16_8);
+    __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }
@@ -154,7 +154,7 @@ static NCNN_FORCEINLINE int64_t float2int8relu(__m128 _vlow, __m128 _vhigh)
     __m128i _v16 = __lsx_vpickev_h(_vhigh32_16, _vlow32_16);
     _v16 = __lsx_vmaxi_h(_v16, 0);
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
-    v2i64 _v8 = (v2i64)__lsx_vpickev_b(_v16_8, _v16_8);
+    __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }
@@ -227,7 +227,7 @@ static NCNN_FORCEINLINE int64_t float2int8leakyrelu(__m128 _vlow, __m128 _vhigh,
 
     _v16 = __lsx_vmax_h(_v16, _v16_leaky);
     __m128i _v16_8 = __lsx_vsat_h(_v16, 7);
-    v2i64 _v8 = (v2i64)__lsx_vpickev_b(_v16_8, _v16_8);
+    __m128i _v8 = __lsx_vpickev_b(_v16_8, _v16_8);
 
     return _v8[0];
 }
