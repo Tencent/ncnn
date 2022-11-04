@@ -119,7 +119,7 @@ static NCNN_FORCEINLINE void fast_mean(float* ptr, float* mean, int elempack, in
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        sum += _mm512_reduce_add_ps(_sum_512);
+        sum += _mm512_comp_reduce_add_ps(_sum_512);
 #endif // __AVX512F__
         sum += _mm256_reduce_add_ps(_sum_256);
 #endif // __AVX__
@@ -230,7 +230,7 @@ static NCNN_FORCEINLINE void fast_var(float* ptr, float* var, const float* mean,
 #if __SSE2__
 #if __AVX__
 #if __AVX512F__
-        sq_sum += _mm512_reduce_add_ps(_sq_sum_512);
+        sq_sum += _mm512_comp_reduce_add_ps(_sq_sum_512);
 #endif // __AVX512F__
         sq_sum += _mm256_reduce_add_ps(_sq_sum_256);
 #endif // __AVX__

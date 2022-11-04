@@ -17,6 +17,7 @@
 
 #include "pass_level0/constant_unpooling.h"
 #include "pass_level0/inline_block.h"
+#include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
 
 namespace pnnx {
@@ -29,9 +30,11 @@ static bool value_link_input(const torch::jit::Value* v, const std::vector<torch
         std::string optype = v->node()->kind().toDisplayString();
         if (optype == "aten::size"
                 || optype == "aten::new_empty"
+                || optype == "aten::new_full"
                 || optype == "aten::new_ones"
                 || optype == "aten::new_zeros"
                 || optype == "aten::empty_like"
+                || optype == "aten::full_like"
                 || optype == "aten::ones_like"
                 || optype == "aten::zeros_like")
             return false;
@@ -75,7 +78,7 @@ static bool value_link_output(const torch::jit::Value* v, const std::vector<torc
     return false;
 }
 
-void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, std::map<std::string, Attribute>& foldable_constants)
+void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::map<std::string, Attribute>& foldable_constants)
 {
     // collect all intermediate output tensors
     std::vector<std::unordered_set<std::string> > more_value_names;
@@ -148,12 +151,14 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         // auto mod2 = mod.deepcopy();
 
-        torch::jit::Module mod2 = torch::jit::load(ptpath);
+        torch::jit::Module mod2 = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
         mod2.eval();
 
         auto graph2 = mod2.get_method("forward").graph();
 
         inline_block(graph2, module_operators);
+
+        reset_device(graph2, device);
 
         constant_unpooling(graph2);
 

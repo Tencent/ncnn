@@ -1,0 +1,808 @@
+name: test-coverage
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.ci/test-coverage.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/**'
+    - 'tests/**'
+    - 'toolchains/**'
+  mr:
+    target-branches: [master]
+    paths:
+    - '.ci/test-coverage.yml'
+    - 'CMakeLists.txt'
+    - 'cmake/**'
+    - 'src/**'
+    - 'tests/**'
+    - 'toolchains/**'
+concurrency:
+  group: test-coverage-${{ ci.head_ref }}
+
+jobs:
+  linux-gcc-gpu:
+    name: linux-gcc-gpu
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov libvulkan-dev
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-swiftshader
+      id: cache-swiftshader
+      uses: cache@1.*
+      with:
+        cachePaths: swiftshader-install
+        cacheKey: swiftshader-linux-install-20221026
+
+    - name: checkout-swiftshader
+      if: steps.cache-swiftshader.outputs.cacheHit != 'true'
+      checkout: https://github.com/google/swiftshader.git
+      with:
+        pullType: COMMIT_ID
+        refName: 04d007924c2d33ea1ac4be78ae423507a0b08b61
+        localPath: swiftshader
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: swiftshader
+      if: steps.cache-swiftshader.outputs.cacheHit != 'true'
+      run: |
+        cd swiftshader
+        git -c submodule."third_party/git-hooks".update=none submodule update --init --recursive
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=install -DSWIFTSHADER_BUILD_PVR=FALSE -DSWIFTSHADER_BUILD_TESTS=FALSE -DSWIFTSHADER_ENABLE_ASTC=FALSE -DSWIFTSHADER_WARNINGS_AS_ERRORS=FALSE -DREACTOR_BACKEND=Subzero -DREACTOR_DEFAULT_OPT_LEVEL=Default -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j $(nproc)
+        mkdir ${{ci.workspace}}/swiftshader-install
+        cp Linux/* ${{ci.workspace}}/swiftshader-install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        printf "[Processor]\nThreadCount=4\n" > build/tests/SwiftShader.ini
+        export VK_ICD_FILENAMES="${{ci.workspace}}/swiftshader-install/vk_swiftshader_icd.json"
+        cd build && ctest --output-on-failure -j 4
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/glslang/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-gpu-lavapipe:
+    name: linux-gcc-gpu-lavapipe
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov libvulkan-dev libxcb-shm0
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-lavapipe
+      id: cache-lavapipe
+      uses: cache@1.*
+      with:
+        cachePaths: lavapipe-install
+        cacheKey: lavapipe-linux-install-20211127-3
+
+    - name: checkout-lavapipe
+      if: steps.cache-lavapipe.outputs.cacheHit != 'true'
+      checkout: https://github.com/mesa3d/mesa.git
+      with:
+        pullType: COMMIT_ID
+        refName: cd39180cfab20734744b379b085cc3b5c2cecd3a
+        localPath: mesa
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: lavapipe
+      if: steps.cache-lavapipe.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y mesa
+        mkdir -p "${{ci.workspace}}/lavapipe-install"
+        cd mesa
+        mkdir build
+        cd build
+        meson -Dprefix="${{ci.workspace}}/lavapipe-install" -Dbuildtype=release -Db_lto=true -Db_ndebug=true -Dplatforms="x11" -Ddri3=enabled -Ddri-drivers="" -Dgallium-drivers=swrast -Dgallium-vdpau=disabled -Dgallium-xvmc=disabled -Dgallium-omx=disabled -Dgallium-va=disabled -Dgallium-xa=disabled -Dgallium-opencl=disabled -Dopencl-native=false -Dvulkan-drivers=swrast -Dshader-cache=disabled -Dgles1=disabled -Dgles2=disabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=disabled -Dllvm=enabled -Dvalgrind=disabled -Dlibunwind=disabled -Dlmsensors=disabled ..
+        ninja -j$(nproc)
+        ninja install
+        find ${{ci.workspace}}/lavapipe-install
+        cat ${{ci.workspace}}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_AVX2=ON -DNCNN_AVX512=OFF -DNCNN_XOP=OFF -DNCNN_OPENMP=OFF -DNCNN_VULKAN=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export LP_NUM_THREADS=4
+        export VK_ICD_FILENAMES="${{ci.workspace}}/lavapipe-install/share/vulkan/icd.d/lvp_icd.x86_64.json"
+        cd build
+        ctest --output-on-failure -j 4
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/glslang/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-x64:
+    name: linux-gcc-x64
+    strategy:
+      matrix:
+        # openmp: ['OFF', 'ON']
+        include:
+          - { SSE2: 'OFF', AVX: 'OFF', XOP: 'OFF', F16C: 'OFF', FMA: 'OFF', AVX2: 'OFF', AVX512: 'OFF', AVX512VNNI: 'OFF', AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+          - { SSE2: 'ON',  AVX: 'OFF', XOP: 'OFF', F16C: 'OFF', FMA: 'OFF', AVX2: 'OFF', AVX512: 'OFF', AVX512VNNI: 'OFF', AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+          - { SSE2: 'ON',  AVX: 'ON',  XOP: 'OFF', F16C: 'OFF', FMA: 'OFF', AVX2: 'OFF', AVX512: 'OFF', AVX512VNNI: 'OFF', AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+          - { SSE2: 'ON',  AVX: 'ON',  XOP: 'OFF', F16C: 'ON',  FMA: 'ON',  AVX2: 'ON',  AVX512: 'OFF', AVX512VNNI: 'OFF', AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+          - { SSE2: 'ON',  AVX: 'ON',  XOP: 'OFF', F16C: 'ON',  FMA: 'ON',  AVX2: 'ON',  AVX512: 'ON',  AVX512VNNI: 'ON',  AVXVNNI: 'OFF', AVX512BF16: 'OFF', AVX512FP16: 'OFF'}
+
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON \
+            -DNCNN_SSE2=${{matrix.SSE2}} \
+            -DNCNN_AVX=${{matrix.AVX}} \
+            -DNCNN_XOP=${{matrix.XOP}} \
+            -DNCNN_F16C=${{matrix.F16C}} \
+            -DNCNN_FMA=${{matrix.FMA}} \
+            -DNCNN_AVX2=${{matrix.AVX2}} \
+            -DNCNN_AVX512=${{matrix.AVX512}} \
+            -DNCNN_AVXVNNI=${{matrix.AVXVNNI}} \
+            -DNCNN_AVX512VNNI=${{matrix.AVX512VNNI}} \
+            -DNCNN_AVX512BF16=${{matrix.AVX512BF16}} \
+            -DNCNN_AVX512FP16=${{matrix.AVX512FP16}} \
+            ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: cd build && ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-arm:
+    name: linux-gcc-arm
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-arm-linux-gnueabi g++-arm-linux-gnueabihf libcapstone4 libglib2.0-0
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-arm-install-20220831
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=arm-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabi.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=ON -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabi" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: build-armhf-vfpv3-d16
+      run: |
+        mkdir build-armhf-vfpv3-d16 && cd build-armhf-vfpv3-d16
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/arm-linux-gnueabihf-vfpv3-d16.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_VFPV4=OFF -DNCNN_ARM82=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-armhf-vfpv3-d16
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build-armhf-vfpv3-d16
+        TESTS_EXECUTABLE_LOADER=qemu-arm TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/arm-linux-gnueabihf" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-armhf-vfpv3-d16
+      run: |
+        cd build-armhf-vfpv3-d16
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build-armhf-vfpv3-d16/*' -o lcov.info
+        lcov --list lcov.info
+
+    - name: codecov
+      run: |
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+        ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build-armhf-vfpv3-d16/lcov.info
+
+  linux-gcc-aarch64:
+    name: linux-gcc-aarch64
+    strategy:
+      matrix:
+        # openmp: ['OFF', 'ON']
+        include:
+          - { ARM82: 'OFF', ARM82DOT: 'OFF', ARM82FP16FML: 'OFF', ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { ARM82: 'ON',  ARM82DOT: 'OFF', ARM82FP16FML: 'OFF', ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'OFF', ARM84I8MM: 'OFF', ARM86SVE: 'OFF'}
+          - { ARM82: 'ON',  ARM82DOT: 'ON',  ARM82FP16FML: 'ON',  ARM84BF16: 'ON',  ARM84I8MM: 'ON',  ARM86SVE: 'OFF'}
+
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-aarch64-linux-gnu libcapstone4 libglib2.0-0
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-aarch64-install-20220831
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=aarch64-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/aarch64-linux-gnu.toolchain.cmake \
+            -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=OFF -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON \
+            -DNCNN_ARM82=${{matrix.ARM82}} \
+            -DNCNN_ARM82DOT=${{matrix.ARM82DOT}} \
+            -DNCNN_ARM82FP16FML=${{matrix.ARM82FP16FML}} \
+            -DNCNN_ARM84BF16=${{matrix.ARM84BF16}} \
+            -DNCNN_ARM84I8MM=${{matrix.ARM84I8MM}} \
+            ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-aarch64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/aarch64-linux-gnu" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-mipsisa32r6el:
+    name: linux-gcc-mipsisa32r6el
+    strategy:
+      matrix:
+        OPENMP: ['OFF', 'ON']
+
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-mipsisa32r6el-linux-gnu libcapstone4 libglib2.0-0
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-mipsel-install-20220831
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=mipsel-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa32r6el-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=OFF -DNCNN_MMI=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mipsel TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa32r6el-linux-gnu" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-mipsisa64r6el:
+    name: linux-gcc-mipsisa64r6el
+    strategy:
+      matrix:
+        OPENMP: ['OFF', 'ON']
+
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-mipsisa64r6el-linux-gnuabi64 libcapstone4 libglib2.0-0
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-mips64el-install-20220831
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=mips64el-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/mipsisa64r6el-linux-gnuabi64.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_MSA=ON -DNCNN_MMI=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-mips64el TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/mipsisa64r6el-linux-gnuabi64" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-riscv64:
+    name: linux-gcc-riscv64
+    strategy:
+      matrix:
+        OPENMP: ['OFF', 'ON']
+
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov g++-riscv64-linux-gnu libcapstone4 libglib2.0-0
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-riscv64-install-20220831
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=riscv64-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: build
+      run: |
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect
+      run: |
+        cd build
+        lcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+
+  linux-gcc-riscv64-rvv:
+    name: linux-gcc-riscv64-rvv
+    strategy:
+      matrix:
+        OPENMP: ['OFF', 'ON']
+
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y lcov libcapstone4 libglib2.0-0
+        curl https://uploader.codecov.io/verification.gpg | gpg --no-default-keyring --keyring trustedkeys.gpg --import
+        curl -Os https://uploader.codecov.io/latest/linux/codecov
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+        curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+        gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+        shasum -a 256 -c codecov.SHA256SUM
+        chmod +x codecov
+
+    - name: cache-qemu
+      id: cache-qemu
+      uses: cache@1.*
+      with:
+        cachePaths: qemu-install
+        cacheKey: qemu-riscv64-install-20220831
+
+    - name: checkout-qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      checkout: https://github.com/qemu/qemu.git
+      with:
+        pullType: COMMIT_ID
+        refName: 621da7789083b80d6f1ff1c0fb499334007b4f51
+        localPath: qemu
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: qemu
+      if: steps.cache-qemu.outputs.cacheHit != 'true'
+      run: |
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye main' | tee -a /etc/apt/sources.list
+        echo 'deb-src http://mirrors.cloud.tencent.com/debian bullseye-updates main' | tee -a /etc/apt/sources.list
+        apt-get update
+        apt-get build-dep -y qemu
+        cd qemu
+        wget https://raw.githubusercontent.com/nihui/ncnn-assets/master/qemu-patches/0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        patch -p1 -i 0007-linux-user-Expose-risc-v-V-isa-bit-in-get_elf_hwcap.patch
+        ./configure --prefix=${{ci.workspace}}/qemu-install --target-list=riscv64-linux-user --disable-system
+        make -j$(nproc)
+        make install
+
+    - name: cache-rv64gcv
+      id: cache-rv64gcv
+      uses: cache@1.*
+      with:
+        cachePaths: rv64gcv-install
+        cacheKey: rv64gcv-linux-install-20221029
+
+    - name: checkout-riscv-gnu-toolchain
+      if: steps.cache-rv64gcv.outputs.cacheHit != 'true'
+      checkout: https://github.com/riscv/riscv-gnu-toolchain.git
+      with:
+        pullType: COMMIT_ID
+        refName: da01ba455ce3802ffa84fdca3a089079996dbfc3
+        localPath: riscv-gnu-toolchain
+        enableSubmodule: false
+        enableGitLfs: false
+
+    - name: riscv-gnu-toolchain
+      if: steps.cache-rv64gcv.outputs.cacheHit != 'true'
+      run: |
+        apt-get update
+        apt-get install -y autoconf automake autotools-dev curl python3 libmpc-dev libmpfr-dev libgmp-dev gawk build-essential bison flex texinfo gperf libtool patchutils bc zlib1g-dev libexpat-dev device-tree-compiler
+        cd riscv-gnu-toolchain
+        git submodule update --init --recursive --depth 1 glibc
+        git submodule update --init --recursive --depth 1 newlib
+        #git submodule update --init --recursive --depth 1 riscv-binutils
+        #git submodule update --init --recursive --depth 1 riscv-gcc
+        git submodule update --init --recursive --depth 1 riscv-dejagnu
+        git submodule update --init --recursive --depth 1 riscv-gdb
+        rm -rf riscv-binutils
+        git clone -b binutils-2_39-branch https://sourceware.org/git/binutils-gdb.git riscv-binutils
+        rm -rf riscv-gcc
+        git clone -b riscv-gcc-rvv-next https://github.com/riscv-collab/riscv-gcc.git riscv-gcc
+        cd riscv-gcc
+        git checkout 8a0c1b106f01c455a8fb478cfe52d859a69020fd
+        cd ..
+        sed -i '/__OBSOLETE_MATH/d' newlib/newlib/libm/common/math_errf.c
+        ./configure --prefix=${{ci.workspace}}/rv64gcv-install --with-arch=rv64gcv_zfh
+        make linux -j$(nproc)
+        find ${{ci.workspace}}/rv64gcv-install -type f | xargs -i strip -g {} || true
+
+    - name: build
+      run: |
+        export RISCV_ROOT_PATH=${{ci.workspace}}/rv64gcv-install
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DCMAKE_BUILD_TYPE=debug -DCMAKE_C_FLAGS="-O1" -DCMAKE_CXX_FLAGS="-O1" -DNCNN_COVERAGE=ON -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_OPENMP=${{matrix.OPENMP}} -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+        cmake --build . -j $(nproc)
+    - name: test-vlen128
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-vlen128
+      run: |
+        cd build
+        lcov --gcov-tool ${{ci.workspace}}/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov-vlen128
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
+    - name: test-vlen256
+      run: |
+        export PATH=${{ci.workspace}}/qemu-install/bin:$PATH
+        cd build
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;${{ci.workspace}}/rv64gcv-install/sysroot" ctest --output-on-failure -j $(nproc)
+    - name: lcov-collect-vlen256
+      run: |
+        cd build
+        lcov --gcov-tool ${{ci.workspace}}/rv64gcv-install/bin/riscv64-unknown-linux-gnu-gcov -d ./src -c -o lcov.info
+        lcov -r lcov.info '/usr/*' -o lcov.info
+        lcov -r lcov.info '*/build/*' -o lcov.info
+        lcov -r lcov.info '*/rv64gcv-install/*' -o lcov.info
+        lcov --list lcov.info
+    - name: codecov-vlen256
+      run: ./codecov -t ${{settings.CODECOV_TOKEN.access_token}} -C ${{ ci.sha }} -B ${{ ci.head_ref }} -f build/lcov.info
