@@ -32,7 +32,7 @@ static const layer_registry_entry layer_registry_msa[] = {
 static const layer_registry_entry layer_registry_lsx[] = {
 @layer_registry_lsx@
 };
-#endif // NCNN_RUNTIME_CPU && NCNN_MSA
+#endif // NCNN_RUNTIME_CPU && NCNN_LSX
 
 #if NCNN_RUNTIME_CPU && NCNN_RVV
 static const layer_registry_entry layer_registry_rvv[] = {

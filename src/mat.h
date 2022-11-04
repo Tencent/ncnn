@@ -132,7 +132,7 @@ public:
     void fill(v4f32 _v);
 #endif // __mips_msa
 #if __loongarch_sx
-    void fill(v4f32 _v);
+    void fill(__m128 _v);
 #endif //__loongarch_sx
 #if __riscv_vector
     void fill(vfloat32m1_t _v);
@@ -1074,13 +1074,13 @@ NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 #endif // __mips_msa
 
 #if __loongarch_sx
-NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
+NCNN_FORCEINLINE void Mat::fill(__m128 _v)
 {
     int size = (int)total();
     float* ptr = (float*)data;
     for (int i = 0; i < size; i++)
     {
-        __lsx_vst((v4i32)_v, ptr, 0);
+        __lsx_vst(_v, ptr, 0);
         ptr += 4;
     }
 }
