@@ -203,6 +203,7 @@ int main(int argc, char** argv)
     std::string pnnxparampath = ptbase + ".pnnx.param";
     std::string pnnxbinpath = ptbase + ".pnnx.bin";
     std::string pnnxpypath = ptbase + "_pnnx.py";
+    std::string onnxpath = ptbase + ".onnx";
     std::string ncnnparampath = ptbase + ".ncnn.param";
     std::string ncnnbinpath = ptbase + ".ncnn.bin";
     std::string ncnnpypath = ptbase + "_ncnn.py";
@@ -402,6 +403,8 @@ int main(int argc, char** argv)
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
+
+    pnnx::save_onnx(pnnx_graph, onnxpath.c_str());
 
     //     if (optlevel >= 2)
     {
