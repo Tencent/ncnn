@@ -497,6 +497,27 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/torchvision_DeformConv2d.cpp
 )
 
+find_package(Protobuf)
+if(PROTOBUF_FOUND)
+    protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+
+    add_library(pnnx2onnx STATIC
+        save_onnx.cpp
+        save_onnx_cxxabi_bridge.cpp
+        ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
+    )
+
+    target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+    target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
+
+    # libtorch is usually compiled with old cxx11 abi
+    set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+
+    message(STATUS "Building with onnx-zero")
+else()
+    message(STATUS "Building without onnx-zero")
+endif()
+
 set(pnnx_SRCS
     main.cpp
     ir.cpp
@@ -510,8 +531,6 @@ set(pnnx_SRCS
     pass_level4.cpp
     pass_level5.cpp
 
-    pass_ncnn.cpp
-
     ${pnnx_pass_level0_SRCS}
     ${pnnx_pass_level1_SRCS}
     ${pnnx_pass_level2_SRCS}
@@ -519,6 +538,8 @@ set(pnnx_SRCS
     ${pnnx_pass_level4_SRCS}
     ${pnnx_pass_level5_SRCS}
 
+    pass_ncnn.cpp
+    save_ncnn.cpp
     ${pnnx_pass_ncnn_SRCS}
 )
 
@@ -528,6 +549,8 @@ endif()
 
 add_executable(pnnx ${pnnx_SRCS})
 
+target_compile_definitions(pnnx PRIVATE BUILD_PNNX)
+
 if(PNNX_COVERAGE)
     target_compile_options(pnnx PUBLIC -coverage -fprofile-arcs -ftest-coverage)
     target_link_libraries(pnnx PUBLIC -coverage -lgcov)
@@ -535,6 +558,11 @@ endif()
 
 if(WIN32)
     target_compile_definitions(pnnx PUBLIC NOMINMAX)
+endif()
+
+if(PROTOBUF_FOUND)
+    target_compile_definitions(pnnx PRIVATE BUILD_PNNX2ONNX)
+    target_link_libraries(pnnx PRIVATE pnnx2onnx)
 endif()
 
 if(TorchVision_FOUND)
