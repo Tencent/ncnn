@@ -560,7 +560,11 @@ if(TorchVision_FOUND)
     target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)
 endif()
 
-target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES})
+if(WIN32)
+    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES})
+else()
+    target_link_libraries(pnnx PRIVATE ${TORCH_LIBRARIES} pthread dl)
+endif()
 
 #set_target_properties(pnnx PROPERTIES COMPILE_FLAGS -fsanitize=address)
 #set_target_properties(pnnx PROPERTIES LINK_FLAGS -fsanitize=address)
