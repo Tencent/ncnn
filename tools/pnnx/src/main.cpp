@@ -408,7 +408,7 @@ int main(int argc, char** argv)
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
 
-    pnnx::save_onnx(pnnx_graph, onnxpath.c_str());
+    pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str());
 
     //     if (optlevel >= 2)
     {
