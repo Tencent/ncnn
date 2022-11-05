@@ -498,19 +498,25 @@ set(pnnx_pass_ncnn_SRCS
 )
 
 find_package(Protobuf)
-protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+if(PROTOBUF_FOUND)
+    protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
 
-add_library(pnnx2onnx STATIC
-    save_onnx.cpp
-    save_onnx_cxxabi_bridge.cpp
-    ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
-)
+    add_library(pnnx2onnx STATIC
+        save_onnx.cpp
+        save_onnx_cxxabi_bridge.cpp
+        ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
+    )
 
-target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
+    target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+    target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
 
-# libtorch is usually compiled with old cxx11 abi
-set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_DEFINITIONS _GLIBCXX_USE_CXX11_ABI=0)
+    # libtorch is usually compiled with old cxx11 abi
+    set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+
+    message(STATUS "Building with onnx-zero")
+else()
+    message(STATUS "Building without onnx-zero")
+endif()
 
 set(pnnx_SRCS
     main.cpp
@@ -554,7 +560,10 @@ if(WIN32)
     target_compile_definitions(pnnx PUBLIC NOMINMAX)
 endif()
 
-target_link_libraries(pnnx PRIVATE pnnx2onnx)
+if(PROTOBUF_FOUND)
+    target_compile_definitions(pnnx PRIVATE BUILD_PNNX2ONNX)
+    target_link_libraries(pnnx PRIVATE pnnx2onnx)
+endif()
 
 if(TorchVision_FOUND)
     target_link_libraries(pnnx PRIVATE TorchVision::TorchVision)

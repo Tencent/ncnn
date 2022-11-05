@@ -41,7 +41,9 @@
 #include "pass_ncnn.h"
 #include "save_ncnn.h"
 
+#if BUILD_PNNX2ONNX
 #include "save_onnx.h"
+#endif
 
 static std::string get_basename(const std::string& path)
 {
@@ -408,7 +410,11 @@ int main(int argc, char** argv)
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
 
+#if BUILD_PNNX2ONNX
     pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str());
+#else
+    fprintf(stderr, "pnnx build without onnx-zero support, skip saving onnx\n");
+#endif
 
     //     if (optlevel >= 2)
     {
