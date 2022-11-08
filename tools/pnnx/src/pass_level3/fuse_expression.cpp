@@ -115,7 +115,7 @@ static bool operand_maybe_tensor(const Operand* operand)
     return true;
 }
 
-static bool operand_is_foldable(const Operand* operand, const std::map<std::string, Attribute>& foldable_constants)
+static bool operand_is_foldable(const Operand* operand, const std::set<std::string>& foldable_constants)
 {
     if (foldable_constants.find(operand->name) != foldable_constants.end())
         return true;
@@ -134,7 +134,7 @@ static bool operand_is_foldable(const Operand* operand, const std::map<std::stri
     return true;
 }
 
-static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::map<std::string, Attribute>& foldable_constants, bool checksubgraph = true)
+static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, std::vector<Operand*>& inputs, const std::set<std::string>& foldable_constants, bool checksubgraph = true)
 {
     // fprintf(stderr, "fuse_expression %s\n", operand->name.c_str());
 
@@ -412,7 +412,7 @@ static void fuse_expression(Graph& graph, Operand* operand, std::string& expr, s
     }
 }
 
-void fuse_expression(Graph& graph, const std::map<std::string, Attribute>& foldable_constants)
+void fuse_expression(Graph& graph, const std::set<std::string>& foldable_constants)
 {
     int pnnx_expr_index = 0;
 

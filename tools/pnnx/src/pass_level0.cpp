@@ -21,7 +21,7 @@
 
 namespace pnnx {
 
-void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& g, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::map<std::string, Attribute>& foldable_constants)
+void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& g, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     inline_block(g, module_operators);
 
@@ -31,7 +31,7 @@ void pass_level0(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Grap
 
     if (!input_tensors.empty())
     {
-        shape_inference(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants);
+        shape_inference(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
     }
 }
 

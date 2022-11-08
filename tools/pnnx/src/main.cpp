@@ -368,8 +368,9 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "############# pass_level0\n");
 
-    std::map<std::string, pnnx::Attribute> foldable_constants;
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants);
+    std::set<std::string> foldable_constants;
+    std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
+    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
 
     //     g->dump();
 
@@ -403,8 +404,11 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_level5\n");
 
-        pnnx::pass_level5(pnnx_graph, foldable_constants);
+        pnnx::pass_level5(pnnx_graph, foldable_constants, foldable_constants_zippath);
     }
+
+    // delete foldable_constants_zippath
+    remove(foldable_constants_zippath.c_str());
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
