@@ -16,6 +16,6 @@
 
 namespace pnnx {
 
-void fold_constants(Graph& graph, const std::map<std::string, Attribute>& foldable_constants);
+void fold_constants(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath);
 
 } // namespace pnnx
