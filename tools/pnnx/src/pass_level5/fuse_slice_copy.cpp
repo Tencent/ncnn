@@ -83,10 +83,43 @@ void fuse_slice_copy(Graph& graph)
                 in0 = sop->inputs[0];
             }
 
-            if (slice_select_ops.empty())
-                continue;
-
             matched = true;
+
+            if (slice_select_ops.empty())
+            {
+                // eliminate noop copy
+                Operand* out = op->outputs[0];
+
+                for (auto& x : out->consumers)
+                {
+                    for (size_t j = 0; j < x->inputs.size(); j++)
+                    {
+                        if (x->inputs[j] == out)
+                            x->inputs[j] = op->inputs[1];
+                    }
+
+                    op->inputs[1]->consumers.push_back(x);
+                }
+
+                op->inputs[0]->remove_consumer(op);
+                op->inputs[1]->remove_consumer(op);
+
+                op->inputs[1]->name = out->name;
+
+                out->producer = 0;
+                out->consumers.clear();
+
+                graph.operands.erase(std::find(graph.operands.begin(), graph.operands.end(), out));
+                delete out;
+
+                op->inputs.clear();
+                op->outputs.clear();
+
+                graph.ops.erase(graph.ops.begin() + i);
+                delete op;
+
+                break;
+            }
 
             const Operator* top_sop = slice_select_ops.top();
 
@@ -148,6 +181,39 @@ void fuse_slice_copy(Graph& graph)
             op->params["starts"] = new_starts;
             op->params["ends"] = new_ends;
             op->params["steps"] = new_steps;
+
+            if (op->inputs[0]->shape.empty() || op->inputs[0]->shape.size() + select_dims_offset != op->inputs[1]->shape.size())
+            {
+                // insert view_as(sliced) for different or unknown rank
+                Operator* op_slice = graph.new_operator_before("Tensor.slice", op->name + "_ncnnslice", op);
+                Operator* op_view_as = graph.new_operator_before("Tensor.view_as", op->name + "_ncnnview_as", op);
+
+                Operand* slice_out = graph.new_operand(op->name + "_ncnnslice_out");
+                Operand* view_as_out = graph.new_operand(op->name + "_ncnnview_as_out");
+
+                op_slice->params["dims"] = new_dims;
+                op_slice->params["starts"] = new_starts;
+                op_slice->params["ends"] = new_ends;
+                op_slice->params["steps"] = new_steps;
+
+                op_slice->inputs.push_back(op->inputs[0]);
+                op->inputs[0]->consumers.push_back(op_slice);
+
+                op_slice->outputs.push_back(slice_out);
+                slice_out->producer = op_slice;
+
+                op_view_as->inputs.push_back(op->inputs[1]);
+                op->inputs[1]->consumers.push_back(op_view_as);
+                op->inputs[1]->remove_consumer(op);
+                op_view_as->inputs.push_back(slice_out);
+                slice_out->consumers.push_back(op_view_as);
+
+                op_view_as->outputs.push_back(view_as_out);
+                view_as_out->producer = op_view_as;
+
+                op->inputs[1] = view_as_out;
+                view_as_out->consumers.push_back(op);
+            }
 
             break;
         }
