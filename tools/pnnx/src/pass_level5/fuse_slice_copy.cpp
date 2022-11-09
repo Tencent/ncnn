@@ -182,7 +182,8 @@ void fuse_slice_copy(Graph& graph)
             op->params["ends"] = new_ends;
             op->params["steps"] = new_steps;
 
-            if (op->inputs[0]->shape.empty() || op->inputs[0]->shape.size() + select_dims_offset != op->inputs[1]->shape.size())
+            int input_rank = (int)op->inputs[0]->shape.size();
+            if (input_rank == 0)
             {
                 // insert view_as(sliced) for different or unknown rank
                 Operator* op_slice = graph.new_operator_before("Tensor.slice", op->name + "_ncnnslice", op);
@@ -213,6 +214,46 @@ void fuse_slice_copy(Graph& graph)
 
                 op->inputs[1] = view_as_out;
                 view_as_out->consumers.push_back(op);
+            }
+            else if (input_rank != (int)op->inputs[1]->shape.size())
+            {
+                // solve the target shape
+                std::vector<int> target_shape = op->inputs[0]->shape;
+                for (size_t j = 0; j < new_dims.size(); j++)
+                {
+                    int dim = new_dims[j];
+                    int start = new_starts[j];
+                    int end = new_ends[j];
+                    int step = new_steps[j];
+
+                    if (dim < 0)
+                        dim = input_rank + dim;
+                    if (start < 0)
+                        start = target_shape[dim] + start;
+                    if (end < 0)
+                        end = target_shape[dim] + end;
+                    if (end == INT_MAX)
+                        end = target_shape[dim];
+
+                    target_shape[dim] = (end - start + (step - 1)) / step;
+                }
+
+                Operator* op_view = graph.new_operator_before("Tensor.view", op->name + "_ncnnview", op);
+                Operand* view_out = graph.new_operand(op->name + "_ncnnview_out");
+
+                op_view->params["shape"] = target_shape;
+
+                view_out->shape = target_shape;
+
+                op_view->inputs.push_back(op->inputs[1]);
+                op->inputs[1]->consumers.push_back(op_view);
+                op->inputs[1]->remove_consumer(op);
+
+                op_view->outputs.push_back(view_out);
+                view_out->producer = op_view;
+
+                op->inputs[1] = view_out;
+                view_out->consumers.push_back(op);
             }
 
             break;
