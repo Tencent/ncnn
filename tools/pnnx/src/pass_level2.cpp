@@ -502,8 +502,61 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
     }
 }
 
+static void fix_inplace_copy_output(Graph& graph)
+{
+    for (size_t i = 0; i < graph.ops.size(); i++)
+    {
+        Operator* op = graph.ops[i];
+
+        if (op->type != "aten::copy")
+            continue;
+
+        if (op->outputs[0]->consumers.size() != 0)
+            continue;
+
+        // aten::slice   5 1 in0 .... a
+        // aten::slice   5 1 a .... b
+        // aten::copy    2 1 b in1 out
+
+        // aten::select  3 1 in0 .... a
+        // aten::copy    2 1 a in1 out
+
+        // find in0 from slice / select chain
+        Operand* in0 = op->inputs[0];
+        while (in0->producer->type == "aten::slice" || in0->producer->type == "aten::select")
+        {
+            in0 = in0->producer->inputs[0];
+        }
+
+        // replace all the following uses of in0 with out
+        Operand* out0 = op->outputs[0];
+        for (size_t j = i; j < graph.ops.size(); j++)
+        {
+            Operator* op2 = graph.ops[j];
+
+            bool use_in0 = false;
+            for (size_t k = 0; k < op2->inputs.size(); k++)
+            {
+                if (op2->inputs[k] == in0)
+                {
+                    op2->inputs[k] = out0;
+                    use_in0 = true;
+                }
+            }
+
+            if (use_in0)
+            {
+                in0->remove_consumer(op2);
+                out0->consumers.push_back(op2);
+            }
+        }
+    }
+}
+
 void pass_level2(Graph& g)
 {
+    fix_inplace_copy_output(g);
+
     int opindex = 0;
     for (auto x : g_global_pnnx_graph_rewriter_passes)
     {

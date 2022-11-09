@@ -1658,6 +1658,13 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 std::string slice_expr = make_slice_expression(op);
                 fprintf(pyfp, "v_%s = v_%s[%s]\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str(), slice_expr.c_str());
             }
+            else if (op->type == "Tensor.slice_copy")
+            {
+                // slice copy expr
+                std::string slice_expr = make_slice_expression(op);
+                fprintf(pyfp, "v_%s = v_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), sanitize_identifier(op->inputs[0]->name).c_str());
+                fprintf(pyfp, "        v_%s[%s] = v_%s\n", sanitize_identifier(op->outputs[0]->name).c_str(), slice_expr.c_str(), sanitize_identifier(op->inputs[1]->name).c_str());
+            }
             else if (op->type == "Tensor.index")
             {
                 // index expr

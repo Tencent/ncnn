@@ -18,7 +18,6 @@
 #include "pass_level3/eliminate_noop_math.h"
 #include "pass_level3/eliminate_tuple_pair.h"
 #include "pass_level3/expand_quantization_modules.h"
-#include "pass_level3/fix_inplace_copy_output.h"
 #include "pass_level3/fuse_opnto1_tensors.h"
 #include "pass_level3/fuse_op1ton_unpack.h"
 #include "pass_level3/fuse_einsum_operands.h"
@@ -45,8 +44,6 @@ void pass_level3(Graph& g, const std::set<std::string>& foldable_constants)
     fuse_op1ton_unpack(g);
 
     fuse_einsum_operands(g);
-
-    fix_inplace_copy_output(g);
 
     fuse_multiheadattention_unpack(g);
 
