@@ -171,6 +171,7 @@ pnnx_add_test(Tensor_repeat)
 pnnx_add_test(Tensor_reshape)
 pnnx_add_test(Tensor_select)
 pnnx_add_test(Tensor_slice)
+pnnx_add_test(Tensor_slice_copy)
 pnnx_add_test(Tensor_view)
 
 pnnx_add_test(torch_addmm)

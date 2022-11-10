@@ -174,6 +174,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
     pass_level2/Tensor_contiguous.cpp
+    pass_level2/Tensor_copy.cpp
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
     pass_level2/Tensor_index.cpp
@@ -314,6 +315,7 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
     pass_level5/fuse_select_to_unbind.cpp
+    pass_level5/fuse_slice_copy.cpp
     pass_level5/fuse_slice_indices.cpp
     pass_level5/fuse_slice_to_tensor_split.cpp
     pass_level5/fuse_static_conv.cpp
