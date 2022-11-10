@@ -530,6 +530,7 @@ static void fix_inplace_copy_output(Graph& graph)
 
         // replace all the following uses of in0 with out
         Operand* out0 = op->outputs[0];
+        out0->shape = in0->shape;
         for (size_t j = i; j < graph.ops.size(); j++)
         {
             Operator* op2 = graph.ops[j];
