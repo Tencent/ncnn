@@ -504,6 +504,56 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
 
 static void fix_inplace_copy_output(Graph& graph)
 {
+    while (1)
+    {
+        bool matched = false;
+        for (size_t i = 0; i < graph.ops.size(); i++)
+        {
+            Operator* op = graph.ops[i];
+
+            bool is_inplace_op = op->type.size() > 2 && op->type[op->type.size() - 2] != '_' && op->type[op->type.size() - 1] == '_';
+            if (!is_inplace_op)
+                continue;
+
+            // replace inplace op with non-inplace version
+            op->type = op->type.substr(0, op->type.size() - 1);
+
+            if (op->type == "aten::copy")
+                continue;
+
+            if (op->outputs[0]->consumers.size() != 0)
+                continue;
+
+            matched = true;
+
+            // find in0 from slice / select chain
+            Operand* in0 = op->inputs[0];
+            while (in0->producer->type == "aten::slice" || in0->producer->type == "aten::select")
+            {
+                in0 = in0->producer->inputs[0];
+            }
+
+            // append copy for inplace op
+            Operator* op_copy = graph.new_operator_after("aten::copy", op->name + "_copy", op);
+            Operand* copy_out = graph.new_operand(op->name + "_copy_out");
+
+            copy_out->shape = in0->shape;
+
+            op_copy->inputs.push_back(op->inputs[0]);
+            op_copy->inputs.push_back(op->outputs[0]);
+            op->inputs[0]->consumers.push_back(op_copy);
+            op->outputs[0]->consumers.push_back(op_copy);
+
+            op_copy->outputs.push_back(copy_out);
+            copy_out->producer = op_copy;
+
+            break;
+        }
+
+        if (!matched)
+            break;
+    }
+
     for (size_t i = 0; i < graph.ops.size(); i++)
     {
         Operator* op = graph.ops[i];
