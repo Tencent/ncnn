@@ -291,7 +291,6 @@ struct ApplyGridSample<InterpolationMode::Bicubic, padding, align_corners>
 {
     inline void forward(const Mat& input, const Mat& grid, Mat& output, const Option& opt)
     {
-
     }
 };
 

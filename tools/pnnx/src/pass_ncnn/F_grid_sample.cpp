@@ -62,7 +62,7 @@ pnnx.Output             output      1 0 out
         if (padding_mode == "reflection")
             op->params["1"] = 3;
 
-        op->params["6"] = captured_params.at("align_corners").b ? 1 : 0; // align_corners
+        op->params["3"] = captured_params.at("align_corners").b ? 1 : 0; // align_corners
     }
 };
 
