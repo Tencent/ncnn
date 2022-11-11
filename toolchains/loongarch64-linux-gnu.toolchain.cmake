@@ -1,8 +1,18 @@
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR loongarch64)
 
-set(CMAKE_C_COMPILER "loongarch64-linux-gnu-gcc")
-set(CMAKE_CXX_COMPILER "loongarch64-linux-gnu-g++")
+if(DEFINED ENV{LOONGARCH64_ROOT_PATH})
+    file(TO_CMAKE_PATH $ENV{LOONGARCH64_ROOT_PATH} LOONGARCH64_ROOT_PATH)
+else()
+    message(FATAL_ERROR "LOONGARCH64_ROOT_PATH env must be defined")
+endif()
+
+set(LOONGARCH64_ROOT_PATH ${LOONGARCH64_ROOT_PATH} CACHE STRING "root path to loongarch64 toolchain")
+
+set(CMAKE_C_COMPILER "${LOONGARCH64_ROOT_PATH}/bin/loongarch64-linux-gnu-gcc")
+set(CMAKE_CXX_COMPILER "${LOONGARCH64_ROOT_PATH}/bin/loongarch64-linux-gnu-g++")
+
+set(CMAKE_FIND_ROOT_PATH "${LOONGARCH64_ROOT_PATH}/loongarch64-linux-gnu")
 
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
