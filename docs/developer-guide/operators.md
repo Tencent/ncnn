@@ -31,6 +31,7 @@
 * [GELU](#gelu)
 * [GLU](#glu)
 * [Gemm](#gemm)
+* [GridSample](#gridsample)
 * [GroupNorm](#groupnorm)
 * [GRU](#gru)
 * [HardSigmoid](#hardsigmoid)
@@ -815,6 +816,34 @@ y = gemm(a, b) * alpha + c * beta
 | 1         | beta          | float | 1.f       |                   |
 | 2         | transA        | int   | 0         |                   |
 | 3         | transb        | int   | 0         |                   |
+
+# GridSample
+```
+Given an input and a flow-field grid, computes the output using input values and pixel locations from grid.
+
+For each output location output[:, h2, w2], the size-2 vector grid[h2, w2, 2] specifies input pixel[:, h1, w1] locations x and y, 
+which are used to interpolate the output value output[:, h2, w2]
+
+This function is often used in conjunction with affine_grid() to build Spatial Transformer Networks .
+```
+
+| param id  | name          | type  | default   | description       |
+| --------- | ------------- | ----- | --------- | ----------------- |
+| 0         | sample_type   | int   | 1         |                   |
+| 1         | padding_mode  | int   | 1         |                   |
+| 2         | align_corner  | int   | 0         |                   |
+
+
+Sample type:
+- 1 = Nearest
+- 2 = Bilinear
+- 3 = Bicubic
+
+Padding mode:
+- 1 = zeros
+- 2 = border
+- 3 = reflection
+
 
 # GroupNorm
 ```

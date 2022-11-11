@@ -378,6 +378,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_fold.cpp
     pass_ncnn/F_gelu.cpp
     pass_ncnn/F_glu.cpp
+    pass_ncnn/F_grid_sample.cpp
     pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp

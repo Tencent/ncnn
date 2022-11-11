@@ -288,6 +288,11 @@ void solve_batch_index(Graph& graph)
     {
         if (is_known_operator_with_batch_index_0(op))
         {
+            if (op->type == std::string("F.grid_sample"))
+            {
+                op->inputs[1]->params["__batch_index"] = 0;
+            }
+
             op->inputs[0]->params["__batch_index"] = 0;
             op->outputs[0]->params["__batch_index"] = 0;
         }
