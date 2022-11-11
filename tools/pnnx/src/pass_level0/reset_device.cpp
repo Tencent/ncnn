@@ -12,10 +12,25 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "ir.h"
+#include "reset_device.h"
+#include "../pass_level1.h"
 
 namespace pnnx {
 
-void fold_constants(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath);
+void reset_device(std::shared_ptr<torch::jit::Graph>& graph, const std::string& device)
+{
+    for (torch::jit::Node* n : graph->nodes())
+    {
+        if (n->kind().toDisplayString() == std::string("aten::to"))
+        {
+            if (n->hasNamedInput("device"))
+            {
+                torch::jit::Node* device_node = n->namedInput("device")->node();
+
+                device_node->s_(torch::jit::attr::value, (device == "gpu") ? "cuda" : "cpu");
+            }
+        }
+    }
+}
 
 } // namespace pnnx

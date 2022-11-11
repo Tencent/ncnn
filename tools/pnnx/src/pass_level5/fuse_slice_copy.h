@@ -16,6 +16,6 @@
 
 namespace pnnx {
 
-void fold_constants(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath);
+void fuse_slice_copy(Graph& graph);
 
 } // namespace pnnx

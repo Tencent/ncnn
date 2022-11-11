@@ -12,10 +12,15 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
+#ifndef PNNX_SAVE_NCNN_H
+#define PNNX_SAVE_NCNN_H
+
 #include "ir.h"
 
 namespace pnnx {
 
-void fold_constants(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath);
+int save_ncnn(const Graph& g, const std::string& parampath, const std::string& binpath, const std::string& pypath);
 
 } // namespace pnnx
+
+#endif // PNNX_SAVE_NCNN_H

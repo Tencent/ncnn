@@ -12,10 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "ir.h"
+#include <torch/script.h>
 
 namespace pnnx {
 
-void fold_constants(Graph& graph, const std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath);
+void reset_device(std::shared_ptr<torch::jit::Graph>& graph, const std::string& device);
 
 } // namespace pnnx
