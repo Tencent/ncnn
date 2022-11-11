@@ -54,25 +54,24 @@ int GridSample::load_param(const ParamDict& pd)
 //     pixel coord both directions, i.e, (-0.5, -0.5) coord acutal image space.
 //     Normalized location (1, 1) points to the bottom-tight pixel plus half
 //     pixel coord both directions, i.e. (H - 0.5, W - 0.5) coord acutal image space.
-static float NCNN_FORCEINLINE
-grid_sample_unormalize(int w, float coordx, int align_corner)
+static float grid_sample_unormalize(int w, float coordx, int align_corner)
 {
     return align_corner ? (coordx + 1) / 2.f * (w - 1) : ((coordx + 1) * w - 1) / 2.f;
 }
 
-static NCNN_FORCEINLINE float border_coord(float coord, int border)
+static float border_coord(int x, int border)
 {
-    return std::min(static_cast<float>(border), std::max(coord, static_cast<float>(0)));
+    return std::min(border, std::max(x, 0));
 }
 
-static float reflect_coord(float x, float high)
+static float reflect_coord(float x, int high)
 {
     x = abs(x);
     x = high - abs(x - high);
     return x;
 }
 
-static float compute_coord(float sx, int w, int padding_mode, int align_corner)
+static int compute_coord(int sx, int w, int padding_mode, int align_corner)
 {
     if (padding_mode == 2) // border
     {
@@ -86,7 +85,7 @@ static float compute_coord(float sx, int w, int padding_mode, int align_corner)
         }
         else
         {
-            sx = reflect_coord(sx + 0.5, w) - 0.5;
+            sx = static_cast<int>(reflect_coord(sx + 0.5, w) - 0.5);
             sx = border_coord(sx, w - 1);
         }
     }
@@ -94,91 +93,56 @@ static float compute_coord(float sx, int w, int padding_mode, int align_corner)
     return sx;
 }
 
-static float get_coord(float x, int w, int padding_mode, int align_corner)
+static bool in_bounds(const Mat& image, int x, int y)
 {
-    // compute the origin coordinates
-    float sx = grid_sample_unormalize(w, x, align_corner);
-
-    // correct the coordinates according to the padding_mode
-    float coord = compute_coord(sx, w, padding_mode, align_corner);
-
-    return coord;
+    return x >= 0 && y >= 0 && x < image.w && y < image.h;
 }
 
-static NCNN_FORCEINLINE bool in_bounds(int x, int y, int w, int h)
+static bool in_bounds(const Mat& image, int x, int y, int z)
 {
-    return x >= 0 && y >= 0 && x < w && y < h;
+    return x >= 0 && y >= 0 && z >= 0 && x < image.w && y < image.h && z < image.c;
 }
 
-static NCNN_FORCEINLINE bool in_bounds(int x, int y, int z, int w, int h, int d)
+static float get_value_bounded(const Mat& image, int x, int y)
 {
-    return x >= 0 && y >= 0 && z >= 0 && x < w && y < h && z < d;
+    return in_bounds(image, x, y) ? image.row(y)[x] : 0.f;
 }
 
-static NCNN_FORCEINLINE float get_value_bounded(const float* data, int x, int y, int w, int h)
+static float get_value_bounded(const Mat& image, int x, int y, int z)
 {
-    return in_bounds(x, y, w, h) ? data[y * w + x] : 0.f;
+    return in_bounds(image, x, y, z) ? image.channel(z).row(y)[x] : 0.f;
 }
 
-static NCNN_FORCEINLINE float get_value_bounded(const float* data, int x, int y, int z, int w, int h, int d)
+static float get_value_bounded(const Mat& image, int x, int y, int padding_mode, int align_corner)
 {
-    return in_bounds(x, y, z, w, h, d) ? data[z * h * w + y * w + x] : 0.f;
+    x = compute_coord(x, image.w, padding_mode, align_corner);
+    y = compute_coord(y, image.h, padding_mode, align_corner);
+
+    return get_value_bounded(image, x, y);
 }
 
-static float get_value_bounded(const float* data, float x, float y, int w, int h,
-                               int padding_mode, int align_corner)
+static float get_value_bounded(const Mat& image, int x, int y, int z, int padding_mode, int align_corner)
 {
-    x = compute_coord(x, w, padding_mode, align_corner);
-    y = compute_coord(y, h, padding_mode, align_corner);
+    x = compute_coord(x, image.w, padding_mode, align_corner);
+    y = compute_coord(y, image.h, padding_mode, align_corner);
+    z = compute_coord(z, image.c, padding_mode, align_corner);
 
-    int ix = static_cast<int>(x);
-    int iy = static_cast<int>(y);
-
-    return get_value_bounded(data, ix, iy, w, h);
+    return get_value_bounded(image, x, y, z);
 }
 
-static NCNN_FORCEINLINE float linear_interp1d(float coeffs[4], float x0, float x1, float x2, float x3)
+static inline void interpolate_cubic(float fx, float* coeffs)
 {
-    return x0 * coeffs[0] + x1 * coeffs[1] + x2 * coeffs[2] + x3 * coeffs[3];
-}
+    const float A = -0.75f;
 
-static NCNN_FORCEINLINE float linear_interp3d(float coeffs[8], float x0, float x1, float x2, float x3, float x4, float x5, float x6, float x7)
-{
-    return linear_interp1d(coeffs, x0, x1, x2, x3) + linear_interp1d(coeffs + 4, x4, x5, x6, x7);
-}
+    float fx0 = fx + 1;
+    float fx1 = fx;
+    float fx2 = 1 - fx;
+    // float fx3 = 2 - fx;
 
-// Based on
-// https://en.wikipedia.org/wiki/Bicubic_interpolation#Bicubic_convolution_algorithm
-static NCNN_FORCEINLINE float cubic_convolution1(float x, float A)
-{
-    return ((A + 2) * x - (A + 3)) * x * x + 1;
-}
-
-static NCNN_FORCEINLINE float cubic_convolution2(float x, float A)
-{
-    return ((A * x - 5 * A) * x + 8 * A) * x - 4 * A;
-}
-
-static void get_cubic_upsample_coefficients(float coeffs[4], float t)
-{
-    float A = -0.75;
-
-    float x1 = t;
-    coeffs[0] = cubic_convolution2(x1 + 1.0, A);
-    coeffs[1] = cubic_convolution1(x1, A);
-
-    // opposite coefficients
-    float x2 = 1.0 - t;
-    coeffs[2] = cubic_convolution1(x2, A);
-    coeffs[3] = cubic_convolution2(x2 + 1.0, A);
-}
-
-static float cubic_interp1d(float x0, float x1, float x2, float x3, float t)
-{
-    float coeffs[4];
-    get_cubic_upsample_coefficients(coeffs, t);
-
-    return x0 * coeffs[0] + x1 * coeffs[1] + x2 * coeffs[2] + x3 * coeffs[3];
+    coeffs[0] = A * fx0 * fx0 * fx0 - 5 * A * fx0 * fx0 + 8 * A * fx0 - 4 * A;
+    coeffs[1] = (A + 2) * fx1 * fx1 * fx1 - (A + 3) * fx1 * fx1 + 1;
+    coeffs[2] = (A + 2) * fx2 * fx2 * fx2 - (A + 3) * fx2 * fx2 + 1;
+    coeffs[3] = 1.f - coeffs[0] - coeffs[1] - coeffs[2];
 }
 
 int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -202,51 +166,53 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         top_blob.create(outw, outh, channels, elemsize, opt.blob_allocator);
         if (top_blob.empty())
             return -100;
+
         if (sample_type == 1) // bilinear
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
+                const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+
                 for (int y = 0; y < outh; y++)
                 {
+                    const float* gridptr = grid.channel(y);
+
                     for (int x = 0; x < outw; x++)
                     {
-                        const float* gridptr = grid.channel(y).row(x);
+                        float sample_x = gridptr[0];
+                        float sample_y = gridptr[1];
 
-                        // get the coordinate of every output point
-                        float ix = gridptr[0];
-                        float iy = gridptr[1];
+                        sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                        sample_y = grid_sample_unormalize(h, sample_y, align_corner);
 
-                        ix = get_coord(ix, w, padding_mode, align_corner);
-                        iy = get_coord(iy, h, padding_mode, align_corner);
+                        // bilinear interpolate
+                        float v;
+                        {
+                            int x0 = (int)floor(sample_x);
+                            int y0 = (int)floor(sample_y);
+                            int x1 = x0 + 1;
+                            int y1 = y0 + 1;
 
-                        // for 3d, we used north-east-south-west
-                        int xnw = static_cast<int>(floor(ix));
-                        int xne = xnw + 1;
-                        int xsw = xnw;
-                        int xse = xne;
+                            float v00 = get_value_bounded(image, x0, y0, padding_mode, align_corner);
+                            float v01 = get_value_bounded(image, x1, y0, padding_mode, align_corner);
+                            float v10 = get_value_bounded(image, x0, y1, padding_mode, align_corner);
+                            float v11 = get_value_bounded(image, x1, y1, padding_mode, align_corner);
 
-                        int ynw = static_cast<int>(floor(iy));
-                        int yne = ynw;
-                        int ysw = ynw + 1;
-                        int yse = ysw;
+                            float alpha = sample_x - x0;
+                            float beta = sample_y - y0;
 
-                        // get the coeff of every output point
-                        float fnw = (xse - ix) * (yse - iy);
-                        float fne = (ix - xsw) * (ysw - iy);
-                        float fsw = (xne - ix) * (iy - yne);
-                        float fse = (ix - xnw) * (iy - ynw);
+                            float v0 = v00 * (1 - alpha) + v01 * alpha;
+                            float v1 = v10 * (1 - alpha) + v11 * alpha;
 
-                        float coeffs[4] = {fnw, fne, fsw, fse};
+                            v = v0 * (1 - beta) + v1 * beta;
+                        }
 
-                        outptr[y * outw + x] = linear_interp1d(
-                                                   coeffs,
-                                                   get_value_bounded(ptr, xnw, ynw, w, h),
-                                                   get_value_bounded(ptr, xne, yne, w, h),
-                                                   get_value_bounded(ptr, xsw, ysw, w, h),
-                                                   get_value_bounded(ptr, xse, yse, w, h));
+                        outptr[0] = v;
+                        outptr += 1;
+
+                        gridptr += 2;
                     }
                 }
             }
@@ -256,25 +222,30 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
+                const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+
                 for (int y = 0; y < outh; y++)
                 {
+                    const float* gridptr = grid.channel(y);
+
                     for (int x = 0; x < outw; x++)
                     {
-                        const float* gridptr = grid.channel(y).row(x);
+                        float sample_x = gridptr[0];
+                        float sample_y = gridptr[1];
 
-                        // get the coordinate of every output point
-                        float ix = gridptr[0];
-                        float iy = gridptr[1];
+                        sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                        sample_y = grid_sample_unormalize(h, sample_y, align_corner);
 
-                        ix = get_coord(ix, w, padding_mode, align_corner);
-                        iy = get_coord(iy, h, padding_mode, align_corner);
+                        int x0 = static_cast<int>(round(sample_x));
+                        int y0 = static_cast<int>(round(sample_y));
 
-                        int inx = static_cast<int>(round(ix));
-                        int iny = static_cast<int>(round(iy));
+                        float v = get_value_bounded(image, x0, y0, padding_mode, align_corner);
 
-                        outptr[y * outw + x] = get_value_bounded(ptr, inx, iny, w, h);
+                        outptr[0] = v;
+                        outptr += 1;
+
+                        gridptr += 2;
                     }
                 }
             }
@@ -284,47 +255,67 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
+                const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+
                 for (int y = 0; y < outh; y++)
                 {
+                    const float* gridptr = grid.channel(y);
+
                     for (int x = 0; x < outw; x++)
                     {
-                        const float* gridptr = grid.channel(y).row(x);
+                        float sample_x = gridptr[0];
+                        float sample_y = gridptr[1];
 
-                        // get the coordinate of every output point
-                        float ix = gridptr[0];
-                        float iy = gridptr[1];
+                        sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                        sample_y = grid_sample_unormalize(h, sample_y, align_corner);
 
-                        ix = grid_sample_unormalize(w, ix, align_corner);
-                        iy = grid_sample_unormalize(h, iy, align_corner);
-
-                        float xnw = floor(ix);
-                        float ynw = floor(iy);
-
-                        const float tx = ix - xnw;
-                        const float ty = iy - ynw;
-
-                        float coefficients[4];
-
-                        // Interpolate 4 values in the x directon
-                        for (int i = 0; i < 4; i++)
+                        // bicubic interpolate
+                        float v;
                         {
-                            coefficients[i] = cubic_interp1d(
-                                                  get_value_bounded(ptr, xnw - 1, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                                  get_value_bounded(ptr, xnw + 0, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                                  get_value_bounded(ptr, xnw + 1, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                                  get_value_bounded(ptr, xnw + 2, ynw - 1 + i, w, h, padding_mode, align_corner),
-                                                  tx);
+                            int x1 = floor(sample_x);
+                            int y1 = floor(sample_y);
+                            int x0 = x1 - 1;
+                            int y0 = y1 - 1;
+                            int x2 = x1 + 1;
+                            int y2 = y1 + 1;
+                            int x3 = x1 + 2;
+                            int y3 = y1 + 2;
+
+                            float v00 = get_value_bounded(image, x0, y0, padding_mode, align_corner);
+                            float v01 = get_value_bounded(image, x1, y0, padding_mode, align_corner);
+                            float v02 = get_value_bounded(image, x2, y0, padding_mode, align_corner);
+                            float v03 = get_value_bounded(image, x3, y0, padding_mode, align_corner);
+                            float v10 = get_value_bounded(image, x0, y1, padding_mode, align_corner);
+                            float v11 = get_value_bounded(image, x1, y1, padding_mode, align_corner);
+                            float v12 = get_value_bounded(image, x2, y1, padding_mode, align_corner);
+                            float v13 = get_value_bounded(image, x3, y1, padding_mode, align_corner);
+                            float v20 = get_value_bounded(image, x0, y2, padding_mode, align_corner);
+                            float v21 = get_value_bounded(image, x1, y2, padding_mode, align_corner);
+                            float v22 = get_value_bounded(image, x2, y2, padding_mode, align_corner);
+                            float v23 = get_value_bounded(image, x3, y2, padding_mode, align_corner);
+                            float v30 = get_value_bounded(image, x0, y3, padding_mode, align_corner);
+                            float v31 = get_value_bounded(image, x1, y3, padding_mode, align_corner);
+                            float v32 = get_value_bounded(image, x2, y3, padding_mode, align_corner);
+                            float v33 = get_value_bounded(image, x3, y3, padding_mode, align_corner);
+
+                            float x_coeffs[4];
+                            float y_coeffs[4];
+                            interpolate_cubic(sample_x - x1, x_coeffs);
+                            interpolate_cubic(sample_y - y1, y_coeffs);
+
+                            float v0 = v00 * x_coeffs[0] + v01 * x_coeffs[1] + v02 * x_coeffs[2] + v03 * x_coeffs[3];
+                            float v1 = v10 * x_coeffs[0] + v11 * x_coeffs[1] + v12 * x_coeffs[2] + v13 * x_coeffs[3];
+                            float v2 = v20 * x_coeffs[0] + v21 * x_coeffs[1] + v22 * x_coeffs[2] + v23 * x_coeffs[3];
+                            float v3 = v30 * x_coeffs[0] + v31 * x_coeffs[1] + v32 * x_coeffs[2] + v33 * x_coeffs[3];
+
+                            v = v0 * y_coeffs[0] + v1 * y_coeffs[1] + v2 * y_coeffs[2] + v3 * y_coeffs[3];
                         }
 
-                        // Interpolate the 4 values in the y direction
-                        outptr[y * outw + x] = cubic_interp1d(
-                                                   coefficients[0],
-                                                   coefficients[1],
-                                                   coefficients[2],
-                                                   coefficients[3],
-                                                   ty);
+                        outptr[0] = v;
+                        outptr += 1;
+
+                        gridptr += 2;
                     }
                 }
             }
@@ -338,86 +329,71 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
         int outd = grid.c;
 
         top_blob.create(outw, outh, outd, channels, elemsize, opt.blob_allocator);
+        if (top_blob.empty())
+            return -100;
+
         if (sample_type == 1) // bilinear
         {
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
+                const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+
                 for (int z = 0; z < outd; z++)
                 {
+                    const float* gridptr = grid.channel(z);
+
                     for (int y = 0; y < outh; y++)
                     {
                         for (int x = 0; x < outw; x++)
                         {
-                            const float* gridptr = grid.channel(z).depth(y).row(x);
+                            float sample_x = gridptr[0];
+                            float sample_y = gridptr[1];
+                            float sample_z = gridptr[2];
 
-                            // get the coordinate of every output point
-                            float ix = gridptr[0];
-                            float iy = gridptr[1];
-                            float iz = gridptr[2];
+                            sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                            sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                            sample_z = grid_sample_unormalize(d, sample_z, align_corner);
 
-                            ix = get_coord(ix, w, padding_mode, align_corner);
-                            iy = get_coord(iy, h, padding_mode, align_corner);
-                            iz = get_coord(iz, d, padding_mode, align_corner);
+                            // bilinear interpolate
+                            float v;
+                            {
+                                int x0 = (int)floor(sample_x);
+                                int y0 = (int)floor(sample_y);
+                                int z0 = (int)floor(sample_z);
+                                int x1 = x0 + 1;
+                                int y1 = y0 + 1;
+                                int z1 = z0 + 1;
 
-                            // for 3d, we used north-east-south-west
-                            // for 4d, we add top-bottom
-                            int xtnw = static_cast<int>(floor(ix));
-                            int ytnw = static_cast<int>(floor(iy));
-                            int ztnw = static_cast<int>(floor(iz));
+                                float v000 = get_value_bounded(image, x0, y0, z0, padding_mode, align_corner);
+                                float v001 = get_value_bounded(image, x1, y0, z0, padding_mode, align_corner);
+                                float v010 = get_value_bounded(image, x0, y1, z0, padding_mode, align_corner);
+                                float v011 = get_value_bounded(image, x1, y1, z0, padding_mode, align_corner);
+                                float v100 = get_value_bounded(image, x0, y0, z1, padding_mode, align_corner);
+                                float v101 = get_value_bounded(image, x1, y0, z1, padding_mode, align_corner);
+                                float v110 = get_value_bounded(image, x0, y1, z1, padding_mode, align_corner);
+                                float v111 = get_value_bounded(image, x1, y1, z1, padding_mode, align_corner);
 
-                            int xtne = xtnw + 1;
-                            int ytne = ytnw;
-                            int ztne = ztnw;
+                                float alpha = sample_x - x0;
+                                float beta = sample_y - y0;
+                                float gamma = sample_z - z0;
 
-                            int xtsw = xtnw;
-                            int ytsw = ytnw + 1;
-                            int ztsw = ztnw;
+                                float v00 = v000 * (1 - alpha) + v001 * alpha;
+                                float v01 = v010 * (1 - alpha) + v011 * alpha;
+                                float v10 = v100 * (1 - alpha) + v101 * alpha;
+                                float v11 = v110 * (1 - alpha) + v111 * alpha;
 
-                            int xtse = xtnw + 1;
-                            int ytse = ytnw + 1;
-                            int ztse = ztnw;
+                                float v0 = v00 * (1 - beta) + v01 * beta;
+                                float v1 = v10 * (1 - beta) + v11 * beta;
 
-                            int xbnw = xtnw;
-                            int ybnw = ytnw;
-                            int zbnw = ztnw + 1;
+                                v = v0 * (1 - gamma) + v1 * gamma;
+                            }
 
-                            int xbne = xtnw + 1;
-                            int ybne = ytnw;
-                            int zbne = ztnw + 1;
+                            outptr[0] = v;
+                            outptr += 1;
 
-                            int xbsw = xtnw;
-                            int ybsw = ytnw + 1;
-                            int zbsw = ztnw + 1;
-
-                            int xbse = xtnw + 1;
-                            int ybse = ytnw + 1;
-                            int zbse = ztnw + 1;
-
-                            // get surfaces to each neighbor:
-                            float ftnw = (xbse - ix) * (ybse - iy) * (zbse - iz);
-                            float ftne = (ix - xbsw) * (ybsw - iy) * (zbsw - iz);
-                            float ftsw = (xbne - ix) * (iy - ybne) * (zbne - iz);
-                            float ftse = (ix - xbnw) * (iy - ybnw) * (zbnw - iz);
-                            float fbnw = (xtse - ix) * (ytse - iy) * (iz - ztse);
-                            float fbne = (ix - xtsw) * (ytsw - iy) * (iz - ztsw);
-                            float fbsw = (xtne - ix) * (iy - ytne) * (iz - ztne);
-                            float fbse = (ix - xtnw) * (iy - ytnw) * (iz - ztnw);
-
-                            float coeffs[8] = {ftnw, ftne, ftsw, ftse, fbnw, fbne, fbsw, fbse};
-
-                            outptr[z * outh * outw + y * outw + x] = linear_interp3d(
-                                        coeffs,
-                                        get_value_bounded(ptr, xtnw, ytnw, ztnw, w, h, d),
-                                        get_value_bounded(ptr, xtne, ytne, ztne, w, h, d),
-                                        get_value_bounded(ptr, xtsw, ytsw, ztsw, w, h, d),
-                                        get_value_bounded(ptr, xtse, ytse, ztse, w, h, d),
-                                        get_value_bounded(ptr, xbnw, ybnw, zbnw, w, h, d),
-                                        get_value_bounded(ptr, xbne, ybne, zbne, w, h, d),
-                                        get_value_bounded(ptr, xbsw, ybsw, zbsw, w, h, d),
-                                        get_value_bounded(ptr, xbse, ybse, zbse, w, h, d));
+                            gridptr += 3;
                         }
                     }
                 }
@@ -428,30 +404,35 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
             #pragma omp parallel for num_threads(opt.num_threads)
             for (int q = 0; q < channels; q++)
             {
-                const float* ptr = bottom_blob.channel(q);
+                const Mat image = bottom_blob.channel(q);
                 float* outptr = top_blob.channel(q);
+
                 for (int z = 0; z < outd; z++)
                 {
+                    const float* gridptr = grid.channel(z);
+
                     for (int y = 0; y < outh; y++)
                     {
                         for (int x = 0; x < outw; x++)
                         {
-                            const float* gridptr = grid.channel(z).depth(y).row(x);
+                            float sample_x = gridptr[0];
+                            float sample_y = gridptr[1];
+                            float sample_z = gridptr[2];
 
-                            // get the coordinate of every output point
-                            float ix = gridptr[0];
-                            float iy = gridptr[1];
-                            float iz = gridptr[2];
+                            sample_x = grid_sample_unormalize(w, sample_x, align_corner);
+                            sample_y = grid_sample_unormalize(h, sample_y, align_corner);
+                            sample_z = grid_sample_unormalize(d, sample_z, align_corner);
 
-                            ix = get_coord(ix, w, padding_mode, align_corner);
-                            iy = get_coord(iy, h, padding_mode, align_corner);
-                            iz = get_coord(iz, d, padding_mode, align_corner);
+                            int x0 = static_cast<int>(round(sample_x));
+                            int y0 = static_cast<int>(round(sample_y));
+                            int z0 = static_cast<int>(round(sample_z));
 
-                            int inx = static_cast<int>(round(ix));
-                            int iny = static_cast<int>(round(iy));
-                            int inz = static_cast<int>(round(iz));
+                            float v = get_value_bounded(image, x0, y0, z0, padding_mode, align_corner);
 
-                            outptr[z * outh * outw + y * outw + x] = get_value_bounded(ptr, inx, iny, inz, w, h, z);
+                            outptr[0] = v;
+                            outptr += 1;
+
+                            gridptr += 3;
                         }
                     }
                 }

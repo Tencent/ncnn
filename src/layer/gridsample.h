@@ -12,8 +12,8 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#ifndef GRIDSAMPLE_H
-#define GRIDSAMPLE_H
+#ifndef LAYER_GRIDSAMPLE_H
+#define LAYER_GRIDSAMPLE_H
 
 #include "layer.h"
 
@@ -37,4 +37,4 @@ public:
 
 } // namespace ncnn
 
-#endif
+#endif // LAYER_GRIDSAMPLE_H
