@@ -100,6 +100,11 @@ NCNN_EXPORT int cpu_support_x86_avx512_bf16();
 // avx512_fp16 = x86 avx512 fp16
 NCNN_EXPORT int cpu_support_x86_avx512_fp16();
 
+// lsx = loongarch lsx
+NCNN_EXPORT int cpu_support_loongarch_lsx();
+// lasx = loongarch lasx
+NCNN_EXPORT int cpu_support_loongarch_lasx();
+
 // msa = mips mas
 NCNN_EXPORT int cpu_support_mips_msa();
 // mmi = loongson mmi
