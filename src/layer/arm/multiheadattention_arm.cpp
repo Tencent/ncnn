@@ -40,7 +40,8 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     size_t elemsize = q_blob.elemsize;
     int elempack = q_blob.elempack;
 
-    const int seqlen = q_blob.h;
+    const int src_seqlen = q_blob.h;
+    const int dst_seqlen = k_blob.h;
     const int embed_dim_per_head = embed_dim / num_head;
     const float inv_sqrt_embed_dim_per_head = 1.f / sqrt(embed_dim_per_head);
 
@@ -48,17 +49,17 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     if (elempack == 4)
     {
         Mat& top_blob = top_blobs[0];
-        top_blob.create(embed_dim, seqlen, elemsize, elempack, opt.blob_allocator);
+        top_blob.create(embed_dim, src_seqlen, elemsize, elempack, opt.blob_allocator);
         if (top_blob.empty())
             return -1;
 
-        Mat xq(embed_dim_per_head, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
-        Mat xk(embed_dim_per_head, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
-        Mat xv(seqlen, embed_dim_per_head, num_head, elemsize, elempack, opt.workspace_allocator);
+        Mat xq(embed_dim_per_head, src_seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
+        Mat xk(embed_dim_per_head, dst_seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
+        Mat xv(dst_seqlen, embed_dim_per_head, num_head, elemsize, elempack, opt.workspace_allocator);
 
-        Mat xqk(seqlen * elempack, seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
+        Mat xqk(dst_seqlen * elempack, src_seqlen, num_head, elemsize, elempack, opt.workspace_allocator);
 
-        Mat xqkv(embed_dim_per_head, num_head, seqlen, elemsize, elempack, opt.workspace_allocator);
+        Mat xqkv(embed_dim_per_head, num_head, src_seqlen, elemsize, elempack, opt.workspace_allocator);
 
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int q = 0; q < num_head; q++)
@@ -67,7 +68,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             {
                 Mat outm = xq.channel(q);
 
-                for (int i = 0; i < seqlen; i++)
+                for (int i = 0; i < src_seqlen; i++)
                 {
                     float* outptr = outm.row(i);
 
@@ -99,17 +100,17 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             {
                 Mat outm = xk.channel(q);
 
-                for (int i = 0; i < seqlen; i++)
+                for (int i = 0; i < dst_seqlen; i++)
                 {
                     float* outptr = outm.row(i);
 
                     for (int j = 0; j < embed_dim_per_head; j++)
                     {
                         const float* ptr = k_blob.row(i);
-                        const float* kptr = (const float*)k_weight_data + embed_dim * (q * embed_dim_per_head + j);
+                        const float* kptr = (const float*)k_weight_data + kdim * (q * embed_dim_per_head + j);
 
                         float32x4_t _sum = vdupq_n_f32(k_bias_data[q * embed_dim_per_head + j]);
-                        for (int k = 0; k < embed_dim; k++)
+                        for (int k = 0; k < kdim; k++)
                         {
                             float32x4_t _val = vld1q_f32(ptr);
                             float32x4_t _k = vdupq_n_f32(kptr[0]);
@@ -132,13 +133,13 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                 {
                     float* outptr = outm.row(i);
 
-                    for (int j = 0; j < seqlen; j++)
+                    for (int j = 0; j < dst_seqlen; j++)
                     {
                         const float* ptr = v_blob.row(j);
-                        const float* kptr = (const float*)v_weight_data + embed_dim * (q * embed_dim_per_head + i);
+                        const float* kptr = (const float*)v_weight_data + vdim * (q * embed_dim_per_head + i);
 
                         float32x4_t _sum = vdupq_n_f32(v_bias_data[q * embed_dim_per_head + i]);
-                        for (int k = 0; k < embed_dim; k++)
+                        for (int k = 0; k < vdim; k++)
                         {
                             float32x4_t _val = vld1q_f32(ptr);
                             float32x4_t _k = vdupq_n_f32(kptr[0]);
@@ -154,8 +155,8 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             }
 
             // xqk = xq * xk
-            // xq  (embed_dim_per_head, seqlen)
-            // xk  (embed_dim_per_head, seqlen)
+            // xq  (embed_dim_per_head, src_seqlen)
+            // xk  (embed_dim_per_head, dst_seqlen)
             {
                 const Mat xqm = xq.channel(q);
                 const Mat xkm = xk.channel(q);
@@ -165,11 +166,11 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                 Mat upxkm;
                 convert_packing(xkm, upxkm, 1);
 
-                for (int i = 0; i < seqlen; i++)
+                for (int i = 0; i < src_seqlen; i++)
                 {
                     float* outptr = outm.row(i);
 
-                    for (int j = 0; j < seqlen * elempack; j++)
+                    for (int j = 0; j < dst_seqlen * elempack; j++)
                     {
                         const float* qptr = xqm.row(i);
                         const float* kptr = upxkm.row(j);
@@ -193,19 +194,19 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             // softmax(xqk)
             {
                 Mat outm = xqk.channel(q);
-                for (int i = 0; i < seqlen; i++)
+                for (int i = 0; i < src_seqlen; i++)
                 {
                     float* ptr = outm.row(i);
 
                     float32x4_t _max = vdupq_n_f32(-FLT_MAX);
-                    for (int j = 0; j < seqlen * elempack; j++)
+                    for (int j = 0; j < dst_seqlen * elempack; j++)
                     {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
                         _max = vmaxq_f32(_max, _p);
                     }
 
                     float32x4_t _sum = vdupq_n_f32(0.f);
-                    for (int j = 0; j < seqlen * elempack; j++)
+                    for (int j = 0; j < dst_seqlen * elempack; j++)
                     {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
                         _p = exp_ps(vsubq_f32(_p, _max));
@@ -213,7 +214,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                         _sum = vaddq_f32(_sum, _p);
                     }
 
-                    for (int j = 0; j < seqlen * elempack; j++)
+                    for (int j = 0; j < dst_seqlen * elempack; j++)
                     {
                         float32x4_t _p = vld1q_f32(ptr + j * 4);
 #if __aarch64__
@@ -227,14 +228,14 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
             }
 
             // xqkv = xqk * xv
-            // xqk (seqlen, seqlen)
-            // xv  (seqlen, embed_dim_per_head)
-            // out (embed_dim_per_head, num_head, seqlen)
+            // xqk (dst_seqlen, src_seqlen)
+            // xv  (dst_seqlen, embed_dim_per_head)
+            // out (embed_dim_per_head, num_head, src_seqlen)
             {
                 const Mat xqkm = xqk.channel(q);
                 const Mat xvm = xv.channel(q);
 
-                for (int i = 0; i < seqlen; i++)
+                for (int i = 0; i < src_seqlen; i++)
                 {
                     float* outptr = xqkv.channel(i).row(q);
 
@@ -244,7 +245,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
                         const float* vptr = xvm.row(j);
 
                         float32x4_t _sum = vdupq_n_f32(0.f);
-                        for (int k = 0; k < seqlen * elempack; k++)
+                        for (int k = 0; k < dst_seqlen * elempack; k++)
                         {
                             float32x4_t _qk = vld1q_f32(qkptr);
                             float32x4_t _v = vdupq_n_f32(vptr[0]);
@@ -261,9 +262,9 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
         }
 
         // out = affine(xqkv)
-        // xqkv  (embed_dim, seqlen)
+        // xqkv  (embed_dim, src_seqlen)
         #pragma omp parallel for num_threads(opt.num_threads)
-        for (int i = 0; i < seqlen; i++)
+        for (int i = 0; i < src_seqlen; i++)
         {
             float* outptr = top_blob.row(i);
 

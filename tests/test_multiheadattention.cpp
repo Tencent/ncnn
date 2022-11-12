@@ -15,9 +15,9 @@
 #include "layer/multiheadattention.h"
 #include "testutil.h"
 
-static int test_multiheadattention(const ncnn::Mat& a, int num_heads)
+static int test_multiheadattention(const ncnn::Mat& q, const ncnn::Mat& k, const ncnn::Mat& v, int num_heads, int kdim, int vdim)
 {
-    int embed_dim = a.w;
+    int embed_dim = q.w;
 
     ncnn::ParamDict pd;
     pd.set(0, embed_dim);
@@ -27,22 +27,22 @@ static int test_multiheadattention(const ncnn::Mat& a, int num_heads)
     std::vector<ncnn::Mat> weights(8);
     weights[0] = RandomMat(embed_dim * embed_dim);
     weights[1] = RandomMat(embed_dim);
-    weights[2] = RandomMat(embed_dim * embed_dim);
+    weights[2] = RandomMat(embed_dim * kdim);
     weights[3] = RandomMat(embed_dim);
-    weights[4] = RandomMat(embed_dim * embed_dim);
+    weights[4] = RandomMat(embed_dim * vdim);
     weights[5] = RandomMat(embed_dim);
     weights[6] = RandomMat(embed_dim * embed_dim);
     weights[7] = RandomMat(embed_dim);
 
     std::vector<ncnn::Mat> as(3);
-    as[0] = a;
-    as[1] = a;
-    as[2] = a;
+    as[0] = q;
+    as[1] = k;
+    as[2] = v;
 
     int ret = test_layer<ncnn::MultiHeadAttention>("MultiHeadAttention", pd, weights, as);
     if (ret != 0)
     {
-        fprintf(stderr, "test_multiheadattention failed a=(%d %d)\n", a.w, a.h);
+        fprintf(stderr, "test_multiheadattention failed q=(%d %d) k=(%d %d) v=(%d %d)\n", q.w, q.h, k.w, k.h, v.w, v.h);
     }
 
     return ret;
@@ -82,8 +82,10 @@ static int test_multiheadattention_sameqkv(const ncnn::Mat& a, int num_heads)
 static int test_multiheadattention_0()
 {
     return 0
-           || test_multiheadattention(RandomMat(64, 128), 4)
-           || test_multiheadattention(RandomMat(64, 127), 16);
+           || test_multiheadattention(RandomMat(64, 128), RandomMat(64, 128), RandomMat(64, 128), 4, 64, 64)
+           || test_multiheadattention(RandomMat(64, 127), RandomMat(64, 127), RandomMat(64, 127), 16, 64, 64)
+           || test_multiheadattention(RandomMat(16, 128), RandomMat(16, 44), RandomMat(16, 55), 2, 44, 55)
+           || test_multiheadattention(RandomMat(12, 17), RandomMat(12, 28), RandomMat(12, 32), 3, 28, 32);
 }
 
 static int test_multiheadattention_1()

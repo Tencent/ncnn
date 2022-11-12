@@ -1132,14 +1132,16 @@ y = affine(out)
 | 0         | embed_dim     | int   | 0         |                   |
 | 1         | num_head      | int   | 1         |                   |
 | 2         | weight_data_size| int | 0         |                   |
+| 3         | kdim          | int   | embed_dim |                   |
+| 4         | vdim          | int   | embed_dim |                   |
 
 | weight        | type  | shape                 |
 | ------------- | ----- | --------------------- |
 | q_weight_data | float/fp16/int8 | [weight_data_size] |
 | q_bias_data   | float | [embed_dim]           |
-| k_weight_data | float/fp16/int8 | [weight_data_size] |
+| k_weight_data | float/fp16/int8 | [embed_dim * kdim] |
 | k_bias_data   | float | [embed_dim]           |
-| v_weight_data | float/fp16/int8 | [weight_data_size] |
+| v_weight_data | float/fp16/int8 | [embed_dim * vdim] |
 | v_bias_data   | float | [embed_dim]           |
 | out_weight_data| float/fp16/int8 | [weight_data_size] |
 | out_bias_data | float | [embed_dim]           |
