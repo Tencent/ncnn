@@ -84,8 +84,10 @@ static int test_multiheadattention_0()
     return 0
            || test_multiheadattention(RandomMat(64, 128), RandomMat(64, 128), RandomMat(64, 128), 4, 64, 64)
            || test_multiheadattention(RandomMat(64, 127), RandomMat(64, 127), RandomMat(64, 127), 16, 64, 64)
-           || test_multiheadattention(RandomMat(16, 128), RandomMat(16, 44), RandomMat(16, 55), 2, 44, 55)
-           || test_multiheadattention(RandomMat(12, 17), RandomMat(12, 28), RandomMat(12, 32), 3, 28, 32);
+           || test_multiheadattention(RandomMat(16, 128), RandomMat(44, 128), RandomMat(55, 128), 2, 44, 55)
+           || test_multiheadattention(RandomMat(16, 128), RandomMat(44, 127), RandomMat(55, 127), 4, 44, 55)
+           || test_multiheadattention(RandomMat(12, 17), RandomMat(28, 127), RandomMat(32, 127), 3, 28, 32)
+           || test_multiheadattention(RandomMat(12, 17), RandomMat(28, 32), RandomMat(11, 32), 3, 28, 11);
 }
 
 static int test_multiheadattention_1()
