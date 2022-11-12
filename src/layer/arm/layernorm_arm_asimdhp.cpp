@@ -2363,7 +2363,6 @@ int LayerNorm_arm::forward_inplace_fp16sa(Mat& bottom_top_blob, const Option& op
     int elempack = bottom_top_blob.elempack;
     int elembits = bottom_top_blob.elembits();
 
-    // inplace操作，所以输入是什么pack，输出就是什么pack，有1，4，8要处理
     if (elempack == 8)
     {
         return forward_inplace_pack8_fp16sa(bottom_top_blob, opt);
