@@ -77,6 +77,8 @@ class Model(nn.Module):
         return x0, x0w, x1, x1w, x2, x2w, x3, x4, x4w, x5, x5w, x6, x6w, y0, y0w, y1, y1w, y2, y2w, y3, y4, y4w, y5, y5w, y6, y6w
 
 def test():
+    torch.set_grad_enabled(False)
+
     net = Model()
     net.eval()
 

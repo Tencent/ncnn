@@ -46,6 +46,8 @@ class Model(nn.Module):
         return x0, x1, y0, y1
 
 def test():
+    torch.set_grad_enabled(False)
+
     net = Model().half().float()
     net.eval()
 
