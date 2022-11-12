@@ -73,11 +73,31 @@ public:
             op->params["add_zero_attn"] = false;
         }
 
-        const auto& in_proj_weight = mod.attr("in_proj_weight").toTensor();
+        if (mod.hasattr("in_proj_weight"))
+        {
+            const auto& in_proj_weight = mod.attr("in_proj_weight").toTensor();
+
+            op->params["embed_dim"] = in_proj_weight.size(1);
+            op->params["kdim"] = in_proj_weight.size(1);
+            op->params["vdim"] = in_proj_weight.size(1);
+            op->attrs["in_proj_weight"] = in_proj_weight;
+        }
+        else
+        {
+            const auto& q_proj_weight = mod.attr("q_proj_weight").toTensor();
+            const auto& k_proj_weight = mod.attr("k_proj_weight").toTensor();
+            const auto& v_proj_weight = mod.attr("v_proj_weight").toTensor();
+
+            op->params["embed_dim"] = q_proj_weight.size(1);
+            op->params["kdim"] = k_proj_weight.size(1);
+            op->params["vdim"] = v_proj_weight.size(1);
+            op->attrs["q_proj_weight"] = q_proj_weight;
+            op->attrs["k_proj_weight"] = k_proj_weight;
+            op->attrs["v_proj_weight"] = v_proj_weight;
+        }
+
         const auto& out_proj_weight = mod.attr("out_proj").toModule().attr("weight").toTensor();
 
-        op->params["embed_dim"] = in_proj_weight.size(1);
-        op->attrs["in_proj_weight"] = in_proj_weight;
         op->attrs["out_proj.weight"] = out_proj_weight;
 
         if (mod.hasattr("in_proj_bias") && mod.attr("out_proj").toModule().hasattr("bias"))
