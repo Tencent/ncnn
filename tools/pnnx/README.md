@@ -62,13 +62,15 @@ mod.save("resnet18.pt")
 pnnx resnet18.pt inputshape=[1,3,224,224]
 ```
 
-Normally, you will get six files
+Normally, you will get seven files
 
 ```resnet18.pnnx.param``` PNNX graph definition
 
 ```resnet18.pnnx.bin``` PNNX model weight
 
 ```resnet18_pnnx.py``` PyTorch script for inference, the python code for model construction and weight initialization
+
+```resnet18.pnnx.onnx``` PNNX model in onnx format
 
 ```resnet18.ncnn.param``` ncnn graph definition
 
@@ -87,6 +89,7 @@ Usage: pnnx [model.pt] [(key=value)...]
   pnnxparam=model.pnnx.param
   pnnxbin=model.pnnx.bin
   pnnxpy=model_pnnx.py
+  pnnxonnx=model.pnnx.onnx
   ncnnparam=model.ncnn.param
   ncnnbin=model.ncnn.bin
   ncnnpy=model_ncnn.py
@@ -107,6 +110,8 @@ Parameters:
 `pnnxbin` (default="*.pnnx.bin"): PNNX model weight
 
 `pnnxpy` (default="*_pnnx.py"): PyTorch script for inference, including model construction and weight initialization code
+
+`pnnxonnx` (default="*.pnnx.onnx"): PNNX model in onnx format
 
 `ncnnparam` (default="*.ncnn.param"): ncnn graph definition
 
@@ -484,10 +489,11 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Embedding               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.EmbeddingBag            |   |
 |nn.Flatten                 | :heavy_check_mark: |
-|nn.Fold                    |   |
+|nn.Fold                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.FractionalMaxPool2d     |   |
 |nn.FractionalMaxPool3d     |   |
 |nn.GELU                    | :heavy_check_mark: | :heavy_check_mark: |
+|nn.GLU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GroupNorm               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRU                     | :heavy_check_mark: | :heavy_check_mark: |
 |nn.GRUCell                 |   |
@@ -546,7 +552,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.Sigmoid                 | :heavy_check_mark: | :heavy_check_mark: |
 |nn.SiLU                    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmax                 | :heavy_check_mark: | :heavy_check_mark: |
-|nn.Softmax2d               |   |
+|nn.Softmax2d               | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Softmin                 | :heavy_check_mark: |
 |nn.Softplus                | :heavy_check_mark: |
 |nn.Softshrink              | :heavy_check_mark: |
@@ -561,7 +567,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |nn.TransformerEncoder      |   |
 |nn.TransformerEncoderLayer |   |
 |nn.Unflatten               |   |
-|nn.Unfold                  |   |
+|nn.Unfold                  | :heavy_check_mark: | :heavy_check_mark: |
 |nn.Upsample                | :heavy_check_mark: | :heavy_check_mark: |
 |nn.UpsamplingBilinear2d    | :heavy_check_mark: | :heavy_check_mark: |
 |nn.UpsamplingNearest2d     | :heavy_check_mark: | :heavy_check_mark: |
@@ -599,12 +605,12 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.embedding                | :heavy_check_mark: | :heavy_check_mark: |
 |F.embedding_bag            |  |
 |F.feature_alpha_dropout    | :heavy_check_mark: | :heavy_check_mark: |
-|F.fold                     |  |
+|F.fold                     | :heavy_check_mark: | :heavy_check_mark: |
 |F.fractional_max_pool2d    |  |
 |F.fractional_max_pool3d    |  |
 |F.gelu                     | :heavy_check_mark: | :heavy_check_mark: |
-|F.glu                      |  |
-|F.grid_sample              | :heavy_check_mark: |
+|F.glu                      | :heavy_check_mark: | :heavy_check_mark: |
+|F.grid_sample              | :heavy_check_mark: | :heavy_check_mark: |
 |F.group_norm               | :heavy_check_mark: | :heavy_check_mark: |
 |F.gumbel_softmax           |  |
 |F.hardshrink               | :heavy_check_mark: |
@@ -655,7 +661,7 @@ TORCH_LIBRARY(upfirdn2d_op, m) {
 |F.tanhshrink               | :heavy_check_mark: |
 |F.threshold                | :heavy_check_mark: |
 |F.threshold_               | :heavy_check_mark: |
-|F.unfold                   |  |
+|F.unfold                   | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample                 | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_bilinear        | :heavy_check_mark: | :heavy_check_mark: |
 |F.upsample_nearest         | :heavy_check_mark: | :heavy_check_mark: |

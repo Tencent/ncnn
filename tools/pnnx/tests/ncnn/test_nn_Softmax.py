@@ -23,12 +23,14 @@ class Model(nn.Module):
         self.act_0 = nn.Softmax(dim=0)
         self.act_1 = nn.Softmax(dim=1)
         self.act_2 = nn.Softmax(dim=2)
+        self.act_3 = nn.Softmax(dim=-1)
 
     def forward(self, x, y, z):
         x = self.act_0(x)
         y = self.act_1(y)
         z = self.act_2(z)
-        return x, y, z
+        z2 = self.act_3(z)
+        return x, y, z, z2
 
 def test():
     net = Model()

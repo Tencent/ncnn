@@ -1,6 +1,10 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
+<<<<<<< HEAD
 // Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
+=======
+// Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
+>>>>>>> master
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -13,7 +17,10 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pass_ncnn.h"
+<<<<<<< HEAD
 #include <iostream>
+=======
+>>>>>>> master
 
 namespace pnnx {
 
@@ -26,10 +33,17 @@ public:
     {
         return R"PNNXIR(7767517
 4 3
+<<<<<<< HEAD
 pnnx.Input              input_0     0 1 input0
 pnnx.Input              input_1     0 1 input1
 F.grid_sample           op_0        2 1 input0 input1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
 pnnx.Output             output      1 0 out
+=======
+pnnx.Input              input_0       0 1 input0
+pnnx.Input              input_1       0 1 input1
+F.grid_sample           op_0          2 1 input0 input1 out mode=%mode padding_mode=%padding_mode align_corners=%align_corners
+pnnx.Output             output        1 0 out
+>>>>>>> master
 )PNNXIR";
     }
 
@@ -40,14 +54,21 @@ pnnx.Output             output      1 0 out
 
     const char* name_str() const
     {
+<<<<<<< HEAD
         return "grid_sample";
+=======
+        return "gridsample";
+>>>>>>> master
     }
 
     void write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
     {
         const std::string& mode = captured_params.at("mode").s;
+<<<<<<< HEAD
         const std::string& padding_mode = captured_params.at("padding_mode").s;
 
+=======
+>>>>>>> master
         if (mode == "bilinear")
             op->params["0"] = 1;
         if (mode == "nearest")
@@ -55,6 +76,10 @@ pnnx.Output             output      1 0 out
         if (mode == "bicubic")
             op->params["0"] = 3;
 
+<<<<<<< HEAD
+=======
+        const std::string& padding_mode = captured_params.at("padding_mode").s;
+>>>>>>> master
         if (padding_mode == "zeros")
             op->params["1"] = 1;
         if (padding_mode == "border")
@@ -62,11 +87,19 @@ pnnx.Output             output      1 0 out
         if (padding_mode == "reflection")
             op->params["1"] = 3;
 
+<<<<<<< HEAD
         op->params["3"] = captured_params.at("align_corners").b ? 1 : 0; // align_corners
+=======
+        op->params["2"] = captured_params.at("align_corners").b ? 1 : 0;
+>>>>>>> master
     }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(F_grid_sample, 20)
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
 } // namespace ncnn
 
 } // namespace pnnx

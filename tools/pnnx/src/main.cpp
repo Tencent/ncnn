@@ -39,6 +39,11 @@
 #include "pass_level5.h"
 
 #include "pass_ncnn.h"
+#include "save_ncnn.h"
+
+#if BUILD_PNNX2ONNX
+#include "save_onnx.h"
+#endif
 
 static std::string get_basename(const std::string& path)
 {
@@ -159,6 +164,7 @@ static void show_usage()
     fprintf(stderr, "  pnnxparam=model.pnnx.param\n");
     fprintf(stderr, "  pnnxbin=model.pnnx.bin\n");
     fprintf(stderr, "  pnnxpy=model_pnnx.py\n");
+    fprintf(stderr, "  pnnxonnx=model.pnnx.onnx\n");
     fprintf(stderr, "  ncnnparam=model.ncnn.param\n");
     fprintf(stderr, "  ncnnbin=model.ncnn.bin\n");
     fprintf(stderr, "  ncnnpy=model_ncnn.py\n");
@@ -200,6 +206,7 @@ int main(int argc, char** argv)
     std::string pnnxparampath = ptbase + ".pnnx.param";
     std::string pnnxbinpath = ptbase + ".pnnx.bin";
     std::string pnnxpypath = ptbase + "_pnnx.py";
+    std::string pnnxonnxpath = ptbase + ".pnnx.onnx";
     std::string ncnnparampath = ptbase + ".ncnn.param";
     std::string ncnnbinpath = ptbase + ".ncnn.bin";
     std::string ncnnpypath = ptbase + "_ncnn.py";
@@ -235,6 +242,8 @@ int main(int argc, char** argv)
             pnnxbinpath = std::string(value);
         if (strcmp(key, "pnnxpy") == 0)
             pnnxpypath = std::string(value);
+        if (strcmp(key, "pnnxonnx") == 0)
+            pnnxonnxpath = std::string(value);
         if (strcmp(key, "ncnnparam") == 0)
             ncnnparampath = std::string(value);
         if (strcmp(key, "ncnnbin") == 0)
@@ -260,6 +269,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "pnnxparam = %s\n", pnnxparampath.c_str());
         fprintf(stderr, "pnnxbin = %s\n", pnnxbinpath.c_str());
         fprintf(stderr, "pnnxpy = %s\n", pnnxpypath.c_str());
+        fprintf(stderr, "pnnxonnx = %s\n", pnnxonnxpath.c_str());
         fprintf(stderr, "ncnnparam = %s\n", ncnnparampath.c_str());
         fprintf(stderr, "ncnnbin = %s\n", ncnnbinpath.c_str());
         fprintf(stderr, "ncnnpy = %s\n", ncnnpypath.c_str());
@@ -327,7 +337,7 @@ int main(int argc, char** argv)
 
     try
     {
-        mod = torch::jit::load(ptpath);
+        mod = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
     }
     catch (const c10::Error& e)
     {
@@ -358,8 +368,9 @@ int main(int argc, char** argv)
 
     fprintf(stderr, "############# pass_level0\n");
 
-    std::map<std::string, pnnx::Attribute> foldable_constants;
-    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, foldable_constants);
+    std::set<std::string> foldable_constants;
+    std::string foldable_constants_zippath = ptbase + ".foldable_constants.zip";
+    pnnx::pass_level0(mod, g, input_tensors, input_tensors2, module_operators, ptpath, device, foldable_constants, foldable_constants_zippath);
 
     //     g->dump();
 
@@ -393,12 +404,21 @@ int main(int argc, char** argv)
     {
         fprintf(stderr, "############# pass_level5\n");
 
-        pnnx::pass_level5(pnnx_graph, foldable_constants);
+        pnnx::pass_level5(pnnx_graph, foldable_constants, foldable_constants_zippath);
     }
+
+    // delete foldable_constants_zippath
+    remove(foldable_constants_zippath.c_str());
 
     pnnx_graph.save(pnnxparampath, pnnxbinpath);
 
     pnnx_graph.python(pnnxpypath, pnnxbinpath);
+
+#if BUILD_PNNX2ONNX
+    pnnx::save_onnx(pnnx_graph, pnnxonnxpath.c_str());
+#else
+    fprintf(stderr, "pnnx build without onnx-zero support, skip saving onnx\n");
+#endif
 
     //     if (optlevel >= 2)
     {
@@ -406,7 +426,7 @@ int main(int argc, char** argv)
 
         pnnx::pass_ncnn(pnnx_graph);
 
-        pnnx_graph.ncnn(ncnnparampath, ncnnbinpath, ncnnpypath);
+        pnnx::save_ncnn(pnnx_graph, ncnnparampath, ncnnbinpath, ncnnpypath);
     }
 
     //     pnnx::Graph pnnx_graph2;

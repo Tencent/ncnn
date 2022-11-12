@@ -156,6 +156,12 @@ ncnn_add_layer(Deconvolution3D)
 ncnn_add_layer(DeconvolutionDepthWise3D)
 ncnn_add_layer(Einsum)
 ncnn_add_layer(DeformableConv2D)
+<<<<<<< HEAD
+=======
+ncnn_add_layer(GLU)
+ncnn_add_layer(Fold)
+ncnn_add_layer(Unfold)
+>>>>>>> master
 ncnn_add_layer(GridSample)
 
 if(NCNN_VULKAN)
@@ -455,6 +461,12 @@ if(NCNN_TARGET_ARCH STREQUAL "mips")
     endif()
     if(NOT NCNN_RUNTIME_CPU AND NCNN_MMI)
         target_compile_options(ncnn PRIVATE -mloongson-mmi)
+    endif()
+endif()
+
+if(NCNN_TARGET_ARCH STREQUAL "loongarch")
+    if(NOT NCNN_RUNTIME_CPU AND NCNN_LSX)
+        target_compile_options(ncnn PRIVATE -mlsx)
     endif()
 endif()
 

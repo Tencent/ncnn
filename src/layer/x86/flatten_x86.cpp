@@ -141,7 +141,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m512 _re = _mm512_loadu_ps(ptr + 16 * 14);
                     __m512 _rf = _mm512_loadu_ps(ptr + 16 * 15);
 
-                    transpose16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                    transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
                     _mm512_storeu_ps(outptr0, _r0);
                     _mm512_storeu_ps(outptr1, _r1);
@@ -230,7 +230,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m256 _row6 = _mm256_loadu_ps(ptr + 48);
                     __m256 _row7 = _mm256_loadu_ps(ptr + 56);
 
-                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                    transpose8x8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
 
                     _mm256_storeu_ps(outptr0, _row0);
                     _mm256_storeu_ps(outptr1, _row1);
@@ -362,7 +362,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m512 _re = _mm512_loadu_ps(ptr + 16 * 14);
                     __m512 _rf = _mm512_loadu_ps(ptr + 16 * 15);
 
-                    transpose16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                    transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
                     _mm512_storeu_ps(outptr0, _r0);
                     _mm512_storeu_ps(outptr1, _r1);
@@ -451,7 +451,7 @@ int Flatten_x86::forward(const Mat& bottom_blob, Mat& top_blob, const Option& op
                     __m256 _row6 = _mm256_loadu_ps(ptr + 48);
                     __m256 _row7 = _mm256_loadu_ps(ptr + 56);
 
-                    transpose8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
+                    transpose8x8_ps(_row0, _row1, _row2, _row3, _row4, _row5, _row6, _row7);
 
                     _mm256_storeu_ps(outptr0, _row0);
                     _mm256_storeu_ps(outptr1, _row1);

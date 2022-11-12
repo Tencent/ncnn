@@ -57,7 +57,7 @@ static void im2col_sgemm_pack8to16_avx512(const Mat& bottom_im2col, Mat& top_blo
                     __m256 _r6 = _mm256_load_ps(img0 + 8 * 6);
                     __m256 _r7 = _mm256_load_ps(img0 + 8 * 7);
 
-                    transpose8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
 
                     _mm256_store_ps(tmpptr, _r0);
                     _mm256_store_ps(tmpptr + 8, _r1);

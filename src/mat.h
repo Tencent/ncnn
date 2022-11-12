@@ -29,6 +29,9 @@
 #if __mips_msa
 #include <msa.h>
 #endif
+#if __loongarch_sx
+#include <lsxintrin.h>
+#endif
 #if __riscv_vector
 #include <riscv_vector.h>
 #include "cpu.h" // cpu_riscv_vlenb()
@@ -128,6 +131,9 @@ public:
 #if __mips_msa
     void fill(v4f32 _v);
 #endif // __mips_msa
+#if __loongarch_sx
+    void fill(__m128 _v);
+#endif //__loongarch_sx
 #if __riscv_vector
     void fill(vfloat32m1_t _v);
     void fill(vuint16m1_t _v);
@@ -1067,6 +1073,18 @@ NCNN_FORCEINLINE void Mat::fill(v4f32 _v)
 }
 #endif // __mips_msa
 
+#if __loongarch_sx
+NCNN_FORCEINLINE void Mat::fill(__m128 _v)
+{
+    int size = (int)total();
+    float* ptr = (float*)data;
+    for (int i = 0; i < size; i++)
+    {
+        __lsx_vst(_v, ptr, 0);
+        ptr += 4;
+    }
+}
+#endif // __loongarch_sx
 #if __riscv_vector
 NCNN_FORCEINLINE void Mat::fill(vfloat32m1_t _v)
 {

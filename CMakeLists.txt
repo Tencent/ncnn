@@ -290,6 +290,19 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(mips)")
     else()
         message(WARNING "The compiler does not support loongson mmi extension. NCNN_MMI will be OFF.")
     endif()
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch64|loongarch32)")
+    set(NCNN_TARGET_ARCH loongarch)
+
+    include(CheckCXXCompilerFlag)
+
+    check_cxx_compiler_flag("-mlsx" NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
+
+    if(NCNN_COMPILER_SUPPORT_LOONGARCH_LSX)
+        option(NCNN_LSX "optimize loongarch platform with lsx extension" ON)
+    else()
+        message(WARNING "The compiler does not support lsx extension. NCNN_LSX will be OFF.")
+    endif()
+
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     set(NCNN_TARGET_ARCH riscv)
 
@@ -332,8 +345,6 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(riscv)")
     endif()
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(powerpc|ppc)")
     set(NCNN_TARGET_ARCH powerpc)
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(loongarch)")
-    set(NCNN_TARGET_ARCH mips)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(xtensa)")
     set(NCNN_TARGET_ARCH xtensa)
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(s390x)")
