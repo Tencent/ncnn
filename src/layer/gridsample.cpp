@@ -17,7 +17,6 @@
 
 namespace ncnn {
 
-
 GridSample::GridSample()
 {
     one_blob_only = false;
