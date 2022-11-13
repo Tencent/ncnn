@@ -26,15 +26,6 @@ public:
 
     virtual int load_param(const ParamDict& pd);
 
-<<<<<<< HEAD
-    virtual int forward(const std::vector<Mat>& bottom_blob, std::vector<Mat>& top_blobs, const Option& opt) const;
-
-public:
-    // param
-    int mode;         //1 bilinear 2 nearest 3 bicubic
-    int padding_mode; //1 zeros 2 border 3 reflection
-    bool align_corners;
-=======
     virtual int forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const;
 
 public:
@@ -42,13 +33,8 @@ public:
     int sample_type;  // 1=bilinear  2=nearest  3=bicubic
     int padding_mode; // 1=zeros     2=border   3=reflection
     int align_corner;
->>>>>>> master
 };
 
 } // namespace ncnn
 
-<<<<<<< HEAD
-#endif // LAYER_UNARYOP_H
-=======
 #endif // LAYER_GRIDSAMPLE_H
->>>>>>> master
