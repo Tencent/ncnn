@@ -23,6 +23,8 @@ static int test_multiheadattention(const ncnn::Mat& q, const ncnn::Mat& k, const
     pd.set(0, embed_dim);
     pd.set(1, num_heads);
     pd.set(2, embed_dim * embed_dim);
+    pd.set(3, kdim);
+    pd.set(4, vdim);
 
     std::vector<ncnn::Mat> weights(8);
     weights[0] = RandomMat(embed_dim * embed_dim);
