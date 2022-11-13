@@ -142,7 +142,7 @@ public:
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
-nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
@@ -198,18 +198,60 @@ pnnx.Output             output      1 0 out
         op->params["3"] = kdim;
         op->params["4"] = vdim;
 
-        op->attrs["0"] = Attribute();
-        op->attrs["0"].data = {0, 0, 0, 0};
-        op->attrs["1"] = captured_attrs.at("op_0.q_proj_weight");
-        op->attrs["2"] = Attribute({embed_dim}, q_bias);
-        op->attrs["3"] = Attribute();
-        op->attrs["3"].data = {0, 0, 0, 0};
-        op->attrs["4"] = captured_attrs.at("op_0.k_proj_weight");
-        op->attrs["5"] = Attribute({embed_dim}, k_bias);
-        op->attrs["6"] = Attribute();
-        op->attrs["6"].data = {0, 0, 0, 0};
-        op->attrs["7"] = captured_attrs.at("op_0.v_proj_weight");
-        op->attrs["8"] = Attribute({embed_dim}, v_bias);
+        if (captured_attrs.find("op_0.in_proj_weight") != captured_attrs.end())
+        {
+            // split in_proj_weight and in_proj_bias into q k v
+            std::vector<float> q_weight(embed_dim * embed_dim);
+            std::vector<float> k_weight(embed_dim * kdim);
+            std::vector<float> v_weight(embed_dim * vdim);
+            {
+                // qkv - embed_dim - embed_dim
+                const float* wptr = (const float*)captured_attrs.at("op_0.in_proj_weight").data.data();
+
+                {
+                    memcpy(q_weight.data(), wptr, embed_dim * embed_dim * sizeof(float));
+                    wptr += embed_dim * embed_dim;
+                }
+
+                {
+                    memcpy(k_weight.data(), wptr, embed_dim * kdim * sizeof(float));
+                    wptr += embed_dim * kdim;
+                }
+
+                {
+                    memcpy(v_weight.data(), wptr, embed_dim * vdim * sizeof(float));
+                }
+            }
+
+            op->attrs["0"] = Attribute();
+            op->attrs["0"].data = {0, 0, 0, 0};
+            op->attrs["1"] = Attribute({embed_dim, embed_dim}, q_weight);
+            op->attrs["2"] = Attribute({embed_dim}, q_bias);
+            op->attrs["3"] = Attribute();
+            op->attrs["3"].data = {0, 0, 0, 0};
+            op->attrs["4"] = Attribute({embed_dim, kdim}, k_weight);
+            op->attrs["5"] = Attribute({embed_dim}, k_bias);
+            op->attrs["6"] = Attribute();
+            op->attrs["6"].data = {0, 0, 0, 0};
+            op->attrs["7"] = Attribute({embed_dim, vdim}, v_weight);
+            op->attrs["8"] = Attribute({embed_dim}, v_bias);
+        }
+        else
+        {
+            op->attrs["0"] = Attribute();
+            op->attrs["0"].data = {0, 0, 0, 0};
+            op->attrs["1"] = captured_attrs.at("op_0.q_proj_weight");
+            op->attrs["2"] = Attribute({embed_dim}, q_bias);
+            op->attrs["3"] = Attribute();
+            op->attrs["3"].data = {0, 0, 0, 0};
+            op->attrs["4"] = captured_attrs.at("op_0.k_proj_weight");
+            op->attrs["5"] = Attribute({embed_dim}, k_bias);
+            op->attrs["6"] = Attribute();
+            op->attrs["6"].data = {0, 0, 0, 0};
+            op->attrs["7"] = captured_attrs.at("op_0.v_proj_weight");
+            op->attrs["8"] = Attribute({embed_dim}, v_bias);
+        }
+
         op->attrs["9"] = Attribute();
         op->attrs["9"].data = {0, 0, 0, 0};
         op->attrs["a"] = captured_attrs.at("op_0.out_proj.weight");
@@ -229,13 +271,47 @@ public:
 pnnx.Input              input_0     0 1 query
 pnnx.Input              input_1     0 1 key
 pnnx.Input              input_2     0 1 value
-nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+nn.MultiheadAttention   op_0        3 1 query key value out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
 pnnx.Output             output      1 0 out
 )PNNXIR";
     }
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention_3, 20)
+
+class nn_MultiheadAttention_4 : public nn_MultiheadAttention_2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads batch_first=%batch_first add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention_4, 20)
+
+class nn_MultiheadAttention_5 : public nn_MultiheadAttention_2
+{
+public:
+    const char* match_pattern_graph() const
+    {
+        return R"PNNXIR(7767517
+4 3
+pnnx.Input              input_0     0 1 query
+pnnx.Input              input_1     0 1 key
+nn.MultiheadAttention   op_0        2 1 query key out num_heads=%num_heads add_zero_attn=%add_zero_attn embed_dim=%embed_dim kdim=%kdim vdim=%vdim bias=%bias add_bias_kv=%add_bias_kv @in_proj_weight @q_proj_weight @k_proj_weight @v_proj_weight @in_proj_bias @bias_k @bias_v @out_proj.weight @out_proj.bias
+pnnx.Output             output      1 0 out
+)PNNXIR";
+    }
+};
+
+REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_MultiheadAttention_5, 20)
 
 } // namespace ncnn
 

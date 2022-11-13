@@ -45,7 +45,7 @@ class Model(nn.Module):
     def forward(self, xq, xk, xv, z, yq, yk, yv):
         x0, x0w = self.attention_0_0(xq, xk, xv)
         x1, x1w = self.attention_0_1(xq, xk, xv)
-        x2, x2w = self.attention_0_2(xq, xk, xv)
+        x2, x2w = self.attention_0_2(xq, xk, xk)
 
         x3, _ = self.attention_0_3(z, z, z)
 
@@ -66,7 +66,7 @@ class Model(nn.Module):
 
         y0, y0w = self.attention_1_0(xq, xk, xv)
         y1, y1w = self.attention_1_1(xq, xk, xv)
-        y2, y2w = self.attention_1_2(xq, xk, xv)
+        y2, y2w = self.attention_1_2(xq, xk, xk)
 
         y3, _ = self.attention_1_3(z, z, z)
 

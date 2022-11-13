@@ -35,7 +35,7 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
 {
     const Mat& q_blob = bottom_blobs[0];
     const Mat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[2];
+    const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
 
     size_t src_elemsize = q_blob.elemsize;
     int src_elempack = q_blob.elempack;
@@ -331,7 +331,8 @@ int MultiHeadAttention_arm::forward(const std::vector<Mat>& bottom_blobs, std::v
     if (dst_elempack == 4)
     {
         convert_packing(bottom_blobs[1], bottom_blobs_unpacked[1], 1, opt);
-        convert_packing(bottom_blobs[2], bottom_blobs_unpacked[2], 1, opt);
+        if (bottom_blobs.size() == 3)
+            convert_packing(bottom_blobs[2], bottom_blobs_unpacked[2], 1, opt);
     }
     return MultiHeadAttention::forward(bottom_blobs_unpacked, top_blobs, opt);
 }

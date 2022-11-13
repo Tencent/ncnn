@@ -75,7 +75,7 @@ int MultiHeadAttention::forward(const std::vector<Mat>& bottom_blobs, std::vecto
 {
     const Mat& q_blob = bottom_blobs[0];
     const Mat& k_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[1];
-    const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs[2];
+    const Mat& v_blob = bottom_blobs.size() == 1 ? q_blob : bottom_blobs.size() == 2 ? k_blob : bottom_blobs[2];
 
     const int src_seqlen = q_blob.h;
     const int dst_seqlen = k_blob.h;
