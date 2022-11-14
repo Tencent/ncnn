@@ -198,6 +198,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_bitwise_and.cpp
     pass_level2/torch_bitwise_or.cpp
     pass_level2/torch_bitwise_xor.cpp
+    pass_level2/torch_bitwise_left_shift.cpp
+    pass_level2/torch_bitwise_right_shift.cpp
     pass_level2/torch_cat.cpp
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
