@@ -1134,7 +1134,7 @@ static std::string expand_expression(const Operator* op)
             std::string r = binaryop + "(" + a + ", " + b + ")";
             exprstack.push(r);
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "and" || t == "or" || t == "xor")
+        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
         {
             std::string binaryop;
             if (t == "add") binaryop = "+";
@@ -1145,6 +1145,8 @@ static std::string expand_expression(const Operator* op)
             if (t == "and") binaryop = "&";
             if (t == "or") binaryop = "|";
             if (t == "xor") binaryop = "^";
+            if (t == "lshift") binaryop = "<<";
+            if (t == "rshift") binaryop = ">>";
 
             std::string a = exprstack.top();
             exprstack.pop();
