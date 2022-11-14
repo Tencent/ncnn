@@ -33,7 +33,61 @@ extern const Attribute& get_operator_attr(const Operator* op, const char* key);
 extern const char* get_param_s(const Parameter& p);
 extern std::vector<const char*> get_param_as(const Parameter& p);
 
-int save_onnx(const Graph& g, const char* onnxpath)
+static unsigned short float32_to_float16(float value)
+{
+    // 1 : 8 : 23
+    union
+    {
+        unsigned int u;
+        float f;
+    } tmp;
+
+    tmp.f = value;
+
+    // 1 : 8 : 23
+    unsigned short sign = (tmp.u & 0x80000000) >> 31;
+    unsigned short exponent = (tmp.u & 0x7F800000) >> 23;
+    unsigned int significand = tmp.u & 0x7FFFFF;
+
+    //     NCNN_LOGE("%d %d %d", sign, exponent, significand);
+
+    // 1 : 5 : 10
+    unsigned short fp16;
+    if (exponent == 0)
+    {
+        // zero or denormal, always underflow
+        fp16 = (sign << 15) | (0x00 << 10) | 0x00;
+    }
+    else if (exponent == 0xFF)
+    {
+        // infinity or NaN
+        fp16 = (sign << 15) | (0x1F << 10) | (significand ? 0x200 : 0x00);
+    }
+    else
+    {
+        // normalized
+        short newexp = exponent + (-127 + 15);
+        if (newexp >= 31)
+        {
+            // overflow, return infinity
+            fp16 = (sign << 15) | (0x1F << 10) | 0x00;
+        }
+        else if (newexp <= 0)
+        {
+            // Some normal fp32 cannot be expressed as normal fp16
+            fp16 = (sign << 15) | (0x00 << 10) | 0x00;
+        }
+        else
+        {
+            // normal fp16
+            fp16 = (sign << 15) | (newexp << 10) | (significand >> 13);
+        }
+    }
+
+    return fp16;
+}
+
+int save_onnx(const Graph& g, const char* onnxpath, int fp16)
 {
     onnx::ModelProto model;
 
@@ -52,10 +106,10 @@ int save_onnx(const Graph& g, const char* onnxpath)
         switch (x->type)
         {
         case 1: // f32
-            tpt->set_elem_type(1);
+            tpt->set_elem_type(fp16 ? 10 : 1);
             break;
         case 2: // f64
-            tpt->set_elem_type(11);
+            tpt->set_elem_type(fp16 ? 10 : 11);
             break;
         case 3: // f16
             tpt->set_elem_type(10);
@@ -120,16 +174,12 @@ int save_onnx(const Graph& g, const char* onnxpath)
         }
 
         std::vector<const char*> params_keys = get_operator_params_keys(op);
-
-        // for (const auto& it : op->params)
         for (const char* param_name : params_keys)
         {
-            // const Parameter& param = it.second;
             const Parameter& param = get_operator_param(op, param_name);
 
             onnx::AttributeProto* ap = np->add_attribute();
 
-            // ap->set_name(get_param_name(it));
             ap->set_name(param_name);
 
             if (param.type == 0)
@@ -180,8 +230,6 @@ int save_onnx(const Graph& g, const char* onnxpath)
         }
 
         std::vector<const char*> attrs_keys = get_operator_attrs_keys(op);
-
-        // for (const auto& it : op->attrs)
         for (const char* attr_name : attrs_keys)
         {
             onnx::TensorProto* tp = gp->add_initializer();
@@ -190,7 +238,6 @@ int save_onnx(const Graph& g, const char* onnxpath)
 
             np->add_input(std::string(get_operator_name(op)) + "." + attr_name);
 
-            // const Attribute& attr = it.second;
             const Attribute& attr = get_operator_attr(op, attr_name);
             for (auto s : attr.shape)
             {
@@ -200,10 +247,10 @@ int save_onnx(const Graph& g, const char* onnxpath)
             switch (attr.type)
             {
             case 1: // f32
-                tp->set_data_type(1);
+                tp->set_data_type(fp16 ? 10 : 1);
                 break;
             case 2: // f64
-                tp->set_data_type(11);
+                tp->set_data_type(fp16 ? 10 : 11);
                 break;
             case 3: // f16
                 tp->set_data_type(10);
@@ -241,18 +288,36 @@ int save_onnx(const Graph& g, const char* onnxpath)
             }
 
             std::string* d = tp->mutable_raw_data();
-            d->resize(attr.data.size());
-            memcpy((void*)d->data(), attr.data.data(), attr.data.size());
+            if (fp16 && attr.type == 1)
+            {
+                // fp32 to fp16
+                const float* p = (const float*)attr.data.data();
+                int len = attr.data.size() / 4;
+                d->resize(len * 2);
+                unsigned short* p_fp16 = (unsigned short*)d->data();
+                for (int i = 0; i < len; i++)
+                {
+                    p_fp16[i] = float32_to_float16(p[i]);
+                }
+            }
+            else if (fp16 && attr.type == 2)
+            {
+                // fp64 to fp16
+                const double* p = (const double*)attr.data.data();
+                int len = attr.data.size() / 4;
+                d->resize(len);
+                unsigned short* p_fp16 = (unsigned short*)d->data();
+                for (int i = 0; i < len; i++)
+                {
+                    p_fp16[i] = float32_to_float16((float)p[i]);
+                }
+            }
+            else
+            {
+                d->resize(attr.data.size());
+                memcpy((void*)d->data(), attr.data.data(), attr.data.size());
+            }
         }
-
-        //         if (op->inputnames.size() == op->inputs.size())
-        //         {
-        //             for (size_t i = 0; i < op->inputs.size(); i++)
-        //             {
-        //                 const Operand* oprand = op->inputs[i];
-        //                 fprintf(paramfp, " $%s=%s", op->inputnames[i].c_str(), oprand->name.c_str());
-        //             }
-        //         }
     }
 
     std::fstream output(onnxpath, std::ios::out | std::ios::trunc | std::ios::binary);

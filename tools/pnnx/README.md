@@ -93,6 +93,7 @@ Usage: pnnx [model.pt] [(key=value)...]
   ncnnparam=model.ncnn.param
   ncnnbin=model.ncnn.bin
   ncnnpy=model_ncnn.py
+  fp16=1
   optlevel=2
   device=cpu/gpu
   inputshape=[1,3,224,224],...
@@ -118,6 +119,8 @@ Parameters:
 `ncnnbin` (default="*.ncnn.bin"): ncnn model weight
 
 `ncnnpy` (default="*_ncnn.py"): pyncnn script for inference
+
+`fp16` (default=1): save ncnn weight and onnx in fp16 data type
 
 `optlevel` (default=2): graph optimization level 
 
