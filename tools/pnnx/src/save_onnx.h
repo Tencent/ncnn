@@ -19,7 +19,7 @@
 
 namespace pnnx {
 
-int save_onnx(const Graph& g, const char* onnxpath);
+int save_onnx(const Graph& g, const char* onnxpath, int fp16);
 
 } // namespace pnnx
 

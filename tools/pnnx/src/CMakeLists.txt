@@ -343,7 +343,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/solve_batch_index.cpp
-    pass_ncnn/convert_to_fp16_model.cpp
 
     pass_ncnn/eliminate_noop.cpp
     pass_ncnn/eliminate_tail_reshape_permute.cpp
