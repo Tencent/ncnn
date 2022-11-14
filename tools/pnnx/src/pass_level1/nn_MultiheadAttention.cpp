@@ -39,45 +39,75 @@ public:
 
         //         graph->dump();
 
-        const torch::jit::Node* div_num_heads = find_node_by_kind(graph, "aten::div");
-        const torch::jit::Node* div_num_heads_18 = find_node_by_kind(graph, "aten::floor_divide");
-        if (div_num_heads_18)
+        const torch::jit::Node* multi_head_attention = find_node_by_kind(graph, "aten::_native_multi_head_attention");
+        if (multi_head_attention)
         {
-            div_num_heads = div_num_heads_18;
-        }
-
-        op->params["num_heads"] = (int)div_num_heads->input(1)->node()->t(torch::jit::attr::value).item<int64_t>();
-
-        const torch::jit::Node* transpose_batch_seq = find_node_by_kind(graph, "aten::transpose");
-
-        int transpose_dim0 = transpose_batch_seq->input(1)->node()->i(torch::jit::attr::value);
-        int transpose_dim1 = transpose_batch_seq->input(2)->node()->i(torch::jit::attr::value);
-        if (transpose_dim0 == 1 && transpose_dim1 == 0)
-        {
+            op->params["num_heads"] = multi_head_attention->namedInput("num_head");
             op->params["batch_first"] = true;
-        }
-#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
-        else
-        {
-            op->params["batch_first"] = false;
-        }
-#endif
-
-        const torch::jit::Node* add_zero_attn = find_node_by_kind(graph, "aten::zeros");
-        if (add_zero_attn)
-        {
-            op->params["add_zero_attn"] = true;
-        }
-        else
-        {
             op->params["add_zero_attn"] = false;
         }
+        else
+        {
+            const torch::jit::Node* div_num_heads = find_node_by_kind(graph, "aten::div");
+            const torch::jit::Node* div_num_heads_18 = find_node_by_kind(graph, "aten::floor_divide");
+            if (div_num_heads_18)
+            {
+                div_num_heads = div_num_heads_18;
+            }
 
-        const auto& in_proj_weight = mod.attr("in_proj_weight").toTensor();
+            op->params["num_heads"] = (int)div_num_heads->input(1)->node()->t(torch::jit::attr::value).item<int64_t>();
+
+            const torch::jit::Node* transpose_batch_seq = find_node_by_kind(graph, "aten::transpose");
+
+            int transpose_dim0 = transpose_batch_seq->input(1)->node()->i(torch::jit::attr::value);
+            int transpose_dim1 = transpose_batch_seq->input(2)->node()->i(torch::jit::attr::value);
+            if (transpose_dim0 == 1 && transpose_dim1 == 0)
+            {
+                op->params["batch_first"] = true;
+            }
+#if TORCH_VERSION_MAJOR == 1 && TORCH_VERSION_MINOR >= 9
+            else
+            {
+                op->params["batch_first"] = false;
+            }
+#endif
+
+            const torch::jit::Node* add_zero_attn = find_node_by_kind(graph, "aten::zeros");
+            if (add_zero_attn)
+            {
+                op->params["add_zero_attn"] = true;
+            }
+            else
+            {
+                op->params["add_zero_attn"] = false;
+            }
+        }
+
+        if (mod.hasattr("in_proj_weight"))
+        {
+            const auto& in_proj_weight = mod.attr("in_proj_weight").toTensor();
+
+            op->params["embed_dim"] = in_proj_weight.size(1);
+            op->params["kdim"] = in_proj_weight.size(1);
+            op->params["vdim"] = in_proj_weight.size(1);
+            op->attrs["in_proj_weight"] = in_proj_weight;
+        }
+        else
+        {
+            const auto& q_proj_weight = mod.attr("q_proj_weight").toTensor();
+            const auto& k_proj_weight = mod.attr("k_proj_weight").toTensor();
+            const auto& v_proj_weight = mod.attr("v_proj_weight").toTensor();
+
+            op->params["embed_dim"] = q_proj_weight.size(1);
+            op->params["kdim"] = k_proj_weight.size(1);
+            op->params["vdim"] = v_proj_weight.size(1);
+            op->attrs["q_proj_weight"] = q_proj_weight;
+            op->attrs["k_proj_weight"] = k_proj_weight;
+            op->attrs["v_proj_weight"] = v_proj_weight;
+        }
+
         const auto& out_proj_weight = mod.attr("out_proj").toModule().attr("weight").toTensor();
 
-        op->params["embed_dim"] = in_proj_weight.size(1);
-        op->attrs["in_proj_weight"] = in_proj_weight;
         op->attrs["out_proj.weight"] = out_proj_weight;
 
         if (mod.hasattr("in_proj_bias") && mod.attr("out_proj").toModule().hasattr("bias"))

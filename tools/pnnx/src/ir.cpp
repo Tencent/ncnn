@@ -1832,8 +1832,14 @@ int Graph::python(const std::string& pypath, const std::string& pnnxbinpath)
                 fprintf(pyfp, " = self.%s(", sanitize_identifier(op->name).c_str());
                 if (op->inputs.size() == 1)
                 {
-                    const char* in0 = sanitize_identifier(op->inputs[0]->name).c_str();
-                    fprintf(pyfp, "v_%s, v_%s, v_%s", in0, in0, in0);
+                    std::string in0 = sanitize_identifier(op->inputs[0]->name);
+                    fprintf(pyfp, "v_%s, v_%s, v_%s", in0.c_str(), in0.c_str(), in0.c_str());
+                }
+                else if (op->inputs.size() == 2)
+                {
+                    std::string in0 = sanitize_identifier(op->inputs[0]->name);
+                    std::string in1 = sanitize_identifier(op->inputs[1]->name);
+                    fprintf(pyfp, "v_%s, v_%s, v_%s", in0.c_str(), in1.c_str(), in1.c_str());
                 }
                 else
                 {
