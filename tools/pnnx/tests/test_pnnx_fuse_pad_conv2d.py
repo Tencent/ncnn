@@ -20,27 +20,36 @@ class Model(nn.Module):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.conv_0 = nn.Conv2d(in_channels=12, out_channels=13, kernel_size=3)
-        self.conv_1 = nn.Conv2d(in_channels=13, out_channels=14, kernel_size=1)
-        self.conv_2 = nn.Conv2d(in_channels=14, out_channels=15, kernel_size=2)
-        self.conv_3 = nn.Conv2d(in_channels=15, out_channels=12, kernel_size=3, padding=(1,1))
-        self.conv_4 = nn.Conv2d(in_channels=12, out_channels=13, kernel_size=4, padding=(2,2), padding_mode='replicate')
+        self.pad_0 = nn.ConstantPad2d(2, 0.0)
+        self.pad_1 = nn.ReflectionPad2d(4)
+        self.pad_2 = nn.ReplicationPad2d(3)
+        self.pad_3 = nn.ZeroPad2d((1,1,0,0))
+
+        self.conv_0 = nn.Conv2d(in_channels=12, out_channels=14, kernel_size=3)
+        self.conv_1 = nn.Conv2d(in_channels=14, out_channels=14, kernel_size=1)
+        self.conv_2 = nn.Conv2d(in_channels=14, out_channels=14, kernel_size=2)
+        self.conv_3 = nn.Conv2d(in_channels=14, out_channels=12, kernel_size=3, padding=(1,1))
 
     def forward(self, x):
+        x = self.pad_0(x)
         x = F.pad(x, pad=(1,1))
         x = self.conv_0(x)
+
+        x = self.pad_1(x)
+        x = self.conv_1(x)
 
         x = F.pad(x, pad=(3,3,2,2), mode='reflect')
         x = self.conv_1(x)
 
+        x = self.pad_2(x)
+        x = self.conv_2(x)
+
         x = F.pad(x, pad=(1,1,1,1), mode='replicate')
         x = self.conv_2(x)
 
+        x = self.pad_3(x)
         x = F.pad(x, pad=(2,2,0,0))
         x = self.conv_3(x)
-
-        x = F.pad(x, pad=(1,1,4,4), mode='replicate')
-        x = self.conv_4(x)
 
         return x
 
