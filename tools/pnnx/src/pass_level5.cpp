@@ -25,6 +25,7 @@
 #include "pass_level5/eliminate_noop_slice.h"
 #include "pass_level5/eliminate_noop_view_reshape.h"
 #include "pass_level5/eval_expression.h"
+#include "pass_level5/fuse_adjacent_reshape.h"
 #include "pass_level5/fuse_channel_shuffle.h"
 #include "pass_level5/fuse_constant_expression.h"
 #include "pass_level5/fuse_conv1d_batchnorm1d.h"
@@ -33,6 +34,7 @@
 #include "pass_level5/fuse_convtranspose2d_batchnorm2d.h"
 #include "pass_level5/fuse_contiguous_view.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
+#include "pass_level5/fuse_pad_conv2d.h"
 #include "pass_level5/fuse_select_to_unbind.h"
 #include "pass_level5/fuse_slice_copy.h"
 #include "pass_level5/fuse_slice_indices.h"
@@ -92,6 +94,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_convtranspose2d_batchnorm2d(g);
     fuse_linear_batchnorm1d(g);
 
+    fuse_pad_conv2d(g);
+
     eliminate_noop_pad(g);
 
     eliminate_noop_cat(g);
@@ -101,6 +105,8 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     eliminate_noop_upsample(g);
 
     fuse_contiguous_view(g);
+
+    fuse_adjacent_reshape(g);
 
     eliminate_noop_view_reshape(g);
 
