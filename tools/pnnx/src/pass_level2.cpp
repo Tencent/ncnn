@@ -39,7 +39,7 @@ bool GraphRewriterPass::match(const std::map<std::string, Parameter>& captured_p
     return match(captured_params);
 }
 
-bool GraphRewriterPass::match(const std::map<std::string, const Operator*>& matched_operators) const
+bool GraphRewriterPass::match(const std::map<std::string, const Operator*>& /*matched_operators*/) const
 {
     return true;
 }

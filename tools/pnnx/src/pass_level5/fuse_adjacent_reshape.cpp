@@ -25,17 +25,20 @@ void fuse_adjacent_reshape(Graph& graph)
     {
         bool matched = false;
 
-        for (int i = (int)graph.ops.size(); i > 0; i--)
+        for (int i = (int)graph.ops.size() - 1; i > 0; i--)
         {
             Operator* op = graph.ops[i];
 
-            // look for Tensor.view / Tensor.reshape chain
-            if (op->type != "Tensor.view" && op->type != "Tensor.reshape")
+            // look for Tensor.view / Tensor.reshape / torch.squeeze / torch.unsqueeze chain
+            if (op->type != "Tensor.view" && op->type != "Tensor.reshape" && op->type != "torch.squeeze" && op->type != "torch.unsqueeze")
+                continue;
+
+            if ((op->type == "torch.squeeze" || op->type == "torch.unsqueeze") && op->outputs[0]->shape.empty())
                 continue;
 
             std::vector<Operator*> reshapes_to_delete;
             const Operand* in0 = op->inputs[0];
-            while (in0->consumers.size() == 1 && (in0->producer->type == "Tensor.view" || in0->producer->type == "Tensor.reshape"))
+            while (in0->consumers.size() == 1 && (in0->producer->type == "Tensor.view" || in0->producer->type == "Tensor.reshape" || in0->producer->type == "torch.squeeze" || in0->producer->type == "torch.unsqueeze"))
             {
                 reshapes_to_delete.push_back(in0->producer);
                 in0 = in0->producer->inputs[0];
@@ -48,6 +51,12 @@ void fuse_adjacent_reshape(Graph& graph)
             matched = true;
 
             op->type = "Tensor.reshape";
+
+            if (!op->outputs[0]->shape.empty())
+            {
+                op->params.clear();
+                op->params["shape"] = op->outputs[0]->shape;
+            }
 
             for (auto& op0 : reshapes_to_delete)
             {
