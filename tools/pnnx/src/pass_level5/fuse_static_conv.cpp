@@ -163,7 +163,7 @@ pnnx.Output             output      1 0 out
         }
 
         int out_channels = weight.shape[0];
-        if (bias.shape != std::vector<int> {1, out_channels, 1})
+        if (bias.shape != std::vector<int>{1, out_channels, 1})
             return false;
 
         return true;
@@ -338,7 +338,7 @@ pnnx.Output             output      1 0 out
         }
 
         int out_channels = weight.shape[0];
-        if (bias.shape != std::vector<int> {1, out_channels, 1, 1})
+        if (bias.shape != std::vector<int>{1, out_channels, 1, 1})
             return false;
 
         return true;
@@ -513,7 +513,7 @@ pnnx.Output             output      1 0 out
         }
 
         int out_channels = weight.shape[0];
-        if (bias.shape != std::vector<int> {1, out_channels, 1, 1, 1})
+        if (bias.shape != std::vector<int>{1, out_channels, 1, 1, 1})
             return false;
 
         return true;
