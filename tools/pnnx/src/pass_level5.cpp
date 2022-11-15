@@ -34,6 +34,7 @@
 #include "pass_level5/fuse_convtranspose2d_batchnorm2d.h"
 #include "pass_level5/fuse_contiguous_view.h"
 #include "pass_level5/fuse_linear_batchnorm1d.h"
+#include "pass_level5/fuse_pad_conv1d.h"
 #include "pass_level5/fuse_pad_conv2d.h"
 #include "pass_level5/fuse_select_to_unbind.h"
 #include "pass_level5/fuse_slice_copy.h"
@@ -94,6 +95,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
     fuse_convtranspose2d_batchnorm2d(g);
     fuse_linear_batchnorm1d(g);
 
+    fuse_pad_conv1d(g);
     fuse_pad_conv2d(g);
 
     eliminate_noop_pad(g);
