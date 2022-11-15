@@ -16,6 +16,6 @@
 
 namespace pnnx {
 
-void eliminate_slice(Graph& graph);
+void eliminate_noop_slice(Graph& graph);
 
 } // namespace pnnx

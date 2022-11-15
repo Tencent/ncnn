@@ -22,8 +22,8 @@
 #include "pass_level5/eliminate_noop_expression.h"
 #include "pass_level5/eliminate_noop_pad.h"
 #include "pass_level5/eliminate_noop_upsample.h"
-#include "pass_level5/eliminate_slice.h"
-#include "pass_level5/eliminate_view_reshape.h"
+#include "pass_level5/eliminate_noop_slice.h"
+#include "pass_level5/eliminate_noop_view_reshape.h"
 #include "pass_level5/eval_expression.h"
 #include "pass_level5/fuse_channel_shuffle.h"
 #include "pass_level5/fuse_constant_expression.h"
@@ -61,7 +61,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
 
     eliminate_noop_expression(g);
 
-    eliminate_slice(g);
+    eliminate_noop_slice(g);
 
     fuse_slice_indices(g);
 
@@ -102,7 +102,7 @@ void pass_level5(Graph& g, const std::set<std::string>& foldable_constants, cons
 
     fuse_contiguous_view(g);
 
-    eliminate_view_reshape(g);
+    eliminate_noop_view_reshape(g);
 
     fuse_channel_shuffle(g);
 
