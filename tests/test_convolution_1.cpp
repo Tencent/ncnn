@@ -82,7 +82,7 @@ static int test_convolution_0()
         {7, 2, 1, -233},
     };
 
-    for (int i = 0; i < 12; i++)
+    for (int i = 12; i < 16; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];

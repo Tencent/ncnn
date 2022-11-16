@@ -19,7 +19,18 @@ macro(ncnn_add_layer_test class)
 
     # enable if WITH_LAYER_xxx option ON
     if(${WITH_LAYER_${name}})
-        ncnn_add_test(${name})
+        file(GLOB test_${name}_SRCS "test_${name}.cpp" "test_${name}_*.cpp" LIST_DIRECTORIES FALSE)
+
+        foreach(test_file ${test_${name}_SRCS})
+            get_filename_component(test_filename ${test_file} NAME_WE)
+            add_executable(${test_filename} ${test_file})
+            target_link_libraries(${test_filename} PRIVATE ncnn)
+
+            add_test(NAME ${test_filename} COMMAND ${CMAKE_COMMAND} -DTEST_EXECUTABLE=$<TARGET_FILE:${test_filename}> -P ${CMAKE_CURRENT_SOURCE_DIR}/../cmake/run_test.cmake)
+
+            # add test to a virtual project group
+            set_property(TARGET ${test_filename} PROPERTY FOLDER "tests")
+        endforeach()
     endif()
 endmacro()
 
@@ -77,7 +88,7 @@ ncnn_add_layer_test(DeconvolutionDepthWise)
 ncnn_add_layer_test(DeconvolutionDepthWise1D)
 ncnn_add_layer_test(DeconvolutionDepthWise3D)
 ncnn_add_layer_test(DeepCopy)
-# ncnn_add_layer_test(DeformableConv2D)  too slow :(
+ncnn_add_layer_test(DeformableConv2D)
 ncnn_add_layer_test(Dequantize)
 ncnn_add_layer_test(Dropout)
 ncnn_add_layer_test(Einsum)
