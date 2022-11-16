@@ -12,12 +12,10 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "pass_ncnn.h"
+#include "ir.h"
 
 namespace pnnx {
 
-namespace ncnn {
-
-} // namespace ncnn
+void fuse_static_instancenorm(Graph& graph);
 
 } // namespace pnnx

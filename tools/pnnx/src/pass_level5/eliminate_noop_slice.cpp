@@ -12,7 +12,7 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "eliminate_slice.h"
+#include "eliminate_noop_slice.h"
 
 #include <limits.h>
 #include <algorithm>
@@ -20,7 +20,7 @@
 
 namespace pnnx {
 
-void eliminate_slice(Graph& graph)
+void eliminate_noop_slice(Graph& graph)
 {
     while (1)
     {

@@ -12,14 +12,14 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-#include "eliminate_view_reshape.h"
+#include "eliminate_noop_view_reshape.h"
 
 #include <algorithm>
 #include "pass_level2.h"
 
 namespace pnnx {
 
-void eliminate_view_reshape(Graph& graph)
+void eliminate_noop_view_reshape(Graph& graph)
 {
     while (1)
     {

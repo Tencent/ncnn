@@ -39,6 +39,11 @@ bool GraphRewriterPass::match(const std::map<std::string, Parameter>& captured_p
     return match(captured_params);
 }
 
+bool GraphRewriterPass::match(const std::map<std::string, const Operator*>& /*matched_operators*/) const
+{
+    return true;
+}
+
 void GraphRewriterPass::write(Operator* op, const std::map<std::string, Parameter>& captured_params) const
 {
     for (auto x : captured_params)
@@ -215,7 +220,7 @@ static bool match_operator(const Operator* a, const Operator* b, std::map<std::s
     return true;
 }
 
-static bool match(const Operator* anchor, const Operator* pattern, std::unordered_map<std::string, const Operator*>& matched_operators, std::unordered_map<std::string, const Operand*>& matched_inputs, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
+static bool match(const Operator* anchor, const Operator* pattern, std::map<std::string, const Operator*>& matched_operators, std::map<std::string, const Operand*>& matched_inputs, std::map<std::string, Parameter>& captured_params, std::map<std::string, Attribute>& captured_attrs)
 {
     if (!match_operator(anchor, pattern, captured_params, captured_attrs))
         return false;
@@ -290,9 +295,9 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
         bool matched = true;
 
         // lets match from output
-        std::unordered_map<std::string, const Operator*> matched_operators;
-        std::unordered_map<std::string, const Operand*> matched_inputs;
-        std::unordered_map<std::string, const Operand*> matched_outputs;
+        std::map<std::string, const Operator*> matched_operators;
+        std::map<std::string, const Operand*> matched_inputs;
+        std::map<std::string, const Operand*> matched_outputs;
         std::map<std::string, Parameter> captured_params;
         std::map<std::string, Attribute> captured_attrs;
 
@@ -311,8 +316,8 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                     {
                         const Operator* anchor = graph.ops[j];
 
-                        std::unordered_map<std::string, const Operator*> matched_operators2;
-                        std::unordered_map<std::string, const Operand*> matched_inputs2;
+                        std::map<std::string, const Operator*> matched_operators2;
+                        std::map<std::string, const Operand*> matched_inputs2;
                         std::map<std::string, Parameter> captured_params2;
                         std::map<std::string, Attribute> captured_attrs2;
                         if (!match(anchor, pattern2, matched_operators2, matched_inputs2, captured_params2, captured_attrs2))
@@ -372,7 +377,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
                     break;
             }
 
-            if (matched && !pass->match(captured_params, captured_attrs))
+            if (matched && (!pass->match(captured_params, captured_attrs) || !pass->match(matched_operators)))
             {
                 matched_operators.clear();
                 matched_inputs.clear();
@@ -393,7 +398,7 @@ void pnnx_graph_rewrite(Graph& graph, const GraphRewriterPass* pass, int& opinde
         // lets replace
 
         // remove all operands inside matched graph
-        std::unordered_map<std::string, Operand*> operands_to_remove;
+        std::map<std::string, Operand*> operands_to_remove;
         for (auto& _x : matched_operators)
         {
             Operator* x = (Operator*)_x.second;
