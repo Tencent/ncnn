@@ -72,7 +72,7 @@ static int test_deformableconv2d_0()
         {5, 2, 2, 2},
     };
 
-    for (int i = 0; i < 4; i++)
+    for (int i = 6; i < 8; i++)
     {
         const int k = kdsp[i][0];
         const int d = kdsp[i][1];
@@ -109,13 +109,7 @@ static int test_deformableconv2d_0()
             return -1;
     }
 
-    return 0
-           || test_deformableconv2d(7, 5, 24, 32, 4, 2, 2, 2, 1)
-           || test_deformableconv2d(7, 5, 32, 24, 4, 2, 2, 2, 1)
-           || test_deformableconv2d(7, 5, 28, 32, 4, 2, 2, 2, 1)
-           || test_deformableconv2d(7, 5, 32, 28, 4, 2, 2, 2, 1)
-           || test_deformableconv2d(7, 5, 26, 32, 4, 2, 2, 2, 1)
-           || test_deformableconv2d(7, 5, 32, 26, 4, 2, 2, 2, 1);
+    return 0;
 }
 
 int main()

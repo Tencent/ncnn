@@ -59,56 +59,6 @@ static int test_deformableconv2d(int w, int h, int c, int outch, int kernel, int
 
 static int test_deformableconv2d_0()
 {
-    static const int kdsp[10][4] = {
-        {1, 1, 1, 0},
-        {1, 1, 2, 0},
-        {2, 1, 1, 1},
-        {2, 1, 2, 0},
-        {3, 1, 1, 1},
-        {3, 1, 2, 1},
-        {3, 2, 1, 1},
-        {4, 1, 2, 1},
-        {5, 1, 2, 2},
-        {5, 2, 2, 2},
-    };
-
-    for (int i = 0; i < 4; i++)
-    {
-        const int k = kdsp[i][0];
-        const int d = kdsp[i][1];
-        const int s = kdsp[i][2];
-        const int p = kdsp[i][3];
-
-        int ret = 0
-                  || test_deformableconv2d(9, 7, 1, 1, k, d, s, p, 1)
-                  || test_deformableconv2d(9, 7, 4, 13, k, d, s, p, 0)
-                  || test_deformableconv2d(9, 7, 13, 4, k, d, s, p, 1)
-                  || test_deformableconv2d(9, 7, 4, 8, k, d, s, p, 0)
-                  || test_deformableconv2d(9, 7, 8, 4, k, d, s, p, 1)
-                  || test_deformableconv2d(9, 7, 8, 13, k, d, s, p, 0)
-                  || test_deformableconv2d(9, 7, 13, 8, k, d, s, p, 1)
-                  || test_deformableconv2d(9, 7, 16, 16, k, d, s, p, 0)
-                  || test_deformableconv2d(16, 16, 1 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 1 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 4 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 8 * 3, 16 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 1 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 4 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 8 * 3, k, d, s, p, 1)
-                  || test_deformableconv2d(16, 16, 16 * 3, 16 * 3, k, d, s, p, 1);
-
-        if (ret != 0)
-            return -1;
-    }
-
     return 0
            || test_deformableconv2d(7, 5, 24, 32, 4, 2, 2, 2, 1)
            || test_deformableconv2d(7, 5, 32, 24, 4, 2, 2, 2, 1)
