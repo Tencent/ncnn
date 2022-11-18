@@ -61,7 +61,7 @@ py::buffer_info to_buffer_info(ncnn::Mat& m, const std::string& format = "")
     {
         std::ostringstream ss;
         ss << "Convert ncnn.Mat to numpy.ndarray. Support only elempack == 1, but "
-              "given "
+           "given "
            << m.elempack;
         py::pybind11_fail(ss.str());
     }
@@ -110,7 +110,7 @@ py::buffer_info to_buffer_info(ncnn::Mat& m, const std::string& format = "")
                            m.dims,     /* Number of dimensions */
                            shape,      /* Buffer dimensions */
                            strides     /* Strides (in bytes) for each index */
-    );
+                          );
 }
 
 #endif
