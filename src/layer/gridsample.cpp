@@ -236,8 +236,8 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                         sample_x = grid_sample_unormalize(w, sample_x, align_corner);
                         sample_y = grid_sample_unormalize(h, sample_y, align_corner);
 
-                        int x0 = static_cast<int>(round(sample_x));
-                        int y0 = static_cast<int>(round(sample_y));
+                        int x0 = static_cast<int>(floor(sample_x + 0.5f));
+                        int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
                         float v = get_value_bounded(image, x0, y0, padding_mode, align_corner);
 
@@ -418,13 +418,18 @@ int GridSample::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& 
                             float sample_y = gridptr[1];
                             float sample_z = gridptr[2];
 
+                            if (padding_mode == 2)
+                            {
+                                int a = 10;
+                            }
+
                             sample_x = grid_sample_unormalize(w, sample_x, align_corner);
                             sample_y = grid_sample_unormalize(h, sample_y, align_corner);
                             sample_z = grid_sample_unormalize(d, sample_z, align_corner);
 
-                            int x0 = static_cast<int>(round(sample_x));
-                            int y0 = static_cast<int>(round(sample_y));
-                            int z0 = static_cast<int>(round(sample_z));
+                            int x0 = static_cast<int>(floor(sample_x + 0.5f));
+                            int y0 = static_cast<int>(floor(sample_y + 0.5f));
+                            int z0 = static_cast<int>(floor(sample_z + 0.5f));
 
                             float v = get_value_bounded(image, x0, y0, z0, padding_mode, align_corner);
 

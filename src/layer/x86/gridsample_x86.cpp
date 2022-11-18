@@ -36,9 +36,6 @@ GridSample_x86::GridSample_x86()
 #if __SSE2__
 #if __AVX__
 const __m256 v1fp8 = *(__m256*)_ps256_1;
-const __m256 vn1fp8 = _mm256_set1_ps(-1.0f);
-const __m256i v1ip8 = _mm256_set1_epi32(1);
-const __m256i vn1ip8 = _mm256_set1_epi32(-1);
 
 static __m256 NCNN_FORCEINLINE
 grid_sample_unormalize_p8(const __m256& w, const __m256& coordx, int align_corner)
@@ -48,7 +45,7 @@ grid_sample_unormalize_p8(const __m256& w, const __m256& coordx, int align_corne
     if (align_corner)
         return _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(coordx, v1fp8), two), _mm256_sub_ps(w, v1fp8));
     else
-        return _mm256_div_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(coordx, v1fp8), w), v1fp8), two);
+        return _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(coordx, v1fp8), w, v1fp8), two);
 }
 
 static NCNN_FORCEINLINE __m256 border_coord_p8(const __m256& coord, const __m256& border)
@@ -80,7 +77,7 @@ static NCNN_FORCEINLINE __m256 compute_coord_p8(__m256 sx, const __m256& w, int 
         }
         else
         {
-            __m256 v0p5f = *(__m256*)_ps256_0p5;
+            __m256 v0p5f = _mm256_set1_ps(0.5f);
             sx = _mm256_sub_ps(reflect_coord_p8(_mm256_add_ps(sx, v0p5f), w), v0p5f);
             sx = border_coord_p8(sx, _mm256_sub_ps(w, v1fp8));
         }
@@ -107,13 +104,12 @@ static NCNN_FORCEINLINE __m256 cubic_interp1d_p8(const __m256& x0_v, const __m25
     const auto x0 = _mm256_add_ps(tx, v1fp8);
     const auto& x1 = tx;
     const auto x2 = _mm256_sub_ps(v1fp8, tx);
-    const auto x3 = _mm256_add_ps(x2, v1fp8);
+    //const auto x3 = _mm256_add_ps(x2, v1fp8);
 
-    //should be optimized? :(
     const __m256 coeffs0 = _mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(A, x0), _mm256_mul_ps(_mm256_set1_ps(5.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(8.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(4), A));
     const __m256 coeffs1 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x1), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x1), x1), v1fp8);
     const __m256 coeffs2 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x2), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x2), x2), v1fp8);
-    const __m256 coeffs3 = _mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(A, x3), _mm256_mul_ps(_mm256_set1_ps(5.0f), A)), x3), _mm256_mul_ps(_mm256_set1_ps(8.0f), A)), x3), _mm256_mul_ps(_mm256_set1_ps(4), A));
+    const __m256 coeffs3 = _mm256_sub_ps(_mm256_sub_ps(_mm256_sub_ps(v1fp8, coeffs0), coeffs1), coeffs2);
 
     auto _v = _mm256_mul_ps(coeffs0, x0_v);
     _v = _mm256_comp_fmadd_ps(coeffs1, x1_v, _v);
@@ -126,9 +122,6 @@ static NCNN_FORCEINLINE __m256 cubic_interp1d_p8(const __m256& x0_v, const __m25
 #endif // __AVX__
 
 const __m128 v1fp4 = _mm_set1_ps(1.0f);
-const __m128 vn1fp4 = _mm_set1_ps(-1.0f);
-const __m128i v1ip4 = _mm_set1_epi32(1);
-const __m128i vn1ip4 = _mm_set1_epi32(-1);
 
 static __m128 NCNN_FORCEINLINE
 grid_sample_unormalize_p4(const __m128& w, const __m128& coordx, int align_corner)
@@ -138,7 +131,7 @@ grid_sample_unormalize_p4(const __m128& w, const __m128& coordx, int align_corne
     if (align_corner)
         return _mm_mul_ps(_mm_div_ps(_mm_add_ps(coordx, v1fp4), two), _mm_sub_ps(w, v1fp4));
     else
-        return _mm_div_ps(_mm_sub_ps(_mm_mul_ps(_mm_add_ps(coordx, v1fp4), w), v1fp4), two);
+        return _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(coordx, v1fp4), w, v1fp4), two);
 }
 
 static NCNN_FORCEINLINE __m128 border_coord_p4(const __m128& coord, const __m128& border)
@@ -197,13 +190,12 @@ static NCNN_FORCEINLINE __m128 cubic_interp1d_p4(const __m128& x0_v, const __m12
     const auto x0 = _mm_add_ps(tx, v1fp4);
     const auto& x1 = tx;
     const auto x2 = _mm_sub_ps(v1fp4, tx);
-    const auto x3 = _mm_add_ps(x2, v1fp4);
+    //const auto x3 = _mm_add_ps(x2, v1fp4);
 
-    //should be optimized? :(
     const __m128 coeffs0 = _mm_sub_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_sub_ps(_mm_mul_ps(A, x0), _mm_mul_ps(_mm_set1_ps(5.0f), A)), x0), _mm_mul_ps(_mm_set1_ps(8.0f), A)), x0), _mm_mul_ps(_mm_set1_ps(4), A));
     const __m128 coeffs1 = _mm_add_ps(_mm_mul_ps(_mm_mul_ps(_mm_sub_ps(_mm_mul_ps(_mm_add_ps(A, _mm_set1_ps(2.0f)), x1), _mm_add_ps(A, _mm_set1_ps(3.0f))), x1), x1), v1fp4);
     const __m128 coeffs2 = _mm_add_ps(_mm_mul_ps(_mm_mul_ps(_mm_sub_ps(_mm_mul_ps(_mm_add_ps(A, _mm_set1_ps(2.0f)), x2), _mm_add_ps(A, _mm_set1_ps(3.0f))), x2), x2), v1fp4);
-    const __m128 coeffs3 = _mm_sub_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(_mm_sub_ps(_mm_mul_ps(A, x3), _mm_mul_ps(_mm_set1_ps(5.0f), A)), x3), _mm_mul_ps(_mm_set1_ps(8.0f), A)), x3), _mm_mul_ps(_mm_set1_ps(4), A));
+    const __m128 coeffs3 = _mm_sub_ps(_mm_sub_ps(_mm_sub_ps(v1fp4, coeffs0), coeffs1), coeffs2);
 
     auto _v = _mm_mul_ps(coeffs0, x0_v);
     _v = _mm_comp_fmadd_ps(coeffs1, x1_v, _v);
@@ -258,6 +250,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     if (elempack == 8)
     {
+        const __m256 vn1fp8 = _mm256_set1_ps(-1.0f);
+        const __m256i v1ip8 = _mm256_set1_epi32(1);
+        const __m256i vn1ip8 = _mm256_set1_epi32(-1);
+
         const auto vImgWf = _mm256_set1_ps(w);
         const auto vImgHf = _mm256_set1_ps(h);
         const auto vImgWi = _mm256_set1_epi32(w);
@@ -280,7 +276,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1) //zeros
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -327,7 +323,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // (W*y + x) * elempack + vec(8)
                                 auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                                                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
                                 auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
                                 auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
                                 auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
@@ -351,7 +347,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else //border reflection
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -391,7 +387,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 auto v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
                                 auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                                                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
                                 auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
                                 auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
                                 auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
@@ -419,7 +415,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1) //zeros
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -434,20 +430,20 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = get_coord_p8(gx, vImgWf, padding_mode, align_corner);
                                 gy = get_coord_p8(gy, vImgHf, padding_mode, align_corner);
 
-                                gx = _mm256_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                gy = _mm256_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
+                                gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
 
                                 auto ix = _mm256_cvtps_epi32(gx);
                                 auto iy = _mm256_cvtps_epi32(gy);
 
                                 auto v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                                                   _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
+                                    _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
 
                                 auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                                                 _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 
                                 auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), static_cast<float*>(bottom_blob.channel(q).data),
-                                                                   i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
+                                    i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
 
                                 _mm256_storeu_ps(outptr, _v);
 
@@ -458,7 +454,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else //border reflection
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -470,20 +466,23 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 __m256 gx = _mm256_set1_ps(gridptr[0]);
                                 __m256 gy = _mm256_set1_ps(gridptr[grid.elempack]);
 
-                                gx = get_coord_p8(gx, vImgWf, padding_mode, align_corner);
-                                gy = get_coord_p8(gy, vImgHf, padding_mode, align_corner);
+                                gx = grid_sample_unormalize_p8(vImgWf, gx, align_corner);
+                                gy = grid_sample_unormalize_p8(vImgHf, gy, align_corner);
 
-                                gx = _mm256_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                gy = _mm256_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
+                                gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
+
+                                gx = compute_coord_p8(gx, vImgWf, padding_mode, align_corner);
+                                gy = compute_coord_p8(gy, vImgHf, padding_mode, align_corner);
 
                                 auto ix = _mm256_cvtps_epi32(gx);
                                 auto iy = _mm256_cvtps_epi32(gy);
 
                                 auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                                                 _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 
                                 auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), static_cast<float*>(bottom_blob.channel(q).data),
-                                                                   i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                                    i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
 
                                 _mm256_storeu_ps(outptr, _v);
 
@@ -498,7 +497,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -551,13 +550,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     auto v3_in_range = _mm256_and_si256(x3_in_range, y_in_range);
 
                                     auto x0_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                                                     _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x1_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                                                     _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x2_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                                                     _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x3_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                                                     _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                                     auto x0_offset = _mm256_cvtps_epi32(x0_offset_f);
                                     auto x1_offset = _mm256_cvtps_epi32(x1_offset_f);
@@ -583,7 +582,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -624,13 +623,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     auto y = _mm256_cvtps_epi32(gy);
 
                                     auto x0_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                                                     _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x1_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                                                     _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x2_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                                                     _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x3_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                                                     _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                                     auto x0_offset = _mm256_cvtps_epi32(x0_offset_f);
                                     auto x1_offset = _mm256_cvtps_epi32(x1_offset_f);
@@ -674,7 +673,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -797,7 +796,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -914,7 +913,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -935,22 +934,22 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gy = get_coord_p8(gy, vImgHf, padding_mode, align_corner);
                                     gz = get_coord_p8(gz, vImgDf, padding_mode, align_corner);
 
-                                    gx = _mm256_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                    gy = _mm256_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                    gz = _mm256_round_ps(gz, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                    gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
+                                    gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
+                                    gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
 
                                     auto ix = _mm256_cvtps_epi32(gx);
                                     auto iy = _mm256_cvtps_epi32(gy);
                                     auto iz = _mm256_cvtps_epi32(gz);
 
                                     auto v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                                                       _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
+                                        _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
                                     v_in_range = _mm256_and_si256(v_in_range, _mm256_and_si256(_mm256_cmpgt_epi32(iz, vn1ip8), _mm256_cmpgt_epi32(vImgDi, iz)));
 
                                     auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), iz), _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 
                                     auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), static_cast<float*>(bottom_blob.channel(q).data),
-                                                                       i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
+                                        i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
 
                                     _mm256_storeu_ps(outptr, _v);
 
@@ -962,7 +961,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -979,13 +978,17 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     auto gy = _mm256_set1_ps(gridptr[grid.elempack]);
                                     auto gz = _mm256_set1_ps(gridptr[grid.elempack * 2]);
 
-                                    gx = get_coord_p8(gx, vImgWf, padding_mode, align_corner);
-                                    gy = get_coord_p8(gy, vImgHf, padding_mode, align_corner);
-                                    gz = get_coord_p8(gz, vImgDf, padding_mode, align_corner);
+                                    gx = grid_sample_unormalize_p8(vImgWf, gx, align_corner);
+                                    gy = grid_sample_unormalize_p8(vImgHf, gy, align_corner);
+                                    gz = grid_sample_unormalize_p8(vImgDf, gz, align_corner);
 
-                                    gx = _mm256_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                    gy = _mm256_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                    gz = _mm256_round_ps(gz, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                    gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
+                                    gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
+                                    gz = _mm256_floor_ps(_mm256_add_ps(gz, _mm256_set1_ps(0.5f)));
+
+                                    gx = compute_coord_p8(gx, vImgWf, padding_mode, align_corner);
+                                    gy = compute_coord_p8(gy, vImgHf, padding_mode, align_corner);
+                                    gy = compute_coord_p8(gz, vImgDf, padding_mode, align_corner);
 
                                     auto ix = _mm256_cvtps_epi32(gx);
                                     auto iy = _mm256_cvtps_epi32(gy);
@@ -994,7 +997,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), iz), _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 
                                     auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), static_cast<float*>(bottom_blob.channel(q).data),
-                                                                       i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                                        i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
 
                                     _mm256_storeu_ps(outptr, _v);
 
@@ -1018,6 +1021,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     if (elempack == 4)
     {
+        const __m128 vn1fp4 = _mm_set1_ps(-1.0f);
+        const __m128i v1ip4 = _mm_set1_epi32(1);
+        const __m128i vn1ip4 = _mm_set1_epi32(-1);
+
         const auto vImgWfp4 = _mm_set1_ps(w);
         const auto vImgHfp4 = _mm_set1_ps(h);
         const auto vImgWip4 = _mm_set1_epi32(w);
@@ -1087,7 +1094,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                 // (W*y + x) * elempack + vec(8)
                                 auto i_nw_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(y0, vImgWip4), x0), vElempacki),
-                                                                 _mm_set_epi32(3, 2, 1, 0));
+                                    _mm_set_epi32(3, 2, 1, 0));
                                 auto i_ne_offset = _mm_add_epi32(i_nw_offset, vElempacki);
                                 auto i_sw_offset = _mm_add_epi32(i_nw_offset, _mm_mullo_epi32(vImgWip4, vElempacki));
                                 auto i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
@@ -1111,7 +1118,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else //border reflection
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1151,7 +1158,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 auto v11_in_range = _mm_and_si128(x1_in_range, y1_in_range);
 
                                 auto i_nw_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(y0, vImgWip4), x0), vElempacki),
-                                                                 _mm_set_epi32(3, 2, 1, 0));
+                                    _mm_set_epi32(3, 2, 1, 0));
                                 auto i_ne_offset = _mm_add_epi32(i_nw_offset, vElempacki);
                                 auto i_sw_offset = _mm_add_epi32(i_nw_offset, _mm_mullo_epi32(vImgWip4, vElempacki));
                                 auto i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
@@ -1179,7 +1186,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1) //zeros
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1194,20 +1201,20 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = get_coord_p4(gx, vImgWfp4, padding_mode, align_corner);
                                 gy = get_coord_p4(gy, vImgHfp4, padding_mode, align_corner);
 
-                                gx = _mm_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                gy = _mm_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                                gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
 
                                 auto ix = _mm_cvtps_epi32(gx);
                                 auto iy = _mm_cvtps_epi32(gy);
 
                                 auto v_in_range = _mm_and_si128(_mm_and_si128(_mm_cmpgt_epi32(ix, vn1ip4), _mm_cmpgt_epi32(vImgWip4, ix)),
-                                                                _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHip4, iy)));
+                                    _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHip4, iy)));
 
                                 auto i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWip4), ix), vElempacki),
-                                                              _mm_set_epi32(3, 2, 1, 0));
+                                    _mm_set_epi32(3, 2, 1, 0));
 
                                 auto _v = mask_gather_ps(static_cast<float*>(bottom_blob.channel(q).data),
-                                                         i_offset, *reinterpret_cast<__m128*>(&v_in_range));
+                                    i_offset, *reinterpret_cast<__m128*>(&v_in_range));
 
                                 _mm_storeu_ps(outptr, _v);
 
@@ -1218,7 +1225,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else //border reflection
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1233,17 +1240,17 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 gx = get_coord_p4(gx, vImgWfp4, padding_mode, align_corner);
                                 gy = get_coord_p4(gy, vImgHfp4, padding_mode, align_corner);
 
-                                gx = _mm_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                gy = _mm_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                                gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
 
                                 auto ix = _mm_cvtps_epi32(gx);
                                 auto iy = _mm_cvtps_epi32(gy);
 
                                 auto i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWip4), ix), vElempacki),
-                                                              _mm_set_epi32(3, 2, 1, 0));
+                                    _mm_set_epi32(3, 2, 1, 0));
 
                                 auto _v = mask_gather_ps(static_cast<float*>(bottom_blob.channel(q).data),
-                                                         i_offset, _mm_set1_ps(-1.0f));
+                                    i_offset, _mm_set1_ps(-1.0f));
 
                                 _mm_storeu_ps(outptr, _v);
 
@@ -1258,7 +1265,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1311,13 +1318,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     auto v3_in_range = _mm_and_si128(x3_in_range, y_in_range);
 
                                     auto x0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWfp4), gx0), vElempackf),
-                                                                  _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x1_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWfp4), gx1), vElempackf),
-                                                                  _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x2_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWfp4), gx2), vElempackf),
-                                                                  _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x3_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWfp4), gx3), vElempackf),
-                                                                  _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
 
                                     auto x0_offset = _mm_cvtps_epi32(x0_offset_f);
                                     auto x1_offset = _mm_cvtps_epi32(x1_offset_f);
@@ -1343,7 +1350,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1384,13 +1391,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     auto y = _mm_cvtps_epi32(gy);
 
                                     auto x0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWfp4), gx0), vElempackf),
-                                                                  _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x1_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWfp4), gx1), vElempackf),
-                                                                  _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x2_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWfp4), gx2), vElempackf),
-                                                                  _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                                     auto x3_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWfp4), gx3), vElempackf),
-                                                                  _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                        _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
 
                                     auto x0_offset = _mm_cvtps_epi32(x0_offset_f);
                                     auto x1_offset = _mm_cvtps_epi32(x1_offset_f);
@@ -1434,7 +1441,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1557,7 +1564,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1674,7 +1681,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1)
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1695,22 +1702,22 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gy = get_coord_p4(gy, vImgHfp4, padding_mode, align_corner);
                                     gz = get_coord_p4(gz, vImgDfp4, padding_mode, align_corner);
 
-                                    gx = _mm_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                    gy = _mm_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                    gz = _mm_round_ps(gz, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                    gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                                    gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+                                    gz = _mm_floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
 
                                     auto ix = _mm_cvtps_epi32(gx);
                                     auto iy = _mm_cvtps_epi32(gy);
                                     auto iz = _mm_cvtps_epi32(gz);
 
                                     auto v_in_range = _mm_and_si128(_mm_and_si128(_mm_cmpgt_epi32(ix, vn1ip4), _mm_cmpgt_epi32(vImgWip4, ix)),
-                                                                    _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHip4, iy)));
+                                        _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHip4, iy)));
                                     v_in_range = _mm_and_si128(v_in_range, _mm_and_si128(_mm_cmpgt_epi32(iz, vn1ip4), _mm_cmpgt_epi32(vImgDip4, iz)));
 
                                     auto i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWip4, vImgHip4), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWip4), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
 
                                     auto _v = mask_gather_ps(static_cast<float*>(bottom_blob.channel(q).data),
-                                                             i_offset, *reinterpret_cast<__m128*>(&v_in_range));
+                                        i_offset, *reinterpret_cast<__m128*>(&v_in_range));
 
                                     _mm_storeu_ps(outptr, _v);
 
@@ -1722,7 +1729,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 }
                 else
                 {
-                    #pragma omp parallel for num_threads(opt.num_threads)
+#pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         float* outptr = top_blob.channel(q);
@@ -1743,9 +1750,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     gy = get_coord_p4(gy, vImgHfp4, padding_mode, align_corner);
                                     gz = get_coord_p4(gz, vImgDfp4, padding_mode, align_corner);
 
-                                    gx = _mm_round_ps(gx, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                    gy = _mm_round_ps(gy, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
-                                    gz = _mm_round_ps(gz, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+                                    gx = _mm_floor_ps(_mm_add_ps(gx, _mm_set1_ps(0.5f)));
+                                    gy = _mm_floor_ps(_mm_add_ps(gy, _mm_set1_ps(0.5f)));
+                                    gz = _mm_floor_ps(_mm_add_ps(gz, _mm_set1_ps(0.5f)));
 
                                     auto ix = _mm_cvtps_epi32(gx);
                                     auto iy = _mm_cvtps_epi32(gy);
@@ -1754,7 +1761,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                     auto i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWip4, vImgHip4), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWip4), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
 
                                     auto _v = mask_gather_ps(static_cast<float*>(bottom_blob.channel(q).data),
-                                                             i_offset, _mm_set1_ps(-1.0f));
+                                        i_offset, _mm_set1_ps(-1.0f));
 
                                     _mm_storeu_ps(outptr, _v);
 
