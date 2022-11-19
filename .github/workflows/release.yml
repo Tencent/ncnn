@@ -1267,6 +1267,7 @@ jobs:
     runs-on: windows-2019
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1332,6 +1333,7 @@ jobs:
     runs-on: windows-2019
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2015-shared
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1397,6 +1399,7 @@ jobs:
     runs-on: windows-2019
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1462,6 +1465,7 @@ jobs:
     runs-on: windows-2019
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2017-shared
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1527,6 +1531,7 @@ jobs:
     runs-on: windows-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1608,6 +1613,7 @@ jobs:
     runs-on: windows-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2019-shared
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1689,6 +1695,7 @@ jobs:
     runs-on: windows-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2022
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
@@ -1770,6 +1777,7 @@ jobs:
     runs-on: windows-latest
     env:
       PACKAGENAME: ncnn-${{ needs.setup.outputs.VERSION }}-windows-vs2022-shared
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
       with:
