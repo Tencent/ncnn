@@ -8,7 +8,10 @@ add_definitions(-DVERSION_INFO="${PACKAGE_VERSION}")
 set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
-find_package(Python COMPONENTS Interpreter Development REQUIRED)
+if(CMAKE_CROSSCOMPILING)
+    option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
+    set(PYTHON_LIBRARY "C:/Users/runneradmin/AppData/Local/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.3.9.10/tools/libs/python39.lib")
+endif()
 add_subdirectory(pybind11)
 
 if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
