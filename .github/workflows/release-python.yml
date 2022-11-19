@@ -1,8 +1,9 @@
 name: release-python
-on:
-  push:
-    tags:
-      - '*'
+on: [push, pull_request]
+# on:
+#   push:
+#     tags:
+#       - '*'
 
 jobs:
   build_sdist:
@@ -31,12 +32,20 @@ jobs:
         path: dist/*.tar.gz
 
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Build wheels ${{ matrix.arch }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-11]
+        include:
+          - { os: ubuntu-20.04, arch: x86_64     }
+          - { os: ubuntu-20.04, arch: i686       }
+          - { os: windows-2019, arch: x86        }
+          - { os: windows-2019, arch: AMD64      }
+          - { os: windows-2019, arch: ARM64      }
+          - { os: macos-11,     arch: x86_64     }
+          - { os: macos-11,     arch: arm64      }
+          - { os: macos-11,     arch: universal2 }
 
     steps:
     - uses: actions/checkout@v3
@@ -55,9 +64,9 @@ jobs:
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.11.2
       env:
-        CIBW_ARCHS_MACOS: x86_64 universal2 arm64
-        CIBW_ARCHS_LINUX: x86_64 i686
-        CIBW_ARCHS_WINDOWS: x86 AMD64 ARM64
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
         CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
 
     - name: Show files
