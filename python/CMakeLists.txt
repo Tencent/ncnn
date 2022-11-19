@@ -10,7 +10,7 @@ set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
 if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
     option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
-    set(PYTHON_LIBRARY "C:/Users/runneradmin/AppData/Local/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.3.9.10/tools/libs/python39.lib")
+    set(PYTHON_PREFIX "C:/Users/runneradmin/AppData/Local/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.3.9.10/tools")
 endif()
 add_subdirectory(pybind11)
 
