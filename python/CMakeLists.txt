@@ -16,9 +16,13 @@ if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
         " set(PYTHON_PREFIX \"<your-pythonarm64-root-path>\")\n"
     )
     option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
-    message(WARNING "pythonLocation = $ENV{pythonLocation}")
-    string(REPLACE "nuget-cpython/python." "nuget-cpython/pythonarm64." pythonLocation_arm64 "$ENV{pythonLocation}")
-    message(WARNING "pythonLocation_arm64 = ${pythonLocation_arm64}")
+    message(WARNING "PYTHON_VERSION = $ENV{PYTHON_VERSION}")
+    message(WARNING "PYTHON_ARCH = $ENV{PYTHON_ARCH}")
+
+    execute_process(COMMAND "${CMAKE_COMMAND}" "-E" "environment")
+
+    # string(REPLACE "nuget-cpython/python." "nuget-cpython/pythonarm64." pythonLocation_arm64 "$ENV{pythonLocation}")
+    # message(WARNING "pythonLocation_arm64 = ${pythonLocation_arm64}")
     set(PYTHON_PREFIX "C:/Users/runneradmin/AppData/Local/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.3.9.10/tools")
 endif()
 
