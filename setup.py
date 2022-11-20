@@ -67,6 +67,8 @@ class CMakeBuild(build_ext):
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(cfg),  # not used on MSVC, but no harm
             "-DNCNN_PYTHON=ON",
+            "-DNCNN_DISABLE_RTTI=OFF",
+            "-DNCNN_DISABLE_EXCEPTION=OFF",
             "-DNCNN_BUILD_BENCHMARK=OFF",
             "-DNCNN_BUILD_EXAMPLES=OFF",
             "-DNCNN_BUILD_TOOLS=OFF",

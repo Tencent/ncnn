@@ -1,4 +1,5 @@
 name: release-python
+# on: [push, pull_request]
 on:
   push:
     tags:
@@ -31,12 +32,26 @@ jobs:
         path: dist/*.tar.gz
 
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: ${{ matrix.arch }} ${{ matrix.build }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-20.04, windows-2019, macos-11]
+        include:
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-manylinux*' }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-musllinux*' }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*'            }
+          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-manylinux*' }
+          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-musllinux*' }
+          - { os: ubuntu-20.04, arch: i686,       build: 'pp*'            }
+          - { os: windows-2019, arch: x86,        build: 'cp*'            }
+          - { os: windows-2019, arch: AMD64,      build: 'cp*'            }
+          - { os: windows-2019, arch: AMD64,      build: 'pp*'            }
+          - { os: windows-2019, arch: ARM64,      build: 'cp*'            }
+          - { os: macos-11,     arch: x86_64,     build: 'cp*'            }
+          - { os: macos-11,     arch: x86_64,     build: 'pp*'            }
+          - { os: macos-11,     arch: arm64,      build: 'cp*'            }
+          - { os: macos-11,     arch: universal2, build: 'cp*'            }
 
     steps:
     - uses: actions/checkout@v3
@@ -55,8 +70,12 @@ jobs:
     - name: Build wheels
       uses: pypa/cibuildwheel@v2.11.2
       env:
-        CIBW_ARCHS_MACOS: x86_64 universal2 arm64
-        CIBW_ARCHS_LINUX: x86_64 i686
+        CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+        CIBW_ARCHS_LINUX: ${{ matrix.arch }}
+        CIBW_ARCHS_WINDOWS: ${{ matrix.arch }}
+        CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
 
     - name: Show files
       run: ls -lh wheelhouse
@@ -72,21 +91,21 @@ jobs:
         path: wheelhouse/*.whl
 
   build_wheels_qemu:
-    name: Build wheels ${{ matrix.arch }} ${{ matrix.build }}
+    name: ${{ matrix.arch }} ${{ matrix.build }}
     runs-on: ubuntu-20.04
 
     strategy:
       fail-fast: false
       matrix:
         arch: [aarch64, ppc64le, s390x]
-        build: ["cp36-*", "cp37-*", "cp38-*", "cp39-*", "cp310-*"]
+        build: ['cp36-*', 'cp37-*', 'cp38-*', 'cp39-*', 'cp310-*', 'cp311-*']
         include:
           - arch: aarch64
-            build: "pp37-*"
+            build: 'pp37-*'
           - arch: aarch64
-            build: "pp38-*"
+            build: 'pp38-*'
           - arch: aarch64
-            build: "pp39-*"
+            build: 'pp39-*'
 
     steps:
     - uses: actions/checkout@v3
@@ -107,6 +126,8 @@ jobs:
       env:
         CIBW_ARCHS_LINUX: ${{ matrix.arch }}
         CIBW_BUILD: ${{ matrix.build }}
+        CIBW_BUILD_VERBOSITY: 1
+        CIBW_ENVIRONMENT: CMAKE_BUILD_PARALLEL_LEVEL=2
 
     - name: Show files
       run: ls -lh wheelhouse
@@ -138,7 +159,7 @@ jobs:
         name: artifact
         path: dist
 
-    - uses: pypa/gh-action-pypi-publish@v1.5.1
+    - uses: pypa/gh-action-pypi-publish@v1
       with:
         user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
