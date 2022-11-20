@@ -8,11 +8,21 @@ add_definitions(-DVERSION_INFO="${PACKAGE_VERSION}")
 set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
-if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
-    option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
-    set(PYTHON_PREFIX "C:/Users/runneradmin/AppData/Local/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.3.9.10/tools")
-endif()
 add_subdirectory(pybind11)
+
+if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
+    message(WARNING
+        " This is hack for cibuildwheel on github action"
+        " Use the right way to cross-compile python module for windows arm64 like follows"
+        " option(PYBIND11_PYTHONLIBS_OVERWRITE \"\" OFF)"
+        " set(PYTHON_PREFIX \"<your-pythonarm64-root-path>\")"
+    )
+    # option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
+    # set(PYTHON_PREFIX "C:/Users/runneradmin/AppData/Local/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.3.9.10/tools")
+
+    string(REPLACE "nuget-cpython/python." "nuget-cpython/pythonarm64." PYTHON_LIBRARIES "${PYTHON_LIBRARIES}")
+    string(REPLACE "nuget-cpython/python." "nuget-cpython/pythonarm64." PYTHON_INCLUDE_DIRS "${PYTHON_INCLUDE_DIRS}")
+endif()
 
 if("${CMAKE_LIBRARY_OUTPUT_DIRECTORY}" STREQUAL "")
     if(MSVC OR CMAKE_GENERATOR STREQUAL "Xcode")
