@@ -1,9 +1,9 @@
 name: release-python
-on: [push, pull_request]
-# on:
-#   push:
-#     tags:
-#       - '*'
+# on: [push, pull_request]
+on:
+  push:
+    tags:
+      - '*'
 
 jobs:
   build_sdist:
