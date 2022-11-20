@@ -38,18 +38,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*' }
-          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*' }
-          - { os: ubuntu-20.04, arch: i686,       build: 'cp*' }
-          - { os: ubuntu-20.04, arch: i686,       build: 'pp*' }
-          - { os: windows-2019, arch: x86,        build: 'cp*' }
-          - { os: windows-2019, arch: AMD64,      build: 'cp*' }
-          - { os: windows-2019, arch: AMD64,      build: 'pp*' }
-          - { os: windows-2019, arch: ARM64,      build: 'cp*' }
-          - { os: macos-11,     arch: x86_64,     build: 'cp*' }
-          - { os: macos-11,     arch: x86_64,     build: 'pp*' }
-          - { os: macos-11,     arch: arm64,      build: 'cp*' }
-          - { os: macos-11,     arch: universal2, build: 'cp*' }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-manylinux*' }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'cp*-musllinux*' }
+          - { os: ubuntu-20.04, arch: x86_64,     build: 'pp*'            }
+          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-manylinux*' }
+          - { os: ubuntu-20.04, arch: i686,       build: 'cp*-musllinux*' }
+          - { os: ubuntu-20.04, arch: i686,       build: 'pp*'            }
+          - { os: windows-2019, arch: x86,        build: 'cp*'            }
+          - { os: windows-2019, arch: AMD64,      build: 'cp*'            }
+          - { os: windows-2019, arch: AMD64,      build: 'pp*'            }
+          - { os: windows-2019, arch: ARM64,      build: 'cp*'            }
+          - { os: macos-11,     arch: x86_64,     build: 'cp*'            }
+          - { os: macos-11,     arch: x86_64,     build: 'pp*'            }
+          - { os: macos-11,     arch: arm64,      build: 'cp*'            }
+          - { os: macos-11,     arch: universal2, build: 'cp*'            }
 
     steps:
     - uses: actions/checkout@v3
