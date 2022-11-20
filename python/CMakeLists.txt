@@ -9,21 +9,16 @@ set( CMAKE_CXX_STANDARD 11 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
 if(CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "ARM64")
-    message(WARNING
-        " This is hack for cibuildwheel on github action\n"
-        " Use the right way to cross-compile python module for windows arm64 like follows\n"
-        " option(PYBIND11_PYTHONLIBS_OVERWRITE \"\" OFF)\n"
-        " set(PYTHON_PREFIX \"<your-pythonarm64-root-path>\")\n"
-    )
     option(PYBIND11_PYTHONLIBS_OVERWRITE "" OFF)
-    message(WARNING "PYTHON_VERSION = $ENV{PYTHON_VERSION}")
-    message(WARNING "PYTHON_ARCH = $ENV{PYTHON_ARCH}")
 
-    execute_process(COMMAND "${CMAKE_COMMAND}" "-E" "environment")
-
-    # string(REPLACE "nuget-cpython/python." "nuget-cpython/pythonarm64." pythonLocation_arm64 "$ENV{pythonLocation}")
-    # message(WARNING "pythonLocation_arm64 = ${pythonLocation_arm64}")
-    set(PYTHON_PREFIX "C:/Users/runneradmin/AppData/Local/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.3.9.10/tools")
+    set(PYTHON_PREFIX "$ENV{LOCALAPPDATA}/pypa/cibuildwheel/Cache/nuget-cpython/pythonarm64.$ENV{PYTHON_VERSION}/tools")
+    if(NOT DEFINED $ENV{CIBUILDWHEEL})
+        message(WARNING
+            " This is hack for cibuildwheel on github action\n"
+            " Use the right way to cross-compile python module for windows arm64 like follows\n"
+            " set(PYTHON_PREFIX \"<your-pythonarm64-root-path>\")\n"
+        )
+    endif()
 endif()
 
 add_subdirectory(pybind11)

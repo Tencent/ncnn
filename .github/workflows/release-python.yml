@@ -38,14 +38,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # - { os: ubuntu-20.04, arch: x86_64     }
-          # - { os: ubuntu-20.04, arch: i686       }
-          # - { os: windows-2019, arch: x86        }
-          # - { os: windows-2019, arch: AMD64      }
+          - { os: ubuntu-20.04, arch: x86_64     }
+          - { os: ubuntu-20.04, arch: i686       }
+          - { os: windows-2019, arch: x86        }
+          - { os: windows-2019, arch: AMD64      }
           - { os: windows-2019, arch: ARM64      }
-          # - { os: macos-11,     arch: x86_64     }
-          # - { os: macos-11,     arch: arm64      }
-          # - { os: macos-11,     arch: universal2 }
+          - { os: macos-11,     arch: x86_64     }
+          - { os: macos-11,     arch: arm64      }
+          - { os: macos-11,     arch: universal2 }
 
     steps:
     - uses: actions/checkout@v3
