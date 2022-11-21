@@ -450,6 +450,12 @@ if(((IOS AND CMAKE_OSX_ARCHITECTURES MATCHES "arm64") OR (APPLE AND CMAKE_OSX_AR
         endif()
     endif()
     target_compile_options(ncnn PRIVATE ${ARM_MARCH_FLAG})
+
+    if(ANDROID_NDK_MAJOR AND (ANDROID_NDK_MAJOR GREATER_EQUAL 23))
+        # llvm 12 in ndk-23 enables out-of-line atomics by default
+        # disable this feature for fixing linking atomic builtins issue with old ndk
+        target_compile_options(ncnn PRIVATE -mno-outline-atomics)
+    endif()
 endif()
 
 if(NCNN_TARGET_ARCH STREQUAL "mips")
