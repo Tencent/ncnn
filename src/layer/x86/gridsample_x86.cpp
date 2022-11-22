@@ -41,6 +41,8 @@ const auto v1ip8 = _mm256_set1_epi32(1);
 const auto vn1ip8 = _mm256_set1_epi32(-1);
 
 #include "gridsample_bilinear_pack8.h"
+#include "gridsample_nearest_pack8.h"
+#include "gridsample_bicubic_pack8.h"
 
 static __m256 NCNN_FORCEINLINE
 grid_sample_unormalize_p8(const __m256& w, const __m256& coordx, int align_corner)
@@ -100,28 +102,6 @@ static NCNN_FORCEINLINE __m256 get_coord_p8(const __m256& x, const __m256& w, in
     __m256 coord = compute_coord_p8(sx, w, padding_mode, align_corner);
 
     return coord;
-}
-
-static NCNN_FORCEINLINE __m256 cubic_interp1d_p8(const __m256& x0_v, const __m256& x1_v, const __m256& x2_v, const __m256& x3_v, const __m256& tx)
-{
-    const auto A = _mm256_set1_ps(-0.75f);
-
-    const auto x0 = _mm256_add_ps(tx, v1fp8);
-    const auto& x1 = tx;
-    const auto x2 = _mm256_sub_ps(v1fp8, tx);
-    //const auto x3 = _mm256_add_ps(x2, v1fp8);
-
-    const __m256 coeffs0 = _mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(A, x0), _mm256_mul_ps(_mm256_set1_ps(5.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(8.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(4), A));
-    const __m256 coeffs1 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x1), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x1), x1), v1fp8);
-    const __m256 coeffs2 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x2), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x2), x2), v1fp8);
-    const __m256 coeffs3 = _mm256_sub_ps(_mm256_sub_ps(_mm256_sub_ps(v1fp8, coeffs0), coeffs1), coeffs2);
-
-    auto _v = _mm256_mul_ps(coeffs0, x0_v);
-    _v = _mm256_comp_fmadd_ps(coeffs1, x1_v, _v);
-    _v = _mm256_comp_fmadd_ps(coeffs2, x2_v, _v);
-    _v = _mm256_comp_fmadd_ps(coeffs3, x3_v, _v);
-
-    return _v;
 }
 
 #endif // __AVX__
@@ -250,6 +230,11 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     int dims = bottom_blob.dims;
     size_t elemsize = bottom_blob.elemsize;
 
+#if __STDC_NO_VLA__
+    int n = 10;
+    int a[n];
+#endif // __STDC_NO_VLA__
+
 #if __SSE2__
 #if __AVX__
 
@@ -273,164 +258,88 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             if (top_blob.empty())
                 return -100;
 
-            if (sample_type == 1) //zeros
+            if (sample_type == 1)
             {
-                if (padding_mode == 1) //zeros
+                if (padding_mode == 1)
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < channels; q++)
+                    if (align_corner == 0)
                     {
-                        Mat dst = top_blob.channel(q);
-                        const Mat image = bottom_blob.channel(q);
-
-                        gridsample_bilinear_image_pack8(image, dst, grid, padding_mode, align_corner);
+                        gridsample_bilinear_align0_zeros_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_bilinear_align1_zeros_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
                 }
-                else //border reflection
+                else if (padding_mode == 2)
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < channels; q++)
+                    if (align_corner == 0)
                     {
-                        float* outptr = top_blob.channel(q);
-                        const float* ptr = static_cast<float*>(bottom_blob.channel(q).data);
-                        for (int y = 0; y < outH; y++)
-                        {
-                            for (int x = 0; x < outW; x++)
-                            {
-                                const float* gridptr = grid.channel(y / grid.elempack).row(x) + y % grid.elempack;
-                                auto gx = _mm256_set1_ps(gridptr[0]);
-                                auto gy = _mm256_set1_ps(gridptr[grid.elempack]);
 
-                                gx = get_coord_p8(gx, vImgWf, padding_mode, align_corner);
-                                gy = get_coord_p8(gy, vImgHf, padding_mode, align_corner);
-
-                                auto x_w = _mm256_floor_ps(gx);
-                                auto y_n = _mm256_floor_ps(gy);
-
-                                auto w = _mm256_sub_ps(gx, x_w);
-                                auto e = _mm256_sub_ps(v1fp8, w);
-                                auto n = _mm256_sub_ps(gy, y_n);
-                                auto s = _mm256_sub_ps(v1fp8, n);
-
-                                auto nw = _mm256_mul_ps(s, e);
-                                auto ne = _mm256_mul_ps(s, w);
-                                auto sw = _mm256_mul_ps(n, e);
-                                auto se = _mm256_mul_ps(n, w);
-
-                                auto x0 = _mm256_cvtps_epi32(x_w);
-                                auto x1 = _mm256_add_epi32(x0, v1ip8);
-                                auto y0 = _mm256_cvtps_epi32(y_n);
-                                auto y1 = _mm256_add_epi32(y0, v1ip8);
-
-                                auto x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-                                auto y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
-
-                                auto v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
-
-                                auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
-                                auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
-                                auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
-                                auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
-
-                                auto nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, i_nw_offset, vn1fp8, sizeof(float));
-                                auto ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                                auto sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                                auto se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
-
-                                auto _v = _mm256_mul_ps(nw_val, nw);
-                                _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
-                                _v = _mm256_comp_fmadd_ps(sw_val, sw, _v);
-                                _v = _mm256_comp_fmadd_ps(se_val, se, _v);
-
-                                _mm256_storeu_ps(outptr, _v);
-
-                                outptr += elempack;
-                            }
-                        }
+                        gridsample_bilinear_align0_border_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
+                    else
+                    {
+                        gridsample_bilinear_align1_border_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_bilinear_align0_reflection_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_bilinear_align1_reflection_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else
+                {
+                    NCNN_LOGE("gridsample sample_type error\n");
+                    return -100;
                 }
             }
 
             if (sample_type == 2)
             {
-                if (padding_mode == 1) //zeros
+                if (padding_mode == 1) 
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < channels; q++)
+                    if (align_corner == 0)
                     {
-                        float* outptr = top_blob.channel(q);
-                        for (int y = 0; y < outH; y++)
-                        {
-                            for (int x = 0; x < outW; x++)
-                            {
-                                const float* gridptr = grid.channel(y / grid.elempack).row(x) + y % grid.elempack;
-                                auto gx = _mm256_set1_ps(gridptr[0]);
-                                auto gy = _mm256_set1_ps(gridptr[grid.elempack]);
-
-                                gx = get_coord_p8(gx, vImgWf, padding_mode, align_corner);
-                                gy = get_coord_p8(gy, vImgHf, padding_mode, align_corner);
-
-                                gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
-                                gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
-
-                                auto ix = _mm256_cvtps_epi32(gx);
-                                auto iy = _mm256_cvtps_epi32(gy);
-
-                                auto v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                    _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
-
-                                auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
-
-                                auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), static_cast<float*>(bottom_blob.channel(q).data),
-                                    i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
-
-                                _mm256_storeu_ps(outptr, _v);
-
-                                outptr += elempack;
-                            }
-                        }
+                        gridsample_nearest_align0_zeros_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_nearest_align1_zeros_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
                 }
-                else //border reflection
+                else if(padding_mode == 2)
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < channels; q++)
+                    if (align_corner == 0)
                     {
-                        float* outptr = top_blob.channel(q);
-                        for (int y = 0; y < outH; y++)
-                        {
-                            for (int x = 0; x < outW; x++)
-                            {
-                                const float* gridptr = grid.channel(y / grid.elempack).row(x) + y % grid.elempack;
-                                auto gx = _mm256_set1_ps(gridptr[0]);
-                                auto gy = _mm256_set1_ps(gridptr[grid.elempack]);
-
-                                gx = grid_sample_unormalize_p8(vImgWf, gx, align_corner);
-                                gy = grid_sample_unormalize_p8(vImgHf, gy, align_corner);
-
-                                gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
-                                gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
-
-                                gx = compute_coord_p8(gx, vImgWf, padding_mode, align_corner);
-                                gy = compute_coord_p8(gy, vImgHf, padding_mode, align_corner);
-
-                                auto ix = _mm256_cvtps_epi32(gx);
-                                auto iy = _mm256_cvtps_epi32(gy);
-
-                                auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                    _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
-
-                                auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), static_cast<float*>(bottom_blob.channel(q).data),
-                                    i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
-
-                                _mm256_storeu_ps(outptr, _v);
-
-                                outptr += elempack;
-                            }
-                        }
+                        gridsample_nearest_align0_border_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
+                    else
+                    {
+                        gridsample_nearest_align1_border_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_nearest_align0_reflection_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_nearest_align1_reflection_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else
+                {
+                    NCNN_LOGE("gridsample sample_type error\n");
+                    return -100;
                 }
             }
 
@@ -438,160 +347,35 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1)
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < channels; q++)
+                    if (align_corner == 0)
                     {
-                        float* outptr = top_blob.channel(q);
-                        const float* ptr = static_cast<float*>(bottom_blob.channel(q).data);
-                        for (int y = 0; y < outH; y++)
-                        {
-                            for (int x = 0; x < outW; x++)
-                            {
-                                const float* gridptr = grid.channel(y / grid.elempack).row(x) + y % grid.elempack;
-                                auto gx = _mm256_set1_ps(gridptr[0]);
-                                auto gy = _mm256_set1_ps(gridptr[grid.elempack]);
-
-                                gx = grid_sample_unormalize_p8(vImgWf, gx, align_corner);
-                                gy = grid_sample_unormalize_p8(vImgHf, gy, align_corner);
-
-                                auto gx_floor = _mm256_floor_ps(gx);
-                                auto gy_floor = _mm256_floor_ps(gy);
-
-                                const auto tx = _mm256_sub_ps(gx, gx_floor);
-                                const auto ty = _mm256_sub_ps(gy, gy_floor);
-
-                                __m256 coefficients[4];
-
-                                for (int i = 0; i < 4; i++)
-                                {
-                                    auto gx0 = compute_coord_p8(_mm256_add_ps(gx_floor, vn1fp8), vImgWf, padding_mode, align_corner);
-                                    auto gx1 = compute_coord_p8(gx_floor, vImgWf, padding_mode, align_corner);
-                                    auto gx2 = compute_coord_p8(_mm256_add_ps(gx_floor, v1fp8), vImgWf, padding_mode, align_corner);
-                                    auto gx3 = compute_coord_p8(_mm256_add_ps(gx_floor, _mm256_set1_ps(2.0f)), vImgWf, padding_mode, align_corner);
-
-                                    gy = compute_coord_p8(_mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i)), vImgHf, padding_mode, align_corner);
-
-                                    auto x0 = _mm256_cvtps_epi32(gx0);
-                                    auto x1 = _mm256_cvtps_epi32(gx1);
-                                    auto x2 = _mm256_cvtps_epi32(gx2);
-                                    auto x3 = _mm256_cvtps_epi32(gx3);
-
-                                    auto y = _mm256_cvtps_epi32(gy);
-
-                                    auto x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x0));
-                                    auto x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-                                    auto x2_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x2, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x2));
-                                    auto x3_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x3, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x3));
-
-                                    auto y_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y));
-
-                                    auto v0_in_range = _mm256_and_si256(x0_in_range, y_in_range);
-                                    auto v1_in_range = _mm256_and_si256(x1_in_range, y_in_range);
-                                    auto v2_in_range = _mm256_and_si256(x2_in_range, y_in_range);
-                                    auto v3_in_range = _mm256_and_si256(x3_in_range, y_in_range);
-
-                                    auto x0_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
-                                    auto x1_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
-                                    auto x2_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
-                                    auto x3_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
-
-                                    auto x0_offset = _mm256_cvtps_epi32(x0_offset_f);
-                                    auto x1_offset = _mm256_cvtps_epi32(x1_offset_f);
-                                    auto x2_offset = _mm256_cvtps_epi32(x2_offset_f);
-                                    auto x3_offset = _mm256_cvtps_epi32(x3_offset_f);
-
-                                    auto x0_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, x0_offset, *reinterpret_cast<__m256*>(&v0_in_range), sizeof(float));
-                                    auto x1_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, x1_offset, *reinterpret_cast<__m256*>(&v1_in_range), sizeof(float));
-                                    auto x2_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, x2_offset, *reinterpret_cast<__m256*>(&v2_in_range), sizeof(float));
-                                    auto x3_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, x3_offset, *reinterpret_cast<__m256*>(&v3_in_range), sizeof(float));
-
-                                    coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
-                                }
-
-                                auto _v = cubic_interp1d_p8(coefficients[0], coefficients[1], coefficients[2], coefficients[3], ty);
-
-                                _mm256_storeu_ps(outptr, _v);
-
-                                outptr += elempack;
-                            }
-                        }
+                        gridsample_bicubic_align0_zeros_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_bicubic_align1_zeros_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
                 }
-                else
+                else if (padding_mode == 2)
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
-                    for (int q = 0; q < channels; q++)
+                    if (align_corner == 0)
                     {
-                        float* outptr = top_blob.channel(q);
-                        const float* ptr = static_cast<float*>(bottom_blob.channel(q).data);
-                        for (int y = 0; y < outH; y++)
-                        {
-                            for (int x = 0; x < outW; x++)
-                            {
-                                const float* gridptr = grid.channel(y / grid.elempack).row(x) + y % grid.elempack;
-                                auto gx = _mm256_set1_ps(gridptr[0]);
-                                auto gy = _mm256_set1_ps(gridptr[grid.elempack]);
-
-                                gx = grid_sample_unormalize_p8(vImgWf, gx, align_corner);
-                                gy = grid_sample_unormalize_p8(vImgHf, gy, align_corner);
-
-                                auto gx_floor = _mm256_floor_ps(gx);
-                                auto gy_floor = _mm256_floor_ps(gy);
-
-                                const auto tx = _mm256_sub_ps(gx, gx_floor);
-                                const auto ty = _mm256_sub_ps(gy, gy_floor);
-
-                                __m256 coefficients[4];
-
-                                for (int i = 0; i < 4; i++)
-                                {
-                                    auto gx0 = compute_coord_p8(_mm256_add_ps(gx_floor, vn1fp8), vImgWf, padding_mode, align_corner);
-                                    auto gx1 = compute_coord_p8(gx_floor, vImgWf, padding_mode, align_corner);
-                                    auto gx2 = compute_coord_p8(_mm256_add_ps(gx_floor, v1fp8), vImgWf, padding_mode, align_corner);
-                                    auto gx3 = compute_coord_p8(_mm256_add_ps(gx_floor, _mm256_set1_ps(2.0f)), vImgWf, padding_mode, align_corner);
-
-                                    gy = compute_coord_p8(_mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i)), vImgHf, padding_mode, align_corner);
-
-                                    auto x0 = _mm256_cvtps_epi32(gx0);
-                                    auto x1 = _mm256_cvtps_epi32(gx1);
-                                    auto x2 = _mm256_cvtps_epi32(gx2);
-                                    auto x3 = _mm256_cvtps_epi32(gx3);
-
-                                    auto y = _mm256_cvtps_epi32(gy);
-
-                                    auto x0_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
-                                    auto x1_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
-                                    auto x2_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
-                                    auto x3_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                        _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
-
-                                    auto x0_offset = _mm256_cvtps_epi32(x0_offset_f);
-                                    auto x1_offset = _mm256_cvtps_epi32(x1_offset_f);
-                                    auto x2_offset = _mm256_cvtps_epi32(x2_offset_f);
-                                    auto x3_offset = _mm256_cvtps_epi32(x3_offset_f);
-
-                                    auto x0_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, x0_offset, vn1fp8, sizeof(float));
-                                    auto x1_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, x1_offset, vn1fp8, sizeof(float));
-                                    auto x2_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, x2_offset, vn1fp8, sizeof(float));
-                                    auto x3_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), ptr, x3_offset, vn1fp8, sizeof(float));
-
-                                    coefficients[i] = cubic_interp1d_p8(x0_val, x1_val, x2_val, x3_val, tx);
-                                }
-
-                                auto _v = cubic_interp1d_p8(coefficients[0], coefficients[1], coefficients[2], coefficients[3], ty);
-
-                                _mm256_storeu_ps(outptr, _v);
-
-                                outptr += elempack;
-                            }
-                        }
+                        gridsample_bicubic_align0_border_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_bicubic_align1_border_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if(padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_bicubic_align0_reflection_blob_pack8(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_bicubic_align1_reflection_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
                 }
             }
@@ -929,7 +713,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
                                     gx = compute_coord_p8(gx, vImgWf, padding_mode, align_corner);
                                     gy = compute_coord_p8(gy, vImgHf, padding_mode, align_corner);
-                                    gy = compute_coord_p8(gz, vImgDf, padding_mode, align_corner);
+                                    gz = compute_coord_p8(gz, vImgDf, padding_mode, align_corner);
 
                                     auto ix = _mm256_cvtps_epi32(gx);
                                     auto iy = _mm256_cvtps_epi32(gy);
