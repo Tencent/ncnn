@@ -20,6 +20,9 @@
 #if __AVX__
 #include <immintrin.h>
 #include "avx_mathfun.h"
+#if __AVX512F__
+#include "avx512_mathfun.h"
+#endif // __AVX512F__
 #endif // __AVX__
 #endif // __SSE2__
 #include "x86_usability.h"
@@ -35,74 +38,25 @@ GridSample_x86::GridSample_x86()
 
 #if __SSE2__
 #if __AVX__
+#if __AVX512F__
+const __m512 v1fp16 = _mm512_set1_ps(1.0f);
+const __m512 vn1fp16 = _mm512_set1_ps(-1.0f);
+const __m512i v1ip16 = _mm512_set1_epi32(1);
+const __m512i vn1ip16 = _mm512_set1_epi32(-1);
+
+#include "gridsample_bilinear_pack16.h"
+#include "gridsample_nearest_pack16.h"
+#include "gridsample_bicubic_pack16.h"
+
+#endif // __AVX512F__
 const __m256 v1fp8 = *(__m256*)_ps256_1;
-const auto vn1fp8 = _mm256_set1_ps(-1.0f);
-const auto v1ip8 = _mm256_set1_epi32(1);
-const auto vn1ip8 = _mm256_set1_epi32(-1);
+const __m256 vn1fp8 = _mm256_set1_ps(-1.0f);
+const __m256i v1ip8 = _mm256_set1_epi32(1);
+const __m256i vn1ip8 = _mm256_set1_epi32(-1);
 
 #include "gridsample_bilinear_pack8.h"
 #include "gridsample_nearest_pack8.h"
 #include "gridsample_bicubic_pack8.h"
-
-static __m256 NCNN_FORCEINLINE
-grid_sample_unormalize_p8(const __m256& w, const __m256& coordx, int align_corner)
-{
-    __m256 two = _mm256_set1_ps(2.f);
-
-    if (align_corner)
-        return _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(coordx, v1fp8), two), _mm256_sub_ps(w, v1fp8));
-    else
-        return _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(coordx, v1fp8), w, v1fp8), two);
-}
-
-static NCNN_FORCEINLINE __m256 border_coord_p8(const __m256& coord, const __m256& border)
-{
-    return _mm256_min_ps(border, _mm256_max_ps(coord, _mm256_setzero_ps()));
-}
-
-static NCNN_FORCEINLINE __m256 reflect_coord_p8(__m256 x, const __m256& high)
-{
-    /* take the absolute value */
-    x = _mm256_and_ps(x, *(__m256*)_ps256_inv_sign_mask);
-
-    __m256 reflect_v = _mm256_and_ps(_mm256_sub_ps(x, high), *(__m256*)_ps256_inv_sign_mask);
-    x = _mm256_sub_ps(high, reflect_v);
-    return x;
-}
-
-static NCNN_FORCEINLINE __m256 compute_coord_p8(__m256 sx, const __m256& w, int padding_mode, int align_corner)
-{
-    if (padding_mode == 2) // border
-    {
-        sx = border_coord_p8(sx, _mm256_sub_ps(w, v1fp8));
-    }
-    else if (padding_mode == 3) // reflection
-    {
-        if (align_corner)
-        {
-            sx = reflect_coord_p8(sx, _mm256_sub_ps(w, v1fp8));
-        }
-        else
-        {
-            __m256 v0p5f = _mm256_set1_ps(0.5f);
-            sx = _mm256_sub_ps(reflect_coord_p8(_mm256_add_ps(sx, v0p5f), w), v0p5f);
-            sx = border_coord_p8(sx, _mm256_sub_ps(w, v1fp8));
-        }
-    }
-
-    return sx;
-}
-
-static NCNN_FORCEINLINE __m256 get_coord_p8(const __m256& x, const __m256& w, int padding_mode, int align_corner)
-{
-    // compute the origin coordinates
-    __m256 sx = grid_sample_unormalize_p8(w, x, align_corner);
-
-    // correct the coordinates according to the padding_mode
-    __m256 coord = compute_coord_p8(sx, w, padding_mode, align_corner);
-
-    return coord;
-}
 
 #endif // __AVX__
 
@@ -139,66 +93,6 @@ static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, 
 #include "gridsample_bilinear_pack4.h"
 #include "gridsample_nearest_pack4.h"
 
-static __m128 NCNN_FORCEINLINE
-grid_sample_unormalize_p4(const __m128& w, const __m128& coordx, int align_corner)
-{
-    __m128 two = _mm_set1_ps(2.f);
-
-    if (align_corner)
-        return _mm_mul_ps(_mm_div_ps(_mm_add_ps(coordx, v1fp4), two), _mm_sub_ps(w, v1fp4));
-    else
-        return _mm_div_ps(_mm_comp_fmsub_ps(_mm_add_ps(coordx, v1fp4), w, v1fp4), two);
-}
-
-static NCNN_FORCEINLINE __m128 border_coord_p4(const __m128& coord, const __m128& border)
-{
-    return _mm_min_ps(border, _mm_max_ps(coord, _mm_setzero_ps()));
-}
-
-static NCNN_FORCEINLINE __m128 reflect_coord_p4(__m128 x, const __m128& high)
-{
-    /* take the absolute value */
-    x = _mm_and_ps(x, *(__m128*)_ps_inv_sign_mask);
-
-    __m128 reflect_v = _mm_and_ps(_mm_sub_ps(x, high), *(__m128*)_ps_inv_sign_mask);
-    x = _mm_sub_ps(high, reflect_v);
-    return x;
-}
-
-static NCNN_FORCEINLINE __m128 compute_coord_p4(__m128 sx, const __m128& w, int padding_mode, int align_corner)
-{
-    if (padding_mode == 2) // border
-    {
-        sx = border_coord_p4(sx, _mm_sub_ps(w, v1fp4));
-    }
-    else if (padding_mode == 3) // reflection
-    {
-        if (align_corner)
-        {
-            sx = reflect_coord_p4(sx, _mm_sub_ps(w, v1fp4));
-        }
-        else
-        {
-            __m128 v0p5f = *(__m128*)_ps_0p5;
-            sx = _mm_sub_ps(reflect_coord_p4(_mm_add_ps(sx, v0p5f), w), v0p5f);
-            sx = border_coord_p4(sx, _mm_sub_ps(w, v1fp4));
-        }
-    }
-
-    return sx;
-}
-
-static NCNN_FORCEINLINE __m128 get_coord_p4(const __m128& x, const __m128& w, int padding_mode, int align_corner)
-{
-    // compute the origin coordinates
-    __m128 sx = grid_sample_unormalize_p4(w, x, align_corner);
-
-    // correct the coordinates according to the padding_mode
-    __m128 coord = compute_coord_p4(sx, w, padding_mode, align_corner);
-
-    return coord;
-}
-
 #endif // __SSE2__
 
 int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
@@ -216,6 +110,245 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     size_t elemsize = bottom_blob.elemsize;
 
 #if __SSE2__
+#if __AVX512F__
+    if (elempack == 16)
+    {
+        if (dims == 3)
+        {
+            top_blob.create(grid.h, grid.c * grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (sample_type == 1)
+            {
+                if (padding_mode == 1)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_bilinear_align0_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_bilinear_align1_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 2)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_bilinear_align0_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_bilinear_align1_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_bilinear_align0_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_bilinear_align1_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else
+                {
+                    NCNN_LOGE("gridsample padding_mode error\n");
+                    return -100;
+                }
+            }
+
+            if (sample_type == 2)
+            {
+                if (padding_mode == 1)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_nearest_align0_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_nearest_align1_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 2)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_nearest_align0_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_nearest_align1_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_nearest_align0_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_nearest_align1_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else
+                {
+                    NCNN_LOGE("gridsample padding_mode error\n");
+                    return -100;
+                }
+            }
+
+            if (sample_type == 3)
+            {
+                if (padding_mode == 1)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_bicubic_align0_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_bicubic_align1_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 2)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_bicubic_align0_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_bicubic_align1_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_2d_bicubic_align0_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_2d_bicubic_align1_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else
+                {
+                    NCNN_LOGE("gridsample padding_mode error\n");
+                    return -100;
+                }
+            }
+        }
+
+        if (dims == 4)
+        {
+            const int outW = grid.h;
+            const int outH = grid.d;
+            const int outD = grid.c * grid.elempack;
+
+            top_blob.create(grid.h, grid.d, grid.c * grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
+            if (top_blob.empty())
+                return -100;
+
+            if (sample_type == 1)
+            {
+                if (padding_mode == 1)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_3d_bilinear_align0_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_3d_bilinear_align1_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 2)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_3d_bilinear_align0_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_3d_bilinear_align1_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_3d_bilinear_align0_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_3d_bilinear_align1_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else
+                {
+                    NCNN_LOGE("gridsample sample_type error\n");
+                    return -100;
+                }
+            }
+
+            if (sample_type == 2)
+            {
+                if (padding_mode == 1)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_3d_nearest_align0_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_3d_nearest_align1_zeros_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 2)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_3d_nearest_align0_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_3d_nearest_align1_border_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else if (padding_mode == 3)
+                {
+                    if (align_corner == 0)
+                    {
+                        gridsample_3d_nearest_align0_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                    else
+                    {
+                        gridsample_3d_nearest_align1_reflection_blob_pack16(bottom_blob, top_blob, grid, opt);
+                    }
+                }
+                else
+                {
+                    NCNN_LOGE("gridsample sample_type error\n");
+                    return -100;
+                }
+            }
+
+            if (sample_type == 3)
+            {
+                NCNN_LOGE("unsupported bicubic when dims == 4");
+                return -1;
+            }
+        }
+    }
+#endif // __AVX512F__
+
 #if __AVX__
 
     if (elempack == 8)
@@ -459,21 +592,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     if (elempack == 4)
     {
-        const auto vImgWfp4 = _mm_set1_ps(w);
-        const auto vImgHfp4 = _mm_set1_ps(h);
-        const auto vImgWip4 = _mm_set1_epi32(w);
-        const auto vImgHip4 = _mm_set1_epi32(h);
-
-        const auto vElemsizei = _mm_set1_epi32(elemsize / 8);
-        const auto vElempacki = _mm_set1_epi32(elempack);
-        const auto vElempackf = _mm_set1_ps(elempack);
-
         if (dims == 3)
         {
-            const auto outW = grid.h;
-            const auto outH = grid.c * grid.elempack;
-
-            top_blob.create(outW, outH, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create(grid.h, grid.c* grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -606,16 +727,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
         if (dims == 4)
         {
-            const int outW = grid.h;
-            const int outH = grid.d;
-            const int outD = grid.c * grid.elempack;
-
-            top_blob.create(outW, outH, outD, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create(grid.h, grid.d, grid.c* grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
-
-            const auto vImgDfp4 = _mm_set1_ps(d);
-            const auto vImgDip4 = _mm_set1_epi32(d);
 
             if (sample_type == 1)
             {
