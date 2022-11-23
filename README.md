@@ -307,6 +307,7 @@ ncnn 目前已在腾讯多款应用中使用，如：QQ，Qzone，微信，天�
 - <https://github.com/nihui/ncnn-android-yolov5>
 - <https://github.com/xiang-wuu/ncnn-android-yolov7>
 - <https://github.com/nihui/ncnn-android-scrfd> 🤩
+- <https://github.com/shaoshengsong/qt_android_ncnn_lib_encrypt_example>
 
 <img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-2.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/4.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-33.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-assets/raw/master/20181217/ncnn-m.png" height ="230"/><img src="https://github.com/nihui/ncnn-android-yolov5/raw/master/screenshot.jpg" height ="230"/><img src="https://github.com/nihui/ncnn-android-scrfd/raw/master/screenshot.jpg" height ="230"/><br>
 
