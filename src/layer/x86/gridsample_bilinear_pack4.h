@@ -21,7 +21,7 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -72,7 +72,7 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
 
             // (W*y + x) * elempack + vec(8)
             __m128i i_nw_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                                _mm_set_epi32(3, 2, 1, 0));
             __m128i i_ne_offset = _mm_add_epi32(i_nw_offset, vElempacki);
             __m128i i_sw_offset = _mm_add_epi32(i_nw_offset, _mm_mullo_epi32(vImgWi, vElempacki));
             __m128i i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
@@ -104,7 +104,7 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack4(const Mat& src, Mat& 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -155,7 +155,7 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack4(const Mat& src, Mat& 
 
             // (W*y + x) * elempack + vec(8)
             __m128i i_nw_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                                _mm_set_epi32(3, 2, 1, 0));
             __m128i i_ne_offset = _mm_add_epi32(i_nw_offset, vElempacki);
             __m128i i_sw_offset = _mm_add_epi32(i_nw_offset, _mm_mullo_epi32(vImgWi, vElempacki));
             __m128i i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
@@ -187,7 +187,7 @@ static void gridsample_2d_bilinear_align0_border_blob_pack4(const Mat& src, Mat&
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -241,7 +241,7 @@ static void gridsample_2d_bilinear_align0_border_blob_pack4(const Mat& src, Mat&
 
             // (W*y + x) * elempack + vec(8)
             __m128i i_nw_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                                _mm_set_epi32(3, 2, 1, 0));
             __m128i i_ne_offset = _mm_add_epi32(i_nw_offset, vElempacki);
             __m128i i_sw_offset = _mm_add_epi32(i_nw_offset, _mm_mullo_epi32(vImgWi, vElempacki));
             __m128i i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
@@ -273,7 +273,7 @@ static void gridsample_2d_bilinear_align1_border_blob_pack4(const Mat& src, Mat&
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -327,7 +327,7 @@ static void gridsample_2d_bilinear_align1_border_blob_pack4(const Mat& src, Mat&
 
             // (W*y + x) * elempack + vec(8)
             __m128i i_nw_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                                _mm_set_epi32(3, 2, 1, 0));
             __m128i i_ne_offset = _mm_add_epi32(i_nw_offset, vElempacki);
             __m128i i_sw_offset = _mm_add_epi32(i_nw_offset, _mm_mullo_epi32(vImgWi, vElempacki));
             __m128i i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
@@ -359,7 +359,7 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack4(const Mat& src, 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -436,7 +436,7 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack4(const Mat& src, 
 
             // (W*y + x) * elempack + vec(8)
             __m128i i_nw_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                                _mm_set_epi32(3, 2, 1, 0));
             __m128i i_ne_offset = _mm_add_epi32(i_nw_offset, vElempacki);
             __m128i i_sw_offset = _mm_add_epi32(i_nw_offset, _mm_mullo_epi32(vImgWi, vElempacki));
             __m128i i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
@@ -468,7 +468,7 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack4(const Mat& src, 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -528,7 +528,7 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack4(const Mat& src, 
 
             // (W*y + x) * elempack + vec(8)
             __m128i i_nw_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                                _mm_set_epi32(3, 2, 1, 0));
             __m128i i_ne_offset = _mm_add_epi32(i_nw_offset, vElempacki);
             __m128i i_sw_offset = _mm_add_epi32(i_nw_offset, _mm_mullo_epi32(vImgWi, vElempacki));
             __m128i i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
@@ -562,7 +562,7 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -701,7 +701,7 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack4(const Mat& src, Mat& 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -840,7 +840,7 @@ static void gridsample_3d_bilinear_align0_border_blob_pack4(const Mat& src, Mat&
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -981,7 +981,7 @@ static void gridsample_3d_bilinear_align1_border_blob_pack4(const Mat& src, Mat&
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -1122,7 +1122,7 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack4(const Mat& src, 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -1294,7 +1294,7 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack4(const Mat& src, 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)

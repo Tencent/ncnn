@@ -81,7 +81,7 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack16(const Mat& src, Mat& 
             __m512i x1 = _mm512_cvtps_epi32(gx1);
             __m512i x2 = _mm512_cvtps_epi32(gx2);
             __m512i x3 = _mm512_cvtps_epi32(gx3);
-                  
+
             __mmask16 x0_in_range = _mm512_cmpgt_epi32_mask(x0, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x0);
             __mmask16 x1_in_range = _mm512_cmpgt_epi32_mask(x1, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x1);
             __mmask16 x2_in_range = _mm512_cmpgt_epi32_mask(x2, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x2);
@@ -103,13 +103,13 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack16(const Mat& src, Mat& 
                 v3_in_range[i] = x3_in_range & y_in_range;
 
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v2_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v3_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm512_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm512_cvtps_epi32(v1_offset_f);
@@ -203,13 +203,13 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack16(const Mat& src, Mat& 
                 v3_in_range[i] = x3_in_range & y_in_range;
 
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v2_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v3_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm512_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm512_cvtps_epi32(v1_offset_f);
@@ -294,13 +294,13 @@ static void gridsample_2d_bicubic_align0_border_blob_pack16(const Mat& src, Mat&
                 __m512i y = _mm512_cvtps_epi32(gy);
 
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v2_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v3_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm512_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm512_cvtps_epi32(v1_offset_f);
@@ -386,13 +386,13 @@ static void gridsample_2d_bicubic_align1_border_blob_pack16(const Mat& src, Mat&
                 __m512i y = _mm512_cvtps_epi32(gy);
 
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v2_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v3_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm512_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm512_cvtps_epi32(v1_offset_f);
@@ -549,13 +549,13 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack16(const Mat& src, 
                 __m512i y = _mm512_cvtps_epi32(gy);
 
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v2_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v3_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm512_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm512_cvtps_epi32(v1_offset_f);
@@ -674,13 +674,13 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack16(const Mat& src, 
                 __m512i y = _mm512_cvtps_epi32(gy);
 
                 __m512 v0_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx0), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v1_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx1), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v2_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx2), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m512 v3_offset_f = _mm512_add_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(gy, vImgWf), gx3), vElempackf),
-                                                 _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
+                                                   _mm512_set_ps(15.0f, 14.0f, 13.0f, 12.0f, 11.0f, 10.0f, 9.0f, 8.0f, 7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm512_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm512_cvtps_epi32(v1_offset_f);

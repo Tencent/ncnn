@@ -594,7 +594,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
     {
         if (dims == 3)
         {
-            top_blob.create(grid.h, grid.c* grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create(grid.h, grid.c * grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -727,7 +727,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
         if (dims == 4)
         {
-            top_blob.create(grid.h, grid.d, grid.c* grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create(grid.h, grid.d, grid.c * grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 

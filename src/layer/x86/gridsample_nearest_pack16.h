@@ -18,7 +18,7 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack16(const Mat& src, Mat& 
     const __m512 vImgHf = _mm512_set1_ps(src.h);
     const __m512i vImgWi = _mm512_set1_epi32(src.w);
     const __m512i vImgHi = _mm512_set1_epi32(src.h);
-                
+
     const __m512i vElempacki = _mm512_set1_epi32(src.elempack);
 
     #pragma omp parallel for num_threads(opt.num_threads)
@@ -51,7 +51,7 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack16(const Mat& src, Mat& 
             __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
 
             __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                             _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -101,9 +101,8 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack16(const Mat& src, Mat& 
 
             __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
 
-
             __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                             _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -160,7 +159,7 @@ static void gridsample_2d_nearest_align0_border_blob_pack16(const Mat& src, Mat&
             __m512i iy = _mm512_cvtps_epi32(gy);
 
             __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                             _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -217,7 +216,7 @@ static void gridsample_2d_nearest_align1_border_blob_pack16(const Mat& src, Mat&
             __m512i iy = _mm512_cvtps_epi32(gy);
 
             __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                             _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -295,7 +294,7 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack16(const Mat& src, 
             __m512i iy = _mm512_cvtps_epi32(gy);
 
             __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                             _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -356,7 +355,7 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack16(const Mat& src, 
             __m512i iy = _mm512_cvtps_epi32(gy);
 
             __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                                             _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -799,7 +798,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack16(const Mat& src, 
                 __m512i ix = _mm512_cvtps_epi32(gx);
                 __m512i iy = _mm512_cvtps_epi32(gy);
                 __m512i iz = _mm512_cvtps_epi32(gz);
-                
+
                 __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(_mm512_mullo_epi32(vImgWi, vImgHi), iz), _mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
                 for (int q = 0; q < dst.c; q++)

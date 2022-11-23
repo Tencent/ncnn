@@ -21,7 +21,7 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -49,10 +49,10 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
             __m128i iy = _mm_cvtps_epi32(gy);
 
             __m128i v_in_range = _mm_and_si128(_mm_and_si128(_mm_cmpgt_epi32(ix, vn1ip4), _mm_cmpgt_epi32(vImgWi, ix)),
-                _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
+                                               _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
 
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                             _mm_set_epi32(3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -73,7 +73,7 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -101,10 +101,10 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
             __m128i iy = _mm_cvtps_epi32(gy);
 
             __m128i v_in_range = _mm_and_si128(_mm_and_si128(_mm_cmpgt_epi32(ix, vn1ip4), _mm_cmpgt_epi32(vImgWi, ix)),
-                _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
+                                               _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
 
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                             _mm_set_epi32(3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -125,7 +125,7 @@ static void gridsample_2d_nearest_align0_border_blob_pack4(const Mat& src, Mat& 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -161,7 +161,7 @@ static void gridsample_2d_nearest_align0_border_blob_pack4(const Mat& src, Mat& 
             __m128i iy = _mm_cvtps_epi32(gy);
 
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                             _mm_set_epi32(3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -182,7 +182,7 @@ static void gridsample_2d_nearest_align1_border_blob_pack4(const Mat& src, Mat& 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -218,7 +218,7 @@ static void gridsample_2d_nearest_align1_border_blob_pack4(const Mat& src, Mat& 
             __m128i iy = _mm_cvtps_epi32(gy);
 
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                             _mm_set_epi32(3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -239,7 +239,7 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack4(const Mat& src, M
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -296,7 +296,7 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack4(const Mat& src, M
             __m128i iy = _mm_cvtps_epi32(gy);
 
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                             _mm_set_epi32(3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -317,7 +317,7 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack4(const Mat& src, M
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -357,7 +357,7 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack4(const Mat& src, M
             __m128i iy = _mm_cvtps_epi32(gy);
 
             __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix), vElempacki),
-                _mm_set_epi32(3, 2, 1, 0));
+                                             _mm_set_epi32(3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -380,7 +380,7 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -416,7 +416,7 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack4(const Mat& src, Mat& d
                 __m128i iz = _mm_cvtps_epi32(gz);
 
                 __m128i v_in_range = _mm_and_si128(_mm_and_si128(_mm_cmpgt_epi32(ix, vn1ip4), _mm_cmpgt_epi32(vImgWi, ix)),
-                    _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
+                                                   _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
                 v_in_range = _mm_and_si128(v_in_range, _mm_and_si128(_mm_cmpgt_epi32(iz, vn1ip4), _mm_cmpgt_epi32(vImgDi, iz)));
 
                 __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWi, vImgHi), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
@@ -443,7 +443,7 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -479,7 +479,7 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack4(const Mat& src, Mat& d
                 __m128i iz = _mm_cvtps_epi32(gz);
 
                 __m128i v_in_range = _mm_and_si128(_mm_and_si128(_mm_cmpgt_epi32(ix, vn1ip4), _mm_cmpgt_epi32(vImgWi, ix)),
-                    _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
+                                                   _mm_and_si128(_mm_cmpgt_epi32(iy, vn1ip4), _mm_cmpgt_epi32(vImgHi, iy)));
                 v_in_range = _mm_and_si128(v_in_range, _mm_and_si128(_mm_cmpgt_epi32(iz, vn1ip4), _mm_cmpgt_epi32(vImgDi, iz)));
 
                 __m128i i_offset = _mm_add_epi32(_mm_mullo_epi32(_mm_add_epi32(_mm_mullo_epi32(_mm_mullo_epi32(vImgWi, vImgHi), iz), _mm_add_epi32(_mm_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm_set_epi32(3, 2, 1, 0));
@@ -506,7 +506,7 @@ static void gridsample_3d_nearest_align0_border_blob_pack4(const Mat& src, Mat& 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -577,7 +577,7 @@ static void gridsample_3d_nearest_align1_border_blob_pack4(const Mat& src, Mat& 
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -648,7 +648,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack4(const Mat& src, M
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -750,7 +750,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack4(const Mat& src, M
 
     const __m128i vElempacki = _mm_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
