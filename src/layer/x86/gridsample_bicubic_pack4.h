@@ -43,7 +43,7 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack4(const Mat& src, Mat& d
 
     const auto vElempackf = _mm_set1_ps(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -88,7 +88,7 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack4(const Mat& src, Mat& d
             auto x3_in_range = _mm_and_si128(_mm_cmpgt_epi32(x3, vn1ip4), _mm_cmpgt_epi32(vImgWi, x3));
 
             __m128i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4],
-                v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
+                    v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
             for (int i = 0; i < 4; i++)
             {
                 gy = _mm_add_ps(gy_floor, _mm_set1_ps(-1.0f + i));
@@ -103,13 +103,13 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack4(const Mat& src, Mat& d
                 v3_in_range[i] = _mm_and_si128(x3_in_range, y_in_range);
 
                 auto v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v1_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx1), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v2_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx2), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v3_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx3), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm_cvtps_epi32(v1_offset_f);
@@ -146,7 +146,7 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack4(const Mat& src, Mat& d
 
     const auto vElempackf = _mm_set1_ps(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -188,7 +188,7 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack4(const Mat& src, Mat& d
             auto x3_in_range = _mm_and_si128(_mm_cmpgt_epi32(x3, vn1ip4), _mm_cmpgt_epi32(vImgWi, x3));
 
             __m128i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4],
-                v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
+                    v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
             for (int i = 0; i < 4; i++)
             {
                 gy = _mm_add_ps(gy_floor, _mm_set1_ps(-1.0f + i));
@@ -203,13 +203,13 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack4(const Mat& src, Mat& d
                 v3_in_range[i] = _mm_and_si128(x3_in_range, y_in_range);
 
                 auto v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v1_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx1), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v2_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx2), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v3_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx3), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm_cvtps_epi32(v1_offset_f);
@@ -246,7 +246,7 @@ static void gridsample_2d_bicubic_align0_border_blob_pack4(const Mat& src, Mat& 
 
     const auto vElempackf = _mm_set1_ps(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -294,13 +294,13 @@ static void gridsample_2d_bicubic_align0_border_blob_pack4(const Mat& src, Mat& 
                 auto y = _mm_cvtps_epi32(gy);
 
                 auto v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v1_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx1), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v2_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx2), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v3_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx3), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm_cvtps_epi32(v1_offset_f);
@@ -337,7 +337,7 @@ static void gridsample_2d_bicubic_align1_border_blob_pack4(const Mat& src, Mat& 
 
     const auto vElempackf = _mm_set1_ps(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -386,13 +386,13 @@ static void gridsample_2d_bicubic_align1_border_blob_pack4(const Mat& src, Mat& 
                 auto y = _mm_cvtps_epi32(gy);
 
                 auto v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v1_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx1), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v2_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx2), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v3_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx3), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm_cvtps_epi32(v1_offset_f);
@@ -429,7 +429,7 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
 
     const auto vElempackf = _mm_set1_ps(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -474,7 +474,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
                 _mm_sub_ps(gx0, v0p5fp4);
 
                 gx0 = _mm_min_ps(border_x, _mm_max_ps(gx0, _mm_setzero_ps()));
-
 
                 // x1
                 gx1 = _mm_add_ps(gx1, v0p5fp4);
@@ -528,7 +527,7 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
             for (int i = 0; i < 4; i++)
             {
                 gy = _mm_add_ps(gy_floor, _mm_set1_ps(-1.0f + i));
-               
+
                 {
                     //y
                     const auto border_y = _mm_sub_ps(vImgHf, v1fp4);
@@ -550,13 +549,13 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack4(const Mat& src, M
                 auto y = _mm_cvtps_epi32(gy);
 
                 auto v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v1_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx1), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v2_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx2), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v3_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx3), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm_cvtps_epi32(v1_offset_f);
@@ -595,7 +594,7 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
 
     const auto vElempackf = _mm_set1_ps(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -632,7 +631,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
                 gx0 = _mm_and_ps(gx0, *(__m128*)_ps256_inv_sign_mask);
                 auto reflectx0_v = _mm_and_ps(_mm_sub_ps(gx0, border_x), *(__m128*)_ps256_inv_sign_mask);
                 gx0 = _mm_sub_ps(border_x, reflectx0_v);
-
 
                 // x1
                 gx1 = _mm_and_ps(gx1, *(__m128*)_ps256_inv_sign_mask);
@@ -676,13 +674,13 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack4(const Mat& src, M
                 auto y = _mm_cvtps_epi32(gy);
 
                 auto v0_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx0), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v1_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx1), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v2_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx2), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
                 auto v3_offset_f = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(gy, vImgWf), gx3), vElempackf),
-                    _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
+                                              _mm_set_ps(3.0f, 2.0f, 1.0f, 0.0f));
 
                 v0_offset[i] = _mm_cvtps_epi32(v0_offset_f);
                 v1_offset[i] = _mm_cvtps_epi32(v1_offset_f);

@@ -21,7 +21,7 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -72,7 +72,7 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
 
             // (W*y + x) * elempack + vec(8)
             auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
             auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
             auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
@@ -104,7 +104,7 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -155,11 +155,10 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
 
             // (W*y + x) * elempack + vec(8)
             auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
             auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
             auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
-
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -188,7 +187,7 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -208,7 +207,6 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
                 const auto border_x = _mm256_sub_ps(vImgWf, v1fp8);
 
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
-
 
                 // y
                 gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
@@ -243,11 +241,10 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
 
             // (W*y + x) * elempack + vec(8)
             auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
             auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
             auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
-
 
             for (int q = 0; q < dst.c; q++)
             {
@@ -276,7 +273,7 @@ static void gridsample_2d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -296,7 +293,6 @@ static void gridsample_2d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
                 const auto border_x = _mm256_sub_ps(vImgWf, v1fp8);
 
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
-
 
                 // y
                 gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
@@ -331,7 +327,7 @@ static void gridsample_2d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
 
             // (W*y + x) * elempack + vec(8)
             auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
             auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
             auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
@@ -363,7 +359,7 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -395,7 +391,6 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                 _mm256_sub_ps(gx, v0p5fp8);
 
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
-
 
                 // y
                 gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
@@ -441,7 +436,7 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
 
             // (W*y + x) * elempack + vec(8)
             auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
             auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
             auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
@@ -473,7 +468,7 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int y = 0; y < dst.h; y++)
     {
         for (int x = 0; x < dst.w; x++)
@@ -496,7 +491,6 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
 
                 auto reflectx_v = _mm256_and_ps(_mm256_sub_ps(gx, border_x), *(__m256*)_ps256_inv_sign_mask);
                 gx = _mm256_sub_ps(border_x, reflectx_v);
-
 
                 // y
                 gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
@@ -534,7 +528,7 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
 
             // (W*y + x) * elempack + vec(8)
             auto i_nw_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(y0, vImgWi), x0), vElempacki),
-                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
+                                                _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
             auto i_ne_offset = _mm256_add_epi32(i_nw_offset, vElempacki);
             auto i_sw_offset = _mm256_add_epi32(i_nw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
             auto i_se_offset = _mm256_add_epi32(i_sw_offset, vElempacki);
@@ -557,7 +551,6 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
     }
 }
 
-
 static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     const auto vImgWf = _mm256_set1_ps(src.w);
@@ -569,7 +562,7 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -674,7 +667,7 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                     auto tne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&v100_in_range), sizeof(float));
                     auto tsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&v010_in_range), sizeof(float));
                     auto tse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range), sizeof(float));
-                                                                                 
+
                     auto bnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&v001_in_range), sizeof(float));
                     auto bne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range), sizeof(float));
                     auto bsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range), sizeof(float));
@@ -708,7 +701,7 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -847,7 +840,7 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -871,14 +864,12 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
 
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
-
                     // y
                     gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
 
                     const auto border_y = _mm256_sub_ps(vImgHf, v1fp8);
 
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
-
 
                     // z
                     gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, v1fp8), vImgDf, v1fp8), two);
@@ -950,7 +941,6 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
                 auto i_bsw_offset = _mm256_add_epi32(i_bnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
                 auto i_bse_offset = _mm256_add_epi32(i_bsw_offset, vElempacki);
 
-
                 for (int q = 0; q < dst.c; q++)
                 {
                     auto tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, vn1fp8, sizeof(float));
@@ -991,7 +981,7 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -1015,14 +1005,12 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
 
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
-
                     // y
                     gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
 
                     const auto border_y = _mm256_sub_ps(vImgHf, v1fp8);
 
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
-
 
                     // z
                     gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, v1fp8), two), _mm256_sub_ps(vImgDf, v1fp8));
@@ -1094,7 +1082,6 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
                 auto i_bsw_offset = _mm256_add_epi32(i_bnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
                 auto i_bse_offset = _mm256_add_epi32(i_bsw_offset, vElempacki);
 
-
                 for (int q = 0; q < dst.c; q++)
                 {
                     auto tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, vn1fp8, sizeof(float));
@@ -1135,7 +1122,7 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -1170,7 +1157,6 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
 
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
-
                     // y
                     gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
                     const auto border_y = _mm256_sub_ps(vImgHf, v1fp8);
@@ -1187,7 +1173,6 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                     _mm256_sub_ps(gy, v0p5fp8);
 
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
-
 
                     // z
                     gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, v1fp8), vImgDf, v1fp8), two);
@@ -1269,7 +1254,6 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                 auto i_bsw_offset = _mm256_add_epi32(i_bnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
                 auto i_bse_offset = _mm256_add_epi32(i_bsw_offset, vElempacki);
 
-
                 for (int q = 0; q < dst.c; q++)
                 {
                     auto tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, vn1fp8, sizeof(float));
@@ -1310,7 +1294,7 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
 
     const auto vElempacki = _mm256_set1_epi32(src.elempack);
 
-#pragma omp parallel for num_threads(opt.num_threads)
+    #pragma omp parallel for num_threads(opt.num_threads)
     for (int z = 0; z < dst.d; z++)
     {
         for (int y = 0; y < dst.h; y++)
@@ -1336,7 +1320,6 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                     auto reflectx_v = _mm256_and_ps(_mm256_sub_ps(gx, border_x), *(__m256*)_ps256_inv_sign_mask);
                     gx = _mm256_sub_ps(border_x, reflectx_v);
 
-
                     // y
                     gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
                     const auto border_y = _mm256_sub_ps(vImgHf, v1fp8);
@@ -1345,7 +1328,6 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
 
                     auto reflecty_v = _mm256_and_ps(_mm256_sub_ps(gy, border_y), *(__m256*)_ps256_inv_sign_mask);
                     gy = _mm256_sub_ps(border_y, reflecty_v);
-
 
                     // z
                     gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, v1fp8), two), _mm256_sub_ps(vImgDf, v1fp8));
@@ -1418,7 +1400,6 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                 auto i_bne_offset = _mm256_add_epi32(i_bnw_offset, vElempacki);
                 auto i_bsw_offset = _mm256_add_epi32(i_bnw_offset, _mm256_mullo_epi32(vImgWi, vElempacki));
                 auto i_bse_offset = _mm256_add_epi32(i_bsw_offset, vElempacki);
-
 
                 for (int q = 0; q < dst.c; q++)
                 {

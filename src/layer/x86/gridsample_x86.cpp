@@ -243,7 +243,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-
                         gridsample_2d_bilinear_align0_border_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
                     else
@@ -271,7 +270,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
             if (sample_type == 2)
             {
-                if (padding_mode == 1) 
+                if (padding_mode == 1)
                 {
                     if (align_corner == 0)
                     {
@@ -282,7 +281,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                         gridsample_2d_nearest_align1_zeros_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
                 }
-                else if(padding_mode == 2)
+                else if (padding_mode == 2)
                 {
                     if (align_corner == 0)
                     {
@@ -335,7 +334,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                         gridsample_2d_bicubic_align1_border_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
                 }
-                else if(padding_mode == 3)
+                else if (padding_mode == 3)
                 {
                     if (align_corner == 0)
                     {
@@ -360,7 +359,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             const int outH = grid.d;
             const int outD = grid.c * grid.elempack;
 
-            top_blob.create(grid.h, grid.d, grid.c* grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
+            top_blob.create(grid.h, grid.d, grid.c * grid.elempack, channels, elemsize, elempack, opt.blob_allocator);
             if (top_blob.empty())
                 return -100;
 
@@ -381,7 +380,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-
                         gridsample_3d_bilinear_align0_border_blob_pack8(bottom_blob, top_blob, grid, opt);
                     }
                     else
@@ -405,7 +403,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                     NCNN_LOGE("gridsample sample_type error\n");
                     return -100;
                 }
-
             }
 
             if (sample_type == 2)
@@ -462,7 +459,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 
     if (elempack == 4)
     {
-
         const auto vImgWfp4 = _mm_set1_ps(w);
         const auto vImgHfp4 = _mm_set1_ps(h);
         const auto vImgWip4 = _mm_set1_epi32(w);
@@ -481,7 +477,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             if (top_blob.empty())
                 return -100;
 
-            if (sample_type == 1) 
+            if (sample_type == 1)
             {
                 if (padding_mode == 1)
                 {
@@ -498,7 +494,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-
                         gridsample_2d_bilinear_align0_border_blob_pack4(bottom_blob, top_blob, grid, opt);
                     }
                     else
@@ -639,7 +634,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 {
                     if (align_corner == 0)
                     {
-
                         gridsample_3d_bilinear_align0_border_blob_pack4(bottom_blob, top_blob, grid, opt);
                     }
                     else
@@ -753,7 +747,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                 return GridSample::forward(bottom_blobs, top_blobs, opt);
                 if (padding_mode == 1)
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         int j = 0;
@@ -822,13 +816,12 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // __AVX__
                         for (; j < size; j++)
                         {
-
                         }
                     }
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         int j = 0;
@@ -891,7 +884,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // __AVX__
                         for (; j < size; j++)
                         {
-
                         }
                     }
                 }
@@ -900,54 +892,50 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             {
                 if (padding_mode == 1)
                 {
-
-
-                        int nn = size >> 3;
-                        int remain = size;
+                    int nn = size >> 3;
+                    int remain = size;
 #if __AVX__
-#pragma omp parallel for num_threads(opt.num_threads)
-                        for (int j = 0; j < nn; j ++)
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int j = 0; j < nn; j++)
+                    {
+                        auto tmp_x = _mm256_loadu_ps(gridptr + j);
+                        auto gy = _mm256_loadu_ps(gridptr + j + 8);
+
+                        auto gx = _mm256_shuffle_ps(tmp_x, gy, 0x10001000);
+                        gy = _mm256_shuffle_ps(tmp_x, gy, 0x11011101);
+
+                        gx = get_coord_p8(gx, vImgWf, padding_mode, align_corner);
+                        gy = get_coord_p8(gy, vImgHf, padding_mode, align_corner);
+
+                        gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
+                        gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
+
+                        auto ix = _mm256_cvtps_epi32(gx);
+                        auto iy = _mm256_cvtps_epi32(gy);
+
+                        auto v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
+                                                           _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
+
+                        auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
+                        for (int q = 0; q < channels; q++)
                         {
-                            auto tmp_x = _mm256_loadu_ps(gridptr + j);
-                            auto gy = _mm256_loadu_ps(gridptr + j + 8);
+                            auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q),
+                                                               i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
 
-                            auto gx = _mm256_shuffle_ps(tmp_x, gy, 0x10001000);
-                            gy = _mm256_shuffle_ps(tmp_x, gy, 0x11011101);
-
-                            gx = get_coord_p8(gx, vImgWf, padding_mode, align_corner);
-                            gy = get_coord_p8(gy, vImgHf, padding_mode, align_corner);
-
-                            gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
-                            gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
-
-                            auto ix = _mm256_cvtps_epi32(gx);
-                            auto iy = _mm256_cvtps_epi32(gy);
-
-                            auto v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
-
-                            auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
-                            for (int q = 0; q < channels; q++)
-                            {
-                                auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), bottom_blob.channel(q),
-                                    i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
-
-                                _mm256_storeu_ps(top_blob.channel(q).row(0) + j * 8, _v);
-                            }
+                            _mm256_storeu_ps(top_blob.channel(q).row(0) + j * 8, _v);
                         }
+                    }
 
-                        remain = remain & 7;
+                    remain = remain & 7;
 #endif // __AVX__
-#pragma omp parallel for num_threads(opt.num_threads)
-                        for (int j = size - remain; j < nn; j++)
-                        {
-
-                        }
-                    
+                    #pragma omp parallel for num_threads(opt.num_threads)
+                    for (int j = size - remain; j < nn; j++)
+                    {
+                    }
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         int j = 0;
@@ -977,7 +965,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                             auto i_offset = _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix);
 
                             auto _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), static_cast<float*>(bottom_blob.channel(q).data),
-                                i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                                                               i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
 
                             _mm256_storeu_ps(outptr, _v);
 
@@ -986,17 +974,16 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // __AVX__
                         for (; j < size; j++)
                         {
-
                         }
                     }
                 }
             }
             else if (sample_type == 3)
             {
-            return GridSample::forward(bottom_blobs, top_blobs, opt);
+                return GridSample::forward(bottom_blobs, top_blobs, opt);
                 if (padding_mode == 1)
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         int j = 0;
@@ -1077,13 +1064,12 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // __AVX__
                         for (; j < size; j++)
                         {
-
                         }
                     }
                 }
                 else
                 {
-#pragma omp parallel for num_threads(opt.num_threads)
+                    #pragma omp parallel for num_threads(opt.num_threads)
                     for (int q = 0; q < channels; q++)
                     {
                         int j = 0;
@@ -1152,7 +1138,6 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
 #endif // __AVX__
                         for (; j < size; j++)
                         {
-
                         }
                     }
                 }
@@ -1165,11 +1150,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
             int size = w * h * d;
             if (sample_type == 1)
             {
-
             }
             else if (sample_type == 2)
             {
-
             }
             else
             {
