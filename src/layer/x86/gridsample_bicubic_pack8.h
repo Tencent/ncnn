@@ -34,7 +34,7 @@ static NCNN_FORCEINLINE __m256 cubic_interp1d_p8(const __m256& x0_v, const __m25
     return _v;
 }
 
-static void gridsample_bicubic_align0_zeros_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
+static void gridsample_2d_bicubic_align0_zeros_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     const auto vImgWf = _mm256_set1_ps(src.w);
     const auto vImgHf = _mm256_set1_ps(src.h);
@@ -137,7 +137,7 @@ static void gridsample_bicubic_align0_zeros_blob_pack8(const Mat& src, Mat& dst,
     }
 }
 
-static void gridsample_bicubic_align1_zeros_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
+static void gridsample_2d_bicubic_align1_zeros_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     const auto vImgWf = _mm256_set1_ps(src.w);
     const auto vImgHf = _mm256_set1_ps(src.h);
@@ -237,7 +237,7 @@ static void gridsample_bicubic_align1_zeros_blob_pack8(const Mat& src, Mat& dst,
     }
 }
 
-static void gridsample_bicubic_align0_border_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
+static void gridsample_2d_bicubic_align0_border_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     const auto vImgWf = _mm256_set1_ps(src.w);
     const auto vImgHf = _mm256_set1_ps(src.h);
@@ -328,7 +328,7 @@ static void gridsample_bicubic_align0_border_blob_pack8(const Mat& src, Mat& dst
     }
 }
 
-static void gridsample_bicubic_align1_border_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
+static void gridsample_2d_bicubic_align1_border_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     const auto vImgWf = _mm256_set1_ps(src.w);
     const auto vImgHf = _mm256_set1_ps(src.h);
@@ -420,7 +420,7 @@ static void gridsample_bicubic_align1_border_blob_pack8(const Mat& src, Mat& dst
     }
 }
 
-static void gridsample_bicubic_align0_reflection_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
+static void gridsample_2d_bicubic_align0_reflection_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     const auto vImgWf = _mm256_set1_ps(src.w);
     const auto vImgHf = _mm256_set1_ps(src.h);
@@ -584,7 +584,7 @@ static void gridsample_bicubic_align0_reflection_blob_pack8(const Mat& src, Mat&
     }
 }
 
-static void gridsample_bicubic_align1_reflection_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
+static void gridsample_2d_bicubic_align1_reflection_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     float* outptr = static_cast<float*>(dst.data);
 
