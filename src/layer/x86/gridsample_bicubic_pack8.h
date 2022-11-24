@@ -12,28 +12,6 @@
 // CONDITIONS OF ANY KIND, either express or implied. See the License for the
 // specific language governing permissions and limitations under the License.
 
-static NCNN_FORCEINLINE __m256 cubic_interp1d_p8(const __m256& x0_v, const __m256& x1_v, const __m256& x2_v, const __m256& x3_v, const __m256& tx)
-{
-    const __m256 A = _mm256_set1_ps(-0.75f);
-
-    const __m256 x0 = _mm256_add_ps(tx, v1fp8);
-    const __m256& x1 = tx;
-    const __m256 x2 = _mm256_sub_ps(v1fp8, tx);
-    //const __m256 x3 = _mm256_add_ps(x2, v1fp8);
-
-    const __m256 coeffs0 = _mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(A, x0), _mm256_mul_ps(_mm256_set1_ps(5.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(8.0f), A)), x0), _mm256_mul_ps(_mm256_set1_ps(4), A));
-    const __m256 coeffs1 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x1), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x1), x1), v1fp8);
-    const __m256 coeffs2 = _mm256_add_ps(_mm256_mul_ps(_mm256_mul_ps(_mm256_sub_ps(_mm256_mul_ps(_mm256_add_ps(A, _mm256_set1_ps(2.0f)), x2), _mm256_add_ps(A, _mm256_set1_ps(3.0f))), x2), x2), v1fp8);
-    const __m256 coeffs3 = _mm256_sub_ps(_mm256_sub_ps(_mm256_sub_ps(v1fp8, coeffs0), coeffs1), coeffs2);
-
-    __m256 _v = _mm256_mul_ps(coeffs0, x0_v);
-    _v = _mm256_comp_fmadd_ps(coeffs1, x1_v, _v);
-    _v = _mm256_comp_fmadd_ps(coeffs2, x2_v, _v);
-    _v = _mm256_comp_fmadd_ps(coeffs3, x3_v, _v);
-
-    return _v;
-}
-
 static void gridsample_2d_bicubic_align0_zeros_blob_pack8(const Mat& src, Mat& dst, const Mat& grid, const Option& opt)
 {
     const __m256 vImgWf = _mm256_set1_ps(src.w);
@@ -291,8 +269,6 @@ static void gridsample_2d_bicubic_align0_border_blob_pack8(const Mat& src, Mat& 
                 gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
                 gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
-                __m256i y = _mm256_cvtps_epi32(gy);
-
                 __m256 v0_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                    _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m256 v1_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx1), vElempackf),
@@ -382,8 +358,6 @@ static void gridsample_2d_bicubic_align1_border_blob_pack8(const Mat& src, Mat& 
             {
                 gy = _mm256_add_ps(gy_floor, _mm256_set1_ps(-1.0f + i));
                 gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
-
-                __m256i y = _mm256_cvtps_epi32(gy);
 
                 __m256 v0_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                    _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
@@ -546,8 +520,6 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack8(const Mat& src, M
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
                 }
 
-                __m256i y = _mm256_cvtps_epi32(gy);
-
                 __m256 v0_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                    _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
                 __m256 v1_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx1), vElempackf),
@@ -670,8 +642,6 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack8(const Mat& src, M
                     __m256 reflecty_v = _mm256_and_ps(_mm256_sub_ps(gy, border_y), *(__m256*)_ps256_inv_sign_mask);
                     gy = _mm256_sub_ps(border_y, reflecty_v);
                 }
-
-                __m256i y = _mm256_cvtps_epi32(gy);
 
                 __m256 v0_offset_f = _mm256_add_ps(_mm256_mul_ps(_mm256_add_ps(_mm256_mul_ps(gy, vImgWf), gx0), vElempackf),
                                                    _mm256_set_ps(7.0f, 6.0f, 5.0f, 4.0f, 3.0f, 2.0f, 1.0f, 0.0f));
