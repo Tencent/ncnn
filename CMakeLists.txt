@@ -96,7 +96,7 @@ else()
     option(NCNN_BUILD_EXAMPLES "build examples" ON)
 endif()
 
-if(ANDROID OR IOS OR LINUX OR NCNN_SIMPLESTL)
+if(ANDROID OR IOS OR NCNN_SIMPLESTL)
     option(NCNN_DISABLE_EXCEPTION "disable exception" ON)
 else()
     option(NCNN_DISABLE_EXCEPTION "disable exception" OFF)
