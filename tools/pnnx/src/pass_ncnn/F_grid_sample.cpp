@@ -1,10 +1,6 @@
 // Tencent is pleased to support the open source community by making ncnn available.
 //
-<<<<<<< HEAD
-// Copyright (C) 2021 THL A29 Limited, a Tencent company. All rights reserved.
-=======
 // Copyright (C) 2022 THL A29 Limited, a Tencent company. All rights reserved.
-    >>>>>>> master
 //
 // Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
 // in compliance with the License. You may obtain a copy of the License at
@@ -17,12 +13,8 @@
 // specific language governing permissions and limitations under the License.
 
 #include "pass_ncnn.h"
-    <<<<<<< HEAD
-#include <iostream>
-    =======
-        >>>>>>> master
 
-        namespace pnnx
+namespace pnnx
 {
 namespace ncnn {
 
