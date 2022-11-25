@@ -15,8 +15,6 @@
 #include "layer/gridsample.h"
 #include "testutil.h"
 
-#include <time.h>
-
 static int test_gridsample(const ncnn::Mat& a, const ncnn::Mat& grid, int sample_type, int padding_mode, int align_corner)
 {
     ncnn::ParamDict pd;

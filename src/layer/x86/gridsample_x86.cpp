@@ -96,10 +96,10 @@ static NCNN_FORCEINLINE __m128 mask_gather_ps(const float* ptr, __m128i offset, 
     memcpy(offseti, &offset, 4 * sizeof(int));
     memcpy(maski, &mask, 4 * sizeof(int));
 
-    float data[4];
+    float data[4] = {0.0f, 0.0f, 0.0f, 0.0f};
     for (int i = 0; i < 4; i++)
     {
-        if (maski[i] & 0x01)
+        if (maski[i] & 0xF0000000)
         {
             data[i] = *(ptr + offseti[i]);
         }
@@ -998,10 +998,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 int x1 = x0 + 1;
                                 int y1 = y0 + 1;
 
-                                int v00_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
-                                int v01_in_range = (x1 > -1) & (x1 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
-                                int v10_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y1 > -1) & (y1 < bottom_blob.h);
-                                int v11_in_range = (x1 > -1) & (x1 < bottom_blob.w) & (y1 > -1) & (y1 < bottom_blob.h);
+                                bool v00_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
+                                bool v01_in_range = (x1 > -1) & (x1 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
+                                bool v10_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y1 > -1) & (y1 < bottom_blob.h);
+                                bool v11_in_range = (x1 > -1) & (x1 < bottom_blob.w) & (y1 > -1) & (y1 < bottom_blob.h);
 
                                 float alpha = sample_x - x0;
                                 float beta = sample_y - y0;
@@ -1009,10 +1009,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 for (int q = 0; q < channels; q++)
                                 {
                                     const Mat& image = bottom_blob.channel(q);
-                                    float v00 = image.row(y0)[x0] * v00_in_range;
-                                    float v01 = image.row(y0)[x1] * v01_in_range;
-                                    float v10 = image.row(y1)[x0] * v10_in_range;
-                                    float v11 = image.row(y1)[x1] * v11_in_range;
+                                    float v00 = v00_in_range ? image.row(y0)[x0] : 0;
+                                    float v01 = v01_in_range ? image.row(y0)[x1] : 0;
+                                    float v10 = v10_in_range ? image.row(y1)[x0] : 0;
+                                    float v11 = v11_in_range ? image.row(y1)[x1] : 0;
 
                                     float v0 = v00 * (1 - alpha) + v01 * alpha;
                                     float v1 = v10 * (1 - alpha) + v11 * alpha;
@@ -1119,10 +1119,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 int x1 = x0 + 1;
                                 int y1 = y0 + 1;
 
-                                int v00_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
-                                int v01_in_range = (x1 > -1) & (x1 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
-                                int v10_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y1 > -1) & (y1 < bottom_blob.h);
-                                int v11_in_range = (x1 > -1) & (x1 < bottom_blob.w) & (y1 > -1) & (y1 < bottom_blob.h);
+                                bool v00_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
+                                bool v01_in_range = (x1 > -1) & (x1 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
+                                bool v10_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y1 > -1) & (y1 < bottom_blob.h);
+                                bool v11_in_range = (x1 > -1) & (x1 < bottom_blob.w) & (y1 > -1) & (y1 < bottom_blob.h);
 
                                 float alpha = sample_x - x0;
                                 float beta = sample_y - y0;
@@ -1130,10 +1130,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 for (int q = 0; q < channels; q++)
                                 {
                                     const Mat& image = bottom_blob.channel(q);
-                                    float v00 = image.row(y0)[x0] * v00_in_range;
-                                    float v01 = image.row(y0)[x1] * v01_in_range;
-                                    float v10 = image.row(y1)[x0] * v10_in_range;
-                                    float v11 = image.row(y1)[x1] * v11_in_range;
+                                    float v00 = v00_in_range ? image.row(y0)[x0] : 0;
+                                    float v01 = v01_in_range ? image.row(y0)[x1] : 0;
+                                    float v10 = v10_in_range ? image.row(y1)[x0] : 0;
+                                    float v11 = v11_in_range ? image.row(y1)[x1] : 0;
 
                                     float v0 = v00 * (1 - alpha) + v01 * alpha;
                                     float v1 = v10 * (1 - alpha) + v11 * alpha;
@@ -1250,10 +1250,10 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 int x1 = x0 + 1;
                                 int y1 = y0 + 1;
 
-                                int x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
-                                int y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
-                                int v11_in_range = x1_in_range & y1_in_range;
-
+                                bool x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
+                                bool y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
+                                bool v11_in_range = x1_in_range & y1_in_range;
+                                
                                 float alpha = sample_x - x0;
                                 float beta = sample_y - y0;
 
@@ -1261,9 +1261,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     const Mat& image = bottom_blob.channel(q);
                                     float v00 = image.row(y0)[x0];
-                                    float v01 = image.row(y0)[x1] * x1_in_range;
-                                    float v10 = image.row(y1)[x0] * y1_in_range;
-                                    float v11 = image.row(y1)[x1] * v11_in_range;
+                                    float v01 = x1_in_range ? image.row(y0)[x1] : 0;
+                                    float v10 = y1_in_range ? image.row(y1)[x0] : 0;
+                                    float v11 = v11_in_range ? image.row(y1)[x1] : 0;
 
                                     float v0 = v00 * (1 - alpha) + v01 * alpha;
                                     float v1 = v10 * (1 - alpha) + v11 * alpha;
@@ -1376,9 +1376,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 int x1 = x0 + 1;
                                 int y1 = y0 + 1;
 
-                                int x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
-                                int y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
-                                int v11_in_range = x1_in_range & y1_in_range;
+                                bool x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
+                                bool y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
+                                bool v11_in_range = x1_in_range & y1_in_range;
 
                                 float alpha = sample_x - x0;
                                 float beta = sample_y - y0;
@@ -1387,9 +1387,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     const Mat& image = bottom_blob.channel(q);
                                     float v00 = image.row(y0)[x0];
-                                    float v01 = image.row(y0)[x1] * x1_in_range;
-                                    float v10 = image.row(y1)[x0] * y1_in_range;
-                                    float v11 = image.row(y1)[x1] * v11_in_range;
+                                    float v01 = x1_in_range ? image.row(y0)[x1] : 0;
+                                    float v10 = y1_in_range ? image.row(y1)[x0] : 0;
+                                    float v11 = v11_in_range ? image.row(y1)[x1] : 0;
 
                                     float v0 = v00 * (1 - alpha) + v01 * alpha;
                                     float v1 = v10 * (1 - alpha) + v11 * alpha;
@@ -1535,9 +1535,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 int x1 = x0 + 1;
                                 int y1 = y0 + 1;
 
-                                int x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
-                                int y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
-                                int v11_in_range = x1_in_range & y1_in_range;
+                                bool x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
+                                bool y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
+                                bool v11_in_range = x1_in_range & y1_in_range;
 
                                 float alpha = sample_x - x0;
                                 float beta = sample_y - y0;
@@ -1546,9 +1546,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     const Mat& image = bottom_blob.channel(q);
                                     float v00 = image.row(y0)[x0];
-                                    float v01 = image.row(y0)[x1] * x1_in_range;
-                                    float v10 = image.row(y1)[x0] * y1_in_range;
-                                    float v11 = image.row(y1)[x1] * v11_in_range;
+                                    float v01 = x1_in_range ? image.row(y0)[x1] : 0;
+                                    float v10 = y1_in_range ? image.row(y1)[x0] : 0;
+                                    float v11 = v11_in_range ? image.row(y1)[x1] : 0;
 
                                     float v0 = v00 * (1 - alpha) + v01 * alpha;
                                     float v1 = v10 * (1 - alpha) + v11 * alpha;
@@ -1673,9 +1673,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 int x1 = x0 + 1;
                                 int y1 = y0 + 1;
 
-                                int x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
-                                int y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
-                                int v11_in_range = x1_in_range & y1_in_range;
+                                bool x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
+                                bool y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
+                                bool v11_in_range = x1_in_range & y1_in_range;
 
                                 float alpha = sample_x - x0;
                                 float beta = sample_y - y0;
@@ -1684,9 +1684,9 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 {
                                     const Mat& image = bottom_blob.channel(q);
                                     float v00 = image.row(y0)[x0];
-                                    float v01 = image.row(y0)[x1] * x1_in_range;
-                                    float v10 = image.row(y1)[x0] * y1_in_range;
-                                    float v11 = image.row(y1)[x1] * v11_in_range;
+                                    float v01 = x1_in_range ? image.row(y0)[x1] : 0;
+                                    float v10 = y1_in_range ? image.row(y1)[x0] : 0;
+                                    float v11 = v11_in_range ? image.row(y1)[x1] : 0;
 
                                     float v0 = v00 * (1 - alpha) + v01 * alpha;
                                     float v1 = v10 * (1 - alpha) + v11 * alpha;
@@ -1771,13 +1771,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 int x0 = static_cast<int>(floor(sample_x + 0.5f));
                                 int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                                int v00_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
+                                bool v00_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
 
                                 for (int q = 0; q < channels; q++)
                                 {
                                     const Mat& image = bottom_blob.channel(q);
 
-                                    top_blob.channel(q).row(y)[x / 2] = image.row(y0)[x0] * v00_in_range;
+                                    top_blob.channel(q).row(y)[x / 2] = v00_in_range ? image.row(y0)[x0] : 0;
                                 }
                             }
                         }
@@ -1845,13 +1845,13 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 int x0 = static_cast<int>(floor(sample_x + 0.5f));
                                 int y0 = static_cast<int>(floor(sample_y + 0.5f));
 
-                                int v00_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
+                                bool v00_in_range = (x0 > -1) & (x0 < bottom_blob.w) & (y0 > -1) & (y0 < bottom_blob.h);
 
                                 for (int q = 0; q < channels; q++)
                                 {
                                     const Mat& image = bottom_blob.channel(q);
 
-                                    top_blob.channel(q).row(y)[x / 2] = image.row(y0)[x0] * v00_in_range;
+                                    top_blob.channel(q).row(y)[x / 2] = v00_in_range ? image.row(y0)[x0] : 0;
                                 }
                             }
                         }
