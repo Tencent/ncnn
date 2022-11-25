@@ -1253,7 +1253,7 @@ int GridSample_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Ma
                                 bool x1_in_range = (x1 > -1) & (x1 < bottom_blob.w);
                                 bool y1_in_range = (y1 > -1) & (y1 < bottom_blob.h);
                                 bool v11_in_range = x1_in_range & y1_in_range;
-                                
+
                                 float alpha = sample_x - x0;
                                 float beta = sample_y - y0;
 
