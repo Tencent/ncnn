@@ -1178,15 +1178,6 @@ int cpu_riscv_vlenb()
 
 static int get_cpucount()
 {
-#if defined(_OPENMP) && __clang__
-    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
-    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
-    // and cpu core goes offline in powersave mode on mobile os, which triggers abort
-    // ATM there is no known api for controlling the abort behavior, disable kmp affinity capability anyway
-    // we shall set env before any omp calls, so here may be a good place    --- nihui
-    kmp_set_defaults("KMP_AFFINITY=disabled");
-#endif
-
     int count = 0;
 #ifdef __EMSCRIPTEN__
     if (emscripten_has_threading_support())
@@ -2050,3 +2041,20 @@ int set_flush_denormals(int flush_denormals)
 }
 
 } // namespace ncnn
+
+#if defined __ANDROID__ && defined(_OPENMP) && __clang__
+#ifdef __cplusplus
+extern "C" {
+#endif
+void __wrap___kmp_abort_process(void)
+{
+    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
+    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
+    // and cpu core goes offline in powersave mode on android, which triggers abort
+    // ATM there is no known api for controlling the abort behavior
+    // override __kmp_abort_process with empty body, ugly hack works o_O    --- nihui
+}
+#ifdef __cplusplus
+} // extern "C"
+#endif
+#endif
