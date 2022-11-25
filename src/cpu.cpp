@@ -1178,6 +1178,15 @@ int cpu_riscv_vlenb()
 
 static int get_cpucount()
 {
+#if defined(_OPENMP) && __clang__
+    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
+    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
+    // and cpu core goes offline in powersave mode on mobile os, which triggers abort
+    // ATM there is no known api for controlling the abort behavior, disable kmp affinity capability anyway
+    // we shall set env before any omp calls, so here may be a good place    --- nihui
+    kmp_set_defaults("KMP_AFFINITY=disabled");
+#endif
+
     int count = 0;
 #ifdef __EMSCRIPTEN__
     if (emscripten_has_threading_support())
