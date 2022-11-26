@@ -1704,7 +1704,7 @@ static int setup_thread_affinity_masks()
     {
         int max_freq_khz = get_max_freq_khz(i);
 
-        //         NCNN_LOGE("%d max freq = %d khz", i, max_freq_khz);
+        // NCNN_LOGE("%d max freq = %d khz", i, max_freq_khz);
 
         cpu_max_freq_khz[i] = max_freq_khz;
 
@@ -2041,3 +2041,21 @@ int set_flush_denormals(int flush_denormals)
 }
 
 } // namespace ncnn
+
+#if defined __ANDROID__ && defined(_OPENMP) && __clang__
+#ifdef __cplusplus
+extern "C" {
+#endif
+void __wrap___kmp_affinity_determine_capable(const char* /*env_var*/)
+{
+    // the internal affinity routines in llvm openmp call abort on __NR_sched_getaffinity / __NR_sched_setaffinity fails
+    // ref KMPNativeAffinity::get_system_affinity/set_system_affinity in openmp/runtime/src/kmp_affinity.h
+    // and cpu core goes offline in powersave mode on android, which triggers abort
+    // ATM there is no known api for controlling the abort behavior
+    // override __kmp_affinity_determine_capable with empty body to disable affinity regardless of KMP_AFFINITY env_var
+    // ugly hack works >.<    --- nihui
+}
+#ifdef __cplusplus
+} // extern "C"
+#endif
+#endif
