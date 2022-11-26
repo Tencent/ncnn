@@ -227,7 +227,7 @@ if(NCNN_OPENMP)
             target_compile_options(ncnn PRIVATE -fopenmp)
             target_link_libraries(ncnn PUBLIC -fopenmp -static-openmp)
             # see cpu.cpp __wrap___kmp_abort_process comment for the linker magic
-            target_link_libraries(ncnn PUBLIC -Wl,-wrap,__kmp_abort_process)
+            target_link_libraries(ncnn PUBLIC -Wl,-wrap,__kmp_affinity_determine_capable)
         elseif(OpenMP_CXX_FOUND)
             target_link_libraries(ncnn PUBLIC OpenMP::OpenMP_CXX)
         else()
