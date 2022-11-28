@@ -34,17 +34,17 @@ void fuse_input_unpack(Graph& graph)
 
             Operator* op2 = op->inputs[0]->producer;
 
-
             if (op2->type != "pnnx.Input")
                 continue;
 
             if (op2->outputs[0]->consumers.size() != 1)
                 continue;
 
-            for (int i = 0; i != op->outputs.size(); ++i) {
-              Operator* new_op = graph.new_operator_before("pnnx.Input", op2->name + std::to_string(i), op2);
-              op->outputs[i]->producer = new_op;
-              new_op->outputs.push_back(op->outputs[i]);
+            for (int i = 0; i != op->outputs.size(); ++i)
+            {
+                Operator* new_op = graph.new_operator_before("pnnx.Input", op2->name + std::to_string(i), op2);
+                op->outputs[i]->producer = new_op;
+                new_op->outputs.push_back(op->outputs[i]);
             }
 
             // erase op and op2
