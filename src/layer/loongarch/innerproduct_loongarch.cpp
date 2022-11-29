@@ -119,8 +119,12 @@ int InnerProduct_loongarch::destroy_pipeline(const Option& opt)
     return 0;
 }
 
-int InnerProduct_loongarch::forward(const Mat& bottom_blob, Mat& top_blob, const Option& opt) const
+int InnerProduct_loongarch::forward(const Mat& _bottom_blob, Mat& top_blob, const Option& opt) const
 {
+  Mat bottom_blob = _bottom_blob;
+  if(bottom_blob.dims == 3 && bottom_blob.h == 1) {
+    bottom_blob = bottom_blob.reshape(bottom_blob.w, bottom_blob.c);
+  }
 #if NCNN_INT8
     if (opt.use_int8_inference && int8_scale_term)
     {

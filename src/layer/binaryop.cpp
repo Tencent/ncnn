@@ -921,7 +921,12 @@ struct binary_op_rdiv
 int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& top_blobs, const Option& opt) const
 {
     const Mat& bottom_blob = bottom_blobs[0];
-    const Mat& bottom_blob1 = bottom_blobs[1];
+    Mat bottom_blob1 = bottom_blobs[1];
+    if (bottom_blob1.dims == 2 and bottom_blob1.w == 1)
+    {
+      // fix for torch.mean(keepdim=True)
+      bottom_blob1 = bottom_blob1.reshape(bottom_blob1.h);
+    }
 
     Mat& top_blob = top_blobs[0];
 
