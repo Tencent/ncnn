@@ -43,6 +43,7 @@ jobs:
         repository: protocolbuffers/protobuf
         ref: v3.11.4
         submodules: recursive
+        path: protobuf
     - name: Build protobuf for tools
       run: |
         cd protobuf
