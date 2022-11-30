@@ -9,6 +9,9 @@ if(PROTOBUF_FOUND)
             ${PROTOBUF_INCLUDE_DIR}
             ${CMAKE_CURRENT_BINARY_DIR})
     target_link_libraries(caffe2ncnn PRIVATE ${PROTOBUF_LIBRARIES})
+    if (EMSCRIPTEN AND NCNN_EMSCRIPTEN_MODULARIZE)
+        set_target_properties(caffe2ncnn PROPERTIES LINK_FLAGS "-s 'EXPORT_NAME=\"create_caffe2ncnn\"'")
+    endif()
 
     # add all caffe2ncnn tool to a virtual project group
     set_property(TARGET caffe2ncnn PROPERTY FOLDER "tools/converter")

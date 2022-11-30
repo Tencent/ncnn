@@ -1,3 +1,6 @@
 add_executable(darknet2ncnn darknet2ncnn.cpp)
+if (EMSCRIPTEN AND NCNN_EMSCRIPTEN_MODULARIZE)
+    set_target_properties(darknet2ncnn PROPERTIES LINK_FLAGS "-s 'EXPORT_NAME=\"create_darknet2ncnn\"'")
+endif()
 set_property(TARGET darknet2ncnn PROPERTY FOLDER "tools/converter")
 ncnn_install_tool(darknet2ncnn)

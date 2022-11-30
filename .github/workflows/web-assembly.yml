@@ -37,6 +37,36 @@ jobs:
         cd emsdk
         ./emsdk install 2.0.8
         ./emsdk activate 2.0.8
+    - name: Clone protobuf
+      uses: actions/checkout@v3
+      with:
+        repository: protocolbuffers/protobuf
+        ref: v3.11.4
+        submodules: recursive
+    - name: Build protobuf for tools
+      run: |
+        cd protobuf
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release ../cmake
+        cmake --build . -j 2
+        cmake -DCMAKE_INSTALL_PREFIX=install -P cmake_install.cmake
+        cd .. && mkdir build-wasm-lib && cd build-wasm-lib
+        source emsdk/emsdk_env.sh
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release ../cmake
+        cmake --build . -j 2
+        cp libprotobuf.a libprotobuf-lite.a ../build/install/lib/
+    - name: Build tools
+      run: |
+        source emsdk/emsdk_env.sh
+        mkdir build-tools && cd build-tools
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_SSE2=OFF -DNCNN_BUILD_TOOLS=ON -DCMAKE_FIND_ROOT_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j 2
+    - name: Upload tools
+      uses: actions/upload-artifact@v3
+      with:
+        path: |
+          build-tools/ncnn/tools/**/*.wasm
+          build-tools/ncnn/tools/**/*.js
     - name: build-basic
       run: |
         source emsdk/emsdk_env.sh
