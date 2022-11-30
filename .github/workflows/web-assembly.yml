@@ -52,7 +52,7 @@ jobs:
         cmake --build . -j 2
         cmake -DCMAKE_INSTALL_PREFIX=install -P cmake_install.cmake
         cd .. && mkdir build-wasm-lib && cd build-wasm-lib
-        source emsdk/emsdk_env.sh
+        source ../../emsdk/emsdk_env.sh
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -Dprotobuf_BUILD_PROTOC_BINARIES=OFF -Dprotobuf_BUILD_TESTS=OFF -DCMAKE_BUILD_TYPE=Release ../cmake
         cmake --build . -j 2
         cp libprotobuf.a libprotobuf-lite.a ../build/install/lib/
