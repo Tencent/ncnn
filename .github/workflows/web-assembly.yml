@@ -62,12 +62,42 @@ jobs:
         mkdir build-tools && cd build-tools
         cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_SSE2=OFF -DNCNN_BUILD_TOOLS=ON -DCMAKE_FIND_ROOT_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_BUILD_TYPE=Release ..
         cmake --build . -j 2
-    - name: Upload tools
+    - name: Upload tools as artifacts
       uses: actions/upload-artifact@v3
       with:
         path: |
           build-tools/tools/**/*.wasm
           build-tools/tools/**/*.js
+    - name: Uplaod tools to convertmodel.com
+      if: ${{ github.ref == 'refs/heads/master' }}
+      run: |
+        wget https://gosspublic.alicdn.com/ossutil/1.7.14/ossutil64
+        chmod 755 ossutil64
+        echo "[Credentials]" >> ~/.ossutilconfig
+        echo "language=EN" >> ~/.ossutilconfig
+        echo "endpoint=oss-cn-beijing.aliyuncs.com" >> ~/.ossutilconfig
+        echo "accessKeyID=${{ secrets.OSS_ACCESS_KEY }}" >> ~/.ossutilconfig
+        echo "accessKeySecret=${{ secrets.OSS_SECRET_KEY }}" >> ~/.ossutilconfig
+
+        function upload_js_wasm {
+          pushd $1
+          js=$2.js
+          wasm=$2.wasm
+          zipped_wasm=$2_gz.wasm
+          gzip -c -9 $wasm > $zipped_wasm
+          ./ossutil64 --config-file ~/.ossutilconfig cp -u $zipped_wasm oss://converter-web/$wasm --meta=Content-Type:application/wasm#Content-Encoding:gzip
+          ./ossutil64 --config-file ~/.ossutilconfig cp -u $js oss://converter-web/
+          popd
+        }
+
+        upload_js_wasm build-tools/tools/onnx    onnx2ncnn
+        upload_js_wasm build-tools/tools/caffe   caffe2ncnn
+        upload_js_wasm build-tools/tools/mxnet   mxnet2ncnn
+        upload_js_wasm build-tools/tools/darknet darknet2ncnn
+        upload_js_wasm build-tools/tools         ncnnoptimize
+        upload_js_wasm build-tools/tools         ncnnmerge
+        upload_js_wasm build-tools/tools         ncnn2mem
+        
     - name: build-basic
       run: |
         source emsdk/emsdk_env.sh
