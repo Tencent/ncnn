@@ -66,8 +66,8 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         path: |
-          build-tools/ncnn/tools/**/*.wasm
-          build-tools/ncnn/tools/**/*.js
+          build-tools/tools/**/*.wasm
+          build-tools/tools/**/*.js
     - name: build-basic
       run: |
         source emsdk/emsdk_env.sh
