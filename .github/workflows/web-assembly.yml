@@ -60,7 +60,7 @@ jobs:
       run: |
         source emsdk/emsdk_env.sh
         mkdir build-tools && cd build-tools
-        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_SSE2=OFF -DNCNN_BUILD_TOOLS=ON -DCMAKE_FIND_ROOT_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_BUILD_TYPE=Release ..
+        cmake -DCMAKE_TOOLCHAIN_FILE=../emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake -DNCNN_EMSCRIPTEN_MODULARIZE=ON -DNCNN_SSE2=OFF -DNCNN_BUILD_TOOLS=ON -DCMAKE_FIND_ROOT_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/protobuf/build/install -DCMAKE_BUILD_TYPE=MinSizeRel ..
         cmake --build . -j 2
     - name: Upload tools as artifacts
       uses: actions/upload-artifact@v3
