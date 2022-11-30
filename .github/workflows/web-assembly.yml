@@ -35,8 +35,8 @@ jobs:
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
         cd emsdk
-        ./emsdk install 2.0.8
-        ./emsdk activate 2.0.8
+        ./emsdk install 3.1.26
+        ./emsdk activate 3.1.26
     - name: Clone protobuf
       uses: actions/checkout@v3
       with:
