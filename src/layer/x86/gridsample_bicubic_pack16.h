@@ -16,15 +16,15 @@ static NCNN_FORCEINLINE __m512 cubic_interp1d_p16(const __m512& x0_v, const __m5
 {
     const __m512 A = _mm512_set1_ps(-0.75f);
 
-    const __m512 x0 = _mm512_add_ps(tx, v1fp16);
+    const __m512 x0 = _mm512_add_ps(tx, *(__m512*)_ps512_1);
     const __m512& x1 = tx;
-    const __m512 x2 = _mm512_sub_ps(v1fp16, tx);
-    //const __m512 x3 = _mm512_add_ps(x2, v1fp16);
+    const __m512 x2 = _mm512_sub_ps(*(__m512*)_ps512_1, tx);
+    //const __m512 x3 = _mm512_add_ps(x2, *(__m512*)_ps512_1);
 
     const __m512 coeffs0 = _mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(A, x0), _mm512_mul_ps(_mm512_set1_ps(5.0f), A)), x0), _mm512_mul_ps(_mm512_set1_ps(8.0f), A)), x0), _mm512_mul_ps(_mm512_set1_ps(4), A));
-    const __m512 coeffs1 = _mm512_add_ps(_mm512_mul_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(A, _mm512_set1_ps(2.0f)), x1), _mm512_add_ps(A, _mm512_set1_ps(3.0f))), x1), x1), v1fp16);
-    const __m512 coeffs2 = _mm512_add_ps(_mm512_mul_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(A, _mm512_set1_ps(2.0f)), x2), _mm512_add_ps(A, _mm512_set1_ps(3.0f))), x2), x2), v1fp16);
-    const __m512 coeffs3 = _mm512_sub_ps(_mm512_sub_ps(_mm512_sub_ps(v1fp16, coeffs0), coeffs1), coeffs2);
+    const __m512 coeffs1 = _mm512_add_ps(_mm512_mul_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(A, _mm512_set1_ps(2.0f)), x1), _mm512_add_ps(A, _mm512_set1_ps(3.0f))), x1), x1), *(__m512*)_ps512_1);
+    const __m512 coeffs2 = _mm512_add_ps(_mm512_mul_ps(_mm512_mul_ps(_mm512_sub_ps(_mm512_mul_ps(_mm512_add_ps(A, _mm512_set1_ps(2.0f)), x2), _mm512_add_ps(A, _mm512_set1_ps(3.0f))), x2), x2), *(__m512*)_ps512_1);
+    const __m512 coeffs3 = _mm512_sub_ps(_mm512_sub_ps(_mm512_sub_ps(*(__m512*)_ps512_1, coeffs0), coeffs1), coeffs2);
 
     __m512 _v = _mm512_mul_ps(coeffs0, x0_v);
     _v = _mm512_fmadd_ps(coeffs1, x1_v, _v);
@@ -58,10 +58,10 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack16(const Mat& src, Mat& 
                 const __m512 two = _mm512_set1_ps(2.f);
 
                 // x
-                gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
+                gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
 
                 // y
-                gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
+                gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
             }
 
             __m512 gx_floor = _mm512_floor_ps(gx);
@@ -72,9 +72,9 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack16(const Mat& src, Mat& 
 
             __m512 coefficients[4];
 
-            __m512 gx0 = _mm512_add_ps(gx_floor, vn1fp16);
+            __m512 gx0 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_n1);
             __m512 gx1 = gx_floor;
-            __m512 gx2 = _mm512_add_ps(gx_floor, v1fp16);
+            __m512 gx2 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_1);
             __m512 gx3 = _mm512_add_ps(gx_floor, _mm512_set1_ps(2.0f));
 
             __m512i x0 = _mm512_cvtps_epi32(gx0);
@@ -82,10 +82,10 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack16(const Mat& src, Mat& 
             __m512i x2 = _mm512_cvtps_epi32(gx2);
             __m512i x3 = _mm512_cvtps_epi32(gx3);
 
-            __mmask16 x0_in_range = _mm512_cmpgt_epi32_mask(x0, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x0);
-            __mmask16 x1_in_range = _mm512_cmpgt_epi32_mask(x1, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x1);
-            __mmask16 x2_in_range = _mm512_cmpgt_epi32_mask(x2, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x2);
-            __mmask16 x3_in_range = _mm512_cmpgt_epi32_mask(x3, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x3);
+            __mmask16 x0_in_range = _mm512_cmpgt_epi32_mask(x0, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, x0);
+            __mmask16 x1_in_range = _mm512_cmpgt_epi32_mask(x1, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, x1);
+            __mmask16 x2_in_range = _mm512_cmpgt_epi32_mask(x2, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, x2);
+            __mmask16 x3_in_range = _mm512_cmpgt_epi32_mask(x3, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, x3);
 
             __m512i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
             __mmask16 v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
@@ -95,7 +95,7 @@ static void gridsample_2d_bicubic_align0_zeros_blob_pack16(const Mat& src, Mat& 
 
                 __m512i y = _mm512_cvtps_epi32(gy);
 
-                __mmask16 y_in_range = _mm512_cmpgt_epi32_mask(y, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgHi, y);
+                __mmask16 y_in_range = _mm512_cmpgt_epi32_mask(y, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgHi, y);
 
                 v0_in_range[i] = x0_in_range & y_in_range;
                 v1_in_range[i] = x1_in_range & y_in_range;
@@ -160,8 +160,8 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack16(const Mat& src, Mat& 
             {
                 const __m512 two = _mm512_set1_ps(2.f);
 
-                gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
-                gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
+                gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
+                gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
             }
 
             __m512 gx_floor = _mm512_floor_ps(gx);
@@ -172,9 +172,9 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack16(const Mat& src, Mat& 
 
             __m512 coefficients[4];
 
-            __m512 gx0 = _mm512_add_ps(gx_floor, vn1fp16);
+            __m512 gx0 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_n1);
             __m512 gx1 = gx_floor;
-            __m512 gx2 = _mm512_add_ps(gx_floor, v1fp16);
+            __m512 gx2 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_1);
             __m512 gx3 = _mm512_add_ps(gx_floor, _mm512_set1_ps(2.0f));
 
             __m512i x0 = _mm512_cvtps_epi32(gx0);
@@ -182,10 +182,10 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack16(const Mat& src, Mat& 
             __m512i x2 = _mm512_cvtps_epi32(gx2);
             __m512i x3 = _mm512_cvtps_epi32(gx3);
 
-            __mmask16 x0_in_range = _mm512_cmpgt_epi32_mask(x0, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x0);
-            __mmask16 x1_in_range = _mm512_cmpgt_epi32_mask(x1, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x1);
-            __mmask16 x2_in_range = _mm512_cmpgt_epi32_mask(x2, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x2);
-            __mmask16 x3_in_range = _mm512_cmpgt_epi32_mask(x3, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, x3);
+            __mmask16 x0_in_range = _mm512_cmpgt_epi32_mask(x0, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, x0);
+            __mmask16 x1_in_range = _mm512_cmpgt_epi32_mask(x1, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, x1);
+            __mmask16 x2_in_range = _mm512_cmpgt_epi32_mask(x2, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, x2);
+            __mmask16 x3_in_range = _mm512_cmpgt_epi32_mask(x3, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, x3);
 
             __m512i v0_offset[4], v1_offset[4], v2_offset[4], v3_offset[4];
             __mmask16 v0_in_range[4], v1_in_range[4], v2_in_range[4], v3_in_range[4];
@@ -195,7 +195,7 @@ static void gridsample_2d_bicubic_align1_zeros_blob_pack16(const Mat& src, Mat& 
 
                 __m512i y = _mm512_cvtps_epi32(gy);
 
-                __mmask16 y_in_range = _mm512_cmpgt_epi32_mask(y, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgHi, y);
+                __mmask16 y_in_range = _mm512_cmpgt_epi32_mask(y, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgHi, y);
 
                 v0_in_range[i] = x0_in_range & y_in_range;
                 v1_in_range[i] = x1_in_range & y_in_range;
@@ -257,10 +257,10 @@ static void gridsample_2d_bicubic_align0_border_blob_pack16(const Mat& src, Mat&
             __m512 gy = _mm512_set1_ps(gridptr[grid.elempack]);
 
             const __m512 two = _mm512_set1_ps(2.f);
-            const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
-            const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
-            gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
-            gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
+            const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
+            const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
+            gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
+            gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
             __m512 gx_floor = _mm512_floor_ps(gx);
             __m512 gy_floor = _mm512_floor_ps(gy);
@@ -270,9 +270,9 @@ static void gridsample_2d_bicubic_align0_border_blob_pack16(const Mat& src, Mat&
 
             __m512 coefficients[4];
 
-            __m512 gx0 = _mm512_add_ps(gx_floor, vn1fp16);
+            __m512 gx0 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_n1);
             __m512 gx1 = gx_floor;
-            __m512 gx2 = _mm512_add_ps(gx_floor, v1fp16);
+            __m512 gx2 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_1);
             __m512 gx3 = _mm512_add_ps(gx_floor, _mm512_set1_ps(2.0f));
 
             gx0 = _mm512_min_ps(border_x, _mm512_max_ps(gx0, _mm512_setzero_ps()));
@@ -348,11 +348,11 @@ static void gridsample_2d_bicubic_align1_border_blob_pack16(const Mat& src, Mat&
             __m512 gy = _mm512_set1_ps(gridptr[grid.elempack]);
 
             const __m512 two = _mm512_set1_ps(2.f);
-            const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
-            const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+            const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
+            const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
-            gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
-            gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
+            gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
+            gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
             __m512 gx_floor = _mm512_floor_ps(gx);
             __m512 gy_floor = _mm512_floor_ps(gy);
@@ -362,9 +362,9 @@ static void gridsample_2d_bicubic_align1_border_blob_pack16(const Mat& src, Mat&
 
             __m512 coefficients[4];
 
-            __m512 gx0 = _mm512_add_ps(gx_floor, vn1fp16);
+            __m512 gx0 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_n1);
             __m512 gx1 = gx_floor;
-            __m512 gx2 = _mm512_add_ps(gx_floor, v1fp16);
+            __m512 gx2 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_1);
             __m512 gx3 = _mm512_add_ps(gx_floor, _mm512_set1_ps(2.0f));
 
             gx0 = _mm512_min_ps(border_x, _mm512_max_ps(gx0, _mm512_setzero_ps()));
@@ -440,10 +440,10 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack16(const Mat& src, 
             __m512 gy = _mm512_set1_ps(gridptr[grid.elempack]);
 
             const __m512 two = _mm512_set1_ps(2.f);
-            const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
-            const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
-            gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
-            gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
+            const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
+            const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
+            gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
+            gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
             __m512 gx_floor = _mm512_floor_ps(gx);
             __m512 gy_floor = _mm512_floor_ps(gy);
@@ -453,14 +453,14 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack16(const Mat& src, 
 
             __m512 coefficients[4];
 
-            __m512 gx0 = _mm512_add_ps(gx_floor, vn1fp16);
+            __m512 gx0 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_n1);
             __m512 gx1 = gx_floor;
-            __m512 gx2 = _mm512_add_ps(gx_floor, v1fp16);
+            __m512 gx2 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_1);
             __m512 gx3 = _mm512_add_ps(gx_floor, _mm512_set1_ps(2.0f));
             const __m512 v0p5fp16 = _mm512_set1_ps(0.5f);
             {
                 // x0
-                const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                 gx0 = _mm512_add_ps(gx0, v0p5fp16);
 
@@ -530,7 +530,7 @@ static void gridsample_2d_bicubic_align0_reflection_blob_pack16(const Mat& src, 
 
                 {
                     //y
-                    const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                    const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                     gy = _mm512_add_ps(gy, v0p5fp16);
 
@@ -605,11 +605,11 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack16(const Mat& src, 
             __m512 gy = _mm512_set1_ps(gridptr[grid.elempack]);
 
             const __m512 two = _mm512_set1_ps(2.f);
-            const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
-            const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+            const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
+            const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
-            gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
-            gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
+            gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
+            gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
             __m512 gx_floor = _mm512_floor_ps(gx);
             __m512 gy_floor = _mm512_floor_ps(gy);
@@ -619,14 +619,14 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack16(const Mat& src, 
 
             __m512 coefficients[4];
 
-            __m512 gx0 = _mm512_add_ps(gx_floor, vn1fp16);
+            __m512 gx0 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_n1);
             __m512 gx1 = gx_floor;
-            __m512 gx2 = _mm512_add_ps(gx_floor, v1fp16);
+            __m512 gx2 = _mm512_add_ps(gx_floor, *(__m512*)_ps512_1);
             __m512 gx3 = _mm512_add_ps(gx_floor, _mm512_set1_ps(2.0f));
             const __m512 v0p5fp16 = _mm512_set1_ps(0.5f);
             {
                 // x0
-                const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                 gx0 = _mm512_and_ps(gx0, *(__m512*)_ps512_inv_sign_mask);
                 __m512 reflectx0_v = _mm512_and_ps(_mm512_sub_ps(gx0, border_x), *(__m512*)_ps512_inv_sign_mask);
@@ -663,7 +663,7 @@ static void gridsample_2d_bicubic_align1_reflection_blob_pack16(const Mat& src, 
 
                 {
                     //y
-                    const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                    const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                     gy = _mm512_and_ps(gy, *(__m512*)_ps512_inv_sign_mask);
 

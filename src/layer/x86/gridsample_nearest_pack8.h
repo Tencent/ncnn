@@ -36,10 +36,10 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack8(const Mat& src, Mat& d
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
                 // y
-                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
             }
 
             gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -48,15 +48,15 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack8(const Mat& src, Mat& d
             __m256i ix = _mm256_cvtps_epi32(gx);
             __m256i iy = _mm256_cvtps_epi32(gy);
 
-            __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                                  _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
+            __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, ix)),
+                                                  _mm256_and_si256(_mm256_cmpgt_epi32(iy, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, iy)));
 
             __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                                 _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
+                __m256 _v = mask_gather_ps256(src.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range));
 
                 _mm256_storeu_ps(dst.channel(q).row(y) + x * dst.elempack, _v);
             }
@@ -88,10 +88,10 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack8(const Mat& src, Mat& d
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                 // y
-                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
             }
 
             gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -100,15 +100,15 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack8(const Mat& src, Mat& d
             __m256i ix = _mm256_cvtps_epi32(gx);
             __m256i iy = _mm256_cvtps_epi32(gy);
 
-            __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                                  _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
+            __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, ix)),
+                                                  _mm256_and_si256(_mm256_cmpgt_epi32(iy, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, iy)));
 
             __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                                 _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
+                __m256 _v = mask_gather_ps256(src.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range));
 
                 _mm256_storeu_ps(dst.channel(q).row(y) + x * dst.elempack, _v);
             }
@@ -140,16 +140,16 @@ static void gridsample_2d_nearest_align0_border_blob_pack8(const Mat& src, Mat& 
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
-                const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                 // y
-                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
 
-                const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                 gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
             }
@@ -165,7 +165,7 @@ static void gridsample_2d_nearest_align0_border_blob_pack8(const Mat& src, Mat& 
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                __m256 _v = mask_gather_ps256(src.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                 _mm256_storeu_ps(dst.channel(q).row(y) + x * dst.elempack, _v);
             }
@@ -197,16 +197,16 @@ static void gridsample_2d_nearest_align1_border_blob_pack8(const Mat& src, Mat& 
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
-                const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                 // y
-                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
-                const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                 gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
             }
@@ -222,7 +222,7 @@ static void gridsample_2d_nearest_align1_border_blob_pack8(const Mat& src, Mat& 
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                __m256 _v = mask_gather_ps256(src.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                 _mm256_storeu_ps(dst.channel(q).row(y) + x * dst.elempack, _v);
             }
@@ -250,8 +250,8 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack8(const Mat& src, M
             __m256 gy = _mm256_set1_ps(gridptr[grid.elempack]);
 
             const __m256 two = _mm256_set1_ps(2.f);
-            gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
-            gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+            gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+            gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
 
             gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
             gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -259,7 +259,7 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack8(const Mat& src, M
             // compute coord
             {
                 // x
-                const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                 __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
                 gx = _mm256_add_ps(gx, v0p5fp8);
@@ -276,7 +276,7 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack8(const Mat& src, M
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                 // y
-                const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                 gy = _mm256_add_ps(gy, v0p5fp8);
 
@@ -300,7 +300,7 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack8(const Mat& src, M
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                __m256 _v = mask_gather_ps256(src.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                 _mm256_storeu_ps(dst.channel(q).row(y) + x * dst.elempack, _v);
             }
@@ -328,8 +328,8 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack8(const Mat& src, M
             __m256 gy = _mm256_set1_ps(gridptr[grid.elempack]);
 
             const __m256 two = _mm256_set1_ps(2.f);
-            gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
-            gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+            gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+            gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
             gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
             gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -337,7 +337,7 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack8(const Mat& src, M
             // compute coord
             {
                 // x
-                const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                 gx = _mm256_and_ps(gx, *(__m256*)_ps256_inv_sign_mask);
 
@@ -345,7 +345,7 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack8(const Mat& src, M
                 gx = _mm256_sub_ps(border_x, reflectx_v);
 
                 // y
-                const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                 gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
 
@@ -361,7 +361,7 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack8(const Mat& src, M
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                __m256 _v = mask_gather_ps256(src.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                 _mm256_storeu_ps(dst.channel(q).row(y) + x * dst.elempack, _v);
             }
@@ -398,13 +398,13 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack8(const Mat& src, Mat& d
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
                     // y
-                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
 
                     // z
-                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, v1fp8), vImgDf, v1fp8), two);
+                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
                 }
 
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -415,15 +415,15 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack8(const Mat& src, Mat& d
                 __m256i iy = _mm256_cvtps_epi32(gy);
                 __m256i iz = _mm256_cvtps_epi32(gz);
 
-                __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                                      _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
-                v_in_range = _mm256_and_si256(v_in_range, _mm256_and_si256(_mm256_cmpgt_epi32(iz, vn1ip8), _mm256_cmpgt_epi32(vImgDi, iz)));
+                __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, ix)),
+                                                      _mm256_and_si256(_mm256_cmpgt_epi32(iy, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, iy)));
+                v_in_range = _mm256_and_si256(v_in_range, _mm256_and_si256(_mm256_cmpgt_epi32(iz, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, iz)));
 
                 __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), iz), _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
+                    __m256 _v = mask_gather_ps256(src.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range));
 
                     _mm256_storeu_ps(dst.channel(q).depth(z).row(y) + x * dst.elempack, _v);
                 }
@@ -461,13 +461,13 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack8(const Mat& src, Mat& d
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                     // y
-                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                     // z
-                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, v1fp8), two), _mm256_sub_ps(vImgDf, v1fp8));
+                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
                 }
 
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
@@ -478,15 +478,15 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack8(const Mat& src, Mat& d
                 __m256i iy = _mm256_cvtps_epi32(gy);
                 __m256i iz = _mm256_cvtps_epi32(gz);
 
-                __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, vn1ip8), _mm256_cmpgt_epi32(vImgWi, ix)),
-                                                      _mm256_and_si256(_mm256_cmpgt_epi32(iy, vn1ip8), _mm256_cmpgt_epi32(vImgHi, iy)));
-                v_in_range = _mm256_and_si256(v_in_range, _mm256_and_si256(_mm256_cmpgt_epi32(iz, vn1ip8), _mm256_cmpgt_epi32(vImgDi, iz)));
+                __m256i v_in_range = _mm256_and_si256(_mm256_and_si256(_mm256_cmpgt_epi32(ix, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, ix)),
+                                                      _mm256_and_si256(_mm256_cmpgt_epi32(iy, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, iy)));
+                v_in_range = _mm256_and_si256(v_in_range, _mm256_and_si256(_mm256_cmpgt_epi32(iz, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, iz)));
 
                 __m256i i_offset = _mm256_add_epi32(_mm256_mullo_epi32(_mm256_add_epi32(_mm256_mullo_epi32(_mm256_mullo_epi32(vImgWi, vImgHi), iz), _mm256_add_epi32(_mm256_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm256_set_epi32(7, 6, 5, 4, 3, 2, 1, 0));
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range), sizeof(float));
+                    __m256 _v = mask_gather_ps256(src.channel(q), i_offset, *reinterpret_cast<__m256*>(&v_in_range));
 
                     _mm256_storeu_ps(dst.channel(q).depth(z).row(y) + x * dst.elempack, _v);
                 }
@@ -524,23 +524,23 @@ static void gridsample_3d_nearest_align0_border_blob_pack8(const Mat& src, Mat& 
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
-                    const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                     // y
-                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
 
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                     // z
-                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, v1fp8), vImgDf, v1fp8), two);
+                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
 
-                    const __m256 border_z = _mm256_sub_ps(vImgDf, v1fp8);
+                    const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                     gz = _mm256_min_ps(border_z, _mm256_max_ps(gz, _mm256_setzero_ps()));
                 }
@@ -557,7 +557,7 @@ static void gridsample_3d_nearest_align0_border_blob_pack8(const Mat& src, Mat& 
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                    __m256 _v = mask_gather_ps256(src.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                     _mm256_storeu_ps(dst.channel(q).depth(z).row(y) + x * dst.elempack, _v);
                 }
@@ -595,23 +595,23 @@ static void gridsample_3d_nearest_align1_border_blob_pack8(const Mat& src, Mat& 
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
-                    const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                     // y
-                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                     // z
-                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, v1fp8), two), _mm256_sub_ps(vImgDf, v1fp8));
+                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
 
-                    const __m256 border_z = _mm256_sub_ps(vImgDf, v1fp8);
+                    const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                     gz = _mm256_min_ps(border_z, _mm256_max_ps(gz, _mm256_setzero_ps()));
                 }
@@ -628,7 +628,7 @@ static void gridsample_3d_nearest_align1_border_blob_pack8(const Mat& src, Mat& 
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                    __m256 _v = mask_gather_ps256(src.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                     _mm256_storeu_ps(dst.channel(q).depth(z).row(y) + x * dst.elempack, _v);
                 }
@@ -662,9 +662,9 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack8(const Mat& src, M
                 __m256 gz = _mm256_set1_ps(gridptr[grid.elempack * 2]);
 
                 const __m256 two = _mm256_set1_ps(2.f);
-                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
-                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
-                gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, v1fp8), vImgDf, v1fp8), two);
+                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
 
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -673,7 +673,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack8(const Mat& src, M
                 // compute coord
                 {
                     // x
-                    const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                     __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
                     gx = _mm256_add_ps(gx, v0p5fp8);
@@ -690,7 +690,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack8(const Mat& src, M
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                     // y
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                     gy = _mm256_add_ps(gy, v0p5fp8);
 
@@ -706,7 +706,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack8(const Mat& src, M
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                     // z
-                    const __m256 border_z = _mm256_sub_ps(vImgDf, v1fp8);
+                    const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                     gz = _mm256_add_ps(gz, v0p5fp8);
 
@@ -730,7 +730,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack8(const Mat& src, M
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                    __m256 _v = mask_gather_ps256(src.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                     _mm256_storeu_ps(dst.channel(q).depth(z).row(y) + x * dst.elempack, _v);
                 }
@@ -764,9 +764,9 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack8(const Mat& src, M
                 __m256 gz = _mm256_set1_ps(gridptr[grid.elempack * 2]);
 
                 const __m256 two = _mm256_set1_ps(2.f);
-                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
-                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
-                gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, v1fp8), two), _mm256_sub_ps(vImgDf, v1fp8));
+                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
 
                 gx = _mm256_floor_ps(_mm256_add_ps(gx, _mm256_set1_ps(0.5f)));
                 gy = _mm256_floor_ps(_mm256_add_ps(gy, _mm256_set1_ps(0.5f)));
@@ -775,7 +775,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack8(const Mat& src, M
                 // compute coord
                 {
                     // x
-                    const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                     gx = _mm256_and_ps(gx, *(__m256*)_ps256_inv_sign_mask);
 
@@ -783,7 +783,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack8(const Mat& src, M
                     gx = _mm256_sub_ps(border_x, reflectx_v);
 
                     // y
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                     gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
 
@@ -791,7 +791,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack8(const Mat& src, M
                     gy = _mm256_sub_ps(border_y, reflecty_v);
 
                     // z
-                    const __m256 border_z = _mm256_sub_ps(vImgDf, v1fp8);
+                    const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                     gz = _mm256_and_ps(gz, *(__m256*)_ps256_inv_sign_mask);
 
@@ -807,7 +807,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack8(const Mat& src, M
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 _v = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_offset, _mm256_set1_ps(-1.0f), sizeof(float));
+                    __m256 _v = mask_gather_ps256(src.channel(q), i_offset, _mm256_set1_ps(-1.0f));
 
                     _mm256_storeu_ps(dst.channel(q).depth(z).row(y) + x * dst.elempack, _v);
                 }

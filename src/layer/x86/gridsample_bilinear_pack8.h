@@ -36,19 +36,19 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
                 // y
-                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
             }
 
             __m256 x_w = _mm256_floor_ps(gx);
             __m256 y_n = _mm256_floor_ps(gy);
 
             __m256 w = _mm256_sub_ps(gx, x_w);
-            __m256 e = _mm256_sub_ps(v1fp8, w);
+            __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
             __m256 n = _mm256_sub_ps(gy, y_n);
-            __m256 s = _mm256_sub_ps(v1fp8, n);
+            __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
 
             __m256 nw = _mm256_mul_ps(s, e);
             __m256 ne = _mm256_mul_ps(s, w);
@@ -56,14 +56,14 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
             __m256 se = _mm256_mul_ps(n, w);
 
             __m256i x0 = _mm256_cvtps_epi32(x_w);
-            __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+            __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
             __m256i y0 = _mm256_cvtps_epi32(y_n);
-            __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+            __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
-            __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x0));
-            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-            __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y0));
-            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
+            __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
+            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+            __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
+            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
 
             __m256i v00_in_range = _mm256_and_si256(x0_in_range, y0_in_range);
             __m256i v01_in_range = _mm256_and_si256(x0_in_range, y1_in_range);
@@ -79,10 +79,10 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range), sizeof(float));
-                __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range), sizeof(float));
-                __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range), sizeof(float));
-                __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range));
+                __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range));
+                __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range));
+                __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                 __m256 _v = _mm256_mul_ps(nw_val, nw);
                 _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -119,19 +119,19 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                 // y
-                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
             }
 
             __m256 x_w = _mm256_floor_ps(gx);
             __m256 y_n = _mm256_floor_ps(gy);
 
             __m256 w = _mm256_sub_ps(gx, x_w);
-            __m256 e = _mm256_sub_ps(v1fp8, w);
+            __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
             __m256 n = _mm256_sub_ps(gy, y_n);
-            __m256 s = _mm256_sub_ps(v1fp8, n);
+            __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
 
             __m256 nw = _mm256_mul_ps(s, e);
             __m256 ne = _mm256_mul_ps(s, w);
@@ -139,14 +139,14 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
             __m256 se = _mm256_mul_ps(n, w);
 
             __m256i x0 = _mm256_cvtps_epi32(x_w);
-            __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+            __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
             __m256i y0 = _mm256_cvtps_epi32(y_n);
-            __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+            __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
-            __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x0));
-            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-            __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y0));
-            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
+            __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
+            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+            __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
+            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
 
             __m256i v00_in_range = _mm256_and_si256(x0_in_range, y0_in_range);
             __m256i v01_in_range = _mm256_and_si256(x0_in_range, y1_in_range);
@@ -162,10 +162,10 @@ static void gridsample_2d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range), sizeof(float));
-                __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range), sizeof(float));
-                __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range), sizeof(float));
-                __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, *reinterpret_cast<__m256*>(&v00_in_range));
+                __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&v10_in_range));
+                __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&v01_in_range));
+                __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                 __m256 _v = _mm256_mul_ps(nw_val, nw);
                 _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -202,16 +202,16 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
-                const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                 // y
-                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
 
-                const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                 gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
             }
@@ -220,9 +220,9 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
             __m256 y_n = _mm256_floor_ps(gy);
 
             __m256 w = _mm256_sub_ps(gx, x_w);
-            __m256 e = _mm256_sub_ps(v1fp8, w);
+            __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
             __m256 n = _mm256_sub_ps(gy, y_n);
-            __m256 s = _mm256_sub_ps(v1fp8, n);
+            __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
 
             __m256 nw = _mm256_mul_ps(s, e);
             __m256 ne = _mm256_mul_ps(s, w);
@@ -230,12 +230,12 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
             __m256 se = _mm256_mul_ps(n, w);
 
             __m256i x0 = _mm256_cvtps_epi32(x_w);
-            __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+            __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
             __m256i y0 = _mm256_cvtps_epi32(y_n);
-            __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+            __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
-            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
+            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
 
             __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
@@ -248,10 +248,10 @@ static void gridsample_2d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_nw_offset, vn1fp8, sizeof(float));
-                __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
+                __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                 __m256 _v = _mm256_mul_ps(nw_val, nw);
                 _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -288,16 +288,16 @@ static void gridsample_2d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
-                const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                 // y
-                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
-                const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                 gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
             }
@@ -306,9 +306,9 @@ static void gridsample_2d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
             __m256 y_n = _mm256_floor_ps(gy);
 
             __m256 w = _mm256_sub_ps(gx, x_w);
-            __m256 e = _mm256_sub_ps(v1fp8, w);
+            __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
             __m256 n = _mm256_sub_ps(gy, y_n);
-            __m256 s = _mm256_sub_ps(v1fp8, n);
+            __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
 
             __m256 nw = _mm256_mul_ps(s, e);
             __m256 ne = _mm256_mul_ps(s, w);
@@ -316,12 +316,12 @@ static void gridsample_2d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
             __m256 se = _mm256_mul_ps(n, w);
 
             __m256i x0 = _mm256_cvtps_epi32(x_w);
-            __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+            __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
             __m256i y0 = _mm256_cvtps_epi32(y_n);
-            __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+            __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
-            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
+            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
 
             __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
@@ -334,10 +334,10 @@ static void gridsample_2d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_nw_offset, vn1fp8, sizeof(float));
-                __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
+                __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                 __m256 _v = _mm256_mul_ps(nw_val, nw);
                 _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -374,9 +374,9 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
-                const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                 __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
                 gx = _mm256_add_ps(gx, v0p5fp8);
@@ -393,9 +393,9 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                 gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                 // y
-                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
 
-                const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                 gy = _mm256_add_ps(gy, v0p5fp8);
 
@@ -415,9 +415,9 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
             __m256 y_n = _mm256_floor_ps(gy);
 
             __m256 w = _mm256_sub_ps(gx, x_w);
-            __m256 e = _mm256_sub_ps(v1fp8, w);
+            __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
             __m256 n = _mm256_sub_ps(gy, y_n);
-            __m256 s = _mm256_sub_ps(v1fp8, n);
+            __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
 
             __m256 nw = _mm256_mul_ps(s, e);
             __m256 ne = _mm256_mul_ps(s, w);
@@ -425,12 +425,12 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
             __m256 se = _mm256_mul_ps(n, w);
 
             __m256i x0 = _mm256_cvtps_epi32(x_w);
-            __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+            __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
             __m256i y0 = _mm256_cvtps_epi32(y_n);
-            __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+            __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
-            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
+            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
 
             __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
@@ -443,10 +443,10 @@ static void gridsample_2d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_nw_offset, vn1fp8, sizeof(float));
-                __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
+                __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                 __m256 _v = _mm256_mul_ps(nw_val, nw);
                 _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -483,9 +483,9 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                 const __m256 two = _mm256_set1_ps(2.f);
 
                 // x
-                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
-                const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                 gx = _mm256_and_ps(gx, *(__m256*)_ps256_inv_sign_mask);
 
@@ -493,9 +493,9 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                 gx = _mm256_sub_ps(border_x, reflectx_v);
 
                 // y
-                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
-                const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                 gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
 
@@ -507,9 +507,9 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
             __m256 y_n = _mm256_floor_ps(gy);
 
             __m256 w = _mm256_sub_ps(gx, x_w);
-            __m256 e = _mm256_sub_ps(v1fp8, w);
+            __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
             __m256 n = _mm256_sub_ps(gy, y_n);
-            __m256 s = _mm256_sub_ps(v1fp8, n);
+            __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
 
             __m256 nw = _mm256_mul_ps(s, e);
             __m256 ne = _mm256_mul_ps(s, w);
@@ -517,12 +517,12 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
             __m256 se = _mm256_mul_ps(n, w);
 
             __m256i x0 = _mm256_cvtps_epi32(x_w);
-            __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+            __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
             __m256i y0 = _mm256_cvtps_epi32(y_n);
-            __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+            __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
 
-            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
+            __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+            __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
 
             __m256i v11_in_range = _mm256_and_si256(x1_in_range, y1_in_range);
 
@@ -535,10 +535,10 @@ static void gridsample_2d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
 
             for (int q = 0; q < dst.c; q++)
             {
-                __m256 nw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_nw_offset, vn1fp8, sizeof(float));
-                __m256 ne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                __m256 sw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                __m256 se_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range), sizeof(float));
+                __m256 nw_val = mask_gather_ps256(src.channel(q), i_nw_offset, *(__m256*)_ps256_n1);
+                __m256 ne_val = mask_gather_ps256(src.channel(q), i_ne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                __m256 sw_val = mask_gather_ps256(src.channel(q), i_sw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                __m256 se_val = mask_gather_ps256(src.channel(q), i_se_offset, *reinterpret_cast<__m256*>(&v11_in_range));
 
                 __m256 _v = _mm256_mul_ps(nw_val, nw);
                 _v = _mm256_comp_fmadd_ps(ne_val, ne, _v);
@@ -580,13 +580,13 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
                     // y
-                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
 
                     // z
-                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, v1fp8), vImgDf, v1fp8), two);
+                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
                 }
 
                 __m256 x_w = _mm256_floor_ps(gx);
@@ -594,11 +594,11 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                 __m256 z_t = _mm256_floor_ps(gz);
 
                 __m256 w = _mm256_sub_ps(gx, x_w);
-                __m256 e = _mm256_sub_ps(v1fp8, w);
+                __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
                 __m256 n = _mm256_sub_ps(gy, y_n);
-                __m256 s = _mm256_sub_ps(v1fp8, n);
+                __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
                 __m256 t = _mm256_sub_ps(gz, z_t);
-                __m256 b = _mm256_sub_ps(v1fp8, t);
+                __m256 b = _mm256_sub_ps(*(__m256*)_ps256_1, t);
 
                 __m256 tnw, tne, tsw, tse, bnw, bne, bsw, bse;
                 {
@@ -619,18 +619,18 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
                 }
 
                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                 __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
                 __m256i z0 = _mm256_cvtps_epi32(z_t);
-                __m256i z1 = _mm256_add_epi32(z0, v1ip8);
+                __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
 
-                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x0));
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y0));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
-                __m256i z0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z0, vn1ip8), _mm256_cmpgt_epi32(vImgDi, z0));
-                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, vn1ip8), _mm256_cmpgt_epi32(vImgDi, z1));
+                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
+                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+                __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
+                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
+                __m256i z0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z0));
+                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
 
                 __m256i v000_in_range, v010_in_range, v100_in_range, v110_in_range, v001_in_range, v011_in_range, v101_in_range, v111_in_range;
                 {
@@ -663,15 +663,15 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack8(const Mat& src, Mat& 
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, *reinterpret_cast<__m256*>(&v000_in_range), sizeof(float));
-                    __m256 tne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&v100_in_range), sizeof(float));
-                    __m256 tsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&v010_in_range), sizeof(float));
-                    __m256 tse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range), sizeof(float));
+                    __m256 tnw_val = mask_gather_ps256(src.channel(q), i_tnw_offset, *reinterpret_cast<__m256*>(&v000_in_range));
+                    __m256 tne_val = mask_gather_ps256(src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&v100_in_range));
+                    __m256 tsw_val = mask_gather_ps256(src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&v010_in_range));
+                    __m256 tse_val = mask_gather_ps256(src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range));
 
-                    __m256 bnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&v001_in_range), sizeof(float));
-                    __m256 bne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range), sizeof(float));
-                    __m256 bsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range), sizeof(float));
-                    __m256 bse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range), sizeof(float));
+                    __m256 bnw_val = mask_gather_ps256(src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&v001_in_range));
+                    __m256 bne_val = mask_gather_ps256(src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range));
+                    __m256 bsw_val = mask_gather_ps256(src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range));
+                    __m256 bse_val = mask_gather_ps256(src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range));
 
                     __m256 _v = _mm256_mul_ps(tnw_val, tnw);
                     _v = _mm256_comp_fmadd_ps(tne_val, tne, _v);
@@ -719,13 +719,13 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
                     // y
-                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
                     // z
-                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, v1fp8), two), _mm256_sub_ps(vImgDf, v1fp8));
+                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
                 }
 
                 __m256 x_w = _mm256_floor_ps(gx);
@@ -733,11 +733,11 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
                 __m256 z_t = _mm256_floor_ps(gz);
 
                 __m256 w = _mm256_sub_ps(gx, x_w);
-                __m256 e = _mm256_sub_ps(v1fp8, w);
+                __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
                 __m256 n = _mm256_sub_ps(gy, y_n);
-                __m256 s = _mm256_sub_ps(v1fp8, n);
+                __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
                 __m256 t = _mm256_sub_ps(gz, z_t);
-                __m256 b = _mm256_sub_ps(v1fp8, t);
+                __m256 b = _mm256_sub_ps(*(__m256*)_ps256_1, t);
 
                 __m256 tnw, tne, tsw, tse, bnw, bne, bsw, bse;
                 {
@@ -758,18 +758,18 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
                 }
 
                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                 __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
                 __m256i z0 = _mm256_cvtps_epi32(z_t);
-                __m256i z1 = _mm256_add_epi32(z0, v1ip8);
+                __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
 
-                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x0));
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y0));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
-                __m256i z0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z0, vn1ip8), _mm256_cmpgt_epi32(vImgDi, z0));
-                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, vn1ip8), _mm256_cmpgt_epi32(vImgDi, z1));
+                __m256i x0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x0));
+                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+                __m256i y0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y0));
+                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
+                __m256i z0_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z0, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z0));
+                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
 
                 __m256i v000_in_range, v010_in_range, v100_in_range, v110_in_range, v001_in_range, v011_in_range, v101_in_range, v111_in_range;
                 {
@@ -802,15 +802,15 @@ static void gridsample_3d_bilinear_align1_zeros_blob_pack8(const Mat& src, Mat& 
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, *reinterpret_cast<__m256*>(&v000_in_range), sizeof(float));
-                    __m256 tne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&v100_in_range), sizeof(float));
-                    __m256 tsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&v010_in_range), sizeof(float));
-                    __m256 tse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range), sizeof(float));
+                    __m256 tnw_val = mask_gather_ps256(src.channel(q), i_tnw_offset, *reinterpret_cast<__m256*>(&v000_in_range));
+                    __m256 tne_val = mask_gather_ps256(src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&v100_in_range));
+                    __m256 tsw_val = mask_gather_ps256(src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&v010_in_range));
+                    __m256 tse_val = mask_gather_ps256(src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range));
 
-                    __m256 bnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&v001_in_range), sizeof(float));
-                    __m256 bne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range), sizeof(float));
-                    __m256 bsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range), sizeof(float));
-                    __m256 bse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range), sizeof(float));
+                    __m256 bnw_val = mask_gather_ps256(src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&v001_in_range));
+                    __m256 bne_val = mask_gather_ps256(src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range));
+                    __m256 bsw_val = mask_gather_ps256(src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range));
+                    __m256 bse_val = mask_gather_ps256(src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range));
 
                     __m256 _v = _mm256_mul_ps(tnw_val, tnw);
                     _v = _mm256_comp_fmadd_ps(tne_val, tne, _v);
@@ -858,23 +858,23 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
+                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
 
-                    const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                     // y
-                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
+                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
 
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                     // z
-                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, v1fp8), vImgDf, v1fp8), two);
+                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
 
-                    const __m256 border_z = _mm256_sub_ps(vImgDf, v1fp8);
+                    const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                     gz = _mm256_min_ps(border_z, _mm256_max_ps(gz, _mm256_setzero_ps()));
                 }
@@ -884,11 +884,11 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
                 __m256 z_t = _mm256_floor_ps(gz);
 
                 __m256 w = _mm256_sub_ps(gx, x_w);
-                __m256 e = _mm256_sub_ps(v1fp8, w);
+                __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
                 __m256 n = _mm256_sub_ps(gy, y_n);
-                __m256 s = _mm256_sub_ps(v1fp8, n);
+                __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
                 __m256 t = _mm256_sub_ps(gz, z_t);
-                __m256 b = _mm256_sub_ps(v1fp8, t);
+                __m256 b = _mm256_sub_ps(*(__m256*)_ps256_1, t);
 
                 __m256 tnw, tne, tsw, tse, bnw, bne, bsw, bse;
                 {
@@ -909,15 +909,15 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
                 }
 
                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                 __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
                 __m256i z0 = _mm256_cvtps_epi32(z_t);
-                __m256i z1 = _mm256_add_epi32(z0, v1ip8);
+                __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
 
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
-                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, vn1ip8), _mm256_cmpgt_epi32(vImgDi, z1));
+                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
+                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
 
                 __m256i v110_in_range, v011_in_range, v101_in_range, v111_in_range;
                 {
@@ -943,15 +943,15 @@ static void gridsample_3d_bilinear_align0_border_blob_pack8(const Mat& src, Mat&
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, vn1fp8, sizeof(float));
-                    __m256 tne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                    __m256 tsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                    __m256 tse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range), sizeof(float));
+                    __m256 tnw_val = mask_gather_ps256(src.channel(q), i_tnw_offset, *(__m256*)_ps256_n1);
+                    __m256 tne_val = mask_gather_ps256(src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                    __m256 tsw_val = mask_gather_ps256(src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                    __m256 tse_val = mask_gather_ps256(src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range));
 
-                    __m256 bnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&z1_in_range), sizeof(float));
-                    __m256 bne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range), sizeof(float));
-                    __m256 bsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range), sizeof(float));
-                    __m256 bse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range), sizeof(float));
+                    __m256 bnw_val = mask_gather_ps256(src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&z1_in_range));
+                    __m256 bne_val = mask_gather_ps256(src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range));
+                    __m256 bsw_val = mask_gather_ps256(src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range));
+                    __m256 bse_val = mask_gather_ps256(src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range));
 
                     __m256 _v = _mm256_mul_ps(tnw_val, tnw);
                     _v = _mm256_comp_fmadd_ps(tne_val, tne, _v);
@@ -999,23 +999,23 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
+                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
 
-                    const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                     // y
-                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
+                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
 
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                     // z
-                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, v1fp8), two), _mm256_sub_ps(vImgDf, v1fp8));
+                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
 
-                    const __m256 border_z = _mm256_sub_ps(vImgDf, v1fp8);
+                    const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                     gz = _mm256_min_ps(border_z, _mm256_max_ps(gz, _mm256_setzero_ps()));
                 }
@@ -1025,11 +1025,11 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
                 __m256 z_t = _mm256_floor_ps(gz);
 
                 __m256 w = _mm256_sub_ps(gx, x_w);
-                __m256 e = _mm256_sub_ps(v1fp8, w);
+                __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
                 __m256 n = _mm256_sub_ps(gy, y_n);
-                __m256 s = _mm256_sub_ps(v1fp8, n);
+                __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
                 __m256 t = _mm256_sub_ps(gz, z_t);
-                __m256 b = _mm256_sub_ps(v1fp8, t);
+                __m256 b = _mm256_sub_ps(*(__m256*)_ps256_1, t);
 
                 __m256 tnw, tne, tsw, tse, bnw, bne, bsw, bse;
                 {
@@ -1050,15 +1050,15 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
                 }
 
                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                 __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
                 __m256i z0 = _mm256_cvtps_epi32(z_t);
-                __m256i z1 = _mm256_add_epi32(z0, v1ip8);
+                __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
 
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
-                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, vn1ip8), _mm256_cmpgt_epi32(vImgDi, z1));
+                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
+                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
 
                 __m256i v110_in_range, v011_in_range, v101_in_range, v111_in_range;
                 {
@@ -1084,15 +1084,15 @@ static void gridsample_3d_bilinear_align1_border_blob_pack8(const Mat& src, Mat&
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, vn1fp8, sizeof(float));
-                    __m256 tne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                    __m256 tsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                    __m256 tse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range), sizeof(float));
+                    __m256 tnw_val = mask_gather_ps256(src.channel(q), i_tnw_offset, *(__m256*)_ps256_n1);
+                    __m256 tne_val = mask_gather_ps256(src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                    __m256 tsw_val = mask_gather_ps256(src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                    __m256 tse_val = mask_gather_ps256(src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range));
 
-                    __m256 bnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&z1_in_range), sizeof(float));
-                    __m256 bne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range), sizeof(float));
-                    __m256 bsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range), sizeof(float));
-                    __m256 bse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range), sizeof(float));
+                    __m256 bnw_val = mask_gather_ps256(src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&z1_in_range));
+                    __m256 bne_val = mask_gather_ps256(src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range));
+                    __m256 bsw_val = mask_gather_ps256(src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range));
+                    __m256 bse_val = mask_gather_ps256(src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range));
 
                     __m256 _v = _mm256_mul_ps(tnw_val, tnw);
                     _v = _mm256_comp_fmadd_ps(tne_val, tne, _v);
@@ -1140,8 +1140,8 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, v1fp8), vImgWf, v1fp8), two);
-                    const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                    gx = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), vImgWf, *(__m256*)_ps256_1), two);
+                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                     __m256 v0p5fp8 = _mm256_set1_ps(0.5f);
                     gx = _mm256_add_ps(gx, v0p5fp8);
@@ -1158,8 +1158,8 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                     gx = _mm256_min_ps(border_x, _mm256_max_ps(gx, _mm256_setzero_ps()));
 
                     // y
-                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, v1fp8), vImgHf, v1fp8), two);
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                    gy = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), vImgHf, *(__m256*)_ps256_1), two);
+                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                     gy = _mm256_add_ps(gy, v0p5fp8);
 
@@ -1175,8 +1175,8 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                     gy = _mm256_min_ps(border_y, _mm256_max_ps(gy, _mm256_setzero_ps()));
 
                     // z
-                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, v1fp8), vImgDf, v1fp8), two);
-                    const __m256 border_z = _mm256_sub_ps(vImgDf, v1fp8);
+                    gz = _mm256_div_ps(_mm256_comp_fmsub_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), vImgDf, *(__m256*)_ps256_1), two);
+                    const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                     gz = _mm256_add_ps(gz, v0p5fp8);
 
@@ -1197,11 +1197,11 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                 __m256 z_t = _mm256_floor_ps(gz);
 
                 __m256 w = _mm256_sub_ps(gx, x_w);
-                __m256 e = _mm256_sub_ps(v1fp8, w);
+                __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
                 __m256 n = _mm256_sub_ps(gy, y_n);
-                __m256 s = _mm256_sub_ps(v1fp8, n);
+                __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
                 __m256 t = _mm256_sub_ps(gz, z_t);
-                __m256 b = _mm256_sub_ps(v1fp8, t);
+                __m256 b = _mm256_sub_ps(*(__m256*)_ps256_1, t);
 
                 __m256 tnw, tne, tsw, tse, bnw, bne, bsw, bse;
                 {
@@ -1222,15 +1222,15 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
                 }
 
                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                 __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
                 __m256i z0 = _mm256_cvtps_epi32(z_t);
-                __m256i z1 = _mm256_add_epi32(z0, v1ip8);
+                __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
 
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
-                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, vn1ip8), _mm256_cmpgt_epi32(vImgDi, z1));
+                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
+                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
 
                 __m256i v110_in_range, v011_in_range, v101_in_range, v111_in_range;
                 {
@@ -1256,15 +1256,15 @@ static void gridsample_3d_bilinear_align0_reflection_blob_pack8(const Mat& src, 
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, vn1fp8, sizeof(float));
-                    __m256 tne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                    __m256 tsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                    __m256 tse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range), sizeof(float));
+                    __m256 tnw_val = mask_gather_ps256(src.channel(q), i_tnw_offset, *(__m256*)_ps256_n1);
+                    __m256 tne_val = mask_gather_ps256(src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                    __m256 tsw_val = mask_gather_ps256(src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                    __m256 tse_val = mask_gather_ps256(src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range));
 
-                    __m256 bnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&z1_in_range), sizeof(float));
-                    __m256 bne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range), sizeof(float));
-                    __m256 bsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range), sizeof(float));
-                    __m256 bse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range), sizeof(float));
+                    __m256 bnw_val = mask_gather_ps256(src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&z1_in_range));
+                    __m256 bne_val = mask_gather_ps256(src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range));
+                    __m256 bsw_val = mask_gather_ps256(src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range));
+                    __m256 bse_val = mask_gather_ps256(src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range));
 
                     __m256 _v = _mm256_mul_ps(tnw_val, tnw);
                     _v = _mm256_comp_fmadd_ps(tne_val, tne, _v);
@@ -1312,8 +1312,8 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                     const __m256 two = _mm256_set1_ps(2.f);
 
                     // x
-                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, v1fp8), two), _mm256_sub_ps(vImgWf, v1fp8));
-                    const __m256 border_x = _mm256_sub_ps(vImgWf, v1fp8);
+                    gx = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gx, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1));
+                    const __m256 border_x = _mm256_sub_ps(vImgWf, *(__m256*)_ps256_1);
 
                     gx = _mm256_and_ps(gx, *(__m256*)_ps256_inv_sign_mask);
 
@@ -1321,8 +1321,8 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                     gx = _mm256_sub_ps(border_x, reflectx_v);
 
                     // y
-                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, v1fp8), two), _mm256_sub_ps(vImgHf, v1fp8));
-                    const __m256 border_y = _mm256_sub_ps(vImgHf, v1fp8);
+                    gy = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gy, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1));
+                    const __m256 border_y = _mm256_sub_ps(vImgHf, *(__m256*)_ps256_1);
 
                     gy = _mm256_and_ps(gy, *(__m256*)_ps256_inv_sign_mask);
 
@@ -1330,8 +1330,8 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                     gy = _mm256_sub_ps(border_y, reflecty_v);
 
                     // z
-                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, v1fp8), two), _mm256_sub_ps(vImgDf, v1fp8));
-                    const __m256 border_z = _mm256_sub_ps(vImgDf, v1fp8);
+                    gz = _mm256_mul_ps(_mm256_div_ps(_mm256_add_ps(gz, *(__m256*)_ps256_1), two), _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1));
+                    const __m256 border_z = _mm256_sub_ps(vImgDf, *(__m256*)_ps256_1);
 
                     gz = _mm256_and_ps(gz, *(__m256*)_ps256_inv_sign_mask);
 
@@ -1344,11 +1344,11 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                 __m256 z_t = _mm256_floor_ps(gz);
 
                 __m256 w = _mm256_sub_ps(gx, x_w);
-                __m256 e = _mm256_sub_ps(v1fp8, w);
+                __m256 e = _mm256_sub_ps(*(__m256*)_ps256_1, w);
                 __m256 n = _mm256_sub_ps(gy, y_n);
-                __m256 s = _mm256_sub_ps(v1fp8, n);
+                __m256 s = _mm256_sub_ps(*(__m256*)_ps256_1, n);
                 __m256 t = _mm256_sub_ps(gz, z_t);
-                __m256 b = _mm256_sub_ps(v1fp8, t);
+                __m256 b = _mm256_sub_ps(*(__m256*)_ps256_1, t);
 
                 __m256 tnw, tne, tsw, tse, bnw, bne, bsw, bse;
                 {
@@ -1369,15 +1369,15 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
                 }
 
                 __m256i x0 = _mm256_cvtps_epi32(x_w);
-                __m256i x1 = _mm256_add_epi32(x0, v1ip8);
+                __m256i x1 = _mm256_add_epi32(x0, *(__m256i*)_pi32_256_1);
                 __m256i y0 = _mm256_cvtps_epi32(y_n);
-                __m256i y1 = _mm256_add_epi32(y0, v1ip8);
+                __m256i y1 = _mm256_add_epi32(y0, *(__m256i*)_pi32_256_1);
                 __m256i z0 = _mm256_cvtps_epi32(z_t);
-                __m256i z1 = _mm256_add_epi32(z0, v1ip8);
+                __m256i z1 = _mm256_add_epi32(z0, *(__m256i*)_pi32_256_1);
 
-                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, vn1ip8), _mm256_cmpgt_epi32(vImgWi, x1));
-                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, vn1ip8), _mm256_cmpgt_epi32(vImgHi, y1));
-                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, vn1ip8), _mm256_cmpgt_epi32(vImgDi, z1));
+                __m256i x1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(x1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgWi, x1));
+                __m256i y1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(y1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgHi, y1));
+                __m256i z1_in_range = _mm256_and_si256(_mm256_cmpgt_epi32(z1, *(__m256i*)_pi32_256_n1), _mm256_cmpgt_epi32(vImgDi, z1));
 
                 __m256i v110_in_range, v011_in_range, v101_in_range, v111_in_range;
                 {
@@ -1403,15 +1403,15 @@ static void gridsample_3d_bilinear_align1_reflection_blob_pack8(const Mat& src, 
 
                 for (int q = 0; q < dst.c; q++)
                 {
-                    __m256 tnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tnw_offset, vn1fp8, sizeof(float));
-                    __m256 tne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&x1_in_range), sizeof(float));
-                    __m256 tsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&y1_in_range), sizeof(float));
-                    __m256 tse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range), sizeof(float));
+                    __m256 tnw_val = mask_gather_ps256(src.channel(q), i_tnw_offset, *(__m256*)_ps256_n1);
+                    __m256 tne_val = mask_gather_ps256(src.channel(q), i_tne_offset, *reinterpret_cast<__m256*>(&x1_in_range));
+                    __m256 tsw_val = mask_gather_ps256(src.channel(q), i_tsw_offset, *reinterpret_cast<__m256*>(&y1_in_range));
+                    __m256 tse_val = mask_gather_ps256(src.channel(q), i_tse_offset, *reinterpret_cast<__m256*>(&v110_in_range));
 
-                    __m256 bnw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&z1_in_range), sizeof(float));
-                    __m256 bne_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range), sizeof(float));
-                    __m256 bsw_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range), sizeof(float));
-                    __m256 bse_val = _mm256_mask_i32gather_ps(_mm256_setzero_ps(), src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range), sizeof(float));
+                    __m256 bnw_val = mask_gather_ps256(src.channel(q), i_bnw_offset, *reinterpret_cast<__m256*>(&z1_in_range));
+                    __m256 bne_val = mask_gather_ps256(src.channel(q), i_bne_offset, *reinterpret_cast<__m256*>(&v101_in_range));
+                    __m256 bsw_val = mask_gather_ps256(src.channel(q), i_bsw_offset, *reinterpret_cast<__m256*>(&v011_in_range));
+                    __m256 bse_val = mask_gather_ps256(src.channel(q), i_bse_offset, *reinterpret_cast<__m256*>(&v111_in_range));
 
                     __m256 _v = _mm256_mul_ps(tnw_val, tnw);
                     _v = _mm256_comp_fmadd_ps(tne_val, tne, _v);

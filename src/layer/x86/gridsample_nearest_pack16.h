@@ -36,10 +36,10 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack16(const Mat& src, Mat& 
                 const __m512 two = _mm512_set1_ps(2.f);
 
                 // x
-                gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
+                gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
 
                 // y
-                gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
+                gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
             }
 
             gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
@@ -48,7 +48,7 @@ static void gridsample_2d_nearest_align0_zeros_blob_pack16(const Mat& src, Mat& 
             __m512i ix = _mm512_cvtps_epi32(gx);
             __m512i iy = _mm512_cvtps_epi32(gy);
 
-            __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
+            __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
 
             __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                                 _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
@@ -87,10 +87,10 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack16(const Mat& src, Mat& 
                 const __m512 two = _mm512_set1_ps(2.f);
 
                 // x
-                gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
+                gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
 
                 // y
-                gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
+                gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
             }
 
             gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
@@ -99,7 +99,7 @@ static void gridsample_2d_nearest_align1_zeros_blob_pack16(const Mat& src, Mat& 
             __m512i ix = _mm512_cvtps_epi32(gx);
             __m512i iy = _mm512_cvtps_epi32(gy);
 
-            __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
+            __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
 
             __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix), vElempacki),
                                                 _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
@@ -138,16 +138,16 @@ static void gridsample_2d_nearest_align0_border_blob_pack16(const Mat& src, Mat&
                 const __m512 two = _mm512_set1_ps(2.f);
 
                 // x
-                gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
+                gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
 
-                const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                 gx = _mm512_min_ps(border_x, _mm512_max_ps(gx, _mm512_setzero_ps()));
 
                 // y
-                gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
+                gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
-                const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
             }
@@ -195,16 +195,16 @@ static void gridsample_2d_nearest_align1_border_blob_pack16(const Mat& src, Mat&
                 const __m512 two = _mm512_set1_ps(2.f);
 
                 // x
-                gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
+                gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
 
-                const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                 gx = _mm512_min_ps(border_x, _mm512_max_ps(gx, _mm512_setzero_ps()));
 
                 // y
-                gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
+                gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
-                const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                 gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
             }
@@ -248,8 +248,8 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack16(const Mat& src, 
             __m512 gy = _mm512_set1_ps(gridptr[grid.elempack]);
 
             const __m512 two = _mm512_set1_ps(2.f);
-            gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
-            gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
+            gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
+            gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
             gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
             gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
@@ -257,7 +257,7 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack16(const Mat& src, 
             // compute coord
             {
                 // x
-                const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                 __m512 v0p5fp16 = _mm512_set1_ps(0.5f);
                 gx = _mm512_add_ps(gx, v0p5fp16);
@@ -274,7 +274,7 @@ static void gridsample_2d_nearest_align0_reflection_blob_pack16(const Mat& src, 
                 gx = _mm512_min_ps(border_x, _mm512_max_ps(gx, _mm512_setzero_ps()));
 
                 // y
-                const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                 gy = _mm512_add_ps(gy, v0p5fp16);
 
@@ -326,8 +326,8 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack16(const Mat& src, 
             __m512 gy = _mm512_set1_ps(gridptr[grid.elempack]);
 
             const __m512 two = _mm512_set1_ps(2.f);
-            gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
-            gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
+            gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
+            gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
             gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
             gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
@@ -335,7 +335,7 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack16(const Mat& src, 
             // compute coord
             {
                 // x
-                const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                 gx = _mm512_and_ps(gx, *(__m512*)_ps512_inv_sign_mask);
 
@@ -343,7 +343,7 @@ static void gridsample_2d_nearest_align1_reflection_blob_pack16(const Mat& src, 
                 gx = _mm512_sub_ps(border_x, reflectx_v);
 
                 // y
-                const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                 gy = _mm512_and_ps(gy, *(__m512*)_ps512_inv_sign_mask);
 
@@ -396,13 +396,13 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack16(const Mat& src, Mat& 
                     const __m512 two = _mm512_set1_ps(2.f);
 
                     // x
-                    gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
+                    gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
 
                     // y
-                    gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
+                    gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
                     // z
-                    gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, v1fp16), vImgDf, v1fp16), two);
+                    gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), vImgDf, *(__m512*)_ps512_1), two);
                 }
 
                 gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
@@ -413,8 +413,8 @@ static void gridsample_3d_nearest_align0_zeros_blob_pack16(const Mat& src, Mat& 
                 __m512i iy = _mm512_cvtps_epi32(gy);
                 __m512i iz = _mm512_cvtps_epi32(gz);
 
-                __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
-                v_in_range = v_in_range & (_mm512_cmpgt_epi32_mask(iz, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgDi, iz));
+                __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
+                v_in_range = v_in_range & (_mm512_cmpgt_epi32_mask(iz, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgDi, iz));
 
                 __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(_mm512_mullo_epi32(vImgWi, vImgHi), iz), _mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
@@ -458,13 +458,13 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack16(const Mat& src, Mat& 
                     const __m512 two = _mm512_set1_ps(2.f);
 
                     // x
-                    gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
+                    gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
 
                     // y
-                    gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
+                    gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
                     // z
-                    gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, v1fp16), two), _mm512_sub_ps(vImgDf, v1fp16));
+                    gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1));
                 }
 
                 gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
@@ -475,8 +475,8 @@ static void gridsample_3d_nearest_align1_zeros_blob_pack16(const Mat& src, Mat& 
                 __m512i iy = _mm512_cvtps_epi32(gy);
                 __m512i iz = _mm512_cvtps_epi32(gz);
 
-                __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
-                v_in_range = v_in_range & (_mm512_cmpgt_epi32_mask(iz, vn1ip16) & _mm512_cmpgt_epi32_mask(vImgDi, iz));
+                __mmask16 v_in_range = (_mm512_cmpgt_epi32_mask(ix, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgWi, ix)) & (_mm512_cmpgt_epi32_mask(iy, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgHi, iy));
+                v_in_range = v_in_range & (_mm512_cmpgt_epi32_mask(iz, *(__m512i*)_pi32_512_n1) & _mm512_cmpgt_epi32_mask(vImgDi, iz));
 
                 __m512i i_offset = _mm512_add_epi32(_mm512_mullo_epi32(_mm512_add_epi32(_mm512_mullo_epi32(_mm512_mullo_epi32(vImgWi, vImgHi), iz), _mm512_add_epi32(_mm512_mullo_epi32(iy, vImgWi), ix)), vElempacki), _mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0));
 
@@ -520,23 +520,23 @@ static void gridsample_3d_nearest_align0_border_blob_pack16(const Mat& src, Mat&
                     const __m512 two = _mm512_set1_ps(2.f);
 
                     // x
-                    gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
+                    gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
 
-                    const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                    const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                     gx = _mm512_min_ps(border_x, _mm512_max_ps(gx, _mm512_setzero_ps()));
 
                     // y
-                    gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
+                    gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
 
-                    const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                    const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                     gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
 
                     // z
-                    gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, v1fp16), vImgDf, v1fp16), two);
+                    gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), vImgDf, *(__m512*)_ps512_1), two);
 
-                    const __m512 border_z = _mm512_sub_ps(vImgDf, v1fp16);
+                    const __m512 border_z = _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1);
 
                     gz = _mm512_min_ps(border_z, _mm512_max_ps(gz, _mm512_setzero_ps()));
                 }
@@ -591,23 +591,23 @@ static void gridsample_3d_nearest_align1_border_blob_pack16(const Mat& src, Mat&
                     const __m512 two = _mm512_set1_ps(2.f);
 
                     // x
-                    gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
+                    gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
 
-                    const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                    const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                     gx = _mm512_min_ps(border_x, _mm512_max_ps(gx, _mm512_setzero_ps()));
 
                     // y
-                    gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
+                    gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
 
-                    const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                    const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                     gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
 
                     // z
-                    gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, v1fp16), two), _mm512_sub_ps(vImgDf, v1fp16));
+                    gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1));
 
-                    const __m512 border_z = _mm512_sub_ps(vImgDf, v1fp16);
+                    const __m512 border_z = _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1);
 
                     gz = _mm512_min_ps(border_z, _mm512_max_ps(gz, _mm512_setzero_ps()));
                 }
@@ -658,9 +658,9 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack16(const Mat& src, 
                 __m512 gz = _mm512_set1_ps(gridptr[grid.elempack * 2]);
 
                 const __m512 two = _mm512_set1_ps(2.f);
-                gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, v1fp16), vImgWf, v1fp16), two);
-                gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, v1fp16), vImgHf, v1fp16), two);
-                gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, v1fp16), vImgDf, v1fp16), two);
+                gx = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), vImgWf, *(__m512*)_ps512_1), two);
+                gy = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), vImgHf, *(__m512*)_ps512_1), two);
+                gz = _mm512_div_ps(_mm512_fmsub_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), vImgDf, *(__m512*)_ps512_1), two);
 
                 gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
                 gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
@@ -669,7 +669,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack16(const Mat& src, 
                 // compute coord
                 {
                     // x
-                    const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                    const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                     __m512 v0p5fp16 = _mm512_set1_ps(0.5f);
                     gx = _mm512_add_ps(gx, v0p5fp16);
@@ -686,7 +686,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack16(const Mat& src, 
                     gx = _mm512_min_ps(border_x, _mm512_max_ps(gx, _mm512_setzero_ps()));
 
                     // y
-                    const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                    const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                     gy = _mm512_add_ps(gy, v0p5fp16);
 
@@ -702,7 +702,7 @@ static void gridsample_3d_nearest_align0_reflection_blob_pack16(const Mat& src, 
                     gy = _mm512_min_ps(border_y, _mm512_max_ps(gy, _mm512_setzero_ps()));
 
                     // z
-                    const __m512 border_z = _mm512_sub_ps(vImgDf, v1fp16);
+                    const __m512 border_z = _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1);
 
                     gz = _mm512_add_ps(gz, v0p5fp16);
 
@@ -760,9 +760,9 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack16(const Mat& src, 
                 __m512 gz = _mm512_set1_ps(gridptr[grid.elempack * 2]);
 
                 const __m512 two = _mm512_set1_ps(2.f);
-                gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, v1fp16), two), _mm512_sub_ps(vImgWf, v1fp16));
-                gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, v1fp16), two), _mm512_sub_ps(vImgHf, v1fp16));
-                gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, v1fp16), two), _mm512_sub_ps(vImgDf, v1fp16));
+                gx = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gx, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1));
+                gy = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gy, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1));
+                gz = _mm512_mul_ps(_mm512_div_ps(_mm512_add_ps(gz, *(__m512*)_ps512_1), two), _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1));
 
                 gx = _mm512_floor_ps(_mm512_add_ps(gx, _mm512_set1_ps(0.5f)));
                 gy = _mm512_floor_ps(_mm512_add_ps(gy, _mm512_set1_ps(0.5f)));
@@ -771,7 +771,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack16(const Mat& src, 
                 // compute coord
                 {
                     // x
-                    const __m512 border_x = _mm512_sub_ps(vImgWf, v1fp16);
+                    const __m512 border_x = _mm512_sub_ps(vImgWf, *(__m512*)_ps512_1);
 
                     gx = _mm512_and_ps(gx, *(__m512*)_ps512_inv_sign_mask);
 
@@ -779,7 +779,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack16(const Mat& src, 
                     gx = _mm512_sub_ps(border_x, reflectx_v);
 
                     // y
-                    const __m512 border_y = _mm512_sub_ps(vImgHf, v1fp16);
+                    const __m512 border_y = _mm512_sub_ps(vImgHf, *(__m512*)_ps512_1);
 
                     gy = _mm512_and_ps(gy, *(__m512*)_ps512_inv_sign_mask);
 
@@ -787,7 +787,7 @@ static void gridsample_3d_nearest_align1_reflection_blob_pack16(const Mat& src, 
                     gy = _mm512_sub_ps(border_y, reflecty_v);
 
                     // z
-                    const __m512 border_z = _mm512_sub_ps(vImgDf, v1fp16);
+                    const __m512 border_z = _mm512_sub_ps(vImgDf, *(__m512*)_ps512_1);
 
                     gz = _mm512_and_ps(gz, *(__m512*)_ps512_inv_sign_mask);
 
