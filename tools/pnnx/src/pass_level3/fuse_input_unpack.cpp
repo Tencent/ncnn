@@ -26,7 +26,7 @@ void fuse_input_unpack(Graph& graph)
         {
             Operator* op = graph.ops[i];
 
-            if (op->type != "prim::TupleUnpack")
+            if (op->type != "prim::TupleUnpack" && op->type != "prim::ListUnpack")
                 continue;
 
             if (op->inputs.size() != 1)
