@@ -166,8 +166,12 @@ int InnerProduct_x86::forward(const Mat& _bottom_blob, Mat& top_blob, const Opti
     }
 #endif // __SSE2__
     size_t out_elemsize = elemsize / elempack * out_elempack;
+    if (bottom_blob.dims == 2 && bottom_blob.h == 1) {
+      top_blob.create(num_output / out_elempack, 1, out_elemsize, out_elempack, opt.blob_allocator);
+    } else {
+      top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
+    }
 
-    top_blob.create(num_output / out_elempack, out_elemsize, out_elempack, opt.blob_allocator);
     if (top_blob.empty())
         return -100;
 

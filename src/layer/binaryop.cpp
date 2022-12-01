@@ -464,15 +464,14 @@ static int binary_op(const Mat& a, const Mat& b, Mat& c, const Option& opt)
             for (int q = 0; q < channels; q++)
             {
                 const float* ptr = a.channel(q);
-                const float* ptr1 = b.row(q);
                 float* outptr = c.channel(q);
 
                 for (int y = 0; y < h; y++)
                 {
-                    const float b0 = ptr1[y];
+                    const float* b0 = b.row(y);
                     for (int x = 0; x < w; x++)
                     {
-                        outptr[x] = op(ptr[x], b0);
+                        outptr[x] = op(ptr[x], b0[x]);
                     }
 
                     ptr += w;
@@ -922,7 +921,7 @@ int BinaryOp::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>& to
 {
     const Mat& bottom_blob = bottom_blobs[0];
     Mat bottom_blob1 = bottom_blobs[1];
-    if (bottom_blob1.dims == 2 and bottom_blob1.w == 1)
+    if (bottom_blob1.dims == 2 && bottom_blob1.w == 1)
     {
       // fix for torch.mean(keepdim=True)
       bottom_blob1 = bottom_blob1.reshape(bottom_blob1.h);
