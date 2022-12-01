@@ -16,7 +16,7 @@
     static void padding_constant_packn_##VT##_rvv(const Mat& src, Mat& dst, int top, int bottom, int left, int right, v##VT##m##LMUL##_t v) \
     {                                                                                                                                       \
         const int packn = csrr_vlenb() / sizeof(T);                                                                                         \
-        const word_type vl = vsetvl_e##SEW##m##LMUL(packn);                                                                                 \
+        const size_t vl = vsetvl_e##SEW##m##LMUL(packn);                                                                                    \
                                                                                                                                             \
         const T* ptr = src;                                                                                                                 \
         T* outptr = dst;                                                                                                                    \
@@ -65,7 +65,7 @@
     static void padding_replicate_packn_##VT##_rvv(const Mat& src, Mat& dst, int top, int bottom, int left, int right)                      \
     {                                                                                                                                       \
         const int packn = csrr_vlenb() / sizeof(T);                                                                                         \
-        const word_type vl = vsetvl_e##SEW##m##LMUL(packn);                                                                                 \
+        const size_t vl = vsetvl_e##SEW##m##LMUL(packn);                                                                                    \
                                                                                                                                             \
         const T* ptr = src;                                                                                                                 \
         T* outptr = dst;                                                                                                                    \
@@ -144,7 +144,7 @@
     static void padding_reflect_packn_##VT##_rvv(const Mat& src, Mat& dst, int top, int bottom, int left, int right)                        \
     {                                                                                                                                       \
         const int packn = csrr_vlenb() / sizeof(T);                                                                                         \
-        const word_type vl = vsetvl_e##SEW##m##LMUL(packn);                                                                                 \
+        const size_t vl = vsetvl_e##SEW##m##LMUL(packn);                                                                                    \
                                                                                                                                             \
         const T* ptr = src;                                                                                                                 \
         T* outptr = dst;                                                                                                                    \

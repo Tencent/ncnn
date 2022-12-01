@@ -40,6 +40,7 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.conv1d",
         "F.conv2d",
         "F.conv3d",
+        "F.fold",
         "F.grid_sample",
         "F.group_norm",
         "F.instance_norm",
@@ -54,6 +55,7 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "F.pixel_shuffle",
         "F.pixel_unshuffle",
         "F.prelu",
+        "F.unfold",
         "F.upsample_bilinear",
         "F.upsample_nearest",
         "F.upsample",
@@ -80,6 +82,7 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "nn.ConvTranspose1d",
         "nn.ConvTranspose2d",
         "nn.ConvTranspose3d",
+        "nn.Fold",
         "nn.GroupNorm",
         "nn.InstanceNorm1d",
         "nn.InstanceNorm2d",
@@ -98,6 +101,8 @@ static bool is_known_operator_with_batch_index_0(const Operator* op)
         "nn.ReplicationPad1d",
         "nn.ReplicationPad2d",
         "nn.ReplicationPad3d",
+        "nn.Softmax2d",
+        "nn.Unfold",
         "nn.Upsample",
         "nn.UpsamplingBilinear2d",
         "nn.UpsamplingNearest2d",
@@ -283,6 +288,11 @@ void solve_batch_index(Graph& graph)
     {
         if (is_known_operator_with_batch_index_0(op))
         {
+            if (op->type == std::string("F.grid_sample"))
+            {
+                op->inputs[1]->params["__batch_index"] = 0;
+            }
+
             op->inputs[0]->params["__batch_index"] = 0;
             op->outputs[0]->params["__batch_index"] = 0;
         }

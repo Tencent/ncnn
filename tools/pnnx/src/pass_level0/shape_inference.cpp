@@ -15,8 +15,10 @@
 #include "shape_inference.h"
 #include <unordered_set>
 
+#include "storezip.h"
 #include "pass_level0/constant_unpooling.h"
 #include "pass_level0/inline_block.h"
+#include "pass_level0/reset_device.h"
 #include "pass_level0/shape_inference.h"
 
 namespace pnnx {
@@ -27,7 +29,15 @@ static bool value_link_input(const torch::jit::Value* v, const std::vector<torch
     {
         // any intermediate shape is constant with static input shape
         std::string optype = v->node()->kind().toDisplayString();
-        if (optype == "aten::size" || optype == "aten::new_empty" || optype == "aten::new_ones" || optype == "aten::new_zeros")
+        if (optype == "aten::size"
+                || optype == "aten::new_empty"
+                || optype == "aten::new_full"
+                || optype == "aten::new_ones"
+                || optype == "aten::new_zeros"
+                || optype == "aten::empty_like"
+                || optype == "aten::full_like"
+                || optype == "aten::ones_like"
+                || optype == "aten::zeros_like")
             return false;
     }
 
@@ -69,7 +79,7 @@ static bool value_link_output(const torch::jit::Value* v, const std::vector<torc
     return false;
 }
 
-void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, std::map<std::string, Attribute>& foldable_constants)
+void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::Graph>& graph, const std::vector<at::Tensor>& input_tensors, const std::vector<at::Tensor>& input_tensors2, const std::vector<std::string>& module_operators, const std::string& ptpath, const std::string& device, std::set<std::string>& foldable_constants, const std::string& foldable_constants_zippath)
 {
     // collect all intermediate output tensors
     std::vector<std::unordered_set<std::string> > more_value_names;
@@ -133,7 +143,8 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
         inputs2.push_back(it);
     }
 
-    std::map<torch::jit::Value*, at::Tensor> output_tensors;
+    StoreZipWriter zip;
+    zip.open(foldable_constants_zippath);
 
     for (size_t p = 0; p < more_value_names.size(); p++)
     {
@@ -142,12 +153,14 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
 
         // auto mod2 = mod.deepcopy();
 
-        torch::jit::Module mod2 = torch::jit::load(ptpath);
+        torch::jit::Module mod2 = torch::jit::load(ptpath, (device == "gpu") ? c10::kCUDA : c10::kCPU);
         mod2.eval();
 
         auto graph2 = mod2.get_method("forward").graph();
 
         inline_block(graph2, module_operators);
+
+        reset_device(graph2, device);
 
         constant_unpooling(graph2);
 
@@ -163,7 +176,7 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 if (value_names.find(v->debugName()) != value_names.end())
                 {
                     values2.push_back(v);
-                    fprintf(stderr, "%s  ", v->debugName().c_str());
+                    // fprintf(stderr, "%s  ", v->debugName().c_str());
                 }
             }
         }
@@ -193,7 +206,16 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 // check if value that does not depend on inputs
                 if (!value_link_input(v, g_inputs, true) && value_link_output(v, g_outputs))
                 {
-                    output_tensors[v] = t;
+                    // output_tensors[v] = t;
+                    const int ndim = (int)t.dim();
+                    if (ndim > 0)
+                    {
+                        // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
+                        foldable_constants.insert(v->debugName());
+
+                        at::Tensor t2 = t.cpu().contiguous();
+                        zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
+                    }
                 }
             }
         }
@@ -231,11 +253,22 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
                 // check if value that does not depend on inputs
                 if (!value_link_input(v, g_inputs, false) && value_link_output(v, g_outputs))
                 {
-                    output_tensors[v] = t;
+                    // output_tensors[v] = t;
+                    const int ndim = (int)t.dim();
+                    if (ndim > 0)
+                    {
+                        // fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
+                        foldable_constants.insert(v->debugName());
+
+                        at::Tensor t2 = t.cpu().contiguous();
+                        zip.write_file(v->debugName(), (const char*)t2.data_ptr(), t2.nbytes());
+                    }
                 }
             }
         }
     }
+
+    zip.close();
 
     if (input_tensors2.empty())
     {
@@ -267,33 +300,6 @@ void shape_inference(const torch::jit::Module& mod, std::shared_ptr<torch::jit::
             auto finaltype = type1->withSymbolicShapes(c10::SymbolicShape(sizes1));
 
             graph->inputs()[1 + i]->setType(finaltype);
-        }
-    }
-
-    for (auto xx : output_tensors)
-    {
-        auto v = xx.first;
-        auto tensor = xx.second;
-
-        bool link_to_output = false;
-        for (size_t i = 0; i < v->uses().size(); i++)
-        {
-            auto node = v->uses()[i].user;
-            for (auto x : node->outputs())
-            {
-                if (output_tensors.find(x) == output_tensors.end())
-                {
-                    link_to_output = true;
-                    break;
-                }
-            }
-        }
-
-        const int ndim = (int)tensor.dim();
-        if (link_to_output && ndim > 0)
-        {
-            fprintf(stderr, "foldable_constant %s\n", v->debugName().c_str());
-            foldable_constants[v->debugName()] = Attribute(tensor);
         }
     }
 }

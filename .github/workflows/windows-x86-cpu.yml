@@ -49,6 +49,8 @@ jobs:
             toolset-version: v143
             os: windows-2022
 
+    env:
+      UseMultiToolTask: true
     steps:
     - uses: actions/checkout@v3
     - name: build

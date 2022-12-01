@@ -39,7 +39,7 @@ int SELU_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) const
         int n = size;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
             vbool4_t _lower = vmflt_vf_f32m8_b4(_p, 0.f, vl);
             vbool4_t _higher = vmnot_m_b4(_lower, vl);

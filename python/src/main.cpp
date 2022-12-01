@@ -287,17 +287,18 @@ PYBIND11_MODULE(ncnn, m)
     .def_buffer([](Mat& m) -> py::buffer_info {
         return to_buffer_info(m);
     })
-    .def("numpy", [](py::object obj, const std::string& format="") -> py::array {
+    .def(
+    "numpy", [](py::object obj, const std::string& format = "") -> py::array {
         auto* m = obj.cast<Mat*>();
         return py::array(to_buffer_info(*m, format), obj);
-    }, py::arg("format")="")
+    },
+    py::arg("format") = "", "i for int32, f for float32, d for double")
     //.def("fill", (void (Mat::*)(int))(&Mat::fill), py::arg("v"))
     .def("fill", (void (Mat::*)(float))(&Mat::fill), py::arg("v"))
     .def("clone", &Mat::clone, py::arg("allocator") = nullptr)
     .def("clone_from", &Mat::clone_from, py::arg("mat"), py::arg("allocator") = nullptr)
     .def(
-        "reshape",
-    [](Mat& mat, py::tuple shape, Allocator* allocator) {
+    "reshape", [](Mat& mat, py::tuple shape, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
@@ -316,18 +317,13 @@ PYBIND11_MODULE(ncnn, m)
         return Mat();
     },
     py::arg("shape") = py::tuple(1), py::arg("allocator") = nullptr)
-    .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape,
-         py::arg("w"), py::kw_only(), py::arg("allocator") = nullptr)
-    .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape,
-         py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
-    .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape,
-         py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
-    .def("reshape", (Mat(Mat::*)(int, int, int, int, Allocator*) const) & Mat::reshape,
-         py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, Allocator*) const) & Mat::reshape, py::arg("w"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
+    .def("reshape", (Mat(Mat::*)(int, int, int, int, Allocator*) const) & Mat::reshape, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("allocator") = nullptr)
 
     .def(
-        "create",
-    [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
+    "create", [](Mat& mat, py::tuple shape, size_t elemsize, int elempack, Allocator* allocator) {
         switch (shape.size())
         {
         case 1:
@@ -345,23 +341,12 @@ PYBIND11_MODULE(ncnn, m)
         }
         return;
     },
-    py::arg("shape"), py::kw_only(),
-    py::arg("elemsize") = 4, py::arg("elempack") = 1,
-    py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w"), py::kw_only(),
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w"), py::arg("h"), py::kw_only(),
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(),
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, Allocator*)) & Mat::create,
-         py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(),
-         py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
-    .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like,
-         py::arg("m"), py::arg("allocator") = nullptr)
+    py::arg("shape"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create", (void (Mat::*)(int, int, int, int, size_t, int, Allocator*)) & Mat::create, py::arg("w"), py::arg("h"), py::arg("d"), py::arg("c"), py::kw_only(), py::arg("elemsize") = 4, py::arg("elempack") = 1, py::arg("allocator") = nullptr)
+    .def("create_like", (void (Mat::*)(const Mat&, Allocator*)) & Mat::create_like, py::arg("m"), py::arg("allocator") = nullptr)
     .def("addref", &Mat::addref)
     .def("release", &Mat::release)
     .def("empty", &Mat::empty)
@@ -373,8 +358,7 @@ PYBIND11_MODULE(ncnn, m)
     .def("depth", (Mat(Mat::*)(int)) & Mat::depth, py::arg("z"))
     //.def("depth", (const Mat (Mat::*)(int) const) & Mat::depth, py::arg("z"))
     .def(
-        "row",
-    [](Mat& m, int y) {
+    "row", [](Mat& m, int y) {
         if (m.elempack != 1)
         {
             std::stringstream ss;

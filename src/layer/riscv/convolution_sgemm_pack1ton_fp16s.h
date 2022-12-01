@@ -15,7 +15,7 @@
 static void im2col_sgemm_pack1ton_fp16sa_rvv(const Mat& bottom_im2col, Mat& top_blob, const Mat& kernel, const Mat& _bias, const Option& opt)
 {
     const int packn = csrr_vlenb() / 2;
-    const word_type vl = vsetvl_e16m1(packn);
+    const size_t vl = vsetvl_e16m1(packn);
 
     // Mat bottom_im2col(size, maxk, inch, 2u, 1, opt.workspace_allocator);
 

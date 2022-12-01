@@ -4,6 +4,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 set(pnnx_pass_level0_SRCS
     pass_level0/constant_unpooling.cpp
     pass_level0/inline_block.cpp
+    pass_level0/reset_device.cpp
     pass_level0/shape_inference.cpp
 )
 
@@ -37,7 +38,9 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_Dropout3d.cpp
     pass_level1/nn_ELU.cpp
     pass_level1/nn_Embedding.cpp
+    pass_level1/nn_Fold.cpp
     pass_level1/nn_GELU.cpp
+    pass_level1/nn_GLU.cpp
     pass_level1/nn_GroupNorm.cpp
     pass_level1/nn_GRU.cpp
     pass_level1/nn_Hardshrink.cpp
@@ -78,6 +81,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_Sigmoid.cpp
     pass_level1/nn_SiLU.cpp
     pass_level1/nn_Softmax.cpp
+    pass_level1/nn_Softmax2d.cpp
     pass_level1/nn_Softmin.cpp
     pass_level1/nn_Softplus.cpp
     pass_level1/nn_Softshrink.cpp
@@ -85,6 +89,7 @@ set(pnnx_pass_level1_SRCS
     pass_level1/nn_Tanh.cpp
     pass_level1/nn_Tanhshrink.cpp
     pass_level1/nn_Threshold.cpp
+    pass_level1/nn_Unfold.cpp
     pass_level1/nn_Upsample.cpp
     pass_level1/nn_UpsamplingBilinear2d.cpp
     pass_level1/nn_UpsamplingNearest2d.cpp
@@ -126,6 +131,7 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_elu.cpp
     pass_level2/F_embedding.cpp
     pass_level2/F_feature_alpha_dropout.cpp
+    pass_level2/F_fold.cpp
     pass_level2/F_gelu.cpp
     pass_level2/F_glu.cpp
     pass_level2/F_grid_sample.cpp
@@ -167,10 +173,12 @@ set(pnnx_pass_level2_SRCS
     pass_level2/F_tanh.cpp
     pass_level2/F_tanhshrink.cpp
     pass_level2/F_threshold.cpp
+    pass_level2/F_unfold.cpp
     pass_level2/F_upsample_bilinear.cpp
     pass_level2/F_upsample_nearest.cpp
     pass_level2/F_upsample.cpp
     pass_level2/Tensor_contiguous.cpp
+    pass_level2/Tensor_copy.cpp
     pass_level2/Tensor_expand.cpp
     pass_level2/Tensor_expand_as.cpp
     pass_level2/Tensor_index.cpp
@@ -194,6 +202,8 @@ set(pnnx_pass_level2_SRCS
     pass_level2/torch_bitwise_and.cpp
     pass_level2/torch_bitwise_or.cpp
     pass_level2/torch_bitwise_xor.cpp
+    pass_level2/torch_bitwise_left_shift.cpp
+    pass_level2/torch_bitwise_right_shift.cpp
     pass_level2/torch_cat.cpp
     pass_level2/torch_chunk.cpp
     pass_level2/torch_clamp.cpp
@@ -300,10 +310,11 @@ set(pnnx_pass_level5_SRCS
     pass_level5/eliminate_noop_expression.cpp
     pass_level5/eliminate_noop_pad.cpp
     pass_level5/eliminate_noop_upsample.cpp
-    pass_level5/eliminate_slice.cpp
-    pass_level5/eliminate_view_reshape.cpp
+    pass_level5/eliminate_noop_slice.cpp
+    pass_level5/eliminate_noop_view_reshape.cpp
     pass_level5/eval_expression.cpp
     pass_level5/fold_constants.cpp
+    pass_level5/fuse_adjacent_reshape.cpp
     pass_level5/fuse_channel_shuffle.cpp
     pass_level5/fuse_constant_expression.cpp
     pass_level5/fuse_conv1d_batchnorm1d.cpp
@@ -312,10 +323,19 @@ set(pnnx_pass_level5_SRCS
     pass_level5/fuse_convtranspose2d_batchnorm2d.cpp
     pass_level5/fuse_contiguous_view.cpp
     pass_level5/fuse_linear_batchnorm1d.cpp
+    pass_level5/fuse_pad_conv1d.cpp
+    pass_level5/fuse_pad_conv2d.cpp
     pass_level5/fuse_select_to_unbind.cpp
+    pass_level5/fuse_slice_copy.cpp
     pass_level5/fuse_slice_indices.cpp
     pass_level5/fuse_slice_to_tensor_split.cpp
+    pass_level5/fuse_static_batchnorm.cpp
     pass_level5/fuse_static_conv.cpp
+    pass_level5/fuse_static_convtranspose.cpp
+    pass_level5/fuse_static_groupnorm.cpp
+    pass_level5/fuse_static_instancenorm.cpp
+    pass_level5/fuse_static_layernorm.cpp
+    pass_level5/fuse_static_linear.cpp
     pass_level5/normalize_einsum_equation.cpp
     pass_level5/unroll_rnn_op.cpp
 )
@@ -338,7 +358,6 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/insert_split.cpp
     pass_ncnn/chain_multi_output.cpp
     pass_ncnn/solve_batch_index.cpp
-    pass_ncnn/convert_to_fp16_model.cpp
 
     pass_ncnn/eliminate_noop.cpp
     pass_ncnn/eliminate_tail_reshape_permute.cpp
@@ -373,8 +392,10 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_conv3d.cpp
     pass_ncnn/F_elu.cpp
     pass_ncnn/F_embedding.cpp
+    pass_ncnn/F_fold.cpp
     pass_ncnn/F_gelu.cpp
     pass_ncnn/F_glu.cpp
+    pass_ncnn/F_grid_sample.cpp
     pass_ncnn/F_group_norm.cpp
     pass_ncnn/F_hardsigmoid.cpp
     pass_ncnn/F_hardswish.cpp
@@ -401,6 +422,7 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/F_silu.cpp
     pass_ncnn/F_softmax.cpp
     pass_ncnn/F_tanh.cpp
+    pass_ncnn/F_unfold.cpp
     pass_ncnn/F_upsample_bilinear.cpp
     pass_ncnn/F_upsample_nearest.cpp
     pass_ncnn/F_upsample.cpp
@@ -428,7 +450,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_ConvTranspose3d.cpp
     pass_ncnn/nn_ELU.cpp
     pass_ncnn/nn_Embedding.cpp
+    pass_ncnn/nn_Fold.cpp
     pass_ncnn/nn_GELU.cpp
+    pass_ncnn/nn_GLU.cpp
     pass_ncnn/nn_GroupNorm.cpp
     pass_ncnn/nn_GRU.cpp
     pass_ncnn/nn_Hardsigmoid.cpp
@@ -459,7 +483,9 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/nn_Sigmoid.cpp
     pass_ncnn/nn_SiLU.cpp
     pass_ncnn/nn_Softmax.cpp
+    pass_ncnn/nn_Softmax2d.cpp
     pass_ncnn/nn_Tanh.cpp
+    pass_ncnn/nn_Unfold.cpp
     pass_ncnn/nn_Upsample.cpp
     pass_ncnn/nn_UpsamplingBilinear2d.cpp
     pass_ncnn/nn_UpsamplingNearest2d.cpp
@@ -495,6 +521,27 @@ set(pnnx_pass_ncnn_SRCS
     pass_ncnn/icefall_RelShift.cpp
 )
 
+find_package(Protobuf)
+if(PROTOBUF_FOUND)
+    protobuf_generate_cpp(ONNX_PROTO_SRCS ONNX_PROTO_HDRS onnx.proto)
+
+    add_library(pnnx2onnx STATIC
+        save_onnx.cpp
+        save_onnx_cxxabi_bridge.cpp
+        ${ONNX_PROTO_SRCS} ${ONNX_PROTO_HDRS}
+    )
+
+    target_include_directories(pnnx2onnx PRIVATE ${PROTOBUF_INCLUDE_DIR} ${CMAKE_CURRENT_BINARY_DIR})
+    target_link_libraries(pnnx2onnx PRIVATE ${PROTOBUF_LIBRARIES})
+
+    # libtorch is usually compiled with old cxx11 abi
+    set_source_files_properties(save_onnx_cxxabi_bridge.cpp PROPERTIES COMPILE_FLAGS "${TORCH_CXX_FLAGS}")
+
+    message(STATUS "Building with onnx-zero")
+else()
+    message(STATUS "Building without onnx-zero")
+endif()
+
 set(pnnx_SRCS
     main.cpp
     ir.cpp
@@ -508,8 +555,6 @@ set(pnnx_SRCS
     pass_level4.cpp
     pass_level5.cpp
 
-    pass_ncnn.cpp
-
     ${pnnx_pass_level0_SRCS}
     ${pnnx_pass_level1_SRCS}
     ${pnnx_pass_level2_SRCS}
@@ -517,6 +562,8 @@ set(pnnx_SRCS
     ${pnnx_pass_level4_SRCS}
     ${pnnx_pass_level5_SRCS}
 
+    pass_ncnn.cpp
+    save_ncnn.cpp
     ${pnnx_pass_ncnn_SRCS}
 )
 
@@ -526,6 +573,8 @@ endif()
 
 add_executable(pnnx ${pnnx_SRCS})
 
+target_compile_definitions(pnnx PRIVATE BUILD_PNNX)
+
 if(PNNX_COVERAGE)
     target_compile_options(pnnx PUBLIC -coverage -fprofile-arcs -ftest-coverage)
     target_link_libraries(pnnx PUBLIC -coverage -lgcov)
@@ -533,6 +582,11 @@ endif()
 
 if(WIN32)
     target_compile_definitions(pnnx PUBLIC NOMINMAX)
+endif()
+
+if(PROTOBUF_FOUND)
+    target_compile_definitions(pnnx PRIVATE BUILD_PNNX2ONNX)
+    target_link_libraries(pnnx PRIVATE pnnx2onnx)
 endif()
 
 if(TorchVision_FOUND)

@@ -198,7 +198,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 #if __riscv_vector
             if (elempack == packn && num_output_elempack == packn)
             {
-                const word_type vl = vsetvl_e32m1(packn);
+                const size_t vl = vsetvl_e32m1(packn);
 
                 float* outptr = top_blob.row(j);
 
@@ -237,7 +237,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == 1 && num_output_elempack == packn)
             {
-                const word_type vl = vsetvl_e32m1(packn);
+                const size_t vl = vsetvl_e32m1(packn);
 
                 float* outptr = top_blob.row(j);
 
@@ -273,7 +273,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
 
             if (elempack == packn && num_output_elempack == 1)
             {
-                const word_type vl = vsetvl_e32m1(packn);
+                const size_t vl = vsetvl_e32m1(packn);
 
                 float* outptr = top_blob.row(j);
 
@@ -372,7 +372,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            const word_type vl = vsetvl_e32m1(packn);
+            const size_t vl = vsetvl_e32m1(packn);
             vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
 
             if (bias_term)
@@ -414,7 +414,7 @@ int InnerProduct_riscv::forward(const Mat& bottom_blob, Mat& top_blob, const Opt
         {
             int p = pp * packn;
 
-            const word_type vl = vsetvl_e32m1(packn);
+            const size_t vl = vsetvl_e32m1(packn);
             vfloat32m1_t _sum = vfmv_v_f_f32m1(0.f, vl);
 
             if (bias_term)
@@ -595,7 +595,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
         {
             if (elempack == packn && num_output_elempack == packn)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -635,7 +635,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
 
             if (elempack == 1 && num_output_elempack == packn)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -672,7 +672,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
 
             if (elempack == packn && num_output_elempack == 1)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -765,7 +765,7 @@ int InnerProduct_riscv::forward_fp16s(const Mat& bottom_blob, Mat& top_blob, con
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            const word_type vl = vsetvl_e16m1(packn);
+            const size_t vl = vsetvl_e16m1(packn);
             vfloat32m2_t _sum = vfmv_v_f_f32m2(0.f, vl);
 
             if (bias_term)
@@ -857,7 +857,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
         {
             if (elempack == packn && num_output_elempack == packn)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -897,7 +897,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 
             if (elempack == 1 && num_output_elempack == packn)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -934,7 +934,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
 
             if (elempack == packn && num_output_elempack == 1)
             {
-                const word_type vl = vsetvl_e16m1(packn);
+                const size_t vl = vsetvl_e16m1(packn);
 
                 __fp16* outptr = top_blob.row<__fp16>(j);
 
@@ -1027,7 +1027,7 @@ int InnerProduct_riscv::forward_fp16sa(const Mat& bottom_blob, Mat& top_blob, co
         #pragma omp parallel for num_threads(opt.num_threads)
         for (int p = 0; p < num_output / out_elempack; p++)
         {
-            const word_type vl = vsetvl_e16m1(packn);
+            const size_t vl = vsetvl_e16m1(packn);
             vfloat16m1_t _sum = vfmv_v_f_f16m1(0.f, vl);
 
             if (bias_term)

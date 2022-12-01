@@ -161,8 +161,8 @@ void benchmark(const char* comment, const ncnn::Mat& _in, const ncnn::Option& op
 int main(int argc, char** argv)
 {
     int loop_count = 4;
-    int num_threads = ncnn::get_cpu_count();
-    int powersave = 0;
+    int num_threads = ncnn::get_physical_big_cpu_count();
+    int powersave = 2;
     int gpu_device = -1;
     int cooling_down = 1;
 
@@ -199,8 +199,8 @@ int main(int argc, char** argv)
 
     g_loop_count = loop_count;
 
-    g_blob_pool_allocator.set_size_compare_ratio(0.0f);
-    g_workspace_pool_allocator.set_size_compare_ratio(0.5f);
+    g_blob_pool_allocator.set_size_compare_ratio(0.f);
+    g_workspace_pool_allocator.set_size_compare_ratio(0.f);
 
 #if NCNN_VULKAN
     if (use_vulkan_compute)

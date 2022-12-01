@@ -45,20 +45,14 @@ static bool token_is_literal(const std::string& t)
     float f;
     iss >> std::noskipws >> f;
     return iss.eof() && !iss.fail();
+}
 
-    //     for (size_t i = 0; i < t.size(); i++)
-    //     {
-    //         if (i == 0 && t[i] == '-')
-    //             continue;
-    //
-    //         if (t[i] < '0' || t[i] > '9')
-    //         {
-    //             if (t[i] != '.' && t[i] != 'e')
-    //                 return false;
-    //         }
-    //     }
-    //
-    //     return true;
+static bool token_is_interger_literal(const std::string& t)
+{
+    std::istringstream iss(t);
+    int f;
+    iss >> std::noskipws >> f;
+    return iss.eof() && !iss.fail();
 }
 
 static std::string eval_expression(const Operator* op)
@@ -126,7 +120,17 @@ static std::string eval_expression(const Operator* op)
                 {
                     int bi = std::stoi(b);
                     int r = op->inputs[input_index]->shape[bi];
-                    exprstack.push(std::to_string(r));
+                    if (r == -1)
+                    {
+                        // do not evaluate dynamic size info as -1
+                        // just keep the size expression
+                        std::string r = std::string("size(") + a + "," + b + ")";
+                        exprstack.push(r);
+                    }
+                    else
+                    {
+                        exprstack.push(std::to_string(r));
+                    }
                 }
             }
             else
@@ -135,7 +139,31 @@ static std::string eval_expression(const Operator* op)
                 exprstack.push(r);
             }
         }
-        else if (t == "int" || t == "sqrt" || t == "rsqrt" || t == "neg")
+        else if (t == "int"
+                 || t == "abs"
+                 || t == "acos"
+                 || t == "acosh"
+                 || t == "asin"
+                 || t == "asinh"
+                 || t == "atan"
+                 || t == "atanh"
+                 || t == "ceil"
+                 || t == "cos"
+                 || t == "cosh"
+                 || t == "exp"
+                 || t == "floor"
+                 || t == "log"
+                 || t == "neg"
+                 || t == "reciprocal"
+                 || t == "rsqrt"
+                 || t == "sign"
+                 || t == "sin"
+                 || t == "sinh"
+                 || t == "sqrt"
+                 || t == "square"
+                 || t == "tan"
+                 || t == "tanh"
+                 || t == "trunc")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -149,9 +177,79 @@ static std::string eval_expression(const Operator* op)
                     int r = int(af);
                     exprstack.push(std::to_string(r));
                 }
-                if (t == "sqrt")
+                if (t == "abs")
                 {
-                    float r = sqrt(af);
+                    float r = abs(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "acos")
+                {
+                    float r = acos(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "acosh")
+                {
+                    float r = acosh(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "asin")
+                {
+                    float r = asin(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "asinh")
+                {
+                    float r = asinh(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "atan")
+                {
+                    float r = atan(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "atanh")
+                {
+                    float r = atanh(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "ceil")
+                {
+                    float r = ceil(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "cos")
+                {
+                    float r = cos(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "cosh")
+                {
+                    float r = cosh(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "exp")
+                {
+                    float r = exp(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "floor")
+                {
+                    float r = floor(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "log")
+                {
+                    float r = log(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "neg")
+                {
+                    float r = -af;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "reciprocal")
+                {
+                    float r = 1.f / af;
                     exprstack.push(std::to_string(r));
                 }
                 if (t == "rsqrt")
@@ -159,9 +257,44 @@ static std::string eval_expression(const Operator* op)
                     float r = 1.f / sqrt(af);
                     exprstack.push(std::to_string(r));
                 }
-                if (t == "neg")
+                if (t == "sign")
                 {
-                    float r = -af;
+                    float r = af > 0.f ? 1.f : (af == 0.f ? 0.f : -1.f);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "sin")
+                {
+                    float r = sin(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "sinh")
+                {
+                    float r = sinh(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "sqrt")
+                {
+                    float r = sqrt(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "square")
+                {
+                    float r = af * af;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "tan")
+                {
+                    float r = tan(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "tanh")
+                {
+                    float r = tanh(af);
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "trunc")
+                {
+                    float r = trunc(af);
                     exprstack.push(std::to_string(r));
                 }
             }
@@ -171,7 +304,14 @@ static std::string eval_expression(const Operator* op)
                 exprstack.push(r);
             }
         }
-        else if (t == "add" || t == "sub" || t == "mul" || t == "div" || t == "floor_divide" || t == "pow" || t == "remainder" || t == "and" || t == "or" || t == "xor")
+        else if (t == "atan2"
+                 || t == "add"
+                 || t == "sub"
+                 || t == "mul"
+                 || t == "div"
+                 || t == "floor_divide"
+                 || t == "pow"
+                 || t == "remainder")
         {
             std::string a = exprstack.top();
             exprstack.pop();
@@ -183,6 +323,11 @@ static std::string eval_expression(const Operator* op)
                 float af = std::stof(a);
                 float bf = std::stof(b);
 
+                if (t == "atan2")
+                {
+                    float r = atan2(af, bf);
+                    exprstack.push(std::to_string(r));
+                }
                 if (t == "add")
                 {
                     float r = af + bf;
@@ -218,6 +363,50 @@ static std::string eval_expression(const Operator* op)
                     float r = fmod(af, bf);
                     if (af * bf < 0)
                         r += bf;
+                    exprstack.push(std::to_string(r));
+                }
+            }
+            else
+            {
+                std::string r = t + "(" + a + "," + b + ")";
+                exprstack.push(r);
+            }
+        }
+        else if (t == "and" || t == "or" || t == "xor" || t == "lshift" || t == "rshift")
+        {
+            std::string a = exprstack.top();
+            exprstack.pop();
+            std::string b = exprstack.top();
+            exprstack.pop();
+
+            if (token_is_interger_literal(a) && token_is_interger_literal(b))
+            {
+                int ai = std::stoi(a);
+                int bi = std::stoi(b);
+
+                if (t == "and")
+                {
+                    int r = ai & bi;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "or")
+                {
+                    int r = ai | bi;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "xor")
+                {
+                    int r = ai ^ bi;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "lshift")
+                {
+                    int r = ai << bi;
+                    exprstack.push(std::to_string(r));
+                }
+                if (t == "rshift")
+                {
+                    int r = ai >> bi;
                     exprstack.push(std::to_string(r));
                 }
             }

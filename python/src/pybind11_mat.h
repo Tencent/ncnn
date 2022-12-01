@@ -48,59 +48,69 @@ std::string get_mat_format(const ncnn::Mat& m)
 // f (float)
 // d (double)
 // leave it to empty to use get_mat_format
-py::buffer_info to_buffer_info(ncnn::Mat &m, const std::string &format = "") {
-  if (m.elemsize != 1 && m.elemsize != 2 && m.elemsize != 4) {
-    std::stringstream ss;
-    ss << "convert ncnn.Mat to numpy.ndarray only elemsize 1, 2, 4 support "
-          "now, but given "
-       << m.elemsize;
-    pybind11::pybind11_fail(ss.str());
-  }
-  if (m.elempack != 1) {
-    std::stringstream ss;
-    ss << "convert ncnn.Mat to numpy.ndarray only elempack 1 support now, but "
-          "given "
-       << m.elempack;
-    pybind11::pybind11_fail(ss.str());
-  }
-  std::string _format(format);
-  if (_format.empty()) {
-    _format = get_mat_format(m);
-  }
-  std::vector<py::ssize_t> shape;
-  std::vector<py::ssize_t> strides;
-  if (m.dims == 1) {
-    shape.push_back(m.w);
-    strides.push_back(m.elemsize);
-  } else if (m.dims == 2) {
-    shape.push_back(m.h);
-    shape.push_back(m.w);
-    strides.push_back(m.w * m.elemsize);
-    strides.push_back(m.elemsize);
-  } else if (m.dims == 3) {
-    shape.push_back(m.c);
-    shape.push_back(m.h);
-    shape.push_back(m.w);
-    strides.push_back(m.cstep * m.elemsize);
-    strides.push_back(m.w * m.elemsize);
-    strides.push_back(m.elemsize);
-  } else if (m.dims == 4) {
-    shape.push_back(m.c);
-    shape.push_back(m.d);
-    shape.push_back(m.h);
-    shape.push_back(m.w);
-    strides.push_back(m.cstep * m.elemsize);
-    strides.push_back(m.w * m.h * m.elemsize);
-    strides.push_back(m.w * m.elemsize);
-    strides.push_back(m.elemsize);
-  }
-  return py::buffer_info(m.data,     /* Pointer to buffer */
-                         m.elemsize, /* Size of one scalar */
-                         _format,    /* Python struct-style format descriptor */
-                         m.dims,     /* Number of dimensions */
-                         shape,      /* Buffer dimensions */
-                         strides     /* Strides (in bytes) for each index */
-  );
+py::buffer_info to_buffer_info(ncnn::Mat& m, const std::string& format = "")
+{
+    if (m.elemsize != 1 && m.elemsize != 2 && m.elemsize != 4)
+    {
+        std::ostringstream ss;
+        ss << "Convert ncnn.Mat to numpy.ndarray. Support only elemsize 1, 2, 4; but given "
+           << m.elemsize;
+        py::pybind11_fail(ss.str());
+    }
+    if (m.elempack != 1)
+    {
+        std::ostringstream ss;
+        ss << "Convert ncnn.Mat to numpy.ndarray. Support only elempack == 1, but "
+           "given "
+           << m.elempack;
+        py::pybind11_fail(ss.str());
+    }
+    std::string _format(format);
+    if (_format.empty())
+    {
+        _format = get_mat_format(m);
+    }
+    std::vector<py::ssize_t> shape;
+    std::vector<py::ssize_t> strides;
+    if (m.dims == 1)
+    {
+        shape.push_back(m.w);
+        strides.push_back(m.elemsize);
+    }
+    else if (m.dims == 2)
+    {
+        shape.push_back(m.h);
+        shape.push_back(m.w);
+        strides.push_back(m.w * m.elemsize);
+        strides.push_back(m.elemsize);
+    }
+    else if (m.dims == 3)
+    {
+        shape.push_back(m.c);
+        shape.push_back(m.h);
+        shape.push_back(m.w);
+        strides.push_back(m.cstep * m.elemsize);
+        strides.push_back(m.w * m.elemsize);
+        strides.push_back(m.elemsize);
+    }
+    else if (m.dims == 4)
+    {
+        shape.push_back(m.c);
+        shape.push_back(m.d);
+        shape.push_back(m.h);
+        shape.push_back(m.w);
+        strides.push_back(m.cstep * m.elemsize);
+        strides.push_back(m.w * m.h * m.elemsize);
+        strides.push_back(m.w * m.elemsize);
+        strides.push_back(m.elemsize);
+    }
+    return py::buffer_info(m.data,     /* Pointer to buffer */
+                           m.elemsize, /* Size of one scalar */
+                           _format,    /* Python struct-style format descriptor */
+                           m.dims,     /* Number of dimensions */
+                           shape,      /* Buffer dimensions */
+                           strides     /* Strides (in bytes) for each index */
+                          );
 }
 
-#endif  // PYBIND11_NCNN_MAT_H
+#endif

@@ -80,6 +80,19 @@ jobs:
         cd build
         TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-L;/usr/riscv64-linux-gnu" ctest --output-on-failure -j 2
 
+  linux-gcc-riscv64-c906:
+    runs-on: [self-hosted, linux, centos]
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: configure
+      run: |
+        export RISCV_ROOT_PATH=/data/action/osd/Xuantie-900-gcc-linux-5.10.4-glibc-x86_64-V2.6.1
+        mkdir build && cd build
+        cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/c906-v226.toolchain.cmake -DCMAKE_BUILD_TYPE=release -DNCNN_OPENMP=OFF -DNCNN_THREADS=OFF -DNCNN_RUNTIME_CPU=OFF -DNCNN_RVV=ON -DNCNN_SIMPLEOCV=ON -DNCNN_BUILD_EXAMPLES=ON ..
+    - name: build
+      run: cmake --build build -j 4
+
   linux-gcc-riscv64-rvv:
     runs-on: [self-hosted, linux, centos]
     steps:
@@ -117,7 +130,7 @@ jobs:
       #id: cache-riscv
       #uses: actions/cache@v3
       #with:
-        #path: rv64gcv-install
+        #path: rv64gcv-install-next
         #key: rv64gcv-linux-install-20210504
 
     #- name: install-riscv-build-deps
@@ -132,31 +145,31 @@ jobs:
       #with:
         #repository: riscv/riscv-gnu-toolchain
         #path: riscv-gnu-toolchain
-        #ref: 28271f03bb538d926ad2889dc8ad1b0cb1b3b45c
+        #ref: da01ba455ce3802ffa84fdca3a089079996dbfc3
     #- name: checkout-riscv-gnu-toolchain-submodules
       #if: steps.cache-riscv.outputs.cache-hit != 'true'
       #run: |
         #cd riscv-gnu-toolchain
+        #git submodule update --init --recursive --depth 1 glibc
+        #git submodule update --init --recursive --depth 1 newlib
         #git submodule update --init --recursive --depth 1 riscv-binutils
         #git submodule update --init --recursive --depth 1 riscv-gcc
-        #git submodule update --init --recursive --depth 1 riscv-glibc
         #git submodule update --init --recursive --depth 1 riscv-dejagnu
-        #git submodule update --init --recursive --depth 1 riscv-newlib
         #git submodule update --init --recursive --depth 1 riscv-gdb
     #- name: riscv-gnu-toolchain
       #if: steps.cache-riscv.outputs.cache-hit != 'true'
       #run: |
         #cd riscv-gnu-toolchain
-        #sed -i '/__OBSOLETE_MATH/d' riscv-newlib/newlib/libm/common/math_errf.c
-        #./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install --with-arch=rv64gcv_zfh
+        #sed -i '/__OBSOLETE_MATH/d' newlib/newlib/libm/common/math_errf.c
+        #./configure --prefix=$GITHUB_WORKSPACE/rv64gcv-install-next --with-arch=rv64gcv_zfh
         #make linux
 
     #- name: riscv-strip-install
       #if: steps.cache-riscv.outputs.cache-hit != 'true'
-      #run: find $GITHUB_WORKSPACE/rv64gcv-install -type f | xargs -i strip -g {} || true
+      #run: find $GITHUB_WORKSPACE/rv64gcv-install-next -type f | xargs -i strip -g {} || true
 
     - name: configure
-      run: export RISCV_ROOT_PATH=/data/action/osd/rv64gcv-install && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
+      run: export RISCV_ROOT_PATH=/data/action/osd/rv64gcv-install-next && mkdir build && cd build && cmake -DCMAKE_TOOLCHAIN_FILE=../toolchains/riscv64-unknown-linux-gnu.toolchain.cmake -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF -DNCNN_BUILD_TESTS=ON ..
     - name: build
       run: cmake --build build -j 4
 
@@ -164,10 +177,10 @@ jobs:
       run: |
         export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=256,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install-next/sysroot" ctest --output-on-failure -j 4
 
     - name: test-vlen128
       run: |
         export PATH=/data/action/osd/qemu-install/bin:$PATH
         cd build
-        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install/sysroot" ctest --output-on-failure -j 4
+        TESTS_EXECUTABLE_LOADER=qemu-riscv64 TESTS_EXECUTABLE_LOADER_ARGUMENTS="-cpu;rv64,v=true,Zfh=true,vlen=128,elen=64,vext_spec=v1.0;-L;/data/action/osd/rv64gcv-install-next/sysroot" ctest --output-on-failure -j 4

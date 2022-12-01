@@ -44,7 +44,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         float* ptr_vol = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
             vfloat32m1_t _max = vfmv_s_f_f32m1(vundefined_f32m1(), max, vl);
@@ -61,7 +61,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         ptr_vol = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
             vfloat32m1_t _sum = vfmv_s_f_f32m1(vundefined_f32m1(), sum, vl);
             vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
 
@@ -80,7 +80,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
         ptr_vol = ptr;
         while (n > 0)
         {
-            word_type vl = vsetvl_e32m8(n);
+            size_t vl = vsetvl_e32m8(n);
 
             vfloat32m8_t _p = vle32_v_f32m8(ptr_vol, vl);
             _p = vfdiv_vf_f32m8(_p, sum, vl);
@@ -112,7 +112,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = w * elempack;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
 
                 vfloat32m8_t _max = vle32_v_f32m8(ptr_max, vl);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
@@ -141,7 +141,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
 
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 vfloat32m8_t _max = vle32_v_f32m8(ptr_max, vl);
@@ -168,7 +168,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = w * elempack;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 vfloat32m8_t _sum = vle32_v_f32m8(ptr_sum, vl);
 
@@ -198,7 +198,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ptr1 = ptr;
             while (n1 > 0)
             {
-                word_type vl = vsetvl_e32m8(n1);
+                size_t vl = vsetvl_e32m8(n1);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr1, vl);
                 vfloat32m1_t _m = vfmv_s_f_f32m1(vundefined_f32m1(), m, vl);
 
@@ -215,7 +215,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ptr2 = ptr;
             while (n2 > 0)
             {
-                word_type vl = vsetvl_e32m8(n2);
+                size_t vl = vsetvl_e32m8(n2);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr2, vl);
                 vfloat32m1_t _s = vfmv_s_f_f32m1(vundefined_f32m1(), s, vl);
 
@@ -233,7 +233,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             float* ptr3 = ptr;
             while (n3 > 0)
             {
-                word_type vl = vsetvl_e32m8(n3);
+                size_t vl = vsetvl_e32m8(n3);
 
                 vfloat32m8_t _p = vle32_v_f32m8(ptr3, vl);
 
@@ -269,7 +269,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = size * elempack;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
 
                 vfloat32m8_t _max = vle32_v_f32m8(max, vl);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
@@ -295,7 +295,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = size * elempack;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 vfloat32m8_t _max = vle32_v_f32m8(ptr_max, vl);
                 vfloat32m8_t _sum = vle32_v_f32m8(ptr_sum, vl);
@@ -319,7 +319,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
             int n = size * elempack;
             while (n > 0)
             {
-                word_type vl = vsetvl_e32m8(n);
+                size_t vl = vsetvl_e32m8(n);
                 vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                 vfloat32m8_t _sum = vle32_v_f32m8(ptr_sum, vl);
 
@@ -358,7 +358,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _maxptr = vle32_v_f32m8(maxptr_vol, vl);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
 
@@ -392,7 +392,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
 
                 while (n)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     vfloat32m8_t _maxptr = vle32_v_f32m8(maxptr_vol, vl);
                     vfloat32m8_t _sumptr = vle32_v_f32m8(sumptr_vol, vl);
@@ -422,7 +422,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 int n = w * elempack;
                 while (n > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n);
+                    size_t vl = vsetvl_e32m8(n);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr, vl);
                     vfloat32m8_t _sumptr = vle32_v_f32m8(sumptr_vol, vl);
 
@@ -457,7 +457,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 float* ptr_1 = ptr;
                 while (n1 > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n1);
+                    size_t vl = vsetvl_e32m8(n1);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr_1, vl);
                     vfloat32m1_t _scalar_max = vfmv_s_f_f32m1(vundefined_f32m1(), max, vl);
                     _scalar_max = vfredmax_vs_f32m8_f32m1(_scalar_max, _p, _scalar_max, vl);
@@ -473,7 +473,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 float* ptr_2 = ptr;
                 while (n2 > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n2);
+                    size_t vl = vsetvl_e32m8(n2);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr_2, vl);
                     vfloat32m1_t _scalar_sum = vfmv_s_f_f32m1(vundefined_f32m1(), sum, vl);
 
@@ -491,7 +491,7 @@ int Softmax_riscv::forward_inplace(Mat& bottom_top_blob, const Option& opt) cons
                 float* ptr_3 = ptr;
                 while (n3 > 0)
                 {
-                    word_type vl = vsetvl_e32m8(n3);
+                    size_t vl = vsetvl_e32m8(n3);
                     vfloat32m8_t _p = vle32_v_f32m8(ptr_3, vl);
 
                     _p = vfdiv_vf_f32m8(_p, sum, vl);

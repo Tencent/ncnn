@@ -27,7 +27,8 @@ class Model(nn.Module):
         z0 = F.glu(z, dim=0)
         z1 = F.glu(z, dim=1)
         z2 = F.glu(z, dim=2)
-        return x0, y0, y1, z0, z1, z2
+        z3 = F.glu(z, dim=-1)
+        return x0, y0, y1, z0, z1, z2, z3
 
 def test():
     net = Model()
@@ -46,7 +47,7 @@ def test():
 
     # torchscript to pnnx
     import os
-    #  os.system("../../src/pnnx test_F_glu.pt")
+    os.system("../../src/pnnx test_F_glu.pt inputshape=[18],[12,16],[24,28,34]")
 
     # ncnn inference
     import test_F_glu_ncnn

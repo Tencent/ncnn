@@ -38,7 +38,7 @@ def test():
     y = torch.rand(12, 16)
     z = torch.rand(24, 28, 34)
 
-    x0, y0, y1, z0, z1, z2= net(x, y, z)
+    x0, y0, y1, z0, z1, z2 = net(x, y, z)
 
     # export torchscript
     mod = torch.jit.trace(net, (x, y, z))
@@ -46,13 +46,11 @@ def test():
 
     # torchscript to pnnx
     import os
-    os.system("../src/pnnx test_F_glu.pt")
+    os.system("../src/pnnx test_F_glu.pt inputshape=[18],[12,16],[24,28,34]")
 
     # pnnx inference
     import test_F_glu_pnnx
-    m = test_F_glu_pnnx.Model()
-    m.eval()
-    x0p, y0p, y1p, z0p, z1p, z2p = m(x, y, z)
+    x0p, y0p, y1p, z0p, z1p, z2p = test_F_glu_pnnx.test_inference()
 
     return torch.equal(x0, x0p) and torch.equal(y0, y0p) and torch.equal(y1, y1p) \
             and torch.equal(z0, z0p) and torch.equal(z1, z1p) and torch.equal(z2, z2p)

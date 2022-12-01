@@ -14,6 +14,8 @@
 
 #include "pass_ncnn.h"
 
+#include <limits.h>
+
 namespace pnnx {
 
 namespace ncnn {
@@ -60,32 +62,37 @@ pnnx.Output             output      1 0 out
 
         const int batch_index = op->inputs[0]->params["__batch_index"].i;
 
-        int input_rank = op->inputs[0]->shape.size();
-
-        if (batch_index >= 0 && batch_index < input_rank)
-            input_rank -= 1;
-
-        if (input_rank > 4)
         {
-            fprintf(stderr, "slice %d-rank tensor with %d-rank axes is not possible!\n", input_rank, axes_rank);
-            return;
+            int input_rank = op->inputs[0]->shape.size();
+
+            if (batch_index >= 0 && batch_index < input_rank)
+                input_rank -= 1;
+
+            if (input_rank > 4)
+            {
+                fprintf(stderr, "slice %d-rank tensor with %d-rank axes is not possible!\n", input_rank, axes_rank);
+                return;
+            }
         }
 
         for (int i = 0; i < axes_rank; i++)
         {
-            if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != -1))
+            if (axes[i] == batch_index && (starts[i] != 0 || ends[i] != INT_MAX))
             {
                 fprintf(stderr, "slice along batch axis is not supported\n");
                 return;
             }
 
             if (axes[i] < 0)
+            {
+                int input_rank = op->inputs[0]->shape.size();
                 axes[i] = input_rank + axes[i];
+            }
 
             if (axes[i] > batch_index)
                 axes[i] -= 1;
 
-            if (ends[i] == -1)
+            if (ends[i] == INT_MAX)
                 ends[i] = -233;
         }
 

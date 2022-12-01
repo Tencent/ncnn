@@ -1569,7 +1569,7 @@ int ModelWriter::save(const char* parampath, const char* binpath)
             fprintf_param_value(" 1=%d", expand_h)
             fprintf_param_value(" 2=%d", expand_c)
             {
-                if (!op->axes.empty()) fprintf_param_int_array(0, op->axes, pp);
+                if (!op->axes.empty()) fprintf_param_int_array(3, op->axes, pp);
             }
         }
         else if (layer->type == "GELU")

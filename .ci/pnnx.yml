@@ -1,0 +1,120 @@
+name: pnnx
+on:
+  push:
+    branches: [master]
+    paths:
+    - '.ci/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+  mr:
+    target-branches: [master]
+    paths:
+    - '.ci/pnnx.yml'
+    - 'tools/pnnx/**'
+    - '!tools/pnnx/README.md'
+concurrency:
+  group: pnnx-${{ ci.head_ref }}
+
+jobs:
+  ubuntu:
+    strategy:
+      matrix:
+        include:
+          - torch-version: 1.8.1
+            torchvision-version: 0.9.1
+            torchvision-cache-key: '0_9_1'
+
+          - torch-version: 1.9.1
+            torchvision-version: 0.10.1
+            torchvision-cache-key: '0_10_1'
+
+          - torch-version: 1.10.0
+            torchvision-version: 0.11.1
+            torchvision-cache-key: '0_11_1'
+
+          - torch-version: 1.11.0
+            torchvision-version: 0.12.0
+            torchvision-cache-key: '0_12_0'
+
+          - torch-version: 1.12.0
+            torchvision-version: 0.13.0
+            torchvision-cache-key: '0_13_0'
+
+          - torch-version: 1.13.0
+            torchvision-version: 0.14.0
+            torchvision-cache-key: '0_14_0'
+
+    runs-on:
+      pool-name: docker
+      container:
+        image: bkci/ci:ubuntu
+    steps:
+    - name: checkout
+      checkout: self
+      with:
+        strategy: FRESH_CHECKOUT
+        enableGitLfs: false
+
+    - name: install-deps
+      run: |
+        apt-get update
+        apt-get install -y python3-pip libjpeg-dev libpng-dev libprotobuf-dev protobuf-compiler
+        python3 -m pip install --upgrade pip
+        pip3 uninstall -y setuptools
+        pip3 install -U pytest setuptools wheel twine distribute requests
+
+    - name: setup pytorch
+      run: |
+        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        pip3 install --user torch==${{matrix.torch-version}}+cpu torchvision==${{matrix.torchvision-version}}+cpu -f https://download.pytorch.org/whl/torch_stable.html
+
+    - name: cache-torchvision
+      id: cache-torchvision
+      uses: cache@1.*
+      with:
+        cachePaths: torchvision-${{matrix.torchvision-version}}-install
+        cacheKey: torchvision-${{matrix.torchvision-cache-key}}-linux-install-20211228
+    - name: checkout-torchvision
+      if: steps.cache-torchvision.outputs.cacheHit != 'true'
+      checkout: https://github.com/pytorch/vision.git
+      with:
+        pullType: TAG
+        refName: v${{matrix.torchvision-version}}
+        localPath: vision
+        enableSubmodule: false
+        enableGitLfs: false
+    - name: torchvision
+      if: steps.cache-torchvision.outputs.cacheHit != 'true'
+      run: |
+        cd vision
+        mkdir -p build; cd build
+        cmake -DCMAKE_INSTALL_PREFIX=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install -DTorch_DIR=${{ci.workspace}}/torch-${{matrix.torch-version}}/lib/python3.9/site-packages/torch/share/cmake/Torch -DCMAKE_BUILD_TYPE=Release ..
+        cmake --build . -j $(nproc)
+        cmake --build . --target install
+
+    - name: build-ncnn
+      run: |
+        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DNCNN_PYTHON=ON -DNCNN_BUILD_TOOLS=OFF -DNCNN_BUILD_EXAMPLES=OFF ..
+        cmake --build . -j $(nproc)
+        cd ..
+        export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+        pip3 install --user .
+
+    - name: build-pnnx
+      run: |
+        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        cd tools/pnnx
+        mkdir build && cd build
+        cmake -DCMAKE_BUILD_TYPE=Release -DTorchVision_INSTALL_DIR=${{ci.workspace}}/torchvision-${{matrix.torchvision-version}}-install ..
+        cmake --build . -j $(nproc)
+
+    - name: test
+      run: |
+        export PYTHONUSERBASE=${{ci.workspace}}/torch-${{matrix.torch-version}}
+        export OMP_NUM_THREADS=1
+        export MKL_NUM_THREADS=1
+        export MKL_ENABLE_INSTRUCTIONS=SSE4_2
+        cd tools/pnnx
+        cd build && ctest --output-on-failure -j 16
