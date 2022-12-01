@@ -48,12 +48,6 @@ pnnx.Output             output      3 0 out out_hidden out_cell
         const int num_directions = bidirectional ? 2 : 1;
         const int hidden_size = captured_params.at("hidden_size").i;
         const int input_size = captured_params.at("input_size").i;
-        int proj_size = captured_params.at("proj_size").i;
-        if (captured_params.count("proj_size")) {
-          proj_size = captured_params.at("proj_size").i;
-        }
-
-        const int real_output_size = proj_size ? proj_size : num_output;
 
         int proj_size = captured_params.at("proj_size").i;
         if (proj_size == 0)
@@ -295,23 +289,6 @@ pnnx.Output             output      3 0 out out_hidden out_cell
                 op->attrs["7"] = captured_attrs.at("op_0.weight_hr_l0");
             }
         }
-
-        if (proj_size) {
-          op->attrs["6"] = Attribute();
-          op->attrs["6"].data = {0, 0, 0, 0};
-          const float* weight_hr = (const float*)captured_attrs.at("op_0.weight_hr_l0").data.data();
-
-          const int weight_data_size_g = proj_size * num_output;
-          std::vector<float> new_weight_hr(weight_hr, weight_hr + weight_data_size_g);
-          op->attrs["7"] = Attribute({proj_size, num_output}, new_weight_hr);
-
-          if (bidirectional) {
-            fprintf(stderr, "Not implemented yet for bi-LSTM with proj_size > 0!\n");
-            exit(-1);
-          }
-
-        }
-
     }
 };
 
@@ -368,6 +345,7 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LSTM_3, 20)
+
 } // namespace ncnn
 
 } // namespace pnnx
