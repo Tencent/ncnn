@@ -368,35 +368,6 @@ pnnx.Output             output      1 0 out
 };
 
 REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LSTM_3, 20)
-
-class nn_LSTM_4 : public nn_LSTM
-{
-public:
-    const char* match_pattern_graph() const
-    {
-        return R"PNNXIR(7767517
-5 4
-pnnx.Input              input       0 1 input
-pnnx.Input              in_hidden   0 1 in_hidden
-pnnx.Input              in_hidden   0 1 in_cell
-nn.LSTM                 op_0        3 3 input in_hidden in_cell out out_hidden out_cell input_size=%input_size hidden_size=%hidden_size num_layers=1 bias=%bias batch_first=%batch_first bidirectional=%bidirectional proj_size=%proj_size @weight_ih_l0 @weight_hh_l0  @weight_hr_l0 @bias_ih_l0 @bias_hh_l0 @weight_ih_l0_reverse @weight_hh_l0_reverse @bias_ih_l0_reverse @bias_hh_l0_reverse
-pnnx.Output             output      3 0 out out_hidden out_cell
-)PNNXIR";
-    }
-
-    const char* type_str() const
-    {
-        return "LSTM2";
-    }
-
-    const char* name_str() const
-    {
-        return "lstm2";
-    }
-};
-
-REGISTER_GLOBAL_PNNX_NCNN_GRAPH_REWRITER_PASS(nn_LSTM_4, 19)
-
 } // namespace ncnn
 
 } // namespace pnnx
