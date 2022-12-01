@@ -46,6 +46,10 @@ jobs:
         path: protobuf
     - name: Build protobuf for tools
       run: |
+        # The installation of protobuf requires us to build all targets, but 
+        # emscripten fails to build some of them.
+        # So we build and install protobuf in native compilation mode firstly,
+        # and then build and copy wasm protobuf libs to the installed directory.
         cd protobuf
         mkdir build && cd build
         cmake -DCMAKE_BUILD_TYPE=Release ../cmake
