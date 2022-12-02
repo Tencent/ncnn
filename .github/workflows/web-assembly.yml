@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - name: emsdk
+    - name: Install emsdk 3.1.9
       run: |
         git clone https://github.com/emscripten-core/emsdk.git
         cd emsdk
@@ -102,6 +102,12 @@ jobs:
         upload_js_wasm build-tools/tools         ncnnmerge
         upload_js_wasm build-tools/tools         ncnn2mem
         
+    - name: Install emsdk 2.0.8
+      run: |
+        cd emsdk
+        ./emsdk install 2.0.8
+        ./emsdk activate 2.0.8
+
     - name: build-basic
       run: |
         source emsdk/emsdk_env.sh
