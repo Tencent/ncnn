@@ -69,10 +69,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     if (top_blob.empty())
         return -100;
 
-    const float* pC = C;
-
     int broadcast_type_C = 0;
-    if (pC)
+    if (!C.empty())
     {
         if (C.dims == 1 && C.w == 1)
         {
@@ -1186,6 +1184,23 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                     const float* pB = pB0;
 
+                    const float* pC = C;
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            pC = pC + i + ii;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            pC = C.row((i + ii) / out_elempack) + j * out_elempack;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            pC = pC + j;
+                        }
+                    }
+
                     int jj = 0;
                     for (; jj + 11 < max_jj; jj += 12)
                     {
@@ -1236,7 +1251,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm512_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm512_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -1253,45 +1268,46 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 16)
                                     {
-                                        _sum0 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16);
-                                        _sum2 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 2);
-                                        _sum3 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 3);
-                                        _sum4 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 4);
-                                        _sum5 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 5);
-                                        _sum6 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 6);
-                                        _sum7 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 7);
-                                        _sum8 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 8);
-                                        _sum9 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 9);
-                                        _suma = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 10);
-                                        _sumb = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 11);
+                                        _sum0 = _mm512_loadu_ps(pC);
+                                        _sum1 = _mm512_loadu_ps(pC + 16);
+                                        _sum2 = _mm512_loadu_ps(pC + 16 * 2);
+                                        _sum3 = _mm512_loadu_ps(pC + 16 * 3);
+                                        _sum4 = _mm512_loadu_ps(pC + 16 * 4);
+                                        _sum5 = _mm512_loadu_ps(pC + 16 * 5);
+                                        _sum6 = _mm512_loadu_ps(pC + 16 * 6);
+                                        _sum7 = _mm512_loadu_ps(pC + 16 * 7);
+                                        _sum8 = _mm512_loadu_ps(pC + 16 * 8);
+                                        _sum9 = _mm512_loadu_ps(pC + 16 * 9);
+                                        _suma = _mm512_loadu_ps(pC + 16 * 10);
+                                        _sumb = _mm512_loadu_ps(pC + 16 * 11);
+                                        pC += 192;
                                     }
                                     if (out_elempack == 8)
                                     {
-                                        __m256 _sum0_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m256 _sum1_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8);
-                                        __m256 _sum2_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 2);
-                                        __m256 _sum3_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 3);
-                                        __m256 _sum4_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 4);
-                                        __m256 _sum5_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 5);
-                                        __m256 _sum6_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 6);
-                                        __m256 _sum7_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 7);
-                                        __m256 _sum8_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 8);
-                                        __m256 _sum9_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 9);
-                                        __m256 _suma_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 10);
-                                        __m256 _sumb_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 11);
-                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m256 _sum1_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8);
-                                        __m256 _sum2_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 2);
-                                        __m256 _sum3_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 3);
-                                        __m256 _sum4_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 4);
-                                        __m256 _sum5_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 5);
-                                        __m256 _sum6_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 6);
-                                        __m256 _sum7_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 7);
-                                        __m256 _sum8_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 8);
-                                        __m256 _sum9_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 9);
-                                        __m256 _suma_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 10);
-                                        __m256 _sumb_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 11);
+                                        __m256 _sum0_0 = _mm256_loadu_ps(pC);
+                                        __m256 _sum1_0 = _mm256_loadu_ps(pC + 8);
+                                        __m256 _sum2_0 = _mm256_loadu_ps(pC + 8 * 2);
+                                        __m256 _sum3_0 = _mm256_loadu_ps(pC + 8 * 3);
+                                        __m256 _sum4_0 = _mm256_loadu_ps(pC + 8 * 4);
+                                        __m256 _sum5_0 = _mm256_loadu_ps(pC + 8 * 5);
+                                        __m256 _sum6_0 = _mm256_loadu_ps(pC + 8 * 6);
+                                        __m256 _sum7_0 = _mm256_loadu_ps(pC + 8 * 7);
+                                        __m256 _sum8_0 = _mm256_loadu_ps(pC + 8 * 8);
+                                        __m256 _sum9_0 = _mm256_loadu_ps(pC + 8 * 9);
+                                        __m256 _suma_0 = _mm256_loadu_ps(pC + 8 * 10);
+                                        __m256 _sumb_0 = _mm256_loadu_ps(pC + 8 * 11);
+                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + N * 8);
+                                        __m256 _sum1_1 = _mm256_loadu_ps(pC + N * 8 + 8);
+                                        __m256 _sum2_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 2);
+                                        __m256 _sum3_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 3);
+                                        __m256 _sum4_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 4);
+                                        __m256 _sum5_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 5);
+                                        __m256 _sum6_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 6);
+                                        __m256 _sum7_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 7);
+                                        __m256 _sum8_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 8);
+                                        __m256 _sum9_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 9);
+                                        __m256 _suma_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 10);
+                                        __m256 _sumb_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 11);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum0_0), _sum0_1, 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum1_0), _sum1_1, 1);
                                         _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum2_0), _sum2_1, 1);
@@ -1304,57 +1320,58 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum9 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum9_0), _sum9_1, 1);
                                         _suma = _mm512_insertf32x8(_mm512_castps256_ps512(_suma_0), _suma_1, 1);
                                         _sumb = _mm512_insertf32x8(_mm512_castps256_ps512(_sumb_0), _sumb_1, 1);
+                                        pC += 96;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum8_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 8);
-                                        __m128 _sum9_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 9);
-                                        __m128 _suma_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 10);
-                                        __m128 _sumb_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 11);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum8_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 8);
-                                        __m128 _sum9_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 9);
-                                        __m128 _suma_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 10);
-                                        __m128 _sumb_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 11);
-                                        __m128 _sum0_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum8_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 8);
-                                        __m128 _sum9_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 9);
-                                        __m128 _suma_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 10);
-                                        __m128 _sumb_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 11);
-                                        __m128 _sum0_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum8_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 8);
-                                        __m128 _sum9_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 9);
-                                        __m128 _suma_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 10);
-                                        __m128 _sumb_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 11);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + 4 * 2);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + 4 * 3);
+                                        __m128 _sum4_0 = _mm_loadu_ps(pC + 4 * 4);
+                                        __m128 _sum5_0 = _mm_loadu_ps(pC + 4 * 5);
+                                        __m128 _sum6_0 = _mm_loadu_ps(pC + 4 * 6);
+                                        __m128 _sum7_0 = _mm_loadu_ps(pC + 4 * 7);
+                                        __m128 _sum8_0 = _mm_loadu_ps(pC + 4 * 8);
+                                        __m128 _sum9_0 = _mm_loadu_ps(pC + 4 * 9);
+                                        __m128 _suma_0 = _mm_loadu_ps(pC + 4 * 10);
+                                        __m128 _sumb_0 = _mm_loadu_ps(pC + 4 * 11);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
+                                        __m128 _sum2_1 = _mm_loadu_ps(pC + N * 4 + 4 * 2);
+                                        __m128 _sum3_1 = _mm_loadu_ps(pC + N * 4 + 4 * 3);
+                                        __m128 _sum4_1 = _mm_loadu_ps(pC + N * 4 + 4 * 4);
+                                        __m128 _sum5_1 = _mm_loadu_ps(pC + N * 4 + 4 * 5);
+                                        __m128 _sum6_1 = _mm_loadu_ps(pC + N * 4 + 4 * 6);
+                                        __m128 _sum7_1 = _mm_loadu_ps(pC + N * 4 + 4 * 7);
+                                        __m128 _sum8_1 = _mm_loadu_ps(pC + N * 4 + 4 * 8);
+                                        __m128 _sum9_1 = _mm_loadu_ps(pC + N * 4 + 4 * 9);
+                                        __m128 _suma_1 = _mm_loadu_ps(pC + N * 4 + 4 * 10);
+                                        __m128 _sumb_1 = _mm_loadu_ps(pC + N * 4 + 4 * 11);
+                                        __m128 _sum0_2 = _mm_loadu_ps(pC + N * 8);
+                                        __m128 _sum1_2 = _mm_loadu_ps(pC + N * 8 + 4);
+                                        __m128 _sum2_2 = _mm_loadu_ps(pC + N * 8 + 4 * 2);
+                                        __m128 _sum3_2 = _mm_loadu_ps(pC + N * 8 + 4 * 3);
+                                        __m128 _sum4_2 = _mm_loadu_ps(pC + N * 8 + 4 * 4);
+                                        __m128 _sum5_2 = _mm_loadu_ps(pC + N * 8 + 4 * 5);
+                                        __m128 _sum6_2 = _mm_loadu_ps(pC + N * 8 + 4 * 6);
+                                        __m128 _sum7_2 = _mm_loadu_ps(pC + N * 8 + 4 * 7);
+                                        __m128 _sum8_2 = _mm_loadu_ps(pC + N * 8 + 4 * 8);
+                                        __m128 _sum9_2 = _mm_loadu_ps(pC + N * 8 + 4 * 9);
+                                        __m128 _suma_2 = _mm_loadu_ps(pC + N * 8 + 4 * 10);
+                                        __m128 _sumb_2 = _mm_loadu_ps(pC + N * 8 + 4 * 11);
+                                        __m128 _sum0_3 = _mm_loadu_ps(pC + N * 12);
+                                        __m128 _sum1_3 = _mm_loadu_ps(pC + N * 12 + 4);
+                                        __m128 _sum2_3 = _mm_loadu_ps(pC + N * 12 + 4 * 2);
+                                        __m128 _sum3_3 = _mm_loadu_ps(pC + N * 12 + 4 * 3);
+                                        __m128 _sum4_3 = _mm_loadu_ps(pC + N * 12 + 4 * 4);
+                                        __m128 _sum5_3 = _mm_loadu_ps(pC + N * 12 + 4 * 5);
+                                        __m128 _sum6_3 = _mm_loadu_ps(pC + N * 12 + 4 * 6);
+                                        __m128 _sum7_3 = _mm_loadu_ps(pC + N * 12 + 4 * 7);
+                                        __m128 _sum8_3 = _mm_loadu_ps(pC + N * 12 + 4 * 8);
+                                        __m128 _sum9_3 = _mm_loadu_ps(pC + N * 12 + 4 * 9);
+                                        __m128 _suma_3 = _mm_loadu_ps(pC + N * 12 + 4 * 10);
+                                        __m128 _sumb_3 = _mm_loadu_ps(pC + N * 12 + 4 * 11);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_2), _sum0_3, 1), 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_2), _sum1_3, 1), 1);
                                         _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum2_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_2), _sum2_3, 1), 1);
@@ -1367,59 +1384,60 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum9 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum9_0), _sum9_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum9_2), _sum9_3, 1), 1);
                                         _suma = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_suma_0), _suma_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_suma_2), _suma_3, 1), 1);
                                         _sumb = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sumb_0), _sumb_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sumb_2), _sumb_3, 1), 1);
+                                        pC += 48;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj);
-                                        __m128 _sum4_0 = _mm_loadu_ps(pC + (i + ii + 4) * N + j + jj);
-                                        __m128 _sum5_0 = _mm_loadu_ps(pC + (i + ii + 5) * N + j + jj);
-                                        __m128 _sum6_0 = _mm_loadu_ps(pC + (i + ii + 6) * N + j + jj);
-                                        __m128 _sum7_0 = _mm_loadu_ps(pC + (i + ii + 7) * N + j + jj);
-                                        __m128 _sum8_0 = _mm_loadu_ps(pC + (i + ii + 8) * N + j + jj);
-                                        __m128 _sum9_0 = _mm_loadu_ps(pC + (i + ii + 9) * N + j + jj);
-                                        __m128 _suma_0 = _mm_loadu_ps(pC + (i + ii + 10) * N + j + jj);
-                                        __m128 _sumb_0 = _mm_loadu_ps(pC + (i + ii + 11) * N + j + jj);
-                                        __m128 _sumc_0 = _mm_loadu_ps(pC + (i + ii + 12) * N + j + jj);
-                                        __m128 _sumd_0 = _mm_loadu_ps(pC + (i + ii + 13) * N + j + jj);
-                                        __m128 _sume_0 = _mm_loadu_ps(pC + (i + ii + 14) * N + j + jj);
-                                        __m128 _sumf_0 = _mm_loadu_ps(pC + (i + ii + 15) * N + j + jj);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + N);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + N * 2);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + N * 3);
+                                        __m128 _sum4_0 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum5_0 = _mm_loadu_ps(pC + N * 5);
+                                        __m128 _sum6_0 = _mm_loadu_ps(pC + N * 6);
+                                        __m128 _sum7_0 = _mm_loadu_ps(pC + N * 7);
+                                        __m128 _sum8_0 = _mm_loadu_ps(pC + N * 8);
+                                        __m128 _sum9_0 = _mm_loadu_ps(pC + N * 9);
+                                        __m128 _suma_0 = _mm_loadu_ps(pC + N * 10);
+                                        __m128 _sumb_0 = _mm_loadu_ps(pC + N * 11);
+                                        __m128 _sumc_0 = _mm_loadu_ps(pC + N * 12);
+                                        __m128 _sumd_0 = _mm_loadu_ps(pC + N * 13);
+                                        __m128 _sume_0 = _mm_loadu_ps(pC + N * 14);
+                                        __m128 _sumf_0 = _mm_loadu_ps(pC + N * 15);
 
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj + 4);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj + 4);
-                                        __m128 _sum2_1 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj + 4);
-                                        __m128 _sum3_1 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj + 4);
-                                        __m128 _sum4_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + j + jj + 4);
-                                        __m128 _sum5_1 = _mm_loadu_ps(pC + (i + ii + 5) * N + j + jj + 4);
-                                        __m128 _sum6_1 = _mm_loadu_ps(pC + (i + ii + 6) * N + j + jj + 4);
-                                        __m128 _sum7_1 = _mm_loadu_ps(pC + (i + ii + 7) * N + j + jj + 4);
-                                        __m128 _sum8_1 = _mm_loadu_ps(pC + (i + ii + 8) * N + j + jj + 4);
-                                        __m128 _sum9_1 = _mm_loadu_ps(pC + (i + ii + 9) * N + j + jj + 4);
-                                        __m128 _suma_1 = _mm_loadu_ps(pC + (i + ii + 10) * N + j + jj + 4);
-                                        __m128 _sumb_1 = _mm_loadu_ps(pC + (i + ii + 11) * N + j + jj + 4);
-                                        __m128 _sumc_1 = _mm_loadu_ps(pC + (i + ii + 12) * N + j + jj + 4);
-                                        __m128 _sumd_1 = _mm_loadu_ps(pC + (i + ii + 13) * N + j + jj + 4);
-                                        __m128 _sume_1 = _mm_loadu_ps(pC + (i + ii + 14) * N + j + jj + 4);
-                                        __m128 _sumf_1 = _mm_loadu_ps(pC + (i + ii + 15) * N + j + jj + 4);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N + 4);
+                                        __m128 _sum2_1 = _mm_loadu_ps(pC + N * 2 + 4);
+                                        __m128 _sum3_1 = _mm_loadu_ps(pC + N * 3 + 4);
+                                        __m128 _sum4_1 = _mm_loadu_ps(pC + N * 4 + 4);
+                                        __m128 _sum5_1 = _mm_loadu_ps(pC + N * 5 + 4);
+                                        __m128 _sum6_1 = _mm_loadu_ps(pC + N * 6 + 4);
+                                        __m128 _sum7_1 = _mm_loadu_ps(pC + N * 7 + 4);
+                                        __m128 _sum8_1 = _mm_loadu_ps(pC + N * 8 + 4);
+                                        __m128 _sum9_1 = _mm_loadu_ps(pC + N * 9 + 4);
+                                        __m128 _suma_1 = _mm_loadu_ps(pC + N * 10 + 4);
+                                        __m128 _sumb_1 = _mm_loadu_ps(pC + N * 11 + 4);
+                                        __m128 _sumc_1 = _mm_loadu_ps(pC + N * 12 + 4);
+                                        __m128 _sumd_1 = _mm_loadu_ps(pC + N * 13 + 4);
+                                        __m128 _sume_1 = _mm_loadu_ps(pC + N * 14 + 4);
+                                        __m128 _sumf_1 = _mm_loadu_ps(pC + N * 15 + 4);
 
-                                        __m128 _sum0_2 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj + 8);
-                                        __m128 _sum1_2 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj + 8);
-                                        __m128 _sum2_2 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj + 8);
-                                        __m128 _sum3_2 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj + 8);
-                                        __m128 _sum4_2 = _mm_loadu_ps(pC + (i + ii + 4) * N + j + jj + 8);
-                                        __m128 _sum5_2 = _mm_loadu_ps(pC + (i + ii + 5) * N + j + jj + 8);
-                                        __m128 _sum6_2 = _mm_loadu_ps(pC + (i + ii + 6) * N + j + jj + 8);
-                                        __m128 _sum7_2 = _mm_loadu_ps(pC + (i + ii + 7) * N + j + jj + 8);
-                                        __m128 _sum8_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + j + jj + 8);
-                                        __m128 _sum9_2 = _mm_loadu_ps(pC + (i + ii + 9) * N + j + jj + 8);
-                                        __m128 _suma_2 = _mm_loadu_ps(pC + (i + ii + 10) * N + j + jj + 8);
-                                        __m128 _sumb_2 = _mm_loadu_ps(pC + (i + ii + 11) * N + j + jj + 8);
-                                        __m128 _sumc_2 = _mm_loadu_ps(pC + (i + ii + 12) * N + j + jj + 8);
-                                        __m128 _sumd_2 = _mm_loadu_ps(pC + (i + ii + 13) * N + j + jj + 8);
-                                        __m128 _sume_2 = _mm_loadu_ps(pC + (i + ii + 14) * N + j + jj + 8);
-                                        __m128 _sumf_2 = _mm_loadu_ps(pC + (i + ii + 15) * N + j + jj + 8);
+                                        __m128 _sum0_2 = _mm_loadu_ps(pC + 8);
+                                        __m128 _sum1_2 = _mm_loadu_ps(pC + N + 8);
+                                        __m128 _sum2_2 = _mm_loadu_ps(pC + N * 2 + 8);
+                                        __m128 _sum3_2 = _mm_loadu_ps(pC + N * 3 + 8);
+                                        __m128 _sum4_2 = _mm_loadu_ps(pC + N * 4 + 8);
+                                        __m128 _sum5_2 = _mm_loadu_ps(pC + N * 5 + 8);
+                                        __m128 _sum6_2 = _mm_loadu_ps(pC + N * 6 + 8);
+                                        __m128 _sum7_2 = _mm_loadu_ps(pC + N * 7 + 8);
+                                        __m128 _sum8_2 = _mm_loadu_ps(pC + N * 8 + 8);
+                                        __m128 _sum9_2 = _mm_loadu_ps(pC + N * 9 + 8);
+                                        __m128 _suma_2 = _mm_loadu_ps(pC + N * 10 + 8);
+                                        __m128 _sumb_2 = _mm_loadu_ps(pC + N * 11 + 8);
+                                        __m128 _sumc_2 = _mm_loadu_ps(pC + N * 12 + 8);
+                                        __m128 _sumd_2 = _mm_loadu_ps(pC + N * 13 + 8);
+                                        __m128 _sume_2 = _mm_loadu_ps(pC + N * 14 + 8);
+                                        __m128 _sumf_2 = _mm_loadu_ps(pC + N * 15 + 8);
 
                                         _MM_TRANSPOSE4_PS(_sum0_0, _sum1_0, _sum2_0, _sum3_0);
                                         _MM_TRANSPOSE4_PS(_sum4_0, _sum5_0, _sum6_0, _sum7_0);
@@ -1450,22 +1468,24 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum9 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_2), _sum5_2, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum9_2), _sumd_2, 1), 1);
                                         _suma = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_2), _sum6_2, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_suma_2), _sume_2, 1), 1);
                                         _sumb = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_2), _sum7_2, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sumb_2), _sumf_2, 1), 1);
+                                        pC += 12;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm512_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm512_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm512_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm512_set1_ps(pC[j + jj + 3]);
-                                    _sum4 = _mm512_set1_ps(pC[j + jj + 4]);
-                                    _sum5 = _mm512_set1_ps(pC[j + jj + 5]);
-                                    _sum6 = _mm512_set1_ps(pC[j + jj + 6]);
-                                    _sum7 = _mm512_set1_ps(pC[j + jj + 7]);
-                                    _sum8 = _mm512_set1_ps(pC[j + jj + 8]);
-                                    _sum9 = _mm512_set1_ps(pC[j + jj + 9]);
-                                    _suma = _mm512_set1_ps(pC[j + jj + 10]);
-                                    _sumb = _mm512_set1_ps(pC[j + jj + 11]);
+                                    _sum0 = _mm512_set1_ps(pC[0]);
+                                    _sum1 = _mm512_set1_ps(pC[1]);
+                                    _sum2 = _mm512_set1_ps(pC[2]);
+                                    _sum3 = _mm512_set1_ps(pC[3]);
+                                    _sum4 = _mm512_set1_ps(pC[4]);
+                                    _sum5 = _mm512_set1_ps(pC[5]);
+                                    _sum6 = _mm512_set1_ps(pC[6]);
+                                    _sum7 = _mm512_set1_ps(pC[7]);
+                                    _sum8 = _mm512_set1_ps(pC[8]);
+                                    _sum9 = _mm512_set1_ps(pC[9]);
+                                    _suma = _mm512_set1_ps(pC[10]);
+                                    _sumb = _mm512_set1_ps(pC[11]);
+                                    pC += 12;
                                 }
 
                                 __m512 _beta = _mm512_set1_ps(beta);
@@ -1738,7 +1758,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm512_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm512_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -1751,33 +1771,34 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 16)
                                     {
-                                        _sum0 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16);
-                                        _sum2 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 2);
-                                        _sum3 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 3);
-                                        _sum4 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 4);
-                                        _sum5 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 5);
-                                        _sum6 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 6);
-                                        _sum7 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16 * 7);
+                                        _sum0 = _mm512_loadu_ps(pC);
+                                        _sum1 = _mm512_loadu_ps(pC + 16);
+                                        _sum2 = _mm512_loadu_ps(pC + 16 * 2);
+                                        _sum3 = _mm512_loadu_ps(pC + 16 * 3);
+                                        _sum4 = _mm512_loadu_ps(pC + 16 * 4);
+                                        _sum5 = _mm512_loadu_ps(pC + 16 * 5);
+                                        _sum6 = _mm512_loadu_ps(pC + 16 * 6);
+                                        _sum7 = _mm512_loadu_ps(pC + 16 * 7);
+                                        pC += 128;
                                     }
                                     if (out_elempack == 8)
                                     {
-                                        __m256 _sum0_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m256 _sum1_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8);
-                                        __m256 _sum2_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 2);
-                                        __m256 _sum3_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 3);
-                                        __m256 _sum4_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 4);
-                                        __m256 _sum5_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 5);
-                                        __m256 _sum6_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 6);
-                                        __m256 _sum7_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8 * 7);
-                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m256 _sum1_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8);
-                                        __m256 _sum2_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 2);
-                                        __m256 _sum3_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 3);
-                                        __m256 _sum4_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 4);
-                                        __m256 _sum5_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 5);
-                                        __m256 _sum6_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 6);
-                                        __m256 _sum7_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8 * 7);
+                                        __m256 _sum0_0 = _mm256_loadu_ps(pC);
+                                        __m256 _sum1_0 = _mm256_loadu_ps(pC + 8);
+                                        __m256 _sum2_0 = _mm256_loadu_ps(pC + 8 * 2);
+                                        __m256 _sum3_0 = _mm256_loadu_ps(pC + 8 * 3);
+                                        __m256 _sum4_0 = _mm256_loadu_ps(pC + 8 * 4);
+                                        __m256 _sum5_0 = _mm256_loadu_ps(pC + 8 * 5);
+                                        __m256 _sum6_0 = _mm256_loadu_ps(pC + 8 * 6);
+                                        __m256 _sum7_0 = _mm256_loadu_ps(pC + 8 * 7);
+                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + N * 8);
+                                        __m256 _sum1_1 = _mm256_loadu_ps(pC + N * 8 + 8);
+                                        __m256 _sum2_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 2);
+                                        __m256 _sum3_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 3);
+                                        __m256 _sum4_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 4);
+                                        __m256 _sum5_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 5);
+                                        __m256 _sum6_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 6);
+                                        __m256 _sum7_1 = _mm256_loadu_ps(pC + N * 8 + 8 * 7);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum0_0), _sum0_1, 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum1_0), _sum1_1, 1);
                                         _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum2_0), _sum2_1, 1);
@@ -1786,41 +1807,42 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum5 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum5_0), _sum5_1, 1);
                                         _sum6 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum6_0), _sum6_1, 1);
                                         _sum7 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum7_0), _sum7_1, 1);
+                                        pC += 64;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum0_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum0_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4 * 7);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + 4 * 2);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + 4 * 3);
+                                        __m128 _sum4_0 = _mm_loadu_ps(pC + 4 * 4);
+                                        __m128 _sum5_0 = _mm_loadu_ps(pC + 4 * 5);
+                                        __m128 _sum6_0 = _mm_loadu_ps(pC + 4 * 6);
+                                        __m128 _sum7_0 = _mm_loadu_ps(pC + 4 * 7);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
+                                        __m128 _sum2_1 = _mm_loadu_ps(pC + N * 4 + 4 * 2);
+                                        __m128 _sum3_1 = _mm_loadu_ps(pC + N * 4 + 4 * 3);
+                                        __m128 _sum4_1 = _mm_loadu_ps(pC + N * 4 + 4 * 4);
+                                        __m128 _sum5_1 = _mm_loadu_ps(pC + N * 4 + 4 * 5);
+                                        __m128 _sum6_1 = _mm_loadu_ps(pC + N * 4 + 4 * 6);
+                                        __m128 _sum7_1 = _mm_loadu_ps(pC + N * 4 + 4 * 7);
+                                        __m128 _sum0_2 = _mm_loadu_ps(pC + N * 8);
+                                        __m128 _sum1_2 = _mm_loadu_ps(pC + N * 8 + 4);
+                                        __m128 _sum2_2 = _mm_loadu_ps(pC + N * 8 + 4 * 2);
+                                        __m128 _sum3_2 = _mm_loadu_ps(pC + N * 8 + 4 * 3);
+                                        __m128 _sum4_2 = _mm_loadu_ps(pC + N * 8 + 4 * 4);
+                                        __m128 _sum5_2 = _mm_loadu_ps(pC + N * 8 + 4 * 5);
+                                        __m128 _sum6_2 = _mm_loadu_ps(pC + N * 8 + 4 * 6);
+                                        __m128 _sum7_2 = _mm_loadu_ps(pC + N * 8 + 4 * 7);
+                                        __m128 _sum0_3 = _mm_loadu_ps(pC + N * 12);
+                                        __m128 _sum1_3 = _mm_loadu_ps(pC + N * 12 + 4);
+                                        __m128 _sum2_3 = _mm_loadu_ps(pC + N * 12 + 4 * 2);
+                                        __m128 _sum3_3 = _mm_loadu_ps(pC + N * 12 + 4 * 3);
+                                        __m128 _sum4_3 = _mm_loadu_ps(pC + N * 12 + 4 * 4);
+                                        __m128 _sum5_3 = _mm_loadu_ps(pC + N * 12 + 4 * 5);
+                                        __m128 _sum6_3 = _mm_loadu_ps(pC + N * 12 + 4 * 6);
+                                        __m128 _sum7_3 = _mm_loadu_ps(pC + N * 12 + 4 * 7);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_2), _sum0_3, 1), 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_2), _sum1_3, 1), 1);
                                         _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum2_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_2), _sum2_3, 1), 1);
@@ -1829,25 +1851,26 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum5 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum5_0), _sum5_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum5_2), _sum5_3, 1), 1);
                                         _sum6 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum6_0), _sum6_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum6_2), _sum6_3, 1), 1);
                                         _sum7 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum7_0), _sum7_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum7_2), _sum7_3, 1), 1);
+                                        pC += 32;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        __m256 _r0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        __m256 _r1 = _mm256_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        __m256 _r2 = _mm256_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        __m256 _r3 = _mm256_loadu_ps(pC + (i + ii + 3) * N + j + jj);
-                                        __m256 _r4 = _mm256_loadu_ps(pC + (i + ii + 4) * N + j + jj);
-                                        __m256 _r5 = _mm256_loadu_ps(pC + (i + ii + 5) * N + j + jj);
-                                        __m256 _r6 = _mm256_loadu_ps(pC + (i + ii + 6) * N + j + jj);
-                                        __m256 _r7 = _mm256_loadu_ps(pC + (i + ii + 7) * N + j + jj);
-                                        __m256 _r8 = _mm256_loadu_ps(pC + (i + ii + 8) * N + j + jj);
-                                        __m256 _r9 = _mm256_loadu_ps(pC + (i + ii + 9) * N + j + jj);
-                                        __m256 _ra = _mm256_loadu_ps(pC + (i + ii + 10) * N + j + jj);
-                                        __m256 _rb = _mm256_loadu_ps(pC + (i + ii + 11) * N + j + jj);
-                                        __m256 _rc = _mm256_loadu_ps(pC + (i + ii + 12) * N + j + jj);
-                                        __m256 _rd = _mm256_loadu_ps(pC + (i + ii + 13) * N + j + jj);
-                                        __m256 _re = _mm256_loadu_ps(pC + (i + ii + 14) * N + j + jj);
-                                        __m256 _rf = _mm256_loadu_ps(pC + (i + ii + 15) * N + j + jj);
+                                        __m256 _r0 = _mm256_loadu_ps(pC);
+                                        __m256 _r1 = _mm256_loadu_ps(pC + N);
+                                        __m256 _r2 = _mm256_loadu_ps(pC + N * 2);
+                                        __m256 _r3 = _mm256_loadu_ps(pC + N * 3);
+                                        __m256 _r4 = _mm256_loadu_ps(pC + N * 4);
+                                        __m256 _r5 = _mm256_loadu_ps(pC + N * 5);
+                                        __m256 _r6 = _mm256_loadu_ps(pC + N * 6);
+                                        __m256 _r7 = _mm256_loadu_ps(pC + N * 7);
+                                        __m256 _r8 = _mm256_loadu_ps(pC + N * 8);
+                                        __m256 _r9 = _mm256_loadu_ps(pC + N * 9);
+                                        __m256 _ra = _mm256_loadu_ps(pC + N * 10);
+                                        __m256 _rb = _mm256_loadu_ps(pC + N * 11);
+                                        __m256 _rc = _mm256_loadu_ps(pC + N * 12);
+                                        __m256 _rd = _mm256_loadu_ps(pC + N * 13);
+                                        __m256 _re = _mm256_loadu_ps(pC + N * 14);
+                                        __m256 _rf = _mm256_loadu_ps(pC + N * 15);
 
                                         // transpose8x16
                                         __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
@@ -1909,18 +1932,20 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum5 = _mm512_insertf32x8(_mm512_castps256_ps512(_ra), _rb, 1);
                                         _sum6 = _mm512_insertf32x8(_mm512_castps256_ps512(_rc), _rd, 1);
                                         _sum7 = _mm512_insertf32x8(_mm512_castps256_ps512(_re), _rf, 1);
+                                        pC += 8;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm512_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm512_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm512_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm512_set1_ps(pC[j + jj + 3]);
-                                    _sum4 = _mm512_set1_ps(pC[j + jj + 4]);
-                                    _sum5 = _mm512_set1_ps(pC[j + jj + 5]);
-                                    _sum6 = _mm512_set1_ps(pC[j + jj + 6]);
-                                    _sum7 = _mm512_set1_ps(pC[j + jj + 7]);
+                                    _sum0 = _mm512_set1_ps(pC[0]);
+                                    _sum1 = _mm512_set1_ps(pC[1]);
+                                    _sum2 = _mm512_set1_ps(pC[2]);
+                                    _sum3 = _mm512_set1_ps(pC[3]);
+                                    _sum4 = _mm512_set1_ps(pC[4]);
+                                    _sum5 = _mm512_set1_ps(pC[5]);
+                                    _sum6 = _mm512_set1_ps(pC[6]);
+                                    _sum7 = _mm512_set1_ps(pC[7]);
+                                    pC += 8;
                                 }
 
                                 __m512 _beta = _mm512_set1_ps(beta);
@@ -2114,7 +2139,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm512_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm512_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -2123,67 +2148,70 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 16)
                                     {
-                                        _sum0 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16);
-                                        _sum2 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 32);
-                                        _sum3 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 48);
+                                        _sum0 = _mm512_loadu_ps(pC);
+                                        _sum1 = _mm512_loadu_ps(pC + 16);
+                                        _sum2 = _mm512_loadu_ps(pC + 32);
+                                        _sum3 = _mm512_loadu_ps(pC + 48);
+                                        pC += 64;
                                     }
                                     if (out_elempack == 8)
                                     {
-                                        __m256 _sum0_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m256 _sum1_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8);
-                                        __m256 _sum2_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 16);
-                                        __m256 _sum3_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 24);
-                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m256 _sum1_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8);
-                                        __m256 _sum2_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 16);
-                                        __m256 _sum3_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 24);
+                                        __m256 _sum0_0 = _mm256_loadu_ps(pC);
+                                        __m256 _sum1_0 = _mm256_loadu_ps(pC + 8);
+                                        __m256 _sum2_0 = _mm256_loadu_ps(pC + 16);
+                                        __m256 _sum3_0 = _mm256_loadu_ps(pC + 24);
+                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + N * 8);
+                                        __m256 _sum1_1 = _mm256_loadu_ps(pC + N * 8 + 8);
+                                        __m256 _sum2_1 = _mm256_loadu_ps(pC + N * 8 + 16);
+                                        __m256 _sum3_1 = _mm256_loadu_ps(pC + N * 8 + 24);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum0_0), _sum0_1, 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum1_0), _sum1_1, 1);
                                         _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum2_0), _sum2_1, 1);
                                         _sum3 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum3_0), _sum3_1, 1);
+                                        pC += 32;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 12);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 8);
-                                        __m128 _sum3_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 12);
-                                        __m128 _sum0_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8);
-                                        __m128 _sum3_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 12);
-                                        __m128 _sum0_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 8);
-                                        __m128 _sum3_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 12);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + 8);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + 12);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
+                                        __m128 _sum2_1 = _mm_loadu_ps(pC + N * 4 + 8);
+                                        __m128 _sum3_1 = _mm_loadu_ps(pC + N * 4 + 12);
+                                        __m128 _sum0_2 = _mm_loadu_ps(pC + N * 8);
+                                        __m128 _sum1_2 = _mm_loadu_ps(pC + N * 8 + 4);
+                                        __m128 _sum2_2 = _mm_loadu_ps(pC + N * 8 + 8);
+                                        __m128 _sum3_2 = _mm_loadu_ps(pC + N * 8 + 12);
+                                        __m128 _sum0_3 = _mm_loadu_ps(pC + N * 12);
+                                        __m128 _sum1_3 = _mm_loadu_ps(pC + N * 12 + 4);
+                                        __m128 _sum2_3 = _mm_loadu_ps(pC + N * 12 + 8);
+                                        __m128 _sum3_3 = _mm_loadu_ps(pC + N * 12 + 12);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_2), _sum0_3, 1), 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_2), _sum1_3, 1), 1);
                                         _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum2_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_2), _sum2_3, 1), 1);
                                         _sum3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_0), _sum3_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_2), _sum3_3, 1), 1);
+                                        pC += 16;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj);
-                                        __m128 _sum4_0 = _mm_loadu_ps(pC + (i + ii + 4) * N + j + jj);
-                                        __m128 _sum5_0 = _mm_loadu_ps(pC + (i + ii + 5) * N + j + jj);
-                                        __m128 _sum6_0 = _mm_loadu_ps(pC + (i + ii + 6) * N + j + jj);
-                                        __m128 _sum7_0 = _mm_loadu_ps(pC + (i + ii + 7) * N + j + jj);
-                                        __m128 _sum8_0 = _mm_loadu_ps(pC + (i + ii + 8) * N + j + jj);
-                                        __m128 _sum9_0 = _mm_loadu_ps(pC + (i + ii + 9) * N + j + jj);
-                                        __m128 _suma_0 = _mm_loadu_ps(pC + (i + ii + 10) * N + j + jj);
-                                        __m128 _sumb_0 = _mm_loadu_ps(pC + (i + ii + 11) * N + j + jj);
-                                        __m128 _sumc_0 = _mm_loadu_ps(pC + (i + ii + 12) * N + j + jj);
-                                        __m128 _sumd_0 = _mm_loadu_ps(pC + (i + ii + 13) * N + j + jj);
-                                        __m128 _sume_0 = _mm_loadu_ps(pC + (i + ii + 14) * N + j + jj);
-                                        __m128 _sumf_0 = _mm_loadu_ps(pC + (i + ii + 15) * N + j + jj);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + N);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + N * 2);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + N * 3);
+                                        __m128 _sum4_0 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum5_0 = _mm_loadu_ps(pC + N * 5);
+                                        __m128 _sum6_0 = _mm_loadu_ps(pC + N * 6);
+                                        __m128 _sum7_0 = _mm_loadu_ps(pC + N * 7);
+                                        __m128 _sum8_0 = _mm_loadu_ps(pC + N * 8);
+                                        __m128 _sum9_0 = _mm_loadu_ps(pC + N * 9);
+                                        __m128 _suma_0 = _mm_loadu_ps(pC + N * 10);
+                                        __m128 _sumb_0 = _mm_loadu_ps(pC + N * 11);
+                                        __m128 _sumc_0 = _mm_loadu_ps(pC + N * 12);
+                                        __m128 _sumd_0 = _mm_loadu_ps(pC + N * 13);
+                                        __m128 _sume_0 = _mm_loadu_ps(pC + N * 14);
+                                        __m128 _sumf_0 = _mm_loadu_ps(pC + N * 15);
 
                                         _MM_TRANSPOSE4_PS(_sum0_0, _sum1_0, _sum2_0, _sum3_0);
                                         _MM_TRANSPOSE4_PS(_sum4_0, _sum5_0, _sum6_0, _sum7_0);
@@ -2194,14 +2222,16 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum5_0, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum9_0), _sumd_0, 1), 1);
                                         _sum2 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum6_0, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_suma_0), _sume_0, 1), 1);
                                         _sum3 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_0), _sum7_0, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sumb_0), _sumf_0, 1), 1);
+                                        pC += 4;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm512_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm512_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm512_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm512_set1_ps(pC[j + jj + 3]);
+                                    _sum0 = _mm512_set1_ps(pC[0]);
+                                    _sum1 = _mm512_set1_ps(pC[1]);
+                                    _sum2 = _mm512_set1_ps(pC[2]);
+                                    _sum3 = _mm512_set1_ps(pC[3]);
+                                    pC += 4;
                                 }
 
                                 __m512 _beta = _mm512_set1_ps(beta);
@@ -2361,83 +2391,88 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm512_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm512_loadu_ps(pC);
                                     _sum1 = _sum0;
                                 }
                                 if (broadcast_type_C == 3)
                                 {
                                     if (out_elempack == 16)
                                     {
-                                        _sum0 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16);
+                                        _sum0 = _mm512_loadu_ps(pC);
+                                        _sum1 = _mm512_loadu_ps(pC + 16);
+                                        pC += 32;
                                     }
                                     if (out_elempack == 8)
                                     {
-                                        __m256 _sum0_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m256 _sum1_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8);
-                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m256 _sum1_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 8);
+                                        __m256 _sum0_0 = _mm256_loadu_ps(pC);
+                                        __m256 _sum1_0 = _mm256_loadu_ps(pC + 8);
+                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + N * 8);
+                                        __m256 _sum1_1 = _mm256_loadu_ps(pC + N * 8 + 8);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum0_0), _sum0_1, 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum1_0), _sum1_1, 1);
+                                        pC += 16;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum0_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum0_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack + 4);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
+                                        __m128 _sum0_2 = _mm_loadu_ps(pC + N * 8);
+                                        __m128 _sum1_2 = _mm_loadu_ps(pC + N * 8 + 4);
+                                        __m128 _sum0_3 = _mm_loadu_ps(pC + N * 12);
+                                        __m128 _sum1_3 = _mm_loadu_ps(pC + N * 12 + 4);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_2), _sum0_3, 1), 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_2), _sum1_3, 1), 1);
+                                        pC += 8;
                                     }
                                     if (out_elempack == 1)
                                     {
                                         float sum0[16];
                                         float sum1[16];
-                                        sum0[0] = pC[(i + ii + 0) * N + j + jj];
-                                        sum0[1] = pC[(i + ii + 1) * N + j + jj];
-                                        sum0[2] = pC[(i + ii + 2) * N + j + jj];
-                                        sum0[3] = pC[(i + ii + 3) * N + j + jj];
-                                        sum0[4] = pC[(i + ii + 4) * N + j + jj];
-                                        sum0[5] = pC[(i + ii + 5) * N + j + jj];
-                                        sum0[6] = pC[(i + ii + 6) * N + j + jj];
-                                        sum0[7] = pC[(i + ii + 7) * N + j + jj];
-                                        sum0[8] = pC[(i + ii + 8) * N + j + jj];
-                                        sum0[9] = pC[(i + ii + 9) * N + j + jj];
-                                        sum0[10] = pC[(i + ii + 10) * N + j + jj];
-                                        sum0[11] = pC[(i + ii + 11) * N + j + jj];
-                                        sum0[12] = pC[(i + ii + 12) * N + j + jj];
-                                        sum0[13] = pC[(i + ii + 13) * N + j + jj];
-                                        sum0[14] = pC[(i + ii + 14) * N + j + jj];
-                                        sum0[15] = pC[(i + ii + 15) * N + j + jj];
-                                        sum1[0] = pC[(i + ii + 0) * N + j + jj + 1];
-                                        sum1[1] = pC[(i + ii + 1) * N + j + jj + 1];
-                                        sum1[2] = pC[(i + ii + 2) * N + j + jj + 1];
-                                        sum1[3] = pC[(i + ii + 3) * N + j + jj + 1];
-                                        sum1[4] = pC[(i + ii + 4) * N + j + jj + 1];
-                                        sum1[5] = pC[(i + ii + 5) * N + j + jj + 1];
-                                        sum1[6] = pC[(i + ii + 6) * N + j + jj + 1];
-                                        sum1[7] = pC[(i + ii + 7) * N + j + jj + 1];
-                                        sum1[8] = pC[(i + ii + 8) * N + j + jj + 1];
-                                        sum1[9] = pC[(i + ii + 9) * N + j + jj + 1];
-                                        sum1[10] = pC[(i + ii + 10) * N + j + jj + 1];
-                                        sum1[11] = pC[(i + ii + 11) * N + j + jj + 1];
-                                        sum1[12] = pC[(i + ii + 12) * N + j + jj + 1];
-                                        sum1[13] = pC[(i + ii + 13) * N + j + jj + 1];
-                                        sum1[14] = pC[(i + ii + 14) * N + j + jj + 1];
-                                        sum1[15] = pC[(i + ii + 15) * N + j + jj + 1];
+                                        sum0[0] = pC[0];
+                                        sum0[1] = pC[N];
+                                        sum0[2] = pC[N * 2];
+                                        sum0[3] = pC[N * 3];
+                                        sum0[4] = pC[N * 4];
+                                        sum0[5] = pC[N * 5];
+                                        sum0[6] = pC[N * 6];
+                                        sum0[7] = pC[N * 7];
+                                        sum0[8] = pC[N * 8];
+                                        sum0[9] = pC[N * 9];
+                                        sum0[10] = pC[N * 10];
+                                        sum0[11] = pC[N * 11];
+                                        sum0[12] = pC[N * 12];
+                                        sum0[13] = pC[N * 13];
+                                        sum0[14] = pC[N * 14];
+                                        sum0[15] = pC[N * 15];
+                                        sum1[0] = pC[1];
+                                        sum1[1] = pC[N + 1];
+                                        sum1[2] = pC[N * 2 + 1];
+                                        sum1[3] = pC[N * 3 + 1];
+                                        sum1[4] = pC[N * 4 + 1];
+                                        sum1[5] = pC[N * 5 + 1];
+                                        sum1[6] = pC[N * 6 + 1];
+                                        sum1[7] = pC[N * 7 + 1];
+                                        sum1[8] = pC[N * 8 + 1];
+                                        sum1[9] = pC[N * 9 + 1];
+                                        sum1[10] = pC[N * 10 + 1];
+                                        sum1[11] = pC[N * 11 + 1];
+                                        sum1[12] = pC[N * 12 + 1];
+                                        sum1[13] = pC[N * 13 + 1];
+                                        sum1[14] = pC[N * 14 + 1];
+                                        sum1[15] = pC[N * 15 + 1];
 
                                         _sum0 = _mm512_loadu_ps(sum0);
                                         _sum1 = _mm512_loadu_ps(sum1);
+                                        pC += 2;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm512_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm512_set1_ps(pC[j + jj + 1]);
+                                    _sum0 = _mm512_set1_ps(pC[0]);
+                                    _sum1 = _mm512_set1_ps(pC[1]);
+                                    pC += 2;
                                 }
 
                                 __m512 _beta = _mm512_set1_ps(beta);
@@ -2567,54 +2602,59 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm512_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm512_loadu_ps(pC);
                                 }
                                 if (broadcast_type_C == 3)
                                 {
                                     if (out_elempack == 16)
                                     {
-                                        _sum0 = _mm512_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
+                                        _sum0 = _mm512_loadu_ps(pC);
+                                        pC += 16;
                                     }
                                     if (out_elempack == 8)
                                     {
-                                        __m256 _sum0_0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
+                                        __m256 _sum0_0 = _mm256_loadu_ps(pC);
+                                        __m256 _sum0_1 = _mm256_loadu_ps(pC + N * 8);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_sum0_0), _sum0_1, 1);
+                                        pC += 8;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum0_2 = _mm_loadu_ps(pC + (i + ii + 8) * N + (j + jj) * out_elempack);
-                                        __m128 _sum0_3 = _mm_loadu_ps(pC + (i + ii + 12) * N + (j + jj) * out_elempack);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum0_2 = _mm_loadu_ps(pC + N * 8);
+                                        __m128 _sum0_3 = _mm_loadu_ps(pC + N * 12);
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1)), _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_2), _sum0_3, 1), 1);
+                                        pC += 4;
                                     }
                                     if (out_elempack == 1)
                                     {
                                         float sum0[16];
-                                        sum0[0] = pC[(i + ii + 0) * N + j + jj];
-                                        sum0[1] = pC[(i + ii + 1) * N + j + jj];
-                                        sum0[2] = pC[(i + ii + 2) * N + j + jj];
-                                        sum0[3] = pC[(i + ii + 3) * N + j + jj];
-                                        sum0[4] = pC[(i + ii + 4) * N + j + jj];
-                                        sum0[5] = pC[(i + ii + 5) * N + j + jj];
-                                        sum0[6] = pC[(i + ii + 6) * N + j + jj];
-                                        sum0[7] = pC[(i + ii + 7) * N + j + jj];
-                                        sum0[8] = pC[(i + ii + 8) * N + j + jj];
-                                        sum0[9] = pC[(i + ii + 9) * N + j + jj];
-                                        sum0[10] = pC[(i + ii + 10) * N + j + jj];
-                                        sum0[11] = pC[(i + ii + 11) * N + j + jj];
-                                        sum0[12] = pC[(i + ii + 12) * N + j + jj];
-                                        sum0[13] = pC[(i + ii + 13) * N + j + jj];
-                                        sum0[14] = pC[(i + ii + 14) * N + j + jj];
-                                        sum0[15] = pC[(i + ii + 15) * N + j + jj];
+                                        sum0[0] = pC[0];
+                                        sum0[1] = pC[N];
+                                        sum0[2] = pC[N * 2];
+                                        sum0[3] = pC[N * 3];
+                                        sum0[4] = pC[N * 4];
+                                        sum0[5] = pC[N * 5];
+                                        sum0[6] = pC[N * 6];
+                                        sum0[7] = pC[N * 7];
+                                        sum0[8] = pC[N * 8];
+                                        sum0[9] = pC[N * 9];
+                                        sum0[10] = pC[N * 10];
+                                        sum0[11] = pC[N * 11];
+                                        sum0[12] = pC[N * 12];
+                                        sum0[13] = pC[N * 13];
+                                        sum0[14] = pC[N * 14];
+                                        sum0[15] = pC[N * 15];
 
                                         _sum0 = _mm512_loadu_ps(sum0);
+                                        pC += 1;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm512_set1_ps(pC[j + jj]);
+                                    _sum0 = _mm512_set1_ps(pC[0]);
+                                    pC += 1;
                                 }
 
                                 __m512 _beta = _mm512_set1_ps(beta);
@@ -2703,6 +2743,23 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                     const float* pB = pB0;
 
+                    const float* pC = C;
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            pC = pC + i + ii;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            pC = C.row((i + ii) / out_elempack) + j * out_elempack;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            pC = pC + j;
+                        }
+                    }
+
                     int jj = 0;
                     for (; jj + 11 < max_jj; jj += 12)
                     {
@@ -2753,7 +2810,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm256_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm256_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -2770,45 +2827,46 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 8)
                                     {
-                                        _sum0 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8);
-                                        _sum2 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 2);
-                                        _sum3 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 3);
-                                        _sum4 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 4);
-                                        _sum5 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 5);
-                                        _sum6 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 6);
-                                        _sum7 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 7);
-                                        _sum8 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 8);
-                                        _sum9 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 9);
-                                        _suma = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 10);
-                                        _sumb = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 11);
+                                        _sum0 = _mm256_loadu_ps(pC);
+                                        _sum1 = _mm256_loadu_ps(pC + 8);
+                                        _sum2 = _mm256_loadu_ps(pC + 8 * 2);
+                                        _sum3 = _mm256_loadu_ps(pC + 8 * 3);
+                                        _sum4 = _mm256_loadu_ps(pC + 8 * 4);
+                                        _sum5 = _mm256_loadu_ps(pC + 8 * 5);
+                                        _sum6 = _mm256_loadu_ps(pC + 8 * 6);
+                                        _sum7 = _mm256_loadu_ps(pC + 8 * 7);
+                                        _sum8 = _mm256_loadu_ps(pC + 8 * 8);
+                                        _sum9 = _mm256_loadu_ps(pC + 8 * 9);
+                                        _suma = _mm256_loadu_ps(pC + 8 * 10);
+                                        _sumb = _mm256_loadu_ps(pC + 8 * 11);
+                                        pC += 96;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum8_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 8);
-                                        __m128 _sum9_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 9);
-                                        __m128 _suma_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 10);
-                                        __m128 _sumb_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 11);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum8_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 8);
-                                        __m128 _sum9_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 9);
-                                        __m128 _suma_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 10);
-                                        __m128 _sumb_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 11);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + 4 * 2);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + 4 * 3);
+                                        __m128 _sum4_0 = _mm_loadu_ps(pC + 4 * 4);
+                                        __m128 _sum5_0 = _mm_loadu_ps(pC + 4 * 5);
+                                        __m128 _sum6_0 = _mm_loadu_ps(pC + 4 * 6);
+                                        __m128 _sum7_0 = _mm_loadu_ps(pC + 4 * 7);
+                                        __m128 _sum8_0 = _mm_loadu_ps(pC + 4 * 8);
+                                        __m128 _sum9_0 = _mm_loadu_ps(pC + 4 * 9);
+                                        __m128 _suma_0 = _mm_loadu_ps(pC + 4 * 10);
+                                        __m128 _sumb_0 = _mm_loadu_ps(pC + 4 * 11);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
+                                        __m128 _sum2_1 = _mm_loadu_ps(pC + N * 4 + 4 * 2);
+                                        __m128 _sum3_1 = _mm_loadu_ps(pC + N * 4 + 4 * 3);
+                                        __m128 _sum4_1 = _mm_loadu_ps(pC + N * 4 + 4 * 4);
+                                        __m128 _sum5_1 = _mm_loadu_ps(pC + N * 4 + 4 * 5);
+                                        __m128 _sum6_1 = _mm_loadu_ps(pC + N * 4 + 4 * 6);
+                                        __m128 _sum7_1 = _mm_loadu_ps(pC + N * 4 + 4 * 7);
+                                        __m128 _sum8_1 = _mm_loadu_ps(pC + N * 4 + 4 * 8);
+                                        __m128 _sum9_1 = _mm_loadu_ps(pC + N * 4 + 4 * 9);
+                                        __m128 _suma_1 = _mm_loadu_ps(pC + N * 4 + 4 * 10);
+                                        __m128 _sumb_1 = _mm_loadu_ps(pC + N * 4 + 4 * 11);
                                         _sum0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1);
                                         _sum1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1);
                                         _sum2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum2_1, 1);
@@ -2821,28 +2879,29 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum9 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum9_0), _sum9_1, 1);
                                         _suma = _mm256_insertf128_ps(_mm256_castps128_ps256(_suma_0), _suma_1, 1);
                                         _sumb = _mm256_insertf128_ps(_mm256_castps128_ps256(_sumb_0), _sumb_1, 1);
+                                        pC += 48;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        _sum0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        _sum1 = _mm256_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        _sum2 = _mm256_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        _sum3 = _mm256_loadu_ps(pC + (i + ii + 3) * N + j + jj);
-                                        _sum4 = _mm256_loadu_ps(pC + (i + ii + 4) * N + j + jj);
-                                        _sum5 = _mm256_loadu_ps(pC + (i + ii + 5) * N + j + jj);
-                                        _sum6 = _mm256_loadu_ps(pC + (i + ii + 6) * N + j + jj);
-                                        _sum7 = _mm256_loadu_ps(pC + (i + ii + 7) * N + j + jj);
+                                        _sum0 = _mm256_loadu_ps(pC);
+                                        _sum1 = _mm256_loadu_ps(pC + N);
+                                        _sum2 = _mm256_loadu_ps(pC + N * 2);
+                                        _sum3 = _mm256_loadu_ps(pC + N * 3);
+                                        _sum4 = _mm256_loadu_ps(pC + N * 4);
+                                        _sum5 = _mm256_loadu_ps(pC + N * 5);
+                                        _sum6 = _mm256_loadu_ps(pC + N * 6);
+                                        _sum7 = _mm256_loadu_ps(pC + N * 7);
 
                                         transpose8x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
 
-                                        __m128 _sum0_8 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj + 8);
-                                        __m128 _sum1_8 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj + 8);
-                                        __m128 _sum2_8 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj + 8);
-                                        __m128 _sum3_8 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj + 8);
-                                        __m128 _sum4_8 = _mm_loadu_ps(pC + (i + ii + 4) * N + j + jj + 8);
-                                        __m128 _sum5_8 = _mm_loadu_ps(pC + (i + ii + 5) * N + j + jj + 8);
-                                        __m128 _sum6_8 = _mm_loadu_ps(pC + (i + ii + 6) * N + j + jj + 8);
-                                        __m128 _sum7_8 = _mm_loadu_ps(pC + (i + ii + 7) * N + j + jj + 8);
+                                        __m128 _sum0_8 = _mm_loadu_ps(pC + 8);
+                                        __m128 _sum1_8 = _mm_loadu_ps(pC + N + 8);
+                                        __m128 _sum2_8 = _mm_loadu_ps(pC + N * 2 + 8);
+                                        __m128 _sum3_8 = _mm_loadu_ps(pC + N * 3 + 8);
+                                        __m128 _sum4_8 = _mm_loadu_ps(pC + N * 4 + 8);
+                                        __m128 _sum5_8 = _mm_loadu_ps(pC + N * 5 + 8);
+                                        __m128 _sum6_8 = _mm_loadu_ps(pC + N * 6 + 8);
+                                        __m128 _sum7_8 = _mm_loadu_ps(pC + N * 7 + 8);
 
                                         _MM_TRANSPOSE4_PS(_sum0_8, _sum1_8, _sum2_8, _sum3_8);
                                         _MM_TRANSPOSE4_PS(_sum4_8, _sum5_8, _sum6_8, _sum7_8);
@@ -2851,22 +2910,24 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum9 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_8), _sum5_8, 1);
                                         _suma = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_8), _sum6_8, 1);
                                         _sumb = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_8), _sum7_8, 1);
+                                        pC += 12;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm256_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm256_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm256_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm256_set1_ps(pC[j + jj + 3]);
-                                    _sum4 = _mm256_set1_ps(pC[j + jj + 4]);
-                                    _sum5 = _mm256_set1_ps(pC[j + jj + 5]);
-                                    _sum6 = _mm256_set1_ps(pC[j + jj + 6]);
-                                    _sum7 = _mm256_set1_ps(pC[j + jj + 7]);
-                                    _sum8 = _mm256_set1_ps(pC[j + jj + 8]);
-                                    _sum9 = _mm256_set1_ps(pC[j + jj + 9]);
-                                    _suma = _mm256_set1_ps(pC[j + jj + 10]);
-                                    _sumb = _mm256_set1_ps(pC[j + jj + 11]);
+                                    _sum0 = _mm256_set1_ps(pC[0]);
+                                    _sum1 = _mm256_set1_ps(pC[1]);
+                                    _sum2 = _mm256_set1_ps(pC[2]);
+                                    _sum3 = _mm256_set1_ps(pC[3]);
+                                    _sum4 = _mm256_set1_ps(pC[4]);
+                                    _sum5 = _mm256_set1_ps(pC[5]);
+                                    _sum6 = _mm256_set1_ps(pC[6]);
+                                    _sum7 = _mm256_set1_ps(pC[7]);
+                                    _sum8 = _mm256_set1_ps(pC[8]);
+                                    _sum9 = _mm256_set1_ps(pC[9]);
+                                    _suma = _mm256_set1_ps(pC[10]);
+                                    _sumb = _mm256_set1_ps(pC[11]);
+                                    pC += 12;
                                 }
 
                                 __m256 _beta = _mm256_set1_ps(beta);
@@ -3077,7 +3138,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm256_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm256_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -3090,33 +3151,34 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 8)
                                     {
-                                        _sum0 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8);
-                                        _sum2 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 2);
-                                        _sum3 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 3);
-                                        _sum4 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 4);
-                                        _sum5 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 5);
-                                        _sum6 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 6);
-                                        _sum7 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8 * 7);
+                                        _sum0 = _mm256_loadu_ps(pC);
+                                        _sum1 = _mm256_loadu_ps(pC + 8);
+                                        _sum2 = _mm256_loadu_ps(pC + 8 * 2);
+                                        _sum3 = _mm256_loadu_ps(pC + 8 * 3);
+                                        _sum4 = _mm256_loadu_ps(pC + 8 * 4);
+                                        _sum5 = _mm256_loadu_ps(pC + 8 * 5);
+                                        _sum6 = _mm256_loadu_ps(pC + 8 * 6);
+                                        _sum7 = _mm256_loadu_ps(pC + 8 * 7);
+                                        pC += 64;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4 * 7);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 2);
-                                        __m128 _sum3_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 3);
-                                        __m128 _sum4_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 4);
-                                        __m128 _sum5_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 5);
-                                        __m128 _sum6_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 6);
-                                        __m128 _sum7_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4 * 7);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + 4 * 2);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + 4 * 3);
+                                        __m128 _sum4_0 = _mm_loadu_ps(pC + 4 * 4);
+                                        __m128 _sum5_0 = _mm_loadu_ps(pC + 4 * 5);
+                                        __m128 _sum6_0 = _mm_loadu_ps(pC + 4 * 6);
+                                        __m128 _sum7_0 = _mm_loadu_ps(pC + 4 * 7);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
+                                        __m128 _sum2_1 = _mm_loadu_ps(pC + N * 4 + 4 * 2);
+                                        __m128 _sum3_1 = _mm_loadu_ps(pC + N * 4 + 4 * 3);
+                                        __m128 _sum4_1 = _mm_loadu_ps(pC + N * 4 + 4 * 4);
+                                        __m128 _sum5_1 = _mm_loadu_ps(pC + N * 4 + 4 * 5);
+                                        __m128 _sum6_1 = _mm_loadu_ps(pC + N * 4 + 4 * 6);
+                                        __m128 _sum7_1 = _mm_loadu_ps(pC + N * 4 + 4 * 7);
                                         _sum0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1);
                                         _sum1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1);
                                         _sum2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum2_1, 1);
@@ -3125,31 +3187,34 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum5 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum5_0), _sum5_1, 1);
                                         _sum6 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum6_0), _sum6_1, 1);
                                         _sum7 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum7_0), _sum7_1, 1);
+                                        pC += 32;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        _sum0 = _mm256_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        _sum1 = _mm256_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        _sum2 = _mm256_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        _sum3 = _mm256_loadu_ps(pC + (i + ii + 3) * N + j + jj);
-                                        _sum4 = _mm256_loadu_ps(pC + (i + ii + 4) * N + j + jj);
-                                        _sum5 = _mm256_loadu_ps(pC + (i + ii + 5) * N + j + jj);
-                                        _sum6 = _mm256_loadu_ps(pC + (i + ii + 6) * N + j + jj);
-                                        _sum7 = _mm256_loadu_ps(pC + (i + ii + 7) * N + j + jj);
+                                        _sum0 = _mm256_loadu_ps(pC);
+                                        _sum1 = _mm256_loadu_ps(pC + N);
+                                        _sum2 = _mm256_loadu_ps(pC + N * 2);
+                                        _sum3 = _mm256_loadu_ps(pC + N * 3);
+                                        _sum4 = _mm256_loadu_ps(pC + N * 4);
+                                        _sum5 = _mm256_loadu_ps(pC + N * 5);
+                                        _sum6 = _mm256_loadu_ps(pC + N * 6);
+                                        _sum7 = _mm256_loadu_ps(pC + N * 7);
 
                                         transpose8x8_ps(_sum0, _sum1, _sum2, _sum3, _sum4, _sum5, _sum6, _sum7);
+                                        pC += 8;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm256_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm256_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm256_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm256_set1_ps(pC[j + jj + 3]);
-                                    _sum4 = _mm256_set1_ps(pC[j + jj + 4]);
-                                    _sum5 = _mm256_set1_ps(pC[j + jj + 5]);
-                                    _sum6 = _mm256_set1_ps(pC[j + jj + 6]);
-                                    _sum7 = _mm256_set1_ps(pC[j + jj + 7]);
+                                    _sum0 = _mm256_set1_ps(pC[0]);
+                                    _sum1 = _mm256_set1_ps(pC[1]);
+                                    _sum2 = _mm256_set1_ps(pC[2]);
+                                    _sum3 = _mm256_set1_ps(pC[3]);
+                                    _sum4 = _mm256_set1_ps(pC[4]);
+                                    _sum5 = _mm256_set1_ps(pC[5]);
+                                    _sum6 = _mm256_set1_ps(pC[6]);
+                                    _sum7 = _mm256_set1_ps(pC[7]);
+                                    pC += 8;
                                 }
 
                                 __m256 _beta = _mm256_set1_ps(beta);
@@ -3295,7 +3360,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm256_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm256_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -3304,36 +3369,38 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 8)
                                     {
-                                        _sum0 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8);
-                                        _sum2 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16);
-                                        _sum3 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 24);
+                                        _sum0 = _mm256_loadu_ps(pC);
+                                        _sum1 = _mm256_loadu_ps(pC + 8);
+                                        _sum2 = _mm256_loadu_ps(pC + 16);
+                                        _sum3 = _mm256_loadu_ps(pC + 24);
+                                        pC += 32;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 8);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 12);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum2_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 8);
-                                        __m128 _sum3_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 12);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + 8);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + 12);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
+                                        __m128 _sum2_1 = _mm_loadu_ps(pC + N * 4 + 8);
+                                        __m128 _sum3_1 = _mm_loadu_ps(pC + N * 4 + 12);
                                         _sum0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1);
                                         _sum1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1);
                                         _sum2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum2_1, 1);
                                         _sum3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_0), _sum3_1, 1);
+                                        pC += 16;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        __m128 _sum2_0 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        __m128 _sum3_0 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj);
-                                        __m128 _sum4_0 = _mm_loadu_ps(pC + (i + ii + 4) * N + j + jj);
-                                        __m128 _sum5_0 = _mm_loadu_ps(pC + (i + ii + 5) * N + j + jj);
-                                        __m128 _sum6_0 = _mm_loadu_ps(pC + (i + ii + 6) * N + j + jj);
-                                        __m128 _sum7_0 = _mm_loadu_ps(pC + (i + ii + 7) * N + j + jj);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + N);
+                                        __m128 _sum2_0 = _mm_loadu_ps(pC + N * 2);
+                                        __m128 _sum3_0 = _mm_loadu_ps(pC + N * 3);
+                                        __m128 _sum4_0 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum5_0 = _mm_loadu_ps(pC + N * 5);
+                                        __m128 _sum6_0 = _mm_loadu_ps(pC + N * 6);
+                                        __m128 _sum7_0 = _mm_loadu_ps(pC + N * 7);
 
                                         _MM_TRANSPOSE4_PS(_sum0_0, _sum1_0, _sum2_0, _sum3_0);
                                         _MM_TRANSPOSE4_PS(_sum4_0, _sum5_0, _sum6_0, _sum7_0);
@@ -3342,14 +3409,16 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         _sum1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum5_0, 1);
                                         _sum2 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum2_0), _sum6_0, 1);
                                         _sum3 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum3_0), _sum7_0, 1);
+                                        pC += 4;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm256_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm256_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm256_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm256_set1_ps(pC[j + jj + 3]);
+                                    _sum0 = _mm256_set1_ps(pC[0]);
+                                    _sum1 = _mm256_set1_ps(pC[1]);
+                                    _sum2 = _mm256_set1_ps(pC[2]);
+                                    _sum3 = _mm256_set1_ps(pC[3]);
+                                    pC += 4;
                                 }
 
                                 __m256 _beta = _mm256_set1_ps(beta);
@@ -3467,54 +3536,58 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm256_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm256_loadu_ps(pC);
                                     _sum1 = _sum0;
                                 }
                                 if (broadcast_type_C == 3)
                                 {
                                     if (out_elempack == 8)
                                     {
-                                        _sum0 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8);
+                                        _sum0 = _mm256_loadu_ps(pC);
+                                        _sum1 = _mm256_loadu_ps(pC + 8);
+                                        pC += 16;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack + 4);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
-                                        __m128 _sum1_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack + 4);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum1_0 = _mm_loadu_ps(pC + 4);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
+                                        __m128 _sum1_1 = _mm_loadu_ps(pC + N * 4 + 4);
                                         _sum0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1);
                                         _sum1 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum1_0), _sum1_1, 1);
+                                        pC += 8;
                                     }
                                     if (out_elempack == 1)
                                     {
                                         float sum0[8];
                                         float sum1[8];
-                                        sum0[0] = pC[(i + ii + 0) * N + j + jj];
-                                        sum0[1] = pC[(i + ii + 1) * N + j + jj];
-                                        sum0[2] = pC[(i + ii + 2) * N + j + jj];
-                                        sum0[3] = pC[(i + ii + 3) * N + j + jj];
-                                        sum0[4] = pC[(i + ii + 4) * N + j + jj];
-                                        sum0[5] = pC[(i + ii + 5) * N + j + jj];
-                                        sum0[6] = pC[(i + ii + 6) * N + j + jj];
-                                        sum0[7] = pC[(i + ii + 7) * N + j + jj];
-                                        sum1[0] = pC[(i + ii + 0) * N + j + jj + 1];
-                                        sum1[1] = pC[(i + ii + 1) * N + j + jj + 1];
-                                        sum1[2] = pC[(i + ii + 2) * N + j + jj + 1];
-                                        sum1[3] = pC[(i + ii + 3) * N + j + jj + 1];
-                                        sum1[4] = pC[(i + ii + 4) * N + j + jj + 1];
-                                        sum1[5] = pC[(i + ii + 5) * N + j + jj + 1];
-                                        sum1[6] = pC[(i + ii + 6) * N + j + jj + 1];
-                                        sum1[7] = pC[(i + ii + 7) * N + j + jj + 1];
+                                        sum0[0] = pC[0];
+                                        sum0[1] = pC[N];
+                                        sum0[2] = pC[N * 2];
+                                        sum0[3] = pC[N * 3];
+                                        sum0[4] = pC[N * 4];
+                                        sum0[5] = pC[N * 5];
+                                        sum0[6] = pC[N * 6];
+                                        sum0[7] = pC[N * 7];
+                                        sum1[0] = pC[1];
+                                        sum1[1] = pC[N + 1];
+                                        sum1[2] = pC[N * 2 + 1];
+                                        sum1[3] = pC[N * 3 + 1];
+                                        sum1[4] = pC[N * 4 + 1];
+                                        sum1[5] = pC[N * 5 + 1];
+                                        sum1[6] = pC[N * 6 + 1];
+                                        sum1[7] = pC[N * 7 + 1];
 
                                         _sum0 = _mm256_loadu_ps(sum0);
                                         _sum1 = _mm256_loadu_ps(sum1);
+                                        pC += 2;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm256_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm256_set1_ps(pC[j + jj + 1]);
+                                    _sum0 = _mm256_set1_ps(pC[0]);
+                                    _sum1 = _mm256_set1_ps(pC[1]);
+                                    pC += 2;
                                 }
 
                                 __m256 _beta = _mm256_set1_ps(beta);
@@ -3613,38 +3686,42 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm256_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm256_loadu_ps(pC);
                                 }
                                 if (broadcast_type_C == 3)
                                 {
                                     if (out_elempack == 8)
                                     {
-                                        _sum0 = _mm256_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
+                                        _sum0 = _mm256_loadu_ps(pC);
+                                        pC += 8;
                                     }
                                     if (out_elempack == 4)
                                     {
-                                        __m128 _sum0_0 = _mm_loadu_ps(pC + (i + ii + 0) * N + (j + jj) * out_elempack);
-                                        __m128 _sum0_1 = _mm_loadu_ps(pC + (i + ii + 4) * N + (j + jj) * out_elempack);
+                                        __m128 _sum0_0 = _mm_loadu_ps(pC);
+                                        __m128 _sum0_1 = _mm_loadu_ps(pC + N * 4);
                                         _sum0 = _mm256_insertf128_ps(_mm256_castps128_ps256(_sum0_0), _sum0_1, 1);
+                                        pC += 4;
                                     }
                                     if (out_elempack == 1)
                                     {
                                         float sum0[8];
-                                        sum0[0] = pC[(i + ii) * N + j + jj];
-                                        sum0[1] = pC[(i + ii + 1) * N + j + jj];
-                                        sum0[2] = pC[(i + ii + 2) * N + j + jj];
-                                        sum0[3] = pC[(i + ii + 3) * N + j + jj];
-                                        sum0[4] = pC[(i + ii + 4) * N + j + jj];
-                                        sum0[5] = pC[(i + ii + 5) * N + j + jj];
-                                        sum0[6] = pC[(i + ii + 6) * N + j + jj];
-                                        sum0[7] = pC[(i + ii + 7) * N + j + jj];
+                                        sum0[0] = pC[0];
+                                        sum0[1] = pC[N];
+                                        sum0[2] = pC[N * 2];
+                                        sum0[3] = pC[N * 3];
+                                        sum0[4] = pC[N * 4];
+                                        sum0[5] = pC[N * 5];
+                                        sum0[6] = pC[N * 6];
+                                        sum0[7] = pC[N * 7];
 
                                         _sum0 = _mm256_loadu_ps(sum0);
+                                        pC += 1;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm256_set1_ps(pC[j + jj]);
+                                    _sum0 = _mm256_set1_ps(pC[0]);
+                                    pC += 1;
                                 }
 
                                 __m256 _beta = _mm256_set1_ps(beta);
@@ -3717,6 +3794,23 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                     const float* pB = pB0;
 
+                    const float* pC = C;
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            pC = pC + i + ii;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            pC = C.row((i + ii) / out_elempack) + j * out_elempack;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            pC = pC + j;
+                        }
+                    }
+
                     int jj = 0;
                     for (; jj + 11 < max_jj; jj += 12)
                     {
@@ -3767,7 +3861,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -3784,53 +3878,56 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 4)
                                     {
-                                        _sum0 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 4);
-                                        _sum2 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8);
-                                        _sum3 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 12);
-                                        _sum4 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16);
-                                        _sum5 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 20);
-                                        _sum6 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 24);
-                                        _sum7 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 28);
-                                        _sum8 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 32);
-                                        _sum9 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 36);
-                                        _suma = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 40);
-                                        _sumb = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 44);
+                                        _sum0 = _mm_loadu_ps(pC);
+                                        _sum1 = _mm_loadu_ps(pC + 4);
+                                        _sum2 = _mm_loadu_ps(pC + 8);
+                                        _sum3 = _mm_loadu_ps(pC + 12);
+                                        _sum4 = _mm_loadu_ps(pC + 16);
+                                        _sum5 = _mm_loadu_ps(pC + 20);
+                                        _sum6 = _mm_loadu_ps(pC + 24);
+                                        _sum7 = _mm_loadu_ps(pC + 28);
+                                        _sum8 = _mm_loadu_ps(pC + 32);
+                                        _sum9 = _mm_loadu_ps(pC + 36);
+                                        _suma = _mm_loadu_ps(pC + 40);
+                                        _sumb = _mm_loadu_ps(pC + 44);
+                                        pC += 48;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        _sum0 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        _sum1 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        _sum2 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        _sum3 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj);
-                                        _sum4 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj + 4);
-                                        _sum5 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj + 4);
-                                        _sum6 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj + 4);
-                                        _sum7 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj + 4);
-                                        _sum8 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj + 8);
-                                        _sum9 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj + 8);
-                                        _suma = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj + 8);
-                                        _sumb = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj + 8);
+                                        _sum0 = _mm_loadu_ps(pC);
+                                        _sum1 = _mm_loadu_ps(pC + N);
+                                        _sum2 = _mm_loadu_ps(pC + N * 2);
+                                        _sum3 = _mm_loadu_ps(pC + N * 3);
+                                        _sum4 = _mm_loadu_ps(pC + 4);
+                                        _sum5 = _mm_loadu_ps(pC + N + 4);
+                                        _sum6 = _mm_loadu_ps(pC + N * 2 + 4);
+                                        _sum7 = _mm_loadu_ps(pC + N * 3 + 4);
+                                        _sum8 = _mm_loadu_ps(pC + 8);
+                                        _sum9 = _mm_loadu_ps(pC + N + 8);
+                                        _suma = _mm_loadu_ps(pC + N * 2 + 8);
+                                        _sumb = _mm_loadu_ps(pC + N * 3 + 8);
 
                                         _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
                                         _MM_TRANSPOSE4_PS(_sum4, _sum5, _sum6, _sum7);
                                         _MM_TRANSPOSE4_PS(_sum8, _sum9, _suma, _sumb);
+                                        pC += 12;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm_set1_ps(pC[j + jj + 3]);
-                                    _sum4 = _mm_set1_ps(pC[j + jj + 4]);
-                                    _sum5 = _mm_set1_ps(pC[j + jj + 5]);
-                                    _sum6 = _mm_set1_ps(pC[j + jj + 6]);
-                                    _sum7 = _mm_set1_ps(pC[j + jj + 7]);
-                                    _sum8 = _mm_set1_ps(pC[j + jj + 8]);
-                                    _sum9 = _mm_set1_ps(pC[j + jj + 9]);
-                                    _suma = _mm_set1_ps(pC[j + jj + 10]);
-                                    _sumb = _mm_set1_ps(pC[j + jj + 11]);
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    _sum1 = _mm_set1_ps(pC[1]);
+                                    _sum2 = _mm_set1_ps(pC[2]);
+                                    _sum3 = _mm_set1_ps(pC[3]);
+                                    _sum4 = _mm_set1_ps(pC[4]);
+                                    _sum5 = _mm_set1_ps(pC[5]);
+                                    _sum6 = _mm_set1_ps(pC[6]);
+                                    _sum7 = _mm_set1_ps(pC[7]);
+                                    _sum8 = _mm_set1_ps(pC[8]);
+                                    _sum9 = _mm_set1_ps(pC[9]);
+                                    _suma = _mm_set1_ps(pC[10]);
+                                    _sumb = _mm_set1_ps(pC[11]);
+                                    pC += 12;
                                 }
 
                                 __m128 _beta = _mm_set1_ps(beta);
@@ -3995,7 +4092,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -4008,40 +4105,43 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 4)
                                     {
-                                        _sum0 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 4);
-                                        _sum2 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8);
-                                        _sum3 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 12);
-                                        _sum4 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 16);
-                                        _sum5 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 20);
-                                        _sum6 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 24);
-                                        _sum7 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 28);
+                                        _sum0 = _mm_loadu_ps(pC);
+                                        _sum1 = _mm_loadu_ps(pC + 4);
+                                        _sum2 = _mm_loadu_ps(pC + 8);
+                                        _sum3 = _mm_loadu_ps(pC + 12);
+                                        _sum4 = _mm_loadu_ps(pC + 16);
+                                        _sum5 = _mm_loadu_ps(pC + 20);
+                                        _sum6 = _mm_loadu_ps(pC + 24);
+                                        _sum7 = _mm_loadu_ps(pC + 28);
+                                        pC += 32;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        _sum0 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        _sum1 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        _sum2 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        _sum3 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj);
-                                        _sum4 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj + 4);
-                                        _sum5 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj + 4);
-                                        _sum6 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj + 4);
-                                        _sum7 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj + 4);
+                                        _sum0 = _mm_loadu_ps(pC);
+                                        _sum1 = _mm_loadu_ps(pC + N);
+                                        _sum2 = _mm_loadu_ps(pC + N * 2);
+                                        _sum3 = _mm_loadu_ps(pC + N * 3);
+                                        _sum4 = _mm_loadu_ps(pC + 4);
+                                        _sum5 = _mm_loadu_ps(pC + N + 4);
+                                        _sum6 = _mm_loadu_ps(pC + N * 2 + 4);
+                                        _sum7 = _mm_loadu_ps(pC + N * 3 + 4);
 
                                         _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
                                         _MM_TRANSPOSE4_PS(_sum4, _sum5, _sum6, _sum7);
+                                        pC += 8;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm_set1_ps(pC[j + jj + 3]);
-                                    _sum4 = _mm_set1_ps(pC[j + jj + 4]);
-                                    _sum5 = _mm_set1_ps(pC[j + jj + 5]);
-                                    _sum6 = _mm_set1_ps(pC[j + jj + 6]);
-                                    _sum7 = _mm_set1_ps(pC[j + jj + 7]);
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    _sum1 = _mm_set1_ps(pC[1]);
+                                    _sum2 = _mm_set1_ps(pC[2]);
+                                    _sum3 = _mm_set1_ps(pC[3]);
+                                    _sum4 = _mm_set1_ps(pC[4]);
+                                    _sum5 = _mm_set1_ps(pC[5]);
+                                    _sum6 = _mm_set1_ps(pC[6]);
+                                    _sum7 = _mm_set1_ps(pC[7]);
+                                    pC += 8;
                                 }
 
                                 __m128 _beta = _mm_set1_ps(beta);
@@ -4165,7 +4265,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm_loadu_ps(pC);
                                     _sum1 = _sum0;
                                     _sum2 = _sum0;
                                     _sum3 = _sum0;
@@ -4174,27 +4274,30 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     if (out_elempack == 4)
                                     {
-                                        _sum0 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 4);
-                                        _sum2 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 8);
-                                        _sum3 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 12);
+                                        _sum0 = _mm_loadu_ps(pC);
+                                        _sum1 = _mm_loadu_ps(pC + 4);
+                                        _sum2 = _mm_loadu_ps(pC + 8);
+                                        _sum3 = _mm_loadu_ps(pC + 12);
+                                        pC += 16;
                                     }
                                     if (out_elempack == 1)
                                     {
-                                        _sum0 = _mm_loadu_ps(pC + (i + ii + 0) * N + j + jj);
-                                        _sum1 = _mm_loadu_ps(pC + (i + ii + 1) * N + j + jj);
-                                        _sum2 = _mm_loadu_ps(pC + (i + ii + 2) * N + j + jj);
-                                        _sum3 = _mm_loadu_ps(pC + (i + ii + 3) * N + j + jj);
+                                        _sum0 = _mm_loadu_ps(pC);
+                                        _sum1 = _mm_loadu_ps(pC + N);
+                                        _sum2 = _mm_loadu_ps(pC + N * 2);
+                                        _sum3 = _mm_loadu_ps(pC + N * 3);
 
                                         _MM_TRANSPOSE4_PS(_sum0, _sum1, _sum2, _sum3);
+                                        pC += 4;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm_set1_ps(pC[j + jj + 1]);
-                                    _sum2 = _mm_set1_ps(pC[j + jj + 2]);
-                                    _sum3 = _mm_set1_ps(pC[j + jj + 3]);
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    _sum1 = _mm_set1_ps(pC[1]);
+                                    _sum2 = _mm_set1_ps(pC[2]);
+                                    _sum3 = _mm_set1_ps(pC[3]);
+                                    pC += 4;
                                 }
 
                                 __m128 _beta = _mm_set1_ps(beta);
@@ -4283,37 +4386,40 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm_loadu_ps(pC);
                                     _sum1 = _sum0;
                                 }
                                 if (broadcast_type_C == 3)
                                 {
                                     if (out_elempack == 4)
                                     {
-                                        _sum0 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
-                                        _sum1 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack + 4);
+                                        _sum0 = _mm_loadu_ps(pC);
+                                        _sum1 = _mm_loadu_ps(pC + 4);
+                                        pC += 8;
                                     }
                                     if (out_elempack == 1)
                                     {
                                         float sum0[4];
                                         float sum1[4];
-                                        sum0[0] = pC[(i + ii + 0) * N + j + jj];
-                                        sum0[1] = pC[(i + ii + 1) * N + j + jj];
-                                        sum0[2] = pC[(i + ii + 2) * N + j + jj];
-                                        sum0[3] = pC[(i + ii + 3) * N + j + jj];
-                                        sum1[0] = pC[(i + ii + 0) * N + j + jj + 1];
-                                        sum1[1] = pC[(i + ii + 1) * N + j + jj + 1];
-                                        sum1[2] = pC[(i + ii + 2) * N + j + jj + 1];
-                                        sum1[3] = pC[(i + ii + 3) * N + j + jj + 1];
+                                        sum0[0] = pC[0];
+                                        sum0[1] = pC[N];
+                                        sum0[2] = pC[N * 2];
+                                        sum0[3] = pC[N * 3];
+                                        sum1[0] = pC[1];
+                                        sum1[1] = pC[N + 1];
+                                        sum1[2] = pC[N * 2 + 1];
+                                        sum1[3] = pC[N * 3 + 1];
 
                                         _sum0 = _mm_loadu_ps(sum0);
                                         _sum1 = _mm_loadu_ps(sum1);
+                                        pC += 2;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm_set1_ps(pC[j + jj]);
-                                    _sum1 = _mm_set1_ps(pC[j + jj + 1]);
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    _sum1 = _mm_set1_ps(pC[1]);
+                                    pC += 2;
                                 }
 
                                 __m128 _beta = _mm_set1_ps(beta);
@@ -4394,28 +4500,31 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    _sum0 = _mm_loadu_ps(pC + i + ii);
+                                    _sum0 = _mm_loadu_ps(pC);
                                 }
                                 if (broadcast_type_C == 3)
                                 {
                                     if (out_elempack == 4)
                                     {
-                                        _sum0 = _mm_loadu_ps(pC + (i + ii) * N + (j + jj) * out_elempack);
+                                        _sum0 = _mm_loadu_ps(pC);
+                                        pC += 4;
                                     }
                                     if (out_elempack == 1)
                                     {
                                         float sum0[4];
-                                        sum0[0] = pC[(i + ii + 0) * N + j + jj];
-                                        sum0[1] = pC[(i + ii + 1) * N + j + jj];
-                                        sum0[2] = pC[(i + ii + 2) * N + j + jj];
-                                        sum0[3] = pC[(i + ii + 3) * N + j + jj];
+                                        sum0[0] = pC[0];
+                                        sum0[1] = pC[N];
+                                        sum0[2] = pC[N * 2];
+                                        sum0[3] = pC[N * 3];
 
                                         _sum0 = _mm_loadu_ps(sum0);
+                                        pC += 1;
                                     }
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    _sum0 = _mm_set1_ps(pC[j + jj]);
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    pC += 1;
                                 }
 
                                 __m128 _beta = _mm_set1_ps(beta);
@@ -4477,6 +4586,23 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                     float* outptr0 = top_blob.row(i + ii) + j;
 
                     const float* pB = pB0;
+
+                    const float* pC = C;
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            pC = pC + i + ii;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            pC = C.row(i + ii) + j;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            pC = pC + j;
+                        }
+                    }
 
                     int jj = 0;
 #if __SSE2__
@@ -4565,84 +4691,86 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum00 = pC[i + ii];
-                                    sum01 = pC[i + ii];
-                                    sum02 = pC[i + ii];
-                                    sum03 = pC[i + ii];
-                                    sum04 = pC[i + ii];
-                                    sum05 = pC[i + ii];
-                                    sum06 = pC[i + ii];
-                                    sum07 = pC[i + ii];
-                                    sum08 = pC[i + ii];
-                                    sum09 = pC[i + ii];
-                                    sum0a = pC[i + ii];
-                                    sum0b = pC[i + ii];
-                                    sum10 = pC[i + ii + 1];
-                                    sum11 = pC[i + ii + 1];
-                                    sum12 = pC[i + ii + 1];
-                                    sum13 = pC[i + ii + 1];
-                                    sum14 = pC[i + ii + 1];
-                                    sum15 = pC[i + ii + 1];
-                                    sum16 = pC[i + ii + 1];
-                                    sum17 = pC[i + ii + 1];
-                                    sum18 = pC[i + ii + 1];
-                                    sum19 = pC[i + ii + 1];
-                                    sum1a = pC[i + ii + 1];
-                                    sum1b = pC[i + ii + 1];
+                                    sum00 = pC[0];
+                                    sum01 = pC[0];
+                                    sum02 = pC[0];
+                                    sum03 = pC[0];
+                                    sum04 = pC[0];
+                                    sum05 = pC[0];
+                                    sum06 = pC[0];
+                                    sum07 = pC[0];
+                                    sum08 = pC[0];
+                                    sum09 = pC[0];
+                                    sum0a = pC[0];
+                                    sum0b = pC[0];
+                                    sum10 = pC[1];
+                                    sum11 = pC[1];
+                                    sum12 = pC[1];
+                                    sum13 = pC[1];
+                                    sum14 = pC[1];
+                                    sum15 = pC[1];
+                                    sum16 = pC[1];
+                                    sum17 = pC[1];
+                                    sum18 = pC[1];
+                                    sum19 = pC[1];
+                                    sum1a = pC[1];
+                                    sum1b = pC[1];
                                 }
                                 if (broadcast_type_C == 3)
                                 {
-                                    sum00 = pC[(i + ii + 0) * N + j + jj];
-                                    sum01 = pC[(i + ii + 0) * N + j + jj + 1];
-                                    sum02 = pC[(i + ii + 0) * N + j + jj + 2];
-                                    sum03 = pC[(i + ii + 0) * N + j + jj + 3];
-                                    sum04 = pC[(i + ii + 0) * N + j + jj + 4];
-                                    sum05 = pC[(i + ii + 0) * N + j + jj + 5];
-                                    sum06 = pC[(i + ii + 0) * N + j + jj + 6];
-                                    sum07 = pC[(i + ii + 0) * N + j + jj + 7];
-                                    sum08 = pC[(i + ii + 0) * N + j + jj + 8];
-                                    sum09 = pC[(i + ii + 0) * N + j + jj + 9];
-                                    sum0a = pC[(i + ii + 0) * N + j + jj + 10];
-                                    sum0b = pC[(i + ii + 0) * N + j + jj + 11];
-                                    sum10 = pC[(i + ii + 1) * N + j + jj];
-                                    sum11 = pC[(i + ii + 1) * N + j + jj + 1];
-                                    sum12 = pC[(i + ii + 1) * N + j + jj + 2];
-                                    sum13 = pC[(i + ii + 1) * N + j + jj + 3];
-                                    sum14 = pC[(i + ii + 1) * N + j + jj + 4];
-                                    sum15 = pC[(i + ii + 1) * N + j + jj + 5];
-                                    sum16 = pC[(i + ii + 1) * N + j + jj + 6];
-                                    sum17 = pC[(i + ii + 1) * N + j + jj + 7];
-                                    sum18 = pC[(i + ii + 1) * N + j + jj + 8];
-                                    sum19 = pC[(i + ii + 1) * N + j + jj + 9];
-                                    sum1a = pC[(i + ii + 1) * N + j + jj + 10];
-                                    sum1b = pC[(i + ii + 1) * N + j + jj + 11];
+                                    sum00 = pC[0];
+                                    sum01 = pC[1];
+                                    sum02 = pC[2];
+                                    sum03 = pC[3];
+                                    sum04 = pC[4];
+                                    sum05 = pC[5];
+                                    sum06 = pC[6];
+                                    sum07 = pC[7];
+                                    sum08 = pC[8];
+                                    sum09 = pC[9];
+                                    sum0a = pC[10];
+                                    sum0b = pC[11];
+                                    sum10 = pC[N];
+                                    sum11 = pC[N + 1];
+                                    sum12 = pC[N + 2];
+                                    sum13 = pC[N + 3];
+                                    sum14 = pC[N + 4];
+                                    sum15 = pC[N + 5];
+                                    sum16 = pC[N + 6];
+                                    sum17 = pC[N + 7];
+                                    sum18 = pC[N + 8];
+                                    sum19 = pC[N + 9];
+                                    sum1a = pC[N + 10];
+                                    sum1b = pC[N + 11];
+                                    pC += 12;
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    sum00 = pC[j + jj];
-                                    sum01 = pC[j + jj + 1];
-                                    sum02 = pC[j + jj + 2];
-                                    sum03 = pC[j + jj + 3];
-                                    sum04 = pC[j + jj + 4];
-                                    sum05 = pC[j + jj + 5];
-                                    sum06 = pC[j + jj + 6];
-                                    sum07 = pC[j + jj + 7];
-                                    sum08 = pC[j + jj + 8];
-                                    sum09 = pC[j + jj + 9];
-                                    sum0a = pC[j + jj + 10];
-                                    sum0b = pC[j + jj + 11];
-                                    sum10 = pC[j + jj];
-                                    sum11 = pC[j + jj + 1];
-                                    sum12 = pC[j + jj + 2];
-                                    sum13 = pC[j + jj + 3];
-                                    sum14 = pC[j + jj + 4];
-                                    sum15 = pC[j + jj + 5];
-                                    sum16 = pC[j + jj + 6];
-                                    sum17 = pC[j + jj + 7];
-                                    sum18 = pC[j + jj + 8];
-                                    sum19 = pC[j + jj + 9];
-                                    sum1a = pC[j + jj + 10];
-                                    sum1b = pC[j + jj + 11];
+                                    sum00 = pC[0];
+                                    sum01 = pC[1];
+                                    sum02 = pC[2];
+                                    sum03 = pC[3];
+                                    sum04 = pC[4];
+                                    sum05 = pC[5];
+                                    sum06 = pC[6];
+                                    sum07 = pC[7];
+                                    sum08 = pC[8];
+                                    sum09 = pC[9];
+                                    sum0a = pC[10];
+                                    sum0b = pC[11];
+                                    sum10 = pC[0];
+                                    sum11 = pC[1];
+                                    sum12 = pC[2];
+                                    sum13 = pC[3];
+                                    sum14 = pC[4];
+                                    sum15 = pC[5];
+                                    sum16 = pC[6];
+                                    sum17 = pC[7];
+                                    sum18 = pC[8];
+                                    sum19 = pC[9];
+                                    sum1a = pC[10];
+                                    sum1b = pC[11];
+                                    pC += 12;
                                 }
 
                                 sum00 *= beta;
@@ -4879,60 +5007,62 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum00 = pC[i + ii];
-                                    sum01 = pC[i + ii];
-                                    sum02 = pC[i + ii];
-                                    sum03 = pC[i + ii];
-                                    sum04 = pC[i + ii];
-                                    sum05 = pC[i + ii];
-                                    sum06 = pC[i + ii];
-                                    sum07 = pC[i + ii];
-                                    sum10 = pC[i + ii + 1];
-                                    sum11 = pC[i + ii + 1];
-                                    sum12 = pC[i + ii + 1];
-                                    sum13 = pC[i + ii + 1];
-                                    sum14 = pC[i + ii + 1];
-                                    sum15 = pC[i + ii + 1];
-                                    sum16 = pC[i + ii + 1];
-                                    sum17 = pC[i + ii + 1];
+                                    sum00 = pC[0];
+                                    sum01 = pC[0];
+                                    sum02 = pC[0];
+                                    sum03 = pC[0];
+                                    sum04 = pC[0];
+                                    sum05 = pC[0];
+                                    sum06 = pC[0];
+                                    sum07 = pC[0];
+                                    sum10 = pC[1];
+                                    sum11 = pC[1];
+                                    sum12 = pC[1];
+                                    sum13 = pC[1];
+                                    sum14 = pC[1];
+                                    sum15 = pC[1];
+                                    sum16 = pC[1];
+                                    sum17 = pC[1];
                                 }
                                 if (broadcast_type_C == 3)
                                 {
-                                    sum00 = pC[(i + ii) * N + j + jj];
-                                    sum01 = pC[(i + ii) * N + j + jj + 1];
-                                    sum02 = pC[(i + ii) * N + j + jj + 2];
-                                    sum03 = pC[(i + ii) * N + j + jj + 3];
-                                    sum04 = pC[(i + ii) * N + j + jj + 4];
-                                    sum05 = pC[(i + ii) * N + j + jj + 5];
-                                    sum06 = pC[(i + ii) * N + j + jj + 6];
-                                    sum07 = pC[(i + ii) * N + j + jj + 7];
-                                    sum10 = pC[(i + ii + 1) * N + j + jj];
-                                    sum11 = pC[(i + ii + 1) * N + j + jj + 1];
-                                    sum12 = pC[(i + ii + 1) * N + j + jj + 2];
-                                    sum13 = pC[(i + ii + 1) * N + j + jj + 3];
-                                    sum14 = pC[(i + ii + 1) * N + j + jj + 4];
-                                    sum15 = pC[(i + ii + 1) * N + j + jj + 5];
-                                    sum16 = pC[(i + ii + 1) * N + j + jj + 6];
-                                    sum17 = pC[(i + ii + 1) * N + j + jj + 7];
+                                    sum00 = pC[0];
+                                    sum01 = pC[1];
+                                    sum02 = pC[2];
+                                    sum03 = pC[3];
+                                    sum04 = pC[4];
+                                    sum05 = pC[5];
+                                    sum06 = pC[6];
+                                    sum07 = pC[7];
+                                    sum10 = pC[N];
+                                    sum11 = pC[N + 1];
+                                    sum12 = pC[N + 2];
+                                    sum13 = pC[N + 3];
+                                    sum14 = pC[N + 4];
+                                    sum15 = pC[N + 5];
+                                    sum16 = pC[N + 6];
+                                    sum17 = pC[N + 7];
+                                    pC += 8;
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    sum00 = pC[j + jj];
-                                    sum01 = pC[j + jj + 1];
-                                    sum02 = pC[j + jj + 2];
-                                    sum03 = pC[j + jj + 3];
-                                    sum04 = pC[j + jj + 4];
-                                    sum05 = pC[j + jj + 5];
-                                    sum06 = pC[j + jj + 6];
-                                    sum07 = pC[j + jj + 7];
-                                    sum10 = pC[j + jj];
-                                    sum11 = pC[j + jj + 1];
-                                    sum12 = pC[j + jj + 2];
-                                    sum13 = pC[j + jj + 3];
-                                    sum14 = pC[j + jj + 4];
-                                    sum15 = pC[j + jj + 5];
-                                    sum16 = pC[j + jj + 6];
-                                    sum17 = pC[j + jj + 7];
+                                    sum00 = pC[0];
+                                    sum01 = pC[1];
+                                    sum02 = pC[2];
+                                    sum03 = pC[3];
+                                    sum04 = pC[4];
+                                    sum05 = pC[5];
+                                    sum06 = pC[6];
+                                    sum07 = pC[7];
+                                    sum10 = pC[0];
+                                    sum11 = pC[1];
+                                    sum12 = pC[2];
+                                    sum13 = pC[3];
+                                    sum14 = pC[4];
+                                    sum15 = pC[5];
+                                    sum16 = pC[6];
+                                    sum17 = pC[7];
+                                    pC += 8;
                                 }
 
                                 sum00 *= beta;
@@ -5097,36 +5227,38 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum00 = pC[i + ii];
-                                    sum01 = pC[i + ii];
-                                    sum02 = pC[i + ii];
-                                    sum03 = pC[i + ii];
-                                    sum10 = pC[i + ii + 1];
-                                    sum11 = pC[i + ii + 1];
-                                    sum12 = pC[i + ii + 1];
-                                    sum13 = pC[i + ii + 1];
+                                    sum00 = pC[0];
+                                    sum01 = pC[0];
+                                    sum02 = pC[0];
+                                    sum03 = pC[0];
+                                    sum10 = pC[1];
+                                    sum11 = pC[1];
+                                    sum12 = pC[1];
+                                    sum13 = pC[1];
                                 }
                                 if (broadcast_type_C == 3)
                                 {
-                                    sum00 = pC[(i + ii) * N + j + jj];
-                                    sum01 = pC[(i + ii) * N + j + jj + 1];
-                                    sum02 = pC[(i + ii) * N + j + jj + 2];
-                                    sum03 = pC[(i + ii) * N + j + jj + 3];
-                                    sum10 = pC[(i + ii + 1) * N + j + jj];
-                                    sum11 = pC[(i + ii + 1) * N + j + jj + 1];
-                                    sum12 = pC[(i + ii + 1) * N + j + jj + 2];
-                                    sum13 = pC[(i + ii + 1) * N + j + jj + 3];
+                                    sum00 = pC[0];
+                                    sum01 = pC[1];
+                                    sum02 = pC[2];
+                                    sum03 = pC[3];
+                                    sum10 = pC[N];
+                                    sum11 = pC[N + 1];
+                                    sum12 = pC[N + 2];
+                                    sum13 = pC[N + 3];
+                                    pC += 4;
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    sum00 = pC[j + jj];
-                                    sum01 = pC[j + jj + 1];
-                                    sum02 = pC[j + jj + 2];
-                                    sum03 = pC[j + jj + 3];
-                                    sum10 = pC[j + jj];
-                                    sum11 = pC[j + jj + 1];
-                                    sum12 = pC[j + jj + 2];
-                                    sum13 = pC[j + jj + 3];
+                                    sum00 = pC[0];
+                                    sum01 = pC[1];
+                                    sum02 = pC[2];
+                                    sum03 = pC[3];
+                                    sum10 = pC[0];
+                                    sum11 = pC[1];
+                                    sum12 = pC[2];
+                                    sum13 = pC[3];
+                                    pC += 4;
                                 }
 
                                 sum00 *= beta;
@@ -5232,24 +5364,26 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum00 = pC[i + ii];
-                                    sum01 = pC[i + ii];
-                                    sum10 = pC[i + ii + 1];
-                                    sum11 = pC[i + ii + 1];
+                                    sum00 = pC[0];
+                                    sum01 = pC[0];
+                                    sum10 = pC[1];
+                                    sum11 = pC[1];
                                 }
                                 if (broadcast_type_C == 3)
                                 {
-                                    sum00 = pC[(i + ii) * N + j + jj];
-                                    sum01 = pC[(i + ii) * N + j + jj + 1];
-                                    sum10 = pC[(i + ii + 1) * N + j + jj];
-                                    sum11 = pC[(i + ii + 1) * N + j + jj + 1];
+                                    sum00 = pC[0];
+                                    sum01 = pC[1];
+                                    sum10 = pC[N];
+                                    sum11 = pC[N + 1];
+                                    pC += 2;
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    sum00 = pC[j + jj];
-                                    sum01 = pC[j + jj + 1];
-                                    sum10 = pC[j + jj];
-                                    sum11 = pC[j + jj + 1];
+                                    sum00 = pC[0];
+                                    sum01 = pC[1];
+                                    sum10 = pC[0];
+                                    sum11 = pC[1];
+                                    pC += 2;
                                 }
 
                                 sum00 *= beta;
@@ -5324,18 +5458,20 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum0 = pC[i + ii];
-                                    sum1 = pC[i + ii + 1];
+                                    sum0 = pC[0];
+                                    sum1 = pC[1];
                                 }
                                 if (broadcast_type_C == 3)
                                 {
-                                    sum0 = pC[(i + ii) * N + j + jj];
-                                    sum1 = pC[(i + ii + 1) * N + j + jj];
+                                    sum0 = pC[0];
+                                    sum1 = pC[N];
+                                    pC += 1;
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    sum0 = pC[j + jj];
-                                    sum1 = pC[j + jj];
+                                    sum0 = pC[0];
+                                    sum1 = pC[0];
+                                    pC += 1;
                                 }
 
                                 sum0 *= beta;
@@ -5387,6 +5523,23 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                     const float* pB = pB0;
 
+                    const float* pC = C;
+                    if (pC)
+                    {
+                        if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                        {
+                            pC = pC + i + ii;
+                        }
+                        if (broadcast_type_C == 3)
+                        {
+                            pC = C.row(i + ii) + j;
+                        }
+                        if (broadcast_type_C == 4)
+                        {
+                            pC = pC + j;
+                        }
+                    }
+
                     int jj = 0;
 #if __SSE2__
                     for (; jj + 11 < max_jj; jj += 12)
@@ -5421,7 +5574,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                             if (pC)
                             {
-                                if (broadcast_type_C == 0)
+                                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
                                     sum0 = pC[0];
                                     sum1 = pC[0];
@@ -5436,50 +5589,21 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     suma = pC[0];
                                     sumb = pC[0];
                                 }
-                                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                                if (broadcast_type_C == 3 || broadcast_type_C == 4)
                                 {
-                                    sum0 = pC[i + ii];
-                                    sum1 = pC[i + ii];
-                                    sum2 = pC[i + ii];
-                                    sum3 = pC[i + ii];
-                                    sum4 = pC[i + ii];
-                                    sum5 = pC[i + ii];
-                                    sum6 = pC[i + ii];
-                                    sum7 = pC[i + ii];
-                                    sum8 = pC[i + ii];
-                                    sum9 = pC[i + ii];
-                                    suma = pC[i + ii];
-                                    sumb = pC[i + ii];
-                                }
-                                if (broadcast_type_C == 3)
-                                {
-                                    sum0 = pC[(i + ii) * N + j + jj];
-                                    sum1 = pC[(i + ii) * N + j + jj + 1];
-                                    sum2 = pC[(i + ii) * N + j + jj + 2];
-                                    sum3 = pC[(i + ii) * N + j + jj + 3];
-                                    sum4 = pC[(i + ii) * N + j + jj + 4];
-                                    sum5 = pC[(i + ii) * N + j + jj + 5];
-                                    sum6 = pC[(i + ii) * N + j + jj + 6];
-                                    sum7 = pC[(i + ii) * N + j + jj + 7];
-                                    sum8 = pC[(i + ii) * N + j + jj + 8];
-                                    sum9 = pC[(i + ii) * N + j + jj + 9];
-                                    suma = pC[(i + ii) * N + j + jj + 10];
-                                    sumb = pC[(i + ii) * N + j + jj + 11];
-                                }
-                                if (broadcast_type_C == 4)
-                                {
-                                    sum0 = pC[j + jj];
-                                    sum1 = pC[j + jj + 1];
-                                    sum2 = pC[j + jj + 2];
-                                    sum3 = pC[j + jj + 3];
-                                    sum4 = pC[j + jj + 4];
-                                    sum5 = pC[j + jj + 5];
-                                    sum6 = pC[j + jj + 6];
-                                    sum7 = pC[j + jj + 7];
-                                    sum8 = pC[j + jj + 8];
-                                    sum9 = pC[j + jj + 9];
-                                    suma = pC[j + jj + 10];
-                                    sumb = pC[j + jj + 11];
+                                    sum0 = pC[0];
+                                    sum1 = pC[1];
+                                    sum2 = pC[2];
+                                    sum3 = pC[3];
+                                    sum4 = pC[4];
+                                    sum5 = pC[5];
+                                    sum6 = pC[6];
+                                    sum7 = pC[7];
+                                    sum8 = pC[8];
+                                    sum9 = pC[9];
+                                    suma = pC[10];
+                                    sumb = pC[11];
+                                    pC += 12;
                                 }
 
                                 sum0 *= beta;
@@ -5607,7 +5731,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                             if (pC)
                             {
-                                if (broadcast_type_C == 0)
+                                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
                                     sum0 = pC[0];
                                     sum1 = pC[0];
@@ -5618,38 +5742,17 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     sum6 = pC[0];
                                     sum7 = pC[0];
                                 }
-                                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                                if (broadcast_type_C == 3 || broadcast_type_C == 4)
                                 {
-                                    sum0 = pC[i + ii];
-                                    sum1 = pC[i + ii];
-                                    sum2 = pC[i + ii];
-                                    sum3 = pC[i + ii];
-                                    sum4 = pC[i + ii];
-                                    sum5 = pC[i + ii];
-                                    sum6 = pC[i + ii];
-                                    sum7 = pC[i + ii];
-                                }
-                                if (broadcast_type_C == 3)
-                                {
-                                    sum0 = pC[(i + ii) * N + j + jj];
-                                    sum1 = pC[(i + ii) * N + j + jj + 1];
-                                    sum2 = pC[(i + ii) * N + j + jj + 2];
-                                    sum3 = pC[(i + ii) * N + j + jj + 3];
-                                    sum4 = pC[(i + ii) * N + j + jj + 4];
-                                    sum5 = pC[(i + ii) * N + j + jj + 5];
-                                    sum6 = pC[(i + ii) * N + j + jj + 6];
-                                    sum7 = pC[(i + ii) * N + j + jj + 7];
-                                }
-                                if (broadcast_type_C == 4)
-                                {
-                                    sum0 = pC[j + jj];
-                                    sum1 = pC[j + jj + 1];
-                                    sum2 = pC[j + jj + 2];
-                                    sum3 = pC[j + jj + 3];
-                                    sum4 = pC[j + jj + 4];
-                                    sum5 = pC[j + jj + 5];
-                                    sum6 = pC[j + jj + 6];
-                                    sum7 = pC[j + jj + 7];
+                                    sum0 = pC[0];
+                                    sum1 = pC[1];
+                                    sum2 = pC[2];
+                                    sum3 = pC[3];
+                                    sum4 = pC[4];
+                                    sum5 = pC[5];
+                                    sum6 = pC[6];
+                                    sum7 = pC[7];
+                                    pC += 8;
                                 }
 
                                 sum0 *= beta;
@@ -5745,33 +5848,20 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                             if (pC)
                             {
-                                if (broadcast_type_C == 0)
+                                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
                                     sum0 = pC[0];
                                     sum1 = pC[0];
                                     sum2 = pC[0];
                                     sum3 = pC[0];
                                 }
-                                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                                if (broadcast_type_C == 3 || broadcast_type_C == 4)
                                 {
-                                    sum0 = pC[i + ii];
-                                    sum1 = pC[i + ii];
-                                    sum2 = pC[i + ii];
-                                    sum3 = pC[i + ii];
-                                }
-                                if (broadcast_type_C == 3)
-                                {
-                                    sum0 = pC[(i + ii) * N + j + jj];
-                                    sum1 = pC[(i + ii) * N + j + jj + 1];
-                                    sum2 = pC[(i + ii) * N + j + jj + 2];
-                                    sum3 = pC[(i + ii) * N + j + jj + 3];
-                                }
-                                if (broadcast_type_C == 4)
-                                {
-                                    sum0 = pC[j + jj];
-                                    sum1 = pC[j + jj + 1];
-                                    sum2 = pC[j + jj + 2];
-                                    sum3 = pC[j + jj + 3];
+                                    sum0 = pC[0];
+                                    sum1 = pC[1];
+                                    sum2 = pC[2];
+                                    sum3 = pC[3];
+                                    pC += 4;
                                 }
 
                                 sum0 *= beta;
@@ -5840,25 +5930,16 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                             if (pC)
                             {
-                                if (broadcast_type_C == 0)
+                                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
                                     sum0 = pC[0];
                                     sum1 = pC[0];
                                 }
-                                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                                if (broadcast_type_C == 3 || broadcast_type_C == 4)
                                 {
-                                    sum0 = pC[i + ii];
-                                    sum1 = pC[i + ii];
-                                }
-                                if (broadcast_type_C == 3)
-                                {
-                                    sum0 = pC[(i + ii) * N + j + jj];
-                                    sum1 = pC[(i + ii) * N + j + jj + 1];
-                                }
-                                if (broadcast_type_C == 4)
-                                {
-                                    sum0 = pC[j + jj];
-                                    sum1 = pC[j + jj + 1];
+                                    sum0 = pC[0];
+                                    sum1 = pC[1];
+                                    pC += 2;
                                 }
 
                                 sum0 *= beta;
@@ -5912,21 +5993,14 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                             if (pC)
                             {
-                                if (broadcast_type_C == 0)
+                                if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
                                     sum = pC[0];
                                 }
-                                if (broadcast_type_C == 1 || broadcast_type_C == 2)
+                                if (broadcast_type_C == 3 || broadcast_type_C == 4)
                                 {
-                                    sum = pC[i + ii];
-                                }
-                                if (broadcast_type_C == 3)
-                                {
-                                    sum = pC[(i + ii) * N + j + jj];
-                                }
-                                if (broadcast_type_C == 4)
-                                {
-                                    sum = pC[j + jj];
+                                    sum = pC[0];
+                                    pC += 1;
                                 }
 
                                 sum *= beta;
