@@ -4608,253 +4608,98 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 #if __SSE2__
                     for (; jj + 11 < max_jj; jj += 12)
                     {
-                        float sum00;
-                        float sum01;
-                        float sum02;
-                        float sum03;
-                        float sum04;
-                        float sum05;
-                        float sum06;
-                        float sum07;
-                        float sum08;
-                        float sum09;
-                        float sum0a;
-                        float sum0b;
-                        float sum10;
-                        float sum11;
-                        float sum12;
-                        float sum13;
-                        float sum14;
-                        float sum15;
-                        float sum16;
-                        float sum17;
-                        float sum18;
-                        float sum19;
-                        float sum1a;
-                        float sum1b;
+                        __m128 _sum00;
+                        __m128 _sum01;
+                        __m128 _sum02;
+                        __m128 _sum10;
+                        __m128 _sum11;
+                        __m128 _sum12;
 
                         if (k == 0)
                         {
-                            sum00 = 0.f;
-                            sum01 = 0.f;
-                            sum02 = 0.f;
-                            sum03 = 0.f;
-                            sum04 = 0.f;
-                            sum05 = 0.f;
-                            sum06 = 0.f;
-                            sum07 = 0.f;
-                            sum08 = 0.f;
-                            sum09 = 0.f;
-                            sum0a = 0.f;
-                            sum0b = 0.f;
-                            sum10 = 0.f;
-                            sum11 = 0.f;
-                            sum12 = 0.f;
-                            sum13 = 0.f;
-                            sum14 = 0.f;
-                            sum15 = 0.f;
-                            sum16 = 0.f;
-                            sum17 = 0.f;
-                            sum18 = 0.f;
-                            sum19 = 0.f;
-                            sum1a = 0.f;
-                            sum1b = 0.f;
+                            _sum00 = _mm_setzero_ps();
+                            _sum01 = _mm_setzero_ps();
+                            _sum02 = _mm_setzero_ps();
+                            _sum10 = _mm_setzero_ps();
+                            _sum11 = _mm_setzero_ps();
+                            _sum12 = _mm_setzero_ps();
 
                             if (pC)
                             {
                                 if (broadcast_type_C == 0)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[0];
-                                    sum02 = pC[0];
-                                    sum03 = pC[0];
-                                    sum04 = pC[0];
-                                    sum05 = pC[0];
-                                    sum06 = pC[0];
-                                    sum07 = pC[0];
-                                    sum08 = pC[0];
-                                    sum09 = pC[0];
-                                    sum0a = pC[0];
-                                    sum0b = pC[0];
-                                    sum10 = pC[0];
-                                    sum11 = pC[0];
-                                    sum12 = pC[0];
-                                    sum13 = pC[0];
-                                    sum14 = pC[0];
-                                    sum15 = pC[0];
-                                    sum16 = pC[0];
-                                    sum17 = pC[0];
-                                    sum18 = pC[0];
-                                    sum19 = pC[0];
-                                    sum1a = pC[0];
-                                    sum1b = pC[0];
+                                    _sum00 = _mm_set1_ps(pC[0]);
+                                    _sum01 = _mm_set1_ps(pC[0]);
+                                    _sum02 = _mm_set1_ps(pC[0]);
+                                    _sum10 = _mm_set1_ps(pC[0]);
+                                    _sum11 = _mm_set1_ps(pC[0]);
+                                    _sum12 = _mm_set1_ps(pC[0]);
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[0];
-                                    sum02 = pC[0];
-                                    sum03 = pC[0];
-                                    sum04 = pC[0];
-                                    sum05 = pC[0];
-                                    sum06 = pC[0];
-                                    sum07 = pC[0];
-                                    sum08 = pC[0];
-                                    sum09 = pC[0];
-                                    sum0a = pC[0];
-                                    sum0b = pC[0];
-                                    sum10 = pC[1];
-                                    sum11 = pC[1];
-                                    sum12 = pC[1];
-                                    sum13 = pC[1];
-                                    sum14 = pC[1];
-                                    sum15 = pC[1];
-                                    sum16 = pC[1];
-                                    sum17 = pC[1];
-                                    sum18 = pC[1];
-                                    sum19 = pC[1];
-                                    sum1a = pC[1];
-                                    sum1b = pC[1];
+                                    _sum00 = _mm_set1_ps(pC[0]);
+                                    _sum01 = _mm_set1_ps(pC[0]);
+                                    _sum02 = _mm_set1_ps(pC[0]);
+                                    _sum10 = _mm_set1_ps(pC[1]);
+                                    _sum11 = _mm_set1_ps(pC[1]);
+                                    _sum12 = _mm_set1_ps(pC[1]);
                                 }
                                 if (broadcast_type_C == 3)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[1];
-                                    sum02 = pC[2];
-                                    sum03 = pC[3];
-                                    sum04 = pC[4];
-                                    sum05 = pC[5];
-                                    sum06 = pC[6];
-                                    sum07 = pC[7];
-                                    sum08 = pC[8];
-                                    sum09 = pC[9];
-                                    sum0a = pC[10];
-                                    sum0b = pC[11];
-                                    sum10 = pC[N];
-                                    sum11 = pC[N + 1];
-                                    sum12 = pC[N + 2];
-                                    sum13 = pC[N + 3];
-                                    sum14 = pC[N + 4];
-                                    sum15 = pC[N + 5];
-                                    sum16 = pC[N + 6];
-                                    sum17 = pC[N + 7];
-                                    sum18 = pC[N + 8];
-                                    sum19 = pC[N + 9];
-                                    sum1a = pC[N + 10];
-                                    sum1b = pC[N + 11];
+                                    _sum00 = _mm_loadu_ps(pC);
+                                    _sum01 = _mm_loadu_ps(pC + 4);
+                                    _sum02 = _mm_loadu_ps(pC + 8);
+                                    _sum10 = _mm_loadu_ps(pC + N);
+                                    _sum11 = _mm_loadu_ps(pC + N + 4);
+                                    _sum12 = _mm_loadu_ps(pC + N + 8);
                                     pC += 12;
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[1];
-                                    sum02 = pC[2];
-                                    sum03 = pC[3];
-                                    sum04 = pC[4];
-                                    sum05 = pC[5];
-                                    sum06 = pC[6];
-                                    sum07 = pC[7];
-                                    sum08 = pC[8];
-                                    sum09 = pC[9];
-                                    sum0a = pC[10];
-                                    sum0b = pC[11];
-                                    sum10 = pC[0];
-                                    sum11 = pC[1];
-                                    sum12 = pC[2];
-                                    sum13 = pC[3];
-                                    sum14 = pC[4];
-                                    sum15 = pC[5];
-                                    sum16 = pC[6];
-                                    sum17 = pC[7];
-                                    sum18 = pC[8];
-                                    sum19 = pC[9];
-                                    sum1a = pC[10];
-                                    sum1b = pC[11];
+                                    _sum00 = _mm_loadu_ps(pC);
+                                    _sum01 = _mm_loadu_ps(pC + 4);
+                                    _sum02 = _mm_loadu_ps(pC + 8);
+                                    _sum10 = _sum00;
+                                    _sum11 = _sum01;
+                                    _sum12 = _sum02;
                                     pC += 12;
                                 }
 
-                                sum00 *= beta;
-                                sum01 *= beta;
-                                sum02 *= beta;
-                                sum03 *= beta;
-                                sum04 *= beta;
-                                sum05 *= beta;
-                                sum06 *= beta;
-                                sum07 *= beta;
-                                sum08 *= beta;
-                                sum09 *= beta;
-                                sum0a *= beta;
-                                sum0b *= beta;
-                                sum10 *= beta;
-                                sum11 *= beta;
-                                sum12 *= beta;
-                                sum13 *= beta;
-                                sum14 *= beta;
-                                sum15 *= beta;
-                                sum16 *= beta;
-                                sum17 *= beta;
-                                sum18 *= beta;
-                                sum19 *= beta;
-                                sum1a *= beta;
-                                sum1b *= beta;
+                                __m128 _beta = _mm_set1_ps(beta);
+                                _sum00 = _mm_mul_ps(_sum00, _beta);
+                                _sum01 = _mm_mul_ps(_sum01, _beta);
+                                _sum02 = _mm_mul_ps(_sum02, _beta);
+                                _sum10 = _mm_mul_ps(_sum10, _beta);
+                                _sum11 = _mm_mul_ps(_sum11, _beta);
+                                _sum12 = _mm_mul_ps(_sum12, _beta);
                             }
                         }
                         else
                         {
-                            sum00 = ptmp[0];
-                            sum01 = ptmp[1];
-                            sum02 = ptmp[2];
-                            sum03 = ptmp[3];
-                            sum04 = ptmp[4];
-                            sum05 = ptmp[5];
-                            sum06 = ptmp[6];
-                            sum07 = ptmp[7];
-                            sum08 = ptmp[8];
-                            sum09 = ptmp[9];
-                            sum0a = ptmp[10];
-                            sum0b = ptmp[11];
-                            sum10 = ptmp[12 + 0];
-                            sum11 = ptmp[12 + 1];
-                            sum12 = ptmp[12 + 2];
-                            sum13 = ptmp[12 + 3];
-                            sum14 = ptmp[12 + 4];
-                            sum15 = ptmp[12 + 5];
-                            sum16 = ptmp[12 + 6];
-                            sum17 = ptmp[12 + 7];
-                            sum18 = ptmp[12 + 8];
-                            sum19 = ptmp[12 + 9];
-                            sum1a = ptmp[12 + 10];
-                            sum1b = ptmp[12 + 11];
+                            _sum00 = _mm_loadu_ps(ptmp);
+                            _sum01 = _mm_loadu_ps(ptmp + 4);
+                            _sum02 = _mm_loadu_ps(ptmp + 8);
+                            _sum10 = _mm_loadu_ps(ptmp + 12);
+                            _sum11 = _mm_loadu_ps(ptmp + 16);
+                            _sum12 = _mm_loadu_ps(ptmp + 20);
                         }
 
                         const float* pA = pA0;
                         int kk = 0;
                         for (; kk < max_kk; kk += 1)
                         {
-                            sum00 += pA[0] * pB[0];
-                            sum01 += pA[0] * pB[1];
-                            sum02 += pA[0] * pB[2];
-                            sum03 += pA[0] * pB[3];
-                            sum04 += pA[0] * pB[4];
-                            sum05 += pA[0] * pB[5];
-                            sum06 += pA[0] * pB[6];
-                            sum07 += pA[0] * pB[7];
-                            sum08 += pA[0] * pB[8];
-                            sum09 += pA[0] * pB[9];
-                            sum0a += pA[0] * pB[10];
-                            sum0b += pA[0] * pB[11];
-                            sum10 += pA[1] * pB[0];
-                            sum11 += pA[1] * pB[1];
-                            sum12 += pA[1] * pB[2];
-                            sum13 += pA[1] * pB[3];
-                            sum14 += pA[1] * pB[4];
-                            sum15 += pA[1] * pB[5];
-                            sum16 += pA[1] * pB[6];
-                            sum17 += pA[1] * pB[7];
-                            sum18 += pA[1] * pB[8];
-                            sum19 += pA[1] * pB[9];
-                            sum1a += pA[1] * pB[10];
-                            sum1b += pA[1] * pB[11];
+                            __m128 _pB0 = _mm_loadu_ps(pB);
+                            __m128 _pB1 = _mm_loadu_ps(pB + 4);
+                            __m128 _pB2 = _mm_loadu_ps(pB + 8);
+
+                            __m128 _pA0 = _mm_set1_ps(pA[0]);
+                            _sum00 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum00);
+                            _sum01 = _mm_comp_fmadd_ps(_pA0, _pB1, _sum01);
+                            _sum02 = _mm_comp_fmadd_ps(_pA0, _pB2, _sum02);
+                            __m128 _pA1 = _mm_set1_ps(pA[1]);
+                            _sum10 = _mm_comp_fmadd_ps(_pA1, _pB0, _sum10);
+                            _sum11 = _mm_comp_fmadd_ps(_pA1, _pB1, _sum11);
+                            _sum12 = _mm_comp_fmadd_ps(_pA1, _pB2, _sum12);
 
                             pA += 2;
                             pB += 12;
@@ -4862,267 +4707,112 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                         if (k + TILE_K >= K)
                         {
-                            sum00 *= alpha;
-                            sum01 *= alpha;
-                            sum02 *= alpha;
-                            sum03 *= alpha;
-                            sum04 *= alpha;
-                            sum05 *= alpha;
-                            sum06 *= alpha;
-                            sum07 *= alpha;
-                            sum08 *= alpha;
-                            sum09 *= alpha;
-                            sum0a *= alpha;
-                            sum0b *= alpha;
-                            sum10 *= alpha;
-                            sum11 *= alpha;
-                            sum12 *= alpha;
-                            sum13 *= alpha;
-                            sum14 *= alpha;
-                            sum15 *= alpha;
-                            sum16 *= alpha;
-                            sum17 *= alpha;
-                            sum18 *= alpha;
-                            sum19 *= alpha;
-                            sum1a *= alpha;
-                            sum1b *= alpha;
+                            __m128 _alpha = _mm_set1_ps(alpha);
+                            _sum00 = _mm_mul_ps(_sum00, _alpha);
+                            _sum01 = _mm_mul_ps(_sum01, _alpha);
+                            _sum02 = _mm_mul_ps(_sum02, _alpha);
+                            _sum10 = _mm_mul_ps(_sum10, _alpha);
+                            _sum11 = _mm_mul_ps(_sum11, _alpha);
+                            _sum12 = _mm_mul_ps(_sum12, _alpha);
 
                             // if (out_elempack == 1)
                             {
-                                outptr0[0] = sum00;
-                                outptr0[1] = sum01;
-                                outptr0[2] = sum02;
-                                outptr0[3] = sum03;
-                                outptr0[4] = sum04;
-                                outptr0[5] = sum05;
-                                outptr0[6] = sum06;
-                                outptr0[7] = sum07;
-                                outptr0[8] = sum08;
-                                outptr0[9] = sum09;
-                                outptr0[10] = sum0a;
-                                outptr0[11] = sum0b;
-                                outptr0[N] = sum10;
-                                outptr0[N + 1] = sum11;
-                                outptr0[N + 2] = sum12;
-                                outptr0[N + 3] = sum13;
-                                outptr0[N + 4] = sum14;
-                                outptr0[N + 5] = sum15;
-                                outptr0[N + 6] = sum16;
-                                outptr0[N + 7] = sum17;
-                                outptr0[N + 8] = sum18;
-                                outptr0[N + 9] = sum19;
-                                outptr0[N + 10] = sum1a;
-                                outptr0[N + 11] = sum1b;
+                                _mm_storeu_ps(outptr0, _sum00);
+                                _mm_storeu_ps(outptr0 + 4, _sum01);
+                                _mm_storeu_ps(outptr0 + 8, _sum02);
+                                _mm_storeu_ps(outptr0 + N, _sum10);
+                                _mm_storeu_ps(outptr0 + N + 4, _sum11);
+                                _mm_storeu_ps(outptr0 + N + 8, _sum12);
                                 outptr0 += 12;
                             }
                         }
                         else
                         {
-                            ptmp[0] = sum00;
-                            ptmp[1] = sum01;
-                            ptmp[2] = sum02;
-                            ptmp[3] = sum03;
-                            ptmp[4] = sum04;
-                            ptmp[5] = sum05;
-                            ptmp[6] = sum06;
-                            ptmp[7] = sum07;
-                            ptmp[8] = sum08;
-                            ptmp[9] = sum09;
-                            ptmp[10] = sum0a;
-                            ptmp[11] = sum0b;
-                            ptmp[12 + 0] = sum10;
-                            ptmp[12 + 1] = sum11;
-                            ptmp[12 + 2] = sum12;
-                            ptmp[12 + 3] = sum13;
-                            ptmp[12 + 4] = sum14;
-                            ptmp[12 + 5] = sum15;
-                            ptmp[12 + 6] = sum16;
-                            ptmp[12 + 7] = sum17;
-                            ptmp[12 + 8] = sum18;
-                            ptmp[12 + 9] = sum19;
-                            ptmp[12 + 10] = sum1a;
-                            ptmp[12 + 11] = sum1b;
+                            _mm_storeu_ps(ptmp, _sum00);
+                            _mm_storeu_ps(ptmp + 4, _sum01);
+                            _mm_storeu_ps(ptmp + 8, _sum02);
+                            _mm_storeu_ps(ptmp + 12, _sum10);
+                            _mm_storeu_ps(ptmp + 16, _sum11);
+                            _mm_storeu_ps(ptmp + 20, _sum12);
                         }
 
                         ptmp += 24;
                     }
                     for (; jj + 7 < max_jj; jj += 8)
                     {
-                        float sum00;
-                        float sum01;
-                        float sum02;
-                        float sum03;
-                        float sum04;
-                        float sum05;
-                        float sum06;
-                        float sum07;
-                        float sum10;
-                        float sum11;
-                        float sum12;
-                        float sum13;
-                        float sum14;
-                        float sum15;
-                        float sum16;
-                        float sum17;
+                        __m128 _sum00;
+                        __m128 _sum01;
+                        __m128 _sum10;
+                        __m128 _sum11;
 
                         if (k == 0)
                         {
-                            sum00 = 0.f;
-                            sum01 = 0.f;
-                            sum02 = 0.f;
-                            sum03 = 0.f;
-                            sum04 = 0.f;
-                            sum05 = 0.f;
-                            sum06 = 0.f;
-                            sum07 = 0.f;
-                            sum10 = 0.f;
-                            sum11 = 0.f;
-                            sum12 = 0.f;
-                            sum13 = 0.f;
-                            sum14 = 0.f;
-                            sum15 = 0.f;
-                            sum16 = 0.f;
-                            sum17 = 0.f;
+                            _sum00 = _mm_setzero_ps();
+                            _sum01 = _mm_setzero_ps();
+                            _sum10 = _mm_setzero_ps();
+                            _sum11 = _mm_setzero_ps();
 
                             if (pC)
                             {
                                 if (broadcast_type_C == 0)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[0];
-                                    sum02 = pC[0];
-                                    sum03 = pC[0];
-                                    sum04 = pC[0];
-                                    sum05 = pC[0];
-                                    sum06 = pC[0];
-                                    sum07 = pC[0];
-                                    sum10 = pC[0];
-                                    sum11 = pC[0];
-                                    sum12 = pC[0];
-                                    sum13 = pC[0];
-                                    sum14 = pC[0];
-                                    sum15 = pC[0];
-                                    sum16 = pC[0];
-                                    sum17 = pC[0];
+                                    _sum00 = _mm_set1_ps(pC[0]);
+                                    _sum01 = _mm_set1_ps(pC[0]);
+                                    _sum10 = _mm_set1_ps(pC[0]);
+                                    _sum11 = _mm_set1_ps(pC[0]);
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[0];
-                                    sum02 = pC[0];
-                                    sum03 = pC[0];
-                                    sum04 = pC[0];
-                                    sum05 = pC[0];
-                                    sum06 = pC[0];
-                                    sum07 = pC[0];
-                                    sum10 = pC[1];
-                                    sum11 = pC[1];
-                                    sum12 = pC[1];
-                                    sum13 = pC[1];
-                                    sum14 = pC[1];
-                                    sum15 = pC[1];
-                                    sum16 = pC[1];
-                                    sum17 = pC[1];
+                                    _sum00 = _mm_set1_ps(pC[0]);
+                                    _sum01 = _mm_set1_ps(pC[0]);
+                                    _sum10 = _mm_set1_ps(pC[1]);
+                                    _sum11 = _mm_set1_ps(pC[1]);
                                 }
                                 if (broadcast_type_C == 3)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[1];
-                                    sum02 = pC[2];
-                                    sum03 = pC[3];
-                                    sum04 = pC[4];
-                                    sum05 = pC[5];
-                                    sum06 = pC[6];
-                                    sum07 = pC[7];
-                                    sum10 = pC[N];
-                                    sum11 = pC[N + 1];
-                                    sum12 = pC[N + 2];
-                                    sum13 = pC[N + 3];
-                                    sum14 = pC[N + 4];
-                                    sum15 = pC[N + 5];
-                                    sum16 = pC[N + 6];
-                                    sum17 = pC[N + 7];
+                                    _sum00 = _mm_loadu_ps(pC);
+                                    _sum01 = _mm_loadu_ps(pC + 4);
+                                    _sum10 = _mm_loadu_ps(pC + N);
+                                    _sum11 = _mm_loadu_ps(pC + N + 4);
                                     pC += 8;
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[1];
-                                    sum02 = pC[2];
-                                    sum03 = pC[3];
-                                    sum04 = pC[4];
-                                    sum05 = pC[5];
-                                    sum06 = pC[6];
-                                    sum07 = pC[7];
-                                    sum10 = pC[0];
-                                    sum11 = pC[1];
-                                    sum12 = pC[2];
-                                    sum13 = pC[3];
-                                    sum14 = pC[4];
-                                    sum15 = pC[5];
-                                    sum16 = pC[6];
-                                    sum17 = pC[7];
+                                    _sum00 = _mm_loadu_ps(pC);
+                                    _sum01 = _mm_loadu_ps(pC + 4);
+                                    _sum10 = _sum00;
+                                    _sum11 = _sum01;
                                     pC += 8;
                                 }
 
-                                sum00 *= beta;
-                                sum01 *= beta;
-                                sum02 *= beta;
-                                sum03 *= beta;
-                                sum04 *= beta;
-                                sum05 *= beta;
-                                sum06 *= beta;
-                                sum07 *= beta;
-                                sum10 *= beta;
-                                sum11 *= beta;
-                                sum12 *= beta;
-                                sum13 *= beta;
-                                sum14 *= beta;
-                                sum15 *= beta;
-                                sum16 *= beta;
-                                sum17 *= beta;
+                                __m128 _beta = _mm_set1_ps(beta);
+                                _sum00 = _mm_mul_ps(_sum00, _beta);
+                                _sum01 = _mm_mul_ps(_sum01, _beta);
+                                _sum10 = _mm_mul_ps(_sum10, _beta);
+                                _sum11 = _mm_mul_ps(_sum11, _beta);
                             }
                         }
                         else
                         {
-                            sum00 = ptmp[0];
-                            sum01 = ptmp[1];
-                            sum02 = ptmp[2];
-                            sum03 = ptmp[3];
-                            sum04 = ptmp[4];
-                            sum05 = ptmp[5];
-                            sum06 = ptmp[6];
-                            sum07 = ptmp[7];
-                            sum10 = ptmp[8 + 0];
-                            sum11 = ptmp[8 + 1];
-                            sum12 = ptmp[8 + 2];
-                            sum13 = ptmp[8 + 3];
-                            sum14 = ptmp[8 + 4];
-                            sum15 = ptmp[8 + 5];
-                            sum16 = ptmp[8 + 6];
-                            sum17 = ptmp[8 + 7];
+                            _sum00 = _mm_loadu_ps(ptmp);
+                            _sum01 = _mm_loadu_ps(ptmp + 4);
+                            _sum10 = _mm_loadu_ps(ptmp + 8);
+                            _sum11 = _mm_loadu_ps(ptmp + 12);
                         }
 
                         const float* pA = pA0;
                         int kk = 0;
                         for (; kk < max_kk; kk += 1)
                         {
-                            sum00 += pA[0] * pB[0];
-                            sum01 += pA[0] * pB[1];
-                            sum02 += pA[0] * pB[2];
-                            sum03 += pA[0] * pB[3];
-                            sum04 += pA[0] * pB[4];
-                            sum05 += pA[0] * pB[5];
-                            sum06 += pA[0] * pB[6];
-                            sum07 += pA[0] * pB[7];
-                            sum10 += pA[1] * pB[0];
-                            sum11 += pA[1] * pB[1];
-                            sum12 += pA[1] * pB[2];
-                            sum13 += pA[1] * pB[3];
-                            sum14 += pA[1] * pB[4];
-                            sum15 += pA[1] * pB[5];
-                            sum16 += pA[1] * pB[6];
-                            sum17 += pA[1] * pB[7];
+                            __m128 _pB0 = _mm_loadu_ps(pB);
+                            __m128 _pB1 = _mm_loadu_ps(pB + 4);
+
+                            __m128 _pA0 = _mm_set1_ps(pA[0]);
+                            _sum00 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum00);
+                            _sum01 = _mm_comp_fmadd_ps(_pA0, _pB1, _sum01);
+                            __m128 _pA1 = _mm_set1_ps(pA[1]);
+                            _sum10 = _mm_comp_fmadd_ps(_pA1, _pB0, _sum10);
+                            _sum11 = _mm_comp_fmadd_ps(_pA1, _pB1, _sum11);
 
                             pA += 2;
                             pB += 8;
@@ -5130,171 +4820,85 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                         if (k + TILE_K >= K)
                         {
-                            sum00 *= alpha;
-                            sum01 *= alpha;
-                            sum02 *= alpha;
-                            sum03 *= alpha;
-                            sum04 *= alpha;
-                            sum05 *= alpha;
-                            sum06 *= alpha;
-                            sum07 *= alpha;
-                            sum10 *= alpha;
-                            sum11 *= alpha;
-                            sum12 *= alpha;
-                            sum13 *= alpha;
-                            sum14 *= alpha;
-                            sum15 *= alpha;
-                            sum16 *= alpha;
-                            sum17 *= alpha;
+                            __m128 _alpha = _mm_set1_ps(alpha);
+                            _sum00 = _mm_mul_ps(_sum00, _alpha);
+                            _sum01 = _mm_mul_ps(_sum01, _alpha);
+                            _sum10 = _mm_mul_ps(_sum10, _alpha);
+                            _sum11 = _mm_mul_ps(_sum11, _alpha);
 
                             // if (out_elempack == 1)
                             {
-                                outptr0[0] = sum00;
-                                outptr0[1] = sum01;
-                                outptr0[2] = sum02;
-                                outptr0[3] = sum03;
-                                outptr0[4] = sum04;
-                                outptr0[5] = sum05;
-                                outptr0[6] = sum06;
-                                outptr0[7] = sum07;
-                                outptr0[N] = sum10;
-                                outptr0[N + 1] = sum11;
-                                outptr0[N + 2] = sum12;
-                                outptr0[N + 3] = sum13;
-                                outptr0[N + 4] = sum14;
-                                outptr0[N + 5] = sum15;
-                                outptr0[N + 6] = sum16;
-                                outptr0[N + 7] = sum17;
+                                _mm_storeu_ps(outptr0, _sum00);
+                                _mm_storeu_ps(outptr0 + 4, _sum01);
+                                _mm_storeu_ps(outptr0 + N, _sum10);
+                                _mm_storeu_ps(outptr0 + N + 4, _sum11);
                                 outptr0 += 8;
                             }
                         }
                         else
                         {
-                            ptmp[0] = sum00;
-                            ptmp[1] = sum01;
-                            ptmp[2] = sum02;
-                            ptmp[3] = sum03;
-                            ptmp[4] = sum04;
-                            ptmp[5] = sum05;
-                            ptmp[6] = sum06;
-                            ptmp[7] = sum07;
-                            ptmp[8 + 0] = sum10;
-                            ptmp[8 + 1] = sum11;
-                            ptmp[8 + 2] = sum12;
-                            ptmp[8 + 3] = sum13;
-                            ptmp[8 + 4] = sum14;
-                            ptmp[8 + 5] = sum15;
-                            ptmp[8 + 6] = sum16;
-                            ptmp[8 + 7] = sum17;
+                            _mm_storeu_ps(ptmp, _sum00);
+                            _mm_storeu_ps(ptmp + 4, _sum01);
+                            _mm_storeu_ps(ptmp + 8, _sum10);
+                            _mm_storeu_ps(ptmp + 12, _sum11);
                         }
 
                         ptmp += 16;
                     }
                     for (; jj + 3 < max_jj; jj += 4)
                     {
-                        float sum00;
-                        float sum01;
-                        float sum02;
-                        float sum03;
-                        float sum10;
-                        float sum11;
-                        float sum12;
-                        float sum13;
+                        __m128 _sum0;
+                        __m128 _sum1;
 
                         if (k == 0)
                         {
-                            sum00 = 0.f;
-                            sum01 = 0.f;
-                            sum02 = 0.f;
-                            sum03 = 0.f;
-                            sum10 = 0.f;
-                            sum11 = 0.f;
-                            sum12 = 0.f;
-                            sum13 = 0.f;
+                            _sum0 = _mm_setzero_ps();
+                            _sum1 = _mm_setzero_ps();
 
                             if (pC)
                             {
                                 if (broadcast_type_C == 0)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[0];
-                                    sum02 = pC[0];
-                                    sum03 = pC[0];
-                                    sum10 = pC[0];
-                                    sum11 = pC[0];
-                                    sum12 = pC[0];
-                                    sum13 = pC[0];
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    _sum1 = _mm_set1_ps(pC[0]);
                                 }
                                 if (broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[0];
-                                    sum02 = pC[0];
-                                    sum03 = pC[0];
-                                    sum10 = pC[1];
-                                    sum11 = pC[1];
-                                    sum12 = pC[1];
-                                    sum13 = pC[1];
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    _sum1 = _mm_set1_ps(pC[1]);
                                 }
                                 if (broadcast_type_C == 3)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[1];
-                                    sum02 = pC[2];
-                                    sum03 = pC[3];
-                                    sum10 = pC[N];
-                                    sum11 = pC[N + 1];
-                                    sum12 = pC[N + 2];
-                                    sum13 = pC[N + 3];
+                                    _sum0 = _mm_loadu_ps(pC);
+                                    _sum1 = _mm_loadu_ps(pC + N);
                                     pC += 4;
                                 }
                                 if (broadcast_type_C == 4)
                                 {
-                                    sum00 = pC[0];
-                                    sum01 = pC[1];
-                                    sum02 = pC[2];
-                                    sum03 = pC[3];
-                                    sum10 = pC[0];
-                                    sum11 = pC[1];
-                                    sum12 = pC[2];
-                                    sum13 = pC[3];
+                                    _sum0 = _mm_loadu_ps(pC);
+                                    _sum1 = _sum0;
                                     pC += 4;
                                 }
 
-                                sum00 *= beta;
-                                sum01 *= beta;
-                                sum02 *= beta;
-                                sum03 *= beta;
-                                sum10 *= beta;
-                                sum11 *= beta;
-                                sum12 *= beta;
-                                sum13 *= beta;
+                                __m128 _beta = _mm_set1_ps(beta);
+                                _sum0 = _mm_mul_ps(_sum0, _beta);
+                                _sum1 = _mm_mul_ps(_sum1, _beta);
                             }
                         }
                         else
                         {
-                            sum00 = ptmp[0];
-                            sum01 = ptmp[1];
-                            sum02 = ptmp[2];
-                            sum03 = ptmp[3];
-                            sum10 = ptmp[4];
-                            sum11 = ptmp[5];
-                            sum12 = ptmp[6];
-                            sum13 = ptmp[7];
+                            _sum0 = _mm_loadu_ps(ptmp);
+                            _sum1 = _mm_loadu_ps(ptmp + 4);
                         }
 
                         const float* pA = pA0;
                         int kk = 0;
                         for (; kk < max_kk; kk += 1)
                         {
-                            sum00 += pA[0] * pB[0];
-                            sum01 += pA[0] * pB[1];
-                            sum02 += pA[0] * pB[2];
-                            sum03 += pA[0] * pB[3];
-                            sum10 += pA[1] * pB[0];
-                            sum11 += pA[1] * pB[1];
-                            sum12 += pA[1] * pB[2];
-                            sum13 += pA[1] * pB[3];
+                            __m128 _pB = _mm_loadu_ps(pB);
+
+                            _sum0 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[0]), _pB, _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_mm_set1_ps(pA[1]), _pB, _sum1);
 
                             pA += 2;
                             pB += 4;
@@ -5302,38 +4906,21 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                         if (k + TILE_K >= K)
                         {
-                            sum00 *= alpha;
-                            sum01 *= alpha;
-                            sum02 *= alpha;
-                            sum03 *= alpha;
-                            sum10 *= alpha;
-                            sum11 *= alpha;
-                            sum12 *= alpha;
-                            sum13 *= alpha;
+                            __m128 _alpha = _mm_set1_ps(alpha);
+                            _sum0 = _mm_mul_ps(_sum0, _alpha);
+                            _sum1 = _mm_mul_ps(_sum1, _alpha);
 
                             // if (out_elempack == 1)
                             {
-                                outptr0[0] = sum00;
-                                outptr0[1] = sum01;
-                                outptr0[2] = sum02;
-                                outptr0[3] = sum03;
-                                outptr0[N] = sum10;
-                                outptr0[N + 1] = sum11;
-                                outptr0[N + 2] = sum12;
-                                outptr0[N + 3] = sum13;
+                                _mm_storeu_ps(outptr0, _sum0);
+                                _mm_storeu_ps(outptr0 + N, _sum1);
                                 outptr0 += 4;
                             }
                         }
                         else
                         {
-                            ptmp[0] = sum00;
-                            ptmp[1] = sum01;
-                            ptmp[2] = sum02;
-                            ptmp[3] = sum03;
-                            ptmp[4] = sum10;
-                            ptmp[5] = sum11;
-                            ptmp[6] = sum12;
-                            ptmp[7] = sum13;
+                            _mm_storeu_ps(ptmp, _sum0);
+                            _mm_storeu_ps(ptmp + 4, _sum1);
                         }
 
                         ptmp += 8;
@@ -5544,114 +5131,57 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 #if __SSE2__
                     for (; jj + 11 < max_jj; jj += 12)
                     {
-                        float sum0;
-                        float sum1;
-                        float sum2;
-                        float sum3;
-                        float sum4;
-                        float sum5;
-                        float sum6;
-                        float sum7;
-                        float sum8;
-                        float sum9;
-                        float suma;
-                        float sumb;
+                        __m128 _sum0;
+                        __m128 _sum1;
+                        __m128 _sum2;
 
                         if (k == 0)
                         {
-                            sum0 = 0.f;
-                            sum1 = 0.f;
-                            sum2 = 0.f;
-                            sum3 = 0.f;
-                            sum4 = 0.f;
-                            sum5 = 0.f;
-                            sum6 = 0.f;
-                            sum7 = 0.f;
-                            sum8 = 0.f;
-                            sum9 = 0.f;
-                            suma = 0.f;
-                            sumb = 0.f;
+                            _sum0 = _mm_setzero_ps();
+                            _sum1 = _mm_setzero_ps();
+                            _sum2 = _mm_setzero_ps();
 
                             if (pC)
                             {
                                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum0 = pC[0];
-                                    sum1 = pC[0];
-                                    sum2 = pC[0];
-                                    sum3 = pC[0];
-                                    sum4 = pC[0];
-                                    sum5 = pC[0];
-                                    sum6 = pC[0];
-                                    sum7 = pC[0];
-                                    sum8 = pC[0];
-                                    sum9 = pC[0];
-                                    suma = pC[0];
-                                    sumb = pC[0];
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    _sum1 = _mm_set1_ps(pC[0]);
+                                    _sum2 = _mm_set1_ps(pC[0]);
                                 }
                                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                                 {
-                                    sum0 = pC[0];
-                                    sum1 = pC[1];
-                                    sum2 = pC[2];
-                                    sum3 = pC[3];
-                                    sum4 = pC[4];
-                                    sum5 = pC[5];
-                                    sum6 = pC[6];
-                                    sum7 = pC[7];
-                                    sum8 = pC[8];
-                                    sum9 = pC[9];
-                                    suma = pC[10];
-                                    sumb = pC[11];
+                                    _sum0 = _mm_loadu_ps(pC);
+                                    _sum1 = _mm_loadu_ps(pC + 4);
+                                    _sum2 = _mm_loadu_ps(pC + 8);
                                     pC += 12;
                                 }
 
-                                sum0 *= beta;
-                                sum1 *= beta;
-                                sum2 *= beta;
-                                sum3 *= beta;
-                                sum4 *= beta;
-                                sum5 *= beta;
-                                sum6 *= beta;
-                                sum7 *= beta;
-                                sum8 *= beta;
-                                sum9 *= beta;
-                                suma *= beta;
-                                sumb *= beta;
+                                __m128 _beta = _mm_set1_ps(beta);
+                                _sum0 = _mm_mul_ps(_sum0, _beta);
+                                _sum1 = _mm_mul_ps(_sum1, _beta);
+                                _sum2 = _mm_mul_ps(_sum2, _beta);
                             }
                         }
                         else
                         {
-                            sum0 = ptmp[0];
-                            sum1 = ptmp[1];
-                            sum2 = ptmp[2];
-                            sum3 = ptmp[3];
-                            sum4 = ptmp[4];
-                            sum5 = ptmp[5];
-                            sum6 = ptmp[6];
-                            sum7 = ptmp[7];
-                            sum8 = ptmp[8];
-                            sum9 = ptmp[9];
-                            suma = ptmp[10];
-                            sumb = ptmp[11];
+                            _sum0 = _mm_loadu_ps(ptmp);
+                            _sum1 = _mm_loadu_ps(ptmp + 4);
+                            _sum2 = _mm_loadu_ps(ptmp + 8);
                         }
 
                         const float* pA = pA0;
                         int kk = 0;
                         for (; kk < max_kk; kk += 1)
                         {
-                            sum0 += pA[0] * pB[0];
-                            sum1 += pA[0] * pB[1];
-                            sum2 += pA[0] * pB[2];
-                            sum3 += pA[0] * pB[3];
-                            sum4 += pA[0] * pB[4];
-                            sum5 += pA[0] * pB[5];
-                            sum6 += pA[0] * pB[6];
-                            sum7 += pA[0] * pB[7];
-                            sum8 += pA[0] * pB[8];
-                            sum9 += pA[0] * pB[9];
-                            suma += pA[0] * pB[10];
-                            sumb += pA[0] * pB[11];
+                            __m128 _pB0 = _mm_loadu_ps(pB);
+                            __m128 _pB1 = _mm_loadu_ps(pB + 4);
+                            __m128 _pB2 = _mm_loadu_ps(pB + 8);
+
+                            __m128 _pA0 = _mm_set1_ps(pA[0]);
+                            _sum0 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_pA0, _pB1, _sum1);
+                            _sum2 = _mm_comp_fmadd_ps(_pA0, _pB2, _sum2);
 
                             pA += 1;
                             pB += 12;
@@ -5659,136 +5189,73 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                         if (k + TILE_K >= K)
                         {
-                            sum0 *= alpha;
-                            sum1 *= alpha;
-                            sum2 *= alpha;
-                            sum3 *= alpha;
-                            sum4 *= alpha;
-                            sum5 *= alpha;
-                            sum6 *= alpha;
-                            sum7 *= alpha;
-                            sum8 *= alpha;
-                            sum9 *= alpha;
-                            suma *= alpha;
-                            sumb *= alpha;
+                            __m128 _alpha = _mm_set1_ps(alpha);
+                            _sum0 = _mm_mul_ps(_sum0, _alpha);
+                            _sum1 = _mm_mul_ps(_sum1, _alpha);
+                            _sum2 = _mm_mul_ps(_sum2, _alpha);
 
                             // if (out_elempack == 1)
                             {
-                                outptr0[0] = sum0;
-                                outptr0[1] = sum1;
-                                outptr0[2] = sum2;
-                                outptr0[3] = sum3;
-                                outptr0[4] = sum4;
-                                outptr0[5] = sum5;
-                                outptr0[6] = sum6;
-                                outptr0[7] = sum7;
-                                outptr0[8] = sum8;
-                                outptr0[9] = sum9;
-                                outptr0[10] = suma;
-                                outptr0[11] = sumb;
+                                _mm_storeu_ps(outptr0, _sum0);
+                                _mm_storeu_ps(outptr0 + 4, _sum1);
+                                _mm_storeu_ps(outptr0 + 8, _sum2);
                                 outptr0 += 12;
                             }
                         }
                         else
                         {
-                            ptmp[0] = sum0;
-                            ptmp[1] = sum1;
-                            ptmp[2] = sum2;
-                            ptmp[3] = sum3;
-                            ptmp[4] = sum4;
-                            ptmp[5] = sum5;
-                            ptmp[6] = sum6;
-                            ptmp[7] = sum7;
-                            ptmp[8] = sum8;
-                            ptmp[9] = sum9;
-                            ptmp[10] = suma;
-                            ptmp[11] = sumb;
+                            _mm_storeu_ps(ptmp, _sum0);
+                            _mm_storeu_ps(ptmp + 4, _sum1);
+                            _mm_storeu_ps(ptmp + 8, _sum2);
                         }
 
                         ptmp += 12;
                     }
                     for (; jj + 7 < max_jj; jj += 8)
                     {
-                        float sum0;
-                        float sum1;
-                        float sum2;
-                        float sum3;
-                        float sum4;
-                        float sum5;
-                        float sum6;
-                        float sum7;
+                        __m128 _sum0;
+                        __m128 _sum1;
 
                         if (k == 0)
                         {
-                            sum0 = 0.f;
-                            sum1 = 0.f;
-                            sum2 = 0.f;
-                            sum3 = 0.f;
-                            sum4 = 0.f;
-                            sum5 = 0.f;
-                            sum6 = 0.f;
-                            sum7 = 0.f;
+                            _sum0 = _mm_setzero_ps();
+                            _sum1 = _mm_setzero_ps();
 
                             if (pC)
                             {
                                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum0 = pC[0];
-                                    sum1 = pC[0];
-                                    sum2 = pC[0];
-                                    sum3 = pC[0];
-                                    sum4 = pC[0];
-                                    sum5 = pC[0];
-                                    sum6 = pC[0];
-                                    sum7 = pC[0];
+                                    _sum0 = _mm_set1_ps(pC[0]);
+                                    _sum1 = _mm_set1_ps(pC[0]);
                                 }
                                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                                 {
-                                    sum0 = pC[0];
-                                    sum1 = pC[1];
-                                    sum2 = pC[2];
-                                    sum3 = pC[3];
-                                    sum4 = pC[4];
-                                    sum5 = pC[5];
-                                    sum6 = pC[6];
-                                    sum7 = pC[7];
+                                    _sum0 = _mm_loadu_ps(pC);
+                                    _sum1 = _mm_loadu_ps(pC + 4);
                                     pC += 8;
                                 }
 
-                                sum0 *= beta;
-                                sum1 *= beta;
-                                sum2 *= beta;
-                                sum3 *= beta;
-                                sum4 *= beta;
-                                sum5 *= beta;
-                                sum6 *= beta;
-                                sum7 *= beta;
+                                __m128 _beta = _mm_set1_ps(beta);
+                                _sum0 = _mm_mul_ps(_sum0, _beta);
+                                _sum1 = _mm_mul_ps(_sum1, _beta);
                             }
                         }
                         else
                         {
-                            sum0 = ptmp[0];
-                            sum1 = ptmp[1];
-                            sum2 = ptmp[2];
-                            sum3 = ptmp[3];
-                            sum4 = ptmp[4];
-                            sum5 = ptmp[5];
-                            sum6 = ptmp[6];
-                            sum7 = ptmp[7];
+                            _sum0 = _mm_loadu_ps(ptmp);
+                            _sum1 = _mm_loadu_ps(ptmp + 4);
                         }
 
                         const float* pA = pA0;
                         int kk = 0;
                         for (; kk < max_kk; kk += 1)
                         {
-                            sum0 += pA[0] * pB[0];
-                            sum1 += pA[0] * pB[1];
-                            sum2 += pA[0] * pB[2];
-                            sum3 += pA[0] * pB[3];
-                            sum4 += pA[0] * pB[4];
-                            sum5 += pA[0] * pB[5];
-                            sum6 += pA[0] * pB[6];
-                            sum7 += pA[0] * pB[7];
+                            __m128 _pB0 = _mm_loadu_ps(pB);
+                            __m128 _pB1 = _mm_loadu_ps(pB + 4);
+
+                            __m128 _pA0 = _mm_set1_ps(pA[0]);
+                            _sum0 = _mm_comp_fmadd_ps(_pA0, _pB0, _sum0);
+                            _sum1 = _mm_comp_fmadd_ps(_pA0, _pB1, _sum1);
 
                             pA += 1;
                             pB += 8;
@@ -5796,96 +5263,61 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                         if (k + TILE_K >= K)
                         {
-                            sum0 *= alpha;
-                            sum1 *= alpha;
-                            sum2 *= alpha;
-                            sum3 *= alpha;
-                            sum4 *= alpha;
-                            sum5 *= alpha;
-                            sum6 *= alpha;
-                            sum7 *= alpha;
+                            __m128 _alpha = _mm_set1_ps(alpha);
+                            _sum0 = _mm_mul_ps(_sum0, _alpha);
+                            _sum1 = _mm_mul_ps(_sum1, _alpha);
 
                             // if (out_elempack == 1)
                             {
-                                outptr0[0] = sum0;
-                                outptr0[1] = sum1;
-                                outptr0[2] = sum2;
-                                outptr0[3] = sum3;
-                                outptr0[4] = sum4;
-                                outptr0[5] = sum5;
-                                outptr0[6] = sum6;
-                                outptr0[7] = sum7;
+                                _mm_storeu_ps(outptr0, _sum0);
+                                _mm_storeu_ps(outptr0 + 4, _sum1);
                                 outptr0 += 8;
                             }
                         }
                         else
                         {
-                            ptmp[0] = sum0;
-                            ptmp[1] = sum1;
-                            ptmp[2] = sum2;
-                            ptmp[3] = sum3;
-                            ptmp[4] = sum4;
-                            ptmp[5] = sum5;
-                            ptmp[6] = sum6;
-                            ptmp[7] = sum7;
+                            _mm_storeu_ps(ptmp, _sum0);
+                            _mm_storeu_ps(ptmp + 4, _sum1);
                         }
 
                         ptmp += 8;
                     }
                     for (; jj + 3 < max_jj; jj += 4)
                     {
-                        float sum0;
-                        float sum1;
-                        float sum2;
-                        float sum3;
+                        __m128 _sum;
 
                         if (k == 0)
                         {
-                            sum0 = 0.f;
-                            sum1 = 0.f;
-                            sum2 = 0.f;
-                            sum3 = 0.f;
+                            _sum = _mm_setzero_ps();
 
                             if (pC)
                             {
                                 if (broadcast_type_C == 0 || broadcast_type_C == 1 || broadcast_type_C == 2)
                                 {
-                                    sum0 = pC[0];
-                                    sum1 = pC[0];
-                                    sum2 = pC[0];
-                                    sum3 = pC[0];
+                                    _sum = _mm_set1_ps(pC[0]);
                                 }
                                 if (broadcast_type_C == 3 || broadcast_type_C == 4)
                                 {
-                                    sum0 = pC[0];
-                                    sum1 = pC[1];
-                                    sum2 = pC[2];
-                                    sum3 = pC[3];
+                                    _sum = _mm_loadu_ps(pC);
                                     pC += 4;
                                 }
 
-                                sum0 *= beta;
-                                sum1 *= beta;
-                                sum2 *= beta;
-                                sum3 *= beta;
+                                __m128 _beta = _mm_set1_ps(beta);
+                                _sum = _mm_mul_ps(_sum, _beta);
                             }
                         }
                         else
                         {
-                            sum0 = ptmp[0];
-                            sum1 = ptmp[1];
-                            sum2 = ptmp[2];
-                            sum3 = ptmp[3];
+                            _sum = _mm_loadu_ps(ptmp);
                         }
 
                         const float* pA = pA0;
                         int kk = 0;
                         for (; kk < max_kk; kk += 1)
                         {
-                            sum0 += pA[0] * pB[0];
-                            sum1 += pA[0] * pB[1];
-                            sum2 += pA[0] * pB[2];
-                            sum3 += pA[0] * pB[3];
+                            __m128 _pB = _mm_loadu_ps(pB);
+
+                            _sum = _mm_comp_fmadd_ps(_mm_set1_ps(pA[0]), _pB, _sum);
 
                             pA += 1;
                             pB += 4;
@@ -5893,26 +5325,18 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                         if (k + TILE_K >= K)
                         {
-                            sum0 *= alpha;
-                            sum1 *= alpha;
-                            sum2 *= alpha;
-                            sum3 *= alpha;
+                            __m128 _alpha = _mm_set1_ps(alpha);
+                            _sum = _mm_mul_ps(_sum, _alpha);
 
                             // if (out_elempack == 1)
                             {
-                                outptr0[0] = sum0;
-                                outptr0[1] = sum1;
-                                outptr0[2] = sum2;
-                                outptr0[3] = sum3;
+                                _mm_storeu_ps(outptr0, _sum);
                                 outptr0 += 4;
                             }
                         }
                         else
                         {
-                            ptmp[0] = sum0;
-                            ptmp[1] = sum1;
-                            ptmp[2] = sum2;
-                            ptmp[3] = sum3;
+                            _mm_storeu_ps(ptmp, _sum);
                         }
 
                         ptmp += 4;
