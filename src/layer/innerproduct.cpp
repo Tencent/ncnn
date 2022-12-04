@@ -100,10 +100,11 @@ int InnerProduct::create_pipeline(const Option& opt)
 
 int InnerProduct::forward(const Mat& _bottom_blob, Mat& top_blob, const Option& opt) const
 {
-  Mat bottom_blob = _bottom_blob;
-  if(bottom_blob.dims == 3 && bottom_blob.h == 1) {
-    bottom_blob = bottom_blob.reshape(bottom_blob.w, bottom_blob.c);
-  }
+    Mat bottom_blob = _bottom_blob;
+    if (bottom_blob.dims == 3 && bottom_blob.h == 1)
+    {
+        bottom_blob = bottom_blob.reshape(bottom_blob.w, bottom_blob.c);
+    }
 
 #if NCNN_INT8
     if (opt.use_int8_inference && weight_data.elemsize == (size_t)1u)

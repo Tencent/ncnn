@@ -2653,8 +2653,8 @@ int BinaryOp_x86::forward(const std::vector<Mat>& bottom_blobs, std::vector<Mat>
     Mat bottom_blob1 = bottom_blobs[1];
     if (bottom_blob1.dims == 2 && bottom_blob1.w == 1)
     {
-      // fix for torch.mean() with keepdim=True for 2-D tensors
-      bottom_blob1 = bottom_blob1.reshape(bottom_blob1.h);
+        // fix for torch.mean() with keepdim=True for 2-D tensors
+        bottom_blob1 = bottom_blob1.reshape(bottom_blob1.h);
     }
     Mat& top_blob = top_blobs[0];
 
