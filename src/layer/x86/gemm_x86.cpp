@@ -42,11 +42,11 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
     // TODO do not hardcode
     int TILE_M = 16 * 16; // 256
     int TILE_N = 12 * 20; // 240
-    int TILE_K = 256;
+    int TILE_K = 16 * 16;
 
     TILE_M = std::min(TILE_M, (M / ((M + TILE_M - 1) / TILE_M) + 15) / 16 * 16);
     TILE_N = std::min(TILE_N, (N / ((N + TILE_N - 1) / TILE_N) + 11) / 12 * 12);
-    TILE_K = std::min(TILE_K, K / ((K + TILE_K - 1) / TILE_K));
+    TILE_K = std::min(TILE_K, (K / ((K + TILE_K - 1) / TILE_K) + 15) / 16 * 16);
 
     // NCNN_LOGE("TILE M/N/K = %d %d %d", TILE_M, TILE_N, TILE_K);
 
@@ -145,81 +145,634 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 #if __AVX512F__
                         for (; ii + 15 < max_ii; ii += 16)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+                            if (elempack == 16)
                             {
-                                const float* p0 = A.row((k + kk) / elempack) + (i + ii) * elempack + (k + kk) % elempack;
+                                const float* p0 = A.row(k / 16) + (i + ii) * 16;
 
-                                pp[0] = p0[0];
-                                pp[1] = p0[1 * elempack];
-                                pp[2] = p0[2 * elempack];
-                                pp[3] = p0[3 * elempack];
-                                pp[4] = p0[4 * elempack];
-                                pp[5] = p0[5 * elempack];
-                                pp[6] = p0[6 * elempack];
-                                pp[7] = p0[7 * elempack];
-                                pp[8] = p0[8 * elempack];
-                                pp[9] = p0[9 * elempack];
-                                pp[10] = p0[10 * elempack];
-                                pp[11] = p0[11 * elempack];
-                                pp[12] = p0[12 * elempack];
-                                pp[13] = p0[13 * elempack];
-                                pp[14] = p0[14 * elempack];
-                                pp[15] = p0[15 * elempack];
-                                pp += 16;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p0 + 16 * 1);
+                                    __m512 _r2 = _mm512_loadu_ps(p0 + 16 * 2);
+                                    __m512 _r3 = _mm512_loadu_ps(p0 + 16 * 3);
+                                    __m512 _r4 = _mm512_loadu_ps(p0 + 16 * 4);
+                                    __m512 _r5 = _mm512_loadu_ps(p0 + 16 * 5);
+                                    __m512 _r6 = _mm512_loadu_ps(p0 + 16 * 6);
+                                    __m512 _r7 = _mm512_loadu_ps(p0 + 16 * 7);
+                                    __m512 _r8 = _mm512_loadu_ps(p0 + 16 * 8);
+                                    __m512 _r9 = _mm512_loadu_ps(p0 + 16 * 9);
+                                    __m512 _ra = _mm512_loadu_ps(p0 + 16 * 10);
+                                    __m512 _rb = _mm512_loadu_ps(p0 + 16 * 11);
+                                    __m512 _rc = _mm512_loadu_ps(p0 + 16 * 12);
+                                    __m512 _rd = _mm512_loadu_ps(p0 + 16 * 13);
+                                    __m512 _re = _mm512_loadu_ps(p0 + 16 * 14);
+                                    __m512 _rf = _mm512_loadu_ps(p0 + 16 * 15);
+                                    transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16 * 1, _r1);
+                                    _mm512_storeu_ps(pp + 16 * 2, _r2);
+                                    _mm512_storeu_ps(pp + 16 * 3, _r3);
+                                    _mm512_storeu_ps(pp + 16 * 4, _r4);
+                                    _mm512_storeu_ps(pp + 16 * 5, _r5);
+                                    _mm512_storeu_ps(pp + 16 * 6, _r6);
+                                    _mm512_storeu_ps(pp + 16 * 7, _r7);
+                                    _mm512_storeu_ps(pp + 16 * 8, _r8);
+                                    _mm512_storeu_ps(pp + 16 * 9, _r9);
+                                    _mm512_storeu_ps(pp + 16 * 10, _ra);
+                                    _mm512_storeu_ps(pp + 16 * 11, _rb);
+                                    _mm512_storeu_ps(pp + 16 * 12, _rc);
+                                    _mm512_storeu_ps(pp + 16 * 13, _rd);
+                                    _mm512_storeu_ps(pp + 16 * 14, _re);
+                                    _mm512_storeu_ps(pp + 16 * 15, _rf);
+                                    pp += 256;
+                                    p0 += M * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[16 * 1];
+                                    pp[2] = p0[16 * 2];
+                                    pp[3] = p0[16 * 3];
+                                    pp[4] = p0[16 * 4];
+                                    pp[5] = p0[16 * 5];
+                                    pp[6] = p0[16 * 6];
+                                    pp[7] = p0[16 * 7];
+                                    pp[8] = p0[16 * 8];
+                                    pp[9] = p0[16 * 9];
+                                    pp[10] = p0[16 * 10];
+                                    pp[11] = p0[16 * 11];
+                                    pp[12] = p0[16 * 12];
+                                    pp[13] = p0[16 * 13];
+                                    pp[14] = p0[16 * 14];
+                                    pp[15] = p0[16 * 15];
+                                    pp += 16;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 8)
+                            {
+                                const float* p0 = A.row(k / 8) + (i + ii) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p0 + 8 * 1);
+                                    __m256 _r2 = _mm256_loadu_ps(p0 + 8 * 2);
+                                    __m256 _r3 = _mm256_loadu_ps(p0 + 8 * 3);
+                                    __m256 _r4 = _mm256_loadu_ps(p0 + 8 * 4);
+                                    __m256 _r5 = _mm256_loadu_ps(p0 + 8 * 5);
+                                    __m256 _r6 = _mm256_loadu_ps(p0 + 8 * 6);
+                                    __m256 _r7 = _mm256_loadu_ps(p0 + 8 * 7);
+                                    __m256 _r8 = _mm256_loadu_ps(p0 + 8 * 8);
+                                    __m256 _r9 = _mm256_loadu_ps(p0 + 8 * 9);
+                                    __m256 _ra = _mm256_loadu_ps(p0 + 8 * 10);
+                                    __m256 _rb = _mm256_loadu_ps(p0 + 8 * 11);
+                                    __m256 _rc = _mm256_loadu_ps(p0 + 8 * 12);
+                                    __m256 _rd = _mm256_loadu_ps(p0 + 8 * 13);
+                                    __m256 _re = _mm256_loadu_ps(p0 + 8 * 14);
+                                    __m256 _rf = _mm256_loadu_ps(p0 + 8 * 15);
+
+                                    transpose8x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                                    __m512 _rr0 = _mm512_insertf32x8(_mm512_castps256_ps512(_r0), _r1, 1);
+                                    __m512 _rr1 = _mm512_insertf32x8(_mm512_castps256_ps512(_r2), _r3, 1);
+                                    __m512 _rr2 = _mm512_insertf32x8(_mm512_castps256_ps512(_r4), _r5, 1);
+                                    __m512 _rr3 = _mm512_insertf32x8(_mm512_castps256_ps512(_r6), _r7, 1);
+                                    __m512 _rr4 = _mm512_insertf32x8(_mm512_castps256_ps512(_r8), _r9, 1);
+                                    __m512 _rr5 = _mm512_insertf32x8(_mm512_castps256_ps512(_ra), _rb, 1);
+                                    __m512 _rr6 = _mm512_insertf32x8(_mm512_castps256_ps512(_rc), _rd, 1);
+                                    __m512 _rr7 = _mm512_insertf32x8(_mm512_castps256_ps512(_re), _rf, 1);
+
+                                    _mm512_storeu_ps(pp, _rr0);
+                                    _mm512_storeu_ps(pp + 16 * 1, _rr1);
+                                    _mm512_storeu_ps(pp + 16 * 2, _rr2);
+                                    _mm512_storeu_ps(pp + 16 * 3, _rr3);
+                                    _mm512_storeu_ps(pp + 16 * 4, _rr4);
+                                    _mm512_storeu_ps(pp + 16 * 5, _rr5);
+                                    _mm512_storeu_ps(pp + 16 * 6, _rr6);
+                                    _mm512_storeu_ps(pp + 16 * 7, _rr7);
+                                    pp += 128;
+                                    p0 += M * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[8 * 1];
+                                    pp[2] = p0[8 * 2];
+                                    pp[3] = p0[8 * 3];
+                                    pp[4] = p0[8 * 4];
+                                    pp[5] = p0[8 * 5];
+                                    pp[6] = p0[8 * 6];
+                                    pp[7] = p0[8 * 7];
+                                    pp[8] = p0[8 * 8];
+                                    pp[9] = p0[8 * 9];
+                                    pp[10] = p0[8 * 10];
+                                    pp[11] = p0[8 * 11];
+                                    pp[12] = p0[8 * 12];
+                                    pp[13] = p0[8 * 13];
+                                    pp[14] = p0[8 * 14];
+                                    pp[15] = p0[8 * 15];
+                                    pp += 16;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 4)
+                            {
+                                const float* p0 = A.row(k / 4) + (i + ii) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p0 + 4 * 1);
+                                    __m128 _r2 = _mm_loadu_ps(p0 + 4 * 2);
+                                    __m128 _r3 = _mm_loadu_ps(p0 + 4 * 3);
+                                    __m128 _r4 = _mm_loadu_ps(p0 + 4 * 4);
+                                    __m128 _r5 = _mm_loadu_ps(p0 + 4 * 5);
+                                    __m128 _r6 = _mm_loadu_ps(p0 + 4 * 6);
+                                    __m128 _r7 = _mm_loadu_ps(p0 + 4 * 7);
+                                    __m128 _r8 = _mm_loadu_ps(p0 + 4 * 8);
+                                    __m128 _r9 = _mm_loadu_ps(p0 + 4 * 9);
+                                    __m128 _ra = _mm_loadu_ps(p0 + 4 * 10);
+                                    __m128 _rb = _mm_loadu_ps(p0 + 4 * 11);
+                                    __m128 _rc = _mm_loadu_ps(p0 + 4 * 12);
+                                    __m128 _rd = _mm_loadu_ps(p0 + 4 * 13);
+                                    __m128 _re = _mm_loadu_ps(p0 + 4 * 14);
+                                    __m128 _rf = _mm_loadu_ps(p0 + 4 * 15);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                                    _MM_TRANSPOSE4_PS(_rc, _rd, _re, _rf);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4 * 1, _r4);
+                                    _mm_storeu_ps(pp + 4 * 2, _r8);
+                                    _mm_storeu_ps(pp + 4 * 3, _rc);
+                                    _mm_storeu_ps(pp + 4 * 4, _r1);
+                                    _mm_storeu_ps(pp + 4 * 5, _r5);
+                                    _mm_storeu_ps(pp + 4 * 6, _r9);
+                                    _mm_storeu_ps(pp + 4 * 7, _rd);
+                                    _mm_storeu_ps(pp + 4 * 8, _r2);
+                                    _mm_storeu_ps(pp + 4 * 9, _r6);
+                                    _mm_storeu_ps(pp + 4 * 10, _ra);
+                                    _mm_storeu_ps(pp + 4 * 11, _re);
+                                    _mm_storeu_ps(pp + 4 * 12, _r3);
+                                    _mm_storeu_ps(pp + 4 * 13, _r7);
+                                    _mm_storeu_ps(pp + 4 * 14, _rb);
+                                    _mm_storeu_ps(pp + 4 * 15, _rf);
+                                    pp += 64;
+                                    p0 += M * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[4 * 1];
+                                    pp[2] = p0[4 * 2];
+                                    pp[3] = p0[4 * 3];
+                                    pp[4] = p0[4 * 4];
+                                    pp[5] = p0[4 * 5];
+                                    pp[6] = p0[4 * 6];
+                                    pp[7] = p0[4 * 7];
+                                    pp[8] = p0[4 * 8];
+                                    pp[9] = p0[4 * 9];
+                                    pp[10] = p0[4 * 10];
+                                    pp[11] = p0[4 * 11];
+                                    pp[12] = p0[4 * 12];
+                                    pp[13] = p0[4 * 13];
+                                    pp[14] = p0[4 * 14];
+                                    pp[15] = p0[4 * 15];
+                                    pp += 16;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 1)
+                            {
+                                const float* p0 = A.row(k) + (i + ii);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    _mm512_storeu_ps(pp, _mm512_loadu_ps(p0));
+                                    pp += 16;
+                                    p0 += M;
+                                }
                             }
                         }
 #endif // __AVX512F__
                         for (; ii + 7 < max_ii; ii += 8)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = A.row((k + kk) / elempack) + (i + ii) * elempack + (k + kk) % elempack;
+                                const float* p0 = A.row(k / 16) + (i + ii) * 16;
 
-                                pp[0] = p0[0];
-                                pp[1] = p0[1 * elempack];
-                                pp[2] = p0[2 * elempack];
-                                pp[3] = p0[3 * elempack];
-                                pp[4] = p0[4 * elempack];
-                                pp[5] = p0[5 * elempack];
-                                pp[6] = p0[6 * elempack];
-                                pp[7] = p0[7 * elempack];
-                                pp += 8;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p0 + 16 * 1);
+                                    __m512 _r2 = _mm512_loadu_ps(p0 + 16 * 2);
+                                    __m512 _r3 = _mm512_loadu_ps(p0 + 16 * 3);
+                                    __m512 _r4 = _mm512_loadu_ps(p0 + 16 * 4);
+                                    __m512 _r5 = _mm512_loadu_ps(p0 + 16 * 5);
+                                    __m512 _r6 = _mm512_loadu_ps(p0 + 16 * 6);
+                                    __m512 _r7 = _mm512_loadu_ps(p0 + 16 * 7);
+                                    transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16 * 1, _r1);
+                                    _mm512_storeu_ps(pp + 16 * 2, _r2);
+                                    _mm512_storeu_ps(pp + 16 * 3, _r3);
+                                    _mm512_storeu_ps(pp + 16 * 4, _r4);
+                                    _mm512_storeu_ps(pp + 16 * 5, _r5);
+                                    _mm512_storeu_ps(pp + 16 * 6, _r6);
+                                    _mm512_storeu_ps(pp + 16 * 7, _r7);
+                                    pp += 128;
+                                    p0 += M * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[16 * 1];
+                                    pp[2] = p0[16 * 2];
+                                    pp[3] = p0[16 * 3];
+                                    pp[4] = p0[16 * 4];
+                                    pp[5] = p0[16 * 5];
+                                    pp[6] = p0[16 * 6];
+                                    pp[7] = p0[16 * 7];
+                                    pp += 8;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = A.row(k / 8) + (i + ii) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p0 + 8 * 1);
+                                    __m256 _r2 = _mm256_loadu_ps(p0 + 8 * 2);
+                                    __m256 _r3 = _mm256_loadu_ps(p0 + 8 * 3);
+                                    __m256 _r4 = _mm256_loadu_ps(p0 + 8 * 4);
+                                    __m256 _r5 = _mm256_loadu_ps(p0 + 8 * 5);
+                                    __m256 _r6 = _mm256_loadu_ps(p0 + 8 * 6);
+                                    __m256 _r7 = _mm256_loadu_ps(p0 + 8 * 7);
+                                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8 * 1, _r1);
+                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
+                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
+                                    _mm256_storeu_ps(pp + 8 * 4, _r4);
+                                    _mm256_storeu_ps(pp + 8 * 5, _r5);
+                                    _mm256_storeu_ps(pp + 8 * 6, _r6);
+                                    _mm256_storeu_ps(pp + 8 * 7, _r7);
+                                    pp += 64;
+                                    p0 += M * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[8 * 1];
+                                    pp[2] = p0[8 * 2];
+                                    pp[3] = p0[8 * 3];
+                                    pp[4] = p0[8 * 4];
+                                    pp[5] = p0[8 * 5];
+                                    pp[6] = p0[8 * 6];
+                                    pp[7] = p0[8 * 7];
+                                    pp += 8;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 4)
+                            {
+                                const float* p0 = A.row(k / 4) + (i + ii) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p0 + 4 * 1);
+                                    __m128 _r2 = _mm_loadu_ps(p0 + 4 * 2);
+                                    __m128 _r3 = _mm_loadu_ps(p0 + 4 * 3);
+                                    __m128 _r4 = _mm_loadu_ps(p0 + 4 * 4);
+                                    __m128 _r5 = _mm_loadu_ps(p0 + 4 * 5);
+                                    __m128 _r6 = _mm_loadu_ps(p0 + 4 * 6);
+                                    __m128 _r7 = _mm_loadu_ps(p0 + 4 * 7);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4 * 1, _r4);
+                                    _mm_storeu_ps(pp + 4 * 2, _r1);
+                                    _mm_storeu_ps(pp + 4 * 3, _r5);
+                                    _mm_storeu_ps(pp + 4 * 4, _r2);
+                                    _mm_storeu_ps(pp + 4 * 5, _r6);
+                                    _mm_storeu_ps(pp + 4 * 6, _r3);
+                                    _mm_storeu_ps(pp + 4 * 7, _r7);
+                                    pp += 32;
+                                    p0 += M * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[4 * 1];
+                                    pp[2] = p0[4 * 2];
+                                    pp[3] = p0[4 * 3];
+                                    pp[4] = p0[4 * 4];
+                                    pp[5] = p0[4 * 5];
+                                    pp[6] = p0[4 * 6];
+                                    pp[7] = p0[4 * 7];
+                                    pp += 8;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 1)
+                            {
+                                const float* p0 = A.row(k) + (i + ii);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
+                                    pp += 8;
+                                    p0 += M;
+                                }
                             }
                         }
 #endif // __AVX__
                         for (; ii + 3 < max_ii; ii += 4)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __AVX__
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = A.row((k + kk) / elempack) + (i + ii) * elempack + (k + kk) % elempack;
+                                const float* p0 = A.row(k / 16) + (i + ii) * 16;
 
-                                pp[0] = p0[0];
-                                pp[1] = p0[1 * elempack];
-                                pp[2] = p0[2 * elempack];
-                                pp[3] = p0[3 * elempack];
-                                pp += 4;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p0 + 16 * 1);
+                                    __m512 _r2 = _mm512_loadu_ps(p0 + 16 * 2);
+                                    __m512 _r3 = _mm512_loadu_ps(p0 + 16 * 3);
+                                    transpose16x4_ps(_r0, _r1, _r2, _r3);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16 * 1, _r1);
+                                    _mm512_storeu_ps(pp + 16 * 2, _r2);
+                                    _mm512_storeu_ps(pp + 16 * 3, _r3);
+                                    pp += 64;
+                                    p0 += M * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[16 * 1];
+                                    pp[2] = p0[16 * 2];
+                                    pp[3] = p0[16 * 3];
+                                    pp += 4;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = A.row(k / 8) + (i + ii) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p0 + 8 * 1);
+                                    __m256 _r2 = _mm256_loadu_ps(p0 + 8 * 2);
+                                    __m256 _r3 = _mm256_loadu_ps(p0 + 8 * 3);
+                                    transpose8x4_ps(_r0, _r1, _r2, _r3);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8 * 1, _r1);
+                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
+                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
+                                    pp += 32;
+                                    p0 += M * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[8 * 1];
+                                    pp[2] = p0[8 * 2];
+                                    pp[3] = p0[8 * 3];
+                                    pp += 4;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX__
+                            if (elempack == 4)
+                            {
+                                const float* p0 = A.row(k / 4) + (i + ii) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p0 + 4 * 1);
+                                    __m128 _r2 = _mm_loadu_ps(p0 + 4 * 2);
+                                    __m128 _r3 = _mm_loadu_ps(p0 + 4 * 3);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4 * 1, _r1);
+                                    _mm_storeu_ps(pp + 4 * 2, _r2);
+                                    _mm_storeu_ps(pp + 4 * 3, _r3);
+                                    pp += 16;
+                                    p0 += M * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[4 * 1];
+                                    pp[2] = p0[4 * 2];
+                                    pp[3] = p0[4 * 3];
+                                    pp += 4;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 1)
+                            {
+                                const float* p0 = A.row(k) + (i + ii);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                                    pp += 4;
+                                    p0 += M;
+                                }
                             }
                         }
 #endif // __SSE2__
                         for (; ii + 1 < max_ii; ii += 2)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = A.row((k + kk) / elempack) + (i + ii) * elempack + (k + kk) % elempack;
+                                const float* p0 = A.row(k / 16) + (i + ii) * 16;
 
-                                pp[0] = p0[0];
-                                pp[1] = p0[1 * elempack];
-                                pp += 2;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p0 + 16);
+                                    transpose16x2_ps(_r0, _r1);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16, _r1);
+                                    pp += 32;
+                                    p0 += M * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[16];
+                                    pp += 2;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = A.row(k / 8) + (i + ii) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p0 + 8);
+                                    transpose8x2_ps(_r0, _r1);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    pp += 16;
+                                    p0 += M * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[8];
+                                    pp += 2;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX__
+                            if (elempack == 4)
+                            {
+                                const float* p0 = A.row(k / 4) + (i + ii) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p0 + 4);
+                                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
+                                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
+                                    _mm_storeu_ps(pp, _tmp0);
+                                    _mm_storeu_ps(pp + 4, _tmp1);
+                                    pp += 8;
+                                    p0 += M * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[4];
+                                    pp += 2;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __SSE2__
+                            if (elempack == 1)
+                            {
+                                const float* p0 = A.row(k) + (i + ii);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[1];
+                                    pp += 2;
+                                    p0 += M;
+                                }
                             }
                         }
                         for (; ii < max_ii; ii += 1)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = A.row((k + kk) / elempack) + (i + ii) * elempack + (k + kk) % elempack;
+                                const float* p0 = A.row(k / 16) + (i + ii) * 16;
 
-                                pp[0] = p0[0];
-                                pp += 1;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    _mm512_storeu_ps(pp, _mm512_loadu_ps(p0));
+                                    pp += 16;
+                                    p0 += M * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp += 1;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = A.row(k / 8) + (i + ii) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
+                                    pp += 8;
+                                    p0 += M * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp += 1;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX__
+                            if (elempack == 4)
+                            {
+                                const float* p0 = A.row(k / 4) + (i + ii) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                                    pp += 4;
+                                    p0 += M * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp += 1;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __SSE2__
+                            if (elempack == 1)
+                            {
+                                const float* p0 = A.row(k) + (i + ii);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp += 1;
+                                    p0 += M;
+                                }
                             }
                         }
                     }
@@ -242,22 +795,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp[2] = p0[2];
-                                    pp[3] = p0[3];
-                                    pp[4] = p0[4];
-                                    pp[5] = p0[5];
-                                    pp[6] = p0[6];
-                                    pp[7] = p0[7];
-                                    pp[8] = p0[8];
-                                    pp[9] = p0[9];
-                                    pp[10] = p0[10];
-                                    pp[11] = p0[11];
-                                    pp[12] = p0[12];
-                                    pp[13] = p0[13];
-                                    pp[14] = p0[14];
-                                    pp[15] = p0[15];
+                                    _mm512_storeu_ps(pp, _mm512_loadu_ps(p0));
                                     pp += 16;
                                     p0 += 16;
                                 }
@@ -269,22 +807,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp[2] = p0[2];
-                                    pp[3] = p0[3];
-                                    pp[4] = p0[4];
-                                    pp[5] = p0[5];
-                                    pp[6] = p0[6];
-                                    pp[7] = p0[7];
-                                    pp[8] = p1[0];
-                                    pp[9] = p1[1];
-                                    pp[10] = p1[2];
-                                    pp[11] = p1[3];
-                                    pp[12] = p1[4];
-                                    pp[13] = p1[5];
-                                    pp[14] = p1[6];
-                                    pp[15] = p1[7];
+                                    _mm256_store_ps(pp, _mm256_load_ps(p0));
+                                    _mm256_store_ps(pp + 8, _mm256_load_ps(p1));
                                     pp += 16;
                                     p0 += 8;
                                     p1 += 8;
@@ -299,22 +823,10 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp[2] = p0[2];
-                                    pp[3] = p0[3];
-                                    pp[4] = p1[0];
-                                    pp[5] = p1[1];
-                                    pp[6] = p1[2];
-                                    pp[7] = p1[3];
-                                    pp[8] = p2[0];
-                                    pp[9] = p2[1];
-                                    pp[10] = p2[2];
-                                    pp[11] = p2[3];
-                                    pp[12] = p3[0];
-                                    pp[13] = p3[1];
-                                    pp[14] = p3[2];
-                                    pp[15] = p3[3];
+                                    _mm_store_ps(pp, _mm_load_ps(p0));
+                                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                                    _mm_store_ps(pp + 8, _mm_load_ps(p2));
+                                    _mm_store_ps(pp + 12, _mm_load_ps(p3));
                                     pp += 16;
                                     p0 += 4;
                                     p1 += 4;
@@ -341,7 +853,61 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 const float* pe = A.row(i + ii + 14) + k;
                                 const float* pf = A.row(i + ii + 15) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p1);
+                                    __m512 _r2 = _mm512_loadu_ps(p2);
+                                    __m512 _r3 = _mm512_loadu_ps(p3);
+                                    __m512 _r4 = _mm512_loadu_ps(p4);
+                                    __m512 _r5 = _mm512_loadu_ps(p5);
+                                    __m512 _r6 = _mm512_loadu_ps(p6);
+                                    __m512 _r7 = _mm512_loadu_ps(p7);
+                                    __m512 _r8 = _mm512_loadu_ps(p8);
+                                    __m512 _r9 = _mm512_loadu_ps(p9);
+                                    __m512 _ra = _mm512_loadu_ps(pa);
+                                    __m512 _rb = _mm512_loadu_ps(pb);
+                                    __m512 _rc = _mm512_loadu_ps(pc);
+                                    __m512 _rd = _mm512_loadu_ps(pd);
+                                    __m512 _re = _mm512_loadu_ps(pe);
+                                    __m512 _rf = _mm512_loadu_ps(pf);
+                                    transpose16x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16 * 1, _r1);
+                                    _mm512_storeu_ps(pp + 16 * 2, _r2);
+                                    _mm512_storeu_ps(pp + 16 * 3, _r3);
+                                    _mm512_storeu_ps(pp + 16 * 4, _r4);
+                                    _mm512_storeu_ps(pp + 16 * 5, _r5);
+                                    _mm512_storeu_ps(pp + 16 * 6, _r6);
+                                    _mm512_storeu_ps(pp + 16 * 7, _r7);
+                                    _mm512_storeu_ps(pp + 16 * 8, _r8);
+                                    _mm512_storeu_ps(pp + 16 * 9, _r9);
+                                    _mm512_storeu_ps(pp + 16 * 10, _ra);
+                                    _mm512_storeu_ps(pp + 16 * 11, _rb);
+                                    _mm512_storeu_ps(pp + 16 * 12, _rc);
+                                    _mm512_storeu_ps(pp + 16 * 13, _rd);
+                                    _mm512_storeu_ps(pp + 16 * 14, _re);
+                                    _mm512_storeu_ps(pp + 16 * 15, _rf);
+                                    pp += 256;
+                                    p0 += 16;
+                                    p1 += 16;
+                                    p2 += 16;
+                                    p3 += 16;
+                                    p4 += 16;
+                                    p5 += 16;
+                                    p6 += 16;
+                                    p7 += 16;
+                                    p8 += 16;
+                                    p9 += 16;
+                                    pa += 16;
+                                    pb += 16;
+                                    pc += 16;
+                                    pd += 16;
+                                    pe += 16;
+                                    pf += 16;
+                                }
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp[1] = p1[0];
@@ -389,14 +955,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
                                     _mm256_store_ps(pp, _mm256_load_ps(p0));
-                                    // pp[0] = p0[0];
-                                    // pp[1] = p0[1];
-                                    // pp[2] = p0[2];
-                                    // pp[3] = p0[3];
-                                    // pp[4] = p0[4];
-                                    // pp[5] = p0[5];
-                                    // pp[6] = p0[6];
-                                    // pp[7] = p0[7];
                                     pp += 8;
                                     p0 += 8;
                                 }
@@ -408,14 +966,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp[2] = p0[2];
-                                    pp[3] = p0[3];
-                                    pp[4] = p1[0];
-                                    pp[5] = p1[1];
-                                    pp[6] = p1[2];
-                                    pp[7] = p1[3];
+                                    _mm_store_ps(pp, _mm_load_ps(p0));
+                                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
                                     pp += 8;
                                     p0 += 4;
                                     p1 += 4;
@@ -432,7 +984,37 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 const float* p6 = A.row(i + ii + 6) + k;
                                 const float* p7 = A.row(i + ii + 7) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p1);
+                                    __m256 _r2 = _mm256_loadu_ps(p2);
+                                    __m256 _r3 = _mm256_loadu_ps(p3);
+                                    __m256 _r4 = _mm256_loadu_ps(p4);
+                                    __m256 _r5 = _mm256_loadu_ps(p5);
+                                    __m256 _r6 = _mm256_loadu_ps(p6);
+                                    __m256 _r7 = _mm256_loadu_ps(p7);
+                                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
+                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
+                                    _mm256_storeu_ps(pp + 8 * 4, _r4);
+                                    _mm256_storeu_ps(pp + 8 * 5, _r5);
+                                    _mm256_storeu_ps(pp + 8 * 6, _r6);
+                                    _mm256_storeu_ps(pp + 8 * 7, _r7);
+                                    pp += 64;
+                                    p0 += 8;
+                                    p1 += 8;
+                                    p2 += 8;
+                                    p3 += 8;
+                                    p4 += 8;
+                                    p5 += 8;
+                                    p6 += 8;
+                                    p7 += 8;
+                                }
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp[1] = p1[0];
@@ -463,10 +1045,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp[2] = p0[2];
-                                    pp[3] = p0[3];
+                                    _mm_store_ps(pp, _mm_load_ps(p0));
                                     pp += 4;
                                     p0 += 4;
                                 }
@@ -478,7 +1057,44 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 const float* p2 = A.row(i + ii + 2) + k;
                                 const float* p3 = A.row(i + ii + 3) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+#if __AVX__
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p1);
+                                    __m256 _r2 = _mm256_loadu_ps(p2);
+                                    __m256 _r3 = _mm256_loadu_ps(p3);
+                                    transpose8x4_ps(_r0, _r1, _r2, _r3);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    _mm256_storeu_ps(pp + 16, _r2);
+                                    _mm256_storeu_ps(pp + 24, _r3);
+                                    pp += 32;
+                                    p0 += 8;
+                                    p1 += 8;
+                                    p2 += 8;
+                                    p3 += 8;
+                                }
+#endif // __AVX__
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p1);
+                                    __m128 _r2 = _mm_loadu_ps(p2);
+                                    __m128 _r3 = _mm_loadu_ps(p3);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4, _r1);
+                                    _mm_storeu_ps(pp + 8, _r2);
+                                    _mm_storeu_ps(pp + 12, _r3);
+                                    pp += 16;
+                                    p0 += 4;
+                                    p1 += 4;
+                                    p2 += 4;
+                                    p3 += 4;
+                                }
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp[1] = p1[0];
@@ -500,7 +1116,35 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 const float* p0 = A.row(i + ii + 0) + k;
                                 const float* p1 = A.row(i + ii + 1) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+#if __SSE2__
+#if __AVX__
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p1);
+                                    transpose8x2_ps(_r0, _r1);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    pp += 16;
+                                    p0 += 8;
+                                    p1 += 8;
+                                }
+#endif // __AVX__
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p1);
+                                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
+                                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
+                                    _mm_storeu_ps(pp, _tmp0);
+                                    _mm_storeu_ps(pp + 4, _tmp1);
+                                    pp += 8;
+                                    p0 += 4;
+                                    p1 += 4;
+                                }
+#endif // __SSE2__
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp[1] = p1[0];
@@ -516,7 +1160,24 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                             {
                                 const float* p0 = A.row(i + ii + 0) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+#if __SSE2__
+#if __AVX__
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
+                                    pp += 8;
+                                    p0 += 8;
+                                }
+#endif // __AVX__
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                                    pp += 4;
+                                    p0 += 4;
+                                }
+#endif // __SSE2__
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp += 1;
@@ -552,18 +1213,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     for (int kk = 0; kk < max_kk; kk++)
                                     {
-                                        pp[0] = p0[0];
-                                        pp[1] = p0[1];
-                                        pp[2] = p0[2];
-                                        pp[3] = p0[3];
-                                        pp[4] = p0[4];
-                                        pp[5] = p0[5];
-                                        pp[6] = p0[6];
-                                        pp[7] = p0[7];
-                                        pp[8] = p0[8];
-                                        pp[9] = p0[9];
-                                        pp[10] = p0[10];
-                                        pp[11] = p0[11];
+                                        _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
+                                        _mm_storeu_ps(pp + 8, _mm_loadu_ps(p0 + 8));
                                         pp += 12;
                                         p0 += 16;
                                     }
@@ -572,18 +1223,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     for (int kk = 0; kk < max_kk; kk++)
                                     {
-                                        pp[0] = p0[4];
-                                        pp[1] = p0[5];
-                                        pp[2] = p0[6];
-                                        pp[3] = p0[7];
-                                        pp[4] = p0[8];
-                                        pp[5] = p0[9];
-                                        pp[6] = p0[10];
-                                        pp[7] = p0[11];
-                                        pp[8] = p0[12];
-                                        pp[9] = p0[13];
-                                        pp[10] = p0[14];
-                                        pp[11] = p0[15];
+                                        _mm256_storeu_ps(pp, _mm256_loadu_ps(p0 + 4));
+                                        _mm_storeu_ps(pp + 8, _mm_loadu_ps(p0 + 12));
                                         pp += 12;
                                         p0 += 16;
                                     }
@@ -592,18 +1233,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     for (int kk = 0; kk < max_kk; kk++)
                                     {
-                                        pp[0] = p0[8];
-                                        pp[1] = p0[9];
-                                        pp[2] = p0[10];
-                                        pp[3] = p0[11];
-                                        pp[4] = p0[12];
-                                        pp[5] = p0[13];
-                                        pp[6] = p0[14];
-                                        pp[7] = p0[15];
-                                        pp[8] = p1[0];
-                                        pp[9] = p1[1];
-                                        pp[10] = p1[2];
-                                        pp[11] = p1[3];
+                                        _mm256_storeu_ps(pp, _mm256_loadu_ps(p0 + 8));
+                                        _mm_storeu_ps(pp + 8, _mm_loadu_ps(p1));
                                         pp += 12;
                                         p0 += 16;
                                         p1 += 16;
@@ -613,18 +1244,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 {
                                     for (int kk = 0; kk < max_kk; kk++)
                                     {
-                                        pp[0] = p0[12];
-                                        pp[1] = p0[13];
-                                        pp[2] = p0[14];
-                                        pp[3] = p0[15];
-                                        pp[4] = p1[0];
-                                        pp[5] = p1[1];
-                                        pp[6] = p1[2];
-                                        pp[7] = p1[3];
-                                        pp[8] = p1[4];
-                                        pp[9] = p1[5];
-                                        pp[10] = p1[6];
-                                        pp[11] = p1[7];
+                                        _mm_storeu_ps(pp, _mm_loadu_ps(p0 + 12));
+                                        _mm256_storeu_ps(pp + 4, _mm256_loadu_ps(p1));
                                         pp += 12;
                                         p0 += 16;
                                         p1 += 16;
@@ -643,18 +1264,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     {
                                         _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
                                         _mm_storeu_ps(pp + 8, _mm_loadu_ps(p1));
-                                        // pp[0] = p0[0];
-                                        // pp[1] = p0[1];
-                                        // pp[2] = p0[2];
-                                        // pp[3] = p0[3];
-                                        // pp[4] = p0[4];
-                                        // pp[5] = p0[5];
-                                        // pp[6] = p0[6];
-                                        // pp[7] = p0[7];
-                                        // pp[8] = p1[0];
-                                        // pp[9] = p1[1];
-                                        // pp[10] = p1[2];
-                                        // pp[11] = p1[3];
                                         pp += 12;
                                         p0 += 8;
                                         p1 += 8;
@@ -666,18 +1275,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     {
                                         _mm_storeu_ps(pp, _mm_loadu_ps(p0 + 4));
                                         _mm256_storeu_ps(pp + 4, _mm256_loadu_ps(p1));
-                                        // pp[0] = p0[4];
-                                        // pp[1] = p0[5];
-                                        // pp[2] = p0[6];
-                                        // pp[3] = p0[7];
-                                        // pp[4] = p1[0];
-                                        // pp[5] = p1[1];
-                                        // pp[6] = p1[2];
-                                        // pp[7] = p1[3];
-                                        // pp[8] = p1[4];
-                                        // pp[9] = p1[5];
-                                        // pp[10] = p1[6];
-                                        // pp[11] = p1[7];
                                         pp += 12;
                                         p0 += 8;
                                         p1 += 8;
@@ -693,18 +1290,9 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp[2] = p0[2];
-                                    pp[3] = p0[3];
-                                    pp[4] = p1[0];
-                                    pp[5] = p1[1];
-                                    pp[6] = p1[2];
-                                    pp[7] = p1[3];
-                                    pp[8] = p2[0];
-                                    pp[9] = p2[1];
-                                    pp[10] = p2[2];
-                                    pp[11] = p2[3];
+                                    _mm_store_ps(pp, _mm_load_ps(p0));
+                                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
+                                    _mm_store_ps(pp + 8, _mm_load_ps(p2));
                                     pp += 12;
                                     p0 += 4;
                                     p1 += 4;
@@ -726,7 +1314,94 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 const float* pa = B.row(j + jj + 10) + k;
                                 const float* pb = B.row(j + jj + 11) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+#if __AVX__
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p1);
+                                    __m256 _r2 = _mm256_loadu_ps(p2);
+                                    __m256 _r3 = _mm256_loadu_ps(p3);
+                                    __m256 _r4 = _mm256_loadu_ps(p4);
+                                    __m256 _r5 = _mm256_loadu_ps(p5);
+                                    __m256 _r6 = _mm256_loadu_ps(p6);
+                                    __m256 _r7 = _mm256_loadu_ps(p7);
+                                    __m256 _r8 = _mm256_loadu_ps(p8);
+                                    __m256 _r9 = _mm256_loadu_ps(p9);
+                                    __m256 _ra = _mm256_loadu_ps(pa);
+                                    __m256 _rb = _mm256_loadu_ps(pb);
+                                    transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
+                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
+                                    _mm256_storeu_ps(pp + 8 * 4, _r4);
+                                    _mm256_storeu_ps(pp + 8 * 5, _r5);
+                                    _mm256_storeu_ps(pp + 8 * 6, _r6);
+                                    _mm256_storeu_ps(pp + 8 * 7, _r7);
+                                    _mm256_storeu_ps(pp + 8 * 8, _r8);
+                                    _mm256_storeu_ps(pp + 8 * 9, _r9);
+                                    _mm256_storeu_ps(pp + 8 * 10, _ra);
+                                    _mm256_storeu_ps(pp + 8 * 11, _rb);
+                                    pp += 96;
+                                    p0 += 8;
+                                    p1 += 8;
+                                    p2 += 8;
+                                    p3 += 8;
+                                    p4 += 8;
+                                    p5 += 8;
+                                    p6 += 8;
+                                    p7 += 8;
+                                    p8 += 8;
+                                    p9 += 8;
+                                    pa += 8;
+                                    pb += 8;
+                                }
+#endif // __AVX__
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p1);
+                                    __m128 _r2 = _mm_loadu_ps(p2);
+                                    __m128 _r3 = _mm_loadu_ps(p3);
+                                    __m128 _r4 = _mm_loadu_ps(p4);
+                                    __m128 _r5 = _mm_loadu_ps(p5);
+                                    __m128 _r6 = _mm_loadu_ps(p6);
+                                    __m128 _r7 = _mm_loadu_ps(p7);
+                                    __m128 _r8 = _mm_loadu_ps(p8);
+                                    __m128 _r9 = _mm_loadu_ps(p9);
+                                    __m128 _ra = _mm_loadu_ps(pa);
+                                    __m128 _rb = _mm_loadu_ps(pb);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4, _r4);
+                                    _mm_storeu_ps(pp + 4 * 2, _r8);
+                                    _mm_storeu_ps(pp + 4 * 3, _r1);
+                                    _mm_storeu_ps(pp + 4 * 4, _r5);
+                                    _mm_storeu_ps(pp + 4 * 5, _r9);
+                                    _mm_storeu_ps(pp + 4 * 6, _r2);
+                                    _mm_storeu_ps(pp + 4 * 7, _r6);
+                                    _mm_storeu_ps(pp + 4 * 8, _ra);
+                                    _mm_storeu_ps(pp + 4 * 9, _r3);
+                                    _mm_storeu_ps(pp + 4 * 10, _r7);
+                                    _mm_storeu_ps(pp + 4 * 11, _rb);
+                                    pp += 48;
+                                    p0 += 4;
+                                    p1 += 4;
+                                    p2 += 4;
+                                    p3 += 4;
+                                    p4 += 4;
+                                    p5 += 4;
+                                    p6 += 4;
+                                    p7 += 4;
+                                    p8 += 4;
+                                    p9 += 4;
+                                    pa += 4;
+                                    pb += 4;
+                                }
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp[1] = p1[0];
@@ -842,14 +1517,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     for (int kk = 0; kk < max_kk; kk++)
                                     {
                                         _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
-                                        // pp[0] = p0[0];
-                                        // pp[1] = p0[1];
-                                        // pp[2] = p0[2];
-                                        // pp[3] = p0[3];
-                                        // pp[4] = p0[4];
-                                        // pp[5] = p0[5];
-                                        // pp[6] = p0[6];
-                                        // pp[7] = p0[7];
                                         pp += 8;
                                         p0 += 8;
                                     }
@@ -860,14 +1527,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     {
                                         _mm_storeu_ps(pp, _mm_loadu_ps(p0 + 4));
                                         _mm_storeu_ps(pp + 4, _mm_loadu_ps(p1));
-                                        // pp[0] = p0[4];
-                                        // pp[1] = p0[5];
-                                        // pp[2] = p0[6];
-                                        // pp[3] = p0[7];
-                                        // pp[4] = p1[0];
-                                        // pp[5] = p1[1];
-                                        // pp[6] = p1[2];
-                                        // pp[7] = p1[3];
                                         pp += 8;
                                         p0 += 8;
                                         p1 += 8;
@@ -882,14 +1541,8 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp[2] = p0[2];
-                                    pp[3] = p0[3];
-                                    pp[4] = p1[0];
-                                    pp[5] = p1[1];
-                                    pp[6] = p1[2];
-                                    pp[7] = p1[3];
+                                    _mm_store_ps(pp, _mm_load_ps(p0));
+                                    _mm_store_ps(pp + 4, _mm_load_ps(p1));
                                     pp += 8;
                                     p0 += 4;
                                     p1 += 4;
@@ -906,7 +1559,69 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 const float* p6 = B.row(j + jj + 6) + k;
                                 const float* p7 = B.row(j + jj + 7) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+#if __AVX__
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p1);
+                                    __m256 _r2 = _mm256_loadu_ps(p2);
+                                    __m256 _r3 = _mm256_loadu_ps(p3);
+                                    __m256 _r4 = _mm256_loadu_ps(p4);
+                                    __m256 _r5 = _mm256_loadu_ps(p5);
+                                    __m256 _r6 = _mm256_loadu_ps(p6);
+                                    __m256 _r7 = _mm256_loadu_ps(p7);
+                                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
+                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
+                                    _mm256_storeu_ps(pp + 8 * 4, _r4);
+                                    _mm256_storeu_ps(pp + 8 * 5, _r5);
+                                    _mm256_storeu_ps(pp + 8 * 6, _r6);
+                                    _mm256_storeu_ps(pp + 8 * 7, _r7);
+                                    pp += 64;
+                                    p0 += 8;
+                                    p1 += 8;
+                                    p2 += 8;
+                                    p3 += 8;
+                                    p4 += 8;
+                                    p5 += 8;
+                                    p6 += 8;
+                                    p7 += 8;
+                                }
+#endif // __AVX__
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p1);
+                                    __m128 _r2 = _mm_loadu_ps(p2);
+                                    __m128 _r3 = _mm_loadu_ps(p3);
+                                    __m128 _r4 = _mm_loadu_ps(p4);
+                                    __m128 _r5 = _mm_loadu_ps(p5);
+                                    __m128 _r6 = _mm_loadu_ps(p6);
+                                    __m128 _r7 = _mm_loadu_ps(p7);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4, _r4);
+                                    _mm_storeu_ps(pp + 4 * 2, _r1);
+                                    _mm_storeu_ps(pp + 4 * 3, _r5);
+                                    _mm_storeu_ps(pp + 4 * 4, _r2);
+                                    _mm_storeu_ps(pp + 4 * 5, _r6);
+                                    _mm_storeu_ps(pp + 4 * 6, _r3);
+                                    _mm_storeu_ps(pp + 4 * 7, _r7);
+                                    pp += 32;
+                                    p0 += 4;
+                                    p1 += 4;
+                                    p2 += 4;
+                                    p3 += 4;
+                                    p4 += 4;
+                                    p5 += 4;
+                                    p6 += 4;
+                                    p7 += 4;
+                                }
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp[1] = p1[0];
@@ -995,10 +1710,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     for (int kk = 0; kk < max_kk; kk++)
                                     {
                                         _mm_storeu_ps(pp, _mm_loadu_ps(p0));
-                                        // pp[0] = p0[0];
-                                        // pp[1] = p0[1];
-                                        // pp[2] = p0[2];
-                                        // pp[3] = p0[3];
                                         pp += 4;
                                         p0 += 8;
                                     }
@@ -1008,10 +1719,6 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                     for (int kk = 0; kk < max_kk; kk++)
                                     {
                                         _mm_storeu_ps(pp, _mm_loadu_ps(p0 + 4));
-                                        // pp[0] = p0[4];
-                                        // pp[1] = p0[5];
-                                        // pp[2] = p0[6];
-                                        // pp[3] = p0[7];
                                         pp += 4;
                                         p0 += 8;
                                     }
@@ -1024,10 +1731,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 
                                 for (int kk = 0; kk < max_kk; kk++)
                                 {
-                                    pp[0] = p0[0];
-                                    pp[1] = p0[1];
-                                    pp[2] = p0[2];
-                                    pp[3] = p0[3];
+                                    _mm_store_ps(pp, _mm_load_ps(p0));
                                     pp += 4;
                                     p0 += 4;
                                 }
@@ -1039,7 +1743,44 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 const float* p2 = B.row(j + jj + 2) + k;
                                 const float* p3 = B.row(j + jj + 3) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+#if __AVX__
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p1);
+                                    __m256 _r2 = _mm256_loadu_ps(p2);
+                                    __m256 _r3 = _mm256_loadu_ps(p3);
+                                    transpose8x4_ps(_r0, _r1, _r2, _r3);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    _mm256_storeu_ps(pp + 16, _r2);
+                                    _mm256_storeu_ps(pp + 24, _r3);
+                                    pp += 32;
+                                    p0 += 8;
+                                    p1 += 8;
+                                    p2 += 8;
+                                    p3 += 8;
+                                }
+#endif // __AVX__
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p1);
+                                    __m128 _r2 = _mm_loadu_ps(p2);
+                                    __m128 _r3 = _mm_loadu_ps(p3);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4, _r1);
+                                    _mm_storeu_ps(pp + 8, _r2);
+                                    _mm_storeu_ps(pp + 12, _r3);
+                                    pp += 16;
+                                    p0 += 4;
+                                    p1 += 4;
+                                    p2 += 4;
+                                    p3 += 4;
+                                }
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp[1] = p1[0];
@@ -1061,7 +1802,35 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                 const float* p0 = B.row(j + jj + 0) + k;
                                 const float* p1 = B.row(j + jj + 1) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+#if __SSE2__
+#if __AVX__
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p1);
+                                    transpose8x2_ps(_r0, _r1);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    pp += 16;
+                                    p0 += 8;
+                                    p1 += 8;
+                                }
+#endif // __AVX__
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p1);
+                                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
+                                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
+                                    _mm_storeu_ps(pp, _tmp0);
+                                    _mm_storeu_ps(pp + 4, _tmp1);
+                                    pp += 8;
+                                    p0 += 4;
+                                    p1 += 4;
+                                }
+#endif // __SSE2__
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp[1] = p1[0];
@@ -1077,7 +1846,24 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                             {
                                 const float* p0 = B.row(j + jj + 0) + k;
 
-                                for (int kk = 0; kk < max_kk; kk++)
+                                int kk = 0;
+#if __SSE2__
+#if __AVX__
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
+                                    pp += 8;
+                                    p0 += 8;
+                                }
+#endif // __AVX__
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                                    pp += 4;
+                                    p0 += 4;
+                                }
+#endif // __SSE2__
+                                for (; kk < max_kk; kk++)
                                 {
                                     pp[0] = p0[0];
                                     pp += 1;
@@ -1097,75 +1883,602 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
 #if __SSE2__
                         for (; jj + 11 < max_jj; jj += 12)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __AVX__
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = B.row((k + kk) / elempack) + (j + jj) * elempack + (k + kk) % elempack;
+                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
 
-                                pp[0] = p0[0];
-                                pp[1] = p0[1 * elempack];
-                                pp[2] = p0[2 * elempack];
-                                pp[3] = p0[3 * elempack];
-                                pp[4] = p0[4 * elempack];
-                                pp[5] = p0[5 * elempack];
-                                pp[6] = p0[6 * elempack];
-                                pp[7] = p0[7 * elempack];
-                                pp[8] = p0[8 * elempack];
-                                pp[9] = p0[9 * elempack];
-                                pp[10] = p0[10 * elempack];
-                                pp[11] = p0[11 * elempack];
-                                pp += 12;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p0 + 16 * 1);
+                                    __m512 _r2 = _mm512_loadu_ps(p0 + 16 * 2);
+                                    __m512 _r3 = _mm512_loadu_ps(p0 + 16 * 3);
+                                    __m512 _r4 = _mm512_loadu_ps(p0 + 16 * 4);
+                                    __m512 _r5 = _mm512_loadu_ps(p0 + 16 * 5);
+                                    __m512 _r6 = _mm512_loadu_ps(p0 + 16 * 6);
+                                    __m512 _r7 = _mm512_loadu_ps(p0 + 16 * 7);
+                                    __m512 _r8 = _mm512_loadu_ps(p0 + 16 * 8);
+                                    __m512 _r9 = _mm512_loadu_ps(p0 + 16 * 9);
+                                    __m512 _ra = _mm512_loadu_ps(p0 + 16 * 10);
+                                    __m512 _rb = _mm512_loadu_ps(p0 + 16 * 11);
+                                    transpose16x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16 * 1, _r1);
+                                    _mm512_storeu_ps(pp + 16 * 2, _r2);
+                                    _mm512_storeu_ps(pp + 16 * 3, _r3);
+                                    _mm512_storeu_ps(pp + 16 * 4, _r4);
+                                    _mm512_storeu_ps(pp + 16 * 5, _r5);
+                                    _mm512_storeu_ps(pp + 16 * 6, _r6);
+                                    _mm512_storeu_ps(pp + 16 * 7, _r7);
+                                    _mm512_storeu_ps(pp + 16 * 8, _r8);
+                                    _mm512_storeu_ps(pp + 16 * 9, _r9);
+                                    _mm512_storeu_ps(pp + 16 * 10, _ra);
+                                    _mm512_storeu_ps(pp + 16 * 11, _rb);
+                                    pp += 192;
+                                    p0 += N * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[16 * 1];
+                                    pp[2] = p0[16 * 2];
+                                    pp[3] = p0[16 * 3];
+                                    pp[4] = p0[16 * 4];
+                                    pp[5] = p0[16 * 5];
+                                    pp[6] = p0[16 * 6];
+                                    pp[7] = p0[16 * 7];
+                                    pp[8] = p0[16 * 8];
+                                    pp[9] = p0[16 * 9];
+                                    pp[10] = p0[16 * 10];
+                                    pp[11] = p0[16 * 11];
+                                    pp += 12;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p0 + 8 * 1);
+                                    __m256 _r2 = _mm256_loadu_ps(p0 + 8 * 2);
+                                    __m256 _r3 = _mm256_loadu_ps(p0 + 8 * 3);
+                                    __m256 _r4 = _mm256_loadu_ps(p0 + 8 * 4);
+                                    __m256 _r5 = _mm256_loadu_ps(p0 + 8 * 5);
+                                    __m256 _r6 = _mm256_loadu_ps(p0 + 8 * 6);
+                                    __m256 _r7 = _mm256_loadu_ps(p0 + 8 * 7);
+                                    __m256 _r8 = _mm256_loadu_ps(p0 + 8 * 8);
+                                    __m256 _r9 = _mm256_loadu_ps(p0 + 8 * 9);
+                                    __m256 _ra = _mm256_loadu_ps(p0 + 8 * 10);
+                                    __m256 _rb = _mm256_loadu_ps(p0 + 8 * 11);
+                                    transpose8x12_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8 * 1, _r1);
+                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
+                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
+                                    _mm256_storeu_ps(pp + 8 * 4, _r4);
+                                    _mm256_storeu_ps(pp + 8 * 5, _r5);
+                                    _mm256_storeu_ps(pp + 8 * 6, _r6);
+                                    _mm256_storeu_ps(pp + 8 * 7, _r7);
+                                    _mm256_storeu_ps(pp + 8 * 8, _r8);
+                                    _mm256_storeu_ps(pp + 8 * 9, _r9);
+                                    _mm256_storeu_ps(pp + 8 * 10, _ra);
+                                    _mm256_storeu_ps(pp + 8 * 11, _rb);
+                                    pp += 96;
+                                    p0 += N * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[8 * 1];
+                                    pp[2] = p0[8 * 2];
+                                    pp[3] = p0[8 * 3];
+                                    pp[4] = p0[8 * 4];
+                                    pp[5] = p0[8 * 5];
+                                    pp[6] = p0[8 * 6];
+                                    pp[7] = p0[8 * 7];
+                                    pp[8] = p0[8 * 8];
+                                    pp[9] = p0[8 * 9];
+                                    pp[10] = p0[8 * 10];
+                                    pp[11] = p0[8 * 11];
+                                    pp += 12;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX__
+                            if (elempack == 4)
+                            {
+                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p0 + 4 * 1);
+                                    __m128 _r2 = _mm_loadu_ps(p0 + 4 * 2);
+                                    __m128 _r3 = _mm_loadu_ps(p0 + 4 * 3);
+                                    __m128 _r4 = _mm_loadu_ps(p0 + 4 * 4);
+                                    __m128 _r5 = _mm_loadu_ps(p0 + 4 * 5);
+                                    __m128 _r6 = _mm_loadu_ps(p0 + 4 * 6);
+                                    __m128 _r7 = _mm_loadu_ps(p0 + 4 * 7);
+                                    __m128 _r8 = _mm_loadu_ps(p0 + 4 * 8);
+                                    __m128 _r9 = _mm_loadu_ps(p0 + 4 * 9);
+                                    __m128 _ra = _mm_loadu_ps(p0 + 4 * 10);
+                                    __m128 _rb = _mm_loadu_ps(p0 + 4 * 11);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                                    _MM_TRANSPOSE4_PS(_r8, _r9, _ra, _rb);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4 * 1, _r4);
+                                    _mm_storeu_ps(pp + 4 * 2, _r8);
+                                    _mm_storeu_ps(pp + 4 * 3, _r1);
+                                    _mm_storeu_ps(pp + 4 * 4, _r5);
+                                    _mm_storeu_ps(pp + 4 * 5, _r9);
+                                    _mm_storeu_ps(pp + 4 * 6, _r2);
+                                    _mm_storeu_ps(pp + 4 * 7, _r6);
+                                    _mm_storeu_ps(pp + 4 * 8, _ra);
+                                    _mm_storeu_ps(pp + 4 * 9, _r3);
+                                    _mm_storeu_ps(pp + 4 * 10, _r7);
+                                    _mm_storeu_ps(pp + 4 * 11, _rb);
+                                    pp += 48;
+                                    p0 += N * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[4 * 1];
+                                    pp[2] = p0[4 * 2];
+                                    pp[3] = p0[4 * 3];
+                                    pp[4] = p0[4 * 4];
+                                    pp[5] = p0[4 * 5];
+                                    pp[6] = p0[4 * 6];
+                                    pp[7] = p0[4 * 7];
+                                    pp[8] = p0[4 * 8];
+                                    pp[9] = p0[4 * 9];
+                                    pp[10] = p0[4 * 10];
+                                    pp[11] = p0[4 * 11];
+                                    pp += 12;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 1)
+                            {
+                                const float* p0 = B.row(k) + (j + jj);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                                    _mm_storeu_ps(pp + 4, _mm_loadu_ps(p0 + 4));
+                                    _mm_storeu_ps(pp + 8, _mm_loadu_ps(p0 + 8));
+                                    pp += 12;
+                                    p0 += N;
+                                }
                             }
                         }
                         for (; jj + 7 < max_jj; jj += 8)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __AVX__
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = B.row((k + kk) / elempack) + (j + jj) * elempack + (k + kk) % elempack;
+                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
 
-                                pp[0] = p0[0];
-                                pp[1] = p0[1 * elempack];
-                                pp[2] = p0[2 * elempack];
-                                pp[3] = p0[3 * elempack];
-                                pp[4] = p0[4 * elempack];
-                                pp[5] = p0[5 * elempack];
-                                pp[6] = p0[6 * elempack];
-                                pp[7] = p0[7 * elempack];
-                                pp += 8;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p0 + 16 * 1);
+                                    __m512 _r2 = _mm512_loadu_ps(p0 + 16 * 2);
+                                    __m512 _r3 = _mm512_loadu_ps(p0 + 16 * 3);
+                                    __m512 _r4 = _mm512_loadu_ps(p0 + 16 * 4);
+                                    __m512 _r5 = _mm512_loadu_ps(p0 + 16 * 5);
+                                    __m512 _r6 = _mm512_loadu_ps(p0 + 16 * 6);
+                                    __m512 _r7 = _mm512_loadu_ps(p0 + 16 * 7);
+                                    transpose16x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16 * 1, _r1);
+                                    _mm512_storeu_ps(pp + 16 * 2, _r2);
+                                    _mm512_storeu_ps(pp + 16 * 3, _r3);
+                                    _mm512_storeu_ps(pp + 16 * 4, _r4);
+                                    _mm512_storeu_ps(pp + 16 * 5, _r5);
+                                    _mm512_storeu_ps(pp + 16 * 6, _r6);
+                                    _mm512_storeu_ps(pp + 16 * 7, _r7);
+                                    pp += 128;
+                                    p0 += N * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[16 * 1];
+                                    pp[2] = p0[16 * 2];
+                                    pp[3] = p0[16 * 3];
+                                    pp[4] = p0[16 * 4];
+                                    pp[5] = p0[16 * 5];
+                                    pp[6] = p0[16 * 6];
+                                    pp[7] = p0[16 * 7];
+                                    pp += 8;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p0 + 8 * 1);
+                                    __m256 _r2 = _mm256_loadu_ps(p0 + 8 * 2);
+                                    __m256 _r3 = _mm256_loadu_ps(p0 + 8 * 3);
+                                    __m256 _r4 = _mm256_loadu_ps(p0 + 8 * 4);
+                                    __m256 _r5 = _mm256_loadu_ps(p0 + 8 * 5);
+                                    __m256 _r6 = _mm256_loadu_ps(p0 + 8 * 6);
+                                    __m256 _r7 = _mm256_loadu_ps(p0 + 8 * 7);
+                                    transpose8x8_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8 * 1, _r1);
+                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
+                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
+                                    _mm256_storeu_ps(pp + 8 * 4, _r4);
+                                    _mm256_storeu_ps(pp + 8 * 5, _r5);
+                                    _mm256_storeu_ps(pp + 8 * 6, _r6);
+                                    _mm256_storeu_ps(pp + 8 * 7, _r7);
+                                    pp += 64;
+                                    p0 += N * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[8 * 1];
+                                    pp[2] = p0[8 * 2];
+                                    pp[3] = p0[8 * 3];
+                                    pp[4] = p0[8 * 4];
+                                    pp[5] = p0[8 * 5];
+                                    pp[6] = p0[8 * 6];
+                                    pp[7] = p0[8 * 7];
+                                    pp += 8;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX__
+                            if (elempack == 4)
+                            {
+                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p0 + 4 * 1);
+                                    __m128 _r2 = _mm_loadu_ps(p0 + 4 * 2);
+                                    __m128 _r3 = _mm_loadu_ps(p0 + 4 * 3);
+                                    __m128 _r4 = _mm_loadu_ps(p0 + 4 * 4);
+                                    __m128 _r5 = _mm_loadu_ps(p0 + 4 * 5);
+                                    __m128 _r6 = _mm_loadu_ps(p0 + 4 * 6);
+                                    __m128 _r7 = _mm_loadu_ps(p0 + 4 * 7);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _MM_TRANSPOSE4_PS(_r4, _r5, _r6, _r7);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4 * 1, _r4);
+                                    _mm_storeu_ps(pp + 4 * 2, _r1);
+                                    _mm_storeu_ps(pp + 4 * 3, _r5);
+                                    _mm_storeu_ps(pp + 4 * 4, _r2);
+                                    _mm_storeu_ps(pp + 4 * 5, _r6);
+                                    _mm_storeu_ps(pp + 4 * 6, _r3);
+                                    _mm_storeu_ps(pp + 4 * 7, _r7);
+                                    pp += 32;
+                                    p0 += N * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[4 * 1];
+                                    pp[2] = p0[4 * 2];
+                                    pp[3] = p0[4 * 3];
+                                    pp[4] = p0[4 * 4];
+                                    pp[5] = p0[4 * 5];
+                                    pp[6] = p0[4 * 6];
+                                    pp[7] = p0[4 * 7];
+                                    pp += 8;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 1)
+                            {
+                                const float* p0 = B.row(k) + (j + jj);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                                    _mm_storeu_ps(pp + 4, _mm_loadu_ps(p0 + 4));
+                                    pp += 8;
+                                    p0 += N;
+                                }
                             }
                         }
                         for (; jj + 3 < max_jj; jj += 4)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __AVX__
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = B.row((k + kk) / elempack) + (j + jj) * elempack + (k + kk) % elempack;
+                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
 
-                                pp[0] = p0[0];
-                                pp[1] = p0[1 * elempack];
-                                pp[2] = p0[2 * elempack];
-                                pp[3] = p0[3 * elempack];
-                                pp += 4;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p0 + 16 * 1);
+                                    __m512 _r2 = _mm512_loadu_ps(p0 + 16 * 2);
+                                    __m512 _r3 = _mm512_loadu_ps(p0 + 16 * 3);
+                                    transpose16x4_ps(_r0, _r1, _r2, _r3);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16 * 1, _r1);
+                                    _mm512_storeu_ps(pp + 16 * 2, _r2);
+                                    _mm512_storeu_ps(pp + 16 * 3, _r3);
+                                    pp += 64;
+                                    p0 += N * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[16 * 1];
+                                    pp[2] = p0[16 * 2];
+                                    pp[3] = p0[16 * 3];
+                                    pp += 4;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p0 + 8 * 1);
+                                    __m256 _r2 = _mm256_loadu_ps(p0 + 8 * 2);
+                                    __m256 _r3 = _mm256_loadu_ps(p0 + 8 * 3);
+                                    transpose8x4_ps(_r0, _r1, _r2, _r3);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8 * 1, _r1);
+                                    _mm256_storeu_ps(pp + 8 * 2, _r2);
+                                    _mm256_storeu_ps(pp + 8 * 3, _r3);
+                                    pp += 32;
+                                    p0 += N * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[8 * 1];
+                                    pp[2] = p0[8 * 2];
+                                    pp[3] = p0[8 * 3];
+                                    pp += 4;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX__
+                            if (elempack == 4)
+                            {
+                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p0 + 4 * 1);
+                                    __m128 _r2 = _mm_loadu_ps(p0 + 4 * 2);
+                                    __m128 _r3 = _mm_loadu_ps(p0 + 4 * 3);
+                                    _MM_TRANSPOSE4_PS(_r0, _r1, _r2, _r3);
+                                    _mm_storeu_ps(pp, _r0);
+                                    _mm_storeu_ps(pp + 4 * 1, _r1);
+                                    _mm_storeu_ps(pp + 4 * 2, _r2);
+                                    _mm_storeu_ps(pp + 4 * 3, _r3);
+                                    pp += 16;
+                                    p0 += N * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[4 * 1];
+                                    pp[2] = p0[4 * 2];
+                                    pp[3] = p0[4 * 3];
+                                    pp += 4;
+                                    p0 += 1;
+                                }
+                            }
+                            if (elempack == 1)
+                            {
+                                const float* p0 = B.row(k) + (j + jj);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                                    pp += 4;
+                                    p0 += N;
+                                }
                             }
                         }
 #endif // __SSE2__
                         for (; jj + 1 < max_jj; jj += 2)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = B.row((k + kk) / elempack) + (j + jj) * elempack + (k + kk) % elempack;
+                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
 
-                                pp[0] = p0[0];
-                                pp[1] = p0[1 * elempack];
-                                pp += 2;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    __m512 _r0 = _mm512_loadu_ps(p0);
+                                    __m512 _r1 = _mm512_loadu_ps(p0 + 16);
+                                    transpose16x2_ps(_r0, _r1);
+                                    _mm512_storeu_ps(pp, _r0);
+                                    _mm512_storeu_ps(pp + 16, _r1);
+                                    pp += 32;
+                                    p0 += N * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[16];
+                                    pp += 2;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    __m256 _r0 = _mm256_loadu_ps(p0);
+                                    __m256 _r1 = _mm256_loadu_ps(p0 + 8);
+                                    transpose8x2_ps(_r0, _r1);
+                                    _mm256_storeu_ps(pp, _r0);
+                                    _mm256_storeu_ps(pp + 8, _r1);
+                                    pp += 16;
+                                    p0 += N * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[8];
+                                    pp += 2;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX__
+                            if (elempack == 4)
+                            {
+                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    __m128 _r0 = _mm_loadu_ps(p0);
+                                    __m128 _r1 = _mm_loadu_ps(p0 + 4);
+                                    __m128 _tmp0 = _mm_unpacklo_ps(_r0, _r1);
+                                    __m128 _tmp1 = _mm_unpackhi_ps(_r0, _r1);
+                                    _mm_storeu_ps(pp, _tmp0);
+                                    _mm_storeu_ps(pp + 4, _tmp1);
+                                    pp += 8;
+                                    p0 += N * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[4];
+                                    pp += 2;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __SSE2__
+                            if (elempack == 1)
+                            {
+                                const float* p0 = B.row(k) + (j + jj);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp[1] = p0[1];
+                                    pp += 2;
+                                    p0 += N;
+                                }
                             }
                         }
                         for (; jj < max_jj; jj += 1)
                         {
-                            for (int kk = 0; kk < max_kk; kk++)
+#if __SSE2__
+#if __AVX__
+#if __AVX512F__
+                            if (elempack == 16)
                             {
-                                const float* p0 = B.row((k + kk) / elempack) + (j + jj) * elempack + (k + kk) % elempack;
+                                const float* p0 = B.row(k / 16) + (j + jj) * 16;
 
-                                pp[0] = p0[0];
-                                pp += 1;
+                                int kk = 0;
+                                for (; kk + 15 < max_kk; kk += 16)
+                                {
+                                    _mm512_storeu_ps(pp, _mm512_loadu_ps(p0));
+                                    pp += 16;
+                                    p0 += N * 16;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp += 1;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX512F__
+                            if (elempack == 8)
+                            {
+                                const float* p0 = B.row(k / 8) + (j + jj) * 8;
+
+                                int kk = 0;
+                                for (; kk + 7 < max_kk; kk += 8)
+                                {
+                                    _mm256_storeu_ps(pp, _mm256_loadu_ps(p0));
+                                    pp += 8;
+                                    p0 += N * 8;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp += 1;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __AVX__
+                            if (elempack == 4)
+                            {
+                                const float* p0 = B.row(k / 4) + (j + jj) * 4;
+
+                                int kk = 0;
+                                for (; kk + 3 < max_kk; kk += 4)
+                                {
+                                    _mm_storeu_ps(pp, _mm_loadu_ps(p0));
+                                    pp += 4;
+                                    p0 += N * 4;
+                                }
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp += 1;
+                                    p0 += 1;
+                                }
+                            }
+#endif // __SSE2__
+                            if (elempack == 1)
+                            {
+                                const float* p0 = B.row(k) + (j + jj);
+
+                                int kk = 0;
+                                for (; kk < max_kk; kk++)
+                                {
+                                    pp[0] = p0[0];
+                                    pp += 1;
+                                    p0 += N;
+                                }
                             }
                         }
                     }
@@ -1872,57 +3185,7 @@ static int gemm_x86(const Mat& A, const Mat& B, const Mat& C, Mat& top_blob, int
                                         __m256 _re = _mm256_loadu_ps(pC + N * 14);
                                         __m256 _rf = _mm256_loadu_ps(pC + N * 15);
 
-                                        // transpose8x16
-                                        __m256 _tmp0 = _mm256_unpacklo_ps(_r0, _r1);
-                                        __m256 _tmp1 = _mm256_unpackhi_ps(_r0, _r1);
-                                        __m256 _tmp2 = _mm256_unpacklo_ps(_r2, _r3);
-                                        __m256 _tmp3 = _mm256_unpackhi_ps(_r2, _r3);
-                                        __m256 _tmp4 = _mm256_unpacklo_ps(_r4, _r5);
-                                        __m256 _tmp5 = _mm256_unpackhi_ps(_r4, _r5);
-                                        __m256 _tmp6 = _mm256_unpacklo_ps(_r6, _r7);
-                                        __m256 _tmp7 = _mm256_unpackhi_ps(_r6, _r7);
-                                        __m256 _tmp8 = _mm256_unpacklo_ps(_r8, _r9);
-                                        __m256 _tmp9 = _mm256_unpackhi_ps(_r8, _r9);
-                                        __m256 _tmpa = _mm256_unpacklo_ps(_ra, _rb);
-                                        __m256 _tmpb = _mm256_unpackhi_ps(_ra, _rb);
-                                        __m256 _tmpc = _mm256_unpacklo_ps(_rc, _rd);
-                                        __m256 _tmpd = _mm256_unpackhi_ps(_rc, _rd);
-                                        __m256 _tmpe = _mm256_unpacklo_ps(_re, _rf);
-                                        __m256 _tmpf = _mm256_unpackhi_ps(_re, _rf);
-
-                                        __m256 _tmpg = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(1, 0, 1, 0));
-                                        __m256 _tmph = _mm256_shuffle_ps(_tmp0, _tmp2, _MM_SHUFFLE(3, 2, 3, 2));
-                                        __m256 _tmpi = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(1, 0, 1, 0));
-                                        __m256 _tmpj = _mm256_shuffle_ps(_tmp1, _tmp3, _MM_SHUFFLE(3, 2, 3, 2));
-                                        __m256 _tmpk = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(1, 0, 1, 0));
-                                        __m256 _tmpl = _mm256_shuffle_ps(_tmp4, _tmp6, _MM_SHUFFLE(3, 2, 3, 2));
-                                        __m256 _tmpm = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(1, 0, 1, 0));
-                                        __m256 _tmpn = _mm256_shuffle_ps(_tmp5, _tmp7, _MM_SHUFFLE(3, 2, 3, 2));
-                                        __m256 _tmpo = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(1, 0, 1, 0));
-                                        __m256 _tmpp = _mm256_shuffle_ps(_tmp8, _tmpa, _MM_SHUFFLE(3, 2, 3, 2));
-                                        __m256 _tmpq = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(1, 0, 1, 0));
-                                        __m256 _tmpr = _mm256_shuffle_ps(_tmp9, _tmpb, _MM_SHUFFLE(3, 2, 3, 2));
-                                        __m256 _tmps = _mm256_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(1, 0, 1, 0));
-                                        __m256 _tmpt = _mm256_shuffle_ps(_tmpc, _tmpe, _MM_SHUFFLE(3, 2, 3, 2));
-                                        __m256 _tmpu = _mm256_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(1, 0, 1, 0));
-                                        __m256 _tmpv = _mm256_shuffle_ps(_tmpd, _tmpf, _MM_SHUFFLE(3, 2, 3, 2));
-
-                                        _r0 = _mm256_permute2f128_ps(_tmpg, _tmpk, _MM_SHUFFLE(0, 2, 0, 0));
-                                        _r1 = _mm256_permute2f128_ps(_tmpo, _tmps, _MM_SHUFFLE(0, 2, 0, 0));
-                                        _r2 = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 2, 0, 0));
-                                        _r3 = _mm256_permute2f128_ps(_tmpp, _tmpt, _MM_SHUFFLE(0, 2, 0, 0));
-                                        _r4 = _mm256_permute2f128_ps(_tmpi, _tmpm, _MM_SHUFFLE(0, 2, 0, 0));
-                                        _r5 = _mm256_permute2f128_ps(_tmpq, _tmpu, _MM_SHUFFLE(0, 2, 0, 0));
-                                        _r6 = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 2, 0, 0));
-                                        _r7 = _mm256_permute2f128_ps(_tmpr, _tmpv, _MM_SHUFFLE(0, 2, 0, 0));
-                                        _r8 = _mm256_permute2f128_ps(_tmpg, _tmpk, _MM_SHUFFLE(0, 3, 0, 1));
-                                        _r9 = _mm256_permute2f128_ps(_tmpo, _tmps, _MM_SHUFFLE(0, 3, 0, 1));
-                                        _ra = _mm256_permute2f128_ps(_tmph, _tmpl, _MM_SHUFFLE(0, 3, 0, 1));
-                                        _rb = _mm256_permute2f128_ps(_tmpp, _tmpt, _MM_SHUFFLE(0, 3, 0, 1));
-                                        _rc = _mm256_permute2f128_ps(_tmpi, _tmpm, _MM_SHUFFLE(0, 3, 0, 1));
-                                        _rd = _mm256_permute2f128_ps(_tmpq, _tmpu, _MM_SHUFFLE(0, 3, 0, 1));
-                                        _re = _mm256_permute2f128_ps(_tmpj, _tmpn, _MM_SHUFFLE(0, 3, 0, 1));
-                                        _rf = _mm256_permute2f128_ps(_tmpr, _tmpv, _MM_SHUFFLE(0, 3, 0, 1));
+                                        transpose8x16_ps(_r0, _r1, _r2, _r3, _r4, _r5, _r6, _r7, _r8, _r9, _ra, _rb, _rc, _rd, _re, _rf);
 
                                         _sum0 = _mm512_insertf32x8(_mm512_castps256_ps512(_r0), _r1, 1);
                                         _sum1 = _mm512_insertf32x8(_mm512_castps256_ps512(_r2), _r3, 1);
