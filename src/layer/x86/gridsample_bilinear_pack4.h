@@ -87,7 +87,7 @@ static void gridsample_2d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
             __m128i i_se_offset = _mm_add_epi32(i_sw_offset, vElempacki);
 #else
             __m128 nw_offset = _mm_add_ps(_mm_mul_ps(_mm_add_ps(_mm_mul_ps(y_n, vImgWf), x_w), vElempackf),
-                                        _mm_set_ps(3, 2, 1, 0));
+                                          _mm_set_ps(3, 2, 1, 0));
             __m128 ne_offset = _mm_add_ps(nw_offset, vElempackf);
             __m128 sw_offset = _mm_add_ps(nw_offset, _mm_mul_ps(vImgWf, vElempackf));
             __m128 se_offset = _mm_add_ps(sw_offset, vElempackf);
@@ -728,7 +728,6 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
                 __m128 z_t = floor_ps(gz);
 #endif // __SSE4_1__
 
-
                 __m128 w = _mm_sub_ps(gx, x_w);
                 __m128 e = _mm_sub_ps(v1fp4, w);
                 __m128 n = _mm_sub_ps(gy, y_n);
@@ -802,7 +801,7 @@ static void gridsample_3d_bilinear_align0_zeros_blob_pack4(const Mat& src, Mat& 
                 __m128 tne_offset = _mm_add_ps(tnw_offset, vElempackf);
                 __m128 tsw_offset = _mm_add_ps(tnw_offset, _mm_mul_ps(vImgWf, vElempackf));
                 __m128 tse_offset = _mm_add_ps(tsw_offset, vElempackf);
-                       
+
                 __m128 bnw_offset = _mm_add_ps(_mm_mul_ps(_mm_mul_ps(vImgWf, vImgHf), vElempackf), tnw_offset);
                 __m128 bne_offset = _mm_add_ps(bnw_offset, vElempackf);
                 __m128 bsw_offset = _mm_add_ps(bnw_offset, _mm_mul_ps(vImgWf, vElempackf));

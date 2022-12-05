@@ -767,16 +767,16 @@ static NCNN_FORCEINLINE __m128 floor_ps(const __m128 x)
 
     // negative_fix = ((x < truncated_with_sign) ? 1.0f : 0.0f);
     __m128 negative_fix = _mm_and_ps(
-        _mm_cmplt_ps(x, truncated_with_sign),
-        _mm_set_ps1(1.0f));
+                              _mm_cmplt_ps(x, truncated_with_sign),
+                              _mm_set_ps1(1.0f));
 
     // fixed_result = truncated_with_sign - negative_fix;
     __m128 fixed_result = _mm_sub_ps(truncated_with_sign, negative_fix);
 
     // return ((x && no_fraction) || (!no_fraction && fixed_result));
     return _mm_or_ps(
-        _mm_and_ps(x, no_fraction),
-        _mm_andnot_ps(no_fraction, fixed_result));
+               _mm_and_ps(x, no_fraction),
+               _mm_andnot_ps(no_fraction, fixed_result));
 }
 
 static NCNN_FORCEINLINE __m128 ceil_ps(const __m128 x)
@@ -808,18 +808,18 @@ static NCNN_FORCEINLINE __m128 ceil_ps(const __m128 x)
 
     // positive_fix = ((x > -0.0f) && (x > truncated_with_sign) ? -1.0f : 0.0f);
     __m128 positive_fix = _mm_and_ps(
-        _mm_and_ps(
-            _mm_cmpgt_ps(x, magic_negative_zero),
-            _mm_cmpgt_ps(x, truncated_with_sign)),
-        _mm_set_ps1(-1.0f));
+                              _mm_and_ps(
+                                  _mm_cmpgt_ps(x, magic_negative_zero),
+                                  _mm_cmpgt_ps(x, truncated_with_sign)),
+                              _mm_set_ps1(-1.0f));
 
     // fixed_result = truncated_with_sign - positive_fix;
     __m128 fixed_result = _mm_sub_ps(truncated_with_sign, positive_fix);
 
     // return ((x && no_fraction) || (!no_fraction && fixed_result));
     return _mm_or_ps(
-        _mm_and_ps(x, no_fraction),
-        _mm_andnot_ps(no_fraction, fixed_result));
+               _mm_and_ps(x, no_fraction),
+               _mm_andnot_ps(no_fraction, fixed_result));
 }
 
 #endif // SSE_MATHFUN_H
